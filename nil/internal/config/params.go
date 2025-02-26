@@ -20,12 +20,14 @@ const (
 	NameValidators = "curr_validators"
 	NameGasPrice   = "gas_price"
 	NameL1Block    = "l1block"
+	NameSudoKey    = "sudo_key"
 )
 
 var ParamsList = []IConfigParam{
 	new(ParamValidators),
 	new(ParamGasPrice),
 	new(ParamL1BlockInfo),
+	new(ParamSudoKey),
 }
 
 type Pubkey [ValidatorPubkeySize]byte
@@ -109,6 +111,20 @@ func (p *ParamL1BlockInfo) Name() string {
 
 func (p *ParamL1BlockInfo) Accessor() *ParamAccessor {
 	return CreateAccessor[ParamL1BlockInfo]()
+}
+
+type ParamSudoKey struct {
+	PublicKey []byte `json:"pubKey" yaml:"pubKey" ssz-max:"65"`
+}
+
+var _ IConfigParam = new(ParamSudoKey)
+
+func (p *ParamSudoKey) Name() string {
+	return NameSudoKey
+}
+
+func (p *ParamSudoKey) Accessor() *ParamAccessor {
+	return CreateAccessor[ParamSudoKey]()
 }
 
 func CreateAccessor[T any, paramPtr IConfigParamPointer[T]]() *ParamAccessor {
@@ -281,6 +297,10 @@ func GetParamGasPrice(c ConfigAccessor) (*ParamGasPrice, error) {
 }
 
 func SetParamGasPrice(c ConfigAccessor, params *ParamGasPrice) error {
+	return setParamImpl(c, params)
+}
+
+func SetParamSudoKey(c ConfigAccessor, params *ParamSudoKey) error {
 	return setParamImpl(c, params)
 }
 

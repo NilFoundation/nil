@@ -301,7 +301,7 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 		return err
 	}
 
-	mainPrivateKey, err := execution.LoadMainKeys(cfg.MainKeysPath)
+	mainPrivateKey, err := execution.LoadKeys(cfg.MainKeysPath)
 	if err != nil {
 		return err
 	}

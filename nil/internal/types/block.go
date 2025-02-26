@@ -48,6 +48,8 @@ type BlockData struct {
 	BaseFee             Value            `json:"gasPrice" ch:"gas_price"`
 	GasUsed             Gas              `json:"gasUsed" ch:"gas_used"`
 	L1BlockNumber       uint64           `json:"l1BlockNumber" ch:"l1_block_number"`
+	RollbackCounter     uint32           `json:"rollbackCounter" ch:"rollback_counter"`
+	PatchLevel          uint32           `json:"patchLevel" ch:"patch_level"`
 }
 
 type ConsensusParams struct {

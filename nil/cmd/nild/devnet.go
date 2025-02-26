@@ -2,7 +2,6 @@
 package main
 
 import (
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"os"
@@ -131,30 +130,43 @@ func (devnet devnet) generateZeroState(nShards uint32, servers []server) (*execu
 			})
 		}
 	}
-	mainKeyPath := devnet.spec.NildCredentialsDir + "/keys.yaml"
-	mainPrivateKey, err := execution.LoadMainKeys(mainKeyPath)
-	mainPublicKey := crypto.CompressPubkey(&mainPrivateKey.PublicKey)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	mainPublicKey, err := ensurePublicKey(devnet.spec.NildCredentialsDir + "/keys.yaml")
+	if err != nil {
 		return nil, err
 	}
+	sudoPublicKey, err := ensurePublicKey(devnet.spec.NildCredentialsDir + "/sudo.yaml")
 	if err != nil {
-		var mainPrivateKey *ecdsa.PrivateKey
-
-		mainPrivateKey, mainPublicKey, err = nilcrypto.GenerateKeyPair()
-		if err != nil {
-			return nil, err
-		}
-		if err := execution.DumpMainKeys(mainKeyPath, mainPrivateKey); err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 	zeroState, err := execution.CreateDefaultZeroStateConfig(mainPublicKey)
 	if err != nil {
 		return nil, err
 	}
+	zeroState.ConfigParams.SudoKey = config.ParamSudoKey{PublicKey: sudoPublicKey}
 	zeroState.ConfigParams.Validators = config.ParamValidators{Validators: validators}
 
 	return zeroState, nil
+}
+
+func ensurePublicKey(keyPath string) ([]byte, error) {
+	privateKey, err := execution.LoadKeys(keyPath)
+	if err == nil {
+		publicKey := crypto.CompressPubkey(&privateKey.PublicKey)
+		return publicKey, nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		// if the file exists but is invalid, return the error
+		return nil, err
+	}
+
+	privateKey, publicKey, err := nilcrypto.GenerateKeyPair()
+	if err != nil {
+		return nil, err
+	}
+	if err := execution.DumpKeys(keyPath, privateKey); err != nil {
+		return nil, err
+	}
+	return publicKey, nil
 }
 
 func genDevnet(cmd *cobra.Command, args []string) error {

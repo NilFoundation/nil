@@ -685,7 +685,7 @@ func (a *verifySignature) Run(input []byte) ([]byte, error) {
 	pubkey, ok1 := values[0].([]byte)
 	hash, ok2 := values[1].(*big.Int)
 	sig, ok3 := values[2].([]byte)
-	if !(ok1 && ok2 && ok3 && len(sig) == 65) {
+	if !(ok1 && ok2 && ok3 && len(sig) == common.SignatureSize) {
 		return common.EmptyHash[:], nil
 	}
 	result := crypto.VerifySignature(pubkey, common.BigToHash(hash).Bytes(), sig[:64])

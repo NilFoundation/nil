@@ -37,7 +37,7 @@ func (s *NilLoadGeneratorRpc) SetupTest() {
 	time.Sleep(time.Second)
 
 	keyFile := s.T().TempDir() + "/key.yaml"
-	s.Require().NoError(execution.DumpMainKeys(keyFile, execution.MainPrivateKey))
+	s.Require().NoError(execution.DumpKeys(keyFile, execution.MainPrivateKey))
 
 	s.runErrCh = make(chan error, 1)
 	s.Wg.Add(1)

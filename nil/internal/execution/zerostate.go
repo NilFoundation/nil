@@ -24,14 +24,15 @@ type ContractDescr struct {
 	CtorArgs []any         `yaml:"ctorArgs,omitempty"`
 }
 
-type MainKeys struct {
-	MainPrivateKey hexutil.Bytes `yaml:"mainPrivateKey"`
-	MainPublicKey  hexutil.Bytes `yaml:"mainPublicKey"`
+type KeyPair struct {
+	PrivateKey hexutil.Bytes `yaml:"mainPrivateKey"`
+	PublicKey  hexutil.Bytes `yaml:"mainPublicKey"`
 }
 
 type ConfigParams struct {
 	Validators config.ParamValidators `yaml:"validators,omitempty"`
 	GasPrice   config.ParamGasPrice   `yaml:"gasPrice"`
+	SudoKey    config.ParamSudoKey    `yaml:"sudoKey,omitempty"`
 }
 
 type ZeroStateConfig struct {
@@ -67,9 +68,9 @@ func (cfg *ZeroStateConfig) GetValidators() []config.ListValidators {
 	return cfg.ConfigParams.Validators.Validators
 }
 
-func DumpMainKeys(fname string, mainPrivateKey *ecdsa.PrivateKey) error {
-	mainPublicKey := crypto.CompressPubkey(&mainPrivateKey.PublicKey)
-	keys := MainKeys{crypto.FromECDSA(mainPrivateKey), mainPublicKey}
+func DumpKeys(fname string, privateKey *ecdsa.PrivateKey) error {
+	publicKey := crypto.CompressPubkey(&privateKey.PublicKey)
+	keys := KeyPair{crypto.FromECDSA(privateKey), publicKey}
 
 	data, err := yaml.Marshal(&keys)
 	if err != nil {
@@ -86,8 +87,8 @@ func DumpMainKeys(fname string, mainPrivateKey *ecdsa.PrivateKey) error {
 	return err
 }
 
-func LoadMainKeys(fname string) (*ecdsa.PrivateKey, error) {
-	var keys MainKeys
+func LoadKeys(fname string) (*ecdsa.PrivateKey, error) {
+	var keys KeyPair
 
 	data, err := os.ReadFile(fname)
 	if err != nil {
@@ -96,7 +97,7 @@ func LoadMainKeys(fname string) (*ecdsa.PrivateKey, error) {
 	if err := yaml.Unmarshal(data, &keys); err != nil {
 		return nil, err
 	}
-	mainPrivateKey, err := crypto.ToECDSA(keys.MainPrivateKey)
+	mainPrivateKey, err := crypto.ToECDSA(keys.PrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +132,10 @@ func (es *ExecutionState) GenerateZeroState(stateConfig *ZeroStateConfig) error 
 			return err
 		}
 		err = config.SetParamGasPrice(cfgAccessor, &stateConfig.ConfigParams.GasPrice)
+		if err != nil {
+			return err
+		}
+		err = config.SetParamSudoKey(cfgAccessor, &stateConfig.ConfigParams.SudoKey)
 		if err != nil {
 			return err
 		}
