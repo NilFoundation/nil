@@ -49,6 +49,9 @@ pb: pb_rawapi pb_ibft pb_synccommittee
 
 SOL_FILES := $(wildcard nil/contracts/solidity/tests/*.sol nil/contracts/solidity/*.sol)
 BIN_FILES := $(patsubst nil/contracts/solidity/%.sol, contracts/compiled/%.bin, $(SOL_FILES))
+CHECK_LOCKS_DIRECTORIES := ./nil/internal/network
+# TODO: Uncomment the line below when all checks have passed to run checklocks across all directories
+# CHECK_LOCKS_DIRECTORIES := $(shell find ./nil -type f -name "*.go" | xargs -I {} dirname {} | sort -u)
 
 .PHONY: compile-bins
 compile-bins:
@@ -64,6 +67,10 @@ lint: generated
 	gofumpt -l -w .
 	gci write . --skip-generated --skip-vendor
 	golangci-lint run
+	@for dir in $(CHECK_LOCKS_DIRECTORIES); do \
+		echo "  >> Checking locks correctness in $$dir"; \
+		GOFLAGS="-tags=test" go run gvisor.dev/gvisor/tools/checklocks/cmd/checklocks "$$dir" || exit 1; \
+	done
 
 rpcspec:
 	go run nil/cmd/spec_generator/spec_generator.go
