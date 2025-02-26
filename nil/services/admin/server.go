@@ -32,6 +32,7 @@ func StartAdminServer(ctx context.Context, cfg *ServerConfig, logger zerolog.Log
 
 	// GET http:/./set_log_level?level=info
 	srv.mux.HandleFunc("/set_log_level", srv.setLogLevel)
+	srv.mux.HandleFunc("/set_libp2p_log_level", srv.setLibp2pLogLevel)
 	srv.mux.HandleFunc("/ping", srv.ping)
 
 	if err := srv.serve(ctx); err != nil {
@@ -66,16 +67,26 @@ func (s *adminServer) serve(ctx context.Context) error {
 	return nil
 }
 
-func (s *adminServer) setLogLevel(w http.ResponseWriter, r *http.Request) {
-	lvl := r.URL.Query().Get("level")
-	err := logging.TrySetupGlobalLevel(lvl)
+func (s *adminServer) writeResponse(w http.ResponseWriter, err error, okMsg string) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = fmt.Fprintf(w, "error: %s", err.Error())
 	} else {
 		w.WriteHeader(http.StatusOK)
-		_, _ = fmt.Fprintf(w, "set to %s", lvl)
+		_, _ = fmt.Fprint(w, okMsg)
 	}
+}
+
+func (s *adminServer) setLogLevel(w http.ResponseWriter, r *http.Request) {
+	lvl := r.URL.Query().Get("level")
+	err := logging.TrySetupGlobalLevel(lvl)
+	s.writeResponse(w, err, "set to "+lvl)
+}
+
+func (s *adminServer) setLibp2pLogLevel(w http.ResponseWriter, r *http.Request) {
+	lvl := r.URL.Query().Get("level")
+	err := logging.SetLibp2pLogLevel(lvl)
+	s.writeResponse(w, err, "set to "+lvl)
 }
 
 func (s *adminServer) ping(w http.ResponseWriter, r *http.Request) {

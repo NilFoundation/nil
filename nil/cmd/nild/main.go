@@ -134,6 +134,7 @@ func parseArgs() *nildconfig.Config {
 	}
 
 	logLevel := rootCmd.PersistentFlags().StringP("log-level", "l", "info", "log level: trace|debug|info|warn|error|fatal|panic")
+	libp2pLogLevel := rootCmd.PersistentFlags().String("libp2p-log-level", "", "log level: debug|info|warn|error|fatal|dpanic|panic")
 	rootCmd.PersistentFlags().StringP("config", "c", "", "config file (none by default)")
 
 	rootCmd.PersistentFlags().StringVar(&cfg.DB.Path, "db-path", cfg.DB.Path, "path to database")
@@ -225,6 +226,7 @@ func parseArgs() *nildconfig.Config {
 	check.PanicIfErr(rootCmd.Execute())
 
 	logging.SetupGlobalLogger(*logLevel)
+	check.PanicIfErr(logging.SetLibp2pLogLevel(*libp2pLogLevel))
 
 	if cfg.Replay.BlockIdLast == 0 {
 		cfg.Replay.BlockIdLast = cfg.Replay.BlockIdFirst
