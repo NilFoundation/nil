@@ -15,6 +15,7 @@ var (
 )
 
 var (
+	ErrTaskNotFound      = errors.New("task with the specified id is not found")
 	ErrTaskInvalidStatus = errors.New("task has invalid status")
 	ErrTaskWrongExecutor = errors.New("task belongs to another executor")
 )
@@ -44,6 +45,9 @@ const (
 
 	// TaskErrTerminated indicates that the task was explicitly terminated prior to completion.
 	TaskErrTerminated
+
+	// TaskErrCancelled indicates that task execution was cancelled before starting/completion.
+	TaskErrCancelled
 
 	// TaskErrNotSupportedType indicates that an unsupported or unrecognized type was encountered by the executor.
 	TaskErrNotSupportedType

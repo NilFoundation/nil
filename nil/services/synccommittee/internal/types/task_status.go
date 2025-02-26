@@ -15,6 +15,7 @@ const (
 	Running
 	Failed
 	Completed
+	Cancelled
 )
 
 var TaskStatuses = map[string]TaskStatus{
@@ -22,6 +23,7 @@ var TaskStatuses = map[string]TaskStatus{
 	"WaitingForExecutor": WaitingForExecutor,
 	"Running":            Running,
 	"Failed":             Failed,
+	"Cancelled":          Cancelled,
 }
 
 func (t *TaskStatus) Set(str string) error {

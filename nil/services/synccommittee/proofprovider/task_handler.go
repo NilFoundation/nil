@@ -90,17 +90,13 @@ func (h *taskHandler) prepareTasksForBlock(providerTask *types.Task) []*types.Ta
 	taskEntries := make([]*types.TaskEntry, 0)
 
 	// Final task, depends on partial proofs, aggregate FRI and consistency checks
-	mergeProofTaskEntry := types.NewMergeProofTaskEntry(
-		providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, currentTime,
-	)
+	mergeProofTaskEntry := types.NewMergeProofTaskEntry(providerTask, currentTime)
 	taskEntries = append(taskEntries, mergeProofTaskEntry)
 
 	// Third level of circuit-dependent tasks
 	consistencyCheckTasks := make(map[types.CircuitType]*types.TaskEntry)
 	for ct := range types.Circuits() {
-		checkTaskEntry := types.NewFRIConsistencyCheckTaskEntry(
-			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct, currentTime,
-		)
+		checkTaskEntry := types.NewFRIConsistencyCheckTaskEntry(providerTask, ct, currentTime)
 		taskEntries = append(taskEntries, checkTaskEntry)
 		consistencyCheckTasks[ct] = checkTaskEntry
 
@@ -109,9 +105,7 @@ func (h *taskHandler) prepareTasksForBlock(providerTask *types.Task) []*types.Ta
 	}
 
 	// aggregate FRI task depends on all the following tasks
-	aggFRITaskEntry := types.NewAggregateFRITaskEntry(
-		providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, currentTime,
-	)
+	aggFRITaskEntry := types.NewAggregateFRITaskEntry(providerTask, currentTime)
 	taskEntries = append(taskEntries, aggFRITaskEntry)
 	// Aggregate FRI task result must be forwarded to merge proof task
 	mergeProofTaskEntry.AddDependency(aggFRITaskEntry)
@@ -124,9 +118,7 @@ func (h *taskHandler) prepareTasksForBlock(providerTask *types.Task) []*types.Ta
 	// Second level of circuit-dependent tasks
 	combinedQTasks := make(map[types.CircuitType]*types.TaskEntry)
 	for ct := range types.Circuits() {
-		combinedQTaskEntry := types.NewCombinedQTaskEntry(
-			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct, currentTime,
-		)
+		combinedQTaskEntry := types.NewCombinedQTaskEntry(providerTask, ct, currentTime)
 		taskEntries = append(taskEntries, combinedQTaskEntry)
 		combinedQTasks[ct] = combinedQTaskEntry
 	}
@@ -138,9 +130,7 @@ func (h *taskHandler) prepareTasksForBlock(providerTask *types.Task) []*types.Ta
 	}
 
 	// aggregate challenge task depends on all the following tasks
-	aggChallengeTaskEntry := types.NewAggregateChallengeTaskEntry(
-		providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, currentTime,
-	)
+	aggChallengeTaskEntry := types.NewAggregateChallengeTaskEntry(providerTask, currentTime)
 	taskEntries = append(taskEntries, aggChallengeTaskEntry)
 
 	// aggregate challenges task result goes to all combined Q tasks
@@ -153,9 +143,7 @@ func (h *taskHandler) prepareTasksForBlock(providerTask *types.Task) []*types.Ta
 
 	// Create partial proof tasks (bottom level, no dependencies)
 	for ct := range types.Circuits() {
-		partialProveTaskEntry := types.NewPartialProveTaskEntry(
-			providerTask.BatchId, providerTask.ShardId, providerTask.BlockNum, providerTask.BlockHash, ct, currentTime,
-		)
+		partialProveTaskEntry := types.NewPartialProveTaskEntry(providerTask, ct, currentTime)
 		taskEntries = append(taskEntries, partialProveTaskEntry)
 
 		// Partial proof results go to all other levels of tasks

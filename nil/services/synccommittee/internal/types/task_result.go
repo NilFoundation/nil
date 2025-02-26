@@ -52,6 +52,15 @@ func (r *TaskResult) HasRetryableError() bool {
 	return !r.IsSuccess() && r.Error.CanBeRetried()
 }
 
+// HasCriticalError returns true if the task result indicates failure and the error cannot be retried.
+func (r *TaskResult) HasCriticalError() bool {
+	return !r.IsSuccess() && !r.Error.CanBeRetried()
+}
+
+func (r *TaskResult) Cancelled() bool {
+	return r.Error != nil && r.Error.ErrType == TaskErrCancelled
+}
+
 // ValidateForTask checks the correctness of the TaskResult
 // against the given TaskEntry and returns an error if invalid.
 func (r *TaskResult) ValidateForTask(entry *TaskEntry) error {
@@ -59,7 +68,12 @@ func (r *TaskResult) ValidateForTask(entry *TaskEntry) error {
 		return fmt.Errorf("task result's taskId=%s does not match task entry's taskId=%s", r.TaskId, entry.Task.Id)
 	}
 
-	if r.Sender == UnknownExecutorId || r.Sender != entry.Owner {
+	if r.Cancelled() {
+		// Cancellation can be triggered by a different executor for a task in any status
+		return nil
+	}
+
+	if r.Sender != entry.Owner {
 		return fmt.Errorf(
 			"%w: taskId=%v, taskStatus=%v, taskOwner=%v, requestSenderId=%v",
 			ErrTaskWrongExecutor, entry.Task.Id, entry.Status, entry.Owner, r.Sender,
@@ -126,6 +140,17 @@ func NewFailureProverTaskResult(
 		TaskId: taskId,
 		Sender: sender,
 		Error:  err,
+	}
+}
+
+func NewTaskCancelledResult(
+	taskId TaskId,
+	sender TaskExecutorId,
+) *TaskResult {
+	return &TaskResult{
+		TaskId: taskId,
+		Sender: sender,
+		Error:  NewTaskExecError(TaskErrCancelled, "task cancellation requested"),
 	}
 }
 

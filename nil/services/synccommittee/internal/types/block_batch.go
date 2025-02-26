@@ -121,11 +121,11 @@ func (b *BlockBatch) AllBlocks() []*jsonrpc.RPCBlock {
 func (b *BlockBatch) CreateProofTasks(currentTime time.Time) ([]*TaskEntry, error) {
 	taskEntries := make([]*TaskEntry, 0, len(b.ChildBlocks)+1)
 
-	aggregateProofsTask := NewAggregateProofsTaskEntry(b.Id, b.MainShardBlock, currentTime)
+	aggregateProofsTask := NewAggregateProofsTaskEntry(b.Id, b.ParentId, b.MainShardBlock, currentTime)
 	taskEntries = append(taskEntries, aggregateProofsTask)
 
 	for _, childBlock := range b.ChildBlocks {
-		blockProofTask, err := NewBlockProofTaskEntry(b.Id, aggregateProofsTask, childBlock, currentTime)
+		blockProofTask, err := NewBlockProofTaskEntry(b.Id, b.ParentId, aggregateProofsTask, childBlock, currentTime)
 		if err != nil {
 			return nil, err
 		}

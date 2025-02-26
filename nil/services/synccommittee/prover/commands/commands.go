@@ -42,7 +42,7 @@ func makeCmdCommon(config CommandConfig) cmdCommon {
 
 func circuitTypeToArg(ct types.CircuitType) string {
 	switch ct {
-	case types.None:
+	case types.CircuitNone:
 		return "none"
 	case types.CircuitBytecode:
 		return "bytecode"

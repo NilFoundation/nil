@@ -87,7 +87,7 @@ func (s *TaskHandlerTestSuite) TestHandleAggregateProofsTask() {
 	now := s.timer.NowTime()
 	executorId := testaide.RandomExecutorId()
 	mainBlock := testaide.NewMainShardBlock()
-	taskEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), mainBlock, now)
+	taskEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), nil, mainBlock, now)
 	aggProofsTask := taskEntry.Task
 
 	err := s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
@@ -111,8 +111,8 @@ func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
 	now := s.timer.NowTime()
 	executorId := testaide.RandomExecutorId()
 	execBlock := testaide.NewExecutionShardBlock()
-	aggregateProofsEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), execBlock, now)
-	taskEntry, err := types.NewBlockProofTaskEntry(types.NewBatchId(), aggregateProofsEntry, execBlock, now)
+	aggregateProofsEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), nil, execBlock, now)
+	taskEntry, err := types.NewBlockProofTaskEntry(types.NewBatchId(), nil, aggregateProofsEntry, execBlock, now)
 	s.Require().NoError(err)
 
 	err = s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)

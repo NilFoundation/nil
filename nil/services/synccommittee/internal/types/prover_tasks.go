@@ -1,9 +1,12 @@
 package types
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"iter"
+	"maps"
 	"strconv"
 	"time"
 
@@ -17,7 +20,7 @@ import (
 type CircuitType uint8
 
 const (
-	None CircuitType = iota
+	CircuitNone CircuitType = iota
 	CircuitBytecode
 	CircuitReadWrite
 	CircuitZKEVM
@@ -105,19 +108,70 @@ func (s TaskIdSet) Put(id TaskId) {
 	s[id] = true
 }
 
+func (s TaskIdSet) Values() iter.Seq[TaskId] {
+	return maps.Keys(s)
+}
+
+func (s TaskIdSet) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if len(s) == 0 {
+		return buf.Bytes(), nil
+	}
+
+	if err := binary.Write(buf, binary.LittleEndian, uint64(len(s))); err != nil {
+		return nil, err
+	}
+
+	for id := range s {
+		if err := binary.Write(buf, binary.LittleEndian, id); err != nil {
+			return nil, err
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (s *TaskIdSet) UnmarshalBinary(data []byte) error {
+	if len(data) == 0 {
+		*s = make(TaskIdSet)
+		return nil
+	}
+
+	buf := bytes.NewReader(data)
+
+	var count uint64
+	if err := binary.Read(buf, binary.LittleEndian, &count); err != nil {
+		return err
+	}
+
+	*s = make(TaskIdSet, count)
+
+	for range count {
+		var id TaskId
+		if err := binary.Read(buf, binary.LittleEndian, &id); err != nil {
+			return err
+		}
+		(*s)[id] = true
+	}
+
+	return nil
+}
+
 // todo: declare separate task types for ProofProvider and Prover
 // https://www.notion.so/nilfoundation/Generic-Tasks-in-SyncCommittee-10ac614852608028b7ffcfd910deeef7?pvs=4
 
 // Task contains all the necessary data for either Prover or ProofProvider to perform computation
 type Task struct {
-	Id           TaskId            `json:"id"`
-	BatchId      BatchId           `json:"batchId"`
-	ShardId      types.ShardId     `json:"shardId"`
-	BlockNum     types.BlockNumber `json:"blockNum"`
-	BlockHash    common.Hash       `json:"blockHash"`
-	TaskType     TaskType          `json:"taskType"`
-	CircuitType  CircuitType       `json:"circuitType"`
-	ParentTaskId *TaskId           `json:"parentTaskId"`
+	Id            TaskId            `json:"id"`
+	BatchId       BatchId           `json:"batchId"`
+	ParentBatchId *BatchId          `json:"parentBatchId"`
+	ShardId       types.ShardId     `json:"shardId"`
+	BlockNum      types.BlockNumber `json:"blockNum"`
+	BlockHash     common.Hash       `json:"blockHash"`
+	TaskType      TaskType          `json:"taskType"`
+	CircuitType   CircuitType       `json:"circuitType"`
+	ParentTaskId  *TaskId           `json:"parentTaskId"`
 
 	// DependencyResults tracks the set of task results on which current task depends
 	DependencyResults map[TaskId]TaskResultDetails `json:"dependencyResults"`
@@ -206,16 +260,19 @@ func (t *TaskEntry) Start(executorId TaskExecutorId, currentTime time.Time) erro
 	return nil
 }
 
-// Terminate transitions the status of a running task to Completed or Failed based on the input.
+// Terminate transitions task to a terminal state based on the provided result.
 func (t *TaskEntry) Terminate(result *TaskResult, currentTime time.Time) error {
 	if err := result.ValidateForTask(t); err != nil {
 		return err
 	}
 
 	var newStatus TaskStatus
-	if result.IsSuccess() {
+	switch {
+	case result.IsSuccess():
 		newStatus = Completed
-	} else {
+	case result.Cancelled():
+		newStatus = Cancelled
+	default:
 		newStatus = Failed
 	}
 
@@ -285,15 +342,19 @@ func (t *Task) AsNewChildEntry(currentTime time.Time) *TaskEntry {
 }
 
 func NewAggregateProofsTaskEntry(
-	batchId BatchId, mainShardBlock *jsonrpc.RPCBlock, currentTime time.Time,
+	batchId BatchId,
+	parentBatchId *BatchId,
+	mainShardBlock *jsonrpc.RPCBlock,
+	currentTime time.Time,
 ) *TaskEntry {
 	task := Task{
-		Id:        NewTaskId(),
-		BatchId:   batchId,
-		ShardId:   mainShardBlock.ShardId,
-		BlockNum:  mainShardBlock.Number,
-		BlockHash: mainShardBlock.Hash,
-		TaskType:  AggregateProofs,
+		Id:            NewTaskId(),
+		BatchId:       batchId,
+		ParentBatchId: parentBatchId,
+		ShardId:       mainShardBlock.ShardId,
+		BlockNum:      mainShardBlock.Number,
+		BlockHash:     mainShardBlock.Hash,
+		TaskType:      AggregateProofs,
 	}
 	return &TaskEntry{
 		Task:    task,
@@ -303,7 +364,11 @@ func NewAggregateProofsTaskEntry(
 }
 
 func NewBlockProofTaskEntry(
-	batchId BatchId, aggregateProofsTask *TaskEntry, execShardBlock *jsonrpc.RPCBlock, currentTime time.Time,
+	batchId BatchId,
+	parentBatchId *BatchId,
+	aggregateProofsTask *TaskEntry,
+	execShardBlock *jsonrpc.RPCBlock,
+	currentTime time.Time,
 ) (*TaskEntry, error) {
 	if aggregateProofsTask == nil {
 		return nil, errors.New("aggregateProofsTask cannot be nil")
@@ -316,13 +381,14 @@ func NewBlockProofTaskEntry(
 	}
 
 	task := Task{
-		Id:           NewTaskId(),
-		BatchId:      batchId,
-		ShardId:      execShardBlock.ShardId,
-		BlockNum:     execShardBlock.Number,
-		BlockHash:    execShardBlock.Hash,
-		TaskType:     ProofBlock,
-		ParentTaskId: &aggregateProofsTask.Task.Id,
+		Id:            NewTaskId(),
+		BatchId:       batchId,
+		ParentBatchId: parentBatchId,
+		ShardId:       execShardBlock.ShardId,
+		BlockNum:      execShardBlock.Number,
+		BlockHash:     execShardBlock.Hash,
+		TaskType:      ProofBlock,
+		ParentTaskId:  &aggregateProofsTask.Task.Id,
 	}
 	blockProofEntry := &TaskEntry{
 		Task:    task,
@@ -334,23 +400,50 @@ func NewBlockProofTaskEntry(
 	return blockProofEntry, nil
 }
 
-func NewPartialProveTaskEntry(
-	batchId BatchId,
-	shardId types.ShardId,
-	blockNum types.BlockNumber,
-	blockHash common.Hash,
-	circuitType CircuitType,
-	currentTime time.Time,
-) *TaskEntry {
-	task := Task{
-		Id:          NewTaskId(),
-		BatchId:     batchId,
-		ShardId:     shardId,
-		BlockNum:    blockNum,
-		BlockHash:   blockHash,
-		TaskType:    PartialProve,
-		CircuitType: circuitType,
+func NewPartialProveTaskEntry(providerTask *Task, circuitType CircuitType, currentTime time.Time) *TaskEntry {
+	partialProofTask := newTaskOfType(providerTask, PartialProve, circuitType)
+	return newEntryWithNoDeps(partialProofTask, currentTime)
+}
+
+func NewAggregateChallengeTaskEntry(providerTask *Task, currentTime time.Time) *TaskEntry {
+	aggChallengeTask := newTaskOfType(providerTask, AggregatedChallenge, CircuitNone)
+	return newEntryWithPendingDeps(aggChallengeTask, currentTime)
+}
+
+func NewCombinedQTaskEntry(providerTask *Task, circuitType CircuitType, currentTime time.Time) *TaskEntry {
+	combinedQTask := newTaskOfType(providerTask, CombinedQ, circuitType)
+	return newEntryWithPendingDeps(combinedQTask, currentTime)
+}
+
+func NewAggregateFRITaskEntry(providerTask *Task, currentTime time.Time) *TaskEntry {
+	aggFRITask := newTaskOfType(providerTask, AggregatedFRI, CircuitNone)
+	return newEntryWithPendingDeps(aggFRITask, currentTime)
+}
+
+func NewFRIConsistencyCheckTaskEntry(providerTask *Task, circuitType CircuitType, currentTime time.Time) *TaskEntry {
+	friTask := newTaskOfType(providerTask, FRIConsistencyChecks, circuitType)
+	return newEntryWithPendingDeps(friTask, currentTime)
+}
+
+func NewMergeProofTaskEntry(providerTask *Task, currentTime time.Time) *TaskEntry {
+	mergeProofTask := newTaskOfType(providerTask, MergeProof, CircuitNone)
+	return newEntryWithPendingDeps(mergeProofTask, currentTime)
+}
+
+func newTaskOfType(providerTask *Task, taskType TaskType, circuitType CircuitType) Task {
+	return Task{
+		Id:            NewTaskId(),
+		BatchId:       providerTask.BatchId,
+		ParentBatchId: providerTask.ParentBatchId,
+		ShardId:       providerTask.ShardId,
+		BlockNum:      providerTask.BlockNum,
+		BlockHash:     providerTask.BlockHash,
+		TaskType:      taskType,
+		CircuitType:   circuitType,
 	}
+}
+
+func newEntryWithNoDeps(task Task, currentTime time.Time) *TaskEntry {
 	return &TaskEntry{
 		Task:    task,
 		Created: currentTime,
@@ -358,119 +451,9 @@ func NewPartialProveTaskEntry(
 	}
 }
 
-func NewAggregateChallengeTaskEntry(
-	batchId BatchId,
-	shardId types.ShardId,
-	blockNum types.BlockNumber,
-	blockHash common.Hash,
-	currentTime time.Time,
-) *TaskEntry {
-	aggChallengeTask := Task{
-		Id:        NewTaskId(),
-		BatchId:   batchId,
-		ShardId:   shardId,
-		BlockNum:  blockNum,
-		BlockHash: blockHash,
-		TaskType:  AggregatedChallenge,
-	}
-
-	return &TaskEntry{
-		Task:    aggChallengeTask,
-		Created: currentTime,
-		Status:  WaitingForInput,
-	}
-}
-
-func NewCombinedQTaskEntry(
-	batchId BatchId,
-	shardId types.ShardId,
-	blockNum types.BlockNumber,
-	blockHash common.Hash,
-	circuitType CircuitType,
-	currentTime time.Time,
-) *TaskEntry {
-	combinedQTask := Task{
-		Id:          NewTaskId(),
-		BatchId:     batchId,
-		ShardId:     shardId,
-		BlockNum:    blockNum,
-		BlockHash:   blockHash,
-		CircuitType: circuitType,
-		TaskType:    CombinedQ,
-	}
-
-	return &TaskEntry{
-		Task:    combinedQTask,
-		Created: currentTime,
-		Status:  WaitingForInput,
-	}
-}
-
-func NewAggregateFRITaskEntry(
-	batchId BatchId,
-	shardId types.ShardId,
-	blockNum types.BlockNumber,
-	blockHash common.Hash,
-	currentTime time.Time,
-) *TaskEntry {
-	aggFRITask := Task{
-		Id:        NewTaskId(),
-		BatchId:   batchId,
-		ShardId:   shardId,
-		BlockNum:  blockNum,
-		BlockHash: blockHash,
-		TaskType:  AggregatedFRI,
-	}
-
-	return &TaskEntry{
-		Task:    aggFRITask,
-		Created: currentTime,
-		Status:  WaitingForInput,
-	}
-}
-
-func NewFRIConsistencyCheckTaskEntry(
-	batchId BatchId,
-	shardId types.ShardId,
-	blockNum types.BlockNumber,
-	blockHash common.Hash,
-	circuitType CircuitType,
-	currentTime time.Time,
-) *TaskEntry {
-	task := Task{
-		Id:          NewTaskId(),
-		BatchId:     batchId,
-		ShardId:     shardId,
-		BlockNum:    blockNum,
-		BlockHash:   blockHash,
-		TaskType:    FRIConsistencyChecks,
-		CircuitType: circuitType,
-	}
+func newEntryWithPendingDeps(task Task, currentTime time.Time) *TaskEntry {
 	return &TaskEntry{
 		Task:    task,
-		Created: currentTime,
-		Status:  WaitingForInput,
-	}
-}
-
-func NewMergeProofTaskEntry(
-	batchId BatchId,
-	shardId types.ShardId,
-	blockNum types.BlockNumber,
-	blockHash common.Hash,
-	currentTime time.Time,
-) *TaskEntry {
-	mergeProofTask := Task{
-		Id:        NewTaskId(),
-		BatchId:   batchId,
-		ShardId:   shardId,
-		BlockNum:  blockNum,
-		BlockHash: blockHash,
-		TaskType:  MergeProof,
-	}
-
-	return &TaskEntry{
-		Task:    mergeProofTask,
 		Created: currentTime,
 		Status:  WaitingForInput,
 	}

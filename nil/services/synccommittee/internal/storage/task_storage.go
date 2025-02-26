@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"iter"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -18,9 +20,16 @@ import (
 )
 
 const (
-	// TaskEntriesTable BadgerDB tables, TaskId is used as a key
+	// taskEntriesTable is used for storing task entries.
+	// Key: scTypes.TaskId (task's own id), Value: scTypes.TaskEntry.
 	taskEntriesTable db.TableName = "task_entries"
 
+	// blockParentIdxTable is used for indexing tasks by their parent batch ids.
+	// Key: scTypes.BatchId (task's parent batch id), Value: scTypes.TaskIdSet (task identifiers);
+	taskParentBatchIdxTable db.TableName = "task_parent_batch_idx"
+)
+
+const (
 	// rescheduledTasksPerTxLimit defines the maximum number of tasks that can be rescheduled
 	// in a single transaction of TaskStorage.RescheduleHangingTasks.
 	rescheduledTasksPerTxLimit = 100
@@ -50,39 +59,13 @@ func NewTaskStorage(
 		commonStorage: makeCommonStorage(
 			db,
 			logger,
-			common.DoNotRetryIf(types.ErrTaskWrongExecutor, types.ErrTaskInvalidStatus, ErrTaskAlreadyExists),
+			common.DoNotRetryIf(
+				types.ErrTaskWrongExecutor, types.ErrTaskInvalidStatus, types.ErrTaskNotFound, ErrTaskAlreadyExists,
+			),
 		),
 		timer:   timer,
 		metrics: metrics,
 	}
-}
-
-// Helper to get and decode task entry from DB
-func (*TaskStorage) extractTaskEntry(tx db.RoTx, id types.TaskId) (*types.TaskEntry, error) {
-	encoded, err := tx.Get(taskEntriesTable, id.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	entry := &types.TaskEntry{}
-	if err = gob.NewDecoder(bytes.NewBuffer(encoded)).Decode(&entry); err != nil {
-		return nil, fmt.Errorf("%w: failed to decode task with id %v: %w", ErrSerializationFailed, id, err)
-	}
-	return entry, nil
-}
-
-// Helper to encode and put task entry into DB
-func (st *TaskStorage) putTaskEntry(tx db.RwTx, entry *types.TaskEntry) error {
-	var inputBuffer bytes.Buffer
-	err := gob.NewEncoder(&inputBuffer).Encode(entry)
-	if err != nil {
-		return fmt.Errorf("%w: failed to encode task with id %s: %w", ErrSerializationFailed, entry.Task.Id, err)
-	}
-	key := st.makeTaskKey(entry)
-	if err := tx.Put(taskEntriesTable, key, inputBuffer.Bytes()); err != nil {
-		return fmt.Errorf("failed to put task with id %s: %w", entry.Task.Id, err)
-	}
-	return nil
 }
 
 // AddTaskEntries saves set of task entries.
@@ -138,13 +121,7 @@ func (st *TaskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*t
 		return nil, err
 	}
 	defer tx.Rollback()
-	entry, err := st.extractTaskEntry(tx, id)
-
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
-	}
-
-	return entry, err
+	return st.getTaskEntry(tx, id, false)
 }
 
 // GetTaskViews Retrieve tasks that match the given predicate function and pushes them to the destination container.
@@ -194,9 +171,9 @@ func (st *TaskStorage) GetTaskTreeView(ctx context.Context, rootTaskId types.Tas
 			return seenTree, nil
 		}
 
-		entry, err := st.extractTaskEntry(tx, taskId)
+		entry, err := st.getTaskEntry(tx, taskId, false)
 
-		if errors.Is(err, db.ErrKeyNotFound) && taskId == rootTaskId {
+		if entry == nil && taskId == rootTaskId {
 			return nil, nil
 		}
 
@@ -308,15 +285,12 @@ func (st *TaskStorage) processTaskResultImpl(ctx context.Context, res *types.Tas
 	}
 	defer tx.Rollback()
 
-	// First we check the result and set status to failed if unsuccessful
-	entry, err := st.extractTaskEntry(tx, res.TaskId)
+	entry, err := st.getTaskEntry(tx, res.TaskId, false)
+	if entry == nil {
+		st.logger.Warn().Err(err).Stringer(logging.FieldTaskId, res.TaskId).Msg("Task entry was not found")
+		return nil
+	}
 	if err != nil {
-		// ErrKeyNotFound is not considered an error because of possible re-invocations
-		if errors.Is(err, db.ErrKeyNotFound) {
-			st.logger.Warn().Err(err).Stringer(logging.FieldTaskId, res.TaskId).Msg("Task entry was not found")
-			return nil
-		}
-
 		return err
 	}
 
@@ -335,6 +309,13 @@ func (st *TaskStorage) processTaskResultImpl(ctx context.Context, res *types.Tas
 
 		st.metrics.RecordTaskRescheduled(ctx, entry.Task.TaskType, res.Sender)
 		return nil
+	}
+
+	if res.HasCriticalError() {
+		err := st.cancelNextBatchesTasks(tx, entry.Task.BatchId, res.Sender)
+		if err != nil {
+			return fmt.Errorf("failed to cancel tasks starting from batchId=%s: %w", entry.Task.BatchId, err)
+		}
 	}
 
 	if err := st.terminateTaskTx(tx, entry, res); err != nil {
@@ -361,7 +342,7 @@ func (st *TaskStorage) terminateTaskTx(tx db.RwTx, entry *types.TaskEntry, res *
 		log.NewTaskResultEvent(st.logger, zerolog.DebugLevel, res).
 			Msg("Task execution is completed successfully, removing it from the storage")
 
-		if err := tx.Delete(taskEntriesTable, res.TaskId.Bytes()); err != nil {
+		if err := st.deleteTaskTx(tx, entry); err != nil {
 			return err
 		}
 	} else if err := st.putTaskEntry(tx, entry); err != nil {
@@ -375,6 +356,64 @@ func (st *TaskStorage) terminateTaskTx(tx db.RwTx, entry *types.TaskEntry, res *
 	return nil
 }
 
+func (st *TaskStorage) cancelNextBatchesTasks(
+	tx db.RwTx,
+	batchId types.BatchId,
+	failedExecutor types.TaskExecutorId,
+) error {
+	for entry, err := range st.getBatchTasksSeqTx(tx, batchId) {
+		if err != nil {
+			return err
+		}
+		if err := st.cancelTaskTx(tx, entry, failedExecutor); err != nil {
+			return fmt.Errorf("failed to cancel task with id=%s: %w", entry.Task.Id, err)
+		}
+	}
+	return nil
+}
+
+func (st *TaskStorage) cancelTaskTx(tx db.RwTx, entry *types.TaskEntry, initiator types.TaskExecutorId) error {
+	result := types.NewTaskCancelledResult(entry.Task.Id, initiator)
+	return st.terminateTaskTx(tx, entry, result)
+}
+
+// getBatchTasksSeqTx traverses tasks tree in BFS using parentBatchId as a starting point.
+// It uses taskParentBatchIdxTable to retrieve parent-child connections between tasks.
+func (st *TaskStorage) getBatchTasksSeqTx(tx db.RoTx, parentBatchId types.BatchId) iter.Seq2[*types.TaskEntry, error] {
+	seen := make(map[types.BatchId]bool)
+
+	return func(yield func(*types.TaskEntry, error) bool) {
+		bfsQueue := []types.BatchId{parentBatchId}
+
+		for len(bfsQueue) > 0 {
+			nextParentId := bfsQueue[0]
+			bfsQueue = bfsQueue[1:]
+			seen[nextParentId] = true
+
+			taskIds, err := st.getTaskIdsFromIndexTx(tx, nextParentId)
+			if err != nil {
+				yield(nil, fmt.Errorf("failed to get parent idx entry, parentId=%s: %w", nextParentId, err))
+				return
+			}
+
+			for taskId := range taskIds.Values() {
+				taskEntry, err := st.getTaskEntry(tx, taskId, true)
+				if err != nil {
+					yield(nil, err)
+					return
+				}
+				if !yield(taskEntry, nil) {
+					return
+				}
+
+				if !seen[taskEntry.Task.BatchId] {
+					bfsQueue = append(bfsQueue, taskEntry.Task.BatchId)
+				}
+			}
+		}
+	}
+}
+
 func (st *TaskStorage) updateDependentsTx(
 	tx db.RwTx,
 	entry *types.TaskEntry,
@@ -382,7 +421,7 @@ func (st *TaskStorage) updateDependentsTx(
 	currentTime time.Time,
 ) error {
 	for taskId := range entry.Dependents {
-		depEntry, err := st.extractTaskEntry(tx, taskId)
+		depEntry, err := st.getTaskEntry(tx, taskId, true)
 		if err != nil {
 			return err
 		}
@@ -492,14 +531,14 @@ func (*TaskStorage) iterateOverTaskEntries(
 	tx db.RoTx,
 	action func(entry *types.TaskEntry) (shouldContinue bool, err error),
 ) error {
-	iter, err := tx.Range(taskEntriesTable, nil, nil)
+	txIter, err := tx.Range(taskEntriesTable, nil, nil)
 	if err != nil {
 		return err
 	}
-	defer iter.Close()
+	defer txIter.Close()
 
-	for iter.HasNext() {
-		key, val, err := iter.Next()
+	for txIter.HasNext() {
+		key, val, err := txIter.Next()
 		if err != nil {
 			return err
 		}
@@ -517,6 +556,131 @@ func (*TaskStorage) iterateOverTaskEntries(
 	}
 
 	return nil
+}
+
+func (st *TaskStorage) getTaskEntry(tx db.RoTx, id types.TaskId, required bool) (*types.TaskEntry, error) {
+	return st.getTaskEntryBytesId(tx, id.Bytes(), required)
+}
+
+// Helper to get and decode task entry from DB
+func (*TaskStorage) getTaskEntryBytesId(tx db.RoTx, idBytes []byte, required bool) (*types.TaskEntry, error) {
+	encoded, err := tx.Get(taskEntriesTable, idBytes)
+	hexId := func() string {
+		return hex.EncodeToString(idBytes)
+	}
+	switch {
+	case err == nil:
+		break
+	case errors.Is(err, db.ErrKeyNotFound) && required:
+		return nil, fmt.Errorf("%w, id=%s", types.ErrTaskNotFound, hexId())
+	case errors.Is(err, db.ErrKeyNotFound):
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("failed to get task with id=%s: %w", hexId(), err)
+	}
+
+	entry := &types.TaskEntry{}
+	if err = gob.NewDecoder(bytes.NewBuffer(encoded)).Decode(&entry); err != nil {
+		return nil, fmt.Errorf("%w: failed to decode task with id %s: %w", ErrSerializationFailed, hexId(), err)
+	}
+	return entry, nil
+}
+
+// Helper to encode and put task entry into DB
+func (st *TaskStorage) putTaskEntry(tx db.RwTx, entry *types.TaskEntry) error {
+	var inputBuffer bytes.Buffer
+	err := gob.NewEncoder(&inputBuffer).Encode(entry)
+	if err != nil {
+		return fmt.Errorf("%w: failed to encode task with id %s: %w", ErrSerializationFailed, entry.Task.Id, err)
+	}
+	key := st.makeTaskKey(entry)
+	if err := tx.Put(taskEntriesTable, key, inputBuffer.Bytes()); err != nil {
+		return fmt.Errorf("failed to put task with id %s: %w", entry.Task.Id, err)
+	}
+
+	if err := st.putToBatchIndexTx(tx, entry); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (st *TaskStorage) deleteTaskTx(tx db.RwTx, entry *types.TaskEntry) error {
+	if err := tx.Delete(taskEntriesTable, entry.Task.Id.Bytes()); err != nil {
+		return fmt.Errorf("failed to delete task with id=%s: %w", entry.Task.Id, err)
+	}
+
+	if err := st.deleteFromBatchIndexTx(tx, entry); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (st *TaskStorage) putToBatchIndexTx(tx db.RwTx, entry *types.TaskEntry) error {
+	if entry.Task.ParentBatchId == nil {
+		return nil
+	}
+
+	taskIds, err := st.getTaskIdsFromIndexTx(tx, *entry.Task.ParentBatchId)
+	if err != nil {
+		return err
+	}
+
+	taskIds.Put(entry.Task.Id)
+
+	return st.putTaskIdsToIndexTx(tx, *entry.Task.ParentBatchId, taskIds)
+}
+
+func (st *TaskStorage) deleteFromBatchIndexTx(tx db.RwTx, entry *types.TaskEntry) error {
+	if entry.Task.ParentBatchId == nil {
+		return nil
+	}
+
+	taskIds, err := st.getTaskIdsFromIndexTx(tx, *entry.Task.ParentBatchId)
+	if err != nil {
+		return err
+	}
+
+	delete(taskIds, entry.Task.Id)
+
+	if len(taskIds) > 0 {
+		return st.putTaskIdsToIndexTx(tx, *entry.Task.ParentBatchId, taskIds)
+	}
+
+	parentBatchIdBytes := entry.Task.ParentBatchId.Bytes()
+	if err := tx.Delete(taskParentBatchIdxTable, parentBatchIdBytes); err != nil {
+		return fmt.Errorf("failed to delete idx entry, key %s: %w", entry.Task.ParentBatchId, err)
+	}
+
+	return nil
+}
+
+func (st *TaskStorage) putTaskIdsToIndexTx(tx db.RwTx, parentBatchId types.BatchId, taskIds types.TaskIdSet) error {
+	newSetBytes, err := taskIds.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to marshal parent idx entry, key=%s: %w", parentBatchId, err)
+	}
+
+	parentBatchIdBytes := parentBatchId.Bytes()
+	if err := tx.Put(taskParentBatchIdxTable, parentBatchIdBytes, newSetBytes); err != nil {
+		return fmt.Errorf("failed to put idx entry, key %s: %w", parentBatchId, err)
+	}
+	return nil
+}
+
+func (st *TaskStorage) getTaskIdsFromIndexTx(tx db.RoTx, parentBatchId types.BatchId) (types.TaskIdSet, error) {
+	parentBatchIdBytes := parentBatchId.Bytes()
+
+	setBytes, err := tx.Get(taskParentBatchIdxTable, parentBatchIdBytes)
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return nil, fmt.Errorf("failed to get parent idx entry, parentId=%s: %w", parentBatchId, err)
+	}
+	var taskIds types.TaskIdSet
+	if err := taskIds.UnmarshalBinary(setBytes); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal parent idx entry, parentId=%s: %w", parentBatchId, err)
+	}
+	return taskIds, nil
 }
 
 func (*TaskStorage) makeTaskKey(entry *types.TaskEntry) []byte {
