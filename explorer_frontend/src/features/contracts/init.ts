@@ -345,8 +345,14 @@ sample({
           if (typeof input.name !== "string") {
             continue;
           }
-          const name = input.name;
-          args.push(callParams[name] || "");
+          if (input.name === "") {
+            for (const key in callParams) {
+              args.push(callParams[key] || "");
+            }
+          } else {
+            const name = input.name;
+            args.push(callParams[name] || "");
+          }
         }
       }
     }
