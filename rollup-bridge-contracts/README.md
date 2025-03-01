@@ -19,28 +19,27 @@ Solidity smart contracts in the repository are used for proof verification and s
 1. [NilVerifier-Contract](./contracts/verifier/NilVerifier.sol) contains the [verify](./contracts/verifier/NilVerifier.sol#L9) proof logic
 2. NilVerifier contract is non-upgradeable and stateless contract
 
-## Local Development - compilation
+## Local Development
 
-1. copy `.env.example` to `.env`
-2. compile contracts:
+### Installation
 
-```sh
-npx hardhat clean && npx hardhat compile
+```bash
+npm install @nilfoundation/rollup-bridge-contracts
 ```
 
-### For nix pipeline run:
+### Set environment variables
 
-- set all pre-requisite variables in .env
-```
-GETH_RPC_ENDPOINT="http://localhost:8545"
-GETH_PRIVATE_KEY=""
-GETH_WALLET_ADDRESS=""
+copy `.env.example` to `.env`
+
+### Compile contracts
+
+```bash
+cd rollup-brige-contracts
+npx hardhat compile
 ```
 
 ### Deploy contracts to geth instance via nix script:
 
-- ensure to include this command as part of nix script to deploy the contracts to geth instance
-
-```shell
+```bash
 npx hardhat deploy --network geth --tags NilContracts
 ```

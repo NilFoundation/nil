@@ -1,5 +1,6 @@
 {
-  "name": "rollup-bridge-contracts",
+  "name": "@nilfoundation/rollup-bridge-contracts",
+  "author": "=nil; Foundation",
   "version": "0.5.0",
   "description": "Nil rollup bridge contracts implementations",
   "sideEffects": false,
