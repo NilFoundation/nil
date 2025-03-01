@@ -18,7 +18,7 @@ globalThis.VFS_PREFIX = '/vfs-35b1b535-4fff-4ff3-882d-073f4ea7cfeb';
 
 // Similarly, we use a special identifier for the file from which
 // oclif will import COMMANDS from.
-// After bandling, this will be the current file, so we can just return the
+// After bundling, this will be the current file, so we can just return the
 // the appropriate variable as oclif expects.
 globalThis.COMMANDS_FILE = '/commands-c85b2f8c-5556-4332-95b2-63ce23efe1e5.cjs';
 
