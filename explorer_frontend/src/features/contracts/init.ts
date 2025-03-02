@@ -1,11 +1,11 @@
 import type { CometaService, Hex, SmartAccountV1, Token } from "@nilfoundation/niljs";
-import type { AbiFunction } from "abitype";
+import type { Abi, AbiFunction } from "abitype";
 import { combine, merge, sample } from "effector";
 import { persist } from "effector-storage/local";
 import { debug } from "patronum";
-import type { App } from "../../types";
 import { $rpcUrl, $smartAccount } from "../account-connector/model";
 import { $solidityVersion, compileCodeFx, loadedPlaygroundPage } from "../code/model";
+import type { App } from "../code/types";
 import { $cometaService } from "../cometa/model";
 import { getTokenAddressBySymbol } from "../tokens";
 import {
@@ -62,10 +62,13 @@ import {
   unlinkApp,
   validateSmartContractAddressFx,
 } from "./models/base";
+import {
+  $callParamsValidationErrors,
+  setCallParamsValidationErrors,
+  validateCallParamsFx,
+} from "./models/callParamsValidation";
 import { exportApp, exportAppFx } from "./models/exportApp";
 import { $shardsAmount, getShardsAmountFx } from "./models/shardsAmount";
-
-compileCodeFx.doneData.watch(console.log);
 
 $contracts.on(compileCodeFx.doneData, (_, { apps }) => apps);
 $contracts.reset(compileCodeFx.fail);
@@ -323,9 +326,16 @@ sample({
     activeApp: $activeAppWithState,
     params: $callParams,
   }),
-  clock: callMethod,
-  filter: $activeAppWithState.map((app) => !!app && !!app.address),
-  fn: ({ activeApp, params }, functionName) => {
+  clock: validateCallParamsFx.doneData,
+  filter: (source, doneData) => {
+    const { activeApp } = source;
+    const isAppValid = !!activeApp;
+
+    const isCallMethodCalled = doneData.eventType === "callMethod";
+
+    return isAppValid && isCallMethodCalled;
+  },
+  fn: ({ activeApp, params }, { functionName }) => {
     let args: unknown[] = [];
     if (!activeApp) {
       args = [];
@@ -341,13 +351,17 @@ sample({
         args = [];
       } else {
         const callParams = params[functionName];
-        for (const input of abiFunction.inputs) {
-          if (typeof input.name !== "string") {
-            continue;
+        abiFunction.inputs.forEach((input, index) => {
+          const name = input.name || index.toString();
+
+          const paramValue = callParams[name].value;
+
+          if (Array.isArray(paramValue)) {
+            args.push(paramValue.map((v) => v.value));
+          } else {
+            args.push(paramValue || "");
           }
-          const name = input.name;
-          args.push(callParams[name] || "");
-        }
+        });
       }
     }
     return {
@@ -369,6 +383,9 @@ $callResult.on(callFx.doneData, (state, { functionName, result }) => {
   };
 });
 
+$callResult.reset($activeAppWithState);
+$callResult.reset(callMethod);
+
 sample({
   source: combine({
     activeApp: $activeAppWithState,
@@ -376,13 +393,16 @@ sample({
     smartAccount: $smartAccount,
     valueInputs: $valueInputs,
   }),
-  clock: sendMethod,
-  filter: combine(
-    $activeAppWithState,
-    $smartAccount,
-    (app, smartAccount) => !!app && !!smartAccount && !!app.address,
-  ),
-  fn: ({ activeApp, params, smartAccount, valueInputs }, functionName) => {
+  clock: validateCallParamsFx.doneData,
+  filter: (source, doneData) => {
+    const { activeApp, smartAccount } = source;
+    const isAppAndAccountValid = !!activeApp && !!smartAccount && !!activeApp.address;
+
+    const isSendMethodCalled = doneData.eventType === "sendMethod";
+
+    return isAppAndAccountValid && isSendMethodCalled;
+  },
+  fn: ({ activeApp, params, smartAccount, valueInputs }, { functionName }) => {
     const restParams = params[functionName];
 
     let args: unknown[] = [];
@@ -400,19 +420,28 @@ sample({
         args = [];
       } else {
         const callParams = restParams;
-        for (const input of abiFunction.inputs) {
-          if (typeof input.name !== "string") {
-            continue;
+        abiFunction.inputs.forEach((input, index) => {
+          const name = input.name || index.toString();
+
+          const paramValue = callParams[name].value;
+
+          if (Array.isArray(paramValue)) {
+            args.push(paramValue.map((v) => v.value));
+          } else {
+            args.push(paramValue || "");
           }
-          const name = input.name;
-          args.push(callParams[name] || "");
-        }
+        });
       }
     }
 
-    const value = valueInputs.find((v) => v.token === "NIL")?.amount;
-    const tokens: Token[] = valueInputs
-      .filter((valueInput) => valueInput.token !== "NIL")
+    const functionValueInputs = valueInputs
+      .filter((v) => v.functionName === functionName)
+      .flatMap((v) => v.values);
+
+    const value = functionValueInputs.find((v) => v.token === "NIL")?.amount;
+
+    const tokens: Token[] = functionValueInputs
+      .filter((valueInput) => valueInput.token !== "NIL" && valueInput.amount !== "0")
       .map((valueInput) => {
         return {
           id: getTokenAddressBySymbol(valueInput.token) as Hex,
@@ -465,7 +494,10 @@ $loading.on(callFx.finally, (state, { params: { functionName } }) => {
 
 $loading.reset($activeAppWithState);
 $errors.reset($activeAppWithState);
+
 $txHashes.reset($activeAppWithState);
+$txHashes.reset(sendMethod);
+
 $txHashes.on(sendMethodFx, (state, { functionName }) => {
   return {
     ...state,
@@ -496,9 +528,12 @@ $errors.on(sendMethodFx.done, (state, { params: { functionName } }) => {
 
 $callParams.reset($activeAppWithState);
 
-$callParams.on(setParams, (state, { functionName, paramName, value }) => {
+$callParams.on(setParams, (state, { functionName, paramName, value, type }) => {
   const params = state[functionName] ? { ...state[functionName] } : {};
-  params[paramName] = value;
+  params[paramName] = {
+    value,
+    type,
+  };
 
   return {
     ...state,
@@ -523,18 +558,61 @@ $activeApp.on(importSmartContractFx.doneData, (_, { importedSmartContractAddress
   };
 });
 
-$valueInputs
-  .on(setValueInput, (state, { index, amount, token }) => {
-    const newState = [...state];
-    newState[index] = { amount, token };
+$valueInputs.on(setValueInput, (state, { index, amount, token, functionName }) => {
+  const newState = [...state];
+
+  const functionValuesIndex = newState.findIndex((v) => v.functionName === functionName);
+
+  newState[functionValuesIndex].values[index] = {
+    amount,
+    token,
+  };
+
+  return newState;
+});
+
+$valueInputs.on(addValueInput, (state, { availableTokens, functionName }) => {
+  const usedTokens = state
+    .filter((v) => v.functionName === functionName)
+    .flatMap((v) => v.values)
+    .map((v) => v.token);
+
+  const availableToken = availableTokens.find((c) => !usedTokens.includes(c));
+
+  if (!availableToken) {
+    return state;
+  }
+
+  const newState = [...state];
+  const functionValuesIndex = newState.findIndex((v) => v.functionName === functionName);
+
+  if (functionValuesIndex === -1) {
+    newState.push({
+      functionName,
+      values: [],
+    });
+
     return newState;
-  })
-  .on(addValueInput, (state, availableTokens) => {
-    const usedTokens = state.map((v) => v.token);
-    const availableToken = availableTokens.find((c) => !usedTokens.includes(c))!;
-    return [...state, { amount: "0", token: availableToken }];
-  })
-  .on(removeValueInput, (state, index) => state.filter((_, i) => i !== index));
+  }
+
+  newState[functionValuesIndex].values.push({
+    amount: "0",
+    token: availableToken,
+  });
+
+  return newState;
+});
+
+$valueInputs.on(removeValueInput, (state, { functionName, index }) => {
+  const newState = [...state];
+  const functionValuesIndex = newState.findIndex((v) => v.functionName === functionName);
+
+  newState[functionValuesIndex].values = newState[functionValuesIndex].values.filter(
+    (_, i) => i !== index,
+  );
+
+  return newState;
+});
 
 $valueInputs.reset($activeAppWithState);
 
@@ -661,4 +739,104 @@ sample({
   clock: merge([loadedPlaygroundPage, $rpcUrl.updates]),
   target: getShardsAmountFx,
   source: $rpcUrl,
+});
+
+$callParamsValidationErrors.reset($activeAppWithState);
+$callParamsValidationErrors.reset(sendMethodFx.doneData);
+$callParamsValidationErrors.reset(callFx.failData);
+$callParamsValidationErrors.on(setCallParamsValidationErrors, (_, errors) => errors);
+
+sample({
+  clock: sendMethod,
+  source: combine({
+    callParams: $callParams,
+    appAbi: $activeAppWithState.map((app) => app?.abi),
+  }),
+  target: validateCallParamsFx,
+  filter: $activeAppWithState.map((app) => !!app?.abi),
+  fn: ({ callParams, appAbi }, functionName) => {
+    return {
+      functionName,
+      callParams,
+      eventType: "sendMethod" as const,
+      appAbi: appAbi as Abi,
+    };
+  },
+});
+
+sample({
+  clock: callMethod,
+  source: combine({
+    callParams: $callParams,
+    appAbi: $activeAppWithState.map((app) => app?.abi),
+  }),
+  target: validateCallParamsFx,
+  filter: $activeAppWithState.map((app) => !!app?.abi),
+  fn: ({ callParams, appAbi }, functionName) => {
+    return {
+      functionName,
+      callParams,
+      eventType: "callMethod" as const,
+      appAbi: appAbi as Abi,
+    };
+  },
+});
+
+sample({
+  clock: setParams,
+  source: $callParamsValidationErrors,
+  target: $callParamsValidationErrors,
+  fn: (errors, setParamsPayload) => {
+    const newErrors = { ...errors };
+    const functionErrors = newErrors[setParamsPayload.functionName];
+
+    if (!functionErrors) {
+      return newErrors;
+    }
+
+    functionErrors[setParamsPayload.paramName] = null;
+
+    newErrors[setParamsPayload.functionName] = functionErrors;
+
+    return newErrors;
+  },
+});
+
+sample({
+  source: $activeAppWithState,
+  target: $valueInputs,
+  filter: combine($activeAppWithState, $valueInputs, (app, valueInputs) => {
+    if (app === null) {
+      return false;
+    }
+
+    if (valueInputs.length !== 0) {
+      return false;
+    }
+
+    return true;
+  }),
+  fn: (app) => {
+    const payableFunctionNames = app?.abi
+      .filter((abi) => abi.type === "function" && abi.stateMutability === "payable")
+      .map((abi) => (abi as AbiFunction).name);
+
+    if (!payableFunctionNames || payableFunctionNames.length === 0) {
+      return [];
+    }
+
+    const defaultValuesToSet = payableFunctionNames.map((functionName) => {
+      return {
+        functionName,
+        values: [
+          {
+            token: "NIL",
+            amount: "0",
+          },
+        ],
+      };
+    });
+
+    return defaultValuesToSet;
+  },
 });

@@ -1,5 +1,5 @@
 import { createDomain } from "effector";
-import type { App } from "../../../types";
+import type { App } from "../../code/types";
 
 export const codeDomain = createDomain("contracts-explort-app");
 

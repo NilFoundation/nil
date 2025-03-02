@@ -10,7 +10,7 @@ import {
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { FC } from "react";
 import { useStyletron } from "styletron-react";
-import type { App } from "../../../../types";
+import type { App } from "../../../code/types";
 import { choseApp } from "../../models/base";
 import { RemoveAppButton } from "../RemoveAppButton";
 

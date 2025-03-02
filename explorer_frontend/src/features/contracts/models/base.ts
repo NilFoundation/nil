@@ -14,9 +14,10 @@ import {
 import type { Abi, Address } from "abitype";
 import { combine, createEffect, createEvent, createStore } from "effector";
 import { ethers } from "ethers";
-import type { App } from "../../../types";
+import type { App } from "../../code/types";
 import { createCompileInput } from "../../shared/utils/solidityCompiler/helper";
 import { ActiveComponent } from "../components/Deploy/ActiveComponent";
+import type { CallParams } from "../types";
 
 export type DeployedApp = App & {
   address: Address;
@@ -135,7 +136,6 @@ export const registerContractInCometaFx = createEffect<
   },
   void
 >(async ({ name, app, address, cometaService, solidityVersion }) => {
-  console.log("Registering contract in cometa", app, address, solidityVersion, cometaService);
   const result = createCompileInput(app.sourcecode);
 
   const refinedSolidityVersion = solidityVersion.match(/\d+\.\d+\.\d+/)?.[0] || "";
@@ -145,8 +145,6 @@ export const registerContractInCometaFx = createEffect<
     contractName: `Compiled_Contracts:${name}`,
     compilerVersion: refinedSolidityVersion,
   };
-
-  console.log("Refined result", refinedResult);
 
   await cometaService.registerContract(JSON.stringify(refinedResult), address);
 });
@@ -266,12 +264,19 @@ export const $activeKeys = createStore<Record<string, boolean>>({});
 
 export const toggleActiveKey = createEvent<string>();
 
-export const $callParams = createStore<Record<string, Record<string, unknown>>>({});
+export const $callParams = createStore<CallParams>({});
 
 export const setParams = createEvent<{
   functionName: string;
   paramName: string;
-  value: unknown;
+  value:
+    | string
+    | boolean
+    | {
+        type: string;
+        value: string | boolean;
+      }[];
+  type: string;
 }>();
 
 export const $callResult = createStore<Record<string, unknown>>({});
@@ -386,24 +391,29 @@ export const unlinkApp = createEvent<{
 }>();
 
 export const $valueInputs = createStore<
-  {
-    token: string;
-    amount: string;
-  }[]
->([
-  {
-    token: "NIL",
-    amount: "0",
-  },
-]);
+  Array<{
+    values: {
+      token: string;
+      amount: string;
+    }[];
+    functionName: string;
+  }>
+>([]);
 
 export const setValueInput = createEvent<{
+  functionName: string;
   index: number;
   token: string;
   amount: string;
 }>();
-export const addValueInput = createEvent<string[]>();
-export const removeValueInput = createEvent<number>();
+export const addValueInput = createEvent<{
+  functionName: string;
+  availableTokens: string[];
+}>();
+export const removeValueInput = createEvent<{
+  functionName: string;
+  index: number;
+}>();
 
 export const $activeComponent = createStore<ActiveComponent>(ActiveComponent.Deploy);
 export const setActiveComponent = createEvent<ActiveComponent>();

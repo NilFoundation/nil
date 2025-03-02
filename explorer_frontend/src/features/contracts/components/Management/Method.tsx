@@ -27,6 +27,9 @@ import {
   setValueInput,
   toggleActiveKey,
 } from "../../models/base.ts";
+import { $callParamsValidationErrors } from "../../models/callParamsValidation.ts";
+import type { CallParams } from "../../types.ts";
+import { getResultDisplay } from "../../utils.tsx";
 import { MethodInput } from "./MethodInput";
 import { RemoveTokenButton } from "./RemoveTokenButton.tsx";
 import { Result } from "./Result";
@@ -38,11 +41,18 @@ export type MethodProps = {
   result?: unknown;
   loading?: boolean;
   txHash?: string;
-  params?: Record<string, unknown>;
+  params?: CallParams[string];
   paramsHandler: (params: {
     functionName: string;
     paramName: string;
-    value: unknown;
+    value:
+      | string
+      | boolean
+      | {
+          type: string;
+          value: string;
+        }[];
+    type: string;
   }) => void;
 };
 
@@ -85,7 +95,11 @@ export const Method = ({
   params,
 }: MethodProps) => {
   const [css] = useStyletron();
-  const [tokenBalance, valueInputs] = useUnit([$balanceToken, $valueInputs]);
+  const [tokenBalance, valueInputs, errors] = useUnit([
+    $balanceToken,
+    $valueInputs,
+    $callParamsValidationErrors,
+  ]);
   const availableTokens = [
     { token: "NIL" },
     ...Object.keys(tokenBalance ?? {}).map((token) => ({
@@ -96,6 +110,9 @@ export const Method = ({
   const methodType = getMethodType(func);
   const markerColor = getMarkerColor(methodType);
   const handler = methodType === "Read" ? callMethod : sendMethod;
+  const functionName = func.name;
+  const functionValues = valueInputs.find((v) => v.functionName === functionName)?.values;
+  const methodErrors = errors[functionName] ?? {};
 
   return (
     <div
@@ -164,11 +181,13 @@ export const Method = ({
                 justifyContent: "center",
               })}
             >
-              {valueInputs.map((valueInput, index) => {
-                const usedTokens = valueInputs.map((v) => v.token);
+              {functionValues?.map((valueInput, index) => {
+                const usedTokens = functionValues.map((v) => v.token);
+
                 const availableInputTokens = availableTokens.filter(
                   (c) => !usedTokens.includes(c.token) || c.token === valueInput.token,
                 );
+
                 return (
                   // biome-ignore lint/correctness/useJsxKeyInIterable: can be the same for now
                   <div
@@ -187,19 +206,30 @@ export const Method = ({
                       disabled={loading}
                       tokens={availableInputTokens}
                       onChange={({ amount, token }) => {
-                        setValueInput({ index, amount, token });
+                        setValueInput({ index, amount, token, functionName });
                       }}
                       value={valueInput}
                     />
-                    <RemoveTokenButton index={index} kind={BUTTON_KIND.secondary} />
+                    <RemoveTokenButton
+                      index={index}
+                      kind={BUTTON_KIND.secondary}
+                      functionName={functionName}
+                    />
                   </div>
                 );
               })}
               <Button
                 onClick={() => {
-                  addValueInput(availableTokens.map((c) => c.token));
+                  addValueInput({
+                    availableTokens: availableTokens.map((c) => c.token),
+                    functionName,
+                  });
                 }}
-                disabled={valueInputs.map((v) => v.token).length >= availableTokens.length}
+                disabled={
+                  functionValues
+                    ? functionValues.map((v) => v.token).length >= availableTokens.length
+                    : false
+                }
                 kind={BUTTON_KIND.tertiary}
                 overrides={{
                   Root: {
@@ -216,6 +246,7 @@ export const Method = ({
           )}
           {func.inputs.map((input, index) => {
             const key = input.name || `${index}`;
+
             return (
               <MethodInput
                 key={key}
@@ -224,6 +255,7 @@ export const Method = ({
                 params={params}
                 paramName={key}
                 input={input}
+                error={methodErrors[key]}
               />
             );
           })}
@@ -261,7 +293,7 @@ export const Method = ({
                   wordBreak: "break-all",
                 })}
               >
-                {String(result)}
+                {getResultDisplay(result)}
               </ParagraphMedium>
             </Result>
           )}

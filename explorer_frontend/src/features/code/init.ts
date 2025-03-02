@@ -3,7 +3,6 @@ import dayjs from "dayjs";
 import { combine, sample } from "effector";
 import { persist } from "effector-storage/local";
 import { fetchSolidityCompiler } from "../../services/compiler";
-import type { App } from "../../types";
 import { playgroundRoute, playgroundWithHashRoute } from "../routing/routes/playgroundRoute";
 import { getRuntimeConfigOrThrow } from "../runtime-config";
 import {
@@ -25,6 +24,7 @@ import {
   setCodeSnippetFx,
   updateRecentProjects,
 } from "./model";
+import type { App } from "./types";
 
 $code.on(changeCode, (_, x) => x);
 

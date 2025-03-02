@@ -1,6 +1,6 @@
 import { createDomain } from "effector";
 import { fetchCodeSnippet, setCodeSnippet } from "../../api/code";
-import type { App } from "../../types";
+import type { App } from "./types";
 
 export const codeDomain = createDomain("code");
 
