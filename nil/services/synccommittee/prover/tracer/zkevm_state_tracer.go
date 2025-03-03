@@ -29,23 +29,21 @@ type ZKEVMState struct {
 }
 
 type ZKEVMStateTracer struct {
-	rwCtr        *RwCounter
-	txHash       common.Hash
-	bytecodeHash common.Hash
-	txnId        uint
-	res          []ZKEVMState
+	rwCtr  *RwCounter
+	txHash common.Hash
+	txnId  uint
+	res    []ZKEVMState
 }
 
 func NewZkEVMStateTracer(
 	rwCounter *RwCounter,
-	txHash, bytecodeHash common.Hash,
+	txHash common.Hash,
 	txnId uint,
 ) *ZKEVMStateTracer {
 	return &ZKEVMStateTracer{
-		rwCtr:        rwCounter,
-		txHash:       txHash,
-		bytecodeHash: bytecodeHash,
-		txnId:        txnId,
+		rwCtr:  rwCounter,
+		txHash: txHash,
+		txnId:  txnId,
 	}
 }
 
@@ -62,18 +60,25 @@ func (zst *ZKEVMStateTracer) TraceOp(
 	opCode vm.OpCode,
 	pc uint64,
 	gas uint64,
-	stackToSave int,
-	additionalInput *types.Uint256,
 	memRanges opRanges,
 	scope tracing.OpContext,
 ) error {
+	additionalInput := types.NewUint256(0) // data for pushX opcodes
+	if len(scope.Code()) != 0 && opCode.IsPush() {
+		bytesToPush := uint64(opCode) - uint64(vm.PUSH0)
+		if bytesToPush > 0 {
+			additionalInput = types.NewUint256FromBytes(scope.Code()[pc+1 : pc+bytesToPush+1])
+		}
+	}
+	stackToSave := vm.CancunInstructionSet.GetNumRequiredStackItems(opCode)
+
 	state := ZKEVMState{
 		TxHash:          zst.txHash,
 		TxId:            int(zst.txnId),
 		PC:              pc,
 		Gas:             gas,
 		RwIdx:           zst.rwCtr.ctr,
-		BytecodeHash:    zst.bytecodeHash,
+		BytecodeHash:    getCodeHash(scope.Code()),
 		OpCode:          opCode,
 		AdditionalInput: *additionalInput,
 		StackSize:       uint64(len(scope.StackData())),

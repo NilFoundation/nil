@@ -21,7 +21,7 @@ import (
 type TracerNildTestSuite struct {
 	tests.RpcSuite
 
-	tracer RemoteTracer
+	tracer RemoteTracesCollector
 
 	addrFrom types.Address
 	shardId  types.ShardId
@@ -59,7 +59,7 @@ func (s *TracerNildTestSuite) SetupSuite() {
 	s.waitTwoBlocks()
 
 	var err error
-	s.tracer, err = NewRemoteTracer(s.Client, logging.NewLogger("tracer-test"))
+	s.tracer, err = NewRemoteTracesCollector(s.Client, logging.NewLogger("tracer-test"))
 	s.Require().NoError(err)
 
 	s.addrFrom = types.MainSmartAccountAddress
@@ -91,8 +91,7 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, types.BaseShardId, blkRef)
+		_, err = s.tracer.GetBlockTraces(s.Context, types.BaseShardId, blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -131,8 +130,7 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		blkRef := transport.BlockNumber(receipt.OutReceipts[0].BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, contractAddr.ShardId(), blkRef)
+		_, err = s.tracer.GetBlockTraces(s.Context, contractAddr.ShardId(), blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -170,8 +168,7 @@ func (s *TracerNildTestSuite) TestTestContract() {
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, types.BaseShardId, blkRef)
+		_, err = s.tracer.GetBlockTraces(s.Context, types.BaseShardId, blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -214,8 +211,7 @@ func (s *TracerNildTestSuite) TestTestContract() {
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, contractAddr.ShardId(), blkRef)
+		_, err = s.tracer.GetBlockTraces(s.Context, contractAddr.ShardId(), blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -234,8 +230,7 @@ func (s *TracerNildTestSuite) checkAllBlocksTracesSerialization() {
 		for blockNum := range latestBlock.Number {
 			blkRef := transport.BlockNumber(blockNum).AsBlockReference()
 			s.Require().NoError(err)
-			blockTraces := NewExecutionTraces()
-			err := s.tracer.GetBlockTraces(s.Context, blockTraces, shardId, blkRef)
+			blockTraces, err := s.tracer.GetBlockTraces(s.Context, shardId, blkRef)
 			if errors.Is(err, ErrCantProofGenesisBlock) {
 				continue
 			}

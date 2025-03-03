@@ -29,6 +29,8 @@ type Proof struct {
 	PathToNode ProofPath
 }
 
+// BuildProof constructs a proof for the given key in the MPT.
+// If no common path is found, the root node is included to prove that the key does not exist in the trie.
 func BuildProof(tree *Reader, key []byte, op MPTOperation) (Proof, error) {
 	if len(key) > maxRawKeyLen {
 		key = poseidon.Sum(key)
@@ -39,6 +41,16 @@ func BuildProof(tree *Reader, key []byte, op MPTOperation) (Proof, error) {
 		return p, err
 	} else {
 		p.PathToNode = path
+	}
+
+	if len(p.PathToNode) == 0 && tree.root != nil {
+		if rootNode, err := tree.getNode(tree.root); err != nil {
+			if !errors.Is(err, db.ErrKeyNotFound) {
+				return p, err
+			}
+		} else {
+			p.PathToNode = []Node{rootNode}
+		}
 	}
 
 	return p, nil

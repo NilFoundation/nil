@@ -28,10 +28,7 @@ func (api *LocalShardApi) GetBalance(ctx context.Context, address types.Address,
 	defer tx.Rollback()
 
 	acc, err := api.getSmartContract(tx, address, blockReference)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return types.Value{}, nil
-		}
+	if err != nil || acc == nil {
 		return types.Value{}, err
 	}
 	return acc.Balance, nil
@@ -50,10 +47,7 @@ func (api *LocalShardApi) GetCode(ctx context.Context, address types.Address, bl
 	defer tx.Rollback()
 
 	acc, err := api.getSmartContract(tx, address, blockReference)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return nil, nil
-		}
+	if err != nil || acc == nil {
 		return nil, err
 	}
 
@@ -80,10 +74,7 @@ func (api *LocalShardApi) GetTokens(ctx context.Context, address types.Address, 
 	defer tx.Rollback()
 
 	acc, err := api.getSmartContract(tx, address, blockReference)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return nil, nil
-		}
+	if err != nil || acc == nil {
 		return nil, err
 	}
 
@@ -111,6 +102,23 @@ func (api *LocalShardApi) GetContract(ctx context.Context, address types.Address
 		return nil, err
 	}
 
+	proof, err := proofBuilder(mpt.ReadMPTOperation)
+	if err != nil {
+		return nil, err
+	}
+
+	encodedProof, err := proof.Encode()
+	if err != nil {
+		return nil, err
+	}
+
+	if contractRaw == nil {
+		// no such account found, provide a proof of absence
+		return &rawapitypes.SmartContract{
+			ProofEncoded: encodedProof,
+		}, nil
+	}
+
 	contract := new(types.SmartContract)
 	if err := contract.UnmarshalSSZ(contractRaw); err != nil {
 		return nil, err
@@ -123,16 +131,6 @@ func (api *LocalShardApi) GetContract(ctx context.Context, address types.Address
 		} else {
 			return nil, err
 		}
-	}
-
-	proof, err := proofBuilder(mpt.ReadMPTOperation)
-	if err != nil {
-		return nil, err
-	}
-
-	encodedProof, err := proof.Encode()
-	if err != nil {
-		return nil, err
 	}
 
 	storageReader := execution.NewDbStorageTrieReader(tx, address.ShardId())
@@ -174,9 +172,14 @@ func makeProofBuilder(root *mpt.Reader, key []byte) proofBuilder {
 	}
 }
 
+// getRawSmartContract retrieves raw smart contract data and its proof builder from the contract trie.
+// If the contract does not exist, `nil` is returned as the first value, while a proof builder is still provided to prove absence.
 func (api *LocalShardApi) getRawSmartContract(tx db.RoTx, address types.Address, blockReference rawapitypes.BlockReference) ([]byte, proofBuilder, error) {
 	rawBlock, err := api.getBlockByReference(tx, blockReference, false)
 	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return nil, nil, nil
+		}
 		return nil, nil, err
 	}
 	if rawBlock == nil {
@@ -192,6 +195,10 @@ func (api *LocalShardApi) getRawSmartContract(tx db.RoTx, address types.Address,
 	addressBytes := address.Hash().Bytes()
 	contractRaw, err := root.Get(addressBytes)
 	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			// there is no such contract, provide proof of absence
+			return nil, makeProofBuilder(root, addressBytes), nil
+		}
 		return nil, nil, err
 	}
 
@@ -200,7 +207,7 @@ func (api *LocalShardApi) getRawSmartContract(tx db.RoTx, address types.Address,
 
 func (api *LocalShardApi) getSmartContract(tx db.RoTx, address types.Address, blockReference rawapitypes.BlockReference) (*types.SmartContract, error) {
 	contractRaw, _, err := api.getRawSmartContract(tx, address, blockReference)
-	if err != nil {
+	if err != nil || contractRaw == nil {
 		return nil, err
 	}
 
@@ -233,10 +240,7 @@ func (api *LocalShardApi) GetTransactionCount(ctx context.Context, address types
 	defer tx.Rollback()
 
 	acc, err := api.getSmartContract(tx, address, blockReference)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return 0, nil
-		}
+	if err != nil || acc == nil {
 		return 0, err
 	}
 	return uint64(acc.ExtSeqno), nil

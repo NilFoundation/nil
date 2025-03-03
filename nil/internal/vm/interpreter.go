@@ -72,6 +72,11 @@ func (ctx *ScopeContext) CallInput() []byte {
 	return ctx.Contract.Input
 }
 
+// Address returns the address where this scope of execution is taking place. Callers must not modify the contents
+func (ctx *ScopeContext) Code() []byte {
+	return ctx.Contract.Code
+}
+
 // EVMInterpreter represents an EVM interpreter
 type EVMInterpreter struct {
 	evm   *EVM
@@ -87,7 +92,7 @@ type EVMInterpreter struct {
 }
 
 func NewEVMInterpreter(evm *EVM, state *EvmRestoreData) *EVMInterpreter {
-	return &EVMInterpreter{evm: evm, table: &cancunInstructionSet, restoredState: state}
+	return &EVMInterpreter{evm: evm, table: &CancunInstructionSet, restoredState: state}
 }
 
 // Run loops and evaluates the contract's code with the given input data and returns
@@ -183,6 +188,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			if err == nil {
 				return
 			}
+			var _ tracing.OpContext = callContext
 			if !logged && in.evm.Config.Tracer.OnOpcode != nil {
 				in.evm.Config.Tracer.OnOpcode(pcCopy, byte(op), gasCopy, cost, callContext, in.returnData, in.evm.depth, err)
 			}
@@ -271,11 +277,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	}
 
 	return res, err
-}
-
-// Get minimal required stack size for an opcode
-func (in *EVMInterpreter) GetNumRequiredStackItems(op OpCode) int {
-	return in.table[op].minStack
 }
 
 func calcDynamicCosts(contract *Contract, operation *operation, stack *Stack, in *EVMInterpreter, mem *Memory) (uint64, uint64, error) {
