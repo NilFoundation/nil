@@ -294,13 +294,15 @@ func (p *proposer) handleTransactionsFromNeighbors() error {
 						if err := p.handleTransaction(txn, execution.NewTransactionPayer(txn, p.executionState)); err != nil {
 							return err
 						}
+					}
+					p.proposal.InTxns = append(p.proposal.InTxns, txn)
 
+					// Handle at least one transaction.
+					if len(p.proposal.InTxns) >= 1 {
 						if !checkLimits() {
 							break
 						}
 					}
-
-					p.proposal.InTxns = append(p.proposal.InTxns, txn)
 				} else if p.params.ShardId != neighborId {
 					if p.topology.ShouldPropagateTxn(neighborId, p.params.ShardId, txn.To.ShardId()) {
 						if !checkLimits() {

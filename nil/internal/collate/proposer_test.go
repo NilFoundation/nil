@@ -168,7 +168,7 @@ func (s *ProposerTestSuite) TestCollator() {
 		pool.Txns = []*types.Transaction{m1, m2}
 
 		proposal := generateBlock()
-		s.Empty(proposal.InTxns)
+		s.Len(proposal.InTxns, 2)
 		s.Empty(proposal.ForwardTxns)
 		s.Equal(pool.Txns, proposal.RemoveFromPool)
 
