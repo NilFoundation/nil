@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"math"
 	"sync"
 	"time"
 
@@ -32,15 +33,25 @@ type PeerReputationTracker interface {
 
 type peerInfo struct {
 	lastBannedTime time.Time
+	reputation     Reputation
+}
+
+// TODO: move to ConnectionManagerConfig
+type ReputationConfig struct {
+	decayDevider           int
+	reputationBanThreshold Reputation
 }
 
 type notifiee struct {
 	basicNotifee network.Notifiee
 
-	peerBanTimeout time.Duration // +checklocksignore: constant
+	decayDevider     int
+	peerBanTimeout   time.Duration // +checklocksignore: constant
+	reputationConfig ReputationConfig
 
-	peerReputations map[peer.ID]peerInfo // +checklocks:mu
-	mu              sync.Mutex
+	peerReputations  map[peer.ID]*peerInfo // +checklocks:mu
+	lastUpdateSecond int64                 // +checklocks:mu
+	mu               sync.Mutex
 
 	logger zerolog.Logger // +checklocksignore: thread safe
 }
@@ -61,6 +72,8 @@ func (n *notifiee) Connected(network network.Network, connection network.Conn) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
+	n.recalculateReputationsAccordingToCurrentTime()
+
 	if n.isBanned(peer) {
 		if err := network.ClosePeer(peer); err != nil {
 			n.logger.Error().Err(err).Msgf("Failed to close peer %s", peer)
@@ -74,8 +87,8 @@ func (n *notifiee) Disconnected(network network.Network, connection network.Conn
 
 // +checklocks:n.mu
 func (n *notifiee) isBanned(peer peer.ID) bool {
-	if reputation, ok := n.peerReputations[peer]; ok {
-		return time.Since(reputation.lastBannedTime) < n.peerBanTimeout
+	if peerInfo, ok := n.peerReputations[peer]; ok {
+		return peerInfo.reputation < n.reputationConfig.reputationBanThreshold
 	}
 	return false
 }
@@ -84,22 +97,79 @@ func (n *notifiee) ReportPeer(peer peer.ID) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	n.recalculateReputation()
+	n.recalculateReputationsAccordingToCurrentTime()
 
-	n.peerReputations[peer] = peerInfo{
+	n.peerReputations[peer] = &peerInfo{
 		lastBannedTime: time.Now(),
 	}
 
 	// TODO: drop connections
 }
 
+// Reputation represents reputation value of the node
+type Reputation int32
+
+// add handles overflow and underflow condition while adding two Reputation values.
+func (r Reputation) add(num Reputation) Reputation {
+	if num > 0 {
+		if r > math.MaxInt32-num {
+			return math.MaxInt32
+		}
+	} else if r < math.MinInt32-num {
+		return math.MinInt32
+	}
+	return r + num
+}
+
+// sub handles underflow condition while subtracting two Reputation values.
+func (r Reputation) sub(num Reputation) Reputation {
+	if num < 0 {
+		if r > math.MaxInt32+num {
+			return math.MaxInt32
+		}
+	} else if r < math.MinInt32+num {
+		return math.MinInt32
+	}
+	return r - num
+}
+
+// calculateDivider calculates the divider for the reputation decay formula.
+// t is the time in seconds for the reputation to decay to p.
+func calculateDecayDivider(t int, p float64) int {
+	fd := 1.0 / (1.0 - math.Pow(p, 1.0/float64(t)))
+	di := int(math.Floor(fd))
+	if di < 1 {
+		di = 1
+	}
+	return di
+}
+
+// TODO: comment
+func (n *notifiee) reputationTick(reput Reputation) Reputation {
+	diff := Reputation(int(reput) / n.decayDevider)
+	if diff == 0 && reput < 0 {
+		diff = -1
+	} else if diff == 0 && reput > 0 {
+		diff = 1
+	}
+	return reput.sub(diff)
+}
+
 // +checklocks:n.mu
-func (n *notifiee) recalculateReputation() {
-	for peer := range n.peerReputations {
-		if !n.isBanned(peer) {
-			delete(n.peerReputations, peer)
+func (n *notifiee) recalculateReputationsAccordingToCurrentTime() {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	currentSecond := time.Now().Unix() // TODO: use mockable time
+	elapsedSeconds := currentSecond - n.lastUpdateSecond
+	n.lastUpdateSecond = currentSecond
+
+	for _ = range elapsedSeconds {
+		for _, info := range n.peerReputations {
+			info.reputation = n.reputationTick(info.reputation)
 		}
 	}
+	// TODO: add forget mechanism
 }
 
 func (n *notifiee) start(ctx context.Context) {
@@ -116,7 +186,7 @@ func (n *notifiee) start(ctx context.Context) {
 					n.mu.Lock()
 					defer n.mu.Unlock()
 
-					n.recalculateReputation()
+					n.recalculateReputationsAccordingToCurrentTime()
 				}()
 			}
 		}
@@ -137,9 +207,14 @@ func newConnectionManagerWithPeerReputationTracking(
 		return nil, err
 	}
 	notifee := &notifiee{
-		basicNotifee:    baseConnectionManager.Notifee(),
+		basicNotifee: baseConnectionManager.Notifee(),
+		reputationConfig: ReputationConfig{
+			// A bit low, then 35 seconds to reduce reputation by half. Or about 2% per second.
+			decayDevider:           calculateDecayDivider(35, 0.5),
+			reputationBanThreshold: -50,
+		},
 		peerBanTimeout:  conf.ConnectionManagerConfig.PeerBanTimeout,
-		peerReputations: make(map[peer.ID]peerInfo),
+		peerReputations: make(map[peer.ID]*peerInfo),
 		logger:          logger,
 	}
 	notifee.start(ctx)
