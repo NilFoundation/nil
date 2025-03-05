@@ -39,8 +39,9 @@ type RpcSuite struct {
 	CtxCancel context.CancelFunc
 	Wg        sync.WaitGroup
 
-	DbInit func() db.DB
-	Db     db.DB
+	DbInit             func() db.DB
+	Db                 db.DB
+	DisableConfigCache bool
 
 	Client    client.Client
 	ShardsNum uint32
@@ -68,6 +69,9 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 	s.ShardsNum = cfg.NShards
 	s.Context, s.CtxCancel = context.WithCancel(context.Background())
 
+	if !s.DisableConfigCache {
+		cfg.EnableConfigCache = true
+	}
 	if s.DbInit == nil {
 		s.DbInit = func() db.DB {
 			db, err := db.NewBadgerDbInMemory()

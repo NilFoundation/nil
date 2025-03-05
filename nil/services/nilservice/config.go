@@ -66,6 +66,7 @@ type Config struct {
 	TraceEVM             bool   `yaml:"-"`
 	CollatorTickPeriodMs uint32 `yaml:"-"`
 	Topology             string `yaml:"-"`
+	EnableConfigCache    bool   `yaml:"-"`
 
 	// Consensus
 	Validators       map[types.ShardId][]config.ValidatorInfo `yaml:"validators,omitempty"`
@@ -98,8 +99,9 @@ func NewDefaultConfig() *Config {
 		NetworkKeysPath:   "network-keys.yaml",
 		ValidatorKeysPath: "validator-keys.yaml",
 
-		GracefulShutdown: true,
-		Topology:         collate.TrivialShardTopologyId,
+		GracefulShutdown:  true,
+		Topology:          collate.TrivialShardTopologyId,
+		EnableConfigCache: true,
 
 		Validators: make(map[types.ShardId][]config.ValidatorInfo),
 
