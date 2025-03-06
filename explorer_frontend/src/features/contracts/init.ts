@@ -5,7 +5,12 @@ import { persist } from "effector-storage/local";
 import { debug } from "patronum";
 import type { App } from "../../types";
 import { $rpcUrl, $smartAccount } from "../account-connector/model";
-import { $solidityVersion, compileCodeFx, loadedPlaygroundPage } from "../code/model";
+import {
+  $solidityVersion,
+  compileCodeFx,
+  loadedPlaygroundPage,
+  loadedTutorialPage,
+} from "../code/model";
 import { $cometaService } from "../cometa/model";
 import { getTokenAddressBySymbol } from "../tokens";
 import {
@@ -664,7 +669,7 @@ sample({
 });
 
 sample({
-  clock: merge([loadedPlaygroundPage, $rpcUrl.updates]),
+  clock: merge([loadedPlaygroundPage, loadedTutorialPage, $rpcUrl.updates]),
   target: getShardsAmountFx,
   source: $rpcUrl,
 });

@@ -1,6 +1,8 @@
+import { useUnit } from "effector-react";
 import type { FC } from "react";
 import { useStyletron } from "styletron-react";
 import { BackRouterNavigationButton, useMobile } from "../../shared";
+import { isTutorialPage } from "../model.ts";
 import { CompilerVersionButton } from "./CompilerVersionButton.tsx";
 import { HyperlinkButton } from "./HyperlinkButton";
 import { OpenProjectButton } from "./OpenProjectButton.tsx";
@@ -11,6 +13,7 @@ type CodeToolbarProps = {
 };
 
 export const CodeToolbar: FC<CodeToolbarProps> = ({ disabled }) => {
+  const isTutorial = useUnit(isTutorialPage);
   const [css] = useStyletron();
   const [isMobile] = useMobile();
 
@@ -38,7 +41,7 @@ export const CodeToolbar: FC<CodeToolbarProps> = ({ disabled }) => {
       <QuestionButton />
       <HyperlinkButton disabled={disabled} />
       <OpenProjectButton disabled={disabled} />
-      <CompilerVersionButton disabled={disabled} />
+      {!isTutorial && <CompilerVersionButton disabled={disabled} />}
     </div>
   );
 };

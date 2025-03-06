@@ -10,6 +10,5 @@ getShardsAmountFx.use(async (rpcUrl) => {
   const client = new PublicClient({
     transport: new HttpTransport({ endpoint: rpcUrl }),
   });
-
   return (await client.getShardIdList()).length;
 });

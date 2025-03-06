@@ -1,7 +1,7 @@
 async function loadTutorials() {
   const [testTutorial, testContracts] = await Promise.all([
-    import("./assets/testTutorial.md?raw"),
-    import("./assets/testContracts.sol?raw"),
+    import("./assets/tutorialOneText.md?raw"),
+    import("./assets/tutorialOneContracts.sol?raw"),
   ]);
   const tutorials = [
     {

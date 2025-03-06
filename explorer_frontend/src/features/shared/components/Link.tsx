@@ -15,7 +15,7 @@ export type LinkProps = {
   className?: string;
 } & Pick<AnchorHTMLAttributes<HTMLAnchorElement>, "target">;
 
-const styles: StylesObject = {
+export const linkStyles: StylesObject = {
   link: {
     color: COLORS.blue200,
     textDecoration: "none",
@@ -32,7 +32,7 @@ export const Link = ({ to, params, children, className, target }: LinkProps) => 
     <AtomicLink
       to={to}
       params={params}
-      className={`${css(styles.link)} ${className ? className : ""}`}
+      className={`${css(linkStyles.link)} ${className ? className : ""}`}
       target={target}
     >
       {children}
