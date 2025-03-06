@@ -8,6 +8,7 @@ import {
   compile,
   compileCodeFx,
   fetchCodeSnippetFx,
+  isTutorialPage,
   сlickOnContractsButton,
   сlickOnLogButton,
 } from "./model";
@@ -17,7 +18,6 @@ import type { EditorView } from "@codemirror/view";
 import { useStyletron } from "baseui";
 import { expandProperty } from "inline-style-expand-shorthand";
 import { type ReactNode, memo, useMemo } from "react";
-import { $tutorialChecksState } from "../../pages/tutorials/model";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
@@ -37,7 +37,7 @@ export const Code = ({
   runCheckButton: runCheckButtons,
 }: CodeProps) => {
   const [isMobile] = useMobile();
-  const [code, isDownloading, errors, fetchingCodeSnippet, compiling, warnings, tutorialChecks] =
+  const [code, isDownloading, errors, fetchingCodeSnippet, compiling, warnings, isTutorial] =
     useUnit([
       $code,
       fetchSolidityCompiler.pending,
@@ -45,7 +45,7 @@ export const Code = ({
       fetchCodeSnippetFx.pending,
       compileCodeFx.pending,
       $warnings,
-      $tutorialChecksState,
+      isTutorialPage
     ]);
   const [css] = useStyletron();
 
@@ -165,7 +165,6 @@ export const Code = ({
               alignItems: "center",
               width: "100%",
               height: "100%",
-              backgroundColor: COLORS.gray900,
               borderTopLeftRadius: "12px",
               borderTopRightRadius: "12px",
               borderBottomLeftRadius: "12px",
@@ -179,7 +178,6 @@ export const Code = ({
             className={css({
               width: "100%",
               height: `calc(100% - ${isMobile ? "32px - 8px - 8px - 48px - 8px - 48px - 8px" : "48px - 8px"})`,
-              backgroundColor: COLORS.gray900,
               borderTopLeftRadius: "12px",
               borderTopRightRadius: "12px",
               borderBottomLeftRadius: "12px",
@@ -199,6 +197,7 @@ export const Code = ({
                 height: "100%",
                 overflow: "auto!important",
                 overscrollBehavior: "contain",
+                backgroundColor: isTutorial ? `${COLORS.blue900} !important` : COLORS.gray900,
               })}
               data-testid="code-field"
             />

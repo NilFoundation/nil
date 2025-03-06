@@ -40,7 +40,7 @@ export const CodeToolbar: FC<CodeToolbarProps> = ({ disabled }) => {
       )}
       <QuestionButton />
       <HyperlinkButton disabled={disabled} />
-      <OpenProjectButton disabled={disabled} />
+      {!isTutorial && <OpenProjectButton disabled={disabled} />}
       {!isTutorial && <CompilerVersionButton disabled={disabled} />}
     </div>
   );

@@ -1,4 +1,4 @@
-import { Input, SearchIcon } from "@nilfoundation/ui-kit";
+import { COLORS, Input, SearchIcon } from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import {
@@ -11,13 +11,13 @@ import {
   updateSearch,
 } from "../models/model";
 import { SearchResult } from "./SearchResult";
+import { isTutorialPage } from "../../code/model";
 
 const Search = () => {
-  const [query, focused, results] = useUnit([$query, $focused, $results]);
+  const [query, focused, results, isTutorial] = useUnit([$query, $focused, $results, isTutorialPage]);
   const [css] = useStyletron();
 
   const isShowResult = focused && query.length > 0;
-
   return (
     <div
       className={css({
@@ -44,7 +44,18 @@ const Search = () => {
         onClear={() => {
           clearSearch();
         }}
-      />
+        {...(isTutorial && {
+          overrides: {
+            Root: {
+              style: {
+                backgroundColor: COLORS.blue800,
+                ':hover': {
+                  backgroundColor: COLORS.blue700,
+                }
+              }
+            }
+          }
+        })} />
       {isShowResult && (
         <div
           className={css({

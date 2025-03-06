@@ -16,6 +16,7 @@ import { HyperlinkIcon, Link, OverflowEllipsis, StatefulPopover, useMobile } fro
 import {
   $codeSnippetHash,
   $shareCodeSnippetError,
+  isTutorialPage,
   setCodeSnippetEvent,
   setCodeSnippetFx,
 } from "../model";
@@ -27,10 +28,11 @@ type HyperlinkButtonProps = {
 export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
   const [isMobile] = useMobile();
   const [css] = useStyletron();
-  const [shareCodeSnippetPending, codeHash, shareCodeError] = useUnit([
+  const [shareCodeSnippetPending, codeHash, shareCodeError, isTutorial] = useUnit([
     setCodeSnippetFx.pending,
     $codeSnippetHash,
     $shareCodeSnippetError,
+    isTutorialPage
   ]);
   const link = !codeHash ? null : `${window.location.origin}/playground/${codeHash}`;
 
@@ -40,7 +42,6 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
       content={
         <div
           className={css({
-            backgroundColor: COLORS.gray800,
             height: "48px",
             width: isMobile ? "300px" : "400px",
             display: "flex",
@@ -110,6 +111,8 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
           width: isMobile ? "32px" : "48px",
           height: isMobile ? "32px" : "48px",
           flexShrink: 0,
+          backgroundColor: isTutorial ? `${COLORS.blue800} !important` : COLORS.gray800,
+          ':hover': { backgroundColor: isTutorial ? `${COLORS.blue700} !important` : COLORS.gray700 },
         })}
         icon={<HyperlinkIcon />}
         kind={BUTTON_KIND.secondary}

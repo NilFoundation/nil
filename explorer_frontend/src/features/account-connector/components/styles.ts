@@ -46,7 +46,6 @@ export const styles = {
   menu: {
     listStyle: "none",
     ...expandProperty("borderRadius", "8px"),
-    backgroundColor: COLORS.gray800,
     ...getMobileStyles({
       maxWidth: "250px",
     }),

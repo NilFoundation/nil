@@ -7,9 +7,10 @@ import { $activeAppWithState, closeApp } from "../models/base";
 import { Contracts } from "./Contracts/Contracts";
 import { DeployContractModal } from "./Deploy/DeployContractModal";
 import { ContractManagement } from "./Management/ContractManagement";
+import { isTutorialPage } from "../../code/model";
 
 export const ContractsContainer = () => {
-  const app = useUnit($activeAppWithState);
+  const [app, isTutorial] = useUnit([$activeAppWithState, isTutorialPage]);
   const Component = app?.address ? ContractManagement : Contracts;
   const [isMobile] = useMobile();
   const handlers = useSwipeable({
@@ -26,7 +27,7 @@ export const ContractsContainer = () => {
             maxWidth: isMobile ? "calc(100vw - 20px)" : "none",
             width: isMobile ? "100%" : "none",
             height: "100%",
-            backgroundColor: COLORS.gray900,
+            backgroundColor: isTutorial ? COLORS.blue900 : COLORS.gray900,
             paddingRight: "0",
             paddingLeft: "0",
             paddingBottom: "24px",

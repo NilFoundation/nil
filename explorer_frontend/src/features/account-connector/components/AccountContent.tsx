@@ -14,13 +14,14 @@ import { OverflowEllipsis, StatefulPopover, useMobile } from "../../shared";
 import { $smartAccount } from "../model";
 import { AccountContainer } from "./AccountContainer";
 import { styles } from "./styles";
+import { isTutorialPage } from "../../code/model";
 
 const MemoizedAccountContainer = memo(AccountContainer);
 
 const AccountContent = () => {
   const [isMobile] = useMobile();
   const [css] = useStyletron();
-  const smartAccount = useUnit($smartAccount);
+  const [smartAccount, isTutorial] = useUnit([$smartAccount, isTutorialPage]);
   const address = smartAccount ? smartAccount.address : null;
   const text = address ? address : "Not connected";
   const isAccountConnected = !!smartAccount;
@@ -36,11 +37,36 @@ const AccountContent = () => {
       placement="bottomRight"
       autoFocus
       triggerType="click"
+
     >
       {isMobile ? (
-        <ButtonIcon kind={BUTTON_KIND.secondary} icon={<MenuIcon />} />
+        <ButtonIcon kind={BUTTON_KIND.secondary} icon={<MenuIcon />} overrides={{
+          Root: {
+            style: {
+              ...(isTutorial ? {
+                backgroundColor: COLORS.blue800,
+                ':hover': {
+                  backgroundColor: COLORS.blue700,
+                }
+              } : {}
+              )
+            }
+          }
+        }} />
       ) : (
-        <Button kind={BUTTON_KIND.secondary} className={css(styles.account)} type="button">
+        <Button kind={BUTTON_KIND.secondary} className={css(styles.account)} type="button" overrides={{
+          Root: {
+            style: {
+              ...(isTutorial ? {
+                backgroundColor: COLORS.blue800,
+                ':hover': {
+                  backgroundColor: COLORS.blue700,
+                }
+              } : {}
+              )
+            }
+          }
+        }}>
           <div
             className={css({
               ...styles.indicator,

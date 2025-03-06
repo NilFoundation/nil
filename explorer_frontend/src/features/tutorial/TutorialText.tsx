@@ -76,6 +76,7 @@ export const TutorialText = () => {
         Content: {
           style: {
             display: "inline",
+            backgroundColor: COLORS.blue900,
           },
         },
       }}
@@ -85,7 +86,16 @@ export const TutorialText = () => {
   const CustomLink = (props: any) => <Link {...props} to={props.href} style={linkStyles.link} />;
   const CustomCodeField = ({ node, inline, className, children, ...props }: any) => {
     const codeContent = Array.isArray(children) ? children.join("") : children;
-    return <CodeField code={codeContent} {...props} />;
+    return <CodeField
+      className={css({
+        backgroundColor: `${COLORS.blue800} !important`,
+      })}
+      code={codeContent}
+      themeOverrides={{
+        settings: {
+          background: COLORS.blue800,
+        }
+      }} {...props} />;
   };
 
   return (
@@ -96,7 +106,7 @@ export const TutorialText = () => {
             maxWidth: isMobile ? "calc(100vw - 20px)" : "none",
             width: isMobile ? "100%" : "none",
             height: "91%",
-            backgroundColor: COLORS.gray900,
+            backgroundColor: COLORS.blue900,
             paddingRight: "0",
             paddingLeft: "0",
             flexDirection: "column",

@@ -8,6 +8,8 @@ import { $activeComponent, setActiveComponent } from "../model";
 import { MainScreen } from "./MainScreen";
 import { RpcUrlScreen } from "./RpcUrlScreen.tsx";
 import { TopUpPanel } from "./TopUpPanel";
+import { isTutorialPage } from "../../code/model.ts";
+import { is } from "effector";
 
 const featureMap = new Map();
 featureMap.set(ActiveComponent.RpcUrl, RpcUrlScreen);
@@ -15,7 +17,7 @@ featureMap.set(ActiveComponent.Main, MainScreen);
 featureMap.set(ActiveComponent.Topup, TopUpPanel);
 
 const AccountContainer = () => {
-  const activeComponent = useUnit($activeComponent);
+  const [activeComponent, isTutorial] = useUnit([$activeComponent, isTutorialPage]);
   const Component = activeComponent ? featureMap.get(activeComponent) : null;
   const [css] = useStyletron();
   const handlers = useSwipeable({
@@ -31,7 +33,7 @@ const AccountContainer = () => {
         ...expandProperty("borderRadius", "16px"),
         width: "100%",
         maxWidth: "420px",
-        backgroundColor: COLORS.gray800,
+        backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
         "@media (min-width: 421px)": {
           width: "420px",
           margin: "0 auto",

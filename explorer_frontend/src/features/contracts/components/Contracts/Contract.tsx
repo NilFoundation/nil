@@ -13,6 +13,8 @@ import { useStyletron } from "styletron-react";
 import type { App } from "../../../../types";
 import { choseApp } from "../../models/base";
 import { RemoveAppButton } from "../RemoveAppButton";
+import { useUnit } from "effector-react";
+import { isTutorialPage } from "../../../code/model";
 
 type ContractProps = {
   contract: App;
@@ -22,6 +24,8 @@ type ContractProps = {
 
 export const Contract: FC<ContractProps> = ({ contract, deployedApps, disabled }) => {
   const [css] = useStyletron();
+
+  const isTutorial = useUnit(isTutorialPage);
 
   return (
     <div
@@ -81,15 +85,21 @@ export const Contract: FC<ContractProps> = ({ contract, deployedApps, disabled }
                 flexDirection: "row",
                 alignItems: "center",
                 gap: "8px",
-                backgroundColor: COLORS.gray800,
+                backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
                 ...expandProperty("padding", "12px 16px"),
                 ...expandProperty("borderRadius", "8px"),
                 ...expandProperty("transition", "background-color 0.15s ease-in"),
-                ":hover": {
-                  ...(disabled
-                    ? { backgroundColor: COLORS.gray800 }
-                    : { backgroundColor: COLORS.gray700 }),
-                },
+                ":hover": (() => {
+                  if (disabled && !isTutorial) {
+                    return { backgroundColor: COLORS.gray800 };
+                  } else if (disabled && isTutorial) {
+                    return { backgroundColor: COLORS.blue800 };
+                  } else if (!disabled && !isTutorial) {
+                    return { backgroundColor: COLORS.gray700 };
+                  } else {
+                    return { backgroundColor: COLORS.blue700 };
+                  }
+                })(),
                 cursor: disabled ? "auto" : "pointer",
                 ":first-child": {
                   marginTop: "12px",

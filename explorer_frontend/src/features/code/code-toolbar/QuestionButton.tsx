@@ -11,16 +11,20 @@ import type { MenuOverrides } from "baseui/menu";
 import { useStyletron } from "styletron-react";
 import { getRuntimeConfigOrThrow } from "../../runtime-config";
 import { ArrowUpRightIcon, QuestionIcon, StatefulPopover, useMobile } from "../../shared";
+import { isTutorialPage } from "../model";
+import { useUnit } from "effector-react";
 
-const menuOverrides: MenuOverrides = {
-  List: {
-    style: {
-      backgroundColor: COLORS.gray800,
-    },
-  },
-};
 
 export const QuestionButton = () => {
+  const isTutorial = useUnit(isTutorialPage);
+  const menuOverrides: MenuOverrides = {
+    List: {
+      style: {
+        backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+
+      },
+    },
+  };
   const [css] = useStyletron();
   const [isMobile] = useMobile();
   const { PLAYGROUND_FEEDBACK_URL, PLAYGROUND_SUPPORT_URL, PLAYGROUND_DOCS_URL } =
@@ -54,7 +58,12 @@ export const QuestionButton = () => {
   return (
     <StatefulPopover
       popoverMargin={8}
-      content={<Menu isDropdown items={items} size={MENU_SIZE.small} overrides={menuOverrides} />}
+      content={<Menu
+        isDropdown
+        items={items}
+        size={MENU_SIZE.small}
+        overrides={menuOverrides}
+      />}
       placement="bottomRight"
       autoFocus
       triggerType="click"
@@ -68,6 +77,19 @@ export const QuestionButton = () => {
         icon={<QuestionIcon />}
         kind={BUTTON_KIND.secondary}
         size={isMobile ? BUTTON_SIZE.compact : BUTTON_SIZE.large}
+        overrides={{
+          Root: {
+            style: {
+              ...(isTutorial ? {
+                backgroundColor: COLORS.blue800,
+                ':hover': {
+                  backgroundColor: COLORS.blue700,
+                }
+              } : {}
+              )
+            }
+          }
+        }}
       />
     </StatefulPopover>
   );
