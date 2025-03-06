@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/NilFoundation/nil/nil/internal/telemetry/internal"
+	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -19,6 +20,10 @@ func NewDefaultConfig() *Config {
 	return &Config{
 		ServiceName: os.Args[0],
 	}
+}
+
+func AddFlags(fset *pflag.FlagSet, config *Config) {
+	fset.BoolVar(&config.ExportMetrics, "metrics", config.ExportMetrics, "export metrics via grpc")
 }
 
 func Init(ctx context.Context, config *Config) error {
