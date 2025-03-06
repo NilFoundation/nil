@@ -1,0 +1,141 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "Nil",
+  "sourceName": "@nilfoundation/smart-contracts/contracts/Nil.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "ASYNC_REQUEST_MIN_GAS",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "FORWARD_NONE",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "FORWARD_PERCENTAGE",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "FORWARD_REMAINING",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "FORWARD_VALUE",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "IS_INTERNAL_TRANSACTION",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "IS_RESPONSE_TRANSACTION",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "LOG",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MANAGE_TOKEN",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "VERIFY_SIGNATURE",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608080604052346019576101ad908161001f823930815050f35b600080fdfe608080604052600436101561001357600080fd5b60003560e01c9081631816a5e114610162575080633840cdae1461014b57806342e6d4d714610134578063434b4d631461011d578063620c9317146101065780639bc465a0146100ef578063a167fd5f146100d8578063cbb1c30a146100c0578063d2ec13b2146100a95763df09b8eb1461008d57600080fd5b60003660031901126100a457602060405160038152f35b600080fd5b60003660031901126100a457602060405160028152f35b60003660031901126100a457602060405161c3508152f35b60003660031901126100a457602060405160fe8152f35b60003660031901126100a457602060405160018152f35b60003660031901126100a457602060405160d08152f35b60003660031901126100a457602060405160ff8152f35b60003660031901126100a457602060405160008152f35b60003660031901126100a457602060405160d98152f35b60003660031901126100a4578060da60209252f3fea2646970667358221220898ff60cb7b50b285a30b44445cb43751c54ff66d8e3a54d31e96850b7d3118564736f6c634300081c0033",
+  "deployedBytecode": "0x608080604052600436101561001357600080fd5b60003560e01c9081631816a5e114610162575080633840cdae1461014b57806342e6d4d714610134578063434b4d631461011d578063620c9317146101065780639bc465a0146100ef578063a167fd5f146100d8578063cbb1c30a146100c0578063d2ec13b2146100a95763df09b8eb1461008d57600080fd5b60003660031901126100a457602060405160038152f35b600080fd5b60003660031901126100a457602060405160028152f35b60003660031901126100a457602060405161c3508152f35b60003660031901126100a457602060405160fe8152f35b60003660031901126100a457602060405160018152f35b60003660031901126100a457602060405160d08152f35b60003660031901126100a457602060405160ff8152f35b60003660031901126100a457602060405160008152f35b60003660031901126100a457602060405160d98152f35b60003660031901126100a4578060da60209252f3fea2646970667358221220898ff60cb7b50b285a30b44445cb43751c54ff66d8e3a54d31e96850b7d3118564736f6c634300081c0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
