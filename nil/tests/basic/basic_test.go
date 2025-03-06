@@ -897,6 +897,22 @@ func (s *SuiteRpc) TestRpcTransactionContent() {
 	s.EqualValues(3, txn2.Flags.Bits)
 }
 
+func (s *SuiteRpc) TestTwoInvalidSignatureTxs() {
+	shardId := types.BaseShardId
+	_, _, err := s.Client.DeployContract(s.Context, shardId, types.MainSmartAccountAddress,
+		contracts.CounterDeployPayload(s.T()), types.Value{}, types.NewFeePackFromGas(1_000_000), nil)
+	s.Require().NoError(err)
+
+	_, _, err = s.Client.DeployContract(s.Context, shardId, types.MainSmartAccountAddress,
+		contracts.CounterDeployPayload(s.T()), types.Value{}, types.NewFeePackFromGas(1_000_000), nil)
+	s.Require().NoError(err)
+
+	block, err := s.Client.GetBlock(s.Context, shardId, "latest", false)
+	s.Require().NoError(err)
+
+	tests.WaitBlock(s.T(), s.Context, s.Client, shardId, uint64(block.Number)+1)
+}
+
 func (s *SuiteRpc) TestDbApi() {
 	block, err := s.Client.GetBlock(s.Context, types.BaseShardId, transport.LatestBlockNumber, false)
 	s.Require().NoError(err)
