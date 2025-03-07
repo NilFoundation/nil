@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
 )
 
@@ -27,14 +27,14 @@ type Service interface {
 
 type stateResetLauncher struct {
 	blockFetcher BlockFetcher
-	resetter     StateResetter
+	resetter     *StateResetter
 	service      Service
 	logger       zerolog.Logger
 }
 
 func NewResetLauncher(
 	blockFetcher BlockFetcher,
-	resetter StateResetter,
+	resetter *StateResetter,
 	service Service,
 	logger zerolog.Logger,
 ) *stateResetLauncher {
@@ -46,22 +46,22 @@ func NewResetLauncher(
 	}
 }
 
-func (l *stateResetLauncher) LaunchPartialResetWithSuspension(ctx context.Context, firstMainHashToPurge common.Hash) error {
+func (l *stateResetLauncher) LaunchPartialResetWithSuspension(ctx context.Context, failedBatchId scTypes.BatchId) error {
 	l.logger.Info().
-		Stringer(logging.FieldBlockMainChainHash, firstMainHashToPurge).
+		Stringer(logging.FieldBlockMainChainHash, failedBatchId).
 		Msg("Launching state reset process")
 
 	if err := l.blockFetcher.Pause(ctx); err != nil {
 		return fmt.Errorf("failed to pause block fetching: %w", err)
 	}
 
-	if err := l.resetter.ResetProgressPartial(ctx, firstMainHashToPurge); err != nil {
-		l.onResetError(ctx, err, firstMainHashToPurge)
+	if err := l.resetter.ResetProgressPartial(ctx, failedBatchId); err != nil {
+		l.onResetError(ctx, err, failedBatchId)
 		return nil
 	}
 
 	l.logger.Info().
-		Stringer(logging.FieldBlockMainChainHash, firstMainHashToPurge).
+		Stringer(logging.FieldBlockMainChainHash, failedBatchId).
 		Msgf("State reset completed, block fetching will be resumed after %s", fetchResumeDelay)
 
 	detachedCtx := context.WithoutCancel(ctx)
@@ -72,9 +72,9 @@ func (l *stateResetLauncher) LaunchPartialResetWithSuspension(ctx context.Contex
 }
 
 func (l *stateResetLauncher) onResetError(
-	ctx context.Context, resetErr error, failedMainBlockHash common.Hash,
+	ctx context.Context, resetErr error, failedBatchId scTypes.BatchId,
 ) {
-	l.logger.Error().Err(resetErr).Stringer(logging.FieldBlockMainChainHash, failedMainBlockHash).Send()
+	l.logger.Error().Err(resetErr).Stringer(logging.FieldBatchId, failedBatchId).Send()
 	l.resumeBlockFetching(ctx)
 }
 

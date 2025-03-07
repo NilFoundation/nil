@@ -21,7 +21,7 @@ type SyncCommitteeMetricsHandler struct {
 	blockBatchSize         telemetry.Histogram
 
 	// BlockStorageMetrics
-	totalMainBlocksProved telemetry.Counter
+	totalBatchesProved telemetry.Counter
 
 	// ProposerMetrics
 	totalL1TxSent       telemetry.Counter
@@ -66,7 +66,7 @@ func (h *SyncCommitteeMetricsHandler) init(attributes metric.MeasurementOption, 
 func (h *SyncCommitteeMetricsHandler) initBlockStorageMetrics(meter telemetry.Meter) error {
 	var err error
 
-	if h.totalMainBlocksProved, err = meter.Int64Counter(namespace + "total_main_blocks_proved"); err != nil {
+	if h.totalBatchesProved, err = meter.Int64Counter(namespace + "total_batches_proved"); err != nil {
 		return err
 	}
 
@@ -112,8 +112,8 @@ func (h *SyncCommitteeMetricsHandler) RecordBlockBatchSize(ctx context.Context, 
 	h.blockBatchSize.Record(ctx, batchSize, h.attributes)
 }
 
-func (h *SyncCommitteeMetricsHandler) RecordMainBlockProved(ctx context.Context) {
-	h.totalMainBlocksProved.Add(ctx, 1, h.attributes)
+func (h *SyncCommitteeMetricsHandler) RecordBatchProved(ctx context.Context) {
+	h.totalBatchesProved.Add(ctx, 1, h.attributes)
 }
 
 func (h *SyncCommitteeMetricsHandler) RecordProposerTxSent(ctx context.Context, proposalData *types.ProposalData) {
