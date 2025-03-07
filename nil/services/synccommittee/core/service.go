@@ -41,7 +41,7 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 	blockStorage := storage.NewBlockStorage(database, storage.DefaultBlockStorageConfig(), timer, metricsHandler, logger)
 	taskStorage := storage.NewTaskStorage(database, timer, metricsHandler, logger)
 
-	// todo: add reset logic to TaskStorage (implement StateResetter interface) and pass it here in https://github.com/NilFoundation/nil/pull/419
+	// todo: add reset logic to TaskStorage and pass it here
 	stateResetter := reset.NewStateResetter(logger, blockStorage)
 
 	agg := NewAggregator(
