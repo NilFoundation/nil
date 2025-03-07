@@ -40,12 +40,12 @@ type ZeroStateConfig struct {
 }
 
 func CreateDefaultZeroStateConfig(mainPublicKey []byte) (*ZeroStateConfig, error) {
-	smartAccountValue, err := types.NewValueFromDecimal("10000000000000000000000")
+	smartAccountValue, err := types.NewValueFromDecimal("10000000000000000000000000000")
 	if err != nil {
 		return nil, err
 	}
 	faucetValue := smartAccountValue.Mul(types.NewValueFromUint64(uint64(2)))
-	tokenValue, err := types.NewValueFromDecimal("100000000000000")
+	tokenValue, err := types.NewValueFromDecimal("100000000000000000000")
 	if err != nil {
 		return nil, err
 	}
