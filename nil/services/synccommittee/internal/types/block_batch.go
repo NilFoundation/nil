@@ -11,8 +11,10 @@ import (
 )
 
 var (
-	ErrBatchNotReady = errors.New("batch is not ready for handling")
-	ErrBatchMismatch = errors.New("batch mismatch")
+	ErrBatchNotReady  = errors.New("batch is not ready for handling")
+	ErrBatchMismatch  = errors.New("batch mismatch")
+	ErrBatchNotProved = errors.New("batch is not proved")
+	ErrBlockMismatch  = errors.New("block mismatch")
 )
 
 // BatchId Unique ID of a batch of blocks.

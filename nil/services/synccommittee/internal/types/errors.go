@@ -10,7 +10,7 @@ import (
 
 var (
 	ErrBlockNotFound   = errors.New("block with the specified id is not found")
-	ErrBlockMismatch   = errors.New("block mismatch")
+	ErrBatchNotFound   = errors.New("batch with the specified id is not found")
 	ErrBlockProcessing = errors.New("block processing error")
 )
 

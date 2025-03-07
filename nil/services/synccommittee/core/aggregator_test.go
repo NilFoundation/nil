@@ -142,12 +142,12 @@ func (s *AggregatorTestSuite) Test_Main_Parent_Hash_Mismatch() {
 	for _, provedBatch := range batches[:2] {
 		err := s.blockStorage.SetBlockBatch(s.ctx, provedBatch)
 		s.Require().NoError(err)
-		err = s.blockStorage.SetBlockAsProved(s.ctx, scTypes.IdFromBlock(provedBatch.MainShardBlock))
+		err = s.blockStorage.SetBatchAsProved(s.ctx, provedBatch.Id)
 		s.Require().NoError(err)
 	}
 
 	// Set first batch as proposed, latestProvedStateRoot value is updated
-	err := s.blockStorage.SetBlockAsProposed(s.ctx, scTypes.IdFromBlock(batches[0].MainShardBlock))
+	err := s.blockStorage.SetBatchAsProposed(s.ctx, batches[0].Id)
 	s.Require().NoError(err)
 	latestProved, err := s.blockStorage.TryGetProvedStateRoot(s.ctx)
 	s.Require().NoError(err)
@@ -208,7 +208,7 @@ func (s *AggregatorTestSuite) Test_Fetch_Next_Valid() {
 
 func (s *AggregatorTestSuite) Test_Block_Storage_Capacity_Exceeded() {
 	// only one test batch can fit in the storage
-	storageConfig := storage.NewBlockStorageConfig(testaide.BatchSize)
+	storageConfig := storage.NewBlockStorageConfig(1)
 	blockStorage := s.newTestBlockStorage(storageConfig)
 
 	batches := testaide.NewBatchesSequence(2)
