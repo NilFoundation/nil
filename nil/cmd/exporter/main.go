@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/NilFoundation/nil/nil/services/indexer"
+	"github.com/NilFoundation/nil/nil/services/indexer/clickhouse"
+	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 	"os"
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/cmd/exporter/internal"
-	"github.com/NilFoundation/nil/nil/cmd/exporter/internal/clickhouse"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/spf13/cobra"
@@ -57,9 +58,9 @@ func main() {
 
 	cobra.OnInitialize(initConfig)
 	rootCmd := &cobra.Command{
-		Use:   "exporter [-c config.yaml] [flags]",
-		Short: "Exporter is a tool to export data from Nil blockchain to Clickhouse.",
-		Long: `Exporter is a tool to export data from Nil blockchain to Clickhouse.
+		Use:   "indexer [-c config.yaml] [flags]",
+		Short: "Indexer is a tool to export data from Nil blockchain to Clickhouse.",
+		Long: `Indexer is a tool to export data from Nil blockchain to Clickhouse.
 You could config it via config file or flags or environment variables.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			requiredParams := []string{"clickhouse-endpoint", "clickhouse-login", "clickhouse-database"}
@@ -104,12 +105,12 @@ You could config it via config file or flags or environment variables.`,
 	clickhouseExporter, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
 	check.PanicIfErr(err)
 
-	check.PanicIfErr(internal.StartExporter(ctx, &internal.Cfg{
-		Client:         rpc.NewClient(apiEndpoint, logger),
-		ExporterDriver: clickhouseExporter,
-		AllowDbDrop:    allowDbDrop,
-		BlocksChan:     make(chan *internal.BlockWithShardId, 1000),
+	check.PanicIfErr(indexer.StartIndexer(ctx, &indexer.Cfg{
+		Client:        rpc.NewClient(apiEndpoint, logger),
+		IndexerDriver: clickhouseExporter,
+		AllowDbDrop:   allowDbDrop,
+		BlocksChan:    make(chan *types2.BlockWithShardId, 1000),
 	}))
 
-	logger.Info().Msg("Exporter stopped")
+	logger.Info().Msg("Indexer stopped")
 }
