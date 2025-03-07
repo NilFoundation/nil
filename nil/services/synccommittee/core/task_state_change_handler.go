@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
@@ -12,27 +11,27 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type ProvedBlockSetter interface {
-	SetBlockAsProved(ctx context.Context, blockId types.BlockId) error
+type ProvedBatchSetter interface {
+	SetBatchAsProved(ctx context.Context, batchId types.BatchId) error
 }
 
 type StateResetLauncher interface {
-	LaunchPartialResetWithSuspension(ctx context.Context, failedMainBlockHash common.Hash) error
+	LaunchPartialResetWithSuspension(ctx context.Context, failedBatchId types.BatchId) error
 }
 
 type taskStateChangeHandler struct {
-	blockSetter        ProvedBlockSetter
+	batchSetter        ProvedBatchSetter
 	stateResetLauncher StateResetLauncher
 	logger             zerolog.Logger
 }
 
 func newTaskStateChangeHandler(
-	blockSetter ProvedBlockSetter,
+	batchSetter ProvedBatchSetter,
 	stateResetLauncher StateResetLauncher,
 	logger zerolog.Logger,
 ) api.TaskStateChangeHandler {
 	return &taskStateChangeHandler{
-		blockSetter:        blockSetter,
+		batchSetter:        batchSetter,
 		stateResetLauncher: stateResetLauncher,
 		logger:             logger,
 	}
@@ -53,7 +52,7 @@ func (h *taskStateChangeHandler) OnTaskTerminated(ctx context.Context, task *typ
 	default:
 		log.NewTaskResultEvent(h.logger, zerolog.WarnLevel, result).
 			Msg("task execution failed with critical error, state will be reset")
-		return h.stateResetLauncher.LaunchPartialResetWithSuspension(ctx, task.BlockHash)
+		return h.stateResetLauncher.LaunchPartialResetWithSuspension(ctx, task.BatchId)
 	}
 }
 
@@ -68,10 +67,8 @@ func (h *taskStateChangeHandler) onTaskSuccess(ctx context.Context, task *types.
 		Stringer(logging.FieldBatchId, task.BatchId).
 		Msg("Proof batch completed")
 
-	blockId := types.NewBlockId(task.ShardId, task.BlockHash)
-
-	if err := h.blockSetter.SetBlockAsProved(ctx, blockId); err != nil {
-		return fmt.Errorf("failed to set block with id=%s as proved: %w", blockId, err)
+	if err := h.batchSetter.SetBatchAsProved(ctx, task.BatchId); err != nil {
+		return fmt.Errorf("failed to set batch with id=%s as proved: %w", task.BatchId, err)
 	}
 
 	return nil

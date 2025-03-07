@@ -130,10 +130,6 @@ func IdFromBlock(block *jsonrpc.RPCBlock) BlockId {
 	return BlockId{block.ShardId, block.Hash}
 }
 
-func ParentBlockId(block *jsonrpc.RPCBlock) BlockId {
-	return BlockId{block.ShardId, block.ParentHash}
-}
-
 func ChildBlockIds(mainShardBlock *jsonrpc.RPCBlock) ([]BlockId, error) {
 	if mainShardBlock == nil {
 		return nil, errors.New("mainShardBlock cannot be nil")
@@ -216,6 +212,7 @@ func NewTransaction(transaction *jsonrpc.RPCInTransaction) *PrunedTransaction {
 }
 
 type ProposalData struct {
+	BatchId            BatchId
 	MainShardBlockHash common.Hash
 	Transactions       []*PrunedTransaction
 	OldProvedStateRoot common.Hash
