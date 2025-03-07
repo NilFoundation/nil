@@ -31,6 +31,7 @@ var (
 	BtcFaucetAddress        = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111114")
 	UsdcFaucetAddress       = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111115")
 	L1BlockInfoAddress      = ShardAndHexToAddress(MainShardId, "222222222222222222222222222222222222")
+	GovernanceAddress       = ShardAndHexToAddress(MainShardId, "777777777777777777777777777777777777")
 )
 
 func GetTokenName(addr TokenId) string {
@@ -96,16 +97,6 @@ func ShardAndHexToAddress(shardId ShardId, s string) Address {
 	}
 	setShardId(addr[:], shardId)
 	return addr
-}
-
-// IsHexAddress verifies whether a string can represent a valid hex-encoded
-// Ethereum address or not.
-func IsHexAddress(s string) bool {
-	if len(s) >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') {
-		s = s[2:]
-	}
-	_, err := hex.DecodeString(s)
-	return err == nil
 }
 
 // Bytes gets the string representation of the underlying address.

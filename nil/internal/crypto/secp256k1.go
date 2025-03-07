@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/holiman/uint256"
 )
 
@@ -14,7 +15,7 @@ func TransactionSignatureIsValid(v byte, r, s *uint256.Int) bool {
 }
 
 func TransactionSignatureIsValidBytes(sign []byte) bool {
-	if len(sign) != 65 {
+	if len(sign) != common.SignatureSize {
 		return false
 	}
 
