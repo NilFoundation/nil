@@ -147,6 +147,7 @@ export const Code = ({
                     whiteSpace: "nowrap",
                     lineHeight: 1,
                     marginLeft: "auto",
+
                   },
                 },
               }}
@@ -223,6 +224,7 @@ export const Code = ({
                   style: {
                     lineHeight: 1,
                     gridColumn: "1 / 3",
+
                   },
                 },
               }}
@@ -235,6 +237,13 @@ export const Code = ({
                 Root: {
                   style: {
                     gridColumn: "1 / 2",
+                    ...(isTutorial ? {
+                      backgroundColor: COLORS.blue800,
+                      ':hover': {
+                        backgroundColor: COLORS.blue700,
+                      }
+                    } : {}
+                    )
                   },
                 },
               }}
@@ -251,6 +260,13 @@ export const Code = ({
                 Root: {
                   style: {
                     gridColumn: "2 / 3",
+                    ...(isTutorial ? {
+                      backgroundColor: COLORS.blue800,
+                      ':hover': {
+                        backgroundColor: COLORS.blue700,
+                      }
+                    } : {}
+                    )
                   },
                 },
               }}

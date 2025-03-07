@@ -26,6 +26,10 @@ const tutorialButton = (
           fontWeight: 100,
           fontSize: "16px",
           color: "rgb(189, 189, 189)",
+          backgroundColor: COLORS.blue800,
+          ':hover': {
+            backgroundColor: COLORS.blue700,
+          }
         },
       },
     }}

@@ -37,7 +37,14 @@ const AccountContent = () => {
       placement="bottomRight"
       autoFocus
       triggerType="click"
+      overrides={{
 
+        Inner: {
+          style: {
+            backgroundColor: isTutorial ? COLORS.blue900 : COLORS.gray900,
+          },
+        },
+      }}
     >
       {isMobile ? (
         <ButtonIcon kind={BUTTON_KIND.secondary} icon={<MenuIcon />} overrides={{

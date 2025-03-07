@@ -65,6 +65,10 @@ export const Logs = () => {
                 style: {
                   paddingLeft: 0,
                   paddingRight: 0,
+                  backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+                  ":hover": {
+                    backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+                  }
                 },
               },
             }}
@@ -171,6 +175,10 @@ export const Logs = () => {
                   position: "absolute",
                   top: "16px",
                   right: "16px",
+                  backgroundColor: (isTutorial ? COLORS.blue800 : COLORS.gray800),
+                  ':hover': {
+                    backgroundColor: (isTutorial ? COLORS.blue700 : COLORS.gray700),
+                  }
                 },
               },
             }}

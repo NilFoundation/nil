@@ -1,7 +1,9 @@
-import { FormControl, Input, LabelMedium } from "@nilfoundation/ui-kit";
+import { COLORS, FormControl, Input, LabelMedium } from "@nilfoundation/ui-kit";
 import type { AbiInternalType, AbiParameter } from "abitype";
+import { useUnit } from "effector-react";
 import type { FC } from "react";
 import { useStyletron } from "styletron-react";
+import { isTutorialPage } from "../../../code/model";
 
 type MethodInputProps = {
   input: AbiParameter;
@@ -31,7 +33,7 @@ const MethodInput: FC<MethodInputProps> = ({
 }: MethodInputProps) => {
   const { type, name } = input;
   const [css] = useStyletron();
-
+  const isTutorial = useUnit(isTutorialPage);
   return (
     <div>
       {isAbiParameterTuple(input) ? (
@@ -54,6 +56,16 @@ const MethodInput: FC<MethodInputProps> = ({
                 <div key={i}>
                   <FormControl label={name} caption={type}>
                     <Input
+                      overrides={{
+                        Root: {
+                          style: {
+                            backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+                            ":hover": {
+                              backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+                            }
+                          }
+                        }
+                      }}
                       value={inputValue}
                       onChange={(e) => {
                         const value = e.target.value;
@@ -71,6 +83,16 @@ const MethodInput: FC<MethodInputProps> = ({
       ) : (
         <FormControl label={name} caption={type}>
           <Input
+            overrides={{
+              Root: {
+                style: {
+                  backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+                  ":hover": {
+                    backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+                  }
+                }
+              }
+            }}
             value={params?.[paramName] ? String(params[paramName]) : ""}
             onChange={(e) => {
               const value = e.target.value;

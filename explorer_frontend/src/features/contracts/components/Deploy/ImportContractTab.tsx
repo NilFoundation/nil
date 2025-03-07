@@ -14,9 +14,10 @@ import {
   importSmartContractFx,
   setImportedSmartContractAddress,
 } from "../../models/base";
+import { isTutorialPage } from "../../../code/model";
 
 export const ImportContractTab = () => {
-  const [smartAccount, pending, importedAddress, activeApp, addressIsValid, errorMessage] = useUnit(
+  const [smartAccount, pending, importedAddress, activeApp, addressIsValid, errorMessage, isTutorial] = useUnit(
     [
       $smartAccount,
       importSmartContractFx.pending,
@@ -24,10 +25,22 @@ export const ImportContractTab = () => {
       $activeAppWithState,
       $importedSmartContractAddressIsValid,
       $importedSmartContractAddressError,
+      isTutorialPage,
     ],
   );
 
   const [css] = useStyletron();
+
+  const inputOverrides: InputOverrides = {
+    Root: {
+      style: () => ({
+        backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+        ":hover": {
+          backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+        }
+      }),
+    },
+  };
 
   return (
     <>
@@ -84,13 +97,4 @@ export const ImportContractTab = () => {
   );
 };
 
-const inputOverrides: InputOverrides = {
-  Root: {
-    style: () => ({
-      background: COLORS.gray700,
-      ":hover": {
-        background: COLORS.gray600,
-      },
-    }),
-  },
-};
+

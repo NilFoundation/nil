@@ -18,14 +18,14 @@ import { useUnit } from "effector-react";
 import Markdown from "react-markdown";
 import { useStyletron } from "styletron-react";
 import { getMobileStyles } from "../../styleHelpers";
-import { сlickOnBackButton } from "../code/model";
+import { isTutorialPage, сlickOnBackButton } from "../code/model";
 import { useMobile } from "../shared";
 import { linkStyles } from "../shared/components/Link";
 import { $tutorial } from "./model";
 
 export const TutorialText = () => {
   const [isMobile] = useMobile();
-  const tutorial = useUnit($tutorial);
+  const [tutorial, isTutorial] = useUnit([$tutorial, isTutorialPage]);
 
   const [css] = useStyletron();
   const HeaderOne = (props: any) => (
@@ -157,6 +157,10 @@ export const TutorialText = () => {
                 style: {
                   paddingLeft: 0,
                   paddingRight: 0,
+                  backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+                  ":hover": {
+                    backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+                  }
                 },
               },
             }}

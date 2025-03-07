@@ -1,8 +1,10 @@
 import type { Hex } from "@nilfoundation/niljs";
-import { BUTTON_KIND, ButtonIcon, StatefulTooltip } from "@nilfoundation/ui-kit";
+import { BUTTON_KIND, ButtonIcon, COLORS, StatefulTooltip } from "@nilfoundation/ui-kit";
 import type { FC } from "react";
 import { unlinkApp } from "../models/base";
 import { DeleteIcon } from "./DeleteIcon";
+import { isTutorialPage } from "../../code/model";
+import { useUnit } from "effector-react";
 
 type RemoveAppButtonProps = {
   bytecode: Hex;
@@ -17,6 +19,7 @@ export const RemoveAppButton: FC<RemoveAppButtonProps> = ({
   disabled,
   kind = BUTTON_KIND.text,
 }) => {
+  const isTutorial = useUnit(isTutorialPage);
   return (
     <StatefulTooltip content="Remove app" showArrow={false} placement="bottom" popoverMargin={0}>
       <ButtonIcon
@@ -52,6 +55,10 @@ export const RemoveAppButton: FC<RemoveAppButtonProps> = ({
               paddingRight: "6px",
               width: "32px",
               height: "32px",
+              backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+              ":hover": {
+                backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+              }
             },
           },
         }}

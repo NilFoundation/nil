@@ -23,9 +23,10 @@ import {
   setShardId,
 } from "../../models/base";
 import { ShardIdInput } from "./ShardIdInput";
+import { isTutorialPage } from "../../../code/model";
 
 export const DeployTab = () => {
-  const [smartAccount, args, constuctorAbi, pending, shardId, shardIdIsValid, deployError] =
+  const [smartAccount, args, constuctorAbi, pending, shardId, shardIdIsValid, deployError, isTutorial] =
     useUnit([
       $smartAccount,
       $deploymentArgs,
@@ -34,6 +35,7 @@ export const DeployTab = () => {
       $shardId,
       $shardIdIsValid,
       $deploySmartContractError,
+      isTutorialPage
     ]);
   const [css] = useStyletron();
 
@@ -54,6 +56,10 @@ export const DeployTab = () => {
               Root: {
                 style: {
                   marginBottom: SPACE[8],
+                  backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+                  ":hover": {
+                    backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+                  }
                 },
               },
             }}
@@ -95,6 +101,10 @@ export const DeployTab = () => {
                         Root: {
                           style: {
                             marginBottom: SPACE[8],
+                            backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+                            ":hover": {
+                              backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+                            }
                           },
                         },
                       }}
@@ -111,6 +121,10 @@ export const DeployTab = () => {
                         Root: {
                           style: {
                             marginBottom: SPACE[8],
+                            backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+                            ":hover": {
+                              backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+                            }
                           },
                         },
                       }}

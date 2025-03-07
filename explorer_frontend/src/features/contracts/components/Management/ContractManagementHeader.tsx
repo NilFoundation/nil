@@ -15,6 +15,7 @@ import { closeApp } from "../../models/base";
 import { exportAppFx } from "../../models/exportApp";
 import { DownloadAppButton } from "../DownloadAppButton.tsx";
 import { RemoveAppButton } from "../RemoveAppButton";
+import { isTutorialPage } from "../../../code/model.ts";
 
 type ContractManagementHeaderProps = {
   address: Hex;
@@ -30,7 +31,7 @@ export const ContractManagementHeader: FC<ContractManagementHeaderProps> = ({
   loading,
 }) => {
   const [css] = useStyletron();
-  const isExportingApp = useUnit(exportAppFx.pending);
+  const [isExportingApp, isTutorial] = useUnit([exportAppFx.pending, isTutorialPage]);
 
   return (
     <div
@@ -40,7 +41,7 @@ export const ContractManagementHeader: FC<ContractManagementHeaderProps> = ({
         alignItems: "center",
         position: "sticky",
         top: "-1px",
-        backgroundColor: COLORS.gray900,
+        backgroundColor: isTutorial ? COLORS.blue900 : COLORS.gray900,
         paddingTop: "16px",
         paddingBottom: "16px",
       })}
@@ -54,6 +55,10 @@ export const ContractManagementHeader: FC<ContractManagementHeaderProps> = ({
               width: "32px",
               height: "32px",
               flexShrink: 0,
+              backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+              ":hover": {
+                backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+              }
             },
           },
         }}

@@ -13,6 +13,7 @@ import type { FC } from "react";
 import { useStyletron } from "styletron-react";
 import { $shardIdIsValid, decrementShardId, incrementShardId } from "../../models/base";
 import { $shardsAmount } from "../../models/shardsAmount";
+import { isTutorialPage } from "../../../code/model";
 
 type ShardIdInputProps = {
   shardId: number | null;
@@ -20,20 +21,26 @@ type ShardIdInputProps = {
   disabled?: boolean;
 };
 
-const btnOverrides = {
-  Root: {
-    style: {
-      width: "46px",
-      height: "46px",
-      marginBottom: "16px",
-    },
-  },
-};
+
 
 export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId, disabled }) => {
   const [css] = useStyletron();
-  const [shardsAmount, shardIdIsValid] = useUnit([$shardsAmount, $shardIdIsValid]);
+  const [shardsAmount, shardIdIsValid, isTutorial] = useUnit([$shardsAmount, $shardIdIsValid, isTutorialPage]);
   const failedToGetShardsAmount = shardsAmount === -1;
+
+  const btnOverrides = {
+    Root: {
+      style: {
+        width: "46px",
+        height: "46px",
+        marginBottom: "16px",
+        backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+        ":hover": {
+          backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+        }
+      },
+    },
+  };
 
   return (
     <div
@@ -88,6 +95,10 @@ export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId, disab
                 Root: {
                   style: {
                     width: "145px",
+                    backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+                    ":hover": {
+                      backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+                    }
                   },
                 },
               }}

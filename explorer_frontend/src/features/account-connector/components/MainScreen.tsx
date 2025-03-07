@@ -118,7 +118,7 @@ const MainScreen = () => {
           alignItems: "center",
           gap: "24px",
           top: 0,
-          backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+          backgroundColor: isTutorial ? COLORS.blue900 : COLORS.gray900,
         })}
       >
         <LabelLarge>Smart Account</LabelLarge>
@@ -156,11 +156,11 @@ const MainScreen = () => {
                   style: {
                     flex: 1,
                     height: "48px",
-                    background: COLORS.gray700,
-                    boxShadow: "none",
+                    backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
                     ":hover": {
-                      background: COLORS.gray600,
+                      backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
                     },
+                    boxShadow: "none",
                   },
                 },
               }}

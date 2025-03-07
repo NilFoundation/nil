@@ -33,7 +33,7 @@ const AccountContainer = () => {
         ...expandProperty("borderRadius", "16px"),
         width: "100%",
         maxWidth: "420px",
-        backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+        backgroundColor: isTutorial ? COLORS.blue900 : COLORS.gray900,
         "@media (min-width: 421px)": {
           width: "420px",
           margin: "0 auto",

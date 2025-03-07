@@ -14,7 +14,7 @@ import {
 import { memo } from "react";
 import { useStyletron } from "styletron-react";
 import { $smartAccount } from "../../../account-connector/model";
-import { compileCodeFx, сlickOnBackButton } from "../../../code/model";
+import { compileCodeFx, isTutorialPage, сlickOnBackButton } from "../../../code/model";
 import { $rpcIsHealthy } from "../../../healthcheck/model";
 import { useMobile } from "../../../shared";
 import { Contract } from "./Contract";
@@ -23,12 +23,13 @@ import { SmartAccountNotConnectedWarning } from "./SmartAccountNotConnectedWarni
 const MemoizedWarning = memo(SmartAccountNotConnectedWarning);
 
 export const Contracts = () => {
-  const [deployedApps, contracts, compilingContracts, smartAccount, rpcIsHealthy] = useUnit([
+  const [deployedApps, contracts, compilingContracts, smartAccount, rpcIsHealthy, isTutorial] = useUnit([
     $contractWithState,
     $contracts,
     compileCodeFx.pending,
     $smartAccount,
     $rpcIsHealthy,
+    isTutorialPage
   ]);
   const [css] = useStyletron();
   const [isMobile] = useMobile();
@@ -61,6 +62,10 @@ export const Contracts = () => {
                 style: {
                   paddingLeft: 0,
                   paddingRight: 0,
+                  backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+                  ":hover": {
+                    backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+                  }
                 },
               },
             }}

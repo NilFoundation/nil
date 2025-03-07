@@ -1,4 +1,5 @@
 import {
+  COLORS,
   LabelLarge,
   Modal,
   ModalBody,
@@ -7,7 +8,7 @@ import {
   Tab,
   Tabs,
 } from "@nilfoundation/ui-kit";
-import {} from "@nilfoundation/ui-kit";
+import { } from "@nilfoundation/ui-kit";
 import type { TabsOverrides } from "baseui/tabs";
 import { useUnit } from "effector-react";
 import type { FC } from "react";
@@ -16,6 +17,7 @@ import { $activeComponent, setActiveComponent } from "../../models/base";
 import { ActiveComponent } from "./ActiveComponent";
 import { DeployTab } from "./DeployTab";
 import { ImportContractTab } from "./ImportContractTab";
+import { isTutorialPage } from "../../../code/model";
 
 type DeployContractModalProps = {
   onClose?: () => void;
@@ -24,10 +26,11 @@ type DeployContractModalProps = {
 };
 
 export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isOpen, name }) => {
-  const [activeComponent, deployPending, importExistingPending] = useUnit([
+  const [activeComponent, deployPending, importExistingPending, isTutorial] = useUnit([
     $activeComponent,
     deploySmartContractFx.pending,
     importSmartContractFx.pending,
+    isTutorialPage
   ]);
   const disabled = deployPending || importExistingPending;
 
@@ -42,6 +45,7 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
           style: {
             paddingBottom: 0,
             height: "557px",
+            backgroundColor: isTutorial ? COLORS.blue900 : COLORS.gray900,
           },
         },
       }}

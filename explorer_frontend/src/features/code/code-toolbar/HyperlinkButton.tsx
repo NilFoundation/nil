@@ -50,6 +50,8 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
             gap: "16px",
             paddingLeft: "24px",
             paddingRight: "24px",
+            backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+
             ...expandProperty("borderRadius", "8px"),
           })}
         >

@@ -29,9 +29,10 @@ import {
 } from "../../models/base";
 import { ContractManagementHeader } from "./ContractManagementHeader";
 import { Method } from "./Method";
+import { isTutorialPage } from "../../../code/model";
 
 export const ContractManagement = () => {
-  const [app, activeKeys, balance, tokens, callParams, callResult, loading, errors, txHashes] =
+  const [app, activeKeys, balance, tokens, callParams, callResult, loading, errors, txHashes, isTutorial] =
     useUnit([
       $activeAppWithState,
       $activeKeys,
@@ -42,6 +43,7 @@ export const ContractManagement = () => {
       $loading,
       $errors,
       $txHashes,
+      isTutorialPage
     ]);
   const [isMobile] = useMobile();
   const [css] = useStyletron();
@@ -109,7 +111,10 @@ export const ContractManagement = () => {
                 style: {
                   height: "32px",
                   width: "32px",
-                },
+                  backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+                  ":hover": {
+                    backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+                }},
               },
             }}
             textToCopy={app?.address ?? ""}
@@ -122,6 +127,10 @@ export const ContractManagement = () => {
                     style: {
                       height: "32px",
                       width: "32px",
+                      backgroundColor: isTutorial ? COLORS.blue800 : COLORS.gray800,
+                  ":hover": {
+                    backgroundColor: isTutorial ? COLORS.blue700 : COLORS.gray700,
+                }
                     },
                   },
                 }}
