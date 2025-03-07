@@ -1,9 +1,10 @@
-package internal
+package indexer
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 	"sync/atomic"
 	"time"
 
@@ -37,8 +38,8 @@ type exporter struct {
 	exportRound atomic.Uint32
 }
 
-func StartExporter(ctx context.Context, cfg *Cfg) error {
-	logger.Info().Msg("Starting exporter...")
+func StartIndexer(ctx context.Context, cfg *Cfg) error {
+	logger.Info().Msg("Starting indexer...")
 
 	e := &exporter{
 		driver:      cfg.ExporterDriver,
@@ -152,13 +153,13 @@ func (e *exporter) runTopFetcher(ctx context.Context, shardId types.ShardId, fro
 	logger.Info().Msgf("Starting top fetcher from %d", from)
 
 	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := e.exportRound.Load() + InitialRoundsAmount
+	curExportRound := e.indexRound.Load() + InitialRoundsAmount
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			newExportRound := e.exportRound.Load()
+			newExportRound := e.indexRound.Load()
 			if curExportRound == newExportRound {
 				continue
 			}
@@ -230,13 +231,13 @@ func (e *exporter) runBottomFetcher(ctx context.Context, shardId types.ShardId, 
 	logger.Info().Msgf("Starting bottom fetcher from %d to %d", from, to)
 
 	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := e.exportRound.Load() + InitialRoundsAmount
+	curExportRound := e.indexRound.Load() + InitialRoundsAmount
 	for from < to {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			newExportRound := e.exportRound.Load()
+			newExportRound := e.indexRound.Load()
 			if curExportRound == newExportRound {
 				continue
 			}
@@ -256,11 +257,11 @@ func (e *exporter) runBottomFetcher(ctx context.Context, shardId types.ShardId, 
 	return nil
 }
 
-func (e *exporter) startDriverExport(ctx context.Context) error {
+func (e *exporter) startDriverIndex(ctx context.Context) error {
 	logger.Info().Msg("Starting driver export...")
 
 	ticker := time.NewTicker(1 * time.Second)
-	var blockBuffer []*BlockWithShardId
+	var blockBuffer []*types2.BlockWithShardId
 	for {
 		select {
 		case <-ctx.Done():
@@ -278,7 +279,7 @@ func (e *exporter) startDriverExport(ctx context.Context) error {
 				continue
 			}
 
-			if err := e.driver.ExportBlocks(ctx, blockBuffer); err != nil {
+			if err := e.driver.IndexBlocks(ctx, blockBuffer); err != nil {
 				logger.Error().Err(err).Msg("Failed to export blocks; will retry in the next round.")
 				continue
 			}
