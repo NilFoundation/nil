@@ -70,6 +70,10 @@ func newHost(ctx context.Context, conf *Config) (Host, error) {
 		)
 	}
 
+	if conf.Relay {
+		options = append(options, libp2p.EnableRelayService())
+	}
+
 	return libp2p.New(options...)
 }
 

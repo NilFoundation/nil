@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/cmd/exporter/internal"
 	"github.com/NilFoundation/nil/nil/cmd/exporter/internal/clickhouse"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/cobrax"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -41,16 +42,6 @@ func initConfig() {
 	viper.AutomaticEnv()
 }
 
-// This makes the --help command exit instead of proceeding to run
-// the exporter
-func ApplyExitOnHelp(c *cobra.Command, exitCode int) {
-	helpFunc := c.HelpFunc()
-	c.SetHelpFunc(func(c *cobra.Command, s []string) {
-		helpFunc(c, s)
-		os.Exit(exitCode)
-	})
-}
-
 func main() {
 	logging.SetLogSeverityFromEnv()
 	logging.SetupGlobalLogger("info")
@@ -78,7 +69,7 @@ You could config it via config file or flags or environment variables.`,
 			}
 		},
 	}
-	ApplyExitOnHelp(rootCmd, 0)
+	cobrax.ExitOnHelp(rootCmd)
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $CWD/exporter.cobra.yaml)")
 	rootCmd.Flags().StringP("api-endpoint", "a", "http://127.0.0.1:8529", "API endpoint")
