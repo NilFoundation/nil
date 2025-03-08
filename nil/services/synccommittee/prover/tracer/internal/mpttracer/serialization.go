@@ -182,7 +182,7 @@ func smartContractToProto(smartContract *types.SmartContract) *pb.SmartContract 
 
 	var pbBalance *pb.Uint256
 	if smartContract.Balance.Uint256 != nil {
-		pbBalance = pb.Uint256ToProtoUint256(*smartContract.Balance.Uint256)
+		pbBalance = pb.Uint256ToProtoUint256(smartContract.Balance.Uint256)
 	}
 	return &pb.SmartContract{
 		Address:          smartContract.Address.Hex(),

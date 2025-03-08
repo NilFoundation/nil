@@ -35,6 +35,7 @@ type OpContext interface {
 	Address() types.Address
 	CallValue() *uint256.Int
 	CallInput() []byte
+	Code() []byte
 }
 
 // StateDB gives tracers access to the whole state.
@@ -75,11 +76,11 @@ type (
 
 	// TxStartHook is called before the execution of a transaction starts.
 	// Call simulations don't come with a valid signature. `from` field
-	// to be used for the address of the caller.
-	// TxStartHook = func(vm *VMContext, tx *types.Transaction, from common.Address)
+	// to be used for address of the caller.
+	TxStartHook = func(tx *types.Transaction)
 
 	// TxEndHook is called after the execution of a transaction ends.
-	// TxEndHook = func(receipt *types.Receipt, err error)
+	TxEndHook = func(tx *types.Transaction, err types.ExecError)
 
 	// EnterHook is invoked when the processing of a transaction starts.
 	//
@@ -172,8 +173,9 @@ type (
 
 type Hooks struct {
 	// VM events
-	// OnTxStart   TxStartHook
-	// OnTxEnd     TxEndHook
+	OnTxStart TxStartHook
+	OnTxEnd   TxEndHook
+	// currently unused
 	OnEnter     EnterHook
 	OnExit      ExitHook
 	OnOpcode    OpcodeHook
