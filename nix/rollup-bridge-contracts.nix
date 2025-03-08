@@ -45,8 +45,11 @@ stdenv.mkDerivation rec {
     npx hardhat clean && npx hardhat compile
   '';
 
+  doCheck = enableTesting;
+
   installPhase = ''
     mkdir -p $out
     cp -r * $out/
+    cp .env $out/
   '';
 }

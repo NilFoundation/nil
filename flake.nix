@@ -108,7 +108,7 @@
                   cp -r ${packages.nilexplorer.outPath}/* ./usr/share/${packages.nilexplorer.name}
                   cp -r ${packages.docsaibackend.outPath}/* ./usr/share/${packages.nilexplorer.name}
                   cp -r ${packages.l1-contracts.outPath}/* ./usr/share/${packages.l1-contracts.name}
-                  cp -r ${packages.rollup-bridge-contracts.outPath}/* ./usr/share/${packages.rollup-bridge-contracts.name}
+                  cp -r ${packages.rollup-bridge-contracts.outPath}/{.,}* ./usr/share/${packages.rollup-bridge-contracts.name}
 
                   chmod -R u+rw,g+r,o+r ./usr
                   chmod -R u+rwx,g+rx,o+rx ./usr/bin
