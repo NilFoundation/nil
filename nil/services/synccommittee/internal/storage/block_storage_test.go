@@ -134,6 +134,37 @@ func (s *BlockStorageTestSuite) Test_SetBlockBatch_Free_Capacity_On_SetBlockAsPr
 	s.Require().NoError(err)
 }
 
+func (s *BlockStorageTestSuite) Test_LatestBatchId() {
+	const batchesCount = 5
+	batches := testaide.NewBatchesSequence(batchesCount)
+
+	latestBatchId, err := s.bs.TryGetLatestBatchId(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Nil(latestBatchId)
+
+	for _, batch := range batches {
+		err := s.bs.SetBlockBatch(s.ctx, batch)
+		s.Require().NoError(err)
+
+		latestBatchId, err := s.bs.TryGetLatestBatchId(s.ctx)
+		s.Require().NoError(err)
+		s.Equal(&batch.Id, latestBatchId)
+	}
+}
+
+func (s *BlockStorageTestSuite) Test_LatestBatchId_Mismatch() {
+	const batchesCount = 2
+	batches := testaide.NewBatchesSequence(batchesCount)
+	invalidParentId := scTypes.NewBatchId()
+	batches[1].ParentId = &invalidParentId
+
+	err := s.bs.SetBlockBatch(s.ctx, batches[0])
+	s.Require().NoError(err)
+
+	err = s.bs.SetBlockBatch(s.ctx, batches[1])
+	s.Require().ErrorIs(err, scTypes.ErrBatchMismatch)
+}
+
 func (s *BlockStorageTestSuite) TestGetLastFetchedBlock() {
 	// initially latestFetched should be empty
 	latestFetched, err := s.bs.TryGetLatestFetched(s.ctx)
@@ -259,6 +290,7 @@ func (s *BlockStorageTestSuite) TestSetBlockAsProposed_WithExecutionShardBlocks(
 	s.Require().NoError(err)
 
 	nextBatch := testaide.NewBlockBatch(childBlocksCount)
+	nextBatch.ParentId = &batch.Id
 	nextBatch.MainShardBlock.Number = batch.MainShardBlock.Number + 1
 	nextBatch.MainShardBlock.ParentHash = batch.MainShardBlock.Hash
 	err = s.bs.SetBlockBatch(s.ctx, nextBatch)
@@ -429,6 +461,8 @@ func (s *BlockStorageTestSuite) Test_ResetProgressPartial_Block_Does_Not_Exists(
 
 	latestFetchedBeforeReset, err := s.bs.TryGetLatestFetched(s.ctx)
 	s.Require().NoError(err)
+	latestBatchIdBeforeReset, err := s.bs.TryGetLatestBatchId(s.ctx)
+	s.Require().NoError(err)
 
 	nonExistentBlockHash := testaide.RandomHash()
 	err = s.bs.ResetProgressPartial(s.ctx, nonExistentBlockHash)
@@ -441,6 +475,10 @@ func (s *BlockStorageTestSuite) Test_ResetProgressPartial_Block_Does_Not_Exists(
 	latestFetchedAfterReset, err := s.bs.TryGetLatestFetched(s.ctx)
 	s.Require().NoError(err)
 	s.Require().Equal(latestFetchedBeforeReset, latestFetchedAfterReset)
+
+	latestBatchIdAfterReset, err := s.bs.TryGetLatestBatchId(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Equal(latestBatchIdBeforeReset, latestBatchIdAfterReset)
 }
 
 func (s *BlockStorageTestSuite) Test_ResetProgressPartial() {
@@ -493,6 +531,10 @@ func (s *BlockStorageTestSuite) testResetProgressPartial(passedHashIdx int) {
 	actualLatestFetched, err := s.bs.TryGetLatestFetched(s.ctx)
 	s.Require().NoError(err)
 	s.Require().Equal(expectedLatestFetched, actualLatestFetched)
+
+	actualLatestBatchId, err := s.bs.TryGetLatestBatchId(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Equal(batches[passedHashIdx].ParentId, actualLatestBatchId)
 }
 
 func (s *BlockStorageTestSuite) Test_ResetProgressNonProved() {

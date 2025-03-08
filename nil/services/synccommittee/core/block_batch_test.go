@@ -100,7 +100,8 @@ func (s *BlockBatchTestSuite) TestNewBlockBatch() {
 
 	for _, testCase := range testCases {
 		s.Run(testCase.name, func() {
-			batch, err := types.NewBlockBatch(testCase.mainShardBlock, testCase.childBlocks)
+			parentBatchId := types.NewBatchId()
+			batch, err := types.NewBlockBatch(&parentBatchId, testCase.mainShardBlock, testCase.childBlocks)
 			testCase.errPredicate(err)
 
 			if err != nil {

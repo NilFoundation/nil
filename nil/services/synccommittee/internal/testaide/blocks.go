@@ -75,9 +75,10 @@ func NewBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
 			nextBatch.MainShardBlock.Number = 0
 			nextBatch.MainShardBlock.ParentHash = common.EmptyHash
 		} else {
-			prevMainBlock := batches[len(batches)-1].MainShardBlock
-			nextBatch.MainShardBlock.ParentHash = prevMainBlock.Hash
-			nextBatch.MainShardBlock.Number = prevMainBlock.Number + 1
+			prevBatch := batches[len(batches)-1]
+			nextBatch.MainShardBlock.ParentHash = prevBatch.MainShardBlock.Hash
+			nextBatch.MainShardBlock.Number = prevBatch.MainShardBlock.Number + 1
+			nextBatch.ParentId = &prevBatch.Id
 		}
 		batches = append(batches, nextBatch)
 	}
@@ -96,7 +97,7 @@ func NewBlockBatch(childBlocksCount int) *scTypes.BlockBatch {
 		mainBlock.ChildBlocks = append(mainBlock.ChildBlocks, block.Hash)
 	}
 
-	batch, err := scTypes.NewBlockBatch(mainBlock, childBlocks)
+	batch, err := scTypes.NewBlockBatch(nil, mainBlock, childBlocks)
 	if err != nil {
 		panic(err)
 	}

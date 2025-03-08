@@ -36,6 +36,7 @@ type AggregatorTaskStorage interface {
 type AggregatorBlockStorage interface {
 	TryGetLatestFetched(ctx context.Context) (*types.MainBlockRef, error)
 	TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error)
+	TryGetLatestBatchId(ctx context.Context) (*types.BatchId, error)
 	SetBlockBatch(ctx context.Context, batch *types.BlockBatch) error
 }
 
@@ -296,7 +297,12 @@ func (agg *aggregator) createBlockBatch(ctx context.Context, mainShardBlock *jso
 		childBlocks = append(childBlocks, childBlock)
 	}
 
-	return types.NewBlockBatch(mainShardBlock, childBlocks)
+	latestBatchId, err := agg.blockStorage.TryGetLatestBatchId(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error reading latest batch id: %w", err)
+	}
+
+	return types.NewBlockBatch(latestBatchId, mainShardBlock, childBlocks)
 }
 
 // handleBlockBatch checks the validity of a block and stores it if valid.

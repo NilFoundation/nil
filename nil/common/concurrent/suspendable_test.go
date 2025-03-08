@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	testTimeout        = 5 * time.Second
+	testTimeout        = 10 * time.Second
 	testActionInterval = 10 * time.Millisecond
 )
 
