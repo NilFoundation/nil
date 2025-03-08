@@ -138,7 +138,29 @@ func Compile(input *CompilerTask) (*ContractData, error) {
 func CreateContractData(input *CompilerJsonInput, outputJson *CompilerJsonOutput) (*ContractData, error) {
 	contractData := &ContractData{}
 
-	contractData.SourceFilesList = make([]string, len(input.Sources)+1)
+	numContracts := len(input.Sources)
+
+	var contractDescr *CompilerOutputContract
+	for _, v := range outputJson.Contracts {
+		if len(v) != 1 {
+			return nil, errors.New("expected exactly one contract in compilation output")
+		}
+		for _, c := range v {
+			contractDescr = &c
+			break
+		}
+	}
+	if contractDescr == nil {
+		return nil, errors.New("contract not found in compilation output")
+	}
+
+	generatedSourcesExist := false
+	if len(contractDescr.Evm.DeployedBytecode.GeneratedSources) != 0 {
+		numContracts++
+		generatedSourcesExist = true
+	}
+
+	contractData.SourceFilesList = make([]string, numContracts)
 	contractData.SourceCode = make(map[string]string)
 
 	for k, v := range input.Sources {
@@ -158,32 +180,14 @@ func CreateContractData(input *CompilerJsonInput, outputJson *CompilerJsonOutput
 	for k, v := range outputJson.Sources {
 		contractData.SourceFilesList[v.Id] = k
 	}
-	if len(contractData.SourceFilesList[len(contractData.SourceFilesList)-1]) != 0 {
-		return nil, errors.New("last id must be empty")
-	}
-	contractData.SourceFilesList[len(contractData.SourceFilesList)-1] = GeneratedSourceFileName
 
-	var contractDescr *CompilerOutputContract
-	for _, v := range outputJson.Contracts {
-		if len(v) > 1 {
-			return nil, errors.New("expected exactly one contract in compilation output")
+	if generatedSourcesExist {
+		if len(contractData.SourceFilesList[numContracts-1]) != 0 {
+			return nil, errors.New("last id must be empty")
 		}
-		if len(v) != 0 {
-			for _, c := range v {
-				contractDescr = &c
-				break
-			}
-			break
-		}
+		contractData.SourceFilesList[len(contractData.SourceFilesList)-1] = GeneratedSourceFileName
+		contractData.SourceCode[GeneratedSourceFileName] = contractDescr.Evm.DeployedBytecode.GeneratedSources[0].Contents
 	}
-	if contractDescr == nil {
-		return nil, errors.New("contract not found in compilation output")
-	}
-
-	if len(contractDescr.Evm.DeployedBytecode.GeneratedSources) == 0 {
-		return nil, errors.New("generated sources not found")
-	}
-	contractData.SourceCode[GeneratedSourceFileName] = contractDescr.Evm.DeployedBytecode.GeneratedSources[0].Contents
 
 	contractData.SourceMap = contractDescr.Evm.DeployedBytecode.SourceMap
 	if len(contractData.SourceMap) == 0 {

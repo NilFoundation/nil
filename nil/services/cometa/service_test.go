@@ -142,6 +142,35 @@ func (s *SuiteServiceTest) TestErrorContract() {
 	s.Require().Contains(compileErrors[0].Message, "Expected identifier but got '}'")
 }
 
+// Test case when generated sources do not exist
+func (s *SuiteServiceTest) TestIssue465() {
+	task := s.getCompilerTask("issue465")
+
+	contractData, err := Compile(task)
+	s.Require().NoError(err)
+
+	code := contractData.Code
+	address := types.CreateAddress(types.ShardId(1), types.BuildDeployPayload(code, common.EmptyHash))
+
+	s.client.GetCodeFunc = func(ctx context.Context, addr types.Address, blockId any) (types.Code, error) {
+		s.Require().Equal(address, addr)
+		return code, nil
+	}
+
+	err = s.service.RegisterContractData(s.ctx, contractData, address)
+	s.Require().NoError(err)
+
+	contract, err := s.service.GetContractControl(s.ctx, address)
+	s.Require().NoError(err)
+
+	s.Require().Equal(contractData, contract.Data)
+
+	loc, err := s.service.GetLocation(s.ctx, address, 0)
+	s.Require().NoError(err)
+	s.Require().NotNil(loc)
+	s.Require().Equal("Issue465.sol:9, function: #function_selector", loc.String())
+}
+
 func (s *SuiteServiceTest) getCompilerTask(name string) *CompilerTask {
 	s.T().Helper()
 

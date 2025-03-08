@@ -1,0 +1,12 @@
+{
+  "contractName": "Issue465.sol:Receiver",
+  "compilerVersion": "0.8.28",
+  "settings": {
+    "evmVersion": "london"
+  },
+  "sources": {
+    "Issue465.sol": {
+      "urls": ["Issue465.sol"]
+    }
+  }
+}
