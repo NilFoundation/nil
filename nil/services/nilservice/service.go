@@ -349,6 +349,13 @@ func CreateNode(ctx context.Context, name string, cfg *Config, database db.DB, i
 		return nil, err
 	}
 
+	if cfg.EnableConfigCache {
+		if err := config.InitGlobalConfigCache(cfg.NShards, database); err != nil {
+			logger.Error().Err(err).Msg("Failed to initialize global config cache")
+			return nil, err
+		}
+	}
+
 	if err := telemetry.Init(ctx, cfg.Telemetry); err != nil {
 		logger.Error().Err(err).Msg("Failed to initialize telemetry")
 		return nil, err

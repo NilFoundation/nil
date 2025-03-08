@@ -136,22 +136,6 @@ func GetParamValidators(c ConfigAccessor) (*ParamValidators, error) {
 	return getParamImpl[ParamValidators](c)
 }
 
-func mergeValidators(input []ListValidators) []ValidatorInfo {
-	var result []ValidatorInfo
-	visited := make(map[Pubkey]struct{})
-
-	for _, shardValidators := range input {
-		for _, v := range shardValidators.List {
-			if _, ok := visited[v.PublicKey]; ok {
-				continue
-			}
-			visited[v.PublicKey] = struct{}{}
-			result = append(result, v)
-		}
-	}
-	return result
-}
-
 func NewConfigAccessorFromBlock(ctx context.Context, database db.DB, block *types.Block, shardId types.ShardId) (ConfigAccessor, error) {
 	tx, err := database.CreateRoTx(ctx)
 	if err != nil {
@@ -192,38 +176,6 @@ func NewConfigAccessorFromBlockWithTx(tx db.RoTx, block *types.Block, shardId ty
 		}
 	}
 	return c, err
-}
-
-func GetValidatorListForShard(
-	ctx context.Context, database db.DB, height types.BlockNumber, shardId types.ShardId,
-) ([]ValidatorInfo, error) {
-	tx, err := database.CreateRoTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	block, err := db.ReadBlockByNumber(tx, shardId, height-1)
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := NewConfigAccessorFromBlockWithTx(tx, block, shardId)
-	if err != nil {
-		return nil, err
-	}
-
-	validatorsList, err := getParamImpl[ParamValidators](c)
-	if err != nil {
-		return nil, err
-	}
-	if shardId.IsMainShard() {
-		return mergeValidators(validatorsList.Validators), nil
-	}
-	if int(shardId)-1 >= len(validatorsList.Validators) {
-		return nil, types.NewError(types.ErrorShardIdIsTooBig)
-	}
-	return validatorsList.Validators[shardId-1].List, nil
 }
 
 type PublicKeyMap struct {
