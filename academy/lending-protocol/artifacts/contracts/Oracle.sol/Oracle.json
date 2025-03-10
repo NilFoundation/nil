@@ -1,0 +1,67 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "Oracle",
+  "sourceName": "contracts/Oracle.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "TokenId",
+          "name": "token",
+          "type": "address"
+        }
+      ],
+      "name": "getPrice",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "TokenId",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "rates",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "TokenId",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "price",
+          "type": "uint256"
+        }
+      ],
+      "name": "setPrice",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x6080806040523460145760f2908161001a8239f35b600080fdfe60806040526004361015601157600080fd5b60003560e01c8062e4768b14607357806341976e091460385763a8734f0b14603857600080fd5b34606e576020366003190112606e576001600160a01b03605560a7565b1660005260006020526020604060002054604051908152f35b600080fd5b34606e576040366003190112606e576001600160a01b03609060a7565b166000526000602052602435604060002055600080f35b600435906001600160a01b0382168203606e5756fea2646970667358221220b0a296da46dc591d34edf7aecfe0dc18fc3291f154a591a488153db31950718f64736f6c634300081c0033",
+  "deployedBytecode": "0x60806040526004361015601157600080fd5b60003560e01c8062e4768b14607357806341976e091460385763a8734f0b14603857600080fd5b34606e576020366003190112606e576001600160a01b03605560a7565b1660005260006020526020604060002054604051908152f35b600080fd5b34606e576040366003190112606e576001600160a01b03609060a7565b166000526000602052602435604060002055600080f35b600435906001600160a01b0382168203606e5756fea2646970667358221220b0a296da46dc591d34edf7aecfe0dc18fc3291f154a591a488153db31950718f64736f6c634300081c0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
