@@ -10,10 +10,12 @@ import (
 	"math"
 	"math/big"
 	"sort"
+	"unicode/utf8"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/config"
@@ -1225,6 +1227,9 @@ func decodeRevertTransaction(data []byte) string {
 	var revString string
 	if index := bytes.IndexByte(data, 0); index > 0 {
 		revString = string(data[:index])
+		if !utf8.ValidString(revString) {
+			return "Not a UTF-8 string: " + hexutil.Encode(data[:index])
+		}
 	}
 	return revString
 }
