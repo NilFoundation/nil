@@ -25,17 +25,12 @@ func NewBlockVerifier(shardId types.ShardId, db db.DB) *BlockVerifier {
 }
 
 func (b *BlockVerifier) VerifyBlock(ctx context.Context, block *types.Block) error {
-	validatorsList, err := config.GetValidatorListForShard(ctx, b.db, block.Id, b.shardId)
+	params, err := config.GetConfigParams(ctx, b.db, b.shardId, block.Id.Uint64())
 	if err != nil {
-		return fmt.Errorf("%w: failed to get validators set: %w", errBlockVerify, err)
+		return fmt.Errorf("%w: failed to get validators' params: %w", errBlockVerify, err)
 	}
 
-	pubkeys, err := config.CreateValidatorsPublicKeyMap(validatorsList)
-	if err != nil {
-		return fmt.Errorf("%w: failed to get validators public keys: %w", errBlockVerify, err)
-	}
-
-	if err := block.VerifySignature(pubkeys.Keys(), b.shardId); err != nil {
+	if err := block.VerifySignature(params.PublicKeys.Keys(), b.shardId); err != nil {
 		return fmt.Errorf("%w: failed to verify signature: %w", errBlockVerify, err)
 	}
 	return nil

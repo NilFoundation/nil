@@ -54,7 +54,7 @@ func (i *backendIBFT) IsValidValidator(msg *protoIBFT.IbftMessage) bool {
 		height = expectedHeight
 	}
 
-	validators, err := i.validatorsCache.getValidators(i.transportCtx, height)
+	params, err := config.GetConfigParams(i.transportCtx, i.txFabric, i.shardId, height)
 	if err != nil {
 		logger.Error().
 			Err(err).
@@ -62,15 +62,7 @@ func (i *backendIBFT) IsValidValidator(msg *protoIBFT.IbftMessage) bool {
 		return false
 	}
 
-	pubkeys, err := config.CreateValidatorsPublicKeyMap(validators)
-	if err != nil {
-		logger.Error().
-			Err(err).
-			Msg("Failed to get validators public keys")
-		return false
-	}
-
-	_, ok := pubkeys.Find(config.Pubkey(msg.From))
+	_, ok := params.PublicKeys.Find(config.Pubkey(msg.From))
 	if !ok {
 		logger.Error().
 			Msg("public key not found in validators list")
