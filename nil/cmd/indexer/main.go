@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/NilFoundation/nil/nil/services/indexer"
+	"github.com/NilFoundation/nil/nil/services/indexer/clickhouse"
 	"os"
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/cmd/exporter/internal"
-	"github.com/NilFoundation/nil/nil/cmd/exporter/internal/clickhouse"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/spf13/cobra"
@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	logger  = logging.NewLogger("exporter")
+	logger  = logging.NewLogger("indexer")
 	cfgFile string
 )
 
@@ -31,9 +31,9 @@ func initConfig() {
 		home, err := os.Getwd()
 		check.PanicIfErr(err)
 
-		// Search config in home directory with the name "exporter.cobra" (without an extension).
+		// Search config in home directory with the name "indexer.cobra" (without an extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName("exporter")
+		viper.SetConfigName("indexer")
 	}
 
 	check.PanicIfErr(viper.ReadInConfig())
@@ -42,7 +42,7 @@ func initConfig() {
 }
 
 // This makes the --help command exit instead of proceeding to run
-// the exporter
+// the indexer
 func ApplyExitOnHelp(c *cobra.Command, exitCode int) {
 	helpFunc := c.HelpFunc()
 	c.SetHelpFunc(func(c *cobra.Command, s []string) {
@@ -57,9 +57,9 @@ func main() {
 
 	cobra.OnInitialize(initConfig)
 	rootCmd := &cobra.Command{
-		Use:   "exporter [-c config.yaml] [flags]",
-		Short: "Exporter is a tool to export data from Nil blockchain to Clickhouse.",
-		Long: `Exporter is a tool to export data from Nil blockchain to Clickhouse.
+		Use:   "indexer [-c config.yaml] [flags]",
+		Short: "Indexer is a tool to export data from Nil blockchain to Clickhouse.",
+		Long: `Indexer is a tool to export data from Nil blockchain to Clickhouse.
 You could config it via config file or flags or environment variables.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			requiredParams := []string{"clickhouse-endpoint", "clickhouse-login", "clickhouse-database"}
@@ -80,7 +80,7 @@ You could config it via config file or flags or environment variables.`,
 	}
 	ApplyExitOnHelp(rootCmd, 0)
 
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $CWD/exporter.cobra.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $CWD/indexer.cobra.yaml)")
 	rootCmd.Flags().StringP("api-endpoint", "a", "http://127.0.0.1:8529", "API endpoint")
 	rootCmd.Flags().StringP("clickhouse-endpoint", "e", "127.0.0.1:9000", "Clickhouse endpoint")
 	rootCmd.Flags().StringP("clickhouse-login", "l", "", "Clickhouse login")
@@ -101,14 +101,14 @@ You could config it via config file or flags or environment variables.`,
 
 	ctx := context.Background()
 
-	clickhouseExporter, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
+	clickhouseDriver, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
 	check.PanicIfErr(err)
 
-	check.PanicIfErr(internal.StartExporter(ctx, &internal.Cfg{
-		Client:         rpc.NewClient(apiEndpoint, logger),
-		ExporterDriver: clickhouseExporter,
-		AllowDbDrop:    allowDbDrop,
+	check.PanicIfErr(indexer.StartIndexer(ctx, &indexer.Cfg{
+		Client:        rpc.NewClient(apiEndpoint, logger),
+		IndexerDriver: clickhouseDriver,
+		AllowDbDrop:   allowDbDrop,
 	}))
 
-	logger.Info().Msg("Exporter stopped")
+	logger.Info().Msg("Indexer stopped")
 }

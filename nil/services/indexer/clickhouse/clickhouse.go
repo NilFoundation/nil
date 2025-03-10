@@ -9,11 +9,13 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	"github.com/NilFoundation/nil/nil/cmd/exporter/internal"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/sszx"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	driver2 "github.com/NilFoundation/nil/nil/services/indexer/driver"
+	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 )
 
 type ClickhouseDriver struct {
@@ -22,9 +24,120 @@ type ClickhouseDriver struct {
 	options    clickhouse.Options
 }
 
+func (d *ClickhouseDriver) FetchBlock(ctx context.Context, id types.ShardId, number types.BlockNumber) (*types.Block, error) {
+	row := d.conn.QueryRow(ctx, `
+		SELECT binary
+		FROM blocks
+		WHERE shard_id = $1 AND id = $2
+		LIMIT 1
+	`, id, number)
+
+	var binary []byte
+	if err := row.Scan(&binary); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to scan block binary: %w", err)
+	}
+
+	var block types.Block
+	if err := block.UnmarshalSSZ(binary); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal block: %w", err)
+	}
+
+	return &block, nil
+}
+
+func (d *ClickhouseDriver) FetchLatestProcessedBlockId(ctx context.Context, id types.ShardId) (*types.BlockNumber, error) {
+	blockNum, err := d.blockIdFromRow(d.conn.QueryRow(ctx, `
+		SELECT id
+		FROM blocks
+		WHERE shard_id = $1
+		ORDER BY id DESC
+		LIMIT 1
+	`, id))
+	if err != nil {
+		return nil, err
+	}
+	if blockNum == types.InvalidBlockNumber {
+		return nil, nil
+	}
+	return &blockNum, nil
+}
+
+func (d *ClickhouseDriver) FetchAddressActions(address types.Address, timestamp db.Timestamp) ([]types2.AddressAction, error) {
+	rows, err := d.conn.Query(context.Background(), `
+		SELECT 
+			t.hash,
+			t.from,
+			t.to,
+			t.value as amount,
+			t.timestamp,
+			t.block_id,
+			t.success,
+			t.binary
+		FROM transactions t
+		WHERE (t.from = $1 OR t.to = $1) AND t.timestamp >= $2
+		ORDER BY t.timestamp ASC
+	`, address, timestamp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query transactions: %w", err)
+	}
+	defer rows.Close()
+
+	var actions []types2.AddressAction
+	for rows.Next() {
+		var action types2.AddressAction
+		var success bool
+		var txnBinary []byte
+		if err := rows.Scan(
+			&action.Hash,
+			&action.From,
+			&action.To,
+			&action.Amount,
+			&action.Timestamp,
+			&action.BlockId,
+			&success,
+			&txnBinary,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan transaction: %w", err)
+		}
+
+		// Set the status based on success
+		if success {
+			action.Status = types2.Success
+		} else {
+			action.Status = types2.Failed
+		}
+
+		// Set the action type based on the address relationship
+		if action.From == address {
+			if action.Amount.Uint64() == 0 {
+				action.Type = types2.SmartContractCall
+			} else {
+				action.Type = types2.SendEth
+			}
+		} else {
+			action.Type = types2.ReceiveEth
+		}
+
+		actions = append(actions, action)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return actions, nil
+}
+
+func (d *ClickhouseDriver) IndexBlocks(ctx context.Context, ids []*driver2.BlockWithShardId) error {
+	return d.ExportBlocks(ctx, ids)
+}
+
 // I saw this trick. dunno should I use it here too
 var (
-	_ internal.ExportDriver = &ClickhouseDriver{}
+	_ driver2.IndexerDriver = &ClickhouseDriver{}
 )
 
 // extend types.Block with binary field
@@ -158,7 +271,7 @@ func (d *ClickhouseDriver) Reconnect() error {
 	return err
 }
 
-func (d *ClickhouseDriver) SetupScheme(ctx context.Context, params internal.SetupParams) error {
+func (d *ClickhouseDriver) SetupScheme(ctx context.Context, params driver2.SetupParams) error {
 	version, err := readVersion(ctx, d.conn)
 	if err != nil {
 		return fmt.Errorf("failed to read version: %w", err)
@@ -201,16 +314,6 @@ func (d *ClickhouseDriver) blockIdFromRow(row driver.Row) (types.BlockNumber, er
 	return types.BlockNumber(blockNumber), nil
 }
 
-func (d *ClickhouseDriver) FetchLatestProcessedBlockId(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error) {
-	return d.blockIdFromRow(d.conn.QueryRow(ctx, `
-		SELECT id
-		FROM blocks
-		WHERE shard_id = $1
-		ORDER BY id DESC
-		LIMIT 1
-	`, shardId))
-}
-
 func (d *ClickhouseDriver) FetchEarliestAbsentBlockId(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error) {
 	// We look for `a.id` such that there is no `a.id+1` in the table.
 	// Left (outer) join will set `b.id` to 0 in that case.
@@ -230,7 +333,7 @@ func (d *ClickhouseDriver) FetchEarliestAbsentBlockId(ctx context.Context, shard
 }
 
 type blockWithSSZ struct {
-	decoded    *internal.BlockWithShardId
+	decoded    *driver2.BlockWithShardId
 	sszEncoded *types.RawBlockWithExtractedData
 }
 
@@ -239,7 +342,7 @@ type receiptWithSSZ struct {
 	sszEncoded sszx.SSZEncodedData
 }
 
-func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*internal.BlockWithShardId) error {
+func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*driver2.BlockWithShardId) error {
 	blocks := make([]blockWithSSZ, len(blocksToExport))
 	receipts := make(map[common.Hash]receiptWithSSZ)
 	for blockIndex, block := range blocksToExport {
