@@ -3,6 +3,8 @@ package pb
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"unicode/utf8"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -196,12 +198,15 @@ func (e *Error) PackProtoMessage(err error) *Error {
 
 // Map of Errors converters
 
-func packErrorMap(errors map[common.Hash]string) map[string]*Error {
+func packErrorMap(errors map[common.Hash]string) (map[string]*Error, error) {
 	result := make(map[string]*Error, len(errors))
 	for key, value := range errors {
+		if !utf8.ValidString(value) {
+			return nil, fmt.Errorf("invalid utf8 string in error map at key: %s", key)
+		}
 		result[key.String()] = &Error{Message: value}
 	}
-	return result
+	return result, nil
 }
 
 func unpackErrorMap(pbErrors map[string]*Error) map[common.Hash]string {
@@ -272,12 +277,17 @@ func (rb *RawFullBlock) PackProtoMessage(block *types.RawBlockWithExtractedData)
 		return errors.New("block should not be nil")
 	}
 
+	errors, err := packErrorMap(block.Errors)
+	if err != nil {
+		return err
+	}
+
 	*rb = RawFullBlock{
 		BlockSSZ:           block.Block,
 		InTransactionsSSZ:  block.InTransactions,
 		OutTransactionsSSZ: block.OutTransactions,
 		ReceiptsSSZ:        block.Receipts,
-		Errors:             packErrorMap(block.Errors),
+		Errors:             errors,
 		ChildBlocks:        PackHashes(block.ChildBlocks),
 		DbTimestamp:        block.DbTimestamp,
 		Config:             block.Config,
