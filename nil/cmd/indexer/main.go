@@ -104,10 +104,10 @@ You could config it via config file or flags or environment variables.`,
 	clickhouseDriver, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
 	check.PanicIfErr(err)
 
-	check.PanicIfErr(internal.StartIndexer(ctx, &indexer.Cfg{
-		Client:         rpc.NewClient(apiEndpoint, logger),
-		ExporterDriver: clickhouseExporter,
-		AllowDbDrop:    allowDbDrop,
+	check.PanicIfErr(indexer.StartIndexer(ctx, &indexer.Cfg{
+		Client:        rpc.NewClient(apiEndpoint, logger),
+		IndexerDriver: clickhouseDriver,
+		AllowDbDrop:   allowDbDrop,
 	}))
 
 	logger.Info().Msg("Indexer stopped")
