@@ -50,7 +50,7 @@ func StartIndexer(ctx context.Context, cfg *Cfg) error {
 
 	shards, err := e.setup(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to setup exporter: %w", err)
+		return fmt.Errorf("failed to setup indexer: %w", err)
 	}
 
 	workers := make([]concurrent.Func, 0, len(shards)+1)

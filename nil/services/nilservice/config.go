@@ -3,7 +3,6 @@ package nilservice
 import (
 	"errors"
 	"fmt"
-	"github.com/NilFoundation/nil/nil/services/indexer"
 	"slices"
 
 	"github.com/NilFoundation/nil/nil/internal/collate"
@@ -15,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
+	"github.com/NilFoundation/nil/nil/services/indexer"
 	"github.com/NilFoundation/nil/nil/services/rollup"
 )
 
