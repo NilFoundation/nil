@@ -7,11 +7,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-type BlockWithShardId struct {
-	*types.BlockWithExtractedData
-	ShardId types.ShardId
-}
-
 type AddressAction struct {
 	Hash      common.Hash         `json:"hash"`
 	From      types.Address       `json:"from"`

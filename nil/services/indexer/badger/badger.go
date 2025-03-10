@@ -26,7 +26,7 @@ type receiptWithSSZ struct {
 }
 
 type blockWithSSZ struct {
-	decoded    *types2.BlockWithShardId
+	decoded    *driver.BlockWithShardId
 	sszEncoded *types.RawBlockWithExtractedData
 }
 
@@ -46,12 +46,12 @@ func NewBadgerDriver(path string) (*BadgerDriver, error) {
 	return storage, nil
 }
 
-func (b *BadgerDriver) SetupScheme(_ context.Context) error {
+func (b *BadgerDriver) SetupScheme(ctx context.Context, params driver.SetupParams) error {
 	// no need to setup scheme
 	return nil
 }
 
-func (b *BadgerDriver) IndexBlocks(_ context.Context, blocksToIndex []*types2.BlockWithShardId) error {
+func (b *BadgerDriver) IndexBlocks(_ context.Context, blocksToIndex []*driver.BlockWithShardId) error {
 	tx := b.createRwTx()
 	defer tx.Discard()
 
@@ -112,7 +112,7 @@ func (b *BadgerDriver) IndexBlocks(_ context.Context, blocksToIndex []*types2.Bl
 	return tx.Commit()
 }
 
-func (b *BadgerDriver) indexBlockTransactions(tx *badger.Txn, block *types2.BlockWithShardId, receipts map[common.Hash]receiptWithSSZ) error {
+func (b *BadgerDriver) indexBlockTransactions(tx *badger.Txn, block *driver.BlockWithShardId, receipts map[common.Hash]receiptWithSSZ) error {
 	for _, txn := range block.InTransactions {
 		receipt, exists := receipts[txn.Hash()]
 		if !exists {
@@ -374,7 +374,7 @@ func (b *BadgerDriver) getShardEarliestAbsentBlock(tx *badger.Txn, shardId types
 	return types.BlockNumber(blockNumber), true, nil
 }
 
-func (b *BadgerDriver) FetchLatestProcessedBlock(_ context.Context, id types.ShardId) (*types.Block, bool, error) {
+func (b *BadgerDriver) FetchLatestProcessedBlockId(_ context.Context, id types.ShardId) (*types.BlockNumber, bool, error) {
 	var latestBlock *types.Block
 	var exists bool
 
@@ -411,10 +411,14 @@ func (b *BadgerDriver) FetchLatestProcessedBlock(_ context.Context, id types.Sha
 		return nil, false, fmt.Errorf("failed to fetch latest processed block: %w", err)
 	}
 
-	return latestBlock, exists, nil
+	return &latestBlock.Id, exists, nil
 }
 
-func (b *BadgerDriver) FetchEarliestAbsentBlock(ctx context.Context, id types.ShardId) (types.BlockNumber, bool, error) {
+func (b *BadgerDriver) HaveBlock(ctx context.Context, id types.ShardId, number types.BlockNumber) (bool, error) {
+	panic("implement me")
+}
+
+func (b *BadgerDriver) FetchEarliestAbsentBlockId(_ context.Context, id types.ShardId) (types.BlockNumber, bool, error) {
 	var earliestAbsent types.BlockNumber
 	var found bool
 
@@ -436,7 +440,7 @@ func (b *BadgerDriver) FetchEarliestAbsentBlock(ctx context.Context, id types.Sh
 	return earliestAbsent, found, nil
 }
 
-func (b *BadgerDriver) FetchNextPresentBlock(ctx context.Context, id types.ShardId, number types.BlockNumber) (types.BlockNumber, bool, error) {
+func (b *BadgerDriver) FetchNextPresentBlockId(_ context.Context, id types.ShardId, number types.BlockNumber) (types.BlockNumber, bool, error) {
 	var nextPresent types.BlockNumber
 	var found bool
 
