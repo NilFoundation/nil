@@ -94,6 +94,16 @@ func (s *SuiteRegression) TestEmptyError() {
 	s.Require().False(receipt.Success)
 }
 
+func (s *SuiteRegression) TestNonStringError() {
+	abi, err := contracts.GetAbi(contracts.NameTest)
+	s.Require().NoError(err)
+
+	data := s.AbiPack(abi, "returnNonStringError")
+	receipt := s.SendExternalTransactionNoCheck(data, s.testAddress)
+	s.Require().False(receipt.Success)
+	s.Require().Contains(receipt.ErrorMessage, "ExecutionReverted: Not a UTF-8 string: 0x6080")
+}
+
 func (s *SuiteRegression) TestErrorOutOfGasStorage() {
 	contractCode, abi := s.LoadContract(common.GetAbsolutePath("../contracts/GasBurner.sol"), "GasBurner")
 	deployPayload := s.PrepareDefaultDeployPayload(abi, contractCode)

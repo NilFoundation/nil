@@ -241,6 +241,10 @@ contract Test is NilBase {
         require(false, "");
     }
 
+    function returnNonStringError() public pure {
+        require(false, string(abi.encodePacked(type(NilBase).creationCode)));
+    }
+
     function makeFail(int32 n) public pure returns (int32) {
         if (n == 1) {
             int32 v = abi.decode(bytes(""), (int32));
