@@ -1,6 +1,8 @@
 package tracer
 
 import (
+	"errors"
+
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer/internal/mpttracer"
 )
@@ -15,6 +17,7 @@ type ExecutionTraces interface {
 	AddCopyEvents(events []CopyEvent)
 	AddContractBytecode(addr types.Address, code []byte)
 	SetMptTraces(mptTraces *mpttracer.MPTTraces)
+	Append(otherTrace ExecutionTraces) error
 }
 
 type executionTracesImpl struct {
@@ -73,6 +76,34 @@ func (tr *executionTracesImpl) AddKeccakOps(ops []KeccakBuffer) {
 
 func (tr *executionTracesImpl) SetMptTraces(mptTraces *mpttracer.MPTTraces) {
 	tr.MPTTraces = mptTraces
+}
+
+// Append adds `otherTrace` to the end of traces slices, adds kv pairs from `otherTrace` maps
+func (tr *executionTracesImpl) Append(otherTrace ExecutionTraces) error {
+	other, ok := otherTrace.(*executionTracesImpl)
+	if !ok {
+		return errors.New("invalid trace type")
+	}
+
+	// TODO: implement mpt traces merging
+	if tr.MPTTraces != nil {
+		panic("MPT traces merging is not implemented")
+	}
+	tr.MPTTraces = other.MPTTraces
+
+	tr.MemoryOps = append(tr.MemoryOps, other.MemoryOps...)
+	tr.StackOps = append(tr.StackOps, other.StackOps...)
+	tr.StorageOps = append(tr.StorageOps, other.StorageOps...)
+	tr.ExpOps = append(tr.ExpOps, other.ExpOps...)
+	tr.ZKEVMStates = append(tr.ZKEVMStates, other.ZKEVMStates...)
+	tr.CopyEvents = append(tr.CopyEvents, other.CopyEvents...)
+	tr.KeccakTraces = append(tr.KeccakTraces, other.KeccakTraces...)
+
+	for addr, code := range other.ContractsBytecode {
+		tr.ContractsBytecode[addr] = code
+	}
+
+	return nil
 }
 
 type Stats struct {

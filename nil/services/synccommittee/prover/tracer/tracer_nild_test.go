@@ -21,7 +21,7 @@ import (
 type TracerNildTestSuite struct {
 	tests.RpcSuite
 
-	tracer RemoteTracer
+	tracer RemoteTracesCollector
 
 	addrFrom types.Address
 	shardId  types.ShardId
@@ -59,7 +59,7 @@ func (s *TracerNildTestSuite) SetupSuite() {
 	s.waitTwoBlocks()
 
 	var err error
-	s.tracer, err = NewRemoteTracer(s.Client, logging.NewLogger("tracer-test"))
+	s.tracer, err = NewRemoteTracesCollector(s.Client, logging.NewLogger("tracer-test"))
 	s.Require().NoError(err)
 
 	s.addrFrom = types.MainSmartAccountAddress
@@ -73,6 +73,7 @@ func (s *TracerNildTestSuite) TearDownSuite() {
 func (s *TracerNildTestSuite) TestCounterContract() {
 	deployPayload := contracts.CounterDeployPayload(s.T())
 	contractAddr := types.CreateAddress(s.shardId, deployPayload)
+	latestBlocks := s.getLatestBlocksForShards()
 
 	s.Run("SmartAccountDeploy", func() {
 		txHash, err := s.Client.SendTransactionViaSmartAccount(
@@ -91,8 +92,7 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, types.BaseShardId, blkRef)
+		_, err = s.tracer.GetBlockTraces(s.Context, types.BaseShardId, blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -131,19 +131,19 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		blkRef := transport.BlockNumber(receipt.OutReceipts[0].BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, contractAddr.ShardId(), blkRef)
+		_, err = s.tracer.GetBlockTraces(s.Context, contractAddr.ShardId(), blkRef)
 		s.Require().NoError(err)
 	})
 
 	s.Run("AllBlocksSerialization", func() {
-		s.checkAllBlocksTracesSerialization()
+		s.checkBlocksTracesSerialization(latestBlocks)
 	})
 }
 
 func (s *TracerNildTestSuite) TestTestContract() {
 	deployPayload := contracts.GetDeployPayload(s.T(), contracts.NameTest)
 	contractAddr := types.CreateAddress(s.shardId, deployPayload)
+	latestBlocks := s.getLatestBlocksForShards()
 
 	testAddresses := make(map[types.ShardId]types.Address)
 	for shardN := range s.ShardsNum {
@@ -170,8 +170,7 @@ func (s *TracerNildTestSuite) TestTestContract() {
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, types.BaseShardId, blkRef)
+		_, err = s.tracer.GetBlockTraces(s.Context, types.BaseShardId, blkRef)
 		s.Require().NoError(err)
 	})
 
@@ -214,28 +213,32 @@ func (s *TracerNildTestSuite) TestTestContract() {
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, contractAddr.ShardId(), blkRef)
+		_, err = s.tracer.GetBlockTraces(s.Context, contractAddr.ShardId(), blkRef)
 		s.Require().NoError(err)
 	})
 
 	s.Run("AllBlocksSerialization", func() {
-		s.checkAllBlocksTracesSerialization()
+		s.checkBlocksTracesSerialization(latestBlocks)
 	})
 }
 
-// It looks like even smart account deploy is handled in multiple blocks, I don't know how to catch specific one for
-// checks. Just prove every one.
-func (s *TracerNildTestSuite) checkAllBlocksTracesSerialization() {
-	for shardN := range s.ShardsNum {
-		shardId := types.ShardId(shardN)
-		latestBlock, err := s.Client.GetBlock(s.Context, shardId, "latest", false)
+func (s *TracerNildTestSuite) getLatestBlocksForShards() []types.BlockNumber {
+	latestBlocksForShards := make([]types.BlockNumber, s.ShardsNum)
+	for shardId := range s.ShardsNum {
+		latestBlock, err := s.Client.GetBlock(s.Context, types.ShardId(shardId), "latest", false)
 		s.Require().NoError(err)
-		for blockNum := range latestBlock.Number {
+		latestBlocksForShards[shardId] = latestBlock.Number
+	}
+	return latestBlocksForShards
+}
+
+// Even smart account deploy is handled in multiple blocks, trace last N blocks for each shard to include all produced transactions.
+func (s *TracerNildTestSuite) checkBlocksTracesSerialization(from []types.BlockNumber) {
+	latestBlocksForShards := s.getLatestBlocksForShards()
+	for shardId, latestBlockNum := range latestBlocksForShards {
+		for blockNum := from[shardId]; blockNum <= latestBlockNum; blockNum++ {
 			blkRef := transport.BlockNumber(blockNum).AsBlockReference()
-			s.Require().NoError(err)
-			blockTraces := NewExecutionTraces()
-			err := s.tracer.GetBlockTraces(s.Context, blockTraces, shardId, blkRef)
+			blockTraces, err := s.tracer.GetBlockTraces(s.Context, types.ShardId(shardId), blkRef)
 			if errors.Is(err, ErrCantProofGenesisBlock) {
 				continue
 			}

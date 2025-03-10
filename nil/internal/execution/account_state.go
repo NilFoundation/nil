@@ -31,13 +31,13 @@ func (asr *AccountStateReader) GetTokenBalance(id types.TokenId) types.Value {
 	return *res
 }
 
-type IExecutionState interface {
+type IAccountExecutionState interface {
 	AppendToJournal(entry JournalEntry)
 	GetRwTx() db.RwTx
 }
 
 type AccountState struct {
-	db      IExecutionState
+	db      IAccountExecutionState
 	address types.Address // address of the ethereum account
 
 	Balance     types.Value
@@ -83,7 +83,7 @@ func NewAccountStateReader(account *AccountState) *AccountStateReader {
 	}
 }
 
-func NewAccountState(es IExecutionState, addr types.Address, account *types.SmartContract) (*AccountState, error) {
+func NewAccountState(es IAccountExecutionState, addr types.Address, account *types.SmartContract) (*AccountState, error) {
 	shardId := addr.ShardId()
 
 	accountState := &AccountState{
