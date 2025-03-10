@@ -94,6 +94,25 @@ func (s *SuiteRegression) TestEmptyError() {
 	s.Require().False(receipt.Success)
 }
 
+func (s *SuiteRegression) TestErrorOutOfGasStorage() {
+	contractCode, abi := s.LoadContract(common.GetAbsolutePath("../contracts/GasBurner.sol"), "GasBurner")
+	deployPayload := s.PrepareDefaultDeployPayload(abi, contractCode)
+
+	txHash, _, err := s.Client.DeployContract(s.Context, 3, types.MainSmartAccountAddress, deployPayload, types.Value{},
+		types.NewFeePackFromGas(10_000), execution.MainPrivateKey)
+	s.Require().NoError(err)
+
+	receipt := s.WaitIncludedInMain(txHash)
+	s.Require().True(receipt.Success)
+	s.Require().Len(receipt.OutReceipts, 1)
+	s.Require().Equal("OutOfGasStorage", receipt.OutReceipts[0].Status)
+
+	outReceipt := receipt.OutReceipts[0]
+	block, err := s.Client.GetDebugBlock(s.Context, outReceipt.ShardId, uint64(outReceipt.BlockNumber), true)
+	s.Require().NoError(err)
+	s.Equal("OutOfGasStorage", block.Errors[outReceipt.TxnHash])
+}
+
 func (s *SuiteRegression) TestProposerOutOfGas() {
 	contractCode, abi := s.LoadContract(common.GetAbsolutePath("../contracts/GasBurner.sol"), "GasBurner")
 	deployPayload := s.PrepareDefaultDeployPayload(abi, contractCode)
