@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/NilFoundation/nil/nil/services/indexer"
 	"github.com/NilFoundation/nil/nil/services/indexer/clickhouse"
-	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 	"os"
 	"strings"
 
@@ -32,9 +31,9 @@ func initConfig() {
 		home, err := os.Getwd()
 		check.PanicIfErr(err)
 
-		// Search config in home directory with the name "exporter.cobra" (without an extension).
+		// Search config in home directory with the name "indexer.cobra" (without an extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName("exporter")
+		viper.SetConfigName("indexer")
 	}
 
 	check.PanicIfErr(viper.ReadInConfig())
@@ -81,7 +80,7 @@ You could config it via config file or flags or environment variables.`,
 	}
 	ApplyExitOnHelp(rootCmd, 0)
 
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $CWD/exporter.cobra.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $CWD/indexer.cobra.yaml)")
 	rootCmd.Flags().StringP("api-endpoint", "a", "http://127.0.0.1:8529", "API endpoint")
 	rootCmd.Flags().StringP("clickhouse-endpoint", "e", "127.0.0.1:9000", "Clickhouse endpoint")
 	rootCmd.Flags().StringP("clickhouse-login", "l", "", "Clickhouse login")

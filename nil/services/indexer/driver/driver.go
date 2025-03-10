@@ -10,10 +10,10 @@ import (
 )
 
 type IndexerDriver interface {
-	FetchBlock(context.Context, types.ShardId, types.BlockNumber) (*types.Block, bool, error)
-	FetchLatestProcessedBlockId(context.Context, types.ShardId) (*types.BlockNumber, bool, error)
-	FetchEarliestAbsentBlockId(context.Context, types.ShardId) (types.BlockNumber, bool, error)
-	FetchNextPresentBlockId(context.Context, types.ShardId, types.BlockNumber) (types.BlockNumber, bool, error)
+	FetchBlock(context.Context, types.ShardId, types.BlockNumber) (*types.Block, error)
+	FetchLatestProcessedBlockId(context.Context, types.ShardId) (*types.BlockNumber, error)
+	FetchEarliestAbsentBlockId(context.Context, types.ShardId) (types.BlockNumber, error)
+	FetchNextPresentBlockId(context.Context, types.ShardId, types.BlockNumber) (types.BlockNumber, error)
 	FetchAddressActions(types.Address, db.Timestamp) ([]types2.AddressAction, error)
 	SetupScheme(ctx context.Context, params SetupParams) error
 	IndexBlocks(context.Context, []*BlockWithShardId) error

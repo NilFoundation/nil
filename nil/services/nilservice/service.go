@@ -7,7 +7,7 @@ import (
 	rpc2 "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/services/indexer"
 	"github.com/NilFoundation/nil/nil/services/indexer/badger"
-	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	"os/signal"
 	"slices"
 	"sync"
@@ -115,7 +115,7 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db 
 		go check.PanicIfErr(indexer.StartIndexer(ctx, &indexer.Cfg{
 			Client:        rpc2.NewClient(cfg.HttpUrl, logging.NewLogger("indexer")),
 			IndexerDriver: badgerDriver,
-			BlocksChan:    make(chan *types2.BlockWithShardId, 1000),
+			BlocksChan:    make(chan *driver.BlockWithShardId, 1000),
 		}))
 	}
 

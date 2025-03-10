@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	"os"
 	"path/filepath"
 	"testing"
@@ -82,7 +83,7 @@ func (s *SuiteServiceTest) TestGetAddressActions() {
 	}
 
 	// Create test blocks with transactions
-	blocks := []*types2.BlockWithShardId{
+	blocks := []*driver.BlockWithShardId{
 		{
 			BlockWithExtractedData: &types.BlockWithExtractedData{
 				Block: &types.Block{

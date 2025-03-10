@@ -1,7 +1,8 @@
-package indexer
+package main
 
 import (
 	"context"
+	"github.com/NilFoundation/nil/nil/services/indexer"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
@@ -16,26 +17,26 @@ import (
 type SuiteFetchBlock struct {
 	suite.Suite
 
-	server   tests.RpcSuite
-	nShards  uint32
-	exporter *exporter
-	context  context.Context
-	cancel   context.CancelFunc
+	server  tests.RpcSuite
+	nShards uint32
+	indexer *indexer.Indexer
+	context context.Context
+	cancel  context.CancelFunc
 }
 
 func (s *SuiteFetchBlock) TestFetchBlock() {
-	fetchedBlock, err := s.exporter.FetchBlock(s.context, types.MainShardId, "latest")
+	fetchedBlock, err := s.indexer.FetchBlock(s.context, types.MainShardId, "latest")
 	s.Require().NoError(err)
 	s.Require().NotNil(fetchedBlock)
 
-	blocks, err := s.exporter.FetchBlocks(s.context, types.MainShardId, fetchedBlock.Block.Id, fetchedBlock.Block.Id+10)
+	blocks, err := s.indexer.FetchBlocks(s.context, types.MainShardId, fetchedBlock.Block.Id, fetchedBlock.Block.Id+10)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(blocks)
 	s.Require().Equal(fetchedBlock, blocks[0])
 }
 
 func (s *SuiteFetchBlock) TestFetchShardIdList() {
-	shardIds, err := s.exporter.FetchShards(s.context)
+	shardIds, err := s.indexer.FetchShards(s.context)
 	s.Require().NoError(err, "Failed to fetch shard ids")
 	s.Require().Len(shardIds, int(s.nShards-1), "Shard ids length is not equal to expected")
 }
@@ -52,7 +53,7 @@ func (s *SuiteFetchBlock) SetupSuite() {
 
 	url := rpctest.GetSockPath(s.T())
 	logger := logging.NewLogger("test_exporter")
-	s.exporter = &exporter{
+	s.indexer = &indexer.Indexer{
 		client: rpc.NewClient(url, logger),
 	}
 

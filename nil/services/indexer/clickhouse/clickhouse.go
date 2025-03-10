@@ -6,13 +6,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/sszx"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	driver2 "github.com/NilFoundation/nil/nil/services/indexer/driver"
+	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 )
 
 type ClickhouseDriver struct {
@@ -21,9 +23,29 @@ type ClickhouseDriver struct {
 	options    clickhouse.Options
 }
 
+func (d *ClickhouseDriver) FetchBlock(ctx context.Context, id types.ShardId, number types.BlockNumber) (*types.Block, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *ClickhouseDriver) FetchLatestProcessedBlockId(ctx context.Context, id types.ShardId) (*types.BlockNumber, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *ClickhouseDriver) FetchAddressActions(address types.Address, timestamp db.Timestamp) ([]types2.AddressAction, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *ClickhouseDriver) IndexBlocks(ctx context.Context, ids []*driver2.BlockWithShardId) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 // I saw this trick. dunno should I use it here too
 var (
-	_ internal.ExportDriver = &ClickhouseDriver{}
+	_ driver2.IndexerDriver = &ClickhouseDriver{}
 )
 
 // extend types.Block with binary field
@@ -157,7 +179,7 @@ func (d *ClickhouseDriver) Reconnect() error {
 	return err
 }
 
-func (d *ClickhouseDriver) SetupScheme(ctx context.Context, params internal.SetupParams) error {
+func (d *ClickhouseDriver) SetupScheme(ctx context.Context, params driver2.SetupParams) error {
 	version, err := readVersion(ctx, d.conn)
 	if err != nil {
 		return fmt.Errorf("failed to read version: %w", err)
@@ -229,7 +251,7 @@ func (d *ClickhouseDriver) FetchEarliestAbsentBlockId(ctx context.Context, shard
 }
 
 type blockWithSSZ struct {
-	decoded    *internal.BlockWithShardId
+	decoded    *driver2.BlockWithShardId
 	sszEncoded *types.RawBlockWithExtractedData
 }
 
@@ -238,7 +260,7 @@ type receiptWithSSZ struct {
 	sszEncoded sszx.SSZEncodedData
 }
 
-func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*internal.BlockWithShardId) error {
+func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*driver2.BlockWithShardId) error {
 	blocks := make([]blockWithSSZ, len(blocksToExport))
 	receipts := make(map[common.Hash]receiptWithSSZ)
 	for blockIndex, block := range blocksToExport {
