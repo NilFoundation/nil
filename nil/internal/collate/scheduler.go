@@ -78,21 +78,25 @@ func (s *Scheduler) Run(ctx context.Context, consensus Consensus) error {
 	// Enable handler for blocks relaying
 	SetRequestHandler(ctx, s.networkManager, s.params.ShardId, s.txFabric, s.logger)
 
-	ticker := time.NewTicker(s.params.CollatorTickPeriod)
-	defer ticker.Stop()
+	tickPeriodMs := s.params.CollatorTickPeriod.Milliseconds()
 	for {
+		var toRoundStartMs int64
+		elapsed := time.Now().UnixMilli() % tickPeriodMs
+		if elapsed > 0 {
+			toRoundStartMs = tickPeriodMs - elapsed
+		}
+
 		select {
-		case <-ticker.C:
-			if err := s.doCollate(ctx); err != nil {
-				if ctx.Err() != nil {
-					s.logger.Info().Msg("Stopping collation...")
-					return nil
-				}
-				s.logger.Error().Err(err).Msg("Failed to collate")
-			}
 		case <-ctx.Done():
 			s.logger.Info().Msg("Stopping collation...")
 			return nil
+		case <-time.After(time.Duration(toRoundStartMs) * time.Millisecond):
+			if err := s.doCollate(ctx); err != nil {
+				if ctx.Err() != nil {
+					continue
+				}
+				s.logger.Error().Err(err).Msg("Failed to collate")
+			}
 		}
 	}
 }
