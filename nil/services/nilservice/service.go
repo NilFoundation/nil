@@ -533,15 +533,6 @@ func createNetworkManager(ctx context.Context, cfg *Config) (*network.Manager, e
 		return nil, nil
 	}
 
-	if cfg.Network.PrivateKey == nil {
-		privKey, err := network.LoadOrGenerateKeys(cfg.NetworkKeysPath)
-		if err != nil {
-			return nil, err
-		}
-
-		cfg.Network.PrivateKey = privKey
-	}
-
 	return network.NewManager(ctx, cfg.Network)
 }
 

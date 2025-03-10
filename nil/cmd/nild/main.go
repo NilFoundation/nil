@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/NilFoundation/nil/nil/cmd/nild/nildconfig"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/cobrax"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/common/version"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
@@ -20,7 +21,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -63,49 +63,17 @@ func loadConfig() (*nildconfig.Config, error) {
 			ForkMainAtBlock: transport.LatestBlockNumber,
 		},
 	}
-	name := ""
 
-	// We need to load config before parsing arguments (it changes global state).
-	// Let's search arguments explicitly.
-	for i, f := range os.Args[:len(os.Args)-1] {
-		if f == "--config" || f == "-c" {
-			name = os.Args[i+1]
-			break
-		}
+	if err := cobrax.LoadConfigFromFile(cobrax.GetConfigNameFromArgs(), cfg); err != nil {
+		return nil, err
 	}
 
-	if name == "" {
-		return cfg, nil
-	}
-
-	data, err := os.ReadFile(name)
-	if err != nil {
-		return nil, fmt.Errorf("can't read config %s: %w", name, err)
-	}
-
-	// Parse YAML into our Config struct
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("can't parse config %s: %w", name, err)
-	}
-
-	if cfg.DB == nil {
-		cfg.DB = db.NewDefaultBadgerDBOptions()
+	// todo: remove this after migration to new config
+	if cfg.NetworkKeysPath != "" {
+		cfg.Network.KeysPath = cfg.NetworkKeysPath
 	}
 
 	return cfg, nil
-}
-
-func addNetworkFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
-	fset.IntVar(&cfg.Network.TcpPort, "tcp-port", cfg.Network.TcpPort, "tcp port for network")
-	fset.IntVar(&cfg.Network.QuicPort, "quic-port", cfg.Network.QuicPort, "udp port for network")
-	fset.BoolVar(&cfg.Network.DHTEnabled, "with-discovery", cfg.Network.DHTEnabled, "enable discovery (with Kademlia DHT)")
-	fset.Var(&cfg.Network.DHTBootstrapPeers, "discovery-bootstrap-peers", "bootstrap peers for discovery")
-	fset.StringVar(&cfg.NetworkKeysPath, "keys-path", cfg.NetworkKeysPath, "path to write libp2p keys")
-	check.PanicIfErr(fset.SetAnnotation("discovery-bootstrap-peers", cobra.BashCompOneRequiredFlag, []string{"with-discovery"}))
-}
-
-func addTelemetryFlags(fset *pflag.FlagSet, cfg *nildconfig.Config) {
-	fset.BoolVar(&cfg.Telemetry.ExportMetrics, "metrics", cfg.Telemetry.ExportMetrics, "export metrics via grpc")
 }
 
 func addAllowDbClearFlag(fset *pflag.FlagSet, cfg *nildconfig.Config) {
@@ -133,9 +101,11 @@ func parseArgs() *nildconfig.Config {
 		SilenceErrors: true,
 	}
 
-	logLevel := rootCmd.PersistentFlags().StringP("log-level", "l", "info", "log level: trace|debug|info|warn|error|fatal|panic")
-	libp2pLogLevel := rootCmd.PersistentFlags().String("libp2p-log-level", "", "log level: debug|info|warn|error|fatal|dpanic|panic")
-	rootCmd.PersistentFlags().StringP("config", "c", "", "config file (none by default)")
+	cobrax.AddConfigFlag(rootCmd.PersistentFlags())
+
+	var logLevel, libp2pLogLevel string
+	cobrax.AddLogLevelFlag(rootCmd.PersistentFlags(), &logLevel)
+	cobrax.AddCustomLogLevelFlag(rootCmd.PersistentFlags(), "libp2p-log-level", "", &libp2pLogLevel)
 
 	rootCmd.PersistentFlags().StringVar(&cfg.DB.Path, "db-path", cfg.DB.Path, "path to database")
 	rootCmd.PersistentFlags().Float64Var(&cfg.DB.DiscardRatio, "db-discard-ratio", cfg.DB.DiscardRatio, "discard ratio for badger GC")
@@ -147,10 +117,7 @@ func parseArgs() *nildconfig.Config {
 	rootCmd.PersistentFlags().Var(&cfg.ReadThrough.ForkMainAtBlock, "read-through-fork-main-at-block", "all blocks generated later than this MainChain block won't be fetched; latest block by default")
 	rootCmd.PersistentFlags().StringVar(&logFilter, "log-filter", "", "filter logs by component, e.g. 'all:-sync:-rpc' - enable all logs, but disable sync and rpc logs")
 
-	// For backward compatibility
-	rootCmd.PersistentFlags().IntVar(&cfg.RPCPort, "port", cfg.RPCPort, "http port for rpc server")
-	rootCmd.PersistentFlags().IntVar(&cfg.PprofPort, "pprof-port", cfg.PprofPort, "port to serve pprof profiling information")
-	check.PanicIfErr(rootCmd.PersistentFlags().MarkHidden("port"))
+	cobrax.AddPprofPortFlag(rootCmd.PersistentFlags(), &cfg.PprofPort)
 
 	runCmd := &cobra.Command{
 		Use:   "run",
@@ -165,8 +132,8 @@ func parseArgs() *nildconfig.Config {
 	runCmd.Flags().StringVar(&cfg.ValidatorKeysPath, "validator-keys-path", cfg.ValidatorKeysPath, "path to write validator keys")
 
 	addBasicFlags(runCmd.Flags(), cfg)
-	addNetworkFlags(runCmd.Flags(), cfg)
-	addTelemetryFlags(runCmd.Flags(), cfg)
+	network.AddFlags(runCmd.Flags(), cfg.Config.Network)
+	telemetry.AddFlags(runCmd.Flags(), cfg.Telemetry)
 
 	replayCmd := &cobra.Command{
 		Use:   "replay-block",
@@ -188,8 +155,8 @@ func parseArgs() *nildconfig.Config {
 	}
 
 	addBasicFlags(archiveCmd.Flags(), cfg)
-	addNetworkFlags(archiveCmd.Flags(), cfg)
-	addTelemetryFlags(archiveCmd.Flags(), cfg)
+	network.AddFlags(archiveCmd.Flags(), cfg.Config.Network)
+	telemetry.AddFlags(archiveCmd.Flags(), cfg.Telemetry)
 
 	rpcCmd := &cobra.Command{
 		Use:   "rpc",
@@ -201,32 +168,19 @@ func parseArgs() *nildconfig.Config {
 
 	addRpcNodeFlags(rpcCmd.Flags(), cfg)
 	addAllowDbClearFlag(rpcCmd.Flags(), cfg)
-	addNetworkFlags(rpcCmd.Flags(), cfg)
-	addTelemetryFlags(rpcCmd.Flags(), cfg)
+	network.AddFlags(rpcCmd.Flags(), cfg.Config.Network)
+	telemetry.AddFlags(rpcCmd.Flags(), cfg.Telemetry)
 
-	versionCmd := &cobra.Command{
-		Use:   "version",
-		Short: "Print version",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(version.BuildVersionString(appTitle))
-			os.Exit(0)
-		},
-	}
-
+	versionCmd := cobrax.VersionCmd(appTitle)
 	devnetCmd := DevnetCommand()
 
 	rootCmd.AddCommand(runCmd, replayCmd, archiveCmd, rpcCmd, devnetCmd, versionCmd)
-
-	f := rootCmd.HelpFunc()
-	rootCmd.SetHelpFunc(func(c *cobra.Command, s []string) {
-		f(c, s)
-		os.Exit(0)
-	})
+	cobrax.ExitOnHelp(rootCmd)
 
 	check.PanicIfErr(rootCmd.Execute())
 
-	logging.SetupGlobalLogger(*logLevel)
-	check.PanicIfErr(logging.SetLibp2pLogLevel(*libp2pLogLevel))
+	logging.SetupGlobalLogger(logLevel)
+	check.PanicIfErr(logging.SetLibp2pLogLevel(libp2pLogLevel))
 
 	// todo: remove it when we remove the old flag
 	// Support old flag for backward compatibility

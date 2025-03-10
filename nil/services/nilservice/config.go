@@ -52,9 +52,11 @@ type Config struct {
 
 	// Keys
 	MainKeysPath         string                     `yaml:"mainKeysPath,omitempty"`
-	NetworkKeysPath      string                     `yaml:"networkKeysPath,omitempty"`
 	ValidatorKeysPath    string                     `yaml:"validatorKeysPath,omitempty"`
 	ValidatorKeysManager *keys.ValidatorKeysManager `yaml:"-"`
+
+	// deprecated
+	NetworkKeysPath string `yaml:"networkKeysPath,omitempty"`
 
 	// HttpUrl is calculated from RPCPort
 	HttpUrl string `yaml:"-"`
@@ -93,7 +95,6 @@ func NewDefaultConfig() *Config {
 
 		NShards:           uint32(DefaultNShards),
 		MainKeysPath:      "keys.yaml",
-		NetworkKeysPath:   "network-keys.yaml",
 		ValidatorKeysPath: "validator-keys.yaml",
 
 		GracefulShutdown: true,

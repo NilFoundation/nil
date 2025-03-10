@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/cobrax"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/common/version"
 	"github.com/NilFoundation/nil/nil/services/cometa"
@@ -84,18 +85,10 @@ func processCreateConfig(cfg *config) error {
 
 func parseArgs() *config {
 	cfg := &config{}
-	var name string
-	// We need to load config before parsing arguments, because loaded config contains default values for parameters.
-	for i, f := range os.Args[:len(os.Args)-1] {
-		if f == "--config" || f == "-c" {
-			check.PanicIfNotf(i+1 < len(os.Args), "config file name is not specified")
-			name = os.Args[i+1]
-			break
-		}
-	}
 	cfg.cometaCfg.ResetToDefault()
+	cfg.cfgFile = cobrax.GetConfigNameFromArgs()
 	if cfg.command != CommandCreateConfig {
-		cfg.cometaCfg.InitFromFile(name)
+		cfg.cometaCfg.InitFromFile(cfg.cfgFile)
 	}
 
 	rootCmd := &cobra.Command{
@@ -105,7 +98,7 @@ func parseArgs() *config {
 		SilenceErrors: true,
 	}
 
-	rootCmd.PersistentFlags().StringVarP(&cfg.cfgFile, "config", "c", "", "config file")
+	cobrax.AddConfigFlag(rootCmd.PersistentFlags())
 	rootCmd.PersistentFlags().BoolVar(&cfg.cometaCfg.UseBadger, "use-badger", cfg.cometaCfg.UseBadger, "use badger db")
 	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.OwnEndpoint, "own-endpoint", cfg.cometaCfg.OwnEndpoint, "cometa's rpc server endpoint")
 	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.NodeEndpoint, "node-endpoint", cfg.cometaCfg.NodeEndpoint, "nil node endpoint")
@@ -139,10 +132,12 @@ func parseArgs() *config {
 	}
 	rootCmd.AddCommand(createConfigCmd)
 
-	logLevel := rootCmd.PersistentFlags().StringP("log-level", "l", "info", "log level: trace|debug|info|warn|error|fatal|panic")
-	logging.SetupGlobalLogger(*logLevel)
+	var logLevel string
+	cobrax.AddLogLevelFlag(rootCmd.Flags(), &logLevel)
 
 	check.PanicIfErr(rootCmd.Execute())
+
+	logging.SetupGlobalLogger(logLevel)
 
 	return cfg
 }

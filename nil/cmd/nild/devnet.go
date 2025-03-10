@@ -312,7 +312,7 @@ func (devnet *devnet) writeServerConfig(instanceId int, srv server, only string)
 	cfg.ZeroState = devnet.zeroState
 
 	var err error
-	cfg.NetworkKeysPath, err = filepath.Abs(srv.NetworkKeysFile())
+	cfg.Network.KeysPath, err = filepath.Abs(srv.NetworkKeysFile())
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path for network keys: %w", err)
 	}

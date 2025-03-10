@@ -9,7 +9,7 @@ GO_DBG_BUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build -tags $(BUILD_TAGS),debug,as
 GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TAGS),debug,assert,test $(GO_FLAGS) ./... -p 2
 
 SC_COMMANDS = sync_committee sync_committee_cli proof_provider prover nil_block_generator
-COMMANDS += nild nil nil_load_generator exporter cometa faucet journald_forwarder $(SC_COMMANDS)
+COMMANDS += nild nil nil_load_generator exporter cometa faucet journald_forwarder relay $(SC_COMMANDS)
 
 all: $(COMMANDS)
 

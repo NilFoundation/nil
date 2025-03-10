@@ -92,7 +92,15 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 	}
 
 	if conf.PrivateKey == nil {
-		return nil, ErrPrivateKeyMissing
+		if conf.KeysPath == "" {
+			return nil, ErrPrivateKeyMissing
+		}
+
+		privateKey, err := LoadOrGenerateKeys(conf.KeysPath)
+		if err != nil {
+			return nil, err
+		}
+		conf.PrivateKey = privateKey
 	}
 
 	h, err := newHost(ctx, conf)

@@ -3,7 +3,6 @@ package network
 import (
 	"crypto/rand"
 	"errors"
-	"fmt"
 
 	"github.com/NilFoundation/nil/nil/internal/network/internal"
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
@@ -38,21 +37,6 @@ func LoadOrGenerateKeys(fileName string) (PrivateKey, error) {
 func GeneratePrivateKey() (libp2pcrypto.PrivKey, error) {
 	res, _, err := libp2pcrypto.GenerateSecp256k1Key(rand.Reader)
 	return res, err
-}
-
-func GenerateAndDumpKeys(fileName string) (PrivateKey, error) {
-	privKey, err := GeneratePrivateKey()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate keys: %w", err)
-	}
-
-	if err := internal.DumpKey(fileName, internal.Libp2pKey{PrivKey: privKey}); err != nil {
-		return nil, fmt.Errorf("failed to save keys: %w", err)
-	}
-
-	internal.Logger.Info().Msgf("Saved network keys to %s", fileName)
-
-	return privKey, nil
 }
 
 func SerializeKeys(privKey libp2pcrypto.PrivKey) ([]byte, []byte, peer.ID, error) {
