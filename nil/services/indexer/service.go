@@ -5,6 +5,7 @@ import (
 	"fmt"
 	driver2 "github.com/NilFoundation/nil/nil/services/indexer/driver"
 	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
+	"github.com/spf13/viper"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -57,6 +58,27 @@ type Service struct {
 
 type IndexerJsonRpc interface {
 	GetAddressActions(address types.Address, since db.Timestamp) ([]types2.AddressAction, error)
+}
+
+func (c *Config) InitFromFile(cfgFile string) bool {
+	if cfgFile == "" {
+		return false
+	}
+	v := viper.New()
+	v.SetConfigFile(cfgFile)
+	if err := v.ReadInConfig(); err != nil {
+		c.ResetToDefault()
+		return false
+	}
+	c.UseBadger = v.GetBool("use-badger")
+	c.OwnEndpoint = v.GetString("own-endpoint")
+	c.NodeEndpoint = v.GetString("node-endpoint")
+	c.DbEndpoint = v.GetString("db-endpoint")
+	c.DbPath = v.GetString("db-path")
+	c.DbName = v.GetString("db-name")
+	c.DbUser = v.GetString("db-user")
+	c.DbPassword = v.GetString("db-password")
+	return true
 }
 
 func NewService(ctx context.Context, cfg *Config, client client.Client) (*Service, error) {

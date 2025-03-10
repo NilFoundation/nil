@@ -1,9 +1,7 @@
-import { toHex } from "../encoding/toHex.js";
 import type { Hex } from "../types/Hex.js";
-import { waitTillCompleted } from "../utils/receipt.js";
 import { BaseClient } from "./BaseClient.js";
-import type { PublicClient } from "./PublicClient.js";
-import type {IClientBaseConfig} from "./types/Configs.js";
+import type { IClientBaseConfig } from "./types/Configs.js";
+import type { IAddress } from "../signers/types/IAddress.js";
 
 class IndexerClient extends BaseClient {
   // biome-ignore lint/complexity/noUselessConstructor: may be useful in the future
@@ -12,81 +10,39 @@ class IndexerClient extends BaseClient {
   }
 
   /**
-   * Gets all the faucets available.
-   * @returns The list of all faucets. The key is the token name and the value is faucet address.
+   * Gets address actions page
+   * @param address - The address to get actions for.
+   * @param sinceTimestamp - The timestamp to get actions since.
+   * @returns The page of address actions.
    */
-  public async getAddressActions() {
-    return await this.request<Record<string, Hex>>({
-      method: "faucet_getFaucets",
-      params: [],
+  public async getAddressActions(address: Hex, sinceTimestamp: number = 0) {
+    return await this.request<AddressAction[]>({
+      method: "indexer_getAddressActions",
+      params: [address, sinceTimestamp],
     });
-  }
-
-  /**
-   * Topups the smart account with the specified amount of token which can be issued by the faucet.
-   * @param param - The parameters for the top up request.
-   * @param param.smartAccountAddress - The address of the smart account to top up.
-   * @param param.faucetAddress - The address of the faucet to use.
-   * @param param.amount - The amount to top up.
-   * @returns The transaction hash of the top up transaction.
-   */
-  public async topUp({ faucetAddress, smartAccountAddress, amount }: TopUpParams) {
-    return await this.request<Hex>({
-      method: "faucet_topUpViaFaucet",
-      params: [faucetAddress, smartAccountAddress, toHex(amount)],
-    });
-  }
-
-  /**
-   * Topups the smart account with the specified amount of token which can be issued by the faucet.
-   * This function waits until the top up transaction is completed.
-   * @param param - The parameters for the top up request.
-   * @param param.smartAccountAddress - The address of the smart account to top up.
-   * @param param.faucetAddress - The address of the faucet to use.
-   * @param param.amount - The amount to top up.
-   * @param client - Public client to fetch the data from the network.
-   * @param [retries] - The number of retries to make.
-   * @returns The transaction hash of the top up transaction.
-   */
-  public async topUpAndWaitUntilCompletion(
-    { smartAccountAddress, faucetAddress, amount }: TopUpParams,
-    client: PublicClient,
-    retries = 5,
-  ) {
-    let currentRetry = 0;
-    while (currentRetry++ < retries) {
-      try {
-        const txHash = await this.topUp({
-          faucetAddress,
-          smartAccountAddress,
-          amount,
-        });
-
-        const receipts = await Promise.race([
-          new Promise<[]>((resolve) => setTimeout(() => resolve([]), 10000)),
-          waitTillCompleted(client, txHash),
-        ]);
-
-        if (receipts.length === 0) {
-          continue;
-        }
-
-        if (receipts.some((receipt) => !receipt.success)) {
-          continue;
-        }
-
-        return txHash;
-      } catch (error) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        if (currentRetry === retries) {
-          throw error;
-        }
-      }
-    }
-
-    throw new Error("Failed to withdraw to the given address");
   }
 }
 
-export { FaucetClient };
+export type AddressAction = {
+  hash: Hex
+  from: IAddress
+  to: IAddress
+  amount: bigint
+  timestamp: number
+  blockId: number
+  type: AddressActionKind
+  status: AddressActionStatus
+}
+
+export enum AddressActionKind {
+  SendEth = "SendEth",
+  ReceiveEth = "ReceiveEth",
+  SmartContractCall = "SmartContractCall",
+}
+
+export enum AddressActionStatus {
+  Success = "Success",
+  Failed = "Failed",
+}
+
+export { IndexerClient };

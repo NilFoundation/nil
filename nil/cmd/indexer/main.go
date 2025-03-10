@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	logger  = logging.NewLogger("exporter")
+	logger  = logging.NewLogger("indexer")
 	cfgFile string
 )
 
@@ -43,7 +43,7 @@ func initConfig() {
 }
 
 // This makes the --help command exit instead of proceeding to run
-// the exporter
+// the indexer
 func ApplyExitOnHelp(c *cobra.Command, exitCode int) {
 	helpFunc := c.HelpFunc()
 	c.SetHelpFunc(func(c *cobra.Command, s []string) {
@@ -102,7 +102,7 @@ You could config it via config file or flags or environment variables.`,
 
 	ctx := context.Background()
 
-	clickhouseExporter, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
+	clickhouseDriver, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
 	check.PanicIfErr(err)
 
 	check.PanicIfErr(internal.StartIndexer(ctx, &indexer.Cfg{

@@ -13,14 +13,14 @@ type BlockWithShardId struct {
 }
 
 type AddressAction struct {
-	Hash      common.Hash
-	From      types.Address
-	To        types.Address
-	Amount    types.Value
-	Timestamp db.Timestamp
-	BlockId   types.BlockNumber
-	Type      AddressActionKind
-	Status    AddressActionStatus
+	Hash      common.Hash         `json:"hash"`
+	From      types.Address       `json:"from"`
+	To        types.Address       `json:"to"`
+	Amount    types.Value         `json:"amount"`
+	Timestamp db.Timestamp        `json:"timestamp"`
+	BlockId   types.BlockNumber   `json:"blockId"`
+	Type      AddressActionKind   `json:"type"`
+	Status    AddressActionStatus `json:"status"`
 }
 
 type AddressActionKind uint8

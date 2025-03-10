@@ -11,7 +11,6 @@ import (
 type Cfg struct {
 	IndexerDriver driver.IndexerDriver
 	Client        client.Client
-	AllowDbDrop   bool
 	BlocksChan    chan *types2.BlockWithShardId
 	indexRound    atomic.Uint32
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/NilFoundation/nil/nil/services/indexer"
 	"os"
 
 	"github.com/NilFoundation/nil/nil/cmd/nild/nildconfig"
@@ -162,6 +163,7 @@ func parseArgs() *nildconfig.Config {
 	runCmd.Flags().Uint32Var(&cfg.NShards, "nshards", cfg.NShards, "number of shardchains")
 	runCmd.Flags().BoolVar(&cfg.SplitShards, "split-shards", cfg.SplitShards, "run each shard in separate process")
 	runCmd.Flags().StringVar(&cfg.CometaConfig, "cometa-config", "", "path to Cometa config")
+	runCmd.Flags().StringVar(&cfg.IndexerConfig, "indexer-config", "", "path to Indexer config")
 	runCmd.Flags().StringVar(&cfg.ValidatorKeysPath, "validator-keys-path", cfg.ValidatorKeysPath, "path to write validator keys")
 
 	addBasicFlags(runCmd.Flags(), cfg)
@@ -247,6 +249,13 @@ func parseArgs() *nildconfig.Config {
 		cfg.Cometa = &cometa.Config{}
 		cfg.Cometa.ResetToDefault()
 		cfg.Cometa.UseBadger = true
+	}
+
+	if cfg.IndexerConfig != "" {
+		cfg.Indexer = &indexer.Config{}
+		cfg.Indexer.ResetToDefault()
+		ok := cfg.Indexer.InitFromFile(cfg.IndexerConfig)
+		check.PanicIfNotf(ok, "failed to load indexer config from %s", cfg.IndexerConfig)
 	}
 
 	return cfg
