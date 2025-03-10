@@ -31,11 +31,13 @@ type InternalTxnReference struct {
 }
 
 type Proposal struct {
-	PrevBlockId   types.BlockNumber   `json:"prevBlockId"`
-	PrevBlockHash common.Hash         `json:"prevBlockHash"`
-	CollatorState types.CollatorState `json:"collatorState"`
-	MainChainHash common.Hash         `json:"mainChainHash"`
-	ShardHashes   []common.Hash       `json:"shardHashes"`
+	PrevBlockId     types.BlockNumber   `json:"prevBlockId"`
+	PrevBlockHash   common.Hash         `json:"prevBlockHash"`
+	PatchLevel      uint32              `json:"patchLevel"`
+	RollbackCounter uint32              `json:"rollbackCounter"`
+	CollatorState   types.CollatorState `json:"collatorState"`
+	MainChainHash   common.Hash         `json:"mainChainHash"`
+	ShardHashes     []common.Hash       `json:"shardHashes"`
 
 	InternalTxns []*types.Transaction `json:"internalTxns"`
 	ExternalTxns []*types.Transaction `json:"externalTxns"`
@@ -45,6 +47,10 @@ type Proposal struct {
 type ProposalSSZ struct {
 	PrevBlockId   types.BlockNumber
 	PrevBlockHash common.Hash
+
+	PatchLevel      uint32
+	RollbackCounter uint32
+
 	CollatorState types.CollatorState
 	MainChainHash common.Hash
 	ShardHashes   []common.Hash `ssz-max:"4096"`
@@ -154,11 +160,13 @@ func ConvertProposal(proposal *ProposalSSZ) (*Proposal, error) {
 	}
 
 	return &Proposal{
-		PrevBlockId:   proposal.PrevBlockId,
-		PrevBlockHash: proposal.PrevBlockHash,
-		CollatorState: proposal.CollatorState,
-		MainChainHash: proposal.MainChainHash,
-		ShardHashes:   proposal.ShardHashes,
+		PrevBlockId:     proposal.PrevBlockId,
+		PrevBlockHash:   proposal.PrevBlockHash,
+		PatchLevel:      proposal.PatchLevel,
+		RollbackCounter: proposal.RollbackCounter,
+		CollatorState:   proposal.CollatorState,
+		MainChainHash:   proposal.MainChainHash,
+		ShardHashes:     proposal.ShardHashes,
 
 		// todo: special txns should be validated
 		InternalTxns: append(proposal.SpecialTxns, internalTxns...),

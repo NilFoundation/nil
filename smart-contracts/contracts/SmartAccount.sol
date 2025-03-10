@@ -6,9 +6,11 @@ import "./NilTokenBase.sol";
 
 /**
  * @title SmartAccount
- * @dev Basic Smart Account contract which provides functional for calling another contracts and sending tokens.
- * It also supports multi-token functionality providing methods for minting and sending token.
- * NilTokenBase class implements functional for managing own token(where `tokenId = address(this)`).
+ * @dev Basic Smart Account contract that provides functionality for interacting
+ * with other contracts and sending tokens.  It also supports multi-token
+ * functionality, including methods for minting and sending tokens.
+ * The NilTokenBase class implements functionality for managing the contract's own
+ * token (where `tokenId = address(this)`).
  */
 contract SmartAccount is NilTokenBase {
     bytes pubkey;

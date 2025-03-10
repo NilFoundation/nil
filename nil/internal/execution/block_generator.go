@@ -222,6 +222,8 @@ func (g *BlockGenerator) prepareExecutionState(proposal *Proposal, gasPrices []t
 	}
 
 	g.executionState.MainChainHash = proposal.MainChainHash
+	g.executionState.PatchLevel = proposal.PatchLevel
+	g.executionState.RollbackCounter = proposal.RollbackCounter
 
 	for _, txn := range proposal.InternalTxns {
 		if err := g.handleTxn(txn); err != nil {

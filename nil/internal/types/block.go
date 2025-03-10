@@ -50,6 +50,12 @@ type BlockData struct {
 	BaseFee             Value            `json:"gasPrice" ch:"gas_price"`
 	GasUsed             Gas              `json:"gasUsed" ch:"gas_used"`
 	L1BlockNumber       uint64           `json:"l1BlockNumber" ch:"l1_block_number"`
+
+	// Incremented after every rollback, used to prevent rollback replay attacks
+	RollbackCounter uint32 `json:"rollbackCounter" ch:"rollback_counter"`
+	// Required validator patchLevel, incremented if validator updates
+	// are required to mitigate an issue
+	PatchLevel uint32 `json:"patchLevel" ch:"patch_level"`
 }
 
 type ConsensusParams struct {

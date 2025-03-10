@@ -148,8 +148,14 @@ const (
 	// ErrorPrecompileStateDbReturnedError is an internal error indicating that the Execution returned an error
 	ErrorPrecompileStateDbReturnedError
 	// ErrorOnlyMainShardContractsCanChangeConfig is returned when a contract from a shard other than the main one tries
-	// to change on-cahin config
+	// to change on-chain config
 	ErrorOnlyMainShardContractsCanChangeConfig
+	// ErrorPrecompileWrongCaller is returned when the caller of the precompile is not the expected one
+	ErrorPrecompileWrongCaller
+	// ErrorPrecompileWrongVersion is returned when the version of the precompile is not the expected one
+	ErrorPrecompileWrongVersion
+	// ErrorPrecompileBadArgument is returned when the precompile receives an invalid argument
+	ErrorPrecompileBadArgument
 	// ErrorPrecompileConfigSetParamFailed is returned when the precompile fails to set the config parameter
 	ErrorPrecompileConfigSetParamFailed
 	// ErrorPrecompileConfigGetParamFailed is returned when the precompile fails to get the config parameter

@@ -46,6 +46,15 @@ func init() {
 	}
 }
 
+type RollbackParams struct {
+	Version     uint32
+	Counter     uint32
+	PatchLevel  uint32
+	MainBlockId uint64
+	ReplayDepth uint32
+	SearchDepth uint32
+}
+
 type ExecutionState struct {
 	tx                 db.RwTx
 	ContractTree       *ContractTrie
@@ -58,6 +67,11 @@ type ExecutionState struct {
 	ChildChainBlocks   map[types.ShardId]common.Hash
 	GasPrice           types.Value // Current gas price including priority fee
 	BaseFee            types.Value
+
+	// Those fields are just copied from the proposal into the block
+	// and are not used in the state
+	PatchLevel      uint32
+	RollbackCounter uint32
 
 	InTransactionHash common.Hash
 	Logs              map[common.Hash][]*types.Log
@@ -109,6 +123,9 @@ type ExecutionState struct {
 	isReadOnly bool
 
 	FeeCalculator FeeCalculator
+
+	// filled in if a rollback was requested by a transaction
+	rollback *RollbackParams
 }
 
 type ExecutionResult struct {
@@ -215,12 +232,14 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 	currentBlockId := uint64(0)
 	var header *types.Block
 	time := uint64(0)
+	rollbackCounter := uint32(0)
 	if err == nil {
 		header = data.Block()
 		currentBlockId = header.Id.Uint64() + 1
 		// TODO: we need to use header.Timestamp instead of but it's always zero for now.
 		// Let's return some kind of logical timestamp (monotonic increasing block number).
 		time = header.Id.Uint64()
+		rollbackCounter = header.RollbackCounter
 	}
 	return &vm.BlockContext{
 		GetHash:     getHashFn(es, header),
@@ -229,6 +248,8 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 		BaseFee:     big.NewInt(10),
 		BlobBaseFee: big.NewInt(10),
 		Time:        time,
+
+		RollbackCounter: rollbackCounter,
 	}, nil
 }
 
@@ -1414,6 +1435,8 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 			BaseFee:             es.BaseFee,
 			GasUsed:             es.GasUsed,
 			L1BlockNumber:       l1BlockNumber,
+			PatchLevel:          es.PatchLevel,
+			RollbackCounter:     es.RollbackCounter,
 			// TODO(@klonD90): remove this field after changing explorer
 			Timestamp: 0,
 		},
@@ -1699,6 +1722,19 @@ func (es *ExecutionState) GetGasPrice(shardId types.ShardId) (types.Value, error
 		return types.Value{}, err
 	}
 	return types.Value{Uint256: &prices.Shards[shardId]}, nil
+}
+
+func (es *ExecutionState) Rollback(counter, patchLevel uint32, mainBlock uint64) error {
+	es.rollback = &RollbackParams{
+		Counter:     counter,
+		PatchLevel:  patchLevel,
+		MainBlockId: mainBlock,
+	}
+	return nil
+}
+
+func (es *ExecutionState) GetRollback() *RollbackParams {
+	return es.rollback
 }
 
 func (es *ExecutionState) SetTokenTransfer(tokens []types.TokenBalance) {

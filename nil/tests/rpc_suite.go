@@ -235,13 +235,6 @@ func (s *RpcSuite) SendTransactionViaSmartAccountNoCheck(addrSmartAccount types.
 	return receipt
 }
 
-func (s *RpcSuite) SendRawTransaction(data []byte) *jsonrpc.RPCReceipt {
-	txHash, err := s.Client.SendRawTransaction(s.Context, data)
-	s.Require().NoError(err)
-	receipt := s.WaitIncludedInMain(txHash)
-	return receipt
-}
-
 func (s *RpcSuite) CallGetter(addr types.Address, calldata []byte, blockId any, overrides *jsonrpc.StateOverrides) []byte {
 	s.T().Helper()
 	return CallGetter(s.T(), s.Context, s.Client, addr, calldata, blockId, overrides)

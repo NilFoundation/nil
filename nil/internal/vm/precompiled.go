@@ -99,6 +99,7 @@ var (
 	SendRequestAddress        = types.BytesToAddress([]byte{0xd8})
 	CheckIsResponseAddress    = types.BytesToAddress([]byte{0xd9})
 	LogAddress                = types.BytesToAddress([]byte{0xda})
+	GovernanceAddress         = types.BytesToAddress([]byte{0xdb})
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -140,6 +141,7 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	SendRequestAddress:        &sendRequest{},
 	CheckIsResponseAddress:    &checkIsResponse{},
 	LogAddress:                &emitLog{},
+	GovernanceAddress:         &governance{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -183,7 +185,7 @@ type simple struct {
 	contract SimplePrecompiledContract
 }
 
-var _ PrecompiledContract = (*simple)(nil)
+var _ ReadOnlyPrecompiledContract = (*simple)(nil)
 
 func (a *simple) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
 	return a.contract.RequiredGas(input), nil
@@ -536,15 +538,9 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 		return nil, types.NewVmError(types.ErrorAwaitCallCalledFromNotTopLevel)
 	}
 
-	method := getPrecompiledMethod("precompileAwaitCall")
-
-	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := method.Inputs.Unpack(input[4:])
+	args, err := precompiledArgs("precompileAwaitCall", input, 3)
 	if err != nil {
-		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
-	}
-	if len(args) != 3 {
-		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
+		return nil, err
 	}
 
 	// Get `dst` argument
@@ -685,7 +681,7 @@ func (a *verifySignature) Run(input []byte) ([]byte, error) {
 	pubkey, ok1 := values[0].([]byte)
 	hash, ok2 := values[1].(*big.Int)
 	sig, ok3 := values[2].([]byte)
-	if !(ok1 && ok2 && ok3 && len(sig) == 65) {
+	if !(ok1 && ok2 && ok3 && len(sig) == common.SignatureSize) {
 		return common.EmptyHash[:], nil
 	}
 	result := crypto.VerifySignature(pubkey, common.BigToHash(hash).Bytes(), sig[:64])
@@ -724,6 +720,66 @@ func (a *checkIsInternal) Run(state StateDBReadOnly, input []byte, value *uint25
 	}
 
 	return res, nil
+}
+
+func precompiledArgs(method string, input []byte, argCount int) ([]any, error) {
+	if len(input) < 4 {
+		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
+	}
+
+	// Unpack arguments, skipping the first 4 bytes (function selector)
+	args, err := getPrecompiledMethod(method).Inputs.Unpack(input[4:])
+	if err != nil {
+		return nil, err
+	}
+	if len(args) != argCount {
+		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
+	}
+	return args, nil
+}
+
+type governance struct{}
+
+var _ EvmAccessedPrecompiledContract = (*governance)(nil)
+
+func (g *governance) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 10, nil
+}
+
+func (g *governance) Run(evm *EVM, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	if caller.Address() != types.GovernanceAddress {
+		return nil, types.NewVmError(types.ErrorPrecompileWrongCaller)
+	}
+
+	args, err := precompiledArgs("precompileRollback", input, 4)
+	if err != nil {
+		return nil, err
+	}
+
+	version, ok := args[0].(uint32)
+	if !ok || version != 1 {
+		return nil, types.NewVmError(types.ErrorPrecompileWrongVersion)
+	}
+
+	counter, ok1 := args[1].(uint32)
+	patchLevel, ok2 := args[2].(uint32)
+	mainBlockId, ok3 := args[3].(uint64)
+	if !ok1 || !ok2 || !ok3 {
+		return nil, types.NewVmError(types.ErrorAbiUnpackFailed)
+	}
+
+	if evm.Context.RollbackCounter != counter {
+		return nil, types.NewVmError(types.ErrorPrecompileBadArgument)
+	}
+
+	err = evm.StateDB.Rollback(counter, patchLevel, mainBlockId)
+
+	res := make([]byte, 32)
+	if err == nil {
+		res[31] = 1
+	}
+
+	return res, err
 }
 
 type checkIsResponse struct{}
