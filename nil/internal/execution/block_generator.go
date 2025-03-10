@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/rs/zerolog"
 )
@@ -18,7 +19,7 @@ import (
 type BlockGeneratorParams struct {
 	ShardId          types.ShardId
 	NShards          uint32
-	TraceEVM         bool
+	EvmTracingHook   *tracing.Hooks
 	MainKeysPath     string
 	DisableConsensus bool
 	FeeCalculator    FeeCalculator
@@ -73,8 +74,12 @@ func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabri
 	if err != nil {
 		return nil, err
 	}
-	executionState.TraceVm = params.TraceEVM
+	executionState.EvmTracingHook = params.EvmTracingHook
 
+	return NewBlockGeneratorWithEs(ctx, params, txFabric, rwTx, executionState)
+}
+
+func NewBlockGeneratorWithEs(ctx context.Context, params BlockGeneratorParams, txFabric db.DB, rwTx db.RwTx, es *ExecutionState) (*BlockGenerator, error) {
 	const mhName = "github.com/NilFoundation/nil/nil/internal/execution"
 	mh, err := NewMetricsHandler(mhName, params.ShardId)
 	if err != nil {
@@ -86,7 +91,7 @@ func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabri
 		params:         params,
 		txFabric:       txFabric,
 		rwTx:           rwTx,
-		executionState: executionState,
+		executionState: es,
 		logger: logging.NewLogger("block-gen").With().
 			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
@@ -247,6 +252,9 @@ func (g *BlockGenerator) prepareExecutionState(proposal *Proposal, gasPrices []t
 }
 
 func (g *BlockGenerator) handleTxn(txn *types.Transaction) error {
+	if g.params.EvmTracingHook != nil && g.params.EvmTracingHook.OnTxStart != nil {
+		g.params.EvmTracingHook.OnTxStart(txn)
+	}
 	if txn.IsDeploy() {
 		g.counters.DeployTransactions++
 	}
@@ -274,6 +282,10 @@ func (g *BlockGenerator) handleTxn(txn *types.Transaction) error {
 	}
 	g.addReceipt(res)
 	g.counters.CoinsUsed = g.counters.CoinsUsed.Add(res.CoinsUsed())
+
+	if g.params.EvmTracingHook != nil && g.params.EvmTracingHook.OnTxEnd != nil {
+		g.params.EvmTracingHook.OnTxEnd(txn, res.Error)
+	}
 
 	return nil
 }
