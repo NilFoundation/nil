@@ -1,0 +1,22 @@
+{
+  "name": "example-lending-protocol",
+  "description": "This is an example repository to showcase how a lending protocol can be built on top of =nil;",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "hardhat": "^2.22.18"
+  },
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "format": "biome format ./",
+    "lint": "biome check ./",
+    "lint:fix": "biome check --write ."
+  },
+  "dependencies": {
+    "@nilfoundation/create-nil-hardhat-project": "^1.0.1",
+    "@nilfoundation/niljs": "0.24.0",
+    "@nilfoundation/smart-contracts": "^0.5.0",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts-upgradeable": "^5.2.0",
+    "viem": "^2.23.4"
+  }
+}
