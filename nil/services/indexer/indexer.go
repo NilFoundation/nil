@@ -93,7 +93,7 @@ func (e *Indexer) startFetchers(ctx context.Context, shardId types.ShardId) erro
 	logger := logger.With().Stringer(logging.FieldShardId, shardId).Logger()
 	logger.Info().Msg("Starting fetchers...")
 
-	lastProcessedBlock, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (types.BlockNumber, error) {
+	lastProcessedBlock, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (*types.BlockNumber, error) {
 		return e.driver.FetchLatestProcessedBlockId(ctx, shardId)
 	})
 	if err != nil {
@@ -101,7 +101,7 @@ func (e *Indexer) startFetchers(ctx context.Context, shardId types.ShardId) erro
 	}
 
 	// If the db is empty, add the top block to the queue.
-	if lastProcessedBlock == types.InvalidBlockNumber {
+	if *lastProcessedBlock == types.InvalidBlockNumber {
 		topBlock, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (*types.BlockWithExtractedData, error) {
 			return e.FetchBlock(ctx, shardId, "latest")
 		})
@@ -110,16 +110,16 @@ func (e *Indexer) startFetchers(ctx context.Context, shardId types.ShardId) erro
 		}
 
 		logger.Info().Msgf("No blocks processed yet. Adding the top block %d...", topBlock.Id)
-		e.blocksChan <- &BlockWithShardId{topBlock, shardId}
-		lastProcessedBlock = topBlock.Id
+		e.blocksChan <- &driver.BlockWithShardId{BlockWithExtractedData: topBlock, ShardId: shardId}
+		lastProcessedBlock = &topBlock.Id
 	}
 
 	return concurrent.Run(ctx,
 		func(ctx context.Context) error {
-			return e.runTopFetcher(ctx, shardId, lastProcessedBlock+1)
+			return e.runTopFetcher(ctx, shardId, *lastProcessedBlock+1)
 		},
 		func(ctx context.Context) error {
-			return e.runBottomFetcher(ctx, shardId, lastProcessedBlock)
+			return e.runBottomFetcher(ctx, shardId, *lastProcessedBlock)
 		},
 	)
 }
@@ -136,7 +136,7 @@ func (e *Indexer) pushBlocks(ctx context.Context, shardId types.ShardId, fromId,
 			return id, err
 		}
 		for _, b := range blocks {
-			e.blocksChan <- &BlockWithShardId{b, shardId}
+			e.blocksChan <- &driver.BlockWithShardId{BlockWithExtractedData: b, ShardId: shardId}
 		}
 	}
 	return toId, nil
@@ -148,7 +148,7 @@ func (e *Indexer) runTopFetcher(ctx context.Context, shardId types.ShardId, from
 	logger.Info().Msgf("Starting top fetcher from %d", from)
 
 	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := e.indexRound.Load() + InitialRoundsAmount
+	curExportRound := e.incrementRound.Load() + InitialRoundsAmount
 	for {
 		select {
 		case <-ctx.Done():

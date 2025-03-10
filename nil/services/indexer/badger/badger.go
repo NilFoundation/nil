@@ -268,9 +268,8 @@ func makeBlockKey(shardId types.ShardId, blockNumber types.BlockNumber) []byte {
 	return key
 }
 
-func (b *BadgerDriver) FetchBlock(_ context.Context, id types.ShardId, number types.BlockNumber) (*types.Block, bool, error) {
+func (b *BadgerDriver) FetchBlock(_ context.Context, id types.ShardId, number types.BlockNumber) (*types.Block, error) {
 	var block *types.Block
-	var exists bool
 
 	err := b.db.View(func(txn *badger.Txn) error {
 		key := makeBlockKey(id, number)
@@ -288,16 +287,15 @@ func (b *BadgerDriver) FetchBlock(_ context.Context, id types.ShardId, number ty
 				return fmt.Errorf("failed to deserialize block: %w", err)
 			}
 			block = blockWithSSZ.decoded.Block
-			exists = true
 			return nil
 		})
 		return err
 	})
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to fetch block: %w", err)
+		return nil, fmt.Errorf("failed to fetch block: %w", err)
 	}
 
-	return block, exists, nil
+	return block, nil
 }
 
 func makeShardEarliestAbsentKey(shardId types.ShardId) []byte {
@@ -374,9 +372,8 @@ func (b *BadgerDriver) getShardEarliestAbsentBlock(tx *badger.Txn, shardId types
 	return types.BlockNumber(blockNumber), true, nil
 }
 
-func (b *BadgerDriver) FetchLatestProcessedBlockId(_ context.Context, id types.ShardId) (*types.BlockNumber, bool, error) {
+func (b *BadgerDriver) FetchLatestProcessedBlockId(_ context.Context, id types.ShardId) (*types.BlockNumber, error) {
 	var latestBlock *types.Block
-	var exists bool
 
 	err := b.db.View(func(txn *badger.Txn) error {
 		latestNumber, hasLatest, err := b.getShardLatestProcessedBlock(txn, id)
@@ -402,25 +399,23 @@ func (b *BadgerDriver) FetchLatestProcessedBlockId(_ context.Context, id types.S
 				return fmt.Errorf("failed to deserialize block: %w", err)
 			}
 			latestBlock = blockWithSSZ.decoded.Block
-			exists = true
 			return nil
 		})
 		return err
 	})
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to fetch latest processed block: %w", err)
+		return nil, fmt.Errorf("failed to fetch latest processed block: %w", err)
 	}
 
-	return &latestBlock.Id, exists, nil
+	return &latestBlock.Id, nil
 }
 
 func (b *BadgerDriver) HaveBlock(ctx context.Context, id types.ShardId, number types.BlockNumber) (bool, error) {
 	panic("implement me")
 }
 
-func (b *BadgerDriver) FetchEarliestAbsentBlockId(_ context.Context, id types.ShardId) (types.BlockNumber, bool, error) {
+func (b *BadgerDriver) FetchEarliestAbsentBlockId(_ context.Context, id types.ShardId) (types.BlockNumber, error) {
 	var earliestAbsent types.BlockNumber
-	var found bool
 
 	err := b.db.View(func(txn *badger.Txn) error {
 		earliest, hasEarliest, err := b.getShardEarliestAbsentBlock(txn, id)
@@ -429,20 +424,18 @@ func (b *BadgerDriver) FetchEarliestAbsentBlockId(_ context.Context, id types.Sh
 		}
 		if hasEarliest {
 			earliestAbsent = earliest
-			found = true
 		}
 		return nil
 	})
 	if err != nil {
-		return 0, false, fmt.Errorf("failed to fetch earliest absent block: %w", err)
+		return 0, fmt.Errorf("failed to fetch earliest absent block: %w", err)
 	}
 
-	return earliestAbsent, found, nil
+	return earliestAbsent, nil
 }
 
-func (b *BadgerDriver) FetchNextPresentBlockId(_ context.Context, id types.ShardId, number types.BlockNumber) (types.BlockNumber, bool, error) {
+func (b *BadgerDriver) FetchNextPresentBlockId(_ context.Context, id types.ShardId, number types.BlockNumber) (types.BlockNumber, error) {
 	var nextPresent types.BlockNumber
-	var found bool
 
 	err := b.db.View(func(txn *badger.Txn) error {
 		earliestAbsent, hasEarliest, err := b.getShardEarliestAbsentBlock(txn, id)
@@ -451,15 +444,14 @@ func (b *BadgerDriver) FetchNextPresentBlockId(_ context.Context, id types.Shard
 		}
 		if hasEarliest && number < earliestAbsent {
 			nextPresent = earliestAbsent - 1
-			found = true
 		}
 		return nil
 	})
 	if err != nil {
-		return 0, false, fmt.Errorf("failed to fetch next present block: %w", err)
+		return 0, fmt.Errorf("failed to fetch next present block: %w", err)
 	}
 
-	return nextPresent, found, nil
+	return nextPresent, nil
 }
 
 func (b *BadgerDriver) createRoTx() *badger.Txn {

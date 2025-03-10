@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/NilFoundation/nil/nil/common"
@@ -24,23 +25,114 @@ type ClickhouseDriver struct {
 }
 
 func (d *ClickhouseDriver) FetchBlock(ctx context.Context, id types.ShardId, number types.BlockNumber) (*types.Block, error) {
-	//TODO implement me
-	panic("implement me")
+	row := d.conn.QueryRow(ctx, `
+		SELECT binary
+		FROM blocks
+		WHERE shard_id = $1 AND id = $2
+		LIMIT 1
+	`, id, number)
+
+	var binary []byte
+	if err := row.Scan(&binary); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to scan block binary: %w", err)
+	}
+
+	var block types.Block
+	if err := block.UnmarshalSSZ(binary); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal block: %w", err)
+	}
+
+	return &block, nil
 }
 
 func (d *ClickhouseDriver) FetchLatestProcessedBlockId(ctx context.Context, id types.ShardId) (*types.BlockNumber, error) {
-	//TODO implement me
-	panic("implement me")
+	blockNum, err := d.blockIdFromRow(d.conn.QueryRow(ctx, `
+		SELECT id
+		FROM blocks
+		WHERE shard_id = $1
+		ORDER BY id DESC
+		LIMIT 1
+	`, id))
+	if err != nil {
+		return nil, err
+	}
+	if blockNum == types.InvalidBlockNumber {
+		return nil, nil
+	}
+	return &blockNum, nil
 }
 
 func (d *ClickhouseDriver) FetchAddressActions(address types.Address, timestamp db.Timestamp) ([]types2.AddressAction, error) {
-	//TODO implement me
-	panic("implement me")
+	rows, err := d.conn.Query(context.Background(), `
+		SELECT 
+			t.hash,
+			t.from,
+			t.to,
+			t.value as amount,
+			t.timestamp,
+			t.block_id,
+			t.success,
+			t.binary
+		FROM transactions t
+		WHERE (t.from = $1 OR t.to = $1) AND t.timestamp >= $2
+		ORDER BY t.timestamp ASC
+	`, address, timestamp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query transactions: %w", err)
+	}
+	defer rows.Close()
+
+	var actions []types2.AddressAction
+	for rows.Next() {
+		var action types2.AddressAction
+		var success bool
+		var txnBinary []byte
+		if err := rows.Scan(
+			&action.Hash,
+			&action.From,
+			&action.To,
+			&action.Amount,
+			&action.Timestamp,
+			&action.BlockId,
+			&success,
+			&txnBinary,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan transaction: %w", err)
+		}
+
+		// Set the status based on success
+		if success {
+			action.Status = types2.Success
+		} else {
+			action.Status = types2.Failed
+		}
+
+		// Set the action type based on the address relationship
+		if action.From == address {
+			if action.Amount.Uint64() == 0 {
+				action.Type = types2.SmartContractCall
+			} else {
+				action.Type = types2.SendEth
+			}
+		} else {
+			action.Type = types2.ReceiveEth
+		}
+
+		actions = append(actions, action)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return actions, nil
 }
 
 func (d *ClickhouseDriver) IndexBlocks(ctx context.Context, ids []*driver2.BlockWithShardId) error {
-	//TODO implement me
-	panic("implement me")
+	return d.ExportBlocks(ctx, ids)
 }
 
 // I saw this trick. dunno should I use it here too
@@ -220,16 +312,6 @@ func (d *ClickhouseDriver) blockIdFromRow(row driver.Row) (types.BlockNumber, er
 		return 0, err
 	}
 	return types.BlockNumber(blockNumber), nil
-}
-
-func (d *ClickhouseDriver) FetchLatestProcessedBlockId(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error) {
-	return d.blockIdFromRow(d.conn.QueryRow(ctx, `
-		SELECT id
-		FROM blocks
-		WHERE shard_id = $1
-		ORDER BY id DESC
-		LIMIT 1
-	`, shardId))
 }
 
 func (d *ClickhouseDriver) FetchEarliestAbsentBlockId(ctx context.Context, shardId types.ShardId) (types.BlockNumber, error) {
