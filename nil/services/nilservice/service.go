@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	rpc2 "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/services/indexer"
 	"github.com/NilFoundation/nil/nil/services/indexer/badger"
 	"github.com/NilFoundation/nil/nil/services/indexer/driver"
@@ -113,7 +112,7 @@ func startRpcServer(ctx context.Context, cfg *Config, rawApi rawapi.NodeApi, db 
 		badgerDriver, err := badger.NewBadgerDriver(indexer.DbPathDefault)
 		check.PanicIfErr(err)
 		go check.PanicIfErr(indexer.StartIndexer(ctx, &indexer.Cfg{
-			Client:        rpc2.NewClient(cfg.HttpUrl, logging.NewLogger("indexer")),
+			Client:        client,
 			IndexerDriver: badgerDriver,
 			BlocksChan:    make(chan *driver.BlockWithShardId, 1000),
 		}))
@@ -483,7 +482,7 @@ func CreateNode(ctx context.Context, name string, cfg *Config, database db.DB, i
 			}
 
 			var cl client.Client
-			if cfg.Cometa != nil || cfg.IsFaucetApiEnabled() {
+			if cfg.Cometa != nil || cfg.IsFaucetApiEnabled() || cfg.Indexer != nil {
 				cl, err = client.NewEthClient(ctx, database, types.ShardId(cfg.NShards), txnPools, logger)
 				if err != nil {
 					return fmt.Errorf("failed to create node client: %w", err)

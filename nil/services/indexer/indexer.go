@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/NilFoundation/nil/nil/services/indexer/driver"
-	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 	"sync/atomic"
 	"time"
 
@@ -29,8 +28,8 @@ type Indexer struct {
 	client      client.Client
 	allowDbDrop bool
 
-	blocksChan  chan *driver.BlockWithShardId
-	exportRound atomic.Uint32
+	blocksChan chan *driver.BlockWithShardId
+	indexRound atomic.Uint32
 }
 
 func StartIndexer(ctx context.Context, cfg *Cfg) error {
@@ -148,7 +147,7 @@ func (e *Indexer) runTopFetcher(ctx context.Context, shardId types.ShardId, from
 	logger.Info().Msgf("Starting top fetcher from %d", from)
 
 	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := e.incrementRound.Load() + InitialRoundsAmount
+	curExportRound := e.indexRound.Load() + InitialRoundsAmount
 	for {
 		select {
 		case <-ctx.Done():
@@ -179,7 +178,7 @@ func (e *Indexer) runTopFetcher(ctx context.Context, shardId types.ShardId, from
 			}
 
 			if from == topBlock.Id {
-				e.blocksChan <- &BlockWithShardId{topBlock, shardId}
+				e.blocksChan <- &driver.BlockWithShardId{BlockWithExtractedData: topBlock, ShardId: shardId}
 				from++
 			}
 
@@ -256,7 +255,7 @@ func (e *Indexer) startDriverIndex(ctx context.Context) error {
 	logger.Info().Msg("Starting driver export...")
 
 	ticker := time.NewTicker(1 * time.Second)
-	var blockBuffer []*types2.BlockWithShardId
+	var blockBuffer []*driver.BlockWithShardId
 	for {
 		select {
 		case <-ctx.Done():
@@ -285,6 +284,6 @@ func (e *Indexer) startDriverIndex(ctx context.Context) error {
 }
 
 func (e *Indexer) incrementRound() {
-	e.exportRound.CompareAndSwap(100000, 0)
-	e.exportRound.Add(1)
+	e.indexRound.CompareAndSwap(100000, 0)
+	e.indexRound.Add(1)
 }
