@@ -186,6 +186,6 @@ func newTestSuccessProviderResult(taskToExecute *types.Task, executorId types.Ta
 
 type noopStateResetLauncher struct{}
 
-func (l *noopStateResetLauncher) LaunchPartialResetWithSuspension(_ context.Context, _ common.Hash) error {
+func (l *noopStateResetLauncher) LaunchPartialResetWithSuspension(_ context.Context, _ types.BatchId) error {
 	return nil
 }

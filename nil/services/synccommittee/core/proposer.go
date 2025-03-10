@@ -8,7 +8,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
-	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
@@ -25,7 +24,7 @@ type ProposerStorage interface {
 
 	TryGetNextProposalData(ctx context.Context) (*scTypes.ProposalData, error)
 
-	SetBlockAsProposed(ctx context.Context, id scTypes.BlockId) error
+	SetBatchAsProposed(ctx context.Context, id scTypes.BatchId) error
 }
 
 type ProposerMetrics interface {
@@ -106,12 +105,14 @@ func (p *proposer) Run(ctx context.Context, started chan<- struct{}) error {
 		return err
 	}
 
-	close(started)
+	if started != nil {
+		close(started)
+	}
 
 	concurrent.RunTickerLoop(ctx, p.params.ProposingInterval,
 		func(ctx context.Context) {
-			if err := p.proposeNextBlock(ctx); err != nil {
-				p.logger.Error().Err(err).Msg("error during proved blocks proposing")
+			if err := p.proposeNextBatch(ctx); err != nil {
+				p.logger.Error().Err(err).Msg("error during proved batches proposing")
 				p.metrics.RecordError(ctx, p.Name())
 				return
 			}
@@ -194,7 +195,7 @@ func (p *proposer) updateStoredStateRoot(ctx context.Context, stateRoot common.H
 	return nil
 }
 
-func (p *proposer) proposeNextBlock(ctx context.Context) error {
+func (p *proposer) proposeNextBatch(ctx context.Context) error {
 	if p.rollupContractWrapper == nil {
 		err := p.initializeProvedStateRoot(ctx)
 		if err != nil {
@@ -203,22 +204,21 @@ func (p *proposer) proposeNextBlock(ctx context.Context) error {
 	}
 	data, err := p.storage.TryGetNextProposalData(ctx)
 	if err != nil {
-		return fmt.Errorf("failed get next block to propose: %w", err)
+		return fmt.Errorf("failed get next proposal data: %w", err)
 	}
 	if data == nil {
-		p.logger.Debug().Msg("no block to propose")
+		p.logger.Debug().Msg("no batches to propose")
 		return nil
 	}
 
 	err = p.sendProof(ctx, data)
 	if err != nil {
-		return fmt.Errorf("failed to send proof to L1 for block with hash=%s: %w", data.MainShardBlockHash, err)
+		return fmt.Errorf("failed to send proof to L1 for batch with id=%s: %w", data.BatchId, err)
 	}
 
-	blockId := scTypes.NewBlockId(types.MainShardId, data.MainShardBlockHash)
-	err = p.storage.SetBlockAsProposed(ctx, blockId)
+	err = p.storage.SetBatchAsProposed(ctx, data.BatchId)
 	if err != nil {
-		return fmt.Errorf("failed set block with hash=%s as proposed: %w", data.MainShardBlockHash, err)
+		return fmt.Errorf("failed set batch with id=%s as proposed: %w", data.BatchId, err)
 	}
 	return nil
 }
