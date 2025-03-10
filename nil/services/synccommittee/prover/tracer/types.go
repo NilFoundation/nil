@@ -11,6 +11,7 @@ type ExecutionTraces interface {
 	AddStorageOps(ops []StorageOp)
 	AddExpOps(ops []ExpOp)
 	AddKeccakOps(ops []KeccakBuffer)
+	AddEcdsaSigns(ops []EcdsaSign)
 	AddZKEVMStates(states []ZKEVMState)
 	AddCopyEvents(events []CopyEvent)
 	AddContractBytecode(addr types.Address, code []byte)
@@ -26,6 +27,7 @@ type executionTracesImpl struct {
 	ZKEVMStates  []ZKEVMState
 	CopyEvents   []CopyEvent
 	KeccakTraces []KeccakBuffer
+	EcdsaTraces  []EcdsaSign
 	MPTTraces    *mpttracer.MPTTraces
 
 	ContractsBytecode map[types.Address][]byte
@@ -71,6 +73,10 @@ func (tr *executionTracesImpl) AddKeccakOps(ops []KeccakBuffer) {
 	tr.KeccakTraces = append(tr.KeccakTraces, ops...)
 }
 
+func (tr *executionTracesImpl) AddEcdsaSigns(signs []EcdsaSign) {
+	tr.EcdsaTraces = append(tr.EcdsaTraces, signs...)
+}
+
 func (tr *executionTracesImpl) SetMptTraces(mptTraces *mpttracer.MPTTraces) {
 	tr.MPTTraces = mptTraces
 }
@@ -84,5 +90,6 @@ type Stats struct {
 	CopyOpsN           uint
 	ExpOpsN            uint
 	KeccakOpsN         uint
+	EcdsaSignsN        uint
 	AffectedContractsN uint
 }

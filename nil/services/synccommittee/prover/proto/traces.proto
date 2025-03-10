@@ -207,3 +207,18 @@ message KeccakTraces {
     uint64 trace_idx = 2;
     string proto_hash = 3;
 }
+
+message EcdsaSign {
+    Uint256 hash = 1;
+    Uint256 r = 2;
+    Uint256 s = 3;
+    Uint256 v = 4;
+    Uint256 pubKeyX = 5;
+    Uint256 pubKeyY = 6;
+}
+
+message EcdsaTraces {
+    repeated EcdsaSign ecdsa_signs = 1;
+    uint64 trace_idx = 2;
+    string proto_hash = 3;
+}

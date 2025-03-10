@@ -141,6 +141,7 @@ func (rt *RemoteTracerImpl) GetBlockTraces(
 	rt.logger.Info().
 		Uint("processedInTransactions", stats.ProcessedInTxnsN).
 		Uint("totalInTransactions", uint(len(decodedDbgBlock.InTransactions))).
+		Uint("totalEcdsaSigns", stats.EcdsaSignsN).
 		Uint("operations", stats.OpsN).
 		Uint("stackOperations", stats.StackOpsN).
 		Uint("memoryOperations", stats.MemoryOpsN).

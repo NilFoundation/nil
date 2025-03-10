@@ -32,6 +32,7 @@ type TracerStateDB struct {
 	AccountSparseMpt mpt.MerklePatriciaTrie
 	logger           zerolog.Logger
 	mptTracer        *mpttracer.MPTTracer // unlike others MPT tracer keeps its state between transactions
+	ecdsaTracer      *EcdsaTracer
 	gasPrice         types.Value
 	refund           uint64
 	configAccessor   config.ConfigAccessor
@@ -196,6 +197,7 @@ func NewTracerStateDB(
 	return &TracerStateDB{
 		client:         client,
 		mptTracer:      mpttracer.New(client, prevBlockNumber, rwTx, shardId),
+		ecdsaTracer:    NewEcdsaTracer(),
 		shardId:        shardId,
 		blkContext:     blkContext,
 		Traces:         aggTraces,
@@ -252,6 +254,10 @@ func (tsdb *TracerStateDB) HandleInTransaction(transaction *types.Transaction, p
 	tsdb.txnFeeCredit = transaction.FeeCredit
 	tsdb.updateGasPrice(transaction)
 	payer.SubBalance(transaction.FeeCredit) // buy gas
+
+	if err := tsdb.ecdsaTracer.TraceTx(transaction); err != nil {
+		return err
+	}
 
 	switch {
 	case transaction.IsRefund():
@@ -795,6 +801,11 @@ func (tsdb *TracerStateDB) FinalizeTraces() error {
 	}
 	tsdb.Traces.SetMptTraces(&mptTraces)
 	tsdb.Stats.AffectedContractsN = uint(len(mptTraces.ContractTrieTraces))
+
+	ecdsaTraces := tsdb.ecdsaTracer.Finalize()
+	tsdb.Traces.AddEcdsaSigns(ecdsaTraces)
+	tsdb.Stats.EcdsaSignsN = uint(len(ecdsaTraces))
+
 	return nil
 }
 
