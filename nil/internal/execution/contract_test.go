@@ -305,8 +305,6 @@ func TestSendTransaction(t *testing.T) {
 	state := newState(t)
 	defer state.tx.Rollback()
 
-	state.TraceVm = false
-
 	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/contracts/async_call.sol"))
 	require.NoError(t, err)
 

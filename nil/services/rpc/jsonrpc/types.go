@@ -475,7 +475,6 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 // @componentprop Proof serialized data for MPT access operation proving
 // @componentprop Storage storage slice of key-value pairs of the data in storage
 type DebugRPCContract struct {
-	// path, node type, next ref, branches, data
 	Code         hexutil.Bytes                                 `json:"code"`
 	Contract     hexutil.Bytes                                 `json:"contract"`
 	Proof        hexutil.Bytes                                 `json:"proof"`
