@@ -111,7 +111,7 @@ func (p *proposer) Run(ctx context.Context, started chan<- struct{}) error {
 	concurrent.RunTickerLoop(ctx, p.params.ProposingInterval,
 		func(ctx context.Context) {
 			if err := p.proposeNextBlock(ctx); err != nil {
-				p.logger.Error().Err(err).Msg("error during proved blocks proposing")
+				p.logger.Error().Err(err).Msg("error during proposed blocks submission")
 				p.metrics.RecordError(ctx, p.Name())
 				return
 			}
@@ -129,7 +129,7 @@ func (p *proposer) initRollupContractWrapper(ctx context.Context) error {
 	var err error
 	p.rollupContractWrapper, err = rollupcontract.NewWrapper(ctx, p.params.ContractAddress, p.params.PrivateKey, p.ethClient, p.params.EthClientTimeout, p.logger)
 	if err != nil {
-		return fmt.Errorf("failed create rollup contract wrapper: %w", err)
+		return fmt.Errorf("failed to create rollup contract wrapper: %w", err)
 	}
 	return nil
 }
@@ -189,7 +189,7 @@ func (p *proposer) initializeProvedStateRoot(ctx context.Context) error {
 func (p *proposer) updateStoredStateRoot(ctx context.Context, stateRoot common.Hash) error {
 	err := p.storage.SetProvedStateRoot(ctx, stateRoot)
 	if err != nil {
-		return fmt.Errorf("failed set proved state root: %w", err)
+		return fmt.Errorf("failed to set proved state root: %w", err)
 	}
 	return nil
 }
@@ -203,7 +203,7 @@ func (p *proposer) proposeNextBlock(ctx context.Context) error {
 	}
 	data, err := p.storage.TryGetNextProposalData(ctx)
 	if err != nil {
-		return fmt.Errorf("failed get next block to propose: %w", err)
+		return fmt.Errorf("failed to get next block to propose: %w", err)
 	}
 	if data == nil {
 		p.logger.Debug().Msg("no block to propose")
@@ -278,7 +278,7 @@ func (p *proposer) commitBatch(ctx context.Context, blobs []kzg4844.Blob, batchI
 			return nil, false, err
 		}
 		if receipt == nil {
-			return nil, false, errors.New("CommitBatch tx mining timout exceeded")
+			return nil, false, errors.New("CommitBatch tx mining timeout exceeded")
 		}
 		if receipt.Status != ethtypes.ReceiptStatusSuccessful {
 			return nil, false, errors.New("CommitBatch tx failed")
