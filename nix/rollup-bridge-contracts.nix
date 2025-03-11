@@ -6,6 +6,8 @@
 , nodejs
 , nil
 , pkgs
+, curl
+, jq
 , enableTesting ? false
 }:
 
@@ -27,7 +29,14 @@ stdenv.mkDerivation rec {
   pnpmDeps = (callPackage ./npmdeps.nix { });
 
   nativeBuildInputs =
-    [ nodejs pkgs.foundry pkgs.solc pkgs.bash pnpm_10.configHook pnpm_10 ];
+    [
+      nodejs
+      pkgs.foundry
+      pkgs.solc
+      pkgs.bash
+      pnpm_10.configHook
+      pnpm_10
+    ] ++ (if enableTesting then [ curl jq nil ] else [ ]);
 
   soljson26 = builtins.fetchurl {
     url =
@@ -77,6 +86,8 @@ stdenv.mkDerivation rec {
   checkPhase = ''
     source .env
 
+    ### 1. Run tests of the rollup-bridge-contracts internals
+
     export FOUNDRY_ROOT=$(realpath ../)
     export FOUNDRY_SOLC=$(command -v solc)
     echo "FOUNDRY_SOLC=$FOUNDRY_SOLC"
@@ -92,6 +103,20 @@ stdenv.mkDerivation rec {
     ln -s ${dsTest}/* lib/ds-test
 
     eval forge test --remappings hardhat/=/build/source/node_modules/hardhat/ --remappings forge-std/=rollup-bridge-contracts/lib/forge-std/src/ --remappings ds-test/=rollup-bridge-contracts/lib/ds-test/src/ --remappings solmate/=rollup-bridge-contracts/lib/solmate/src/ --remappings @openzeppelin/=/build/source/node_modules/@openzeppelin/ --remappings @solady/=/build/source/node_modules/solady/src/
+
+ 
+    ### 2. Run integration test of the rollup-bridge-contracts
+
+    export NILD_BIN=nild
+    export FAUCET_BIN=faucet
+    export RELAYER_BIN=relayer
+    export GETH_BIN=${lib.getExe pkgs.go-ethereum}
+    export LOG_DIR=$(pwd)
+    export GETH_DATA_DIR=/tmp/geth_data_dir
+
+    echo "Running bridge integration tests"
+    bash test_integration.sh
+    echo "Bridge integration tests finished"
   '';
 
   installPhase = ''

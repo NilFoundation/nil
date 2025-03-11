@@ -106,6 +106,7 @@ func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) error {
 	runCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file")
 
 	runCmd.Flags().StringVar(&cfg.DbPath, "db-path", "relayer.db", "path to database")
+	runCmd.Flags().IntVar(&cfg.ReadinessPort, "readiness-port", cfg.ReadinessPort, "port for readiness probe")
 
 	runCmd.Flags().StringVar(&cfg.L1ClientConfig.Endpoint,
 		"l1-endpoint", "", "URL for ETH L1 client",

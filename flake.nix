@@ -109,6 +109,7 @@
           });
           rollup-bridge-contracts =
             (pkgs.callPackage ./nix/rollup-bridge-contracts.nix {
+              nil = packages.nil;
               enableTesting = true;
             });
         };
