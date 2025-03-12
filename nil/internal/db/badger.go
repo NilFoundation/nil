@@ -51,12 +51,17 @@ type BadgerIter struct {
 	toPrefix    []byte
 }
 
+type BadgerSequence struct {
+	seq *badger.Sequence
+}
+
 // interfaces
 var (
-	_ RoTx = new(BadgerRoTx)
-	_ RwTx = new(BadgerRwTx)
-	_ DB   = new(badgerDB)
-	_ Iter = new(BadgerIter)
+	_ RoTx     = new(BadgerRoTx)
+	_ RwTx     = new(BadgerRwTx)
+	_ DB       = new(badgerDB)
+	_ Iter     = new(BadgerIter)
+	_ Sequence = new(BadgerSequence)
 )
 
 func MakeKey(table TableName, key []byte) []byte {
@@ -113,6 +118,14 @@ func (db *badgerDB) CreateRoTxAt(ctx context.Context, ts Timestamp) (RoTx, error
 
 func (db *badgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
 	return db.createRoTx(ctx, db.db.NewTransaction(false), false)
+}
+
+func (db *badgerDB) GetSequence(ctx context.Context, key []byte, bandwidth uint64) (Sequence, error) {
+	seq, err := db.db.GetSequence(key, bandwidth)
+	if err != nil {
+		return nil, err
+	}
+	return &BadgerSequence{seq: seq}, nil
 }
 
 func (db *badgerDB) createRwTx(_ context.Context, txn *badger.Txn) (RwTx, error) {
@@ -289,4 +302,8 @@ func (it *BadgerIter) Next() ([]byte, []byte, error) {
 
 func (it *BadgerIter) Close() {
 	it.iter.Close()
+}
+
+func (seq *BadgerSequence) Next() (uint64, error) {
+	return seq.seq.Next()
 }

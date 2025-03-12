@@ -50,8 +50,11 @@ type EventListener struct {
 	eventStorage *EventStorage
 
 	state struct {
-		emitter            chan struct{} // signals when new event is put to storage
-		currentBlockNumber uint64        // last block event from which is put to storage
+		emitter chan struct{} // signals when new event is put to storage
+
+		// last block event from which is put to storage
+		currentBlockNumber uint64
+		currentBlockHash   common.Hash
 	}
 
 	logger zerolog.Logger
@@ -271,10 +274,9 @@ func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSe
 
 	if el.state.currentBlockNumber != ethEvent.Raw.BlockNumber {
 		el.logger.Info().Uint64("block_number", el.state.currentBlockNumber).Msg("finished processing events from block")
-		if err := el.storeLastProcessedBlock(ctx); err != nil {
+		if err := el.onNewBlockBegan(ctx, ethEvent); err != nil {
 			return err
 		}
-		el.state.currentBlockNumber = ethEvent.Raw.BlockNumber
 	}
 
 	// non-blocking write to notify reader
@@ -287,16 +289,31 @@ func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSe
 }
 
 func (el *EventListener) convertEvent(ethEvent *L1MessageSent) (*Event, error) {
-	// TODO(oclaw) convert into stored event
-	return nil, errors.New("not implemented")
+	event := &Event{
+		Hash:        ethEvent.MessageHash,
+		BlockNumber: ethEvent.Raw.BlockNumber,
+		BlockHash:   ethEvent.Raw.BlockHash,
+
+		// TODO(oclaw) fill all payload fields
+	}
+	return event, errors.New("not implemented")
 }
 
-func (el *EventListener) storeLastProcessedBlock(ctx context.Context) error {
+func (el *EventListener) onNewBlockBegan(ctx context.Context, newBlockInfo *L1MessageSent) error {
 	if el.state.currentBlockNumber == 0 {
 		return nil
 	}
 
-	var procBlk ProcessedBlock
-	// TODO(oclaw) fill processed block from el.state
-	return el.eventStorage.SetLastProcessedBlock(ctx, &procBlk)
+	procBlk := &ProcessedBlock{
+		BlockNumber: el.state.currentBlockNumber,
+		BlockHash:   el.state.currentBlockHash,
+	}
+
+	if err := el.eventStorage.SetLastProcessedBlock(ctx, procBlk); err != nil {
+		return err
+	}
+
+	el.state.currentBlockNumber = newBlockInfo.Raw.BlockNumber
+	el.state.currentBlockHash = newBlockInfo.Raw.BlockHash
+	return nil
 }

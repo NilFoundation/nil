@@ -35,7 +35,7 @@ type TaskStorageMetrics interface {
 
 // TaskStorage defines a type for managing tasks and their lifecycle operations.
 type TaskStorage struct {
-	commonStorage
+	CommonStorage
 	timer   common.Timer
 	metrics TaskStorageMetrics
 }
@@ -47,7 +47,7 @@ func NewTaskStorage(
 	logger zerolog.Logger,
 ) *TaskStorage {
 	return &TaskStorage{
-		commonStorage: makeCommonStorage(
+		CommonStorage: NewCommonStorage(
 			db,
 			logger,
 			common.DoNotRetryIf(types.ErrTaskWrongExecutor, types.ErrTaskInvalidStatus, ErrTaskAlreadyExists),
@@ -88,7 +88,7 @@ func (st *TaskStorage) putTaskEntry(tx db.RwTx, entry *types.TaskEntry) error {
 // AddTaskEntries saves set of task entries.
 // If at least one task with a given id already exists, method returns ErrTaskAlreadyExists.
 func (st *TaskStorage) AddTaskEntries(ctx context.Context, tasks ...*types.TaskEntry) error {
-	err := st.retryRunner.Do(ctx, func(ctx context.Context) error {
+	err := st.RetryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.addTaskEntriesImpl(ctx, tasks)
 	})
 	if err != nil {
@@ -102,7 +102,7 @@ func (st *TaskStorage) AddTaskEntries(ctx context.Context, tasks ...*types.TaskE
 }
 
 func (st *TaskStorage) addTaskEntriesImpl(ctx context.Context, tasks []*types.TaskEntry) error {
-	tx, err := st.database.CreateRwTx(ctx)
+	tx, err := st.Database.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (st *TaskStorage) addTaskEntriesImpl(ctx context.Context, tasks []*types.Ta
 			return err
 		}
 	}
-	return st.commit(tx)
+	return st.Commit(tx)
 }
 
 func (st *TaskStorage) addSingleTaskEntryTx(tx db.RwTx, entry *types.TaskEntry) error {
@@ -133,7 +133,7 @@ func (st *TaskStorage) addSingleTaskEntryTx(tx db.RwTx, entry *types.TaskEntry) 
 
 // TryGetTaskEntry Retrieve a task entry by its id. In case if task does not exist, method returns nil
 func (st *TaskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*types.TaskEntry, error) {
-	tx, err := st.database.CreateRoTx(ctx)
+	tx, err := st.Database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (st *TaskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*t
 
 // GetTaskViews Retrieve tasks that match the given predicate function and pushes them to the destination container.
 func (st *TaskStorage) GetTaskViews(ctx context.Context, destination interface{ Add(task *public.TaskView) }, predicate func(*public.TaskView) bool) error {
-	tx, err := st.database.CreateRoTx(ctx)
+	tx, err := st.Database.CreateRoTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func (st *TaskStorage) GetTaskViews(ctx context.Context, destination interface{ 
 
 // GetTaskTreeView retrieves the full hierarchical structure of a task and its dependencies by the given task id.
 func (st *TaskStorage) GetTaskTreeView(ctx context.Context, rootTaskId types.TaskId) (*public.TaskTreeView, error) {
-	tx, err := st.database.CreateRoTx(ctx)
+	tx, err := st.Database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func (st *TaskStorage) findTopPriorityTask(tx db.RoTx) (*types.TaskEntry, error)
 // RequestTaskToExecute Find task with no dependencies and higher priority and assign it to the executor
 func (st *TaskStorage) RequestTaskToExecute(ctx context.Context, executor types.TaskExecutorId) (*types.Task, error) {
 	var taskEntry *types.TaskEntry
-	err := st.retryRunner.Do(ctx, func(ctx context.Context) error {
+	err := st.RetryRunner.Do(ctx, func(ctx context.Context) error {
 		var err error
 		taskEntry, err = st.requestTaskToExecuteImpl(ctx, executor)
 		return err
@@ -266,7 +266,7 @@ func (st *TaskStorage) RequestTaskToExecute(ctx context.Context, executor types.
 }
 
 func (st *TaskStorage) requestTaskToExecuteImpl(ctx context.Context, executor types.TaskExecutorId) (*types.TaskEntry, error) {
-	tx, err := st.database.CreateRwTx(ctx)
+	tx, err := st.Database.CreateRwTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +288,7 @@ func (st *TaskStorage) requestTaskToExecuteImpl(ctx context.Context, executor ty
 	if err := st.putTaskEntry(tx, taskEntry); err != nil {
 		return nil, fmt.Errorf("failed to update task entry: %w", err)
 	}
-	if err = st.commit(tx); err != nil {
+	if err = st.Commit(tx); err != nil {
 		return nil, err
 	}
 	return taskEntry, nil
@@ -296,13 +296,13 @@ func (st *TaskStorage) requestTaskToExecuteImpl(ctx context.Context, executor ty
 
 // ProcessTaskResult checks task result and updates dependencies in case of success
 func (st *TaskStorage) ProcessTaskResult(ctx context.Context, res *types.TaskResult) error {
-	return st.retryRunner.Do(ctx, func(ctx context.Context) error {
+	return st.RetryRunner.Do(ctx, func(ctx context.Context) error {
 		return st.processTaskResultImpl(ctx, res)
 	})
 }
 
 func (st *TaskStorage) processTaskResultImpl(ctx context.Context, res *types.TaskResult) error {
-	tx, err := st.database.CreateRwTx(ctx)
+	tx, err := st.Database.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -313,7 +313,7 @@ func (st *TaskStorage) processTaskResultImpl(ctx context.Context, res *types.Tas
 	if err != nil {
 		// ErrKeyNotFound is not considered an error because of possible re-invocations
 		if errors.Is(err, db.ErrKeyNotFound) {
-			st.logger.Warn().Err(err).Stringer(logging.FieldTaskId, res.TaskId).Msg("Task entry was not found")
+			st.Logger.Warn().Err(err).Stringer(logging.FieldTaskId, res.TaskId).Msg("Task entry was not found")
 			return nil
 		}
 
@@ -329,7 +329,7 @@ func (st *TaskStorage) processTaskResultImpl(ctx context.Context, res *types.Tas
 			return err
 		}
 
-		if err := st.commit(tx); err != nil {
+		if err := st.Commit(tx); err != nil {
 			return err
 		}
 
@@ -341,7 +341,7 @@ func (st *TaskStorage) processTaskResultImpl(ctx context.Context, res *types.Tas
 		return err
 	}
 
-	if err := st.commit(tx); err != nil {
+	if err := st.Commit(tx); err != nil {
 		return err
 	}
 
@@ -358,7 +358,7 @@ func (st *TaskStorage) terminateTaskTx(tx db.RwTx, entry *types.TaskEntry, res *
 
 	if res.IsSuccess() {
 		// We don't keep finished tasks in DB
-		log.NewTaskResultEvent(st.logger, zerolog.DebugLevel, res).
+		log.NewTaskResultEvent(st.Logger, zerolog.DebugLevel, res).
 			Msg("Task execution is completed successfully, removing it from the storage")
 
 		if err := tx.Delete(taskEntriesTable, res.TaskId.Bytes()); err != nil {
@@ -408,7 +408,7 @@ type rescheduledTask struct {
 // RescheduleHangingTasks finds tasks that exceed execution timeout and reschedules them to be re-executed later.
 func (st *TaskStorage) RescheduleHangingTasks(ctx context.Context, taskExecutionTimeout time.Duration) error {
 	var rescheduled []rescheduledTask
-	err := st.retryRunner.Do(ctx, func(ctx context.Context) error {
+	err := st.RetryRunner.Do(ctx, func(ctx context.Context) error {
 		var err error
 		rescheduled, err = st.rescheduleHangingTasksImpl(ctx, taskExecutionTimeout)
 		return err
@@ -427,7 +427,7 @@ func (st *TaskStorage) rescheduleHangingTasksImpl(
 	ctx context.Context,
 	taskExecutionTimeout time.Duration,
 ) (rescheduled []rescheduledTask, err error) {
-	tx, err := st.database.CreateRwTx(ctx)
+	tx, err := st.Database.CreateRwTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +459,7 @@ func (st *TaskStorage) rescheduleHangingTasksImpl(
 		return nil, err
 	}
 
-	if err := st.commit(tx); err != nil {
+	if err := st.Commit(tx); err != nil {
 		return nil, err
 	}
 
@@ -471,7 +471,7 @@ func (st *TaskStorage) rescheduleTaskTx(
 	entry *types.TaskEntry,
 	cause *types.TaskExecError,
 ) error {
-	log.NewTaskEvent(st.logger, zerolog.WarnLevel, &entry.Task).
+	log.NewTaskEvent(st.Logger, zerolog.WarnLevel, &entry.Task).
 		Err(cause).
 		Stringer(logging.FieldTaskExecutorId, entry.Owner).
 		Int("retryCount", entry.RetryCount).
