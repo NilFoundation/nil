@@ -112,7 +112,7 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 
 	// 2. Start fetching historical events by batches (as soon as we reach block from which listener was started - routine ends)
 	eg.Go(func() error {
-		return el.fetchPastEvents(gCtx, oldEventCh)
+		return el.fetchPastEvents(ctx, oldEventCh)
 	})
 
 	// 3. Process incoming events ordered (historical events go first)
@@ -125,14 +125,15 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 	return eg.Wait()
 }
 
+// Can be used by reading routine to look for updates without further delay
 func (el *EventListener) EventReceived() <-chan struct{} {
 	return el.state.emitter
 }
 
-func (el *EventListener) subscribeToNewEvents(ctx context.Context, logCh chan<- *L1MessageSent) (ethereum.Subscription, error) {
+func (el *EventListener) subscribeToNewEvents(ctx context.Context, eventCh chan<- *L1MessageSent) (ethereum.Subscription, error) {
 	sub, err := el.contractBindning.WatchMessageSent(
 		&bind.WatchOpts{Context: ctx},
-		logCh,
+		eventCh,
 		// TODO(oclaw) do we need filters?
 		nil, // messageSender []common.Address,
 		nil, // messageTarget []common.Address,
@@ -149,12 +150,22 @@ func (el *EventListener) subscribeToNewEvents(ctx context.Context, logCh chan<- 
 	return sub, nil
 }
 
-func (el *EventListener) fetchPastEvents(
-	ctx context.Context,
-	logCh chan<- *L1MessageSent,
-) error {
-	defer close(logCh)
+func (el *EventListener) fetchPastEvents(ctx context.Context, eventCh chan<- *L1MessageSent) error {
+	defer close(eventCh) // no more events will be posted to the channel after routine finished its work
+	for {
+		err := el.doFetchPastEvents(ctx, eventCh)
+		if err == nil {
+			return nil
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			el.logger.Warn().Err(err).Msg("historical event fetching timed out")
+			continue
+		}
+		return err
+	}
+}
 
+func (el *EventListener) doFetchPastEvents(ctx context.Context, eventCh chan<- *L1MessageSent) error {
 	header, err := el.rawEthClient.HeaderByNumber(ctx, nil)
 	if err != nil {
 		return err
@@ -211,7 +222,7 @@ func (el *EventListener) fetchPastEvents(
 		}
 
 		for iter.Next() {
-			logCh <- iter.Event
+			eventCh <- iter.Event
 		}
 		if err := iter.Error(); err != nil {
 			return err
@@ -242,7 +253,7 @@ func (el *EventListener) recvEvents(
 	el.logger.Info().
 		Int("old_processed_events", processedOldEvents).
 		Int("incoming_events_buf", len(newEventChan)).
-		Msg("all old events fetched")
+		Msg("finished processing old events")
 
 	for {
 		select {
