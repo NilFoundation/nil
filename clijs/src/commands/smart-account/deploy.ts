@@ -123,7 +123,7 @@ export default class SmartAccountDeploy extends BaseCommand {
     } else {
       const filename = args.filename;
       if (!filename) {
-        this.error("at least one arg is required (the path to the bytecode file");
+        this.error("at least one arg is required (the path to the bytecode file)");
       }
       const fullPath = path.resolve(filename);
       bytecode = addHexPrefix(fs.readFileSync(fullPath, "utf8"));
