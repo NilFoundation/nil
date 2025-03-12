@@ -59,8 +59,8 @@ func (i *backendIBFT) setupTransport(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return
-			case data := <-ch:
-				if data == nil {
+			case pubSubMsg := <-ch:
+				if pubSubMsg.Data == nil {
 					i.logger.Trace().
 						Str(logging.FieldTopic, protocol).
 						Msg("Received empty message")
@@ -72,7 +72,7 @@ func (i *backendIBFT) setupTransport(ctx context.Context) error {
 				}
 
 				msg := &proto.IbftMessage{}
-				if err := protobuf.Unmarshal(data, msg); err != nil {
+				if err := protobuf.Unmarshal(pubSubMsg.Data, msg); err != nil {
 					i.logger.Error().
 						Err(err).
 						Str(logging.FieldTopic, protocol).

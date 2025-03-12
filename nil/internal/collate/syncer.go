@@ -14,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
+	"github.com/NilFoundation/nil/nil/internal/network/connection_manager"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
 	"github.com/multiformats/go-multistream"
@@ -197,9 +198,16 @@ func (s *Syncer) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			s.logger.Debug().Msg("Syncer is terminated")
 			return nil
-		case data := <-ch:
-			saved, err := s.processTopicTransaction(ctx, data)
+		case msg := <-ch:
+			saved, err := s.processTopicTransaction(ctx, msg.Data)
 			if err != nil {
+				if errors.As(err, new(invalidSignatureError)) {
+					if peerReputationTracker := network.TryGetPeerReputationTracker(s.networkManager); peerReputationTracker != nil {
+						peerReputationTracker.ReportPeer(msg.ReceivedFrom, connection_manager.ReputationChangeInvalidBlockSignature)
+					} else {
+						s.logger.Warn().Msg("Peer reputation tracker is not available")
+					}
+				}
 				s.logger.Error().Err(err).Msg("Failed to process topic transaction")
 			}
 			if !saved {

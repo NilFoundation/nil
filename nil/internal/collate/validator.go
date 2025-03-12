@@ -22,11 +22,22 @@ import (
 )
 
 var (
-	errOldBlock         = errors.New("received old block")
-	errOutOfOrder       = errors.New("received block is out of order")
-	errHashMismatch     = errors.New("block hash mismatch")
-	errInvalidSignature = errors.New("invalid block signature")
+	errOldBlock     = errors.New("received old block")
+	errOutOfOrder   = errors.New("received block is out of order")
+	errHashMismatch = errors.New("block hash mismatch")
 )
+
+type invalidSignatureError struct {
+	inner error
+}
+
+func (e invalidSignatureError) Error() string {
+	return fmt.Sprintf("invalid block signature: %v", e.inner)
+}
+
+func newErrInvalidSignature(inner error) invalidSignatureError {
+	return invalidSignatureError{inner: inner}
+}
 
 type Validator struct {
 	params             *Params
@@ -345,7 +356,7 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 				Stringer(logging.FieldSignature, block.Signature).
 				Err(err).
 				Msg("Failed to verify block signature")
-			return fmt.Errorf("%w: %w", errInvalidSignature, err)
+			return newErrInvalidSignature(err)
 		}
 	}
 

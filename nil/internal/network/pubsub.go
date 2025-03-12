@@ -34,6 +34,11 @@ type SubscriptionCounters struct {
 	SkippedMessages atomic.Uint32
 }
 
+type PubSubMessage struct {
+	Data         []byte
+	ReceivedFrom PeerID
+}
+
 type Subscription struct {
 	impl *pubsub.Subscription
 	self PeerID
@@ -190,8 +195,8 @@ func (ps *PubSub) getTopic(topic string) (*pubsub.Topic, error) {
 	return t, nil
 }
 
-func (s *Subscription) Start(ctx context.Context, skipSelfMessages bool) <-chan []byte {
-	msgCh := make(chan []byte, subscriptionChannelSize)
+func (s *Subscription) Start(ctx context.Context, skipSelfMessages bool) <-chan PubSubMessage {
+	msgCh := make(chan PubSubMessage, subscriptionChannelSize)
 
 	go func() {
 		s.logger.Debug().Msg("Starting subscription loop...")
@@ -222,7 +227,7 @@ func (s *Subscription) Start(ctx context.Context, skipSelfMessages bool) <-chan 
 			s.receivedSize.Add(ctx, int64(len(msg.Data)), attrs)
 			s.logger.Trace().Msg("Received message")
 
-			msgCh <- msg.Data
+			msgCh <- PubSubMessage{msg.Data, msg.ReceivedFrom}
 		}
 
 		close(msgCh)
