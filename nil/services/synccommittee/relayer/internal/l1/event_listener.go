@@ -14,7 +14,7 @@ import (
 )
 
 type EventListenerConfig struct {
-	BridgeMessengerContractAddress common.Address
+	BridgeMessengerContractAddress string
 
 	// settings for historical events fetcher
 	BatchSize    int
@@ -29,10 +29,10 @@ func DefaultEventListenerConfig() *EventListenerConfig {
 }
 
 func (cfg *EventListenerConfig) Validate() error {
-	var emptyAddr common.Address
-	if cfg.BridgeMessengerContractAddress == emptyAddr {
+	if cfg.BridgeMessengerContractAddress == "" {
 		return errors.New("empty L1BridgeMessenger contract addr")
 	}
+
 	if cfg.BatchSize == 0 {
 		return errors.New("empty batch size for fetching old events")
 	}
@@ -66,7 +66,9 @@ func NewEventListener(
 	storage *EventStorage,
 	logger zerolog.Logger,
 ) (*EventListener, error) {
-	binding, err := NewL1(config.BridgeMessengerContractAddress, ethClient)
+
+	addr := common.HexToAddress(config.BridgeMessengerContractAddress)
+	binding, err := NewL1(addr, ethClient)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +143,7 @@ func (el *EventListener) subscribeToNewEvents(ctx context.Context, logCh chan<- 
 	}
 
 	el.logger.Info().
-		Str("l1_bridge_messenger_addr", el.config.BridgeMessengerContractAddress.Hex()).
+		Str("l1_bridge_messenger_addr", el.config.BridgeMessengerContractAddress).
 		Msg("subscribed to new events")
 
 	return sub, nil
@@ -296,7 +298,7 @@ func (el *EventListener) convertEvent(ethEvent *L1MessageSent) (*Event, error) {
 
 		// TODO(oclaw) fill all payload fields
 	}
-	return event, errors.New("not implemented")
+	return event, errors.New("event parsing not implemented")
 }
 
 func (el *EventListener) onNewBlockBegan(ctx context.Context, newBlockInfo *L1MessageSent) error {
