@@ -5,7 +5,7 @@ import { ConfigKeys } from "../../common/config.js";
 import { logger } from "../../logger.js";
 import { bigintFlag } from "../../types";
 
-export const DefualtNewSmartAccountAmount = 1_000_000_000_000_000n;
+export const DefaultNewSmartAccountAmount = 1_000_000_000_000_000n;
 
 export default class SmartAccountNew extends BaseCommand {
   static override description = "Create a new smart account";
@@ -46,18 +46,18 @@ export default class SmartAccountNew extends BaseCommand {
       description:
         "The initial balance (capped at 100'000'000). The deployment fee will be subtracted from this balance",
       required: false,
-      default: DefualtNewSmartAccountAmount,
+      default: DefaultNewSmartAccountAmount,
     }),
   };
 
   public async run(): Promise<Hex> {
     const { flags } = await this.parse(SmartAccountNew);
 
-    if (flags.amount > DefualtNewSmartAccountAmount) {
+    if (flags.amount > DefaultNewSmartAccountAmount) {
       logger.warn(
-        `The specified balance (${flags.amount}) is greater than the limit (${DefualtNewSmartAccountAmount}). The default value is used.`,
+        `The specified balance (${flags.amount}) is greater than the limit (${DefaultNewSmartAccountAmount}). The default value is used.`,
       );
-      flags.amount = DefualtNewSmartAccountAmount;
+      flags.amount = DefaultNewSmartAccountAmount;
     }
 
     const privateKey = this.cfg?.[ConfigKeys.PrivateKey];
