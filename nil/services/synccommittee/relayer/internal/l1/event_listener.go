@@ -3,12 +3,11 @@ package l1
 import (
 	"context"
 	"errors"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
@@ -44,7 +43,9 @@ func (cfg *EventListenerConfig) Validate() error {
 }
 
 type EventListener struct {
-	ethClient    ethclient.Client
+	rawEthClient     *ethclient.Client
+	contractBindning *L1
+
 	config       *EventListenerConfig
 	eventStorage *EventStorage
 
@@ -57,21 +58,27 @@ type EventListener struct {
 }
 
 func NewEventListener(
-	ethClient ethclient.Client,
+	ethClient *ethclient.Client, // TODO replace with interface
 	config *EventListenerConfig,
 	storage *EventStorage,
 	logger zerolog.Logger,
-) *EventListener {
+) (*EventListener, error) {
+	binding, err := NewL1(config.BridgeMessengerContractAddress, ethClient)
+	if err != nil {
+		return nil, err
+	}
+
 	el := &EventListener{
-		ethClient:    ethClient,
-		config:       config,
-		eventStorage: storage,
-		logger:       logger,
+		rawEthClient:     ethClient,
+		contractBindning: binding,
+		config:           config,
+		eventStorage:     storage,
+		logger:           logger,
 	}
 
 	el.state.emitter = make(chan struct{})
 
-	return el
+	return el, nil
 }
 
 func (el *EventListener) Name() string {
@@ -84,18 +91,19 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 	}
 
 	var (
-		oldEventCh = make(chan types.Log, el.config.BatchSize)
-		newEventCh = make(chan types.Log, el.config.BatchSize*10) // large buffer to keep accumulating new events while fetching last (ehtereum.Client anyway uses large internal buffers
+		oldEventCh = make(chan *L1MessageSent, el.config.BatchSize)
+		newEventCh = make(chan *L1MessageSent, el.config.BatchSize*10) // large buffer to keep accumulating new events while fetching last (ehtereum.Client anyway uses large internal buffers
 	)
 
+	eg, gCtx := errgroup.WithContext(ctx)
+
 	// 1. Subscribe to new events (done before fetching old ones in order to avoid event loss)
-	subscription, err := el.subscribeToNewEvents(ctx, newEventCh)
+	// gCtx is passed in order to kill subscription properly in case of error in any sub routine
+	subscription, err := el.subscribeToNewEvents(gCtx, newEventCh)
 	if err != nil {
 		return err
 	}
 	defer subscription.Unsubscribe()
-
-	eg, gCtx := errgroup.WithContext(ctx)
 
 	// 2. Start fetching historical events by batches (as soon as we reach block from which listener was started - routine ends)
 	eg.Go(func() error {
@@ -104,10 +112,10 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 
 	// 3. Process incoming events ordered (historical events go first)
 	eg.Go(func() error {
-		return el.recvEvents(gCtx, oldEventCh, newEventCh)
+		return el.recvEvents(gCtx, oldEventCh, newEventCh, subscription)
 	})
 
-	close(started)
+	close(started) // started == successfully subscribed to notifications from L1 contract
 
 	return eg.Wait()
 }
@@ -116,15 +124,15 @@ func (el *EventListener) EventReceived() <-chan struct{} {
 	return el.state.emitter
 }
 
-func (el *EventListener) subscribeToNewEvents(ctx context.Context, logCh chan types.Log) (ethereum.Subscription, error) {
-	query := ethereum.FilterQuery{
-		Addresses: []common.Address{
-			el.config.BridgeMessengerContractAddress,
-		},
-		// TODO(oclaw): add topic for MessageSentEvent
-	}
-
-	sub, err := el.ethClient.SubscribeFilterLogs(ctx, query, logCh)
+func (el *EventListener) subscribeToNewEvents(ctx context.Context, logCh chan<- *L1MessageSent) (ethereum.Subscription, error) {
+	sub, err := el.contractBindning.WatchMessageSent(
+		&bind.WatchOpts{Context: ctx},
+		logCh,
+		// TODO(oclaw) do we need filters?
+		nil, // messageSender []common.Address,
+		nil, // messageTarget []common.Address,
+		nil, // messageNonce []*big.Int
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -138,11 +146,11 @@ func (el *EventListener) subscribeToNewEvents(ctx context.Context, logCh chan ty
 
 func (el *EventListener) fetchPastEvents(
 	ctx context.Context,
-	logCh chan types.Log,
+	logCh chan<- *L1MessageSent,
 ) error {
 	defer close(logCh)
 
-	header, err := el.ethClient.HeaderByNumber(ctx, nil)
+	header, err := el.rawEthClient.HeaderByNumber(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -155,7 +163,7 @@ func (el *EventListener) fetchPastEvents(
 
 	lastProcessedBlockNum := latestBlock // if no last processed block num is in storage - start from the current one
 	if lastProcessedBlock != nil {
-		lastProcessedBlockNum = lastProcessedBlock.BlockNumber.Uint64()
+		lastProcessedBlockNum = lastProcessedBlock.BlockNumber
 	}
 
 	el.logger.Info().
@@ -165,13 +173,6 @@ func (el *EventListener) fetchPastEvents(
 
 	if lastProcessedBlockNum >= latestBlock {
 		el.logger.Info().Msg("no need to fetch old events")
-	}
-
-	query := ethereum.FilterQuery{
-		Addresses: []common.Address{
-			el.config.BridgeMessengerContractAddress,
-		},
-		// TODO(oclaw) add topic for MessageSent event
 	}
 
 	ticker := time.NewTicker(el.config.PollInterval) // TODO(oclaw) add mock for ticker
@@ -184,21 +185,31 @@ func (el *EventListener) fetchPastEvents(
 		}
 
 		toBlock := min(latestBlock, fromBlock+batchSize-1)
-		query.FromBlock = big.NewInt(int64(fromBlock))
-		query.ToBlock = big.NewInt(int64(toBlock))
 
 		el.logger.Info().
 			Uint64("block_range_start", fromBlock).
 			Uint64("block_range_end", toBlock).
 			Msg("fetching historical events from block rang")
 
-		logs, err := el.ethClient.FilterLogs(ctx, query)
+		iter, err := el.contractBindning.FilterMessageSent(
+			&bind.FilterOpts{
+				Start: fromBlock,
+				End:   &toBlock,
+			},
+			// TODO(oclaw) do we need filters?
+			nil, // messageSender []common.Address,
+			nil, // messageTarget []common.Address,
+			nil, // messageNonce []*big.Int
+		)
 		if err != nil {
 			return err
 		}
 
-		for _, log := range logs {
-			logCh <- log
+		for iter.Next() {
+			logCh <- iter.Event
+		}
+		if err := iter.Error(); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -206,8 +217,9 @@ func (el *EventListener) fetchPastEvents(
 
 func (el *EventListener) recvEvents(
 	ctx context.Context,
-	oldEventChan chan types.Log,
-	newEventChan chan types.Log,
+	oldEventChan chan *L1MessageSent,
+	newEventChan chan *L1MessageSent,
+	subscription ethereum.Subscription,
 ) error {
 	el.logger.Info().Msg("started processing incoming events")
 	defer func() {
@@ -239,12 +251,14 @@ func (el *EventListener) recvEvents(
 			}
 		case <-ctx.Done():
 			return ctx.Err()
+		case err := <-subscription.Err():
+			return err // raised when subscription is considered dead inside eth client
 		}
 	}
 }
 
-func (el *EventListener) processEvent(ctx context.Context, ethEvent types.Log) error {
-	event, err := el.decodeEventPayload(ethEvent)
+func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSent) error {
+	event, err := el.convertEvent(ethEvent)
 	if err != nil {
 		return err
 	}
@@ -255,12 +269,12 @@ func (el *EventListener) processEvent(ctx context.Context, ethEvent types.Log) e
 		return err
 	}
 
-	if el.state.currentBlockNumber != ethEvent.BlockNumber {
+	if el.state.currentBlockNumber != ethEvent.Raw.BlockNumber {
 		el.logger.Info().Uint64("block_number", el.state.currentBlockNumber).Msg("finished processing events from block")
 		if err := el.storeLastProcessedBlock(ctx); err != nil {
 			return err
 		}
-		el.state.currentBlockNumber = ethEvent.BlockNumber
+		el.state.currentBlockNumber = ethEvent.Raw.BlockNumber
 	}
 
 	// non-blocking write to notify reader
@@ -272,8 +286,8 @@ func (el *EventListener) processEvent(ctx context.Context, ethEvent types.Log) e
 	return nil
 }
 
-func (el *EventListener) decodeEventPayload(ethEvent types.Log) (*Event, error) {
-	// TODO(oclaw) read event data according to the L1BridgeMessenger contract ABI
+func (el *EventListener) convertEvent(ethEvent *L1MessageSent) (*Event, error) {
+	// TODO(oclaw) convert into stored event
 	return nil, errors.New("not implemented")
 }
 

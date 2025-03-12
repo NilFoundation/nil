@@ -24,6 +24,6 @@ func (fe *FinalityEnsurer) Run(ctx context.Context, started chan<- struct{}) err
 	return errors.New("not implemented")
 }
 
-func (fe *FinalityEnsurer) EventFinalized() <-chan struct {}{
+func (fe *FinalityEnsurer) EventFinalized() <-chan struct{} {
 	return fe.emitter
 }

@@ -1,20 +1,18 @@
 package l1
 
 import (
-	"math/big"
-
 	"github.com/NilFoundation/nil/nil/common"
 )
 
-type EventID string
-
 type Event struct {
-	ID EventID `json:"eventId"`
+	Hash        common.Hash `json:"eventHash"`
+	BlockNumber uint64      `json:"blkNum"`
+
 	// TODO add json-tagged event received from the L1 Bridge Messenger contract
 }
 
 type ProcessedBlock struct {
 	Hash        common.Hash `json:"blkHash"`
-	BlockNumber *big.Int    `json:"blkNum"`
+	BlockNumber uint64      `json:"blkNum"`
 	// TODO add all needed fields needed for last processed block info storage
 }
