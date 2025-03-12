@@ -44,9 +44,15 @@ func New(
 		return nil, err
 	}
 
+	l1Contract, err := l1.NewL1ContractWrapper(l1Client, config.EventListenerConfig.BridgeMessengerContractAddress)
+	if err != nil {
+		return nil, err
+	}
+
 	l1EventListener, err := l1.NewEventListener(
-		l1Client,
 		config.EventListenerConfig,
+		l1Client,
+		l1Contract,
 		l1Storage,
 		logger,
 	)

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
@@ -43,7 +42,7 @@ func (cfg *EventListenerConfig) Validate() error {
 
 type EventListener struct {
 	rawEthClient     EthClient
-	contractBindning *L1
+	contractBinding  L1Contract
 
 	config       *EventListenerConfig
 	eventStorage *EventStorage
@@ -60,20 +59,16 @@ type EventListener struct {
 }
 
 func NewEventListener(
-	ethClient EthClient,
 	config *EventListenerConfig,
+	ethClient EthClient,
+	contractClient L1Contract,
 	storage *EventStorage,
 	logger zerolog.Logger,
 ) (*EventListener, error) {
-	addr := common.HexToAddress(config.BridgeMessengerContractAddress)
-	binding, err := NewL1(addr, ethClient)
-	if err != nil {
-		return nil, err
-	}
 
 	el := &EventListener{
 		rawEthClient:     ethClient,
-		contractBindning: binding,
+		contractBinding: contractClient,
 		config:           config,
 		eventStorage:     storage,
 		logger:           logger,
@@ -85,7 +80,7 @@ func NewEventListener(
 }
 
 func (el *EventListener) Name() string {
-	return "relayer-l1-event-listener"
+	return "l1-event-listener"
 }
 
 func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error {
@@ -129,14 +124,7 @@ func (el *EventListener) EventReceived() <-chan struct{} {
 }
 
 func (el *EventListener) subscribeToNewEvents(ctx context.Context, eventCh chan<- *L1MessageSent) (ethereum.Subscription, error) {
-	sub, err := el.contractBindning.WatchMessageSent(
-		&bind.WatchOpts{Context: ctx},
-		eventCh,
-		// TODO(oclaw) do we need filters?
-		nil, // messageSender []common.Address,
-		nil, // messageTarget []common.Address,
-		nil, // messageNonce []*big.Int
-	)
+	sub, err := el.contractBinding.SubscribeToEvents(ctx, eventCh)
 	if err != nil {
 		return nil, err
 	}
@@ -205,25 +193,13 @@ func (el *EventListener) doFetchPastEvents(ctx context.Context, eventCh chan<- *
 			Uint64("block_range_end", toBlock).
 			Msg("fetching historical events from block rang")
 
-		iter, err := el.contractBindning.FilterMessageSent(
-			&bind.FilterOpts{
-				Start: fromBlock,
-				End:   &toBlock,
-			},
-			// TODO(oclaw) do we need filters?
-			nil, // messageSender []common.Address,
-			nil, // messageTarget []common.Address,
-			nil, // messageNonce []*big.Int
-		)
+		events, err := el.contractBinding.GetEventsFromBlockRange(ctx, fromBlock, &toBlock)
 		if err != nil {
 			return err
 		}
 
-		for iter.Next() {
-			eventCh <- iter.Event
-		}
-		if err := iter.Error(); err != nil {
-			return err
+		for _, event := range events {
+			eventCh <- event
 		}
 	}
 	return nil
@@ -318,7 +294,7 @@ func (el *EventListener) convertEvent(ethEvent *L1MessageSent) (*Event, error) {
 			FeeCredit:            ethEvent.FeeCreditData.FeeCredit,
 		},
 	}
-	return event, errors.New("event parsing not implemented")
+	return event, nil
 }
 
 func (el *EventListener) onNewBlockBegan(ctx context.Context, newBlockInfo *L1MessageSent) error {

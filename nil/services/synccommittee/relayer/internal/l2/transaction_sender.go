@@ -13,7 +13,7 @@ type TransactionSender struct {
 }
 
 func (ts *TransactionSender) Name() string {
-	return "relayer-l2-transaction-sender"
+	return "l2-transaction-sender"
 }
 
 func (ts *TransactionSender) Run(ctx context.Context, started chan<- struct{}) error {

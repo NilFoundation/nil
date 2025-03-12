@@ -17,7 +17,7 @@ type FinalityEnsurer struct {
 }
 
 func (fe *FinalityEnsurer) Name() string {
-	return "relayer-l1-block-finality-ensurer"
+	return "l1-block-finality-ensurer"
 }
 
 func (fe *FinalityEnsurer) Run(ctx context.Context, started chan<- struct{}) error {
