@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 )
@@ -43,7 +42,7 @@ func (cfg *EventListenerConfig) Validate() error {
 }
 
 type EventListener struct {
-	rawEthClient     *ethclient.Client
+	rawEthClient     EthClient
 	contractBindning *L1
 
 	config       *EventListenerConfig
@@ -61,7 +60,7 @@ type EventListener struct {
 }
 
 func NewEventListener(
-	ethClient *ethclient.Client, // TODO replace with interface
+	ethClient EthClient,
 	config *EventListenerConfig,
 	storage *EventStorage,
 	logger zerolog.Logger,

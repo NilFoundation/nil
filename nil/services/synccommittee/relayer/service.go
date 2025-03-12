@@ -8,7 +8,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/relayer/internal/l1"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 type RelayerConfig struct {
@@ -30,7 +29,7 @@ func New(
 	database db.DB,
 	clock common.Timer,
 	config *RelayerConfig,
-	l1Client *ethclient.Client, // TODO(oclaw) use interface
+	l1Client l1.EthClient,
 ) (*RelayerService, error) {
 	logger := logging.NewLogger("relayer")
 
