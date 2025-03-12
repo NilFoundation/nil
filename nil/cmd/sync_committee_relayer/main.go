@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -105,10 +106,14 @@ func runService(ctx context.Context, cfg *Config) error {
 
 	svc, err := relayer.New(ctx, database, sysClock, cfg.RelayerConfig, l1Client)
 	if err != nil {
-		return fmt.Errorf("failed to intialize relayer service: %w", err)
+		return fmt.Errorf("failed to initialize relayer service: %w", err)
 	}
 
-	return svc.Run(ctx)
+	err = svc.Run(ctx)
+	if errors.Is(err, context.Canceled) {
+		return nil
+	}
+	return err
 }
 
 func openDB(dbPath string) (db.DB, error) {

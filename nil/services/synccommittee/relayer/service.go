@@ -32,7 +32,6 @@ func New(
 	config *RelayerConfig,
 	l1Client *ethclient.Client, // TODO(oclaw) use interface
 ) (*RelayerService, error) {
-
 	logger := logging.NewLogger("relayer")
 
 	l1Storage, err := l1.NewEventStorage(

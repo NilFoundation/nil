@@ -66,7 +66,6 @@ func NewEventListener(
 	storage *EventStorage,
 	logger zerolog.Logger,
 ) (*EventListener, error) {
-
 	addr := common.HexToAddress(config.BridgeMessengerContractAddress)
 	binding, err := NewL1(addr, ethClient)
 	if err != nil {
@@ -279,8 +278,6 @@ func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSe
 		return err
 	}
 
-	// TODO(oclaw) do we need to retry at this point?
-	// TODO(oclaw) ignore duplicates?
 	if err := el.eventStorage.StoreEvent(ctx, event); err != nil {
 		return err
 	}
@@ -307,7 +304,20 @@ func (el *EventListener) convertEvent(ethEvent *L1MessageSent) (*Event, error) {
 		BlockNumber: ethEvent.Raw.BlockNumber,
 		BlockHash:   ethEvent.Raw.BlockHash,
 
-		// TODO(oclaw) fill all payload fields
+		Sender:             ethEvent.MessageSender,
+		Target:             ethEvent.MessageTarget,
+		Value:              ethEvent.MessageValue,
+		Message:            ethEvent.Message,
+		DepositType:        ethEvent.DepositType,
+		CreatedAt:          ethEvent.MessageCreatedAt,
+		ExpiryTime:         ethEvent.MessageExpiryTime,
+		L2FeeRefundAddress: ethEvent.L2FeeRefundAddress,
+		FeeCreditData: FeeCreditData{
+			NilGasLimit:          ethEvent.FeeCreditData.NilGasLimit,
+			MaxFeePerGas:         ethEvent.FeeCreditData.MaxFeePerGas,
+			MaxPriorityFeePerGas: ethEvent.FeeCreditData.MaxPriorityFeePerGas,
+			FeeCredit:            ethEvent.FeeCreditData.FeeCredit,
+		},
 	}
 	return event, errors.New("event parsing not implemented")
 }

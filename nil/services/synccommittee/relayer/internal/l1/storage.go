@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 )
 
@@ -64,7 +65,10 @@ func NewEventStorage(
 }
 
 func (es *EventStorage) StoreEvent(ctx context.Context, evt *Event) error {
-	// TODO(oclaw) check if hash is not empty
+	var emptyHash ethcommon.Hash
+	if evt.Hash == emptyHash {
+		return errors.New("cannot store event without hash")
+	}
 
 	var err error
 	evt.SequenceNumber, err = es.eventsSequencer.Next()
@@ -76,6 +80,9 @@ func (es *EventStorage) StoreEvent(ctx context.Context, evt *Event) error {
 		table:   pendingEventsTable,
 		storage: es,
 	}
+
+	// TODO(oclaw) ignore duplicates?
+
 	return writer.putTx(ctx, evt.Hash.Bytes(), evt)
 
 	// TODO (oclaw) metrics
@@ -112,7 +119,13 @@ func (es *EventStorage) GetLastProcessedBlock(ctx context.Context) (*ProcessedBl
 }
 
 func (es *EventStorage) SetLastProcessedBlock(ctx context.Context, blk *ProcessedBlock) error {
-	// TODO(oclaw) check if hash is not empty
+	var emptyHash ethcommon.Hash
+	if blk.BlockHash == emptyHash {
+		return errors.New("empty last processed block hash")
+	}
+	if blk.BlockNumber == 0 {
+		return errors.New("empty last processed block number")
+	}
 
 	writer := jsonDbWriter[*ProcessedBlock]{
 		table:   lastProcessedBlockTable,
