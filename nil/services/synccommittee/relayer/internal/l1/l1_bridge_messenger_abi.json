@@ -301,14 +301,14 @@
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "expiryTime",
+          "name": "messageCreatedAt",
           "type": "uint256"
         },
         {
           "indexed": false,
-          "internalType": "address",
-          "name": "depositRefundAddress",
-          "type": "address"
+          "internalType": "uint256",
+          "name": "messageExpiryTime",
+          "type": "uint256"
         },
         {
           "indexed": false,
