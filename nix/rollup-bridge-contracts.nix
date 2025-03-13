@@ -37,6 +37,8 @@ stdenv.mkDerivation rec {
     echo "Installing soljson"
     (cd create-nil-hardhat-project; bash install_soljson.sh ${soljson26})
 
+    export FOUNDRY_SOLC=$(command -v solc)
+
     echo "Versions:"
     forge --version
     cast --version
