@@ -12,6 +12,8 @@ This project is an implementation of =nil; in Go.
   <a href="https://explore.nil.foundation/playground"><strong>Playground</strong></a>
 </p>
 
+[![](https://github.com/NilFoundation/nil/actions/workflows/build_artifacts.yml/badge.svg)](https://github.com/NilFoundation/nil/actions/workflows/build_artifacts.yml)
+
 ## Table of contents
 
 * [Building and using the project](#building-and-using-the-project)
