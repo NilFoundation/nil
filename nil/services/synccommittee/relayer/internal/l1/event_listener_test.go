@@ -35,6 +35,10 @@ type EventListenerTestSuite struct {
 	// testing lifecycle stuff
 	ctx             context.Context
 	canceler        context.CancelFunc
+
+	listenerCtx context.Context
+	listenerCanceler context.CancelFunc
+
 	listenerStopped chan struct{}
 }
 
@@ -67,11 +71,13 @@ func (s *EventListenerTestSuite) SetupTest() {
 }
 
 func (s *EventListenerTestSuite) runListener() {
+	s.listenerCtx, s.listenerCanceler = context.WithCancel(s.ctx)
+
 	listenerStarted := make(chan struct{})
 	s.listenerStopped = make(chan struct{})
 	go func() {
 		defer close(s.listenerStopped)
-		err := s.listener.Run(s.ctx, listenerStarted)
+		err := s.listener.Run(s.listenerCtx, listenerStarted)
 		if err != nil {
 			s.ErrorIs(err, context.Canceled)
 		}
@@ -80,13 +86,20 @@ func (s *EventListenerTestSuite) runListener() {
 	<-listenerStarted
 }
 
+func (s *EventListenerTestSuite) stopListener() {
+	if s.listenerCanceler != nil {
+		s.listenerCanceler()
+	}
+	<-s.listenerStopped
+}
+
 func (s *EventListenerTestSuite) waitForEvents(eventCount int) chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		for range eventCount {
 			<-s.listener.EventReceived()
 		}
-		done <- struct{}{}
+		close(done)
 	}()
 	return done
 }
@@ -116,8 +129,9 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 	// test case:
 	// set latest block to 1024
 	// set last processed block to 800
-	// return events for blocks 801, 901, 1001
+	// return events for blocks 801, 901, 1001 (using fetcher's request mock)
 	// ensure their content and order in storage
+	// repeat the test from the beginning (with modified database)
 
 	s.ethClientMock.HeaderByNumberFunc = func(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
 		return &ethtypes.Header{Number: big.NewInt(1024)}, nil
@@ -136,60 +150,80 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 		{1001, 1024},
 	}
 
-	callNumber := 0
-	s.l1ContractMock.GetEventsFromBlockRangeFunc = func(ctx context.Context, from uint64, to *uint64) ([]*L1MessageSent, error) {
-		s.Equal(from, expectedRanges[callNumber].from, "bad call number %d", callNumber)
-		if s.NotNil(to) {
-			s.Equal(*to, expectedRanges[callNumber].to, "bad call number %d", callNumber)
-		}
-		callNumber++
+	testIteration := func() {
+		callNumber := 0
+		s.l1ContractMock.GetEventsFromBlockRangeFunc = func(ctx context.Context, from uint64, to *uint64) ([]*L1MessageSent, error) {
+			s.Equal(from, expectedRanges[callNumber].from, "bad call number %d", callNumber)
+			if s.NotNil(to) {
+				s.Equal(*to, expectedRanges[callNumber].to, "bad call number %d", callNumber)
+			}
+			callNumber++
 
-		var msgHash [32]byte
-		for i := range msgHash {
-			msgHash[i] = byte(from)
-		}
+			var msgHash [32]byte
+			for i := range msgHash {
+				msgHash[i] = byte(from)
+			}
 
-		// for each range return single event for its first block
-		return []*L1MessageSent{
-			{
-				MessageHash: msgHash,
-				Raw: types.Log{
-					BlockNumber: from,
-					BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
+			// for each range return single event for its first block
+			return []*L1MessageSent{
+				{
+					MessageHash: msgHash,
+					Raw: types.Log{
+						BlockNumber: from,
+						BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
+					},
 				},
-			},
-		}, nil
+			}, nil
+		}
+
+		err := s.storage.SetLastProcessedBlock(s.ctx, &ProcessedBlock{
+			BlockNumber: 800, // [800; 1024) blocks are expected to be fetched
+			BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
+		})
+		s.Require().NoError(err)
+
+		eventCount := len(expectedRanges)
+
+		awaiter := s.waitForEvents(eventCount)
+		s.runListener()
+		<-awaiter
+
+		err = s.storage.IterateEventsByBatch(s.ctx, 100, func(events []*Event) error {
+			s.Len(events, eventCount)
+			for _, event := range events {
+				switch event.BlockNumber {
+				case 801:
+					s.EqualValues(0, event.SequenceNumber)
+				case 901:
+					s.EqualValues(1, event.SequenceNumber)
+				case 1001:
+					s.EqualValues(2, event.SequenceNumber)
+				default:
+					s.Fail("unexpected block number in event", "block number %d", event.BlockNumber)
+				}
+			}
+			return nil
+		})
+		s.Require().NoError(err, "failed to iterate saved events")
+
+		s.stopListener()
+
+		processedBlock, err := s.storage.GetLastProcessedBlock(s.ctx)
+		s.Require().NoError(err)
+
+		s.Equal(
+			expectedRanges[len(expectedRanges)-2].from, // we still might receive some updates from last block so last processed now is the one before last
+			processedBlock.BlockNumber,
+		)
 	}
 
-	err := s.storage.SetLastProcessedBlock(s.ctx, &ProcessedBlock{
-		BlockNumber: 800, // [800; 1024) blocks are expected to be fetched
-		BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
+	testIteration()
+
+	// Run sequence again setting last block to the same 800
+	// Target is to check that ordering is not changed (and nothing is stuck on repeat)
+	s.Run("Idempotent", func() {
+		testIteration()
 	})
-	s.Require().NoError(err)
-
-	eventCount := len(expectedRanges)
-
-	awaiter := s.waitForEvents(eventCount)
-	s.runListener()
-	<-awaiter
-
-	err = s.storage.IterateEventsByBatch(s.ctx, 100, func(events []*Event) error {
-		s.Len(events, eventCount)
-		for _, event := range events {
-			switch event.BlockNumber {
-			case 801:
-				s.EqualValues(0, event.SequenceNumber)
-			case 901:
-				s.EqualValues(1, event.SequenceNumber)
-			case 1001:
-				s.EqualValues(2, event.SequenceNumber)
-			default:
-				s.Fail("unexpected block number in event", "block number %d", event.BlockNumber)
-			}
-		}
-		return nil
-	})
-	s.Require().NoError(err, "failed to iterate saved events")
 }
 
 func (s *EventListenerTestSuite) TestFetchEventsFromSubscription() {

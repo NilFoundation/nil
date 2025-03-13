@@ -213,23 +213,22 @@ func (el *EventListener) fetchPastEvents(ctx context.Context, eventCh chan<- *L1
 		return err
 	}
 
-	lastProcessedBlockNum := latestBlock // if no last processed block num is in storage - start from the current one
 	if lastProcessedBlock != nil {
-		lastProcessedBlockNum = lastProcessedBlock.BlockNumber
+		el.setCurrentProcessingBlock(lastProcessedBlock.BlockNumber, lastProcessedBlock.BlockHash)
 	}
 
 	el.logger.Info().
 		Uint64("latest_block_num", latestBlock).
-		Uint64("latest_processed_block_num", lastProcessedBlockNum).
+		Uint64("latest_processed_block_num", el.state.currentBlockNumber).
 		Msg("connected to Etherium")
 
-	if lastProcessedBlockNum >= latestBlock {
+	if el.state.currentBlockNumber >= latestBlock {
 		el.logger.Info().Msg("no need to fetch old events")
 	}
 
 	ticker := time.NewTicker(el.config.PollInterval) // TODO(oclaw) add mock for ticker
 	batchSize := uint64(el.config.BatchSize)
-	for fromBlock := lastProcessedBlockNum + 1; fromBlock <= latestBlock; fromBlock += batchSize {
+	for fromBlock := el.state.currentBlockNumber + 1; fromBlock <= latestBlock; fromBlock += batchSize {
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():
@@ -298,7 +297,8 @@ func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSe
 	event := el.convertEvent(ethEvent)
 
 	// all retryable errors should be handled inside storage, otherwise we should interrupt service work
-	if err := el.eventStorage.StoreEvent(ctx, event); err != nil {
+	err := el.eventStorage.StoreEvent(ctx, event)
+	if err := ignoreErrors(err, ErrKeyExists); err != nil {
 		return err
 	}
 
@@ -342,21 +342,26 @@ func (el *EventListener) convertEvent(ethEvent *L1MessageSent) *Event {
 	return event
 }
 
+// should be called only from eventProcessor
 func (el *EventListener) onNewBlockBegan(ctx context.Context, newBlockInfo *L1MessageSent) error {
-	if el.state.currentBlockNumber == 0 {
-		return nil
+	// save previous not empty block info to the database
+	if el.state.currentBlockNumber != 0 {
+		procBlk := &ProcessedBlock{
+			BlockNumber: el.state.currentBlockNumber,
+			BlockHash:   el.state.currentBlockHash,
+		}
+
+		if err := el.eventStorage.SetLastProcessedBlock(ctx, procBlk); err != nil {
+			return err
+		}
 	}
 
-	procBlk := &ProcessedBlock{
-		BlockNumber: el.state.currentBlockNumber,
-		BlockHash:   el.state.currentBlockHash,
-	}
+	el.setCurrentProcessingBlock(newBlockInfo.Raw.BlockNumber, newBlockInfo.Raw.BlockHash)
 
-	if err := el.eventStorage.SetLastProcessedBlock(ctx, procBlk); err != nil {
-		return err
-	}
-
-	el.state.currentBlockNumber = newBlockInfo.Raw.BlockNumber
-	el.state.currentBlockHash = newBlockInfo.Raw.BlockHash
 	return nil
+}
+
+func (el *EventListener) setCurrentProcessingBlock(number uint64, hash ethcommon.Hash) {
+	el.state.currentBlockNumber = number
+	el.state.currentBlockHash = hash
 }
