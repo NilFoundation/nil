@@ -39,7 +39,7 @@ stdenv.mkDerivation rec {
 
     export FOUNDRY_SOLC=$(command -v solc)
     export FOUNDRY_ROOT=$(realpath ../)
-   
+
     echo "Versions:"
     forge --version
     cast --version
@@ -53,13 +53,13 @@ stdenv.mkDerivation rec {
     npm install  # Ensure node_modules exists before compiling
 
     echo "Start Hardhat compiling:"
-    npx hardhat clean && npx hardhat compile
+    #npx hardhat clean && npx hardhat compile
 
     echo "Start Forge compiling:"
-    forge compile
+    forge compile --root $FOUNDRY_ROOT
 
     echo "Start Forge testing:"
-    forge test
+    forge test $(realpath . ) -vvvvv
   '';
 
   installPhase = ''
