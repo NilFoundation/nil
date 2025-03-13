@@ -65,6 +65,7 @@ func (s *EventListenerTestSuite) SetupTest() {
 
 	cfg := DefaultEventListenerConfig()
 	cfg.BridgeMessengerContractAddress = "0xDEADBEEF"
+	cfg.EmitEventCapacity = 100 // do avoid event dropping
 
 	s.listener, err = NewEventListener(cfg, s.ethClientMock, s.l1ContractMock, s.storage, s.logger)
 	s.Require().NoError(err, "failed to create listener")
@@ -164,7 +165,7 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 			// for each range return single event for its first block
 			return []*L1MessageSent{
 				{
-					MessageHash: getMsgHash(callNumber + 1),
+					MessageHash: getMsgHash(msgSourceFetcher, callNumber+1),
 					Raw: types.Log{
 						BlockNumber: from,
 						BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
@@ -187,17 +188,9 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 
 		err = s.storage.IterateEventsByBatch(s.ctx, 100, func(events []*Event) error {
 			s.Len(events, eventCount)
-			for _, event := range events {
-				switch event.BlockNumber {
-				case 801:
-					s.EqualValues(0, event.SequenceNumber)
-				case 901:
-					s.EqualValues(1, event.SequenceNumber)
-				case 1001:
-					s.EqualValues(2, event.SequenceNumber)
-				default:
-					s.Fail("unexpected block number in event", "block number %d", event.BlockNumber)
-				}
+			for i, event := range events {
+				s.EqualValues(expectedRanges[i].from, event.BlockNumber)
+				s.EqualValues(i, event.SequenceNumber)
 			}
 			return nil
 		})
@@ -206,10 +199,8 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 		processedBlock, err := s.storage.GetLastProcessedBlock(s.ctx)
 		s.Require().NoError(err)
 
-		s.Equal(
-			expectedRanges[len(expectedRanges)-2].from, // we still might receive some updates from last block so last processed now is the one before last
-			processedBlock.BlockNumber,
-		)
+		// we still might receive some updates from last block so last processed now is the one before las
+		s.EqualValues(901, processedBlock.BlockNumber)
 	}
 
 	testIteration()
@@ -222,7 +213,12 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 }
 
 func (s *EventListenerTestSuite) TestFetchEventsFromSubscription() {
+	// test case:
 	// set latest block to 1024
+	// push events for subscription to blocks 1025, 1026, 1027
+	// ensure their content and order in storage
+	// repeat the test from the beginning (with modified database)
+
 	s.ethClientMock.HeaderByNumberFunc = func(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
 		return &ethtypes.Header{Number: big.NewInt(1024)}, nil
 	}
@@ -240,7 +236,7 @@ func (s *EventListenerTestSuite) TestFetchEventsFromSubscription() {
 			go func() {
 				for i := 1; i < 4; i++ {
 					sink <- &L1MessageSent{
-						MessageHash: getMsgHash(i),
+						MessageHash: getMsgHash(msgSourceSubscription, i),
 						Raw: types.Log{
 							BlockNumber: 1024 + uint64(i),
 							BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, byte(i)}),
@@ -282,16 +278,105 @@ func (s *EventListenerTestSuite) TestFetchEventsFromSubscription() {
 }
 
 func (s *EventListenerTestSuite) TestSmoke() {
-	// TODO (oclaw) parallel fetching test with mandatory order check
-	s.True(false, "implement me!")
+	// test case:
+	// set current block number to 1024
+	// set last processed block number to 800
+	// run whole listener, simultaneously push events to fetcher and subscriber
+	// ensure that all events are stored in the given order (first from fetcher, then from subscriber)
+
+	s.ethClientMock.HeaderByNumberFunc = func(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
+		return &ethtypes.Header{Number: big.NewInt(1024)}, nil
+	}
+
+	s.l1ContractMock.SubscribeToEventsFunc = func(ctx context.Context, sink chan<- *L1MessageSent) (event.Subscription, error) {
+		sub := event.NewSubscription(func(<-chan struct{}) error {
+			<-ctx.Done()
+			return nil
+		})
+
+		go func() {
+			for i := 1; i < 4; i++ {
+				sink <- &L1MessageSent{
+					MessageHash: getMsgHash(msgSourceSubscription, i),
+					Raw: types.Log{
+						BlockNumber: 1024 + uint64(i),
+						BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, byte(i)}),
+					},
+				}
+			}
+		}()
+
+		return sub, nil
+	}
+
+	expectedRanges := []struct {
+		from, to uint64
+	}{
+		{801, 900},
+		{901, 1000},
+		{1001, 1024},
+	}
+
+	callNumber := 0
+	s.l1ContractMock.GetEventsFromBlockRangeFunc = func(ctx context.Context, from uint64, to *uint64) ([]*L1MessageSent, error) {
+		s.Equal(from, expectedRanges[callNumber].from, "bad call number %d", callNumber)
+		if s.NotNil(to) {
+			s.Equal(*to, expectedRanges[callNumber].to, "bad call number %d", callNumber)
+		}
+		callNumber++
+
+		// for each range return single event for its first block
+		return []*L1MessageSent{
+			{
+				MessageHash: getMsgHash(msgSourceFetcher, callNumber+1),
+				Raw: types.Log{
+					BlockNumber: from,
+					BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
+				},
+			},
+		}, nil
+	}
+
+	err := s.storage.SetLastProcessedBlock(s.ctx, &ProcessedBlock{
+		BlockNumber: 800, // [800; 1024) blocks are expected to be fetched
+		BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
+	})
+	s.Require().NoError(err)
+
+	eventCount := 6
+	awaiter := s.waitForEvents(eventCount)
+	s.runListener()
+	<-awaiter
+
+	err = s.storage.IterateEventsByBatch(s.ctx, 100, func(events []*Event) error {
+		s.Require().Len(events, 6)
+
+		expectedBlockNumbers := [6]int{801, 901, 1001, 1025, 1026, 1027}
+		for i, n := range expectedBlockNumbers {
+			s.EqualValues(i, events[i].SequenceNumber)
+			s.EqualValues(n, events[i].BlockNumber)
+		}
+
+		return nil
+	})
+	s.Require().NoError(err)
 }
 
-func getMsgHash(seqNo int) [32]byte {
+type msgSource byte
+
+const (
+	msgSourceFetcher      msgSource = 0
+	msgSourceSubscription msgSource = 1
+)
+
+func getMsgHash(source msgSource, seqNo int) [32]byte {
 	var hash [32]byte
-	for i := range hash {
-		hash[i] = byte(seqNo)
+	hash[0] = byte(source)
+	for i := range hash[1:] {
+		hash[i+1] = byte(seqNo)
 	}
 	return hash
 }
 
 // TODO(oclaw) add checks for shutdown
+// TODO(oclaw) add checks for event data filling

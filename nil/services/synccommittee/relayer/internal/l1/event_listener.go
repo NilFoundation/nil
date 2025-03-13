@@ -18,12 +18,15 @@ type EventListenerConfig struct {
 	// settings for historical events fetcher
 	BatchSize    int
 	PollInterval time.Duration
+
+	EmitEventCapacity int
 }
 
 func DefaultEventListenerConfig() *EventListenerConfig {
 	return &EventListenerConfig{
-		BatchSize:    100,
-		PollInterval: time.Millisecond * 100,
+		BatchSize:         100,
+		PollInterval:      time.Millisecond * 100,
+		EmitEventCapacity: 0, // recommended for production usage
 	}
 }
 
@@ -73,7 +76,7 @@ func NewEventListener(
 		logger:          logger,
 	}
 
-	el.state.emitter = make(chan struct{})
+	el.state.emitter = make(chan struct{}, config.EmitEventCapacity)
 
 	return el, nil
 }
@@ -322,6 +325,7 @@ func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSe
 	select {
 	case el.state.emitter <- struct{}{}:
 	default:
+		el.logger.Trace().Msg("emit event dropped")
 	}
 
 	return nil
