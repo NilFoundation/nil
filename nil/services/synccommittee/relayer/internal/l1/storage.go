@@ -81,8 +81,6 @@ func (es *EventStorage) StoreEvent(ctx context.Context, evt *Event) error {
 			upsert:  false,
 		}
 
-		// TODO(oclaw) ignore duplicates?
-
 		return writer.putTx(ctx, evt.Hash.Bytes(), evt)
 
 		// TODO (oclaw) metrics

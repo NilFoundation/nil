@@ -43,7 +43,6 @@ func execute() error {
 		logging.SetupGlobalLogger(*logLevel)
 	}
 
-	// TODO(oclaw) bind CLI arguments to config
 	runCfg := Config{
 		RelayerConfig: relayer.DefaultRelayerConfig(),
 	}
