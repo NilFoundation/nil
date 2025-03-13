@@ -60,7 +60,7 @@ type aggregator struct {
 	blockStorage   AggregatorBlockStorage
 	taskStorage    AggregatorTaskStorage
 	batchCommitter batches.BatchCommitter
-	resetter       reset.StateResetter
+	resetter       *reset.StateResetter
 	timer          common.Timer
 	metrics        AggregatorMetrics
 	workerAction   *concurrent.Suspendable
@@ -70,7 +70,7 @@ func NewAggregator(
 	rpcClient client.Client,
 	blockStorage AggregatorBlockStorage,
 	taskStorage AggregatorTaskStorage,
-	resetter reset.StateResetter,
+	resetter *reset.StateResetter,
 	timer common.Timer,
 	logger zerolog.Logger,
 	metrics AggregatorMetrics,
