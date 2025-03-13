@@ -39,6 +39,7 @@ stdenv.mkDerivation rec {
     (cd create-nil-hardhat-project; bash install_soljson.sh ${soljson26})
     export BIOME_BINARY=${biome}/bin/biome
 
+    echo "Versions:"
     forge --version
     cast --version
     anvil --version
@@ -47,8 +48,12 @@ stdenv.mkDerivation rec {
     pwd
     cp .env.example .env
 
-    echo "Start compiling"
+    echo "Start hardhat compiling:"
     npx hardhat clean && npx hardhat compile
+    echo "Start forge compiling:"
+    forge compile
+    echo "Start forge testing:"
+    forge test
   '';
 
   installPhase = ''
