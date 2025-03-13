@@ -4,3 +4,6 @@
 [submodule "rollup-bridge-contracts/lib/solmate"]
 	path = rollup-bridge-contracts/lib/solmate
 	url = https://github.com/transmissions11/solmate
+[submodule "rollup-bridge-contracts/lib/ds-test"]
+	path = rollup-bridge-contracts/lib/ds-test
+	url = https://github.com/dapphub/ds-test
