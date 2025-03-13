@@ -6,11 +6,10 @@ import (
 	"testing"
 	"time"
 
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
-
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
@@ -68,9 +67,9 @@ func (s *EventListenerTestSuite) runListener() {
 	listenerStarted := make(chan struct{})
 	s.listenerStopped = make(chan struct{})
 	go func() {
+		defer close(s.listenerStopped)
 		err := s.listener.Run(s.ctx, listenerStarted)
-		s.ErrorIs(err, context.Canceled, "event listener finished with unexpected error")
-		s.listenerStopped <- struct{}{}
+		s.ErrorIs(err, context.Canceled)
 	}()
 
 	<-listenerStarted
@@ -82,7 +81,6 @@ func (s *EventListenerTestSuite) TearDownTest() {
 }
 
 func (s *EventListenerTestSuite) TestEmptyRun() {
-
 	// some default block value
 	s.ethClientMock.HeaderByNumberFunc = func(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
 		return &ethtypes.Header{Number: big.NewInt(1024)}, nil
@@ -98,24 +96,19 @@ func (s *EventListenerTestSuite) TestEmptyRun() {
 	s.runListener()
 }
 
-func (s *EventListenerTestSuite) TestInitiliazeFailed() {
-	s.True(false, "implement me!")
-	// TODO (oclaw) check subscription failed
-}
-
 func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 	s.True(false, "implement me!")
 	// TODO (oclaw) fetch historical events test
-	// TODO (oclaw) fetch historical events retryable/unretryable error
+	// TODO (oclaw) fetch historical events error & retry after error
 }
 
 func (s *EventListenerTestSuite) TestFetchEventsFromSubscription() {
 	// TODO (oclaw) subscription event fetching test
-	// TODO (oclaw) subscription event fetching error
+	// TODO (oclaw) subscription event fetching error & retry after error
 	s.True(false, "implement me!")
 }
 
 func (s *EventListenerTestSuite) TestSmoke() {
-	// TODO (oclaw) parallel fetching test (check ordering!!!)
+	// TODO (oclaw) parallel fetching test with mandatory order check
 	s.True(false, "implement me!")
 }

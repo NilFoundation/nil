@@ -26,7 +26,7 @@ func NewL1ContractWrapper(ethClient EthClient, addrStr string) (*l1ContractWrapp
 		return nil, err
 	}
 
-	return &l1ContractWrapper {
+	return &l1ContractWrapper{
 		impl: impl,
 	}, nil
 }
@@ -43,7 +43,6 @@ func (w *l1ContractWrapper) SubscribeToEvents(ctx context.Context, sink chan<- *
 	)
 }
 
-
 func (w *l1ContractWrapper) GetEventsFromBlockRange(ctx context.Context, from uint64, to *uint64) ([]*L1MessageSent, error) {
 	iter, err := w.impl.FilterMessageSent(
 		&bind.FilterOpts{
@@ -55,7 +54,6 @@ func (w *l1ContractWrapper) GetEventsFromBlockRange(ctx context.Context, from ui
 		nil, // messageTarget []common.Address,
 		nil, // messageNonce []*big.Int
 	)
-
 	if err != nil {
 		return nil, err
 	}

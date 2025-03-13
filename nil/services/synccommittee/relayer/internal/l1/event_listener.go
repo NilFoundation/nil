@@ -5,8 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/NilFoundation/nil/nil/common"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 )
@@ -30,7 +31,6 @@ func (cfg *EventListenerConfig) Validate() error {
 	if cfg.BridgeMessengerContractAddress == "" {
 		return errors.New("empty L1BridgeMessenger contract addr")
 	}
-
 	if cfg.BatchSize == 0 {
 		return errors.New("empty batch size for fetching old events")
 	}
@@ -41,8 +41,8 @@ func (cfg *EventListenerConfig) Validate() error {
 }
 
 type EventListener struct {
-	rawEthClient     EthClient
-	contractBinding  L1Contract
+	rawEthClient    EthClient
+	contractBinding L1Contract
 
 	config       *EventListenerConfig
 	eventStorage *EventStorage
@@ -52,7 +52,7 @@ type EventListener struct {
 
 		// last block event from which is put to storage
 		currentBlockNumber uint64
-		currentBlockHash   common.Hash
+		currentBlockHash   ethcommon.Hash
 	}
 
 	logger zerolog.Logger
@@ -65,13 +65,12 @@ func NewEventListener(
 	storage *EventStorage,
 	logger zerolog.Logger,
 ) (*EventListener, error) {
-
 	el := &EventListener{
-		rawEthClient:     ethClient,
+		rawEthClient:    ethClient,
 		contractBinding: contractClient,
-		config:           config,
-		eventStorage:     storage,
-		logger:           logger,
+		config:          config,
+		eventStorage:    storage,
+		logger:          logger,
 	}
 
 	el.state.emitter = make(chan struct{})
@@ -95,22 +94,16 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 
 	eg, gCtx := errgroup.WithContext(ctx)
 
-	// 1. Subscribe to new events (done before fetching old ones in order to avoid event loss)
-	// gCtx is passed in order to kill subscription properly in case of error in any sub routine
-	subscription, err := el.subscribeToNewEvents(gCtx, newEventCh)
-	if err != nil {
-		return err
-	}
-	defer subscription.Unsubscribe()
-
-	// 2. Start fetching historical events by batches (as soon as we reach block from which listener was started - routine ends)
 	eg.Go(func() error {
-		return el.fetchPastEvents(ctx, oldEventCh)
+		return el.subscriber(gCtx, newEventCh)
 	})
 
-	// 3. Process incoming events ordered (historical events go first)
 	eg.Go(func() error {
-		return el.recvEvents(gCtx, oldEventCh, newEventCh, subscription)
+		return el.fetcher(gCtx, oldEventCh)
+	})
+
+	eg.Go(func() error {
+		return el.eventProcessor(gCtx, oldEventCh, newEventCh)
 	})
 
 	close(started) // started == successfully subscribed to notifications from L1 contract
@@ -123,35 +116,92 @@ func (el *EventListener) EventReceived() <-chan struct{} {
 	return el.state.emitter
 }
 
-func (el *EventListener) subscribeToNewEvents(ctx context.Context, eventCh chan<- *L1MessageSent) (ethereum.Subscription, error) {
-	sub, err := el.contractBinding.SubscribeToEvents(ctx, eventCh)
-	if err != nil {
-		return nil, err
-	}
+// Routine responsible for:
+// - subscription to the contract events
+// - tracking of the subscription status
+// - reestablishing subscription in case of need
+func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1MessageSent) error {
+	defer close(eventCh)
 
-	el.logger.Info().
-		Str("l1_bridge_messenger_addr", el.config.BridgeMessengerContractAddress).
-		Msg("subscribed to new events")
+	retrier := common.NewRetryRunner(
+		common.RetryConfig{
+			ShouldRetry: common.ComposeRetryPolicies(
+				common.LimitRetries(100),
+				common.DoNotRetryIf(
+					rpc.ErrNotificationsUnsupported,  // not going to work with this connection
+					rpc.ErrSubscriptionQueueOverflow, // receiver part is probably dead
+				),
+			),
+			NextDelay: common.DelayExponential(time.Second, 15*time.Second),
+		},
+		el.logger,
+	)
 
-	return sub, nil
+	// here goes an issue: 100 retries of subscription in a week for example will still exhaust
+	// retry limit and lead to service shutdown, but should be OK in combination with external service restarts
+	return retrier.Do(ctx, func(ctx context.Context) error {
+		sub, err := el.contractBinding.SubscribeToEvents(ctx, eventCh)
+		if err != nil {
+			el.logger.Error().
+				Str("contract_addr", el.config.BridgeMessengerContractAddress).
+				Err(err).
+				Msg("failed to subscribe to updates from L1 contract")
+			return err
+
+			// TODO(oclaw) metrics
+		}
+		defer sub.Unsubscribe()
+
+		el.logger.Info().
+			Str("contract_addr", el.config.BridgeMessengerContractAddress).
+			Msg("subscribed to new events")
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err, ok := <-sub.Err(): // here we will try to reconnect
+			if ok {
+				el.logger.Error().
+					Str("contract_addr", el.config.BridgeMessengerContractAddress).
+					Err(err).
+					Msg("L1 subscription is broken")
+				return err
+
+				// TODO(oclaw) metrics
+			}
+		}
+
+		return nil
+	})
+}
+
+// Routine responsible for fetching historical blocks in range [lastProcessedBlock; latest)
+// until it is executed incoming event processing is shutdown
+func (el *EventListener) fetcher(ctx context.Context, eventCh chan<- *L1MessageSent) error {
+	defer close(eventCh) // no more events will be posted to the channel after routine finished its work
+
+	// try fetching as long as possible, force exit after large enough attempt number
+	retrier := common.NewRetryRunner(
+		common.RetryConfig{
+			ShouldRetry: common.LimitRetries(100),
+			NextDelay:   common.DelayExponential(time.Second, time.Second*15),
+		},
+		el.logger,
+	)
+
+	return retrier.Do(ctx, func(ctx context.Context) error {
+		err := el.fetchPastEvents(ctx, eventCh)
+		if err != nil {
+			el.logger.Error().Err(err).Msg("historical event fetching failed")
+			// TODO (oclaw) metrics
+		}
+		return err
+	})
+
+	// TODO(oclaw) metrics (this routine is not expected to run for too long, we should now if something is stuck here)
 }
 
 func (el *EventListener) fetchPastEvents(ctx context.Context, eventCh chan<- *L1MessageSent) error {
-	defer close(eventCh) // no more events will be posted to the channel after routine finished its work
-	for {
-		err := el.doFetchPastEvents(ctx, eventCh)
-		if err == nil {
-			return nil
-		}
-		if errors.Is(err, context.DeadlineExceeded) {
-			el.logger.Warn().Err(err).Msg("historical event fetching timed out")
-			continue
-		}
-		return err
-	}
-}
-
-func (el *EventListener) doFetchPastEvents(ctx context.Context, eventCh chan<- *L1MessageSent) error {
 	header, err := el.rawEthClient.HeaderByNumber(ctx, nil)
 	if err != nil {
 		return err
@@ -191,7 +241,7 @@ func (el *EventListener) doFetchPastEvents(ctx context.Context, eventCh chan<- *
 		el.logger.Info().
 			Uint64("block_range_start", fromBlock).
 			Uint64("block_range_end", toBlock).
-			Msg("fetching historical events from block rang")
+			Msg("fetching historical events from block range")
 
 		events, err := el.contractBinding.GetEventsFromBlockRange(ctx, fromBlock, &toBlock)
 		if err != nil {
@@ -205,11 +255,10 @@ func (el *EventListener) doFetchPastEvents(ctx context.Context, eventCh chan<- *
 	return nil
 }
 
-func (el *EventListener) recvEvents(
+func (el *EventListener) eventProcessor(
 	ctx context.Context,
 	oldEventChan chan *L1MessageSent,
 	newEventChan chan *L1MessageSent,
-	subscription ethereum.Subscription,
 ) error {
 	el.logger.Info().Msg("started processing incoming events")
 	defer func() {
@@ -241,18 +290,14 @@ func (el *EventListener) recvEvents(
 			}
 		case <-ctx.Done():
 			return ctx.Err()
-		case err := <-subscription.Err():
-			return err // raised when subscription is considered dead inside eth client
 		}
 	}
 }
 
 func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSent) error {
-	event, err := el.convertEvent(ethEvent)
-	if err != nil {
-		return err
-	}
+	event := el.convertEvent(ethEvent)
 
+	// all retryable errors should be handled inside storage, otherwise we should interrupt service work
 	if err := el.eventStorage.StoreEvent(ctx, event); err != nil {
 		return err
 	}
@@ -273,7 +318,7 @@ func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSe
 	return nil
 }
 
-func (el *EventListener) convertEvent(ethEvent *L1MessageSent) (*Event, error) {
+func (el *EventListener) convertEvent(ethEvent *L1MessageSent) *Event {
 	event := &Event{
 		Hash:        ethEvent.MessageHash,
 		BlockNumber: ethEvent.Raw.BlockNumber,
@@ -294,7 +339,7 @@ func (el *EventListener) convertEvent(ethEvent *L1MessageSent) (*Event, error) {
 			FeeCredit:            ethEvent.FeeCreditData.FeeCredit,
 		},
 	}
-	return event, nil
+	return event
 }
 
 func (el *EventListener) onNewBlockBegan(ctx context.Context, newBlockInfo *L1MessageSent) error {
