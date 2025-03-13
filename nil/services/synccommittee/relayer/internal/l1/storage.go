@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -35,9 +36,6 @@ type EventStorage struct {
 	clock           common.Timer
 	metrics         EventStorageMetrics
 	eventsSequencer db.Sequence
-	// TODO store events from L1
-	// TODO store last processed block number
-	// TODO use sequencer for event ordering
 }
 
 func NewEventStorage(
@@ -70,51 +68,113 @@ func (es *EventStorage) StoreEvent(ctx context.Context, evt *Event) error {
 		return errors.New("cannot store event without hash")
 	}
 
-	var err error
-	evt.SequenceNumber, err = es.eventsSequencer.Next()
-	if err != nil {
-		return err
-	}
+	return es.RetryRunner.Do(ctx, func(ctx context.Context) error {
+		var err error
+		evt.SequenceNumber, err = es.eventsSequencer.Next()
+		if err != nil {
+			return err
+		}
 
-	writer := jsonDbWriter[*Event]{
-		table:   pendingEventsTable,
-		storage: es,
-	}
+		writer := jsonDbWriter[*Event]{
+			table:   pendingEventsTable,
+			storage: es,
+		}
 
-	// TODO(oclaw) ignore duplicates?
+		// TODO(oclaw) ignore duplicates?
 
-	return writer.putTx(ctx, evt.Hash.Bytes(), evt)
+		return writer.putTx(ctx, evt.Hash.Bytes(), evt)
 
-	// TODO (oclaw) metrics
+		// TODO (oclaw) metrics
+	})
 }
 
-func (es *EventStorage) GetEvents(ctx context.Context) ([]*Event, error) {
-	return nil, errors.New("not implemented")
+func (es *EventStorage) IterateEventsByBatch(
+	ctx context.Context,
+	batchSize int,
+	callback func([]*Event) error,
+) error {
+	return es.RetryRunner.Do(ctx, func(ctx context.Context) error {
+		tx, err := es.Database.CreateRoTx(ctx)
+		if err != nil {
+			return err
+		}
+
+		iter, err := tx.Range(pendingEventsTable, nil, nil)
+		if err != nil {
+			return err
+		}
+
+		batch := make([]*Event, batchSize)
+		idx := 0
+		for iter.HasNext() {
+			_, val, err := iter.Next()
+			if err != nil {
+				return err
+			}
+			if err := json.Unmarshal(val, &batch[idx]); err != nil {
+				return fmt.Errorf("%w: %w", storage.ErrSerializationFailed, err)
+			}
+
+			idx++
+			if idx >= batchSize {
+				if err := callback(batch); err != nil {
+					return err
+				}
+				idx = 0
+			}
+		}
+		if idx > 0 {
+			return callback(batch[:idx])
+		}
+
+		return nil
+	})
 }
 
 func (es *EventStorage) DeleteEvents(ctx context.Context, hashes []common.Hash) error {
-	return errors.New("not implemented")
+	return es.RetryRunner.Do(ctx, func(ctx context.Context) error {
+		tx, err := es.Database.CreateRwTx(ctx)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+
+		for _, hash := range hashes {
+			if err := tx.Delete(pendingEventsTable, hash.Bytes()); err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+				return err
+			}
+		}
+
+		return es.Commit(tx)
+	})
 }
 
 func (es *EventStorage) GetLastProcessedBlock(ctx context.Context) (*ProcessedBlock, error) {
-	tx, err := es.Database.CreateRoTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := tx.Get(lastProcessedBlockTable, []byte(lastProcessedBlockKey))
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
 	var blk ProcessedBlock
-	if err := json.Unmarshal(data, &blk); err != nil {
+	err := es.RetryRunner.Do(ctx, func(ctx context.Context) error {
+		tx, err := es.Database.CreateRoTx(ctx)
+		if err != nil {
+			return err
+		}
+
+		data, err := tx.Get(lastProcessedBlockTable, []byte(lastProcessedBlockKey))
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		var blk ProcessedBlock
+		if err := json.Unmarshal(data, &blk); err != nil {
+			return fmt.Errorf("%w: %w", storage.ErrSerializationFailed, err)
+		}
+
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-
 	return &blk, nil
 }
 
@@ -127,13 +187,15 @@ func (es *EventStorage) SetLastProcessedBlock(ctx context.Context, blk *Processe
 		return errors.New("empty last processed block number")
 	}
 
-	writer := jsonDbWriter[*ProcessedBlock]{
-		table:   lastProcessedBlockTable,
-		storage: es,
-	}
-	return writer.putTx(ctx, []byte(lastProcessedBlockKey), blk)
+	return es.RetryRunner.Do(ctx, func(ctx context.Context) error {
+		writer := jsonDbWriter[*ProcessedBlock]{
+			table:   lastProcessedBlockTable,
+			storage: es,
+		}
+		return writer.putTx(ctx, []byte(lastProcessedBlockKey), blk)
 
-	// TODO(oclaw) metrics
+		// TODO(oclaw) metrics
+	})
 }
 
 type jsonDbWriter[T any] struct {
@@ -144,7 +206,7 @@ type jsonDbWriter[T any] struct {
 func (jdwr *jsonDbWriter[T]) putTx(ctx context.Context, key []byte, value T) error {
 	data, err := json.Marshal(value)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %w", storage.ErrSerializationFailed, err)
 	}
 
 	tx, err := jdwr.storage.Database.CreateRwTx(ctx)
