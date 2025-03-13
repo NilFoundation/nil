@@ -8,6 +8,8 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/rs/zerolog"
@@ -17,7 +19,7 @@ import (
 type EventListenerTestSuite struct {
 	suite.Suite
 
-	// aux entities
+	// high level dependencies
 	database db.DB
 	storage  *EventStorage
 	logger   zerolog.Logger
@@ -30,6 +32,7 @@ type EventListenerTestSuite struct {
 	l1ContractMock *L1ContractMock
 	clockMock      *common.TestTimerImpl
 
+	// testing lifecycle stuff
 	ctx             context.Context
 	canceler        context.CancelFunc
 	listenerStopped chan struct{}
@@ -69,10 +72,23 @@ func (s *EventListenerTestSuite) runListener() {
 	go func() {
 		defer close(s.listenerStopped)
 		err := s.listener.Run(s.ctx, listenerStarted)
-		s.ErrorIs(err, context.Canceled)
+		if err != nil {
+			s.ErrorIs(err, context.Canceled)
+		}
 	}()
 
 	<-listenerStarted
+}
+
+func (s *EventListenerTestSuite) waitForEvents(eventCount int) chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		for range eventCount {
+			<-s.listener.EventReceived()
+		}
+		done <- struct{}{}
+	}()
+	return done
 }
 
 func (s *EventListenerTestSuite) TearDownTest() {
@@ -97,9 +113,83 @@ func (s *EventListenerTestSuite) TestEmptyRun() {
 }
 
 func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
-	s.True(false, "implement me!")
-	// TODO (oclaw) fetch historical events test
-	// TODO (oclaw) fetch historical events error & retry after error
+	// test case:
+	// set latest block to 1024
+	// set last processed block to 800
+	// return events for blocks 801, 901, 1001
+	// ensure their content and order in storage
+
+	s.ethClientMock.HeaderByNumberFunc = func(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
+		return &ethtypes.Header{Number: big.NewInt(1024)}, nil
+	}
+	s.l1ContractMock.SubscribeToEventsFunc = func(ctx context.Context, sink chan<- *L1MessageSent) (event.Subscription, error) {
+		return event.NewSubscription(func(<-chan struct{}) error {
+			return nil
+		}), nil
+	}
+
+	expectedRanges := []struct {
+		from, to uint64
+	}{
+		{801, 900},
+		{901, 1000},
+		{1001, 1024},
+	}
+
+	callNumber := 0
+	s.l1ContractMock.GetEventsFromBlockRangeFunc = func(ctx context.Context, from uint64, to *uint64) ([]*L1MessageSent, error) {
+		s.Equal(from, expectedRanges[callNumber].from, "bad call number %d", callNumber)
+		if s.NotNil(to) {
+			s.Equal(*to, expectedRanges[callNumber].to, "bad call number %d", callNumber)
+		}
+		callNumber++
+
+		var msgHash [32]byte
+		for i := range msgHash {
+			msgHash[i] = byte(from)
+		}
+
+		// for each range return single event for its first block
+		return []*L1MessageSent{
+			{
+				MessageHash: msgHash,
+				Raw: types.Log{
+					BlockNumber: from,
+					BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
+				},
+			},
+		}, nil
+	}
+
+	err := s.storage.SetLastProcessedBlock(s.ctx, &ProcessedBlock{
+		BlockNumber: 800, // [800; 1024) blocks are expected to be fetched
+		BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
+	})
+	s.Require().NoError(err)
+
+	eventCount := len(expectedRanges)
+
+	awaiter := s.waitForEvents(eventCount)
+	s.runListener()
+	<-awaiter
+
+	err = s.storage.IterateEventsByBatch(s.ctx, 100, func(events []*Event) error {
+		s.Len(events, eventCount)
+		for _, event := range events {
+			switch event.BlockNumber {
+			case 801:
+				s.EqualValues(0, event.SequenceNumber)
+			case 901:
+				s.EqualValues(1, event.SequenceNumber)
+			case 1001:
+				s.EqualValues(2, event.SequenceNumber)
+			default:
+				s.Fail("unexpected block number in event", "block number %d", event.BlockNumber)
+			}
+		}
+		return nil
+	})
+	s.Require().NoError(err, "failed to iterate saved events")
 }
 
 func (s *EventListenerTestSuite) TestFetchEventsFromSubscription() {
@@ -112,3 +202,5 @@ func (s *EventListenerTestSuite) TestSmoke() {
 	// TODO (oclaw) parallel fetching test with mandatory order check
 	s.True(false, "implement me!")
 }
+
+// TODO(oclaw) add checks for shutdown

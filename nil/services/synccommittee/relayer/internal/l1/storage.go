@@ -150,7 +150,7 @@ func (es *EventStorage) DeleteEvents(ctx context.Context, hashes []common.Hash) 
 }
 
 func (es *EventStorage) GetLastProcessedBlock(ctx context.Context) (*ProcessedBlock, error) {
-	var blk ProcessedBlock
+	var ret *ProcessedBlock
 	err := es.RetryRunner.Do(ctx, func(ctx context.Context) error {
 		tx, err := es.Database.CreateRoTx(ctx)
 		if err != nil {
@@ -170,12 +170,14 @@ func (es *EventStorage) GetLastProcessedBlock(ctx context.Context) (*ProcessedBl
 			return fmt.Errorf("%w: %w", storage.ErrSerializationFailed, err)
 		}
 
+		ret = &blk
+
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &blk, nil
+	return ret, nil
 }
 
 func (es *EventStorage) SetLastProcessedBlock(ctx context.Context, blk *ProcessedBlock) error {
