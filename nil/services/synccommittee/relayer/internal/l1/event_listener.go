@@ -7,7 +7,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 )
@@ -124,62 +123,43 @@ func (el *EventListener) EventReceived() <-chan struct{} {
 // Routine responsible for:
 // - subscription to the contract events
 // - tracking of the subscription status
-// - reestablishing subscription in case of need
 func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1MessageSent) error {
 	defer close(eventCh)
 
-	retrier := common.NewRetryRunner(
-		common.RetryConfig{
-			ShouldRetry: common.ComposeRetryPolicies(
-				common.LimitRetries(100),
-				common.DoNotRetryIf(
-					rpc.ErrNotificationsUnsupported,  // not going to work with this connection
-					rpc.ErrSubscriptionQueueOverflow, // receiver part is probably dead
-				),
-			),
-			NextDelay: common.DelayExponential(time.Second, 15*time.Second),
-		},
-		el.logger,
-	)
+	sub, err := el.contractBinding.SubscribeToEvents(ctx, eventCh)
+	if err != nil {
+		el.logger.Error().
+			Str("contract_addr", el.config.BridgeMessengerContractAddress).
+			Err(err).
+			Msg("failed to subscribe to updates from L1 contract")
+		return err
 
-	// here goes an issue: 100 retries of subscription in a week for example will still exhaust
-	// retry limit and lead to service shutdown, but should be OK in combination with external service restarts
-	return retrier.Do(ctx, func(ctx context.Context) error {
-		sub, err := el.contractBinding.SubscribeToEvents(ctx, eventCh)
-		if err != nil {
+		// TODO(oclaw) metrics
+	}
+	defer sub.Unsubscribe()
+
+	el.logger.Info().
+		Str("contract_addr", el.config.BridgeMessengerContractAddress).
+		Msg("subscribed to new events")
+
+	select {
+	case <-ctx.Done():
+		el.logger.Debug().Msg("subscriber canceled")
+		return ctx.Err()
+	case err, ok := <-sub.Err(): // here we will try to reconnect
+		if ok {
 			el.logger.Error().
 				Str("contract_addr", el.config.BridgeMessengerContractAddress).
 				Err(err).
-				Msg("failed to subscribe to updates from L1 contract")
+				Msg("L1 subscription is broken")
 			return err
 
 			// TODO(oclaw) metrics
 		}
-		defer sub.Unsubscribe()
+		el.logger.Debug().Msg("subscription channel is closed")
+	}
 
-		el.logger.Info().
-			Str("contract_addr", el.config.BridgeMessengerContractAddress).
-			Msg("subscribed to new events")
-
-		select {
-		case <-ctx.Done():
-			el.logger.Debug().Msg("subscriber canceled")
-			return ctx.Err()
-		case err, ok := <-sub.Err(): // here we will try to reconnect
-			if ok {
-				el.logger.Error().
-					Str("contract_addr", el.config.BridgeMessengerContractAddress).
-					Err(err).
-					Msg("L1 subscription is broken")
-				return err
-
-				// TODO(oclaw) metrics
-			}
-			el.logger.Debug().Msg("subscription channel is closed")
-		}
-
-		return nil
-	})
+	return nil
 }
 
 // Routine responsible for fetching historical blocks in range [lastProcessedBlock; latest)
