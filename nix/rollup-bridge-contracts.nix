@@ -38,7 +38,8 @@ stdenv.mkDerivation rec {
     (cd create-nil-hardhat-project; bash install_soljson.sh ${soljson26})
 
     export FOUNDRY_SOLC=$(command -v solc)
-
+    export FOUNDRY_ROOT=$(realpath ../)
+   
     echo "Versions:"
     forge --version
     cast --version
@@ -48,11 +49,16 @@ stdenv.mkDerivation rec {
     pwd
     cp .env.example .env
 
-    echo "Start hardhat compiling:"
+    echo "Installing Node.js dependencies..."
+    npm install  # Ensure node_modules exists before compiling
+
+    echo "Start Hardhat compiling:"
     npx hardhat clean && npx hardhat compile
-    echo "Start forge compiling:"
+
+    echo "Start Forge compiling:"
     forge compile
-    echo "Start forge testing:"
+
+    echo "Start Forge testing:"
     forge test
   '';
 
