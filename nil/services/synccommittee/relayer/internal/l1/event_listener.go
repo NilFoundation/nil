@@ -3,6 +3,7 @@ package l1
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -89,10 +90,31 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 		return err
 	}
 
+	close(started)
+
+	retrier := common.NewRetryRunner(
+		common.RetryConfig{
+			ShouldRetry: common.LimitRetries(10),
+			NextDelay:   common.DelayExponential(100*time.Millisecond, time.Second*10),
+		},
+		el.logger,
+	)
+
+	// event listener has to be interrupted in case of subscription is broken
+	return retrier.Do(ctx, func(ctx context.Context) error {
+		el.logger.Info().Msg("initializing event listener")
+		return el.run(ctx)
+	})
+}
+
+func (el *EventListener) run(ctx context.Context) error {
 	var (
 		oldEventCh = make(chan *L1MessageSent, el.config.BatchSize)
 		newEventCh = make(chan *L1MessageSent, el.config.BatchSize*10) // large buffer to keep accumulating new events while fetching last (ehtereum.Client anyway uses large internal buffers
 	)
+
+	el.state.currentBlockNumber = 0
+	el.state.currentBlockHash = ethcommon.Hash{}
 
 	eg, gCtx := errgroup.WithContext(ctx)
 
@@ -107,8 +129,6 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 	eg.Go(func() error {
 		return el.eventProcessor(gCtx, oldEventCh, newEventCh)
 	})
-
-	close(started) // started == successfully subscribed to notifications from L1 contract
 
 	err := eg.Wait()
 	el.logger.Debug().Err(err).Msg("l1 event listener done")
@@ -125,6 +145,8 @@ func (el *EventListener) EventReceived() <-chan struct{} {
 // - tracking of the subscription status
 func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1MessageSent) error {
 	defer close(eventCh)
+
+	el.logger.Info().Msg("started subscriber")
 
 	sub, err := el.contractBinding.SubscribeToEvents(ctx, eventCh)
 	if err != nil {
@@ -146,15 +168,15 @@ func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1Messa
 	case <-ctx.Done():
 		el.logger.Debug().Msg("subscriber canceled")
 		return ctx.Err()
-	case err, ok := <-sub.Err(): // here we will try to reconnect
+	case err, ok := <-sub.Err():
 		if ok {
 			el.logger.Error().
 				Str("contract_addr", el.config.BridgeMessengerContractAddress).
 				Err(err).
 				Msg("L1 subscription is broken")
-			return err
 
 			// TODO(oclaw) metrics
+			return fmt.Errorf("%w: %w", ErrSubscriptionIsBroken, err)
 		}
 		el.logger.Debug().Msg("subscription channel is closed")
 	}
@@ -166,6 +188,8 @@ func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1Messa
 // until it is executed incoming event processing is shutdown
 func (el *EventListener) fetcher(ctx context.Context, eventCh chan<- *L1MessageSent) error {
 	defer close(eventCh) // no more events will be posted to the channel after routine finished its work
+
+	el.logger.Info().Msg("started fetcher")
 
 	// try fetching as long as possible, force exit after large enough attempt number
 	retrier := common.NewRetryRunner(
@@ -248,10 +272,7 @@ func (el *EventListener) eventProcessor(
 	oldEventChan chan *L1MessageSent,
 	newEventChan chan *L1MessageSent,
 ) error {
-	el.logger.Info().Msg("started processing incoming events")
-	defer func() {
-		el.logger.Info().Msg("finished processing incoming events")
-	}()
+	el.logger.Info().Msg("started event processor")
 
 	processedOldEvents := 0
 	for event := range oldEventChan {
