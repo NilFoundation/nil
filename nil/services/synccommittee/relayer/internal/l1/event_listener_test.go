@@ -64,6 +64,7 @@ func (s *EventListenerTestSuite) SetupTest() {
 	s.Require().NoError(err, "failed to initialize event storage")
 
 	cfg := DefaultEventListenerConfig()
+	cfg.PollInterval = time.Millisecond
 	cfg.BridgeMessengerContractAddress = "0xDEADBEEF"
 	cfg.EmitEventCapacity = 100 // do avoid event dropping
 
