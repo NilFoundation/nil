@@ -5,20 +5,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/big"
 	"net"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/rs/zerolog"
 	logs "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	v1 "go.opentelemetry.io/proto/otlp/common/v1"
 	v12 "go.opentelemetry.io/proto/otlp/logs/v1"
 	"google.golang.org/grpc"
+)
+
+const (
+	DefaultDatabase = "nil"
+	DefaultTable    = "events"
 )
 
 type Config struct {
@@ -39,78 +41,36 @@ func NewLogServer(connect driver.Conn, logger zerolog.Logger) *LogServer {
 	return &LogServer{connect: connect, logger: logger}
 }
 
-func isInt64(value string) bool {
-	floatVal, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		return false
-	}
-
-	if floatVal < math.MinInt64 || floatVal > math.MaxInt64 {
-		return false
-	}
-
-	if floatVal != math.Trunc(floatVal) {
-		return false
-	}
-
-	return true
-}
-
-func isUint256(value string) bool {
-	num := new(big.Int)
-	_, ok := num.SetString(value, 10)
-	if !ok {
-		return false
-	}
-
-	uint256Max := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
-
-	return num.Sign() >= 0 && num.Cmp(uint256Max) <= 0
-}
-
-func determineType(value string) string {
-	if value == "true" || value == "false" {
-		return "UInt8" // ClickHouse uses UInt8 for boolean values
-	}
-
-	if isInt64(value) {
-		return "Int64"
-	}
-
-	if isUint256(value) {
-		return "UInt256"
-	}
-
-	if _, err := strconv.ParseFloat(value, 64); err == nil {
-		return "Float64"
-	}
-
-	if _, err := time.Parse("2006-01-02T15:04:05Z", value); err == nil {
-		return "DateTime"
-	}
-
-	return "String"
-}
-
 func createDatabaseIfNotExists(ctx context.Context, connect driver.Conn, database string) error {
 	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s;", database)
 	return connect.Exec(ctx, query)
 }
 
-func createTableIfNotExists(ctx context.Context, connect driver.Conn, database, tableName string, columns map[string]string, orderBy string) error {
-	columnDefinitions := make([]string, 0, len(columns))
-	for column, colType := range columns {
-		columnDefinitions = append(columnDefinitions, fmt.Sprintf("%s %s", column, colType))
-	}
-
+func createTableIfNotExists(ctx context.Context, connect driver.Conn, database, tableName string) error {
 	query := fmt.Sprintf(
-		"CREATE TABLE IF NOT EXISTS %s.%s (%s) ENGINE = MergeTree() ORDER BY %s;",
+		"CREATE TABLE IF NOT EXISTS %s.%s (time DateTime DEFAULT now()) ENGINE = MergeTree() ORDER BY time",
 		database,
 		tableName,
-		strings.Join(columnDefinitions, ", "),
-		orderBy,
 	)
+	return connect.Exec(ctx, query)
+}
 
+func insertColumnsInTable(ctx context.Context, connect driver.Conn, database, tableName string, columns, columnsType []string) error {
+	query := fmt.Sprintf(
+		"ALTER TABLE %s.%s",
+		database,
+		tableName,
+	)
+	firstOp := true
+	for i, column := range columns {
+		if !firstOp {
+			query += ","
+		} else {
+			firstOp = false
+		}
+		query += fmt.Sprintf(" ADD COLUMN %s %s", column, columnsType[i])
+	}
+	query += ";"
 	return connect.Exec(ctx, query)
 }
 
@@ -131,59 +91,84 @@ func insertData(ctx context.Context, connect driver.Conn, database, tableName st
 	return connect.Exec(ctx, query, values...)
 }
 
-func getDatabaseAndTable(data map[string]any) (string, string) {
-	db, ok := data["database"].(string)
-	if !ok || db == "" {
-		db = "default"
+func getTabelColumnNames(ctx context.Context, connect driver.Conn, database, tableName string) ([]string, error) {
+	query := fmt.Sprintf(
+		"SELECT name FROM system.columns WHERE database = '%s' AND table = '%s'",
+		database,
+		tableName,
+	)
+	rows, err := connect.Query(ctx, query)
+	if err != nil {
+		return nil, err
 	}
+	defer rows.Close()
 
-	table, ok := data["table"].(string)
-	if !ok || table == "" {
-		table = "default"
+	var res []string
+	for rows.Next() {
+		var columnName string
+		if err := rows.Scan(&columnName); err != nil {
+			return nil, err
+		}
+		res = append(res, columnName)
 	}
-
-	return db, table
+	return res, nil
 }
 
 func storeData(ctx context.Context, logger zerolog.Logger, connect driver.Conn, data map[string]any) {
-	db, table := getDatabaseAndTable(data)
-
-	delete(data, "store_to_clickhouse")
-	delete(data, "database")
-	delete(data, "table")
-
-	columns := []string{}
-	columnsDef := map[string]string{}
-	var values []any
-	for key, value := range data {
-		columns = append(columns, key)
-		columnsDef[key] = determineType(fmt.Sprintf("%v", value))
-		if columnsDef[key] == "DateTime" {
-			parsedTime, err := time.Parse(time.RFC3339, value.(string))
-			if err != nil {
-				logger.Error().Err(err).Msg("Error parsing time")
-				return
-			}
-			values = append(values, parsedTime.Format("2006-01-02 15:04:05"))
-			continue
-		} else {
-			values = append(values, value)
+	delete(data, "store_to_clickhouse"+logging.GetAbbreviation("bool"))
+	// caller
+	// time
+	// message
+	for _, field := range []string{"caller", "time", "message"} {
+		if value, ok := data[field]; ok {
+			data[field+logging.GetAbbreviation("string")] = value
+			delete(data, field)
 		}
 	}
 
-	if err := createDatabaseIfNotExists(ctx, connect, db); err != nil {
-		logger.Error().Err(err).Msg("Error creating database")
-		return
+	columns := []string{}
+	columnsDef := []string{}
+	var values []any
+	for key, value := range data {
+		columns = append(columns, key[0:len(key)-2])
+		columnsDef = append(columnsDef, key[len(key)-2:])
+		values = append(values, value)
 	}
 
-	if err := createTableIfNotExists(ctx, connect, db, table, columnsDef, columns[0]); err != nil {
-		logger.Error().Err(err).Msg("Error creating table")
-		return
-	}
-
-	if err := insertData(ctx, connect, db, table, columns, values); err != nil {
-		logger.Error().Err(err).Msg("Error inserting data")
-		return
+	if err := insertData(ctx, connect, DefaultDatabase, DefaultTable, columns, values); err != nil {
+		columNames, err := getTabelColumnNames(ctx, connect, DefaultDatabase, DefaultTable)
+		if err != nil {
+			logger.Error().Err(err).Msg("Error getting table columns")
+			return
+		}
+		var diff []string
+		var typeDiff []string
+		for i, col1 := range columns {
+			found := false
+			for _, col2 := range columNames {
+				if col1 == col2 {
+					found = true
+					break
+				}
+			}
+			if !found {
+				diff = append(diff, col1)
+				abbreviation, err := logging.GetClickhouseByAbbreviation(columnsDef[i])
+				if err != nil {
+					logger.Error().Err(err).Msg("Error getting clickhouse type")
+					return
+				}
+				typeDiff = append(typeDiff, abbreviation)
+			}
+		}
+		if len(diff) == 0 {
+			logger.Error().Err(err).Msg("Error inserting data")
+			return
+		}
+		if err := insertColumnsInTable(ctx, connect, DefaultDatabase, DefaultTable, diff, typeDiff); err != nil {
+			logger.Error().Err(err).Msg("Error inserting columns")
+			return
+		}
 	}
 
 	log.Printf("Inserted data: %v", data)
@@ -209,7 +194,7 @@ func (s *LogServer) processLogRecord(ctx context.Context, logRecord *v12.LogReco
 			break
 		}
 	}
-	if jsonData == nil {
+	if jsonData == nil || jsonData.GetStringValue() == "" {
 		return
 	}
 
@@ -219,7 +204,7 @@ func (s *LogServer) processLogRecord(ctx context.Context, logRecord *v12.LogReco
 		return
 	}
 
-	if data["store_to_clickhouse"] == true {
+	if data["store_to_clickhouse"+logging.GetAbbreviation("bool")] == true {
 		storeData(ctx, s.logger, s.connect, data)
 	}
 }
@@ -246,6 +231,16 @@ func Run(ctx context.Context, cfg Config, logger zerolog.Logger) error {
 		return err
 	}
 	defer connect.Close()
+
+	if err := createDatabaseIfNotExists(ctx, connect, DefaultDatabase); err != nil {
+		logger.Error().Err(err).Msg("Error creating default database")
+		return err
+	}
+
+	if err := createTableIfNotExists(ctx, connect, DefaultDatabase, DefaultTable); err != nil {
+		logger.Error().Err(err).Msg("Error creating default table")
+		return err
+	}
 
 	server := grpc.NewServer()
 	logs.RegisterLogsServiceServer(server, NewLogServer(connect, logger))
