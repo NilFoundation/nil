@@ -78,7 +78,7 @@ func (es *EventStorage) StoreEvent(ctx context.Context, evt *Event) error {
 		writer := jsonDbWriter[*Event]{
 			table:   pendingEventsTable,
 			storage: es,
-			upsert: false,
+			upsert:  false,
 		}
 
 		// TODO(oclaw) ignore duplicates?
@@ -194,7 +194,7 @@ func (es *EventStorage) SetLastProcessedBlock(ctx context.Context, blk *Processe
 		writer := jsonDbWriter[*ProcessedBlock]{
 			table:   lastProcessedBlockTable,
 			storage: es,
-			upsert: true,
+			upsert:  true,
 		}
 		return writer.putTx(ctx, []byte(lastProcessedBlockKey), blk)
 
@@ -205,7 +205,7 @@ func (es *EventStorage) SetLastProcessedBlock(ctx context.Context, blk *Processe
 type jsonDbWriter[T any] struct {
 	table   db.TableName
 	storage *EventStorage
-	upsert bool
+	upsert  bool
 }
 
 func (jdwr *jsonDbWriter[T]) putTx(ctx context.Context, key []byte, value T) error {
@@ -220,18 +220,17 @@ func (jdwr *jsonDbWriter[T]) putTx(ctx context.Context, key []byte, value T) err
 	}
 	defer tx.Rollback()
 
-
 	if !jdwr.upsert {
 		exists, err := tx.Exists(jdwr.table, key)
 		if err != nil {
 			return err
 		}
 		if exists {
-			return fmt.Errorf("%w: table=%s key=%v", ErrKeyExists, jdwr.table, err)
+			return fmt.Errorf("%w: table=%s key=%v", ErrKeyExists, jdwr.table, key)
 		}
 	}
 
-	if err := tx.Put(db.TableName(jdwr.table), key, data); err != nil {
+	if err := tx.Put(jdwr.table, key, data); err != nil {
 		return err
 	}
 

@@ -108,7 +108,9 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 
 	close(started) // started == successfully subscribed to notifications from L1 contract
 
-	return eg.Wait()
+	err := eg.Wait()
+	el.logger.Debug().Err(err).Msg("l1 event listener done")
+	return err
 }
 
 // Can be used by reading routine to look for updates without further delay
@@ -158,6 +160,7 @@ func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1Messa
 
 		select {
 		case <-ctx.Done():
+			el.logger.Debug().Msg("subscriber canceled")
 			return ctx.Err()
 		case err, ok := <-sub.Err(): // here we will try to reconnect
 			if ok {
@@ -169,6 +172,7 @@ func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1Messa
 
 				// TODO(oclaw) metrics
 			}
+			el.logger.Debug().Msg("subscription channel is closed")
 		}
 
 		return nil
@@ -215,6 +219,8 @@ func (el *EventListener) fetchPastEvents(ctx context.Context, eventCh chan<- *L1
 
 	if lastProcessedBlock != nil {
 		el.setCurrentProcessingBlock(lastProcessedBlock.BlockNumber, lastProcessedBlock.BlockHash)
+	} else {
+		el.setCurrentProcessingBlock(latestBlock, header.Hash())
 	}
 
 	el.logger.Info().
@@ -303,7 +309,10 @@ func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSe
 	}
 
 	if el.state.currentBlockNumber != ethEvent.Raw.BlockNumber {
-		el.logger.Info().Uint64("block_number", el.state.currentBlockNumber).Msg("finished processing events from block")
+		el.logger.Info().
+			Uint64("block_number", el.state.currentBlockNumber).
+			Uint64("new_block_number", ethEvent.Raw.BlockNumber).
+			Msg("finished processing events from block")
 		if err := el.onNewBlockBegan(ctx, ethEvent); err != nil {
 			return err
 		}

@@ -33,10 +33,10 @@ type EventListenerTestSuite struct {
 	clockMock      *common.TestTimerImpl
 
 	// testing lifecycle stuff
-	ctx             context.Context
-	canceler        context.CancelFunc
+	ctx      context.Context
+	canceler context.CancelFunc
 
-	listenerCtx context.Context
+	listenerCtx      context.Context
 	listenerCanceler context.CancelFunc
 
 	listenerStopped chan struct{}
@@ -151,6 +151,8 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 	}
 
 	testIteration := func() {
+		defer s.stopListener()
+
 		callNumber := 0
 		s.l1ContractMock.GetEventsFromBlockRangeFunc = func(ctx context.Context, from uint64, to *uint64) ([]*L1MessageSent, error) {
 			s.Equal(from, expectedRanges[callNumber].from, "bad call number %d", callNumber)
@@ -159,15 +161,10 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 			}
 			callNumber++
 
-			var msgHash [32]byte
-			for i := range msgHash {
-				msgHash[i] = byte(from)
-			}
-
 			// for each range return single event for its first block
 			return []*L1MessageSent{
 				{
-					MessageHash: msgHash,
+					MessageHash: getMsgHash(callNumber + 1),
 					Raw: types.Log{
 						BlockNumber: from,
 						BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
@@ -206,8 +203,6 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 		})
 		s.Require().NoError(err, "failed to iterate saved events")
 
-		s.stopListener()
-
 		processedBlock, err := s.storage.GetLastProcessedBlock(s.ctx)
 		s.Require().NoError(err)
 
@@ -227,14 +222,76 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 }
 
 func (s *EventListenerTestSuite) TestFetchEventsFromSubscription() {
-	// TODO (oclaw) subscription event fetching test
-	// TODO (oclaw) subscription event fetching error & retry after error
-	s.True(false, "implement me!")
+	// set latest block to 1024
+	s.ethClientMock.HeaderByNumberFunc = func(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
+		return &ethtypes.Header{Number: big.NewInt(1024)}, nil
+	}
+
+	testIteration := func() {
+		defer s.stopListener()
+
+		// mock subscription to provide new events
+		s.l1ContractMock.SubscribeToEventsFunc = func(ctx context.Context, sink chan<- *L1MessageSent) (event.Subscription, error) {
+			sub := event.NewSubscription(func(<-chan struct{}) error {
+				<-ctx.Done()
+				return nil
+			})
+
+			go func() {
+				for i := 1; i < 4; i++ {
+					sink <- &L1MessageSent{
+						MessageHash: getMsgHash(i),
+						Raw: types.Log{
+							BlockNumber: 1024 + uint64(i),
+							BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, byte(i)}),
+						},
+					}
+				}
+			}()
+
+			return sub, nil
+		}
+
+		eventCount := 3
+
+		awaiter := s.waitForEvents(eventCount)
+		s.runListener()
+		<-awaiter
+
+		err := s.storage.IterateEventsByBatch(s.ctx, 100, func(events []*Event) error {
+			s.Len(events, eventCount)
+			for i, event := range events {
+				s.EqualValues(1024+i+1, event.BlockNumber)
+				s.EqualValues(i, event.SequenceNumber)
+			}
+			return nil
+		})
+		s.Require().NoError(err, "failed to iterate saved events")
+
+		lastProcessedBlock, err := s.storage.GetLastProcessedBlock(s.ctx)
+		s.Require().NoError(err)
+
+		s.EqualValues(1026, lastProcessedBlock.BlockNumber)
+	}
+
+	testIteration()
+
+	s.Run("Idempotent", func() {
+		testIteration()
+	})
 }
 
 func (s *EventListenerTestSuite) TestSmoke() {
 	// TODO (oclaw) parallel fetching test with mandatory order check
 	s.True(false, "implement me!")
+}
+
+func getMsgHash(seqNo int) [32]byte {
+	var hash [32]byte
+	for i := range hash {
+		hash[i] = byte(seqNo)
+	}
+	return hash
 }
 
 // TODO(oclaw) add checks for shutdown
