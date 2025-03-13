@@ -91,11 +91,55 @@ func (c *DirectClient) GetDebugBlock(ctx context.Context, shardId types.ShardId,
 }
 
 func (c *DirectClient) GetDebugBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.DebugRPCBlock, error) {
-	panic("Not supported")
+	if from >= to {
+		return nil, nil
+	}
+
+	result := make([]*jsonrpc.DebugRPCBlock, 0)
+	for curBlockId := from; curBlockId < to; curBlockId += types.BlockNumber(batchSize) {
+		batchEndId := curBlockId + types.BlockNumber(batchSize)
+		if batchEndId > to {
+			batchEndId = to
+		}
+
+		// Fetch blocks one by one in the current batch
+		for blockNum := curBlockId; blockNum < batchEndId; blockNum++ {
+			block, err := c.debugApi.GetBlockByNumber(ctx, shardId, transport.BlockNumber(blockNum), fullTx)
+			if err != nil {
+				return nil, err
+			}
+			if block != nil {
+				result = append(result, block)
+			}
+		}
+	}
+	return result, nil
 }
 
 func (c *DirectClient) GetBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.RPCBlock, error) {
-	panic("Not supported")
+	if from >= to {
+		return nil, nil
+	}
+
+	result := make([]*jsonrpc.RPCBlock, 0)
+	for curBlockId := from; curBlockId < to; curBlockId += types.BlockNumber(batchSize) {
+		batchEndId := curBlockId + types.BlockNumber(batchSize)
+		if batchEndId > to {
+			batchEndId = to
+		}
+
+		// Fetch blocks one by one in the current batch
+		for blockNum := curBlockId; blockNum < batchEndId; blockNum++ {
+			block, err := c.ethApi.GetBlockByNumber(ctx, shardId, transport.BlockNumber(blockNum), fullTx)
+			if err != nil {
+				return nil, err
+			}
+			if block != nil {
+				result = append(result, block)
+			}
+		}
+	}
+	return result, nil
 }
 
 func (c *DirectClient) SendTransaction(ctx context.Context, txn *types.ExternalTransaction) (common.Hash, error) {

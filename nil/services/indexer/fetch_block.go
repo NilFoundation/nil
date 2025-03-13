@@ -1,4 +1,4 @@
-package internal
+package indexer
 
 import (
 	"context"
@@ -13,7 +13,7 @@ var logger = logging.NewLogger("fetch-block")
 
 var ErrBlockNotFound = errors.New("block not found")
 
-func (e *exporter) FetchBlocks(ctx context.Context, shardId types.ShardId, fromId types.BlockNumber, toId types.BlockNumber) ([]*types.BlockWithExtractedData, error) {
+func (e *Indexer) FetchBlocks(ctx context.Context, shardId types.ShardId, fromId types.BlockNumber, toId types.BlockNumber) ([]*types.BlockWithExtractedData, error) {
 	rawBlocks, err := e.client.GetDebugBlocksRange(ctx, shardId, fromId, toId, true, int(toId-fromId))
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func (e *exporter) FetchBlocks(ctx context.Context, shardId types.ShardId, fromI
 	return result, nil
 }
 
-func (e *exporter) FetchBlock(ctx context.Context, shardId types.ShardId, blockId any) (*types.BlockWithExtractedData, error) {
+func (e *Indexer) FetchBlock(ctx context.Context, shardId types.ShardId, blockId any) (*types.BlockWithExtractedData, error) {
 	latestBlock, err := e.client.GetDebugBlock(ctx, shardId, blockId, true)
 	if err != nil {
 		return nil, err
@@ -42,6 +42,6 @@ func (e *exporter) FetchBlock(ctx context.Context, shardId types.ShardId, blockI
 	return latestBlock.DecodeSSZ()
 }
 
-func (e *exporter) FetchShards(ctx context.Context) ([]types.ShardId, error) {
+func (e *Indexer) FetchShards(ctx context.Context) ([]types.ShardId, error) {
 	return e.client.GetShardIdList(ctx)
 }

@@ -1,9 +1,10 @@
-package internal
+package indexer
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	"sync/atomic"
 	"time"
 
@@ -22,34 +23,34 @@ const (
 	maxFetchSize = 500
 )
 
-type Cfg struct {
-	ExporterDriver ExportDriver
-	Client         client.Client
-	AllowDbDrop    bool
-}
-
-type exporter struct {
-	driver      ExportDriver
+type Indexer struct {
+	driver      driver.IndexerDriver
 	client      client.Client
 	allowDbDrop bool
 
-	blocksChan  chan *BlockWithShardId
-	exportRound atomic.Uint32
+	blocksChan chan *driver.BlockWithShardId
+	indexRound atomic.Uint32
 }
 
-func StartExporter(ctx context.Context, cfg *Cfg) error {
-	logger.Info().Msg("Starting exporter...")
+func NewIndexerWithClient(client client.Client) *Indexer {
+	return &Indexer{
+		client: client,
+	}
+}
 
-	e := &exporter{
-		driver:      cfg.ExporterDriver,
+func StartIndexer(ctx context.Context, cfg *Cfg) error {
+	logger.Info().Msg("Starting indexer...")
+
+	e := &Indexer{
+		driver:      cfg.IndexerDriver,
 		client:      cfg.Client,
 		allowDbDrop: cfg.AllowDbDrop,
-		blocksChan:  make(chan *BlockWithShardId, BlockBufferSize),
+		blocksChan:  make(chan *driver.BlockWithShardId, BlockBufferSize),
 	}
 
 	shards, err := e.setup(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to setup exporter: %w", err)
+		return fmt.Errorf("failed to setup indexer: %w", err)
 	}
 
 	workers := make([]concurrent.Func, 0, len(shards)+1)
@@ -59,18 +60,18 @@ func StartExporter(ctx context.Context, cfg *Cfg) error {
 		})
 	}
 	workers = append(workers, func(ctx context.Context) error {
-		return e.startDriverExport(ctx)
+		return e.startDriverIndex(ctx)
 	})
 
 	return concurrent.Run(ctx, workers...)
 }
 
-func (e *exporter) setup(ctx context.Context) ([]types.ShardId, error) {
+func (e *Indexer) setup(ctx context.Context) ([]types.ShardId, error) {
 	version, err := e.readVersionFromClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := e.driver.SetupScheme(ctx, SetupParams{
+	if err := e.driver.SetupScheme(ctx, driver.SetupParams{
 		AllowDbDrop: e.allowDbDrop,
 		Version:     version,
 	}); err != nil {
@@ -85,7 +86,7 @@ func (e *exporter) setup(ctx context.Context) ([]types.ShardId, error) {
 	return append(shards, types.MainShardId), nil
 }
 
-func (e *exporter) readVersionFromClient(ctx context.Context) (common.Hash, error) {
+func (e *Indexer) readVersionFromClient(ctx context.Context) (common.Hash, error) {
 	b, err := e.client.GetBlock(ctx, types.MainShardId, 0, false)
 	if err != nil {
 		return common.EmptyHash, fmt.Errorf("failed to get genesis block from main shard: %w", err)
@@ -93,11 +94,11 @@ func (e *exporter) readVersionFromClient(ctx context.Context) (common.Hash, erro
 	return b.Hash, nil
 }
 
-func (e *exporter) startFetchers(ctx context.Context, shardId types.ShardId) error {
+func (e *Indexer) startFetchers(ctx context.Context, shardId types.ShardId) error {
 	logger := logger.With().Stringer(logging.FieldShardId, shardId).Logger()
 	logger.Info().Msg("Starting fetchers...")
 
-	lastProcessedBlock, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (types.BlockNumber, error) {
+	lastProcessedBlock, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (*types.BlockNumber, error) {
 		return e.driver.FetchLatestProcessedBlockId(ctx, shardId)
 	})
 	if err != nil {
@@ -105,7 +106,7 @@ func (e *exporter) startFetchers(ctx context.Context, shardId types.ShardId) err
 	}
 
 	// If the db is empty, add the top block to the queue.
-	if lastProcessedBlock == types.InvalidBlockNumber {
+	if *lastProcessedBlock == types.InvalidBlockNumber {
 		topBlock, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (*types.BlockWithExtractedData, error) {
 			return e.FetchBlock(ctx, shardId, "latest")
 		})
@@ -114,21 +115,21 @@ func (e *exporter) startFetchers(ctx context.Context, shardId types.ShardId) err
 		}
 
 		logger.Info().Msgf("No blocks processed yet. Adding the top block %d...", topBlock.Id)
-		e.blocksChan <- &BlockWithShardId{topBlock, shardId}
-		lastProcessedBlock = topBlock.Id
+		e.blocksChan <- &driver.BlockWithShardId{BlockWithExtractedData: topBlock, ShardId: shardId}
+		lastProcessedBlock = &topBlock.Id
 	}
 
 	return concurrent.Run(ctx,
 		func(ctx context.Context) error {
-			return e.runTopFetcher(ctx, shardId, lastProcessedBlock+1)
+			return e.runTopFetcher(ctx, shardId, *lastProcessedBlock+1)
 		},
 		func(ctx context.Context) error {
-			return e.runBottomFetcher(ctx, shardId, lastProcessedBlock)
+			return e.runBottomFetcher(ctx, shardId, *lastProcessedBlock)
 		},
 	)
 }
 
-func (e *exporter) pushBlocks(ctx context.Context, shardId types.ShardId, fromId, toId types.BlockNumber) (types.BlockNumber, error) {
+func (e *Indexer) pushBlocks(ctx context.Context, shardId types.ShardId, fromId, toId types.BlockNumber) (types.BlockNumber, error) {
 	const batchSize = 10
 	for id := fromId; id < toId; id += batchSize {
 		batchEndId := id + batchSize
@@ -140,25 +141,25 @@ func (e *exporter) pushBlocks(ctx context.Context, shardId types.ShardId, fromId
 			return id, err
 		}
 		for _, b := range blocks {
-			e.blocksChan <- &BlockWithShardId{b, shardId}
+			e.blocksChan <- &driver.BlockWithShardId{BlockWithExtractedData: b, ShardId: shardId}
 		}
 	}
 	return toId, nil
 }
 
 // runTopFetcher fetches blocks from `from` and indefinitely.
-func (e *exporter) runTopFetcher(ctx context.Context, shardId types.ShardId, from types.BlockNumber) error {
+func (e *Indexer) runTopFetcher(ctx context.Context, shardId types.ShardId, from types.BlockNumber) error {
 	logger := logger.With().Stringer(logging.FieldShardId, shardId).Logger()
 	logger.Info().Msgf("Starting top fetcher from %d", from)
 
 	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := e.exportRound.Load() + InitialRoundsAmount
+	curExportRound := e.indexRound.Load() + InitialRoundsAmount
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			newExportRound := e.exportRound.Load()
+			newExportRound := e.indexRound.Load()
 			if curExportRound == newExportRound {
 				continue
 			}
@@ -183,7 +184,7 @@ func (e *exporter) runTopFetcher(ctx context.Context, shardId types.ShardId, fro
 			}
 
 			if from == topBlock.Id {
-				e.blocksChan <- &BlockWithShardId{topBlock, shardId}
+				e.blocksChan <- &driver.BlockWithShardId{BlockWithExtractedData: topBlock, ShardId: shardId}
 				from++
 			}
 
@@ -193,7 +194,7 @@ func (e *exporter) runTopFetcher(ctx context.Context, shardId types.ShardId, fro
 }
 
 // runBottomFetcher fetches blocks from the earliest absent block up to the `to`.
-func (e *exporter) runBottomFetcher(ctx context.Context, shardId types.ShardId, to types.BlockNumber) error {
+func (e *Indexer) runBottomFetcher(ctx context.Context, shardId types.ShardId, to types.BlockNumber) error {
 	logger := logger.With().Stringer(logging.FieldShardId, shardId).Logger()
 
 	from, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (types.BlockNumber, error) {
@@ -230,13 +231,13 @@ func (e *exporter) runBottomFetcher(ctx context.Context, shardId types.ShardId, 
 	logger.Info().Msgf("Starting bottom fetcher from %d to %d", from, to)
 
 	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := e.exportRound.Load() + InitialRoundsAmount
+	curExportRound := e.indexRound.Load() + InitialRoundsAmount
 	for from < to {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			newExportRound := e.exportRound.Load()
+			newExportRound := e.indexRound.Load()
 			if curExportRound == newExportRound {
 				continue
 			}
@@ -256,11 +257,11 @@ func (e *exporter) runBottomFetcher(ctx context.Context, shardId types.ShardId, 
 	return nil
 }
 
-func (e *exporter) startDriverExport(ctx context.Context) error {
+func (e *Indexer) startDriverIndex(ctx context.Context) error {
 	logger.Info().Msg("Starting driver export...")
 
 	ticker := time.NewTicker(1 * time.Second)
-	var blockBuffer []*BlockWithShardId
+	var blockBuffer []*driver.BlockWithShardId
 	for {
 		select {
 		case <-ctx.Done():
@@ -278,7 +279,7 @@ func (e *exporter) startDriverExport(ctx context.Context) error {
 				continue
 			}
 
-			if err := e.driver.ExportBlocks(ctx, blockBuffer); err != nil {
+			if err := e.driver.IndexBlocks(ctx, blockBuffer); err != nil {
 				logger.Error().Err(err).Msg("Failed to export blocks; will retry in the next round.")
 				continue
 			}
@@ -288,7 +289,7 @@ func (e *exporter) startDriverExport(ctx context.Context) error {
 	}
 }
 
-func (e *exporter) incrementRound() {
-	e.exportRound.CompareAndSwap(100000, 0)
-	e.exportRound.Add(1)
+func (e *Indexer) incrementRound() {
+	e.indexRound.CompareAndSwap(100000, 0)
+	e.indexRound.Add(1)
 }

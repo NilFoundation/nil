@@ -12,6 +12,7 @@ import {
 } from "../../src/index.js";
 import type { Hex } from "../../src/index.js";
 import { testEnv } from "../testEnv.js";
+import {IndexerClient} from "../../src/clients/IndexerClient.js";
 
 export async function generateTestSmartAccount(shardId = 1) {
   return await generateSmartAccount({
@@ -57,6 +58,14 @@ export function newFaucetClient() {
   return new FaucetClient({
     transport: new HttpTransport({
       endpoint: testEnv.faucetServiceEndpoint,
+    }),
+  });
+}
+
+export function newIndexerClient() {
+  return new IndexerClient({
+    transport: new HttpTransport({
+      endpoint: testEnv.endpoint,
     }),
   });
 }

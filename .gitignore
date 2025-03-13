@@ -9,7 +9,7 @@ cometa.db
 result
 deb-package-nil
 clickhouse
-!nil/cmd/exporter/internal/clickhouse
+!nil/services/indexer/clickhouse
 exporter.yaml
 
 # compiled solidity contracts
