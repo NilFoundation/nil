@@ -83,7 +83,7 @@ func ApplyComponentsFilter(filter string) {
 
 func SetupGlobalLogger(level string) {
 	check.PanicIfErr(TrySetupGlobalLevel(level))
-	log.Logger = NewLogger("global")
+	log.Logger = NewLogger("global", true).Logger()
 }
 
 func TrySetupGlobalLevel(level string) error {
@@ -124,32 +124,33 @@ func isSystemd() bool {
 	return os.Getenv("INVOCATION_ID") != ""
 }
 
-func NewLogger(component string) zerolog.Logger {
-	var logger zerolog.Logger
-	if isSystemd() {
-		logger = newJournalDLogger()
-	} else {
-		logger = newConsoleLogger(component)
-	}
+//func NewLogger(component string) zerolog.Logger {
+//	var logger zerolog.Logger
+//	if isSystemd() {
+//		logger = newJournalDLogger()
+//	} else {
+//		logger = newConsoleLogger(component)
+//	}
+//
+//	return logger.With().
+//		Bool("store_to_clickhouse", true).
+//		Str(FieldComponent, component).
+//		Caller().
+//		Timestamp().
+//		Logger()
+//}
 
-	return logger.With().
-		Str(FieldComponent, component).
-		Caller().
-		Timestamp().
-		Logger()
-}
-
-func NewLoggerWithWriter(component string, writer io.Writer) zerolog.Logger {
-	logger := zerolog.New(ComponentFilterWriter{
-		Writer: writer,
-		Name:   component,
-	})
-	return logger.With().
-		Str(FieldComponent, component).
-		Caller().
-		Timestamp().
-		Logger()
-}
+//func NewLoggerWithWriter(component string, writer io.Writer) zerolog.Logger {
+//	logger := zerolog.New(ComponentFilterWriter{
+//		Writer: writer,
+//		Name:   component,
+//	})
+//	return logger.With().
+//		Str(FieldComponent, component).
+//		Caller().
+//		Timestamp().
+//		Logger()
+//}
 
 func newJournalDLogger() zerolog.Logger {
 	return zerolog.New(journald.NewJournalDWriter())

@@ -60,7 +60,7 @@ func (s *SuiteJournaldForwarder) SetupSuite() {
 		ListenAddr: "127.0.0.1:5678", ClickhouseAddr: "127.0.0.1:9001", DbUser: "default",
 		DbDatabase: "default", DbPassword: "",
 	}
-	
+
 	s.connect, err = clickhouse.Open(&clickhouse.Options{
 		Addr: []string{s.cfg.ClickhouseAddr},
 		Auth: clickhouse.Auth{
@@ -77,7 +77,7 @@ func (s *SuiteJournaldForwarder) SetupSuite() {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := journald_forwarder.Run(s.context, s.cfg, logging.NewLogger("test_journald_forwarder")); err != nil {
+		if err := journald_forwarder.Run(s.context, s.cfg, logging.NewLogger("test_journald_forwarder", false).Logger()); err != nil {
 			s.runErrCh <- err
 		} else {
 			s.runErrCh <- nil
@@ -128,7 +128,7 @@ func (s *SuiteJournaldForwarder) dropDatabase(dbName string) {
 func (s *SuiteJournaldForwarder) TestLogDataInsert() {
 	s.Run("Check insert columns", func() {
 		logBuf := new(bytes.Buffer)
-		log1 := logging.NewLoggerWithWriter("log1", logBuf)
+		log1 := logging.NewLoggerWithWriter("log1", true, logBuf)
 		logger := log1.Float64("valueFloat", 123.01).Str("valueStr", "test log").Logger()
 		logger.Log().Msg("test log1")
 		s.Require().NoError(sendLogs(s.cfg.ListenAddr, logBuf.String()))
@@ -145,7 +145,7 @@ func (s *SuiteJournaldForwarder) TestLogDataInsert() {
 		s.Require().Equal(schema1, schemaRes)
 
 		logBuf = new(bytes.Buffer)
-		log1 = logging.NewLoggerWithWriter("log2", logBuf)
+		log1 = logging.NewLoggerWithWriter("log2", true, logBuf)
 		logger = log1.Uint256("valueUInt256", "115792089237316195423570985008687907853269984665640564039457584007913129639935").Logger()
 		logger.Log().Msg("test log2")
 		s.Require().NoError(sendLogs(s.cfg.ListenAddr, logBuf.String()))
@@ -153,7 +153,16 @@ func (s *SuiteJournaldForwarder) TestLogDataInsert() {
 		schema2 := schema1
 		schema2["valueUInt256"] = "UInt256"
 		schemaRes = s.getTableSchema(s.connect, journald_forwarder.DefaultDatabase, journald_forwarder.DefaultTable)
-		s.Require().Equal(schema1, schemaRes)
+		s.Require().Equal(schema2, schemaRes)
+
+		logBuf = new(bytes.Buffer)
+		log1 = logging.NewLoggerWithWriter("log2noCh", false, logBuf)
+		logger = log1.Bool("newBool", false).Logger()
+		logger.Log().Msg("test log2notCh")
+		s.Require().NoError(sendLogs(s.cfg.ListenAddr, logBuf.String()))
+		time.Sleep(1 * time.Second)
+		schemaRes = s.getTableSchema(s.connect, journald_forwarder.DefaultDatabase, journald_forwarder.DefaultTable)
+		s.Require().Equal(schema2, schemaRes)
 	})
 }
 

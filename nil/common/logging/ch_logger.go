@@ -2,9 +2,10 @@ package logging
 
 import (
 	"fmt"
-	"github.com/rs/zerolog"
 	"io"
 	"reflect"
+
+	"github.com/rs/zerolog"
 )
 
 var goToClickhouseTypes = map[string]struct {
@@ -49,7 +50,6 @@ var abbreviationToClickhouse = make(map[string]struct {
 })
 
 func init() {
-	// Populate reverse lookup map
 	for k, v := range goToClickhouseTypes {
 		abbreviationToClickhouse[v.Abbreviation] = struct {
 			Gotype     string
@@ -61,29 +61,12 @@ func init() {
 	}
 }
 
-// Function to get ClickHouse type by abbreviation
 func GetClickhouseByAbbreviation(abbr string) (string, error) {
 	chType, found := abbreviationToClickhouse[abbr]
 	if !found {
 		return "", fmt.Errorf("ClickHouse type not found for abbreviation %s", abbr)
 	}
 	return chType.Clickhouse, nil
-}
-
-func GetGoByAbbreviation(abbr string) (string, error) {
-	chType, found := abbreviationToClickhouse[abbr]
-	if !found {
-		return "", fmt.Errorf("ClickHouse type not found for abbreviation %s", abbr)
-	}
-	return chType.Gotype, nil
-}
-
-func GetClickhouse(v interface{}) string {
-	typeName := reflect.TypeOf(v).String()
-	if val, found := goToClickhouseTypes[typeName]; found {
-		return val.Clickhouse
-	}
-	return "String"
 }
 
 func GetAbbreviationByInterface(v interface{}) string {
@@ -120,7 +103,6 @@ func NewLogger(component string, storeToClick bool) CustomLogger {
 		Str(FieldComponent, component).
 		Caller().
 		Timestamp()
-	//Logger()
 }
 
 func NewLoggerWithWriter(component string, storeToClick bool, writer io.Writer) CustomLogger {
@@ -136,7 +118,6 @@ func NewLoggerWithWriter(component string, storeToClick bool, writer io.Writer) 
 		Str(FieldComponent, component).
 		Caller().
 		Timestamp()
-	//Logger()
 }
 
 func (c CustomLogger) Bool(key string, value bool) CustomLogger {
