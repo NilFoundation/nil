@@ -1,3 +1,6 @@
 [submodule "rollup-bridge-contracts/lib/forge-std"]
 	path = rollup-bridge-contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "rollup-bridge-contracts/lib/solmate"]
+	path = rollup-bridge-contracts/lib/solmate
+	url = https://github.com/transmissions11/solmate
