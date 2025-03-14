@@ -5,6 +5,7 @@
 , npmHooks
 , nodejs
 , nil
+, pkgs
 , enableTesting ? false
 }:
 
@@ -25,6 +26,8 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [
     nodejs
     npmHooks.npmConfigHook
+    pkgs.nodePackages.ts-node
+    pkgs.nodePackages.typescript
   ];
 
   soljson26 = builtins.fetchurl {
@@ -45,9 +48,43 @@ stdenv.mkDerivation rec {
     npx hardhat clean && npx hardhat compile
   '';
 
+  doCheck = enableTesting;
+  checkPhase = ''
+    source .env
+    echo "Starting go-ethereum in background..."
+    ${lib.getExe pkgs.go-ethereum} \
+      --http.vhosts "'*,localhost,host.docker.internal'" \
+      --http --http.api admin,debug,web3,eth,txpool,miner,net,dev,personal \
+      --http.corsdomain "*" --http.addr "0.0.0.0" --nodiscover \
+      --maxpeers 0 --mine --networkid 1337 \
+      --dev --allow-insecure-unlock --rpc.allow-unprotected-txs --dev.gaslimit 200000000 &
+
+    ts-node ./scripts/wallet/fund-wallet.ts
+
+    geth_pid=$!
+
+    echo "Waiting for go-ethereum to start..."
+    for i in {1..10}; do
+      if curl --silent --fail http://localhost:8545 > /dev/null; then
+        echo "go-ethereum is up!"
+        break
+      fi
+      echo "Still waiting..."
+      sleep 1
+    done
+
+    echo "Deploying contracts..."
+    npx hardhat deploy --network geth --tags NilContracts
+
+    echo "Stopping go-ethereum..."
+    kill $geth_pid
+    wait $geth_pid || true
+  '';
+
   installPhase = ''
     mkdir -p $out
     cp -r * $out/
     cp .env $out/
   '';
 }
+
