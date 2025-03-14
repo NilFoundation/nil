@@ -156,6 +156,10 @@ func (db *ReadThroughDb) Fetch(ctx context.Context, reader io.Reader) error {
 	panic("Not supported")
 }
 
+func (db *ReadThroughDb) GetSequence(ctx context.Context, key []byte, bandwidth uint64) (db.Sequence, error) {
+	panic("Not supported")
+}
+
 func (db *ReadThroughDb) DropAll() error {
 	return db.db.DropAll()
 }
