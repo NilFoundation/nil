@@ -17,7 +17,7 @@ type notifiee struct {
 
 	config *Config // +checklocksignore: constant
 
-	peerReputations  map[peer.ID]*peerInfo // +checklocks:mu
+	peerInfos        map[peer.ID]*peerInfo // +checklocks:mu
 	lastUpdateSecond int64                 // +checklocks:mu
 	mu               sync.Mutex
 
@@ -40,7 +40,7 @@ func newNotifiee(
 	return &notifiee{
 		basicNotifee:     basicNotifee,
 		config:           config,
-		peerReputations:  make(map[peer.ID]*peerInfo),
+		peerInfos:        make(map[peer.ID]*peerInfo),
 		lastUpdateSecond: config.clock.Now().Unix(),
 		logger:           logger,
 	}
@@ -67,9 +67,9 @@ func (n *notifiee) Connected(network network.Network, connection network.Conn) {
 
 	var pi *peerInfo
 	var ok bool
-	if pi, ok = n.peerReputations[peer]; !ok {
+	if pi, ok = n.peerInfos[peer]; !ok {
 		pi = newPeerInfo(0, peerLogger, nil)
-		n.peerReputations[peer] = pi
+		n.peerInfos[peer] = pi
 	}
 	if pi.closeFunc == nil {
 		pi.closeFunc = func() {
@@ -79,6 +79,7 @@ func (n *notifiee) Connected(network network.Network, connection network.Conn) {
 			}
 		}
 	}
+	pi.disconnectedAt = nil
 
 	if n.isBanned(pi) {
 		pi.closePeer()
@@ -87,6 +88,18 @@ func (n *notifiee) Connected(network network.Network, connection network.Conn) {
 
 func (n *notifiee) Disconnected(network network.Network, connection network.Conn) {
 	n.basicNotifee.Disconnected(network, connection)
+
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	peer := connection.RemotePeer()
+	pi, ok := n.peerInfos[peer]
+	if !ok {
+		n.logger.Warn().Stringer(logging.FieldPeerId, peer).Msg("Disconnected from unknown peer")
+		return
+	}
+	now := n.clock().Now()
+	pi.disconnectedAt = &now
 }
 
 func (n *notifiee) ReportPeer(peer peer.ID, reputationChangeReason reputationChangeReason) {
@@ -95,10 +108,10 @@ func (n *notifiee) ReportPeer(peer peer.ID, reputationChangeReason reputationCha
 
 	n.recalculateReputationsAccordingToCurrentTime()
 
-	pi, ok := n.peerReputations[peer]
+	pi, ok := n.peerInfos[peer]
 	if !ok {
 		pi = newPeerInfo(0, n.logger, nil)
-		n.peerReputations[peer] = pi
+		n.peerInfos[peer] = pi
 	}
 
 	if reputationChangeValue := n.getReputationChange(reputationChangeReason); reputationChangeValue != 0 {
@@ -135,11 +148,16 @@ func (n *notifiee) recalculateReputationsAccordingToCurrentTime() {
 	n.lastUpdateSecond = currentSecond
 
 	for range elapsedSeconds {
-		for _, info := range n.peerReputations {
+		for _, info := range n.peerInfos {
 			info.reputation = n.reputationTick(info.reputation)
 		}
 	}
-	// TODO: We should remove NOT CONNECTED peers with reputation 0.
+	for peer, info := range n.peerInfos {
+		if info.disconnectedAt != nil && (info.reputation == 0 ||
+			info.disconnectedAt.Add(n.config.ForgetAfterTime).Before(n.clock().Now())) {
+			delete(n.peerInfos, peer)
+		}
+	}
 }
 
 // Exponential decay of reputation

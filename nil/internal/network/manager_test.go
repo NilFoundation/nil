@@ -111,11 +111,22 @@ func (s *ManagerSuite) TestReqResp() {
 	})
 }
 
-func (s *ManagerSuite) TestPeerReport() {
+type ConnectionManagerCheckParams struct {
+	halfDecayTimeSeconds int
+	forgetAfterTime      time.Duration
+	timeoutToConnect     time.Duration
+	timeoutToReconnect   time.Duration
+	expectedToReconnect  bool
+}
+
+func (s *ManagerSuite) CheckConnectionManager(params ConnectionManagerCheckParams) {
+	s.T().Helper()
+
 	clock := clockwork.NewFakeClock()
 	config := NewDefaultConfig()
+	config.ConnectionManagerConfig.ForgetAfterTime = params.forgetAfterTime
 	config.ConnectionManagerConfig.ReputationBanThreshold = config.ConnectionManagerConfig.ReputationChangeSettings[connection_manager.ReputationChangeInvalidBlockSignature] / 2
-	config.ConnectionManagerConfig.DecayReputationPerSecondPercent = connection_manager.CalculateDecayPercent(3, 0.5)
+	config.ConnectionManagerConfig.DecayReputationPerSecondPercent = connection_manager.CalculateDecayPercent(params.halfDecayTimeSeconds, 0.5)
 	connection_manager.SetClock(config.ConnectionManagerConfig, clock)
 	m1 := s.newManagerWithBaseConfig(config)
 
@@ -144,19 +155,53 @@ func (s *ManagerSuite) TestPeerReport() {
 	})
 
 	s.Run("Attempt to connect to banned peer", func() {
-		clock.Advance(2 * time.Second)
+		clock.Advance(params.timeoutToConnect)
 
 		ConnectManagers(s.T(), m1, m2)
 		s.Require().Len(m1.host.Peerstore().Peers(), 2)
 		s.Require().Empty(m1.host.Network().Peers())
 	})
 
-	s.Run("Attempt to connect to peer after reputation is restored", func() {
-		clock.Advance(2 * time.Second)
+	s.Run("Attempt to reconnect to peer", func() {
+		clock.Advance(params.timeoutToReconnect)
 
 		ConnectManagers(s.T(), m1, m2)
 		s.Require().Len(m1.host.Peerstore().Peers(), 2)
-		s.Require().Len(m1.host.Network().Peers(), 1)
+		if params.expectedToReconnect {
+			s.Require().Len(m1.host.Network().Peers(), 1)
+		} else {
+			s.Require().Empty(m1.host.Network().Peers())
+		}
+	})
+}
+
+func (s *ManagerSuite) TestReconnectAfterReputationRecovery() {
+	s.CheckConnectionManager(ConnectionManagerCheckParams{
+		halfDecayTimeSeconds: 3,
+		forgetAfterTime:      2 * time.Hour,
+		timeoutToConnect:     2 * time.Second,
+		timeoutToReconnect:   2 * time.Second,
+		expectedToReconnect:  true,
+	})
+}
+
+func (s *ManagerSuite) TestReconnectAfterForgettingPeer() {
+	s.CheckConnectionManager(ConnectionManagerCheckParams{
+		halfDecayTimeSeconds: 60,
+		forgetAfterTime:      20 * time.Second,
+		timeoutToConnect:     15 * time.Second,
+		timeoutToReconnect:   30 * time.Second,
+		expectedToReconnect:  true,
+	})
+}
+
+func (s *ManagerSuite) TestDoNotReconnectWithoutForgettingPeer() {
+	s.CheckConnectionManager(ConnectionManagerCheckParams{
+		halfDecayTimeSeconds: 60,
+		forgetAfterTime:      2 * time.Hour,
+		timeoutToConnect:     15 * time.Second,
+		timeoutToReconnect:   15 * time.Second,
+		expectedToReconnect:  false,
 	})
 }
 

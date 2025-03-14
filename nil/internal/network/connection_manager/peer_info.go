@@ -1,6 +1,8 @@
 package connection_manager
 
 import (
+	"time"
+
 	"github.com/rs/zerolog"
 )
 
@@ -16,9 +18,10 @@ import (
 // If later an attempt to connect will occur, then we will install closeFunc
 // and will be able to use it if necessary.
 type peerInfo struct {
-	reputation Reputation
-	logger     zerolog.Logger
-	closeFunc  func()
+	reputation     Reputation
+	disconnectedAt *time.Time
+	logger         zerolog.Logger
+	closeFunc      func()
 }
 
 func (pi *peerInfo) closePeer() {
