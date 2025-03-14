@@ -1,6 +1,7 @@
 package network
 
 import (
+	"github.com/NilFoundation/nil/nil/internal/network/connection_manager"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -25,15 +26,18 @@ type Config struct {
 	DHTBootstrapPeers AddrInfoSlice `yaml:"dhtBootstrapPeers,omitempty"`
 	DHTMode           dht.ModeOpt   `yaml:"-,omitempty"`
 
+	ConnectionManagerConfig *connection_manager.Config `yaml:"connectionManager,omitempty"`
+
 	// Test-only
 	Reachability network.Reachability `yaml:"-"`
 }
 
 func NewDefaultConfig() *Config {
 	return &Config{
-		KeysPath: "network-keys.yaml",
-		DHTMode:  dht.ModeAutoServer,
-		Prefix:   "/nil",
+		KeysPath:                "network-keys.yaml",
+		DHTMode:                 dht.ModeAutoServer,
+		Prefix:                  "/nil",
+		ConnectionManagerConfig: connection_manager.NewDefaultConfig(),
 	}
 }
 
