@@ -76,6 +76,12 @@ func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) {
 		"",
 		"Address of L1BridgeMessenger contract to fetch events from",
 	)
+	runCmd.Flags().StringVar(
+		&cfg.RelayerConfig.EventListenerConfig.BridgeMessengerContractAddress,
+		"l2-contract-addr",
+		"",
+		"Address of L2BridgeMessenger contract to forward events to",
+	)
 
 	runCmd.Flags().IntVar(
 		&cfg.RelayerConfig.EventListenerConfig.BatchSize,

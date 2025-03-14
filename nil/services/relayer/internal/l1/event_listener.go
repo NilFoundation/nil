@@ -213,7 +213,7 @@ func (el *EventListener) fetcher(ctx context.Context, eventCh chan<- *L1MessageS
 }
 
 func (el *EventListener) fetchPastEvents(ctx context.Context, eventCh chan<- *L1MessageSent) error {
-	header, err := el.rawEthClient.HeaderByNumber(ctx, nil)
+	header, err := el.rawEthClient.HeaderByNumber(ctx, nil) // nil block number == fetch of the latest block from L1
 	if err != nil {
 		return err
 	}

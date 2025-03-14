@@ -14,20 +14,24 @@ type L1Contract interface {
 }
 
 type l1ContractWrapper struct {
-	impl *L1
+	impl   *L1
+	l2Addr common.Address
 }
 
 var _ L1Contract = (*l1ContractWrapper)(nil)
 
-func NewL1ContractWrapper(ethClient EthClient, addrStr string) (*l1ContractWrapper, error) {
-	addr := common.HexToAddress(addrStr)
+func NewL1ContractWrapper(ethClient EthClient,
+	l1ContractAddr, l2ConractAddr string,
+) (*l1ContractWrapper, error) {
+	addr := common.HexToAddress(l1ContractAddr)
 	impl, err := NewL1(addr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 
 	return &l1ContractWrapper{
-		impl: impl,
+		impl:   impl,
+		l2Addr: common.HexToAddress(l2ConractAddr),
 	}, nil
 }
 
@@ -35,11 +39,9 @@ func (w *l1ContractWrapper) SubscribeToEvents(ctx context.Context, sink chan<- *
 	return w.impl.WatchMessageSent(
 		&bind.WatchOpts{Context: ctx},
 		sink,
-
-		// TODO(oclaw) do we need filters?
-		nil, // messageSender []common.Address,
-		nil, // messageTarget []common.Address,
-		nil, // messageNonce []*big.Int
+		nil,                        // any sender (for now)
+		[]common.Address{w.l2Addr}, // destination is the contract this relayer is bound to
+		nil,                        // any nonce
 	)
 }
 
@@ -49,10 +51,9 @@ func (w *l1ContractWrapper) GetEventsFromBlockRange(ctx context.Context, from ui
 			Start: from,
 			End:   to,
 		},
-		// TODO(oclaw) do we need filters?
-		nil, // messageSender []common.Address,
-		nil, // messageTarget []common.Address,
-		nil, // messageNonce []*big.Int
+		nil,                        // any sender (for now)
+		[]common.Address{w.l2Addr}, // destination is the contract this relayer is bound to
+		nil,                        // any nonce
 	)
 	if err != nil {
 		return nil, err

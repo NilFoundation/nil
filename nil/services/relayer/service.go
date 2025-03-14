@@ -11,7 +11,8 @@ import (
 )
 
 type RelayerConfig struct {
-	EventListenerConfig *l1.EventListenerConfig
+	EventListenerConfig           *l1.EventListenerConfig
+	L2BridgeMessengerContractAddr string
 }
 
 func DefaultRelayerConfig() *RelayerConfig {
@@ -44,7 +45,11 @@ func New(
 		return nil, err
 	}
 
-	l1Contract, err := l1.NewL1ContractWrapper(l1Client, config.EventListenerConfig.BridgeMessengerContractAddress)
+	l1Contract, err := l1.NewL1ContractWrapper(
+		l1Client,
+		config.EventListenerConfig.BridgeMessengerContractAddress,
+		config.L2BridgeMessengerContractAddr,
+	)
 	if err != nil {
 		return nil, err
 	}
