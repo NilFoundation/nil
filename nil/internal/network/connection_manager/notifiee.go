@@ -3,8 +3,8 @@ package connection_manager
 import (
 	"context"
 	"sync"
-	"time"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/jonboulle/clockwork"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -58,28 +58,30 @@ func (n *notifiee) Connected(network network.Network, connection network.Conn) {
 	n.basicNotifee.Connected(network, connection)
 
 	peer := connection.RemotePeer()
+	peerLogger := n.logger.With().Stringer(logging.FieldPeerId, peer).Logger()
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
 	n.recalculateReputationsAccordingToCurrentTime()
 
-	closeFunc := func() {
-		if err := network.ClosePeer(peer); err != nil {
-			n.logger.Error().Err(err).Msgf("Failed to close peer %s", peer)
-		}
-	}
 	var pi *peerInfo
 	var ok bool
 	if pi, ok = n.peerReputations[peer]; !ok {
-		pi = newPeerInfo(peer, 0, closeFunc)
+		pi = newPeerInfo(0, peerLogger, nil)
 		n.peerReputations[peer] = pi
-	} else if pi.closeFunc == nil {
-		pi.closeFunc = closeFunc
+	}
+	if pi.closeFunc == nil {
+		pi.closeFunc = func() {
+			peerLogger.Debug().Msg("Disconnecting banned peer")
+			if err := network.ClosePeer(peer); err != nil {
+				peerLogger.Error().Err(err).Msg("Failed to close peer")
+			}
+		}
 	}
 
 	if n.isBanned(pi) {
-		pi.closePeer(n.logger)
+		pi.closePeer()
 	}
 }
 
@@ -95,20 +97,20 @@ func (n *notifiee) ReportPeer(peer peer.ID, reputationChangeReason reputationCha
 
 	pi, ok := n.peerReputations[peer]
 	if !ok {
-		pi = newPeerInfo(peer, 0, nil)
+		pi = newPeerInfo(0, n.logger, nil)
 		n.peerReputations[peer] = pi
 	}
 
 	if reputationChangeValue := n.getReputationChange(reputationChangeReason); reputationChangeValue != 0 {
 		n.logger.Debug().
-			Stringer("peerId", peer).
+			Stringer(logging.FieldPeerId, peer).
 			Int32("diff", int32(reputationChangeValue)).
 			Str("reason", string(reputationChangeReason)).
 			Msg("Changing peer reputation")
 		pi.reputation = pi.reputation.add(reputationChangeValue)
 
 		if n.isBanned(pi) {
-			pi.closePeer(n.logger)
+			pi.closePeer()
 		}
 	}
 }
@@ -145,7 +147,7 @@ func (n *notifiee) reputationTick(reputation Reputation) Reputation {
 	if n.config.DecayReputationPerSecondPercent == 0 {
 		return reputation
 	}
-	diff := Reputation(int(reputation) / int(100/n.config.DecayReputationPerSecondPercent))
+	diff := Reputation(int(reputation) * int(n.config.DecayReputationPerSecondPercent) / 100)
 	if diff == 0 && reputation < 0 {
 		diff = -1
 	} else if diff == 0 && reputation > 0 {
@@ -160,7 +162,7 @@ func (n *notifiee) clock() clockwork.Clock {
 
 func (n *notifiee) start(ctx context.Context) {
 	go func() {
-		ticker := n.clock().NewTicker(time.Second)
+		ticker := n.clock().NewTicker(n.config.RecalculateReputationsTimeout)
 		defer ticker.Stop()
 
 		for {

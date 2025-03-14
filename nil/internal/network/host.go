@@ -120,7 +120,7 @@ func newClient(ctx context.Context, conf *Config) (Host, zerolog.Logger, error) 
 
 	options, logger, err := getCommonOptions(ctx, &Config{PrivateKey: privateKey})
 	if err != nil {
-		return nil, zerolog.Logger{}, err
+		return nil, zerolog.Nop(), err
 	}
 	options = append(options, libp2p.NoListenAddrs)
 	host, err := libp2p.New(options...)

@@ -1,7 +1,6 @@
 package connection_manager
 
 import (
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/rs/zerolog"
 )
 
@@ -17,24 +16,23 @@ import (
 // If later an attempt to connect will occur, then we will install closeFunc
 // and will be able to use it if necessary.
 type peerInfo struct {
-	id         peer.ID
 	reputation Reputation
+	logger     zerolog.Logger
 	closeFunc  func()
 }
 
-func (pi *peerInfo) closePeer(logger zerolog.Logger) {
+func (pi *peerInfo) closePeer() {
 	if pi.closeFunc != nil {
-		logger.Debug().Stringer("peerId", pi.id).Msg("Disconnecting banned peer")
 		pi.closeFunc()
 	} else {
-		logger.Warn().Msg("Trying to close peer which wasn't ever connected")
+		pi.logger.Warn().Msg("Trying to close peer which wasn't ever connected")
 	}
 }
 
-func newPeerInfo(peerId peer.ID, reputation Reputation, closePeer func()) *peerInfo {
+func newPeerInfo(reputation Reputation, logger zerolog.Logger, closePeer func()) *peerInfo {
 	return &peerInfo{
-		id:         peerId,
 		reputation: reputation,
+		logger:     logger,
 		closeFunc:  closePeer,
 	}
 }
