@@ -81,10 +81,7 @@ stdenv.mkDerivation rec {
     #npx hardhat clean && npx hardhat compile
 
     echo "Start Forge compiling:"
-    forge compile --root $FOUNDRY_ROOT
-
-    echo "Start Forge testing:"
-    forge test $(realpath . ) -vvvvv
+    ./forge_command_proxy.sh test
   '';
 
   installPhase = ''
