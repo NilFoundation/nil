@@ -93,7 +93,6 @@ $(root_sce)/internal/types/proto/blob_transaction.pb.go: $(root_sce)/internal/ty
 .PHONY: generate_contract_from_abi
 generate_contract_from_abi:
 	go generate $(root_sce)/internal/rollupcontract/generate.go
-	go generate $(root_sce)/relayer/internal/l1/generate.go
 
 .PHONY: tracer_constants
 tracer_constants: $(root_sce)/prover/tracer/internal/constants/proto_hash_generated.go

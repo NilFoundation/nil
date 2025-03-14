@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -12,7 +14,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/relayer"
+	"github.com/NilFoundation/nil/nil/services/relayer"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 )
@@ -35,7 +37,7 @@ func main() {
 func execute() error {
 	rootCmd := &cobra.Command{
 		Use:   os.Args[0],
-		Short: "Run nil sync committee L1<->L2 relayer",
+		Short: "Run nil L1<->L2 relayer",
 	}
 
 	logLevel := rootCmd.Flags().String("log-level", "info", "app log level")
@@ -57,11 +59,14 @@ func execute() error {
 
 	rootCmd.AddCommand(runCmd)
 
-	return rootCmd.Execute()
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
+
+	return rootCmd.ExecuteContext(ctx)
 }
 
 func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) {
-	runCmd.Flags().StringVar(&cfg.DbPath, "db-path", "sync_committee_relayer.db", "path to database")
+	runCmd.Flags().StringVar(&cfg.DbPath, "db-path", "relayer.db", "path to database")
 	runCmd.Flags().StringVar(&cfg.L1ClientConfig.Endpoint, "l1-endpoint", "", "URL for ETH L1 client")
 	runCmd.Flags().DurationVar(&cfg.L1ClientConfig.Timeout, "l1-timeout", time.Second, "Max timeout for ETH client to timeout")
 

@@ -8,25 +8,25 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type CommonStorage struct {
-	Database    db.DB
-	RetryRunner common.RetryRunner
-	Logger      zerolog.Logger
+type commonStorage struct {
+	database    db.DB
+	retryRunner common.RetryRunner
+	logger      zerolog.Logger
 }
 
-func NewCommonStorage(
+func makeCommonStorage(
 	database db.DB,
 	logger zerolog.Logger,
 	additionalRetryPolicies ...common.RetryPolicyFunc,
-) CommonStorage {
-	return CommonStorage{
-		Database:    database,
-		RetryRunner: badgerRetryRunner(logger, additionalRetryPolicies...),
-		Logger:      logger,
+) commonStorage {
+	return commonStorage{
+		database:    database,
+		retryRunner: badgerRetryRunner(logger, additionalRetryPolicies...),
+		logger:      logger,
 	}
 }
 
-func (*CommonStorage) Commit(tx db.RwTx) error {
+func (*commonStorage) commit(tx db.RwTx) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}

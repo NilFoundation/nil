@@ -6,8 +6,8 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/relayer/internal/l1"
+	"github.com/NilFoundation/nil/nil/services/relayer/internal/l1"
+	"golang.org/x/sync/errgroup"
 )
 
 type RelayerConfig struct {
@@ -21,7 +21,7 @@ func DefaultRelayerConfig() *RelayerConfig {
 }
 
 type RelayerService struct {
-	srv.Service
+	L1EventListener *l1.EventListener
 }
 
 func New(
@@ -61,11 +61,19 @@ func New(
 	}
 
 	return &RelayerService{
-		Service: srv.NewService(
-			logger,
-			l1EventListener,
-			// TODO(oclaw) L1 finality ensurer
-			// TODO(oclaw) L2 transaction sender
-		),
+		L1EventListener: l1EventListener,
+		// TODO(oclaw) L1 finality ensurer
+		// TODO(oclaw) L2 transaction sender
 	}, nil
+}
+
+func (rs *RelayerService) Run(ctx context.Context) error {
+	eg, gCtx := errgroup.WithContext(ctx)
+
+	eventListenerStarted := make(chan struct{})
+	eg.Go(func() error {
+		return rs.L1EventListener.Run(gCtx, eventListenerStarted)
+	})
+
+	return eg.Wait()
 }

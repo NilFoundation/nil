@@ -44,7 +44,7 @@ const (
 	// Key: mainShardKey, Value: common.Hash.
 	nextToProposeTable db.TableName = "next_to_propose_parent_hash"
 
-	// storedBlocksCountTable stores the count of blocks that have been persisted in the Database.
+	// storedBlocksCountTable stores the count of blocks that have been persisted in the database.
 	// Key: mainShardKey, Value: uint32.
 	storedBlocksCountTable db.TableName = "stored_blocks_count"
 )
@@ -87,7 +87,7 @@ func DefaultBlockStorageConfig() BlockStorageConfig {
 }
 
 type BlockStorage struct {
-	CommonStorage
+	commonStorage
 	config  BlockStorageConfig
 	timer   common.Timer
 	metrics BlockStorageMetrics
@@ -101,7 +101,7 @@ func NewBlockStorage(
 	logger zerolog.Logger,
 ) *BlockStorage {
 	return &BlockStorage{
-		CommonStorage: NewCommonStorage(
+		commonStorage: makeCommonStorage(
 			database,
 			logger,
 			common.DoNotRetryIf(scTypes.ErrBlockMismatch, scTypes.ErrBlockNotFound, scTypes.ErrBatchMismatch),
@@ -113,7 +113,7 @@ func NewBlockStorage(
 }
 
 func (bs *BlockStorage) TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error) {
-	tx, err := bs.Database.CreateRoTx(ctx)
+	tx, err := bs.database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (bs *BlockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common
 		return errors.New("state root cannot be empty")
 	}
 
-	tx, err := bs.Database.CreateRwTx(ctx)
+	tx, err := bs.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (bs *BlockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common
 		return err
 	}
 
-	return bs.Commit(tx)
+	return bs.commit(tx)
 }
 
 // TryGetLatestBatchId retrieves the ID of the latest created batch
@@ -159,7 +159,7 @@ func (bs *BlockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common
 // a) No batches have been created yet, or
 // b) A full storage reset (starting from the first batch) has been triggered.
 func (bs *BlockStorage) TryGetLatestBatchId(ctx context.Context) (*scTypes.BatchId, error) {
-	tx, err := bs.Database.CreateRoTx(ctx)
+	tx, err := bs.database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +216,7 @@ func (bs *BlockStorage) putLatestBatchIdTx(tx db.RwTx, batchId *scTypes.BatchId)
 }
 
 func (bs *BlockStorage) TryGetLatestFetched(ctx context.Context) (*scTypes.MainBlockRef, error) {
-	tx, err := bs.Database.CreateRoTx(ctx)
+	tx, err := bs.database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func (bs *BlockStorage) TryGetLatestFetched(ctx context.Context) (*scTypes.MainB
 }
 
 func (bs *BlockStorage) TryGetBlock(ctx context.Context, id scTypes.BlockId) (*jsonrpc.RPCBlock, error) {
-	tx, err := bs.Database.CreateRoTx(ctx)
+	tx, err := bs.database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -249,13 +249,13 @@ func (bs *BlockStorage) SetBlockBatch(ctx context.Context, batch *scTypes.BlockB
 		return errors.New("batch cannot be nil")
 	}
 
-	return bs.RetryRunner.Do(ctx, func(ctx context.Context) error {
+	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return bs.setBlockBatchImpl(ctx, batch)
 	})
 }
 
 func (bs *BlockStorage) setBlockBatchImpl(ctx context.Context, batch *scTypes.BlockBatch) error {
-	tx, err := bs.Database.CreateRwTx(ctx)
+	tx, err := bs.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func (bs *BlockStorage) setBlockBatchImpl(ctx context.Context, batch *scTypes.Bl
 		return err
 	}
 
-	return bs.Commit(tx)
+	return bs.commit(tx)
 }
 
 func (bs *BlockStorage) validateLatestBatchId(batch *scTypes.BlockBatch, latestBatchId *scTypes.BatchId) error {
@@ -364,7 +364,7 @@ func (bs *BlockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock
 		return fmt.Errorf("block with hash=%s has empty parent hash", block.Hash.String())
 	}
 
-	bs.Logger.Info().
+	bs.logger.Info().
 		Stringer(logging.FieldBlockHash, block.Hash).
 		Stringer("parentHash", block.ParentHash).
 		Msg("block parent hash is not set, updating it")
@@ -384,7 +384,7 @@ func (bs *BlockStorage) SetBlockAsProved(ctx context.Context, id scTypes.BlockId
 }
 
 func (bs *BlockStorage) setBlockAsProvedImpl(ctx context.Context, id scTypes.BlockId) (wasSet bool, err error) {
-	tx, err := bs.Database.CreateRwTx(ctx)
+	tx, err := bs.database.CreateRwTx(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -396,7 +396,7 @@ func (bs *BlockStorage) setBlockAsProvedImpl(ctx context.Context, id scTypes.Blo
 	}
 
 	if entry.IsProved {
-		bs.Logger.Debug().Stringer("blockId", id).Msg("block is already marked as proved")
+		bs.logger.Debug().Stringer("blockId", id).Msg("block is already marked as proved")
 		return false, nil
 	}
 
@@ -410,7 +410,7 @@ func (bs *BlockStorage) setBlockAsProvedImpl(ctx context.Context, id scTypes.Blo
 		return false, err
 	}
 
-	if err := bs.Commit(tx); err != nil {
+	if err := bs.commit(tx); err != nil {
 		return false, err
 	}
 
@@ -418,7 +418,7 @@ func (bs *BlockStorage) setBlockAsProvedImpl(ctx context.Context, id scTypes.Blo
 }
 
 func (bs *BlockStorage) TryGetNextProposalData(ctx context.Context) (*scTypes.ProposalData, error) {
-	tx, err := bs.Database.CreateRoTx(ctx)
+	tx, err := bs.database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +438,7 @@ func (bs *BlockStorage) TryGetNextProposalData(ctx context.Context) (*scTypes.Pr
 	}
 
 	if parentHash == nil {
-		bs.Logger.Debug().Msg("block parent hash is not set")
+		bs.logger.Debug().Msg("block parent hash is not set")
 		return nil, nil
 	}
 
@@ -454,7 +454,7 @@ func (bs *BlockStorage) TryGetNextProposalData(ctx context.Context) (*scTypes.Pr
 	}
 
 	if mainShardEntry == nil {
-		bs.Logger.Debug().Stringer("parentHash", parentHash).Msg("no proved main shard block found")
+		bs.logger.Debug().Stringer("parentHash", parentHash).Msg("no proved main shard block found")
 		return nil, nil
 	}
 
@@ -485,13 +485,13 @@ func (bs *BlockStorage) TryGetNextProposalData(ctx context.Context) (*scTypes.Pr
 }
 
 func (bs *BlockStorage) SetBlockAsProposed(ctx context.Context, id scTypes.BlockId) error {
-	return bs.RetryRunner.Do(ctx, func(ctx context.Context) error {
+	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return bs.setBlockAsProposedImpl(ctx, id)
 	})
 }
 
 func (bs *BlockStorage) setBlockAsProposedImpl(ctx context.Context, id scTypes.BlockId) error {
-	tx, err := bs.Database.CreateRwTx(ctx)
+	tx, err := bs.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -518,7 +518,7 @@ func (bs *BlockStorage) setBlockAsProposedImpl(ctx context.Context, id scTypes.B
 		return err
 	}
 
-	return bs.Commit(tx)
+	return bs.commit(tx)
 }
 
 func isValidProposalCandidate(entry *blockEntry, parentHash common.Hash) bool {
@@ -621,13 +621,13 @@ func (bs *BlockStorage) putLatestFetchedBlockTx(tx db.RwTx, shardId types.ShardI
 //
 //  2. Deletes all main and corresponding exec shard blocks starting from the block with hash == firstMainHashToPurge.
 func (bs *BlockStorage) ResetProgressPartial(ctx context.Context, firstMainHashToPurge common.Hash) error {
-	return bs.RetryRunner.Do(ctx, func(ctx context.Context) error {
+	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return bs.resetProgressPartialImpl(ctx, firstMainHashToPurge)
 	})
 }
 
 func (bs *BlockStorage) resetProgressPartialImpl(ctx context.Context, firstMainHashToPurge common.Hash) error {
-	tx, err := bs.Database.CreateRwTx(ctx)
+	tx, err := bs.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -653,7 +653,7 @@ func (bs *BlockStorage) resetProgressPartialImpl(ctx context.Context, firstMainH
 		}
 	}
 
-	return bs.Commit(tx)
+	return bs.commit(tx)
 }
 
 func (bs *BlockStorage) resetToParent(tx db.RwTx, entry *blockEntry) error {
@@ -715,13 +715,13 @@ func (bs *BlockStorage) getChainSequence(tx db.RoTx, startingId scTypes.BlockId)
 //
 //  2. Deletes all main not yet proved blocks from the storage.
 func (bs *BlockStorage) ResetProgressNotProved(ctx context.Context) error {
-	return bs.RetryRunner.Do(ctx, func(ctx context.Context) error {
+	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
 		return bs.resetProgressNotProvenImpl(ctx)
 	})
 }
 
 func (bs *BlockStorage) resetProgressNotProvenImpl(ctx context.Context) error {
-	tx, err := bs.Database.CreateRwTx(ctx)
+	tx, err := bs.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -744,7 +744,7 @@ func (bs *BlockStorage) resetProgressNotProvenImpl(ctx context.Context) error {
 		}
 	}
 
-	return bs.Commit(tx)
+	return bs.commit(tx)
 }
 
 func makeShardKey(shardId types.ShardId) []byte {
