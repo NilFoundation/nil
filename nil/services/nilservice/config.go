@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/keys"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/rollup"
@@ -207,10 +208,14 @@ func (c *Config) LoadValidatorPrivateKey() (bls.PrivateKey, error) {
 }
 
 func (c *Config) BlockGeneratorParams(shardId types.ShardId) execution.BlockGeneratorParams {
+	var evmTracingHook *tracing.Hooks
+	if c.TraceEVM {
+		evmTracingHook = execution.VerboseTracingHook
+	}
 	return execution.BlockGeneratorParams{
 		ShardId:          shardId,
 		NShards:          c.NShards,
-		TraceEVM:         c.TraceEVM,
+		EvmTracingHooks:  evmTracingHook,
 		MainKeysPath:     c.MainKeysPath,
 		DisableConsensus: c.DisableConsensus,
 		FeeCalculator:    c.FeeCalculator,
