@@ -55,6 +55,11 @@ stdenv.mkDerivation rec {
     echo "Start Hardhat compiling:"
     #npx hardhat clean && npx hardhat compile
 
+    echo "installing forge-std"
+    forge install foundry-rs/forge-std
+    forge install transmissions11/solmate
+    forge install dapphub/ds-test
+
     echo "Start Forge compiling:"
     forge compile --root $FOUNDRY_ROOT
 
