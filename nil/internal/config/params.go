@@ -241,10 +241,10 @@ func SetParamL1Block(c ConfigAccessor, params *ParamL1BlockInfo) error {
 	return setParamImpl(c, params)
 }
 
-func GetParamNShards(c ConfigAccessor) (uint32, error) {
+func GetParamNShards(c ConfigAccessor) (types.ShardId, error) {
 	param, err := getParamImpl[ParamGasPrice](c)
 	if err != nil {
 		return 0, err
 	}
-	return uint32(len(param.Shards)), nil
+	return types.ShardId(len(param.Shards)), nil
 }

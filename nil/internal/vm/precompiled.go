@@ -305,7 +305,7 @@ func (c *sendRawTransaction) Run(state StateDB, input []byte, value *uint256.Int
 		return nil, types.NewVmVerboseError(types.ErrorPrecompileConfigGetParamFailed, err.Error())
 	}
 
-	if uint32(payload.To.ShardId()) >= nShards {
+	if payload.To.ShardId() >= nShards {
 		return nil, ErrShardIdIsTooBig
 	}
 

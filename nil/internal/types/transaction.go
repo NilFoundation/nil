@@ -72,6 +72,23 @@ func (mi *TransactionIndex) SetBytes(b []byte) {
 	*mi = TransactionIndex(ssz.UnmarshallUint64(b))
 }
 
+func (mi *TransactionIndex) MarshalSSZ() ([]byte, error) {
+	return mi.Bytes(), nil
+}
+
+func (mi *TransactionIndex) UnmarshalSSZ(b []byte) error {
+	mi.SetBytes(b)
+	return nil
+}
+
+func (mi TransactionIndex) MarshalSSZTo(dest []byte) ([]byte, error) {
+	return append(dest, mi.Bytes()...), nil
+}
+
+func (mi TransactionIndex) SizeSSZ() int {
+	return 8
+}
+
 func BytesToTransactionIndex(b []byte) TransactionIndex {
 	var mi TransactionIndex
 	mi.SetBytes(b)
@@ -165,6 +182,9 @@ type Transaction struct {
 	BounceTo Address        `json:"bounceTo,omitempty" ch:"bounceTo"`
 	Value    Value          `json:"value,omitempty" ch:"value" ssz-size:"32"`
 	Token    []TokenBalance `json:"token,omitempty" ch:"token" ssz-max:"256"`
+
+	// For each pair of (src, dest) shards, we track the transaction index
+	ShardPairTxId TransactionIndex `json:"shardPairTxId,omitempty" ch:"shard_pair_tx_id"`
 
 	// These fields are needed for async requests
 	RequestId    uint64              `json:"requestId,omitempty" ch:"request_id"`
