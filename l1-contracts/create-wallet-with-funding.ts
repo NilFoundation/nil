@@ -53,7 +53,7 @@ async function createAndUseWallet() {
 
     // Step 4: Wait for the transaction to be mined
     const receipt = await tx.wait();
-    console.log("Transaction Mined:", receipt?.hash);
+    console.log("Transaction Mined:", receipt.hash);
 }
 
 createAndUseWallet().catch((error) => {
