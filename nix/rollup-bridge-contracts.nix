@@ -26,6 +26,7 @@ stdenv.mkDerivation rec {
     npmHooks.npmConfigHook
     pkgs.foundry
     pkgs.solc
+    pkgs.bash
   ];
 
   soljson26 = builtins.fetchurl {
@@ -78,10 +79,10 @@ stdenv.mkDerivation rec {
     npm install  # Ensure node_modules exists before compiling
 
     echo "Start Hardhat compiling:"
-    #npx hardhat clean && npx hardhat compile
+    #npx hardhat clean && npx hardhat compile #disabled for speedup
 
-    echo "Start Forge compiling:"
-    ./forge_command_proxy.sh test
+    echo "Start Forge compiling and testing:"
+    bash ./forge_command_proxy.sh test
   '';
 
   installPhase = ''
