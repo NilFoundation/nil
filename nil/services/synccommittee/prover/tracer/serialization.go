@@ -25,6 +25,7 @@ type PbTracesSet struct {
 	mpt      *pb.MPTTraces
 	exp      *pb.ExpTraces
 	keccaks  *pb.KeccakTraces
+	ecdsa    *pb.EcdsaTraces
 }
 
 // Each message is serialized into file with corresponding extension added to base file path
@@ -36,6 +37,7 @@ const (
 	mptExtension      = "mpt"
 	expExtension      = "exp"
 	keccakExtension   = "keccak"
+	ecdsaExtension    = "ecdsa"
 )
 
 func SerializeToFile(proofs ExecutionTraces, mode MarshalMode, baseFileName string) error {
@@ -95,6 +97,11 @@ func SerializeToFile(proofs ExecutionTraces, mode MarshalMode, baseFileName stri
 			return marshalToFile(pbTraces.keccaks,
 				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, keccakExtension, ext))
 		})
+
+		eg.Go(func() error {
+			return marshalToFile(pbTraces.ecdsa,
+				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, ecdsaExtension, ext))
+		})
 	}
 
 	return eg.Wait()
@@ -109,6 +116,7 @@ func DeserializeFromFile(baseFileName string, mode MarshalMode) (ExecutionTraces
 		mpt:      &pb.MPTTraces{},
 		exp:      &pb.ExpTraces{},
 		keccaks:  &pb.KeccakTraces{},
+		ecdsa:    &pb.EcdsaTraces{},
 	}
 
 	unmarshal, ok := marshalModeToUnmarshaller[mode]
@@ -162,6 +170,11 @@ func DeserializeFromFile(baseFileName string, mode MarshalMode) (ExecutionTraces
 			unmarshal, pbTraces.keccaks)
 	})
 
+	eg.Go(func() error {
+		return unmarshalFromFile(fmt.Sprintf("%s.%s.%s", baseFileName, ecdsaExtension, ext),
+			unmarshal, pbTraces.ecdsa)
+	})
+
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
@@ -180,6 +193,7 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 		ContractsBytecode: make(map[types.Address][]byte, len(traces.bytecode.ContractBytecodes)),
 		CopyEvents:        make([]CopyEvent, len(traces.copy.CopyEvents)),
 		KeccakTraces:      make([]KeccakBuffer, len(traces.keccaks.HashedBuffers)),
+		EcdsaTraces:       make([]EcdsaSign, len(traces.ecdsa.EcdsaSigns)),
 	}
 
 	for i, pbStackOp := range traces.rw.StackOps {
@@ -235,6 +249,18 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 		ep.KeccakTraces[i] = KeccakBuffer{
 			buf:  pbKeccakOp.GetBuffer(),
 			hash: common.BytesToHash(hash.Bytes()),
+		}
+	}
+
+	for i, pbEcdsaSing := range traces.ecdsa.EcdsaSigns {
+		hash := pb.ProtoUint256ToUint256(pbEcdsaSing.GetHash())
+		ep.EcdsaTraces[i] = EcdsaSign{
+			hash:    common.BytesToHash(hash.Bytes()),
+			r:       pb.ProtoUint256ToUint256(pbEcdsaSing.R),
+			s:       pb.ProtoUint256ToUint256(pbEcdsaSing.S),
+			v:       byte(pbEcdsaSing.V.WordParts[3]),
+			pubKeyX: pb.ProtoUint256ToUint256(pbEcdsaSing.PubKeyX),
+			pubKeyY: pb.ProtoUint256ToUint256(pbEcdsaSing.PubKeyY),
 		}
 	}
 
@@ -310,6 +336,7 @@ func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 		zkevm:   &pb.ZKEVMTraces{ZkevmStates: make([]*pb.ZKEVMState, len(traces.ZKEVMStates)), TraceIdx: traceIdx, ProtoHash: constants.ProtoHash},
 		copy:    &pb.CopyTraces{CopyEvents: make([]*pb.CopyEvent, len(traces.CopyEvents)), TraceIdx: traceIdx, ProtoHash: constants.ProtoHash},
 		keccaks: &pb.KeccakTraces{HashedBuffers: make([]*pb.KeccakBuffer, len(traces.KeccakTraces)), TraceIdx: traceIdx, ProtoHash: constants.ProtoHash},
+		ecdsa:   &pb.EcdsaTraces{EcdsaSigns: make([]*pb.EcdsaSign, len(traces.EcdsaTraces)), TraceIdx: traceIdx, ProtoHash: constants.ProtoHash},
 	}
 
 	// Convert StackOps
@@ -365,6 +392,18 @@ func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 		pbTraces.keccaks.HashedBuffers[i] = &pb.KeccakBuffer{
 			Buffer:     keccakOp.buf,
 			KeccakHash: pb.Uint256ToProtoUint256(types.Uint256(*hash)),
+		}
+	}
+
+	for i, ecdsaSign := range traces.EcdsaTraces {
+		hash := ecdsaSign.hash.Uint256()
+		pbTraces.ecdsa.EcdsaSigns[i] = &pb.EcdsaSign{
+			Hash:    pb.Uint256ToProtoUint256(types.Uint256(*hash)),
+			R:       pb.Uint256ToProtoUint256(ecdsaSign.r),
+			S:       pb.Uint256ToProtoUint256(ecdsaSign.s),
+			V:       pb.Uint256ToProtoUint256(*types.NewUint256(uint64(ecdsaSign.v))),
+			PubKeyX: pb.Uint256ToProtoUint256(ecdsaSign.pubKeyX),
+			PubKeyY: pb.Uint256ToProtoUint256(ecdsaSign.pubKeyY),
 		}
 	}
 
