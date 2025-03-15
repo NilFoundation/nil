@@ -306,6 +306,9 @@ func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []b
 			if !ok {
 				return errors.New("receipt not found")
 			}
+			if receipt.decoded.OutTxnIndex+receipt.decoded.OutTxnNum >= uint32(len(parentIndex)) {
+				return fmt.Errorf("output txs range is out of bound: [index=%d, num=%d], block out txs count: %d, block id: %d", receipt.decoded.OutTxnIndex, receipt.decoded.OutTxnNum, len(parentIndex), block.decoded.Id)
+			}
 			for i := receipt.decoded.OutTxnIndex; i < receipt.decoded.OutTxnIndex+receipt.decoded.OutTxnNum; i++ {
 				parentIndex[i] = hash
 			}

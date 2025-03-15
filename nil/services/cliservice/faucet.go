@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	ReceiptWaitFor  = 15 * time.Second
-	ReceiptWaitTick = 200 * time.Millisecond
+	ReceiptWaitFor  = 20 * time.Second
+	ReceiptWaitTick = 500 * time.Millisecond
 )
 
 var ErrSmartAccountExists = errors.New("smart account already exists")
