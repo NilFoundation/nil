@@ -149,14 +149,13 @@ func (p *proposer) fetchPrevBlock(tx db.RoTx) (*types.Block, error) {
 func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
 	if p.params.ShardId.IsMainShard() {
 		p.proposal.ShardHashes = make([]common.Hash, p.params.NShards-1)
-		for i := uint32(1); i < p.params.NShards; i++ {
-			shardId := types.ShardId(i)
+		for shardId := types.ShardId(1); types.ShardCount(shardId) < p.params.NShards; shardId++ {
 			lastBlockHash, err := db.ReadLastBlockHash(tx, shardId)
 			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 				return err
 			}
 
-			p.proposal.ShardHashes[i-1] = lastBlockHash
+			p.proposal.ShardHashes[shardId-1] = lastBlockHash
 		}
 	} else {
 		lastBlockHash, err := db.ReadLastBlockHash(tx, types.MainShardId)

@@ -42,7 +42,7 @@ func InitParams(accessor ConfigAccessor) {
 	for _, p := range ParamsList {
 		data, err := p.MarshalSSZ()
 		check.PanicIfErr(err)
-		err = accessor.SetParamData(p.Name(), data)
+		err = accessor.setParamData(p.Name(), data)
 		check.PanicIfErr(err)
 	}
 }
@@ -241,10 +241,10 @@ func SetParamL1Block(c ConfigAccessor, params *ParamL1BlockInfo) error {
 	return setParamImpl(c, params)
 }
 
-func GetParamNShards(c ConfigAccessor) (uint32, error) {
+func GetParamNShards(c ConfigAccessor) (types.ShardCount, error) {
 	param, err := getParamImpl[ParamGasPrice](c)
 	if err != nil {
 		return 0, err
 	}
-	return uint32(len(param.Shards)), nil
+	return types.ShardCount(len(param.Shards)), nil
 }

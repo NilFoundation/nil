@@ -17,14 +17,14 @@ import (
 
 type BlockGeneratorParams struct {
 	ShardId          types.ShardId
-	NShards          uint32
+	NShards          types.ShardCount
 	TraceEVM         bool
 	MainKeysPath     string
 	DisableConsensus bool
 	FeeCalculator    FeeCalculator
 }
 
-func NewBlockGeneratorParams(shardId types.ShardId, nShards uint32) BlockGeneratorParams {
+func NewBlockGeneratorParams(shardId types.ShardId, nShards types.ShardCount) BlockGeneratorParams {
 	return BlockGeneratorParams{
 		ShardId: shardId,
 		NShards: nShards,

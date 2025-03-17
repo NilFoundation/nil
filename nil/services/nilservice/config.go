@@ -209,7 +209,7 @@ func (c *Config) LoadValidatorPrivateKey() (bls.PrivateKey, error) {
 func (c *Config) BlockGeneratorParams(shardId types.ShardId) execution.BlockGeneratorParams {
 	return execution.BlockGeneratorParams{
 		ShardId:          shardId,
-		NShards:          c.NShards,
+		NShards:          types.ShardCount(c.NShards),
 		TraceEVM:         c.TraceEVM,
 		MainKeysPath:     c.MainKeysPath,
 		DisableConsensus: c.DisableConsensus,

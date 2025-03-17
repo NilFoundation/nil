@@ -8,7 +8,10 @@ import (
 )
 
 // 32 bits are more than enough while avoiding problems with marshaling 64-bit values as numbers in JSON.
-type ShardId uint32
+type (
+	ShardId    uint32
+	ShardCount ShardId
+)
 
 const (
 	MainShardId    = ShardId(0)

@@ -18,11 +18,20 @@ type ProposerTestSuite struct {
 	suite.Suite
 
 	shardId types.ShardId
+	nShards types.ShardCount
 	db      db.DB
+
+	configAccessor config.ConfigAccessor
 }
 
 func (s *ProposerTestSuite) SetupSuite() {
 	s.shardId = types.BaseShardId
+	s.nShards = 2
+	s.configAccessor = config.NewConfigAccessorFromMap(map[string][]byte{})
+	gasPrices := &config.ParamGasPrice{
+		Shards: make([]types.Uint256, s.nShards),
+	}
+	config.SetParamGasPrice(s.configAccessor, gasPrices)
 }
 
 func (s *ProposerTestSuite) SetupTest() {
@@ -37,7 +46,7 @@ func (s *ProposerTestSuite) TearDownTest() {
 
 func (s *ProposerTestSuite) newParams() *Params {
 	return &Params{
-		BlockGeneratorParams: execution.NewBlockGeneratorParams(s.shardId, 2),
+		BlockGeneratorParams: execution.NewBlockGeneratorParams(s.shardId, s.nShards),
 	}
 }
 
@@ -246,7 +255,7 @@ func (s *ProposerTestSuite) getBalance(shardId types.ShardId, addr types.Address
 
 	state, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
 		Block:          block,
-		ConfigAccessor: config.GetStubAccessor(),
+		ConfigAccessor: s.configAccessor,
 	})
 	s.Require().NoError(err)
 	acc, err := state.GetAccount(addr)

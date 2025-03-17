@@ -26,9 +26,9 @@ func init() {
 }
 
 type ConfigAccessor interface {
-	GetParamData(name string) ([]byte, error)
+	getParamData(name string) ([]byte, error)
 	GetParams() (map[string][]byte, error)
-	SetParamData(name string, data []byte) error
+	setParamData(name string, data []byte) error
 	Commit(tx db.RwTx, root common.Hash) (common.Hash, error)
 }
 
@@ -78,11 +78,13 @@ func NewConfigReader(tx db.RoTx, mainShardHash *common.Hash) (ConfigAccessor, er
 	return &configReader{trie}, nil
 }
 
-type ConfigAccessorStub struct{}
+type ConfigAccessorStub struct {
+	data map[string][]byte
+}
 
 var _ ConfigAccessor = (*ConfigAccessorStub)(nil)
 
-func (c *ConfigAccessorStub) GetParamData(name string) ([]byte, error) {
+func (c *ConfigAccessorStub) getParamData(name string) ([]byte, error) {
 	return nil, errors.New("stub config accessor should not be called")
 }
 
@@ -90,7 +92,7 @@ func (c *ConfigAccessorStub) GetParams() (map[string][]byte, error) {
 	return nil, nil // don't return error for the same reason as for Commit.
 }
 
-func (c *ConfigAccessorStub) SetParamData(name string, data []byte) error {
+func (c *ConfigAccessorStub) setParamData(name string, data []byte) error {
 	return errors.New("stub config accessor should not be called")
 }
 
@@ -153,7 +155,7 @@ func (c *configAccessorImpl) Commit(tx db.RwTx, root common.Hash) (common.Hash, 
 	return trie.RootHash(), nil
 }
 
-func (c *configReader) GetParamData(name string) ([]byte, error) {
+func (c *configReader) getParamData(name string) ([]byte, error) {
 	return c.trie.Get([]byte(name))
 }
 
@@ -165,7 +167,7 @@ func (c *configReader) GetParams() (map[string][]byte, error) {
 	return result, nil
 }
 
-func (c *configReader) SetParamData(name string, data []byte) error {
+func (c *configReader) setParamData(name string, data []byte) error {
 	return errors.New("call `SetParamData` for read-only config accessor")
 }
 
@@ -173,7 +175,7 @@ func (c *configReader) Commit(tx db.RwTx, root common.Hash) (common.Hash, error)
 	return common.EmptyHash, errors.New("call `Commit` for read-only config accessor")
 }
 
-func (c *configAccessorImpl) GetParamData(name string) ([]byte, error) {
+func (c *configAccessorImpl) getParamData(name string) ([]byte, error) {
 	data, ok := c.writeData[name]
 	if !ok {
 		data, ok = c.readData[name]
@@ -195,7 +197,7 @@ func (c *configAccessorImpl) GetParams() (map[string][]byte, error) {
 	return result, nil
 }
 
-func (c *configAccessorImpl) SetParamData(name string, data []byte) error {
+func (c *configAccessorImpl) setParamData(name string, data []byte) error {
 	c.writeData[name] = data
 	return nil
 }
@@ -239,7 +241,7 @@ func PackSolidity(name string, v any) ([]byte, error) {
 // getParamImpl retrieves the value of the specified config param from in-memory data or trie.
 func getParamImpl[T any, paramPtr IConfigParamPointer[T]](c ConfigAccessor) (*T, error) {
 	var res paramPtr = new(T)
-	data, err := c.GetParamData(res.Name())
+	data, err := c.getParamData(res.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +260,7 @@ func setParamImpl[T any](c ConfigAccessor, obj *T) error {
 			if err != nil {
 				return fmt.Errorf("failed to marshal config param %s: %w", name, err)
 			}
-			return c.SetParamData(name, data)
+			return c.setParamData(name, data)
 		}
 		return errors.New("type does not implement ssz.Marshaler")
 	}

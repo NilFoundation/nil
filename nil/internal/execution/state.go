@@ -57,6 +57,8 @@ type RollbackParams struct {
 	SearchDepth uint32
 }
 
+type ShardTxCounts map[types.ShardId]types.TransactionIndex
+
 type ExecutionState struct {
 	tx                 db.RwTx
 	ContractTree       *ContractTrie
@@ -83,6 +85,7 @@ type ExecutionState struct {
 	InTransactions      []*types.Transaction
 	InTransactionHashes []common.Hash
 
+	ShardTxIds ShardTxCounts
 	// OutTransactions holds outbound transactions for every transaction in the executed block, where key is hash of Transaction that sends the transaction
 	OutTransactions map[common.Hash][]*types.OutboundTransaction
 
@@ -261,6 +264,19 @@ type StateParams struct {
 	FeeCalculator  FeeCalculator
 }
 
+func fetchShardTxIds(tx db.RoTx, shardId types.ShardId, nShards types.ShardCount, root common.Hash) ShardTxCounts {
+	txCountTrie := NewDbTxCountTrieReader(tx, shardId)
+	txCountTrie.SetRootHash(root)
+	res := ShardTxCounts{}
+	for i := types.ShardId(0); i < types.ShardId(nShards); i++ {
+		count, err := txCountTrie.Fetch(i)
+		if err == nil && count != nil {
+			res[i] = *count
+		}
+	}
+	return res
+}
+
 func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*ExecutionState, error) {
 	var resTx db.RwTx
 	isReadOnly := false
@@ -314,7 +330,7 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 }
 
 func (es *ExecutionState) initTries() error {
-	data, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
+	prevBlock, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return err
 	}
@@ -324,7 +340,13 @@ func (es *ExecutionState) initTries() error {
 	es.OutTransactionTree = NewDbTransactionTrie(es.tx, es.ShardId)
 	es.ReceiptTree = NewDbReceiptTrie(es.tx, es.ShardId)
 	if err == nil {
-		es.ContractTree.SetRootHash(data.Block().SmartContractsRoot)
+		es.ContractTree.SetRootHash(prevBlock.Block().SmartContractsRoot)
+
+		nShards, err := config.GetParamNShards(es.configAccessor)
+		if err != nil {
+			return err
+		}
+		es.ShardTxIds = fetchShardTxIds(es.tx, es.ShardId, nShards, prevBlock.Block().OutTransactionsRoot)
 	}
 
 	return nil
@@ -877,6 +899,10 @@ func (es *ExecutionState) AddOutTransaction(caller types.Address, payload *types
 	txn.MaxPriorityFeePerGas = es.GetInTransaction().MaxPriorityFeePerGas
 	txn.MaxFeePerGas = es.GetInTransaction().MaxFeePerGas
 
+	// Use the next transaction index for the shard
+	txn.ShardPairTxId = es.ShardTxIds[txn.To.ShardId()]
+	es.ShardTxIds[txn.To.ShardId()] = txn.ShardPairTxId + 1
+
 	txnHash := txn.Hash()
 
 	// In case of bounce transaction, we don't debit token from account
@@ -1348,6 +1374,25 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 	}
 	if err := es.OutTransactionTree.UpdateBatch(outTxnKeys, outTxnValues); err != nil {
 		return nil, err
+	}
+
+	var txCountKeys []types.ShardId
+	var txCountValues []*types.TransactionIndex
+	for shardId, count := range es.ShardTxIds {
+		if count > 0 {
+			txCountKeys = append(txCountKeys, shardId)
+			c := count
+			txCountValues = append(txCountValues, &c)
+		}
+	}
+
+	if txCountKeys != nil {
+		txCountTrie := NewDbTxCountTrie(es.tx, es.ShardId)
+		txCountTrie.SetRootHash(es.OutTransactionTree.RootHash())
+		if err := txCountTrie.UpdateBatch(txCountKeys, txCountValues); err != nil {
+			return nil, err
+		}
+		es.OutTransactionTree.SetRootHash(txCountTrie.RootHash())
 	}
 
 	if assert.Enable {

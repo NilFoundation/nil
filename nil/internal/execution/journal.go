@@ -296,6 +296,11 @@ func (w *ExecutionStateRevertableWrapper) revertOutTransactionsChange(index int,
 	check.PanicIfNot(index == len(outTransactions)-1)
 
 	w.es.OutTransactions[txnHash] = outTransactions[:index]
+
+	// restore per-shard tx id
+	revertedTx := outTransactions[index]
+	check.PanicIfNot(w.es.ShardTxIds[revertedTx.To.ShardId()] == revertedTx.ShardPairTxId+1)
+	w.es.ShardTxIds[revertedTx.To.ShardId()] = revertedTx.ShardPairTxId
 }
 
 func (w *ExecutionStateRevertableWrapper) revertAsyncContextChange(addr types.Address, requestId types.TransactionIndex) {

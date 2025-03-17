@@ -36,6 +36,7 @@ type BaseMPT[K any, V any, VPtr MPTValue[V]] struct {
 type (
 	ContractTrie     = BaseMPT[common.Hash, types.SmartContract, *types.SmartContract]
 	TransactionTrie  = BaseMPT[types.TransactionIndex, types.Transaction, *types.Transaction]
+	TxCountTrie      = BaseMPT[types.ShardId, types.TransactionIndex, *types.TransactionIndex]
 	ReceiptTrie      = BaseMPT[types.TransactionIndex, types.Receipt, *types.Receipt]
 	StorageTrie      = BaseMPT[common.Hash, types.Uint256, *types.Uint256]
 	TokenTrie        = BaseMPT[types.TokenId, types.Value, *types.Value]
@@ -44,6 +45,7 @@ type (
 
 	ContractTrieReader     = BaseMPTReader[common.Hash, types.SmartContract, *types.SmartContract]
 	TransactionTrieReader  = BaseMPTReader[types.TransactionIndex, types.Transaction, *types.Transaction]
+	TxCountTrieReader      = BaseMPTReader[types.ShardId, types.TransactionIndex, *types.TransactionIndex]
 	ReceiptTrieReader      = BaseMPTReader[types.TransactionIndex, types.Receipt, *types.Receipt]
 	StorageTrieReader      = BaseMPTReader[common.Hash, types.Uint256, *types.Uint256]
 	TokenTrieReader        = BaseMPTReader[types.TokenId, types.Value, *types.Value]
@@ -64,6 +66,14 @@ func NewTransactionTrieReader(parent *mpt.Reader) *TransactionTrieReader {
 		parent,
 		func(k types.TransactionIndex) []byte { return k.Bytes() },
 		func(bs []byte) (types.TransactionIndex, error) { return types.BytesToTransactionIndex(bs), nil },
+	}
+}
+
+func NewTxCountTrieReader(parent *mpt.Reader) *TxCountTrieReader {
+	return &TxCountTrieReader{
+		parent,
+		func(k types.ShardId) []byte { return k.Bytes() },
+		func(bs []byte) (types.ShardId, error) { return types.BytesToShardId(bs), nil },
 	}
 }
 
@@ -125,6 +135,13 @@ func NewTransactionTrie(parent *mpt.MerklePatriciaTrie) *TransactionTrie {
 	}
 }
 
+func NewTxCountTrie(parent *mpt.MerklePatriciaTrie) *TxCountTrie {
+	return &TxCountTrie{
+		BaseMPTReader: NewTxCountTrieReader(parent.Reader),
+		rwTrie:        parent,
+	}
+}
+
 func NewReceiptTrie(parent *mpt.MerklePatriciaTrie) *ReceiptTrie {
 	return &ReceiptTrie{
 		BaseMPTReader: NewReceiptTrieReader(parent.Reader),
@@ -168,6 +185,10 @@ func NewDbTransactionTrieReader(tx db.RoTx, shardId types.ShardId) *TransactionT
 	return NewTransactionTrieReader(mpt.NewDbReader(tx, shardId, db.TransactionTrieTable))
 }
 
+func NewDbTxCountTrieReader(tx db.RoTx, shardId types.ShardId) *TxCountTrieReader {
+	return NewTxCountTrieReader(mpt.NewDbReader(tx, shardId, db.TransactionTrieTable))
+}
+
 func NewDbReceiptTrieReader(tx db.RoTx, shardId types.ShardId) *ReceiptTrieReader {
 	return NewReceiptTrieReader(mpt.NewDbReader(tx, shardId, db.ReceiptTrieTable))
 }
@@ -194,6 +215,10 @@ func NewDbContractTrie(tx db.RwTx, shardId types.ShardId) *ContractTrie {
 
 func NewDbTransactionTrie(tx db.RwTx, shardId types.ShardId) *TransactionTrie {
 	return NewTransactionTrie(mpt.NewDbMPT(tx, shardId, db.TransactionTrieTable))
+}
+
+func NewDbTxCountTrie(tx db.RwTx, shardId types.ShardId) *TxCountTrie {
+	return NewTxCountTrie(mpt.NewDbMPT(tx, shardId, db.TransactionTrieTable))
 }
 
 func NewDbReceiptTrie(tx db.RwTx, shardId types.ShardId) *ReceiptTrie {
