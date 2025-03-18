@@ -161,8 +161,8 @@ type TransactionDigest struct {
 type Transaction struct {
 	TransactionDigest
 	From     Address        `json:"from,omitempty" ch:"from"`
-	RefundTo Address        `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo Address        `json:"bounceTo,omitempty" ch:"bounceTo"`
+	RefundTo Address        `json:"refundTo,omitempty" ch:"refund_to"`
+	BounceTo Address        `json:"bounceTo,omitempty" ch:"bounce_to"`
 	Value    Value          `json:"value,omitempty" ch:"value" ssz-size:"32"`
 	Token    []TokenBalance `json:"token,omitempty" ch:"token" ssz-max:"256"`
 
@@ -198,8 +198,8 @@ type InternalTransactionPayload struct {
 	FeeCredit      Value           `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
 	ForwardKind    ForwardKind     `json:"forwardKind,omitempty" ch:"forward_kind"`
 	To             Address         `json:"to,omitempty" ch:"to"`
-	RefundTo       Address         `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo       Address         `json:"bounceTo,omitempty" ch:"bounceTo"`
+	RefundTo       Address         `json:"refundTo,omitempty" ch:"refund_to"`
+	BounceTo       Address         `json:"bounceTo,omitempty" ch:"bounce_to"`
 	Token          []TokenBalance  `json:"token,omitempty" ch:"token" ssz-max:"256"`
 	Value          Value           `json:"value,omitempty" ch:"value" ssz-size:"32"`
 	Data           Code            `json:"data,omitempty" ch:"data" ssz-max:"24576"`

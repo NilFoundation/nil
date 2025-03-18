@@ -41,7 +41,7 @@ type BlockData struct {
 	// It can be considered as an array, where each segment is referred by corresponding receipt.
 	OutTransactionsRoot common.Hash `json:"outTransactionsRoot" ch:"out_transactions_root"`
 	// We cache the size of out transactions, otherwise we should iterate all the tree to get its size
-	OutTransactionsNum  TransactionIndex `json:"outTransactionsNum" ch:"out_transaction_num"`
+	OutTransactionsNum  TransactionIndex `json:"outTransactionsNum" ch:"out_txn_num"`
 	ReceiptsRoot        common.Hash      `json:"receiptsRoot" ch:"receipts_root"`
 	ChildBlocksRootHash common.Hash      `json:"childBlocksRootHash" ch:"child_blocks_root_hash"`
 	MainShardHash       common.Hash      `json:"mainShardHash" ch:"main_chain_hash"`
