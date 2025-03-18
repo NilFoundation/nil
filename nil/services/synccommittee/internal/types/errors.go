@@ -9,9 +9,8 @@ import (
 )
 
 var (
-	ErrBlockNotFound   = errors.New("block with the specified id is not found")
-	ErrBatchNotFound   = errors.New("batch with the specified id is not found")
-	ErrBlockProcessing = errors.New("block processing error")
+	ErrBlockNotFound = errors.New("block with the specified id is not found")
+	ErrBatchNotFound = errors.New("batch with the specified id is not found")
 )
 
 var (

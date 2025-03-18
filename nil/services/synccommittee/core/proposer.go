@@ -20,8 +20,6 @@ import (
 )
 
 type ProposerStorage interface {
-	TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error)
-
 	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
 
 	TryGetNextProposalData(ctx context.Context) (*scTypes.ProposalData, error)

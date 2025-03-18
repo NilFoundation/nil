@@ -19,6 +19,8 @@ const (
 	BatchSize   = ShardsCount + 1
 )
 
+var GenesisMainShardHash = RandomHash()
+
 func RandomHash() common.Hash {
 	randomBytes := make([]byte, 32)
 	_, err := rand.Read(randomBytes)
@@ -73,7 +75,7 @@ func NewBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
 		nextBatch := NewBlockBatch(ShardsCount)
 		if len(batches) == 0 {
 			nextBatch.MainShardBlock.Number = 0
-			nextBatch.MainShardBlock.ParentHash = common.EmptyHash
+			nextBatch.MainShardBlock.ParentHash = GenesisMainShardHash
 		} else {
 			prevBatch := batches[len(batches)-1]
 			nextBatch.MainShardBlock.ParentHash = prevBatch.MainShardBlock.Hash
