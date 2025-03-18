@@ -7,6 +7,7 @@
 , nodejs
 , enableTesting ? false
 , cypress
+, nil
 }:
 
 stdenv.mkDerivation rec {
@@ -26,7 +27,13 @@ stdenv.mkDerivation rec {
 
   NODE_PATH = "$npmDeps";
 
-  nativeBuildInputs = [ nodejs npmHooks.npmConfigHook biome python3 ];
+  nativeBuildInputs = [
+    nodejs
+    npmHooks.npmConfigHook
+    biome
+    python3
+    nil
+  ] ++ (if enableTesting then [ nil ] else [ ]);
 
   dontConfigure = true;
 
@@ -39,6 +46,7 @@ stdenv.mkDerivation rec {
   '';
 
   buildPhase = ''
+    export NIL=${nil}
     patchShebangs explorer_frontend/node_modules
     patchShebangs node_modules
 
@@ -55,7 +63,7 @@ stdenv.mkDerivation rec {
     export BIOME_BINARY=${biome}/bin/biome
 
     echo "Checking explorer frontend"
-    (cd explorer_frontend; npm run lint;)
+    (cd explorer_frontend; npm run lint; bash run_tutorial_tests.sh;)
 
     echo "Checking explorer backend"
     (cd explorer_backend; npm run lint;)
@@ -64,6 +72,8 @@ stdenv.mkDerivation rec {
     cd explorer_backend
     npm run start & NPM_PID=$!
     sleep 7
+
+    
 
     if kill -0 $NPM_PID 2>/dev/null; then
       echo "Explorer backend is running successfully"

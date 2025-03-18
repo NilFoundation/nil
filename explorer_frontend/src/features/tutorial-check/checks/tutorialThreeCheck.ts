@@ -4,36 +4,31 @@ import {
   generateSmartAccount,
   waitTillCompleted,
 } from "@nilfoundation/niljs";
-import { TutorialChecksStatus, setTutorialChecksState } from "../../../pages/tutorials/model";
-import { $rpcUrl } from "../../account-connector/model";
-import type { App } from "../../code/types";
-import { $contracts, deploySmartContractFx } from "../../contracts/models/base";
-import { setCompletedTutorial } from "../../tutorial/model";
-import { tutorialContractStepFailedEvent, tutorialContractStepPassedEvent } from "../model";
+import { TutorialChecksStatus } from "../../../pages/tutorials/model";
+import { deploySmartContractFx } from "../../contracts/models/base";
+import type { CheckProps } from "../CheckProps";
 
-async function runTutorialCheckThree() {
+async function runTutorialCheckThree(props: CheckProps) {
   const client = new PublicClient({
     transport: new HttpTransport({
-      endpoint: $rpcUrl.getState(),
+      endpoint: props.rpcUrl,
     }),
     shardId: 1,
   });
 
-  const requesterContract = $contracts
-    .getState()
-    .find((contract) => contract.name === "Requester")!;
-  const requestedContract = $contracts
-    .getState()
-    .find((contract) => contract.name === "RequestedContract")!;
+  const requesterContract = props.contracts.find((contract) => contract.name === "Requester")!;
+  const requestedContract = props.contracts.find(
+    (contract) => contract.name === "RequestedContract",
+  )!;
 
-  const appRequester: App = {
+  const appRequester = {
     name: "Requester",
     bytecode: requesterContract.bytecode,
     abi: requesterContract.abi,
     sourcecode: requesterContract.sourcecode,
   };
 
-  const appRequestedContract: App = {
+  const appRequestedContract = {
     name: "RequestedContract",
     bytecode: requestedContract.bytecode,
     abi: requestedContract.abi,
@@ -42,13 +37,13 @@ async function runTutorialCheckThree() {
 
   const smartAccount = await generateSmartAccount({
     shardId: 1,
-    rpcEndpoint: $rpcUrl.getState(),
-    faucetEndpoint: $rpcUrl.getState(),
+    rpcEndpoint: props.rpcUrl,
+    faucetEndpoint: props.rpcUrl,
   });
 
-  tutorialContractStepPassedEvent("A new smart account has been generated!");
+  props.tutorialContractStepPassed("A new smart account has been generated!");
 
-  const resultRequester = await deploySmartContractFx({
+  const resultRequester = await props.deploymentEffect({
     app: appRequester,
     args: [],
     shardId: 1,
@@ -62,7 +57,7 @@ async function runTutorialCheckThree() {
     smartAccount,
   });
 
-  tutorialContractStepPassedEvent("Requester and RequestedContract have been deployed!");
+  props.tutorialContractStepPassed("Requester and RequestedContract have been deployed!");
 
   const hashRequest = await smartAccount.sendTransaction({
     to: resultRequester.address,
@@ -76,13 +71,13 @@ async function runTutorialCheckThree() {
   const checkRequest = await resRequest.some((receipt) => !receipt.success);
 
   if (checkRequest) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resRequest);
-    tutorialContractStepFailedEvent("Failed to call Requester.requestMultiplication()!");
-    return;
+    props.tutorialContractStepFailed("Failed to call Requester.requestMultiplication()!");
+    return false;
   }
 
-  tutorialContractStepPassedEvent(
+  props.tutorialContractStepPassed(
     "Requester.requestMultiplication() has been called successfully!",
   );
 
@@ -96,18 +91,20 @@ async function runTutorialCheckThree() {
   );
 
   if (!result.decodedData) {
-    tutorialContractStepFailedEvent("Failed to verify the result of multiplication!");
-    setTutorialChecksState(TutorialChecksStatus.Failed);
-    return;
+    props.tutorialContractStepFailed("Failed to verify the result of multiplication!");
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
+    return false;
   }
 
-  tutorialContractStepPassedEvent("The result of multiplication has been verified!");
+  props.tutorialContractStepPassed("The result of multiplication has been verified!");
 
-  setTutorialChecksState(TutorialChecksStatus.Successful);
+  props.setTutorialChecksEvent(TutorialChecksStatus.Successful);
 
-  setCompletedTutorial(3);
+  props.setCompletedTutorialEvent(3);
 
-  tutorialContractStepPassedEvent("Tutorial Three has been completed successfully!");
+  props.tutorialContractStepPassed("Tutorial Three has been completed successfully!");
+
+  return true;
 }
 
 export default runTutorialCheckThree;

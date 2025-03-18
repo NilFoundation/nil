@@ -4,34 +4,30 @@ import {
   generateSmartAccount,
   waitTillCompleted,
 } from "@nilfoundation/niljs";
-import { TutorialChecksStatus, setTutorialChecksState } from "../../../pages/tutorials/model";
-import { $rpcUrl } from "../../account-connector/model";
-import type { App } from "../../code/types";
-import { $contracts, deploySmartContractFx } from "../../contracts/models/base";
-import { setCompletedTutorial } from "../../tutorial/model";
-import { tutorialContractStepFailedEvent, tutorialContractStepPassedEvent } from "../model";
+import { TutorialChecksStatus } from "../../../pages/tutorials/model";
+import type { CheckProps } from "../CheckProps";
 
-async function runTutorialCheckFive() {
+async function runTutorialCheckFive(props: CheckProps) {
   const client = new PublicClient({
     transport: new HttpTransport({
-      endpoint: $rpcUrl.getState(),
+      endpoint: props.rpcUrl,
     }),
     shardId: 1,
   });
 
   const gasPrice = await client.getGasPrice(1);
 
-  const receiverContract = $contracts.getState().find((contract) => contract.name === "Receiver")!;
-  const NFTContract = $contracts.getState().find((contract) => contract.name === "NFT")!;
+  const receiverContract = props.contracts.find((contract) => contract.name === "Receiver")!;
+  const NFTContract = props.contracts.find((contract) => contract.name === "NFT")!;
 
-  const appReceiver: App = {
+  const appReceiver = {
     name: "Receiver",
     bytecode: receiverContract.bytecode,
     abi: receiverContract.abi,
     sourcecode: receiverContract.sourcecode,
   };
 
-  const appNFT: App = {
+  const appNFT = {
     name: "NFT",
     bytecode: NFTContract.bytecode,
     abi: NFTContract.abi,
@@ -40,27 +36,27 @@ async function runTutorialCheckFive() {
 
   const smartAccount = await generateSmartAccount({
     shardId: 1,
-    rpcEndpoint: $rpcUrl.getState(),
-    faucetEndpoint: $rpcUrl.getState(),
+    rpcEndpoint: props.rpcUrl,
+    faucetEndpoint: props.rpcUrl,
   });
 
-  tutorialContractStepPassedEvent("A new smart account has been generated!");
+  props.tutorialContractStepPassed("A new smart account has been generated!");
 
-  const resultReceiver = await deploySmartContractFx({
+  const resultReceiver = await props.deploymentEffect({
     app: appReceiver,
     args: [],
     shardId: 1,
     smartAccount,
   });
 
-  const resultNFT = await deploySmartContractFx({
+  const resultNFT = await props.deploymentEffect({
     app: appNFT,
     args: [],
     shardId: 2,
     smartAccount,
   });
 
-  tutorialContractStepPassedEvent("Receiver and NFT have been deployed successfully!");
+  props.tutorialContractStepPassed("Receiver and NFT have been deployed successfully!");
 
   const mintRequest = await smartAccount.sendTransaction({
     to: resultNFT.address,
@@ -75,13 +71,13 @@ async function runTutorialCheckFive() {
   const checkMinting = await resMinting.some((receipt) => !receipt.success);
 
   if (checkMinting) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resMinting);
-    tutorialContractStepFailedEvent("Failed to mint the NFT!");
-    return;
+    props.tutorialContractStepFailed("Failed to mint the NFT!");
+    return false;
   }
 
-  tutorialContractStepPassedEvent("NFT has been minted successfully!");
+  props.tutorialContractStepPassed("NFT has been minted successfully!");
 
   const secondMintRequest = await smartAccount.sendTransaction({
     to: resultNFT.address,
@@ -96,13 +92,13 @@ async function runTutorialCheckFive() {
   const checkSecondMinting = await resSecondMinting.some((receipt) => !receipt.success);
 
   if (!checkSecondMinting) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resSecondMinting);
-    tutorialContractStepFailedEvent("NFT has been minted twice!");
-    return;
+    props.tutorialContractStepFailed("NFT has been minted twice!");
+    return false;
   }
 
-  tutorialContractStepPassedEvent("NFT is protected against repeated minting!");
+  props.tutorialContractStepPassed("NFT is protected against repeated minting!");
 
   const sendRequest = await smartAccount.sendTransaction({
     to: resultNFT.address,
@@ -116,27 +112,29 @@ async function runTutorialCheckFive() {
   const checkSending = await resSending.some((receipt) => !receipt.success);
 
   if (checkSending) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resSending);
-    tutorialContractStepFailedEvent("Failed to send the NFT!");
-    return;
+    props.tutorialContractStepFailed("Failed to send the NFT!");
+    return false;
   }
 
   const result = await client.getTokens(resultReceiver.address, "latest");
 
   if (Object.keys(result).length === 0) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
-    tutorialContractStepFailedEvent("NFT has not been received!");
-    return;
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
+    props.tutorialContractStepFailed("NFT has not been received!");
+    return false;
   }
 
-  tutorialContractStepPassedEvent("NFT has been received successfully!");
+  props.tutorialContractStepPassed("NFT has been received successfully!");
 
-  setTutorialChecksState(TutorialChecksStatus.Successful);
+  props.setTutorialChecksEvent(TutorialChecksStatus.Successful);
 
-  tutorialContractStepPassedEvent("Tutorial has been completed successfully!");
+  props.tutorialContractStepPassed("Tutorial has been completed successfully!");
 
-  setCompletedTutorial(5);
+  props.setCompletedTutorialEvent(5);
+
+  return true;
 }
 
 export default runTutorialCheckFive;

@@ -89,21 +89,8 @@ export const triggerShardIdValidation = createEvent();
 export const $deploySmartContractError = createStore<string | null>(null);
 
 export const deploySmartContract = createEvent();
-export const deploySmartContractFx = createEffect<
-  {
-    app: App;
-    args: unknown[];
-    shardId: number;
-    smartAccount: SmartAccountV1;
-  },
-  {
-    address: Hex;
-    app: Hex;
-    name: string;
-    deployedFrom?: Hex;
-    txHash: Hex;
-  }
->(async ({ app, args, smartAccount, shardId }) => {
+
+export const deployContractFunction = async ({ app, args, smartAccount, shardId }) => {
   const salt = BigInt(Math.floor(Math.random() * 10000000000000000));
 
   const { hash, address } = await smartAccount.deployContract({
@@ -124,6 +111,24 @@ export const deploySmartContractFx = createEffect<
     deployedFrom: smartAccount.address,
     txHash: hash,
   };
+};
+
+export const deploySmartContractFx = createEffect<
+  {
+    app: App;
+    args: unknown[];
+    shardId: number;
+    smartAccount: SmartAccountV1;
+  },
+  {
+    address: Hex;
+    app: Hex;
+    name: string;
+    deployedFrom?: Hex;
+    txHash: Hex;
+  }
+>(async ({ app, args, smartAccount, shardId }) => {
+  return await deployContractFunction({ app, args, smartAccount, shardId });
 });
 
 export const registerContractInCometaFx = createEffect<

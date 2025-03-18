@@ -89,8 +89,10 @@
             enableTesting = true;
             solc = packages.solc;
           });
-          nilexplorer =
-            (pkgs.callPackage ./nix/nilexplorer.nix { enableTesting = true; });
+          nilexplorer = (pkgs.callPackage ./nix/nilexplorer.nix {
+            enableTesting = true;
+            nil = packages.nil;
+          });
           walletextension = (pkgs.callPackage ./nix/walletextension.nix {
             nil = packages.nil;
             enableTesting = true;

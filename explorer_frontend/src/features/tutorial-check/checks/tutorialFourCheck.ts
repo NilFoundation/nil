@@ -4,22 +4,19 @@ import {
   generateSmartAccount,
   waitTillCompleted,
 } from "@nilfoundation/niljs";
-import { TutorialChecksStatus, setTutorialChecksState } from "../../../pages/tutorials/model";
-import { $rpcUrl } from "../../account-connector/model";
-import { $contracts, deploySmartContractFx } from "../../contracts/models/base";
-import { setCompletedTutorial } from "../../tutorial/model";
-import { tutorialContractStepFailedEvent, tutorialContractStepPassedEvent } from "../model";
+import { TutorialChecksStatus } from "../../../pages/tutorials/model";
+import type { CheckProps } from "../CheckProps";
 
-async function runTutorialCheckFour() {
+async function runTutorialCheckFour(props: CheckProps) {
   const client = new PublicClient({
     transport: new HttpTransport({
-      endpoint: $rpcUrl.getState(),
+      endpoint: props.rpcUrl,
     }),
     shardId: 1,
   });
 
-  const counterContract = $contracts.getState().find((contract) => contract.name === "Counter")!;
-  const deployerContract = $contracts.getState().find((contract) => contract.name === "Deployer")!;
+  const counterContract = props.contracts.find((contract) => contract.name === "Counter")!;
+  const deployerContract = props.contracts.find((contract) => contract.name === "Deployer")!;
 
   const appCounter = {
     name: "Counter",
@@ -37,28 +34,30 @@ async function runTutorialCheckFour() {
 
   const smartAccount = await generateSmartAccount({
     shardId: 1,
-    rpcEndpoint: $rpcUrl.getState(),
-    faucetEndpoint: $rpcUrl.getState(),
+    rpcEndpoint: props.rpcUrl,
+    faucetEndpoint: props.rpcUrl,
   });
 
-  tutorialContractStepPassedEvent("A new smart account has been generated!");
+  props.tutorialContractStepPassed("A new smart account has been generated!");
 
-  const resultDeployer = await deploySmartContractFx({
+  const resultDeployer = await props.deploymentEffect({
     app: appDeployer,
     args: [],
     shardId: 2,
     smartAccount,
   });
 
-  tutorialContractStepPassedEvent("Deployer has been deployed!");
+  props.tutorialContractStepPassed("Deployer has been deployed!");
 
   const gasPrice = await client.getGasPrice(1);
+
+  const salt = BigInt(Math.floor(Math.random() * 1000000));
 
   const hashDeploy = await smartAccount.sendTransaction({
     to: resultDeployer.address,
     abi: deployerContract.abi,
     functionName: "deploy",
-    args: [appCounter.bytecode],
+    args: [appCounter.bytecode, salt],
     feeCredit: gasPrice * 500_000n,
   });
 
@@ -67,13 +66,13 @@ async function runTutorialCheckFour() {
   const checkDeploy = await resDeploy.some((receipt) => !receipt.success);
 
   if (checkDeploy) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resDeploy);
-    tutorialContractStepFailedEvent("Failed to call Deployer.deploy()!");
-    return;
+    props.tutorialContractStepFailed("Failed to call Deployer.deploy()!");
+    return false;
   }
 
-  tutorialContractStepPassedEvent("Counter has been deployed!");
+  props.tutorialContractStepPassed("Counter has been deployed!");
 
   const counterAddress = resDeploy.at(2)?.contractAddress as `0x${string}`;
 
@@ -90,19 +89,21 @@ async function runTutorialCheckFour() {
   const checkIncrement = resIncrement.some((receipt) => !receipt.success);
 
   if (checkIncrement) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resIncrement);
-    tutorialContractStepFailedEvent("Failed to call Counter.increment()!");
-    return;
+    props.tutorialContractStepFailed("Failed to call Counter.increment()!");
+    return false;
   }
 
-  tutorialContractStepPassedEvent("Counter.increment() has been called successfully!");
+  props.tutorialContractStepPassed("Counter.increment() has been called successfully!");
 
-  setTutorialChecksState(TutorialChecksStatus.Successful);
+  props.setTutorialChecksEvent(TutorialChecksStatus.Successful);
 
-  tutorialContractStepPassedEvent("Tutorial has been completed successfully!");
+  props.tutorialContractStepPassed("Tutorial has been completed successfully!");
 
-  setCompletedTutorial(3);
+  props.setCompletedTutorialEvent(3);
+
+  return true;
 }
 
 export default runTutorialCheckFour;

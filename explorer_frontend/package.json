@@ -13,7 +13,8 @@
     "analyze-bundle": "npx vite-bundle-visualizer --port 5000 --open",
     "serve": "serve -s dist -l 3000",
     "test:e2e": "wait-on http://localhost:3000 && cypress open",
-    "test:e2e:ci": "wait-on http://localhost:3000 && cypress run --headless"
+    "test:e2e:ci": "wait-on http://localhost:3000 && cypress run --headless",
+    "test:tutorials": "vitest ./tests/tutorials"
   },
   "author": "",
   "license": "ISC",
@@ -28,7 +29,8 @@
     "@replit/codemirror-lang-solidity": "^6.0.2",
     "@trpc/client": "10.38.5",
     "@trpc/server": "10.38.5",
-    "@types/react": "^18.2.6",
+    "@types/node": "18.19.80",
+    "@types/react": "18.3.1",
     "@types/react-dom": "^18.2.4",
     "@types/react-helmet": "^6.1.8",
     "@uiw/react-codemirror": "^4.19.16",
@@ -69,8 +71,10 @@
     "@types/loadable__component": "^5.13.6",
     "cypress": "^13.17.0",
     "serve": "^14.2.4",
+    "solc": "^0.8.29",
     "vite-bundle-visualizer": "^1.1.0",
     "vite-plugin-string": "^1.2.3",
+    "vitest": "^3.0.9",
     "wait-on": "^8.0.1"
   }
 }

@@ -19,5 +19,5 @@ in
       ../rollup-bridge-contracts/package.json
     ];
   };
-  hash = "sha256-pRxleAeCV5iiYixf1f4nyi4St5LNGf9rPk/ul4vPCpU=";
+  hash = "sha256-kUf/USfBCH2bB+Km4QxknRnrHXYY1uFwVWlkGsGUMxA=";
 })

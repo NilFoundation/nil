@@ -4,37 +4,31 @@ import {
   generateSmartAccount,
   waitTillCompleted,
 } from "@nilfoundation/niljs";
-import { TutorialChecksStatus, setTutorialChecksState } from "../../../pages/tutorials/model";
-import type { App } from "../../../types";
-import { $rpcUrl } from "../../account-connector/model";
-import { $contracts, deploySmartContractFx } from "../../contracts/models/base";
-import { setCompletedTutorial } from "../../tutorial/model";
-import { tutorialContractStepFailedEvent, tutorialContractStepPassedEvent } from "../model";
+import { TutorialChecksStatus } from "../../../pages/tutorials/model";
+import type { CheckProps } from "../CheckProps";
 
 const CUSTOM_TOKEN_AMOUNT = 30_000n;
 
-async function runTutorialCheckTwo() {
+async function runTutorialCheckTwo(props: CheckProps) {
   const client = new PublicClient({
     transport: new HttpTransport({
-      endpoint: $rpcUrl.getState(),
+      endpoint: props.rpcUrl,
     }),
     shardId: 1,
   });
 
-  const operatorContract = $contracts.getState().find((contract) => contract.name === "Operator")!;
+  const operatorContract = props.contracts.find((contract) => contract.name === "Operator")!;
 
-  const customTokenContract = $contracts
-    .getState()
-    .find((contract) => contract.name === "CustomToken")!;
+  const customTokenContract = props.contracts.find((contract) => contract.name === "CustomToken")!;
 
-  const appOperator: App = {
+  const appOperator = {
     name: "Operator",
     bytecode: operatorContract.bytecode,
     abi: operatorContract.abi,
     sourcecode: operatorContract.sourcecode,
   };
 
-  const appCustomToken: App = {
+  const appCustomToken = {
     name: "CustomToken",
     bytecode: customTokenContract.bytecode,
     abi: customTokenContract.abi,
@@ -43,27 +37,27 @@ async function runTutorialCheckTwo() {
 
   const smartAccount = await generateSmartAccount({
     shardId: 1,
-    rpcEndpoint: $rpcUrl.getState(),
-    faucetEndpoint: $rpcUrl.getState(),
+    rpcEndpoint: props.rpcUrl,
+    faucetEndpoint: props.rpcUrl,
   });
 
-  tutorialContractStepPassedEvent("A new smart account has been generated!");
+  props.tutorialContractStepPassed("A new smart account has been generated!");
 
-  const resultOperator = await deploySmartContractFx({
+  const resultOperator = await props.deploymentEffect({
     app: appOperator,
     args: [],
     shardId: 1,
     smartAccount,
   });
 
-  const resultCustomToken = await deploySmartContractFx({
+  const resultCustomToken = await props.deploymentEffect({
     app: appCustomToken,
     args: [resultOperator.address],
     shardId: 2,
     smartAccount,
   });
 
-  tutorialContractStepPassedEvent("Operator and CustomToken have been deployed!");
+  props.tutorialContractStepPassed("Operator and CustomToken have been deployed!");
 
   const hashMinting = await smartAccount.sendTransaction({
     to: resultOperator.address,
@@ -77,25 +71,26 @@ async function runTutorialCheckTwo() {
   const checkMinting = resMinting.some((receipt) => !receipt.success);
 
   if (checkMinting) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resMinting);
-    tutorialContractStepFailedEvent("Failed to call mintTokenCustom()!");
-    return;
+    props.tutorialContractStepFailed("Failed to call mintTokenCustom()!");
+    return false;
   }
 
-  tutorialContractStepPassedEvent("mintTokenCustom() has been called successfully!");
+  props.tutorialContractStepPassed("mintTokenCustom() has been called successfully!");
 
   const customTokenBalance = await client.getTokens(resultCustomToken.address, "latest");
 
-  if (Object.values(customTokenBalance).at(0) === CUSTOM_TOKEN_AMOUNT) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
-    tutorialContractStepFailedEvent("CustomToken failed to mint tokens!");
-    return;
+  if (Object.values(customTokenBalance).at(0) !== CUSTOM_TOKEN_AMOUNT) {
+    console.log(customTokenBalance);
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
+    props.tutorialContractStepFailed("CustomToken failed to mint tokens!");
+    return false;
   }
 
-  const gasPrice = await client.getGasPrice(1);
+  props.tutorialContractStepPassed("CustomToken has minted tokens successfully!");
 
-  tutorialContractStepPassedEvent("CustomToken has minted tokens successfully!");
+  const gasPrice = await client.getGasPrice(1);
 
   const hashSending = await smartAccount.sendTransaction({
     to: resultOperator.address,
@@ -110,27 +105,29 @@ async function runTutorialCheckTwo() {
   const checkSending = resSending.some((receipt) => !receipt.success);
 
   if (checkSending) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
-    console.log(resMinting);
-    tutorialContractStepFailedEvent("Failed to call sendTokenCustom()!");
-    return;
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
+    console.log(resSending);
+    props.tutorialContractStepFailed("Failed to call sendTokenCustom()!");
+    return false;
   }
 
-  tutorialContractStepPassedEvent("sendTokenCustom() has been called successfully!");
+  props.tutorialContractStepPassed("sendTokenCustom() has been called successfully!");
 
   const customTokenBalanceOperator = await client.getTokens(resultOperator.address, "latest");
 
   if (Object.values(customTokenBalanceOperator).at(1) === CUSTOM_TOKEN_AMOUNT) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
-    tutorialContractStepFailedEvent("Operator did not receive tokens from CustomToken!");
-    return;
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
+    props.tutorialContractStepFailed("Operator did not receive tokens from CustomToken!");
+    return false;
   }
 
-  tutorialContractStepPassedEvent("Operator has received tokens from CustomToken successfully!");
-  setTutorialChecksState(TutorialChecksStatus.Successful);
-  tutorialContractStepPassedEvent("Tutorial has been completed successfully!");
+  props.tutorialContractStepPassed("Operator has received tokens from CustomToken successfully!");
+  props.setTutorialChecksEvent(TutorialChecksStatus.Successful);
+  props.tutorialContractStepPassed("Tutorial has been completed successfully!");
 
-  setCompletedTutorial(2);
+  props.setCompletedTutorialEvent(2);
+
+  return true;
 }
 
 export default runTutorialCheckTwo;

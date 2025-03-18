@@ -47,5 +47,7 @@ contract Deployer is NilBase {
      * The function for deploying the Counter contract.
      * @param data The bytecode of the Counter contract.
      */
-    function deploy(bytes memory data, uint salt) public payable {}
+    function deploy(bytes memory data, uint salt) public payable {
+        Nil.asyncDeploy(2, address(0), 0, data, salt);
+    }
 }
