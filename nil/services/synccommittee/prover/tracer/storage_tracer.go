@@ -18,27 +18,26 @@ type StorageOp struct {
 	Addr      types.Address
 }
 
-type StateGetterSetter interface {
+type StateGetter interface {
 	GetState(addr types.Address, key common.Hash) (common.Hash, error)
-	SetState(addr types.Address, key common.Hash, val common.Hash) error
 }
 
 type StorageOpTracer struct {
 	storageOps []StorageOp
 
-	rwCtr             *RwCounter
-	txnId             uint
-	stateGetterSetter StateGetterSetter
+	rwCtr       *RwCounter
+	txnId       uint
+	stateGetter StateGetter
 
 	scope          tracing.OpContext
 	prevOpFinisher func()
 }
 
-func NewStorageOpTracer(rwCtr *RwCounter, txnId uint, stateGetterSetter StateGetterSetter) *StorageOpTracer {
+func NewStorageOpTracer(rwCtr *RwCounter, txnId uint, stateGetter StateGetter) *StorageOpTracer {
 	return &StorageOpTracer{
-		rwCtr:             rwCtr,
-		txnId:             txnId,
-		stateGetterSetter: stateGetterSetter,
+		rwCtr:       rwCtr,
+		txnId:       txnId,
+		stateGetter: stateGetter,
 	}
 }
 
@@ -74,7 +73,7 @@ func (t *StorageOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpC
 		loc := stack.Pop()
 		value := stack.Pop()
 
-		prevValue, err := t.stateGetterSetter.GetState(scope.Address(), common.Hash(value.Bytes32()))
+		prevValue, err := t.stateGetter.GetState(scope.Address(), common.Hash(loc.Bytes32()))
 		if err != nil {
 			return false, err
 		}

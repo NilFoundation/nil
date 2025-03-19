@@ -49,7 +49,7 @@ func newTracerWithMockedGetter(t *testing.T) *StorageOpTracer {
 	return NewStorageOpTracer(
 		&RwCounter{},
 		0,
-		&StateGetterSetterMock{
+		&StateGetterMock{
 			GetStateFunc: func(addr types.Address, key common.Hash) (common.Hash, error) {
 				return PrevValue, nil
 			},

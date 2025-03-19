@@ -41,7 +41,6 @@ type CopyEvent struct {
 
 // aux interface to fetch contract codes
 type CodeProvider interface {
-	GetCurrentCode() ([]byte, common.Hash, error)
 	GetCode(types.Address) ([]byte, common.Hash, error)
 }
 
@@ -200,11 +199,9 @@ var copyEventExtractors = map[vm.OpCode]copyEventExtractor{
 			size = tCtx.stack.PopUint64()
 		)
 
-		code, hash, err := tCtx.codeProvider.GetCurrentCode()
-		if err != nil {
-			return copyEvent{}, err
-		}
+		code := tCtx.vmCtx.Code()
 		data := getFixedSizeDataSafe(code, src, size)
+		hash := getCodeHash(code)
 
 		return newFinalizedCopyEvent(CopyEvent{
 			From: CopyParticipant{

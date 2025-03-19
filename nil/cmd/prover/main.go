@@ -80,7 +80,7 @@ func execute() error {
 				}
 			}
 			client := prover.NewRPCClient(commonCfg.NilRpcEndpoint, logging.NewLogger("client"))
-			return tracer.GenerateTrace(context.Background(), client, &traceConfig)
+			return tracer.CollectTracesToFile(context.Background(), client, &traceConfig)
 		},
 	}
 	addCommonFlags(generateTraceCmd, commonCfg)

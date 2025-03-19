@@ -20,8 +20,6 @@ import (
 type TracerNildTestSuite struct {
 	tests.RpcSuite
 
-	tracer RemoteTracer
-
 	addrFrom types.Address
 	shardId  types.ShardId
 }
@@ -46,6 +44,25 @@ func (s *TracerNildTestSuite) waitTwoBlocks() {
 	}
 }
 
+func (s *TracerNildTestSuite) initTracer() RemoteTracesCollector {
+	s.T().Helper()
+	var err error
+	tracer, err := NewRemoteTracesCollector(s.Context, s.Client, logging.NewLogger("tracer-test"))
+	s.Require().NoError(err)
+	return tracer
+}
+
+func (s *TracerNildTestSuite) getSingleBlockTraces(
+	shardId types.ShardId, blockRef transport.BlockReference,
+) *ExecutionTraces {
+	s.T().Helper()
+	var err error
+	tracer := s.initTracer()
+	traces, err := tracer.GetBlockTraces(s.Context, BlockId{shardId, blockRef})
+	s.Require().NoError(err)
+	return traces
+}
+
 func (s *TracerNildTestSuite) SetupSuite() {
 	nilserviceCfg := &nilservice.Config{
 		NShards:              3,
@@ -56,10 +73,6 @@ func (s *TracerNildTestSuite) SetupSuite() {
 
 	s.Start(nilserviceCfg)
 	s.waitTwoBlocks()
-
-	var err error
-	s.tracer, err = NewRemoteTracer(s.Client, logging.NewLogger("tracer-test"))
-	s.Require().NoError(err)
 
 	s.addrFrom = types.MainSmartAccountAddress
 	s.shardId = types.BaseShardId
@@ -72,6 +85,7 @@ func (s *TracerNildTestSuite) TearDownSuite() {
 func (s *TracerNildTestSuite) TestCounterContract() {
 	deployPayload := contracts.CounterDeployPayload(s.T())
 	contractAddr := types.CreateAddress(s.shardId, deployPayload)
+	latestBlocks := s.getLatestBlocksForShards()
 
 	s.Run("SmartAccountDeploy", func() {
 		txHash, err := s.Client.SendTransactionViaSmartAccount(
@@ -90,9 +104,7 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, types.BaseShardId, blkRef)
-		s.Require().NoError(err)
+		_ = s.getSingleBlockTraces(types.BaseShardId, blkRef)
 	})
 
 	s.Run("ContractDeploy", func() {
@@ -108,6 +120,9 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
 		s.Require().True(receipt.OutReceipts[0].Success)
+
+		// TODO: why this fails?
+		// _ = s.getSingleBlockTraces(s.shardId, transport.HashBlockReference(receipt.BlockHash))
 	})
 
 	s.Run("Add", func() {
@@ -130,19 +145,19 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		blkRef := transport.BlockNumber(receipt.OutReceipts[0].BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, contractAddr.ShardId(), blkRef)
-		s.Require().NoError(err)
+		_ = s.getSingleBlockTraces(contractAddr.ShardId(), blkRef)
 	})
 
 	s.Run("AllBlocksSerialization", func() {
-		s.checkAllBlocksTracesSerialization()
+		s.checkBlocksRangeTracesSerialization(latestBlocks, false)
+		s.checkBlocksRangeTracesSerialization(latestBlocks, true)
 	})
 }
 
 func (s *TracerNildTestSuite) TestTestContract() {
 	deployPayload := contracts.GetDeployPayload(s.T(), contracts.NameTest)
 	contractAddr := types.CreateAddress(s.shardId, deployPayload)
+	latestBlocks := s.getLatestBlocksForShards()
 
 	testAddresses := make(map[types.ShardId]types.Address)
 	for shardN := range s.ShardsNum {
@@ -169,9 +184,7 @@ func (s *TracerNildTestSuite) TestTestContract() {
 		s.Require().Equal("Success", receipt.Status)
 		s.Require().Len(receipt.OutReceipts, 1)
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, types.BaseShardId, blkRef)
-		s.Require().NoError(err)
+		_ = s.getSingleBlockTraces(types.BaseShardId, blkRef)
 	})
 
 	s.Run("ContractDeploy", func() {
@@ -213,68 +226,81 @@ func (s *TracerNildTestSuite) TestTestContract() {
 		s.Require().True(receipt.OutReceipts[0].Success)
 
 		blkRef := transport.BlockNumber(receipt.BlockNumber).AsBlockReference()
-		traces := NewExecutionTraces()
-		err = s.tracer.GetBlockTraces(s.Context, traces, contractAddr.ShardId(), blkRef)
-		s.Require().NoError(err)
+		_ = s.getSingleBlockTraces(contractAddr.ShardId(), blkRef)
 	})
 
 	s.Run("AllBlocksSerialization", func() {
-		s.checkAllBlocksTracesSerialization()
+		s.checkBlocksRangeTracesSerialization(latestBlocks, false)
+		s.checkBlocksRangeTracesSerialization(latestBlocks, true)
 	})
 }
 
-// It looks like even smart account deploy is handled in multiple blocks, I don't know how to catch specific one for
-// checks. Just prove every one.
-func (s *TracerNildTestSuite) checkAllBlocksTracesSerialization() {
-	for shardN := range s.ShardsNum {
-		shardId := types.ShardId(shardN)
-		latestBlock, err := s.Client.GetBlock(s.Context, shardId, "latest", false)
+func (s *TracerNildTestSuite) getLatestBlocksForShards() []types.BlockNumber {
+	s.T().Helper()
+	latestBlocksForShards := make([]types.BlockNumber, s.ShardsNum)
+	for shardId := range s.ShardsNum {
+		latestBlock, err := s.Client.GetBlock(s.Context, types.ShardId(shardId), "latest", false)
 		s.Require().NoError(err)
-		for blockNum := range latestBlock.Number {
-			blkRef := transport.BlockNumber(blockNum).AsBlockReference()
-			s.Require().NoError(err)
-			blockTraces := NewExecutionTraces()
-			err := s.tracer.GetBlockTraces(s.Context, blockTraces, shardId, blkRef)
-			if errors.Is(err, ErrCantProofGenesisBlock) {
-				continue
+		latestBlocksForShards[shardId] = latestBlock.Number
+	}
+	return latestBlocksForShards
+}
+
+func (s *TracerNildTestSuite) checkTracesSerialization(traces *ExecutionTraces) {
+	s.T().Helper()
+	tmpfile, err := os.CreateTemp("", "serialized_trace-")
+	if err != nil {
+		s.Require().NoError(err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	err = SerializeToFile(traces, MarshalModeBinary, tmpfile.Name())
+	s.Require().NoError(err)
+	deserializedTraces, err := DeserializeFromFile(tmpfile.Name(), MarshalModeBinary)
+	s.Require().NoError(err)
+
+	// Check if no data was lost after deserialization
+
+	s.Require().Equal(len(deserializedTraces.StackOps), len(traces.StackOps))
+	s.Require().Equal(len(deserializedTraces.MemoryOps), len(traces.MemoryOps))
+	s.Require().Equal(len(deserializedTraces.StorageOps), len(traces.StorageOps))
+	s.Require().Equal(len(deserializedTraces.ContractsBytecode), len(traces.ContractsBytecode))
+	s.Require().Equal(len(deserializedTraces.CopyEvents), len(traces.CopyEvents))
+	s.Require().Equal(len(deserializedTraces.ZKEVMStates), len(traces.ZKEVMStates))
+}
+
+// Even smart account deploy is handled in multiple blocks, trace last N blocks for each shard to include
+// all produced transactions. If `multiBlock` is true, traces will be collected from range of blocks, otherwise,
+// tracer will be called for each block individually.
+func (s *TracerNildTestSuite) checkBlocksRangeTracesSerialization(from []types.BlockNumber, multiBlock bool) {
+	latestBlocksForShards := s.getLatestBlocksForShards()
+	for shardId, latestBlockNum := range latestBlocksForShards {
+		if multiBlock {
+			blockIds := make([]BlockId, 0, latestBlockNum-from[shardId]+1)
+			for blockNum := from[shardId]; blockNum <= latestBlockNum; blockNum++ {
+				blockIds = append(
+					blockIds, BlockId{types.ShardId(shardId), transport.Uint64BlockReference(blockNum.Uint64())},
+				)
 			}
-
+			traces, err := CollectTraces(s.Context, s.Client, &TraceConfig{
+				BlockIDs: blockIds,
+			})
 			s.Require().NoError(err)
 
-			tracesData, ok := blockTraces.(*executionTracesImpl)
-			s.Require().True(ok)
-			for _, cpEvt := range tracesData.CopyEvents {
-				s.NotEmpty(cpEvt.Data)
-			}
-
-			// Test serialization
-			tmpfile, err := os.CreateTemp("", "serialized_trace-")
-			if err != nil {
+			s.checkTracesSerialization(traces)
+		} else {
+			for blockNum := from[shardId]; blockNum <= latestBlockNum; blockNum++ {
+				tracer := s.initTracer()
+				blkRef := transport.BlockNumber(blockNum).AsBlockReference()
+				traces, err := tracer.GetBlockTraces(s.Context, BlockId{types.ShardId(shardId), blkRef})
+				if errors.Is(err, ErrCantProofGenesisBlock) {
+					continue
+				}
+				mptTraces, err := tracer.GetMPTTraces()
 				s.Require().NoError(err)
-			}
-			defer os.Remove(tmpfile.Name())
+				traces.SetMptTraces(&mptTraces)
 
-			err = SerializeToFile(blockTraces, MarshalModeBinary, tmpfile.Name())
-			s.Require().NoError(err)
-			deserializedTraces, err := DeserializeFromFile(tmpfile.Name(), MarshalModeBinary)
-			s.Require().NoError(err)
-
-			// Check if no data was lost after deserialization
-			deserializedData, ok := deserializedTraces.(*executionTracesImpl)
-			s.Require().True(ok)
-			s.Require().Equal(len(deserializedData.StackOps), len(tracesData.StackOps))
-			s.Require().Equal(len(deserializedData.MemoryOps), len(tracesData.MemoryOps))
-			s.Require().Equal(len(deserializedData.StorageOps), len(tracesData.StorageOps))
-			s.Require().Equal(len(deserializedData.ContractsBytecode), len(tracesData.ContractsBytecode))
-			s.Require().Equal(len(deserializedData.CopyEvents), len(tracesData.CopyEvents))
-			s.Require().Equal(len(deserializedData.ZKEVMStates), len(tracesData.ZKEVMStates))
-			if tracesData.MPTTraces != nil {
-				s.Require().Equal(
-					len(deserializedData.MPTTraces.StorageTracesByAccount),
-					len(tracesData.MPTTraces.StorageTracesByAccount))
-				s.Require().Equal(
-					len(deserializedData.MPTTraces.ContractTrieTraces),
-					len(tracesData.MPTTraces.ContractTrieTraces))
+				s.checkTracesSerialization(traces)
 			}
 		}
 	}

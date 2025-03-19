@@ -608,3 +608,16 @@ func (evm *EVM) StopAndDumpState(continuationGasCredit types.Gas) {
 	evm.interpreter.stopAndDumpState = true
 	evm.interpreter.continuationGasCredit = continuationGasCredit
 }
+
+// GetVMContext provides context about the block being executed as well as state
+// to the tracers.
+func (evm *EVM) GetVMContext() *tracing.VMContext {
+	return &tracing.VMContext{
+		Coinbase:    evm.Context.Coinbase,
+		BlockNumber: big.NewInt(int64(evm.Context.BlockNumber)),
+		Time:        evm.Context.Time,
+		Random:      evm.Context.Random,
+		BaseFee:     evm.Context.BaseFee,
+		StateDB:     evm.StateDB,
+	}
+}

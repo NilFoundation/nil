@@ -72,6 +72,11 @@ func (ctx *ScopeContext) CallInput() []byte {
 	return ctx.Contract.Input
 }
 
+// Address returns the address where this scope of execution is taking place. Callers must not modify the contents
+func (ctx *ScopeContext) Code() []byte {
+	return ctx.Contract.Code
+}
+
 // EVMInterpreter represents an EVM interpreter
 type EVMInterpreter struct {
 	evm   *EVM
@@ -87,7 +92,7 @@ type EVMInterpreter struct {
 }
 
 func NewEVMInterpreter(evm *EVM, state *EvmRestoreData) *EVMInterpreter {
-	return &EVMInterpreter{evm: evm, table: &cancunInstructionSet, restoredState: state}
+	return &EVMInterpreter{evm: evm, table: &CancunInstructionSet, restoredState: state}
 }
 
 // Run loops and evaluates the contract's code with the given input data and returns
@@ -132,11 +137,11 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		pc   = uint64(0) // program counter
 		cost uint64
 		// copies used by tracer
-		pcCopy  uint64 // needed for the deferred EVMLogger
-		gasCopy uint64 // for EVMLogger to log gas remaining before execution
-		logged  bool   // deferred EVMLogger should ignore already logged steps
-		res     []byte // result of the opcode execution function
-		debug   = in.evm.Config.Tracer != nil
+		pcCopy    uint64 // needed for the deferred EVMLogger
+		gasCopy   uint64 // for EVMLogger to log gas remaining before execution
+		logged    bool   // deferred EVMLogger should ignore already logged steps
+		res       []byte // result of the opcode execution function
+		hasTracer = in.evm.Config.Tracer != nil
 	)
 
 	if in.restoredState != nil {
@@ -178,7 +183,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	}()
 	contract.Input = input
 
-	if debug {
+	if hasTracer {
 		defer func() { // this deferred method handles exit-with-error
 			if err == nil {
 				return
@@ -197,7 +202,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	// the execution of one of the operations, or until the done flag is set by the
 	// parent context.
 	for {
-		if debug {
+		if hasTracer {
 			// Capture pre-execution values for tracing.
 			logged, pcCopy, gasCopy = false, pc, contract.Gas
 		}
@@ -230,7 +235,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		}
 
 		// Do tracing before memory expansion
-		if debug {
+		if hasTracer {
 			if in.evm.Config.Tracer.OnGasChange != nil {
 				in.evm.Config.Tracer.OnGasChange(gasCopy, gasCopy-cost, tracing.GasChangeCallOpCode)
 			}
@@ -273,11 +278,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	}
 
 	return res, err
-}
-
-// Get minimal required stack size for an opcode
-func (in *EVMInterpreter) GetNumRequiredStackItems(op OpCode) int {
-	return in.table[op].minStack
 }
 
 func calcDynamicCosts(

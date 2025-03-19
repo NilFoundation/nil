@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/rs/zerolog"
 )
@@ -18,7 +19,7 @@ import (
 type BlockGeneratorParams struct {
 	ShardId          types.ShardId
 	NShards          uint32
-	TraceEVM         bool
+	EvmTracingHooks  *tracing.Hooks
 	MainKeysPath     string
 	DisableConsensus bool
 	FeeCalculator    FeeCalculator
@@ -78,8 +79,18 @@ func NewBlockGenerator(
 	if err != nil {
 		return nil, err
 	}
-	executionState.TraceVm = params.TraceEVM
+	executionState.EvmTracingHooks = params.EvmTracingHooks
 
+	return NewBlockGeneratorWithEs(ctx, params, txFabric, rwTx, executionState)
+}
+
+func NewBlockGeneratorWithEs(
+	ctx context.Context,
+	params BlockGeneratorParams,
+	txFabric db.DB,
+	rwTx db.RwTx,
+	es *ExecutionState,
+) (*BlockGenerator, error) {
 	const mhName = "github.com/NilFoundation/nil/nil/internal/execution"
 	mh, err := NewMetricsHandler(mhName, params.ShardId)
 	if err != nil {
@@ -91,7 +102,7 @@ func NewBlockGenerator(
 		params:         params,
 		txFabric:       txFabric,
 		rwTx:           rwTx,
-		executionState: executionState,
+		executionState: es,
 		logger: logging.NewLogger("block-gen").With().
 			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
