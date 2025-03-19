@@ -3,11 +3,13 @@ package batches
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"io"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 )
 
@@ -24,7 +26,7 @@ type blobBuilder interface {
 }
 
 type ethCommitter interface {
-	CommitBatch(ctx context.Context, blobs []kzg4844.Blob, batchIndex string) (*ethtypes.Transaction, error)
+	CommitBatch(ctx context.Context, blobs []kzg4844.Blob, batchIndex string) error
 }
 
 type batchCommitter struct {
@@ -72,10 +74,15 @@ func (bc *batchCommitter) Commit(ctx context.Context, batch *types.PrunedBatch) 
 	if err != nil {
 		return err
 	}
-	bc.logger.Debug().Int("batch_blob_count", len(blobs)).Msg("packed batch blobs")
 
-	// TODO add ethCommiter.CommitBatch() call
-	bc.logger.Info().Int("blob_count", len(blobs)).Msg("committed batch")
+	if err := bc.ethCommitter.CommitBatch(ctx, blobs, batch.BatchId.String()); err != nil {
+		if errors.Is(err, rollupcontract.ErrBatchAlreadyCommitted) {
+			bc.logger.Warn().Msg("batch is already committed, skipping CommitBatch tx")
+			return nil
+		} else {
+			return fmt.Errorf("failed to CommitBatch: %w", err)
+		}
+	}
 
 	return nil
 }

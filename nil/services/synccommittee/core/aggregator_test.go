@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -67,11 +68,18 @@ func (s *AggregatorTestSuite) newTestAggregator(
 	stateResetter := reset.NewStateResetter(logger, s.blockStorage)
 	clock := clockwork.NewRealClock()
 
+	contractWrapperConfig := rollupcontract.WrapperConfig{
+		DisableL1: true,
+	}
+	contractWrapper, err := rollupcontract.NewWrapper(s.ctx, contractWrapperConfig, logger)
+	s.Require().NoError(err)
+
 	return NewAggregator(
 		s.rpcClientMock,
 		blockStorage,
 		s.taskStorage,
 		stateResetter,
+		contractWrapper,
 		clock,
 		logger,
 		s.metrics,
