@@ -1,0 +1,39 @@
+/* Webkit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #8a8a8a;
+    border-radius: 10px;
+    transition: background 0.2s ease-in-out;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #bdbdbd;
+  }
+  
+  ::-webkit-scrollbar-thumb:active {
+    background: #a1a1a1;
+  }
+  
+  /* Firefox */
+  * {
+    scrollbar-width: none;
+    scrollbar-color: #8A8A8A #f1f1f1 ;
+    cursor:  pointer !important;
+  }
+  *:hover{
+    scrollbar-width: thin;
+  }
+  body {
+    -ms-overflow-style: scrollbar; /* Ensures scrollbars are visible on IE/Edge */
+    scrollbar-gutter: stable;
+  }
+  
