@@ -68,7 +68,7 @@ type FinalityEnsurer struct {
 	finalizedBlockLock sync.RWMutex
 
 	// cache for fetched finalized block number
-	// it must contain only blocks with number >= finalizedBlock.BlockNumber
+	// it must contain only blocks with number <= finalizedBlock.BlockNumber
 	finBlockCache *lru.Cache[uint64, *ProcessedBlock]
 
 	config        *FinalityEnsurerConfig
