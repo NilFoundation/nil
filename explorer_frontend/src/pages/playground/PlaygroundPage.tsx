@@ -54,10 +54,11 @@ export const PlaygroundPage = () => {
             <>
               <PanelGroup direction="horizontal" autoSaveId="playground-layout-horizontal">
                 <Panel>
-                  <PanelGroup direction="vertical" autoSaveId="playground-layout-vertical">
+                  <PanelGroup direction="vertical" autoSaveId="playground-layout-vertical ">
                     <Panel
                       className={css({
                         ...expandProperty("borderRadius", "12px"),
+                        
                       })}
                       minSize={10}
                       order={1}

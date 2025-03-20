@@ -108,7 +108,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
             position: "relative",
             height: "100%",
             marginBottom: 0,
-            paddingBottom: "16px",
+            paddingBottom: "0px",
             ...getMobileStyles({
               gap: "8px",
             }),
@@ -202,6 +202,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
               className={css({
                 paddingBottom: "0!important",
                 height: "100%",
+                borderRadius: "16px!important",
                 overflow: "auto!important",
                 overscrollBehavior: "contain",
                 backgroundColor: `${theme.colors.backgroundPrimary} !important`,
