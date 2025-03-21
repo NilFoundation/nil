@@ -54,7 +54,7 @@ export const CliTest = test.extend<CliTestFixture>({
     configManager.updateConfig(
       ConfigKeys.NilSection,
       ConfigKeys.CometaEndpoint,
-      testEnv.cometaServiceEndpoint,
+      testEnv.cometaClientEndpoint,
     );
     configManager.updateConfig(
       ConfigKeys.NilSection,
@@ -82,7 +82,7 @@ export const CliTest = test.extend<CliTestFixture>({
 
   cometaClient: new CometaClient({
     transport: new HttpTransport({
-      endpoint: testEnv.cometaServiceEndpoint,
+      endpoint: testEnv.cometaClientEndpoint,
     }),
   }),
 
