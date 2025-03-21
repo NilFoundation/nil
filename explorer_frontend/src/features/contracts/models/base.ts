@@ -89,21 +89,8 @@ export const triggerShardIdValidation = createEvent();
 export const $deploySmartContractError = createStore<string | null>(null);
 
 export const deploySmartContract = createEvent();
-export const deploySmartContractFx = createEffect<
-  {
-    app: App;
-    args: unknown[];
-    shardId: number;
-    smartAccount: SmartAccountV1;
-  },
-  {
-    address: Hex;
-    app: Hex;
-    name: string;
-    deployedFrom?: Hex;
-    txHash: Hex;
-  }
->(async ({ app, args, smartAccount, shardId }) => {
+
+export const deployContractFunction = async ({ app, args, smartAccount, shardId }) => {
   const salt = BigInt(Math.floor(Math.random() * 10000000000000000));
 
   const { hash, address } = await smartAccount.deployContract({
@@ -124,7 +111,27 @@ export const deploySmartContractFx = createEffect<
     deployedFrom: smartAccount.address,
     txHash: hash,
   };
+}
+
+export const deploySmartContractFx = createEffect<
+  {
+    app: App;
+    args: unknown[];
+    shardId: number;
+    smartAccount: SmartAccountV1;
+  },
+  {
+    address: Hex;
+    app: Hex;
+    name: string;
+    deployedFrom?: Hex;
+    txHash: Hex;
+  }
+>(async ({ app, args, smartAccount, shardId }) => {
+  return await deployContractFunction({ app, args, smartAccount, shardId });
 });
+
+
 
 export const registerContractInCometaFx = createEffect<
   {
@@ -270,12 +277,12 @@ export const setParams = createEvent<{
   functionName: string;
   paramName: string;
   value:
-    | string
-    | boolean
-    | {
-        type: string;
-        value: string | boolean;
-      }[];
+  | string
+  | boolean
+  | {
+    type: string;
+    value: string | boolean;
+  }[];
   type: string;
 }>();
 
@@ -354,11 +361,11 @@ export const sendMethodFx = createEffect<
   const receipts = await smartAccount.client.getTransactionReceiptByHash(hash);
   const logs = receipts
     ? [
-        ...(receipts.outputReceipts?.flatMap((receipt) => {
-          return receipt ? receipt.logs : [];
-        }) ?? []),
-        ...receipts.logs,
-      ]
+      ...(receipts.outputReceipts?.flatMap((receipt) => {
+        return receipt ? receipt.logs : [];
+      }) ?? []),
+      ...receipts.logs,
+    ]
     : [];
   const txLogs = logs
     .map((log): string | null => {

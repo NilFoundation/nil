@@ -8,10 +8,10 @@ import {
   type Hex,
   HttpTransport,
   LocalECDSAKeySigner,
-  PublicClient,
   SmartAccountV1,
   generateRandomPrivateKey,
 } from "@nilfoundation/niljs";
+import { PublicClient } from "@nilfoundation/niljs";
 import type { Errors } from "@oclif/core";
 import { runCommand } from "@oclif/test";
 import { test } from "vitest";

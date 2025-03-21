@@ -13,7 +13,8 @@
     "analyze-bundle": "npx vite-bundle-visualizer --port 5000 --open",
     "serve": "serve -s dist -l 3000",
     "test:e2e": "wait-on http://localhost:3000 && cypress open",
-    "test:e2e:ci": "wait-on http://localhost:3000 && cypress run --headless"
+    "test:e2e:ci": "wait-on http://localhost:3000 && cypress run --headless",
+    "test:tutorials": "vitest ./tests/tutorials"
   },
   "author": "",
   "license": "ISC",
@@ -69,8 +70,10 @@
     "@types/loadable__component": "^5.13.6",
     "cypress": "^13.17.0",
     "serve": "^14.2.4",
+    "solc": "^0.8.29",
     "vite-bundle-visualizer": "^1.1.0",
     "vite-plugin-string": "^1.2.3",
+    "vitest": "^3.0.9",
     "wait-on": "^8.0.1"
   }
 }

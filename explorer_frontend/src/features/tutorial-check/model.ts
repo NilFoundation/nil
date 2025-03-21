@@ -1,18 +1,21 @@
-import { createDomain } from "effector";
+import { createDomain, } from "effector";
 import type { App } from "../../types";
 import { spec } from "./spec";
+import type { CheckProps } from "./CheckProps";
+
 
 export type TutorialCheck = {
   urlSlug: string;
-  check: () => Promise<void>;
+  check: (props: CheckProps) => Promise<boolean>;
 };
 
 export const tutorialCheckDomain = createDomain("tutorial-check");
 
 export const $tutorialCheck = tutorialCheckDomain.createStore<TutorialCheck>({
   urlSlug: "",
-  check: async () => {},
+  check: async () => { return true; },
 });
+
 
 export const deployTutorialContract = tutorialCheckDomain.createEvent<{
   app: App;
@@ -28,11 +31,11 @@ export const fetchTutorialCheckEvent = tutorialCheckDomain.createEvent<TutorialC
 
 export const fetchTutorialCheckFx = tutorialCheckDomain.createEffect<string, TutorialCheck>();
 
-export const runTutorialCheck = tutorialCheckDomain.createEvent();
+export const runTutorialCheck = tutorialCheckDomain.createEvent<CheckProps>();
 
 export const runTutorialCheckFx = tutorialCheckDomain.createEffect(
-  async (tutorialCheck: TutorialCheck) => {
-    return await tutorialCheck.check();
+  async ({ tutorialCheck, props }: { tutorialCheck: TutorialCheck; props: CheckProps }) => {
+    return await tutorialCheck.check(props);
   },
 );
 
