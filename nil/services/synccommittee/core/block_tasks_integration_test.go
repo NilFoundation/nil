@@ -66,14 +66,15 @@ func (s *BlockTasksIntegrationTestSuite) TearDownSuite() {
 func (s *BlockTasksIntegrationTestSuite) SetupTest() {
 	err := s.db.DropAll()
 	s.Require().NoError(err, "failed to clear database in SetUpTest")
-
-	err = s.blockStorage.SetProvedStateRoot(s.ctx, testaide.RandomHash())
-	s.Require().NoError(err, "failed to set proved root in SetUpTest")
 }
 
 func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_Result() {
 	batch := testaide.NewBlockBatch(1)
-	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
+
+	err := s.blockStorage.SetProvedStateRoot(s.ctx, batch.FirstMainBlock().ParentHash)
+	s.Require().NoError(err)
+
+	err = s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
 	proofTask, err := batch.CreateProofTask(s.clock.Now())
@@ -104,12 +105,16 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_R
 	proposalData, err := s.blockStorage.TryGetNextProposalData(s.ctx)
 	s.Require().NoError(err)
 	s.Require().NotNil(proposalData)
-	s.Require().Equal(batch.MainShardBlock.Hash, proposalData.MainShardBlockHash)
+	s.Require().Equal(batch.LatestMainBlock().Hash, proposalData.NewProvedStateRoot)
 }
 
 func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_Result() {
 	batch := testaide.NewBlockBatch(1)
-	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
+
+	err := s.blockStorage.SetProvedStateRoot(s.ctx, batch.FirstMainBlock().ParentHash)
+	s.Require().NoError(err)
+
+	err = s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
 	proofTask, err := batch.CreateProofTask(s.clock.Now())
@@ -141,11 +146,11 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_R
 	s.Require().NoError(err)
 	s.Require().Nil(proposalData)
 
-	// status for AggregateProofs task should be updated
-	aggregateEntry, err := s.taskStorage.TryGetTaskEntry(s.ctx, taskToExecute.Id)
+	// status for ProofBatch task should be updated
+	batchProofEntry, err := s.taskStorage.TryGetTaskEntry(s.ctx, taskToExecute.Id)
 	s.Require().NoError(err)
-	s.Require().NotNil(aggregateEntry)
-	s.Require().Equal(types.Failed, aggregateEntry.Status)
+	s.Require().NotNil(batchProofEntry)
+	s.Require().Equal(types.Failed, batchProofEntry.Status)
 }
 
 func newTestSuccessProviderResult(taskToExecute *types.Task, executorId types.TaskExecutorId) *types.TaskResult {

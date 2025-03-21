@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
@@ -27,10 +26,6 @@ type ProposerStorage interface {
 	TryGetNextProposalData(ctx context.Context) (*scTypes.ProposalData, error)
 
 	SetBatchAsProposed(ctx context.Context, id scTypes.BatchId) error
-}
-
-type RpcBlockFetcher interface {
-	GetBlock(ctx context.Context, shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
 }
 
 type ProposerMetrics interface {
@@ -305,7 +300,8 @@ func (p *proposer) updateState(
 	validityProof := []byte{0x0A, 0x0B, 0x0C}
 
 	p.logger.Info().
-		Stringer("blockHash", data.MainShardBlockHash).
+		Stringer("oldStateRoot", data.OldProvedStateRoot).
+		Stringer("newStateRoot", data.NewProvedStateRoot).
 		Int("txCount", len(data.Transactions)).
 		Msg("calling UpdateState L1 method")
 

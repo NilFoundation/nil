@@ -92,8 +92,12 @@ func (s *SyncCommitteeTestSuite) waitMainShardToProcess() {
 	s.T().Helper()
 	s.Require().Eventually(
 		func() bool {
-			lastFetched, err := s.blockStorage.TryGetLatestFetched(s.Context)
-			return err == nil && lastFetched != nil && lastFetched.Number > 0
+			latestFetched, err := s.blockStorage.GetLatestFetched(s.Context)
+			if err != nil {
+				return false
+			}
+			mainRef := latestFetched.TryGetMain()
+			return mainRef != nil && mainRef.Number > 0
 		},
 		5*time.Second,
 		100*time.Millisecond,

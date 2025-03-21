@@ -119,7 +119,7 @@ func (h *SyncCommitteeMetricsHandler) RecordBatchProved(ctx context.Context) {
 func (h *SyncCommitteeMetricsHandler) RecordProposerTxSent(ctx context.Context, proposalData *types.ProposalData) {
 	h.totalL1TxSent.Add(ctx, 1, h.attributes)
 
-	totalTimeMs := time.Since(proposalData.MainBlockFetchedAt).Milliseconds()
+	totalTimeMs := time.Since(proposalData.FirstBlockFetchedAt).Milliseconds()
 	h.blockTotalTimeMs.Record(ctx, totalTimeMs, h.attributes)
 
 	txCount := int64(len(proposalData.Transactions))

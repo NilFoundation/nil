@@ -90,7 +90,7 @@ func (s *TaskHandlerTestSuite) TestHandleBatchProofTask() {
 	now := s.clock.Now()
 	executorId := testaide.RandomExecutorId()
 	batch := testaide.NewBlockBatch(testaide.ShardsCount)
-	taskEntry, err := types.NewBatchProofTaskEntry(types.NewBatchId(), batch.AllBlocks(), now)
+	taskEntry, err := batch.CreateProofTask(now)
 	s.Require().NoError(err)
 
 	err = s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)

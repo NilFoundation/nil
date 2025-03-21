@@ -2,16 +2,11 @@ package core
 
 import (
 	"context"
-	"errors"
-	"slices"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/client"
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
@@ -96,34 +91,30 @@ func (s *AggregatorTestSuite) TearDownSuite() {
 	s.cancellation()
 }
 
-func (s *AggregatorTestSuite) Test_No_New_Block_To_Fetch() {
+func (s *AggregatorTestSuite) Test_No_New_Blocks_To_Fetch() {
 	batch := testaide.NewBlockBatch(testaide.ShardsCount)
 	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	s.rpcClientMock.GetBlockFunc = func(
-		_ context.Context, shardId types.ShardId, blockId any, fullTx bool,
-	) (*jsonrpc.RPCBlock, error) {
-		if shardId == types.MainShardId {
-			return batch.MainShardBlock, nil
-		}
-
-		return nil, errors.New("unexpected call of GetBlock")
-	}
+	testaide.ClientMockSetBatches(s.rpcClientMock, []*scTypes.BlockBatch{batch})
 
 	err = s.aggregator.processAndHandleErr(s.ctx)
 	s.Require().NoError(err)
 
 	// latest fetched block ref was not changed
-	mainRef, err := s.blockStorage.TryGetLatestFetched(s.ctx)
+	latestFetched, err := s.blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
-	s.Require().True(mainRef.Equals(batch.MainShardBlock))
+	expectedLatest := batch.LatestRefs()
+	s.Require().Equal(expectedLatest, latestFetched)
 
 	s.requireNoNewTasks()
 }
 
 func (s *AggregatorTestSuite) Test_Main_Parent_Hash_Mismatch() {
 	batches := testaide.NewBatchesSequence(3)
+	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
+	err := s.blockStorage.SetProvedStateRoot(s.ctx, batches[0].FirstMainBlock().ParentHash)
+	s.Require().NoError(err)
 
 	// Set first 2 batches as proved
 	for _, provedBatch := range batches[:2] {
@@ -134,43 +125,38 @@ func (s *AggregatorTestSuite) Test_Main_Parent_Hash_Mismatch() {
 	}
 
 	// Set first batch as proposed, latestProvedStateRoot value is updated
-	err := s.blockStorage.SetBatchAsProposed(s.ctx, batches[0].Id)
+	err = s.blockStorage.SetBatchAsProposed(s.ctx, batches[0].Id)
 	s.Require().NoError(err)
 	latestProved, err := s.blockStorage.TryGetProvedStateRoot(s.ctx)
 	s.Require().NoError(err)
 	s.Require().NotNil(latestProved)
+	s.Require().Equal(batches[0].LatestMainBlock().Hash, *latestProved)
 
-	nextMainBlock := batches[2].MainShardBlock
+	nextMainBlock := batches[2].LatestMainBlock()
 	nextMainBlock.ParentHash = testaide.RandomHash()
-	s.rpcClientMock.GetBlockFunc = blockGenerator(nextMainBlock)
-
-	s.rpcClientMock.GetBlocksRangeFunc = func(
-		_ context.Context, _ types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int,
-	) ([]*jsonrpc.RPCBlock, error) {
-		return []*jsonrpc.RPCBlock{nextMainBlock}, nil
-	}
 
 	err = s.aggregator.processAndHandleErr(s.ctx)
 	s.Require().NoError(err)
 
 	// latest fetched block was reset
-	mainRef, err := s.blockStorage.TryGetLatestFetched(s.ctx)
+	mainRef, err := s.blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
-	s.Require().Nil(mainRef)
+	s.Require().Empty(mainRef)
 	s.requireNoNewTasks()
 }
 
 func (s *AggregatorTestSuite) Test_Fetch_At_Zero_State() {
-	mainRef, err := s.blockStorage.TryGetLatestFetched(s.ctx)
+	mainRefs, err := s.blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
-	s.Require().Nil(mainRef)
+	s.Require().Empty(mainRefs)
 
 	batches := testaide.NewBatchesSequence(2)
-	err = s.blockStorage.SetProvedStateRoot(s.ctx, batches[0].MainShardBlock.Hash)
+	err = s.blockStorage.SetProvedStateRoot(s.ctx, batches[0].LatestMainBlock().Hash)
 	s.Require().NoError(err)
 
-	s.setMockedClientTo(batches)
-	nextHandledBlock := batches[1].MainShardBlock
+	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
+
+	nextHandledBlock := batches[1].LatestMainBlock()
 
 	err = s.aggregator.processAndHandleErr(s.ctx)
 	s.Require().NoError(err)
@@ -181,9 +167,9 @@ func (s *AggregatorTestSuite) Test_Fetch_Next_Valid() {
 	batches := testaide.NewBatchesSequence(2)
 	err := s.blockStorage.SetBlockBatch(s.ctx, batches[0])
 	s.Require().NoError(err)
-	nextMainBlock := batches[1].MainShardBlock
+	nextMainBlock := batches[1].LatestMainBlock()
 
-	s.setMockedClientTo(batches)
+	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
 
 	err = s.aggregator.processAndHandleErr(s.ctx)
 	s.Require().NoError(err)
@@ -196,28 +182,28 @@ func (s *AggregatorTestSuite) Test_Block_Storage_Capacity_Exceeded() {
 	blockStorage := s.newTestBlockStorage(storageConfig)
 
 	batches := testaide.NewBatchesSequence(2)
+	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
 
 	err := blockStorage.SetBlockBatch(s.ctx, batches[0])
 	s.Require().NoError(err)
 
 	agg := s.newTestAggregator(blockStorage)
 
-	latestFetchedBeforeNext, err := blockStorage.TryGetLatestFetched(s.ctx)
+	latestFetchedBeforeNext, err := blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
 	s.Require().NotNil(latestFetchedBeforeNext)
 
-	s.setMockedClientTo(batches)
 	err = agg.processBlockRange(s.ctx)
 	s.Require().ErrorIs(err, storage.ErrCapacityLimitReached)
 
-	latestFetchedAfterNext, err := blockStorage.TryGetLatestFetched(s.ctx)
+	latestFetchedAfterNext, err := blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
 	s.Equal(latestFetchedBeforeNext, latestFetchedAfterNext)
 
 	// nextBatch should not be handled by Aggregator due to storage capacity limit
 	nextBatch := batches[1]
 
-	for _, block := range nextBatch.AllBlocks() {
+	for block := range nextBatch.BlocksIter() {
 		storedBlock, err := s.blockStorage.TryGetBlock(s.ctx, scTypes.IdFromBlock(block))
 		s.Require().NoError(err)
 		s.Require().Nil(storedBlock)
@@ -228,14 +214,14 @@ func (s *AggregatorTestSuite) Test_Block_Storage_Capacity_Exceeded() {
 
 func (s *AggregatorTestSuite) Test_State_Root_Is_Not_Initialized() {
 	batches := testaide.NewBatchesSequence(3)
-	s.setMockedClientTo(batches)
+	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
 
 	err := s.aggregator.processBlockRange(s.ctx)
 	s.Require().ErrorIs(err, storage.ErrStateRootNotInitialized)
 
-	latestFetched, err := s.blockStorage.TryGetLatestFetched(s.ctx)
+	latestFetched, err := s.blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
-	s.Require().Nil(latestFetched)
+	s.Require().Empty(latestFetched)
 
 	s.requireNoNewTasks()
 }
@@ -243,103 +229,26 @@ func (s *AggregatorTestSuite) Test_State_Root_Is_Not_Initialized() {
 func (s *AggregatorTestSuite) Test_Latest_Fetched_Does_Not_Exist_On_Chain() {
 	batches := testaide.NewBatchesSequence(3)
 
-	err := s.blockStorage.SetProvedStateRoot(s.ctx, batches[0].MainShardBlock.Hash)
+	err := s.blockStorage.SetProvedStateRoot(s.ctx, batches[0].LatestMainBlock().Hash)
 	s.Require().NoError(err)
 
-	s.setMockedClientTo(batches)
+	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
 
 	err = s.aggregator.processBlockRange(s.ctx)
 	s.Require().NoError(err)
 
-	latestFetched, err := s.blockStorage.TryGetLatestFetched(s.ctx)
+	latestFetched, err := s.blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
 	s.Require().NotNil(latestFetched)
-	s.Require().Equal(batches[len(batches)-1].MainShardBlock.Hash, latestFetched.Hash)
+	s.Require().Equal(batches[len(batches)-1].LatestMainBlock().Hash, latestFetched.TryGetMain().Hash)
 
 	// emulating L2 reset
 	newBatches := testaide.NewBatchesSequence(3)
-	s.setMockedClientTo(newBatches)
+	testaide.ClientMockSetBatches(s.rpcClientMock, newBatches)
 
 	err = s.aggregator.processBlockRange(s.ctx)
 	s.Require().ErrorIs(err, scTypes.ErrBlockMismatch)
 	s.Require().ErrorContains(err, "block not found in chain")
-}
-
-func (s *AggregatorTestSuite) setMockedClientTo(batches []*scTypes.BlockBatch) {
-	s.rpcClientMock.GetBlockFunc = func(
-		_ context.Context, shardId types.ShardId, blockId any, fullTx bool,
-	) (*jsonrpc.RPCBlock, error) {
-		if strId, ok := blockId.(string); ok && strId == "latest" {
-			return batches[len(batches)-1].MainShardBlock, nil
-		}
-
-		blockHash, ok := blockId.(common.Hash)
-		if !ok {
-			return nil, errors.New("unexpected blockId type")
-		}
-
-		if shardId == types.MainShardId {
-			idx := slices.IndexFunc(batches, func(batch *scTypes.BlockBatch) bool {
-				return batch.MainShardBlock.Hash == blockHash
-			})
-			if idx == -1 {
-				return nil, nil
-			}
-			return batches[idx].MainShardBlock, nil
-		}
-
-		execShardBlock := testaide.NewExecutionShardBlock()
-		execShardBlock.ShardId = shardId
-		execShardBlock.Hash = blockHash
-		return execShardBlock, nil
-	}
-
-	s.rpcClientMock.GetBlocksRangeFunc = func(
-		_ context.Context, shardId types.ShardId, from types.BlockNumber, to types.BlockNumber, _ bool, _ int,
-	) ([]*jsonrpc.RPCBlock, error) {
-		if shardId != types.MainShardId {
-			s.Require().Fail("got unexpected ShardId passed to GetBlocksRange: %d", shardId)
-		}
-		blocks := make([]*jsonrpc.RPCBlock, 0)
-		for _, batch := range batches {
-			if batch.MainShardBlock.Number >= from && batch.MainShardBlock.Number <= to {
-				blocks = append(blocks, batch.MainShardBlock)
-			}
-		}
-		return blocks, nil
-	}
-}
-
-func blockGenerator(
-	mainBlock *jsonrpc.RPCBlock,
-) func(context.Context, types.ShardId, any, bool) (*jsonrpc.RPCBlock, error) {
-	return func(_ context.Context, shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
-		if shardId == types.MainShardId {
-			blockHash, ok := blockId.(common.Hash)
-			if ok {
-				if blockHash == common.IntToHash(1) {
-					genesisBlock := testaide.NewMainShardBlock()
-					genesisBlock.Number = 0
-					return genesisBlock, nil
-				}
-			}
-			return mainBlock, nil
-		}
-
-		blockHash, ok := blockId.(common.Hash)
-		if !ok {
-			return nil, errors.New("unexpected blockId type")
-		}
-
-		if blockHash.Empty() {
-			return nil, nil
-		}
-
-		execShardBlock := testaide.NewExecutionShardBlock()
-		execShardBlock.ShardId = shardId
-		execShardBlock.Hash = blockHash
-		return execShardBlock, nil
-	}
 }
 
 // requireNoNewTasks asserts that there are no new tasks available for execution
@@ -350,14 +259,15 @@ func (s *AggregatorTestSuite) requireNoNewTasks() {
 	s.Require().Nil(task, "expected no new tasks available for execution, but got one")
 }
 
-func (s *AggregatorTestSuite) requireMainBlockHandled(mainBlock *jsonrpc.RPCBlock) {
+func (s *AggregatorTestSuite) requireMainBlockHandled(mainBlock *scTypes.Block) {
 	s.T().Helper()
 
 	// latest fetched block was updated
-	mainRef, err := s.blockStorage.TryGetLatestFetched(s.ctx)
+	latestFetched, err := s.blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
-	s.Require().NotNil(mainRef)
-	s.Require().True(mainRef.Equals(mainBlock))
+	s.Require().NotNil(latestFetched)
+	mainRef := latestFetched.TryGetMain()
+	s.Require().True(latestFetched.TryGetMain().Equals(mainRef))
 
 	// main + exec block were saved to the storage
 	s.requireBlockStored(scTypes.IdFromBlock(mainBlock))

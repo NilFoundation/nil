@@ -9,7 +9,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/google/uuid"
 )
 
@@ -280,16 +279,10 @@ func (t *Task) AsNewChildEntry(currentTime time.Time) *TaskEntry {
 }
 
 func NewBatchProofTaskEntry(
-	batchId BatchId, orderedBlocks []*jsonrpc.RPCBlock, currentTime time.Time,
+	batchId BatchId, blockIds []BlockId, currentTime time.Time,
 ) (*TaskEntry, error) {
-	if len(orderedBlocks) == 0 {
+	if len(blockIds) == 0 {
 		return nil, errors.New("no blocks for create proof batch task")
-	}
-
-	blockIds := make([]BlockId, len(orderedBlocks))
-	for i, b := range orderedBlocks {
-		blockIds[i].ShardId = b.ShardId
-		blockIds[i].Hash = b.Hash
 	}
 
 	task := Task{

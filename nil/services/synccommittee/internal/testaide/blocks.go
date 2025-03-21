@@ -5,9 +5,11 @@ package testaide
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"log"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -16,10 +18,9 @@ import (
 
 const (
 	ShardsCount = 4
-	BatchSize   = ShardsCount + 1
 )
 
-var GenesisMainShardHash = RandomHash()
+var GenesisBlockHash = RandomHash()
 
 func RandomHash() common.Hash {
 	randomBytes := make([]byte, 32)
@@ -37,10 +38,6 @@ func RandomBlockNum() types.BlockNumber {
 		panic(err)
 	}
 	return types.BlockNumber(binary.LittleEndian.Uint64(randomBytes))
-}
-
-func RandomBlockId() scTypes.BlockId {
-	return scTypes.NewBlockId(RandomShardId(), RandomHash())
 }
 
 func RandomShardId() types.ShardId {
@@ -70,18 +67,37 @@ func NewRpcInTransaction() *jsonrpc.RPCInTransaction {
 }
 
 func NewBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
-	batches := make([]*scTypes.BlockBatch, 0, batchesCount)
-	for range batchesCount {
+	if batchesCount <= 0 {
+		log.Panicf("batchesCount must be positive, got=%d", batchesCount)
+	}
+
+	firstBatch := NewBlockBatch(ShardsCount)
+	firstBatch.Subgraphs[0].Main.Number = 1
+	for _, segment := range firstBatch.Subgraphs[0].Children {
+		segment[0].Number = 1
+		segment[0].ParentHash = GenesisBlockHash
+	}
+
+	batches := make([]*scTypes.BlockBatch, 1, batchesCount)
+	batches[0] = firstBatch
+
+	for range batchesCount - 1 {
 		nextBatch := NewBlockBatch(ShardsCount)
-		if len(batches) == 0 {
-			nextBatch.MainShardBlock.Number = 0
-			nextBatch.MainShardBlock.ParentHash = GenesisMainShardHash
-		} else {
-			prevBatch := batches[len(batches)-1]
-			nextBatch.MainShardBlock.ParentHash = prevBatch.MainShardBlock.Hash
-			nextBatch.MainShardBlock.Number = prevBatch.MainShardBlock.Number + 1
-			nextBatch.ParentId = &prevBatch.Id
+		subgraph := nextBatch.Subgraphs[0]
+
+		prevBatch := batches[len(batches)-1]
+		prevSubgraph := prevBatch.Subgraphs[0]
+
+		nextBatch.ParentId = &prevBatch.Id
+		subgraph.Main.ParentHash = prevSubgraph.Main.Hash
+		subgraph.Main.Number = prevSubgraph.Main.Number + 1
+
+		for shard, segment := range nextBatch.Subgraphs[0].Children {
+			prevSegmentTail := prevSubgraph.Children[shard].Latest()
+			segment[0].ParentHash = prevSegmentTail.Hash
+			segment[0].Number = prevSegmentTail.Number + 1
 		}
+
 		batches = append(batches, nextBatch)
 	}
 	return batches
@@ -89,30 +105,32 @@ func NewBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
 
 func NewBlockBatch(childBlocksCount int) *scTypes.BlockBatch {
 	mainBlock := NewMainShardBlock()
-	childBlocks := make([]*jsonrpc.RPCBlock, 0, childBlocksCount)
 	mainBlock.ChildBlocks = nil
 
+	children := make(map[types.ShardId]scTypes.ShardChainSegment)
 	for i := range childBlocksCount {
 		block := NewExecutionShardBlock()
 		block.ShardId = types.ShardId(i + 1)
-		childBlocks = append(childBlocks, block)
 		mainBlock.ChildBlocks = append(mainBlock.ChildBlocks, block.Hash)
+		children[block.ShardId] = []*scTypes.Block{block}
 	}
 
-	batch, err := scTypes.NewBlockBatch(nil, mainBlock, childBlocks)
-	if err != nil {
-		panic(err)
-	}
+	subgraph, err := scTypes.NewSubgraph(mainBlock, children)
+	check.PanicIfErr(err)
+
+	batch, err := scTypes.NewBlockBatch(nil, *subgraph)
+	check.PanicIfErr(err)
+
 	return batch
 }
 
-func NewMainShardBlock() *jsonrpc.RPCBlock {
+func NewMainShardBlock() *scTypes.Block {
 	childHashes := make([]common.Hash, 0, ShardsCount)
 	for range ShardsCount {
 		childHashes = append(childHashes, RandomHash())
 	}
 
-	return &jsonrpc.RPCBlock{
+	return &scTypes.Block{
 		Number:              RandomBlockNum(),
 		ShardId:             types.MainShardId,
 		ChildBlocks:         childHashes,
@@ -123,8 +141,8 @@ func NewMainShardBlock() *jsonrpc.RPCBlock {
 	}
 }
 
-func NewExecutionShardBlock() *jsonrpc.RPCBlock {
-	return &jsonrpc.RPCBlock{
+func NewExecutionShardBlock() *scTypes.Block {
+	return &scTypes.Block{
 		Number:        RandomBlockNum(),
 		ShardId:       RandomShardId(),
 		Hash:          RandomHash(),
@@ -135,19 +153,19 @@ func NewExecutionShardBlock() *jsonrpc.RPCBlock {
 }
 
 func NewProposalData(txCount int, currentTime time.Time) *scTypes.ProposalData {
-	transactions := make([]*scTypes.PrunedTransaction, 0, txCount)
+	transactions := make([]scTypes.PrunedTransaction, 0, txCount)
 	for range txCount {
 		tx := scTypes.NewTransaction(NewRpcInTransaction())
 		transactions = append(transactions, tx)
 	}
 
-	return &scTypes.ProposalData{
-		MainShardBlockHash: RandomHash(),
-		Transactions:       transactions,
-		OldProvedStateRoot: RandomHash(),
-		NewProvedStateRoot: RandomHash(),
-		MainBlockFetchedAt: currentTime.Add(-time.Hour),
-	}
+	return scTypes.NewProposalData(
+		scTypes.NewBatchId(),
+		transactions,
+		RandomHash(),
+		RandomHash(),
+		currentTime.Add(-time.Hour),
+	)
 }
 
 func newRpcInTransactions(count int) []*jsonrpc.RPCInTransaction {

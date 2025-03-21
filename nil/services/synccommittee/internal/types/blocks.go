@@ -13,29 +13,47 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 )
 
-// MainBlockRef represents a reference to a specific main shard block
-type MainBlockRef struct {
+type Block = jsonrpc.RPCBlock
+
+// BlockRef represents a reference to a specific shard block
+type BlockRef struct {
+	Shard  types.ShardId     `json:"shardId"`
 	Hash   common.Hash       `json:"hash"`
 	Number types.BlockNumber `json:"number"`
 }
 
-func NewBlockRef(block *jsonrpc.RPCBlock) (*MainBlockRef, error) {
-	if block == nil {
-		return nil, errors.New("block cannot be nil")
+func NewBlockRef(shard types.ShardId, hash common.Hash, number types.BlockNumber) BlockRef {
+	return BlockRef{
+		Shard:  shard,
+		Hash:   hash,
+		Number: number,
 	}
-
-	if block.ShardId != types.MainShardId {
-		return nil, fmt.Errorf("block is not from main shard: %d", block.ShardId)
-	}
-
-	return &MainBlockRef{
-		Hash:   block.Hash,
-		Number: block.Number,
-	}, nil
 }
 
-func (br *MainBlockRef) String() string {
-	return fmt.Sprintf("BlockRef{hash=%s, number=%d}", br.Hash, br.Number)
+func RefToBlock(block *Block) BlockRef {
+	return NewBlockRef(block.ShardId, block.Hash, block.Number)
+}
+
+func (br *BlockRef) AsId() BlockId {
+	return NewBlockId(br.Shard, br.Hash)
+}
+
+func (br *BlockRef) String() string {
+	return fmt.Sprintf("BlockRef{shard=%s, number=%d, hash=%s}", br.Shard, br.Number, br.Hash)
+}
+
+// BlockRefs represents per-shard block references
+type BlockRefs map[types.ShardId]BlockRef
+
+func (r BlockRefs) TryGet(shard types.ShardId) *BlockRef {
+	if ref, ok := r[shard]; ok {
+		return &ref
+	}
+	return nil
+}
+
+func (r BlockRefs) TryGetMain() *BlockRef {
+	return r.TryGet(types.MainShardId)
 }
 
 type BlocksRange struct {
@@ -49,8 +67,8 @@ type BlocksRange struct {
 // a) The latest block fetched from the cluster, or
 // b) The latest proved state root, if `latestFetched` is nil.
 func GetBlocksFetchingRange(
-	latestHandled MainBlockRef,
-	actualLatest MainBlockRef,
+	latestHandled BlockRef,
+	actualLatest BlockRef,
 	maxNumBlocks uint32,
 ) (*BlocksRange, error) {
 	if maxNumBlocks == 0 {
@@ -86,21 +104,47 @@ func GetBlocksFetchingRange(
 	return &BlocksRange{blocksRange.Start, blocksRange.Start + types.BlockNumber(maxNumBlocks-1)}, nil
 }
 
-func (br *MainBlockRef) Equals(child *jsonrpc.RPCBlock) bool {
-	if br == nil || child == nil {
-		return br == nil && child == nil
+func (br *BlockRef) Equals(other *BlockRef) bool {
+	if br == nil || other == nil {
+		return br == nil && other == nil
 	}
 
-	return br.Hash == child.Hash && br.Number == child.Number
+	return br.Shard == other.Shard && br.Hash == other.Hash && br.Number == other.Number
 }
 
-func (br *MainBlockRef) ValidateChild(child *jsonrpc.RPCBlock) error {
+// ValidateDescendant verifies if a given descendant BlockRef is valid relative to the current BlockRef.
+func (br *BlockRef) ValidateDescendant(descendant BlockRef) error {
 	switch {
 	case br == nil:
 		return nil
 
-	case child == nil:
-		return errors.New("child block cannot be nil")
+	case descendant.Shard != br.Shard:
+		return fmt.Errorf(
+			"%w: [hash=%s] shard mismatch: expected=%d, got=%d",
+			ErrBlockMismatch, descendant.Hash, br.Shard, descendant.Shard,
+		)
+
+	case descendant.Number <= br.Number:
+		return fmt.Errorf(
+			"%w: [hash=%s] block number mismatch: expected>%d, got=%d",
+			ErrBlockMismatch, descendant.Hash, br.Number, descendant.Number,
+		)
+
+	default:
+		return nil
+	}
+}
+
+// ValidateNext ensures that the given child block is a valid subsequent block of the current BlockRef.
+func (br *BlockRef) ValidateNext(child *Block) error {
+	childRef := RefToBlock(child)
+	if err := br.ValidateDescendant(childRef); err != nil {
+		return err
+	}
+
+	switch {
+	case br == nil:
+		return nil
 
 	case child.Number != br.Number+1:
 		return fmt.Errorf(
@@ -119,20 +163,15 @@ func (br *MainBlockRef) ValidateChild(child *jsonrpc.RPCBlock) error {
 	}
 }
 
-func GetMainParentRef(mainBlock *jsonrpc.RPCBlock) (*MainBlockRef, error) {
-	if mainBlock == nil {
-		return nil, errors.New("mainBlock cannot be nil")
+func GetParentRef(block *Block) *BlockRef {
+	if block.Number == 0 || block.ParentHash.Empty() {
+		return nil
 	}
-	if mainBlock.ShardId != types.MainShardId {
-		return nil, fmt.Errorf("mainBlock is not from main shard: %d", mainBlock.ShardId)
+	return &BlockRef{
+		Shard:  block.ShardId,
+		Number: block.Number - 1,
+		Hash:   block.ParentHash,
 	}
-	if mainBlock.Number == 0 || mainBlock.ParentHash.Empty() {
-		return nil, nil
-	}
-	return &MainBlockRef{
-		Number: mainBlock.Number - 1,
-		Hash:   mainBlock.ParentHash,
-	}, nil
 }
 
 type BlockId struct {
@@ -144,11 +183,11 @@ func NewBlockId(shardId types.ShardId, hash common.Hash) BlockId {
 	return BlockId{shardId, hash}
 }
 
-func IdFromBlock(block *jsonrpc.RPCBlock) BlockId {
+func IdFromBlock(block *Block) BlockId {
 	return BlockId{block.ShardId, block.Hash}
 }
 
-func ChildBlockIds(mainShardBlock *jsonrpc.RPCBlock) ([]BlockId, error) {
+func ChildBlockIds(mainShardBlock *Block) ([]BlockId, error) {
 	if mainShardBlock == nil {
 		return nil, errors.New("mainShardBlock cannot be nil")
 	}
@@ -160,6 +199,10 @@ func ChildBlockIds(mainShardBlock *jsonrpc.RPCBlock) ([]BlockId, error) {
 	blockIds := make([]BlockId, 0, len(mainShardBlock.ChildBlocks))
 
 	for i, childHash := range mainShardBlock.ChildBlocks {
+		if childHash.Empty() {
+			continue
+		}
+
 		shardId := types.ShardId(i + 1)
 		blockId := NewBlockId(shardId, childHash)
 		blockIds = append(blockIds, blockId)
@@ -184,10 +227,10 @@ type PrunedBlock struct {
 	BlockNumber   types.BlockNumber
 	Timestamp     uint64
 	PrevBlockHash common.Hash
-	Transactions  []*PrunedTransaction
+	Transactions  []PrunedTransaction
 }
 
-func NewPrunedBlock(block *jsonrpc.RPCBlock) *PrunedBlock {
+func NewPrunedBlock(block *Block) *PrunedBlock {
 	return &PrunedBlock{
 		ShardId:       block.ShardId,
 		BlockNumber:   block.Number,
@@ -208,16 +251,16 @@ type PrunedTransaction struct {
 	Data     hexutil.Bytes
 }
 
-func BlockTransactions(block *jsonrpc.RPCBlock) []*PrunedTransaction {
-	transactions := make([]*PrunedTransaction, len(block.Transactions))
+func BlockTransactions(block *Block) []PrunedTransaction {
+	transactions := make([]PrunedTransaction, len(block.Transactions))
 	for idx, transaction := range block.Transactions {
 		transactions[idx] = NewTransaction(transaction)
 	}
 	return transactions
 }
 
-func NewTransaction(transaction *jsonrpc.RPCInTransaction) *PrunedTransaction {
-	return &PrunedTransaction{
+func NewTransaction(transaction *jsonrpc.RPCInTransaction) PrunedTransaction {
+	return PrunedTransaction{
 		Flags:    transaction.Flags,
 		Seqno:    transaction.Seqno,
 		From:     transaction.From,
@@ -230,10 +273,25 @@ func NewTransaction(transaction *jsonrpc.RPCInTransaction) *PrunedTransaction {
 }
 
 type ProposalData struct {
-	BatchId            BatchId
-	MainShardBlockHash common.Hash
-	Transactions       []*PrunedTransaction
-	OldProvedStateRoot common.Hash
-	NewProvedStateRoot common.Hash
-	MainBlockFetchedAt time.Time
+	BatchId             BatchId
+	Transactions        []PrunedTransaction
+	OldProvedStateRoot  common.Hash
+	NewProvedStateRoot  common.Hash
+	FirstBlockFetchedAt time.Time
+}
+
+func NewProposalData(
+	batchId BatchId,
+	transactions []PrunedTransaction,
+	oldProvedStateRoot common.Hash,
+	newProvedStateRoot common.Hash,
+	mainBlockFetchedAt time.Time,
+) *ProposalData {
+	return &ProposalData{
+		BatchId:             batchId,
+		Transactions:        transactions,
+		OldProvedStateRoot:  oldProvedStateRoot,
+		NewProvedStateRoot:  newProvedStateRoot,
+		FirstBlockFetchedAt: mainBlockFetchedAt,
+	}
 }

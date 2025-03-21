@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/blob"
 	v1 "github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode/v1"
@@ -34,7 +32,7 @@ type AggregatorTaskStorage interface {
 }
 
 type AggregatorBlockStorage interface {
-	TryGetLatestFetched(ctx context.Context) (*types.MainBlockRef, error)
+	GetLatestFetched(ctx context.Context) (types.BlockRefs, error)
 	TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error)
 	TryGetLatestBatchId(ctx context.Context) (*types.BatchId, error)
 	SetBlockBatch(ctx context.Context, batch *types.BlockBatch) error
@@ -56,19 +54,20 @@ func NewDefaultAggregatorConfig() AggregatorConfig {
 }
 
 type aggregator struct {
-	logger         logging.Logger
-	rpcClient      client.Client
-	blockStorage   AggregatorBlockStorage
-	taskStorage    AggregatorTaskStorage
-	batchCommitter batches.BatchCommitter
-	resetter       *reset.StateResetter
-	clock          clockwork.Clock
-	metrics        AggregatorMetrics
-	workerAction   *concurrent.Suspendable
+	rpcClient       RpcBlockFetcher
+	blockStorage    AggregatorBlockStorage
+	taskStorage     AggregatorTaskStorage
+	subgraphFetcher *subgraphFetcher
+	batchCommitter  batches.BatchCommitter
+	resetter        *reset.StateResetter
+	clock           clockwork.Clock
+	metrics         AggregatorMetrics
+	workerAction    *concurrent.Suspendable
+	logger          logging.Logger
 }
 
 func NewAggregator(
-	rpcClient client.Client,
+	rpcClient RpcBlockFetcher,
 	blockStorage AggregatorBlockStorage,
 	taskStorage AggregatorTaskStorage,
 	resetter *reset.StateResetter,
@@ -78,9 +77,10 @@ func NewAggregator(
 	config AggregatorConfig,
 ) *aggregator {
 	agg := &aggregator{
-		rpcClient:    rpcClient,
-		blockStorage: blockStorage,
-		taskStorage:  taskStorage,
+		rpcClient:       rpcClient,
+		blockStorage:    blockStorage,
+		taskStorage:     taskStorage,
+		subgraphFetcher: newSubgraphFetcher(rpcClient, logger),
 		batchCommitter: batches.NewBatchCommitter(
 			v1.NewEncoder(logger),
 			blob.NewBuilder(),
@@ -228,29 +228,33 @@ func (agg *aggregator) processBlockRange(ctx context.Context) error {
 }
 
 // fetchLatestBlocks retrieves the latest block for main shard
-func (agg *aggregator) getLatestBlockRef(ctx context.Context) (*types.MainBlockRef, error) {
+func (agg *aggregator) getLatestBlockRef(ctx context.Context) (*types.BlockRef, error) {
 	block, err := agg.rpcClient.GetBlock(ctx, coreTypes.MainShardId, "latest", false)
-	if err != nil || block == nil {
+	if block == nil {
+		return nil, fmt.Errorf("%w: latest main block not found in chain", types.ErrBlockNotFound)
+	}
+	if err != nil {
 		return nil, fmt.Errorf("error fetching latest block from shard %d: %w", coreTypes.MainShardId, err)
 	}
-	return types.NewBlockRef(block)
+	blockRef := types.RefToBlock(block)
+	return &blockRef, nil
 }
 
 // getStartingBlockRef retrieves the starting point for the next fetching iteration,
-// prioritizing the latest fetched block if available.
+// prioritizing the latest fetched main shard block if available.
 // If `latestFetched` value is not defined, method uses `latestProvedStateRoot`.
 // If neither of the two values is defined, method returns an error.
-func (agg *aggregator) getStartingBlockRef(ctx context.Context) (*types.MainBlockRef, error) {
-	latestFetched, err := agg.blockStorage.TryGetLatestFetched(ctx)
+func (agg *aggregator) getStartingBlockRef(ctx context.Context) (*types.BlockRef, error) {
+	latestFetched, err := agg.blockStorage.GetLatestFetched(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error reading latest fetched block for the main shard: %w", err)
 	}
-	if latestFetched != nil {
-		if err := agg.requireBlockExistsInChain(ctx, *latestFetched); err != nil {
+	if mainRef := latestFetched.TryGetMain(); mainRef != nil {
+		if err := agg.requireBlockExistsInChain(ctx, *mainRef); err != nil {
 			return nil, err
 		}
 
-		return latestFetched, nil
+		return mainRef, nil
 	}
 
 	agg.logger.Debug().Msg("No blocks fetched yet, latest proved state root value will be used")
@@ -274,11 +278,12 @@ func (agg *aggregator) getStartingBlockRef(ctx context.Context) (*types.MainBloc
 		)
 	}
 
-	return types.NewBlockRef(rpcBlock)
+	blockRef := types.RefToBlock(rpcBlock)
+	return &blockRef, nil
 }
 
-func (agg *aggregator) requireBlockExistsInChain(ctx context.Context, blockRef types.MainBlockRef) error {
-	rpcBlock, err := agg.rpcClient.GetBlock(ctx, coreTypes.MainShardId, blockRef.Hash, false)
+func (agg *aggregator) requireBlockExistsInChain(ctx context.Context, blockRef types.BlockRef) error {
+	rpcBlock, err := agg.rpcClient.GetBlock(ctx, blockRef.Shard, blockRef.Hash, false)
 	if err != nil {
 		return fmt.Errorf("error fetching block from RPC, %s: %w", blockRef, err)
 	}
@@ -325,45 +330,40 @@ func (agg *aggregator) fetchAndProcessBlocks(ctx context.Context, blocksRange ty
 
 func (agg *aggregator) createBlockBatch(
 	ctx context.Context,
-	mainShardBlock *jsonrpc.RPCBlock,
+	mainShardBlock *types.Block,
 ) (*types.BlockBatch, error) {
-	childIds, err := types.ChildBlockIds(mainShardBlock)
-	if err != nil {
-		return nil, err
-	}
-
-	childBlocks := make([]*jsonrpc.RPCBlock, 0, len(childIds))
-
-	for _, childId := range childIds {
-		childBlock, err := agg.rpcClient.GetBlock(ctx, childId.ShardId, childId.Hash, true)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"error fetching child block with id=%s, mainHash=%s: %w", childId, mainShardBlock.Hash, err,
-			)
-		}
-		childBlocks = append(childBlocks, childBlock)
-	}
-
 	latestBatchId, err := agg.blockStorage.TryGetLatestBatchId(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error reading latest batch id: %w", err)
 	}
 
-	return types.NewBlockBatch(latestBatchId, mainShardBlock, childBlocks)
+	latestFetched, err := agg.blockStorage.GetLatestFetched(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	subgraph, err := agg.subgraphFetcher.FetchSubgraph(ctx, mainShardBlock, latestFetched)
+	if err != nil {
+		return nil, err
+	}
+
+	return types.NewBlockBatch(latestBatchId, *subgraph)
 }
 
 // handleBlockBatch checks the validity of a block and stores it if valid.
 func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockBatch) error {
-	latestFetched, err := agg.blockStorage.TryGetLatestFetched(ctx)
+	latestFetched, err := agg.blockStorage.GetLatestFetched(ctx)
 	if err != nil {
 		return fmt.Errorf("error reading latest fetched block from storage: %w", err)
 	}
-	if err := latestFetched.ValidateChild(batch.MainShardBlock); err != nil {
+
+	mainRef := latestFetched.TryGetMain()
+	if err := mainRef.ValidateNext(batch.FirstMainBlock()); err != nil {
 		return err
 	}
 
 	if err := agg.blockStorage.SetBlockBatch(ctx, batch); err != nil {
-		return fmt.Errorf("error storing block batch, mainHash=%s: %w", batch.MainShardBlock.Hash, err)
+		return fmt.Errorf("error storing block batch, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
 	}
 
 	prunedBatch := types.NewPrunedBatch(batch)
@@ -372,7 +372,7 @@ func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 	}
 
 	if err := agg.createProofTasks(ctx, batch); err != nil {
-		return fmt.Errorf("error creating proof tasks, mainHash=%s: %w", batch.MainShardBlock.Hash, err)
+		return fmt.Errorf("error creating proof tasks, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
 	}
 
 	agg.metrics.RecordMainBlockFetched(ctx)
@@ -384,16 +384,16 @@ func (agg *aggregator) createProofTasks(ctx context.Context, batch *types.BlockB
 	currentTime := agg.clock.Now()
 	proofTask, err := batch.CreateProofTask(currentTime)
 	if err != nil {
-		return fmt.Errorf("error creating proof tasks, mainHash=%s: %w", batch.MainShardBlock.Hash, err)
+		return fmt.Errorf("error creating proof tasks, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
 	}
 
 	if err := agg.taskStorage.AddTaskEntries(ctx, proofTask); err != nil {
-		return fmt.Errorf("error adding task entries, mainHash=%s: %w", batch.MainShardBlock.Hash, err)
+		return fmt.Errorf("error adding task entries, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
 	}
 
 	agg.logger.Debug().
 		Stringer(logging.FieldBatchId, batch.Id).
-		Msgf("created proof task, mainHash=%s", batch.MainShardBlock.Hash)
+		Msgf("created proof task, latestMainHash=%s", batch.LatestMainBlock().Hash)
 
 	return nil
 }
