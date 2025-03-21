@@ -30,7 +30,7 @@
         packages = rec {
           solc = (pkgs.callPackage ./nix/solc.nix { });
           nil = (pkgs.callPackage ./nix/nil.nix { solc = solc; });
-          niljs = (pkgs.callPackage ./nix/niljs.nix { solc = solc; });
+          niljs = (pkgs.callPackage ./nix/niljs.nix { smartcontracts = nilsmartcontracts; });
           clijs = (pkgs.callPackage ./nix/clijs.nix { nil = nil; });
           nildocs = (pkgs.callPackage ./nix/nildocs.nix {
             nil = nil;

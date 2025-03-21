@@ -47,7 +47,7 @@
     "eslint-plugin-jsdoc": "^50.4.3",
     "rimraf": "^5.0.7",
     "rollup": "^4.17.2",
-    "rollup-plugin-dts": "^6.1.0",
+    "rollup-plugin-dts": "6.1.1",
     "rollup-plugin-esbuild": "^6.1.1",
     "rollup-plugin-filesize": "^10.0.0",
     "solc-typed-ast": "^18.2.3",
@@ -63,7 +63,7 @@
   "dependencies": {
     "@chainsafe/persistent-merkle-tree": "^0.7.2",
     "@chainsafe/ssz": "^0.16.0",
-    "@nilfoundation/smart-contracts": "0.6.0",
+    "@nilfoundation/smart-contracts": "workspace:*",
     "@noble/curves": "^1.4.0",
     "@open-rpc/client-js": "^1.8.1",
     "@rollup/plugin-json": "^6.1.0",
