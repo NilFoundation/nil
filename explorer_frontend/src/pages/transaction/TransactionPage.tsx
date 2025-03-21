@@ -8,7 +8,7 @@ import { Transaction } from "../../features/transaction";
 const TransactionPage = () => {
   const [css] = useStyletron();
   return (
-    <Layout sidebar={<SidebarWithBackLink to={explorerRoute} />}>
+    <Layout>
       <div
         className={css({
           display: "grid",
