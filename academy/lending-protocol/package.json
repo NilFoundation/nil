@@ -3,7 +3,7 @@
   "description": "This is an example repository to showcase how a lending protocol can be built on top of =nil;",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
-    "hardhat": "^2.22.18"
+    "hardhat": "^2.22.19"
   },
   "scripts": {
     "compile": "npx hardhat compile",

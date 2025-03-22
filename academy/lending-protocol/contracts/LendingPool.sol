@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
 
+
 /// @title LendingPool
 /// @dev The LendingPool contract facilitates lending and borrowing of tokens and handles collateral management.
 /// It interacts with other contracts such as GlobalLedger, InterestManager, and Oracle for tracking deposits, calculating interest, and fetching token prices.
@@ -444,3 +445,12 @@ contract LendingPool is NilBase, NilTokenBase {
         sendTokenInternal(borrower, collateralToken, collateralAmount);
     }
 }
+
+
+
+
+
+
+
+
+
