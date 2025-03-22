@@ -34,6 +34,10 @@ func NewBlockRef(block *jsonrpc.RPCBlock) (*MainBlockRef, error) {
 	}, nil
 }
 
+func (br *MainBlockRef) String() string {
+	return fmt.Sprintf("BlockRef{hash=%s, number=%d}", br.Hash, br.Number)
+}
+
 type BlocksRange struct {
 	Start types.BlockNumber
 	End   types.BlockNumber
@@ -45,7 +49,7 @@ type BlocksRange struct {
 // a) The latest block fetched from the cluster, or
 // b) The latest proved state root, if `latestFetched` is nil.
 func GetBlocksFetchingRange(
-	latestHandled *MainBlockRef,
+	latestHandled MainBlockRef,
 	actualLatest MainBlockRef,
 	maxNumBlocks uint32,
 ) (*BlocksRange, error) {
@@ -55,9 +59,6 @@ func GetBlocksFetchingRange(
 
 	var blocksRange BlocksRange
 	switch {
-	case latestHandled == nil:
-		blocksRange = BlocksRange{actualLatest.Number, actualLatest.Number}
-
 	case latestHandled.Number < actualLatest.Number:
 		blocksRange = BlocksRange{latestHandled.Number + 1, actualLatest.Number}
 
