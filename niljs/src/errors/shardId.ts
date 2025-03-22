@@ -21,7 +21,10 @@ class InvalidShardIdError extends BaseError {
    * @param {*} param0....rest The remaining error params, see {@link IBaseErrorParameters}.
    */
   constructor({ shardId, ...rest }: InvalidShardIdErrorParameters) {
-    super(`Expected a valid shardId but got: ${shardId}`, { ...rest });
+    super(`Expected a valid shardId but got: ${shardId}`, {
+      name: "InvalidShardIdError",
+      ...rest,
+    });
   }
 }
 

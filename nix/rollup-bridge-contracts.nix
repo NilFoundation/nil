@@ -47,7 +47,10 @@ stdenv.mkDerivation rec {
 
   installPhase = ''
     mkdir -p $out
+    cp ../package-lock.json $out/
     cp -r * $out/
     cp .env $out/
+    rm -rf $out/node_modules
+    rm -rf $out/cache
   '';
 }

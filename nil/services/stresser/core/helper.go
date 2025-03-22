@@ -101,7 +101,7 @@ func (h *Helper) DeployContract(name string, shardId types.ShardId) (*Contract, 
 		h.logger.Error().Err(err).Str("addr", addr.Hex()).Msgf("Failed to get balance")
 	}
 
-	h.logger.Info().Msgf("Contract deployed at %x, balance: %s", addr.Hex(), balance)
+	h.logger.Info().Msgf("Contract deployed at %x, balance: %s", addr, balance)
 
 	return NewContract(name, addr)
 }

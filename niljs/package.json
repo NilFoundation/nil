@@ -43,6 +43,7 @@
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@vitest/coverage-v8": "^1.6.0",
+    "dotenv": "^16.4.7",
     "eslint": "^9.13.0",
     "eslint-plugin-jsdoc": "^50.4.3",
     "rollup": "^4.17.2",

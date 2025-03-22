@@ -18,8 +18,10 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/stresser/core"
 	"github.com/NilFoundation/nil/nil/services/stresser/metrics"
 	"github.com/NilFoundation/nil/nil/services/stresser/workload"
@@ -45,6 +47,7 @@ type Config struct {
 	Mode       string `yaml:"mode"`
 	NildPath   string `yaml:"nildPath"`
 	WorkingDir string `yaml:"workingDir"`
+	Embedded   bool   `yaml:"embedded"`
 
 	// Single instance mode params
 	RpcPort   int `yaml:"rpcPort"`
@@ -120,11 +123,13 @@ func NewStresser(configYaml string, configPath string) (*Stresser, error) {
 	var rpc_endpoint string
 	switch cfg.Mode {
 	case modeSingleInstance:
-		node := &NildInstance{}
-		if err := node.InitSingle(cfg.NildPath, cfg.WorkingDir, cfg.RpcPort, cfg.NumShards); err != nil {
-			return nil, fmt.Errorf("failed to init node: %w", err)
+		if !cfg.Embedded {
+			node := &NildInstance{}
+			if err := node.InitSingle(cfg.NildPath, cfg.WorkingDir, cfg.RpcPort, cfg.NumShards); err != nil {
+				return nil, fmt.Errorf("failed to init node: %w", err)
+			}
+			s.nodes = append(s.nodes, node)
 		}
-		s.nodes = append(s.nodes, node)
 		rpc_endpoint = fmt.Sprintf("http://127.0.0.1:%d", cfg.RpcPort)
 	case modeDevnet:
 		devnetFile := resolveFile(cfg.DevnetFile, configPath)
@@ -221,28 +226,51 @@ func (s *Stresser) Run(ctx context.Context) error {
 		}
 	}
 
+	if s.cfg.Mode == modeSingleInstance && s.cfg.Embedded {
+		badger, err := db.NewBadgerDb(path.Join(s.cfg.WorkingDir, "database"))
+		if err != nil {
+			return fmt.Errorf("failed to create badger db: %w", err)
+		}
+
+		nilConfig := nilservice.NewDefaultConfig()
+		nilConfig.NShards = uint32(s.cfg.NumShards)
+		nilConfig.Telemetry = &telemetry.Config{
+			ServiceName:   "stresser",
+			ExportMetrics: true,
+		}
+		nilConfig.RPCPort = 8529
+
+		go func() {
+			exitCode := nilservice.Run(ctx, nilConfig, badger, nil)
+			if exitCode != 0 {
+				logger.Error().Int("exit_code", exitCode).Msg("nilservice exited with error")
+			} else {
+				logger.Info().Msg("nilservice finished successfully")
+			}
+			cancelFn()
+		}()
+	}
+
 	logger.Info().Msgf("%d nodes started", len(s.nodes))
 
-	exitChan := make(chan struct{})
 	go func() {
 		if err := s.runWorkload(ctx); err != nil {
 			logger.Error().Err(err).Msg("workload returns error")
+		} else {
+			logger.Info().Msg("Workload finished successfully")
 		}
-		close(exitChan)
+		cancelFn()
 	}()
 
 	if len(s.nodes) != 0 {
 		go func() {
 			wg.Wait()
 			logger.Info().Msg("All nodes are stopped")
+			cancelFn()
 		}()
 	}
 
-	select {
-	case <-ctx.Done():
-	case <-exitChan:
-	}
-
+	<-ctx.Done()
 	s.killAll()
 
 	return nil

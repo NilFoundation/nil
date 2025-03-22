@@ -1,4 +1,5 @@
 mode: single-instance
+embedded: true
 endpoint: http://127.0.0.1:8529
 rpcPort: 8529
 workingDir: ./

@@ -593,6 +593,9 @@ func createNetworkManager(ctx context.Context, cfg *Config, database db.DB) (*ne
 }
 
 func initDefaultValidator(cfg *Config) error {
+	if cfg.ValidatorKeysManager == nil {
+		return errors.New("validator keys manager is nil")
+	}
 	pubkey, err := cfg.ValidatorKeysManager.GetPublicKey()
 	if err != nil {
 		return err

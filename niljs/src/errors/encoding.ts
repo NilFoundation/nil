@@ -24,8 +24,10 @@ class IntegerOutOfRangeError extends BaseError {
    */
   constructor({ max, min, value, ...rest }: IntegerOutOfRangeErrorParameters) {
     super(
-      `Number "${value}" is not in safe integer range ${max ? `(${min} to ${max})` : `(above ${min})`}`,
-      { ...rest },
+      `Number "${value}" is not in safe integer range ${
+        max ? `(${min} to ${max})` : `(above ${min})`
+      }`,
+      { name: "IntegerOutOfRangeError", ...rest },
     );
   }
 }
