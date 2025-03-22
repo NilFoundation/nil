@@ -8,6 +8,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/relayer/internal/storage"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/jonboulle/clockwork"
 	"golang.org/x/sync/errgroup"
@@ -77,16 +78,16 @@ func NewEventListener(
 		clock:           clock,
 		config:          config,
 		eventStorage:    storage,
-		logger:          logger,
 	}
 
 	el.state.emitter = make(chan struct{}, config.EmitEventCapacity)
+	el.logger = logger.With().Str(logging.FieldComponent, el.Name()).Logger()
 
 	return el, nil
 }
 
 func (el *EventListener) Name() string {
-	return "l1-event-listener"
+	return "event-listener"
 }
 
 func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error {
@@ -106,7 +107,7 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 
 	// event listener has to be interrupted in case of subscription is broken
 	return retrier.Do(ctx, func(ctx context.Context) error {
-		el.logger.Info().Msg("initializing event listener")
+		el.logger.Info().Msg("initializing component")
 		return el.run(ctx)
 	})
 }
@@ -136,7 +137,7 @@ func (el *EventListener) run(ctx context.Context) error {
 	})
 
 	err := eg.Wait()
-	el.logger.Debug().Err(err).Msg("l1 event listener done")
+	el.logger.Debug().Err(err).Msg("end processing")
 	return err
 }
 
@@ -314,7 +315,7 @@ func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSe
 
 	// all retryable errors should be handled inside storage, otherwise we should interrupt service work
 	err := el.eventStorage.StoreEvent(ctx, event)
-	if err := ignoreErrors(err, ErrKeyExists); err != nil {
+	if err := ignoreErrors(err, storage.ErrKeyExists); err != nil {
 		return err
 	}
 

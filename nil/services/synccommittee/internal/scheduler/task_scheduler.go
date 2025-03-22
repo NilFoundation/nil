@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common/heap"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler/heap"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"

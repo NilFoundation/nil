@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/services/relayer/internal/storage"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/jonboulle/clockwork"
 )
@@ -34,9 +33,7 @@ type EventStorageMetrics interface {
 }
 
 type EventStorage struct {
-	database        db.DB
-	retryRunner     common.RetryRunner
-	clock           clockwork.Clock
+	*storage.BaseStorage
 	metrics         EventStorageMetrics
 	eventsSequencer db.Sequence
 }
@@ -49,19 +46,8 @@ func NewEventStorage(
 	logger logging.Logger,
 ) (*EventStorage, error) {
 	es := &EventStorage{
-		database: database,
-		retryRunner: common.NewRetryRunner(
-			common.RetryConfig{
-				ShouldRetry: common.ComposeRetryPolicies(
-					common.LimitRetries(10),
-					common.DoNotRetryIf(ErrKeyExists, ErrSerializationFailed),
-				),
-				NextDelay: common.DelayJitter(20*time.Millisecond, 100*time.Millisecond, logger),
-			},
-			logger,
-		),
-		clock:   clock,
-		metrics: metrics,
+		BaseStorage: storage.NewBaseStorage(ctx, database, clock, logger),
+		metrics:     metrics,
 	}
 	var err error
 	es.eventsSequencer, err = database.GetSequence(ctx, []byte(pendingEventsSequencer), 100)
@@ -78,20 +64,15 @@ func (es *EventStorage) StoreEvent(ctx context.Context, evt *Event) error {
 		return errors.New("cannot store event without hash")
 	}
 
-	return es.retryRunner.Do(ctx, func(ctx context.Context) error {
+	return es.RetryRunner.Do(ctx, func(ctx context.Context) error {
 		var err error
 		evt.SequenceNumber, err = es.eventsSequencer.Next()
 		if err != nil {
 			return err
 		}
 
-		writer := jsonDbWriter[*Event]{
-			table:   pendingEventsTable,
-			storage: es,
-			upsert:  false,
-		}
-
-		return writer.putTx(ctx, evt.Hash.Bytes(), evt)
+		writer := storage.NewJSONWriter[*Event](pendingEventsTable, es.BaseStorage, false)
+		return writer.PutTx(ctx, evt.Hash.Bytes(), evt)
 
 		// TODO (oclaw) metrics
 	})
@@ -102,8 +83,8 @@ func (es *EventStorage) IterateEventsByBatch(
 	batchSize int,
 	callback func([]*Event) error,
 ) error {
-	return es.retryRunner.Do(ctx, func(ctx context.Context) error {
-		tx, err := es.database.CreateRoTx(ctx)
+	return es.RetryRunner.Do(ctx, func(ctx context.Context) error {
+		tx, err := es.Database.CreateRoTx(ctx)
 		if err != nil {
 			return err
 		}
@@ -121,7 +102,7 @@ func (es *EventStorage) IterateEventsByBatch(
 				return err
 			}
 			if err := json.Unmarshal(val, &batch[idx]); err != nil {
-				return fmt.Errorf("%w: %w", ErrSerializationFailed, err)
+				return fmt.Errorf("%w: %w", storage.ErrSerializationFailed, err)
 			}
 
 			idx++
@@ -140,9 +121,9 @@ func (es *EventStorage) IterateEventsByBatch(
 	})
 }
 
-func (es *EventStorage) DeleteEvents(ctx context.Context, hashes []common.Hash) error {
-	return es.retryRunner.Do(ctx, func(ctx context.Context) error {
-		tx, err := es.database.CreateRwTx(ctx)
+func (es *EventStorage) DeleteEvents(ctx context.Context, hashes []ethcommon.Hash) error {
+	return es.RetryRunner.Do(ctx, func(ctx context.Context) error {
+		tx, err := es.Database.CreateRwTx(ctx)
 		if err != nil {
 			return err
 		}
@@ -154,14 +135,14 @@ func (es *EventStorage) DeleteEvents(ctx context.Context, hashes []common.Hash) 
 			}
 		}
 
-		return es.commit(tx)
+		return es.Commit(tx)
 	})
 }
 
 func (es *EventStorage) GetLastProcessedBlock(ctx context.Context) (*ProcessedBlock, error) {
 	var ret *ProcessedBlock
-	err := es.retryRunner.Do(ctx, func(ctx context.Context) error {
-		tx, err := es.database.CreateRoTx(ctx)
+	err := es.RetryRunner.Do(ctx, func(ctx context.Context) error {
+		tx, err := es.Database.CreateRoTx(ctx)
 		if err != nil {
 			return err
 		}
@@ -176,7 +157,7 @@ func (es *EventStorage) GetLastProcessedBlock(ctx context.Context) (*ProcessedBl
 
 		var blk ProcessedBlock
 		if err := json.Unmarshal(data, &blk); err != nil {
-			return fmt.Errorf("%w: %w", ErrSerializationFailed, err)
+			return fmt.Errorf("%w: %w", storage.ErrSerializationFailed, err)
 		}
 
 		ret = &blk
@@ -198,56 +179,10 @@ func (es *EventStorage) SetLastProcessedBlock(ctx context.Context, blk *Processe
 		return errors.New("empty last processed block number")
 	}
 
-	return es.retryRunner.Do(ctx, func(ctx context.Context) error {
-		writer := jsonDbWriter[*ProcessedBlock]{
-			table:   lastProcessedBlockTable,
-			storage: es,
-			upsert:  true,
-		}
-		return writer.putTx(ctx, []byte(lastProcessedBlockKey), blk)
+	return es.RetryRunner.Do(ctx, func(ctx context.Context) error {
+		writer := storage.NewJSONWriter[*ProcessedBlock](lastProcessedBlockTable, es.BaseStorage, true)
+		return writer.PutTx(ctx, []byte(lastProcessedBlockKey), blk)
 
 		// TODO(oclaw) metrics
 	})
-}
-
-func (*EventStorage) commit(tx db.RwTx) error {
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-	return nil
-}
-
-type jsonDbWriter[T any] struct {
-	table   db.TableName
-	storage *EventStorage
-	upsert  bool
-}
-
-func (jdwr *jsonDbWriter[T]) putTx(ctx context.Context, key []byte, value T) error {
-	data, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("%w: %w", ErrSerializationFailed, err)
-	}
-
-	tx, err := jdwr.storage.database.CreateRwTx(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if !jdwr.upsert {
-		exists, err := tx.Exists(jdwr.table, key)
-		if err != nil {
-			return err
-		}
-		if exists {
-			return fmt.Errorf("%w: table=%s key=%v", ErrKeyExists, jdwr.table, key)
-		}
-	}
-
-	if err := tx.Put(jdwr.table, key, data); err != nil {
-		return err
-	}
-
-	return jdwr.storage.commit(tx)
 }
