@@ -5,6 +5,7 @@ import { useStyletron } from "styletron-react";
 import { router } from "./features/routing";
 import { RoutesView } from "./features/routing";
 import type { StylesObject } from "./features/shared";
+import "./scrollbarStyle.css"
 
 const styles: StylesObject = {
   main: {
