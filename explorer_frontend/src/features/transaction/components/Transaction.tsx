@@ -62,20 +62,24 @@ export const Transaction = () => {
           </Tab>
           <Tab
             title="Logs"
-            endEnhancer={<Tag size={TAG_SIZE.m}>{logs?.length ?? 0}</Tag>}
+            endEnhancer={logs?.length > 0 ? <Tag size={TAG_SIZE.m}>{logs?.length ?? 0}</Tag> : ""}
             kind={TAB_KIND.secondary}
           >
             {logsPending ? <Skeleton animation /> : <Logs logs={logs} />}
           </Tab>
-          <Tab
-            title={isMobile ? "Outgoing txn" : "Outgoing transactions"}
-            endEnhancer={
-              <Tag size={TAG_SIZE.m}>{!childsLoading ? transactionChilds?.length : "..."}</Tag>
-            }
-            kind={TAB_KIND.secondary}
-          >
-            <TransactionList type="transaction" identifier={transaction.hash} view="incoming" />
-          </Tab>
+          {!childsLoading && transactionChilds?.length > 0 ? (
+            <Tab
+              title={isMobile ? "Outgoing txn" : "Outgoing transactions"}
+              endEnhancer={
+                <Tag size={TAG_SIZE.m}>{!childsLoading ? transactionChilds?.length : "..."}</Tag>
+              }
+              kind={TAB_KIND.secondary}
+            >
+              <TransactionList type="transaction" identifier={transaction.hash} view="incoming" />
+            </Tab>
+          ) : (
+            <></>
+          )}
         </Tabs>
       )}
     </>
