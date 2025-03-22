@@ -1,41 +1,29 @@
-{ pkgs
-, lib
-, stdenv
-, biome
-, callPackage
-, npmHooks
-, nil
-, enableTesting ? false
-}:
+{ pkgs, lib, stdenv, biome, callPackage, pnpm, nil, enableTesting ? false }:
 
 let
   sigtool = callPackage ./sigtool.nix { };
-in
-stdenv.mkDerivation rec {
+  nodejs_static = pkgs.pkgsStatic.nodejs_22;
+  pnpm_static = (pnpm.override { nodejs = nodejs_static; });
+in stdenv.mkDerivation rec {
   name = "clijs";
   pname = "clijs";
   src = lib.sourceByRegex ./.. [
     "package.json"
-    "package-lock.json"
+    "pnpm-workspace.yaml"
+    "pnpm-lock.yaml"
     "^clijs(/.*)?$"
     "^niljs(/.*)?$"
     "^smart-contracts(/.*)?$"
     "biome.json"
   ];
 
-  npmDeps = (callPackage ./npmdeps.nix { });
+  pnpmDeps = (callPackage ./npmdeps.nix { });
 
   NODE_PATH = "$npmDeps";
 
-  nativeBuildInputs = [
-    pkgs.pkgsStatic.nodejs_22
-    npmHooks.npmConfigHook
-    biome
-  ]
-  ++ lib.optionals stdenv.buildPlatform.isDarwin [ sigtool ]
-  ++ (if enableTesting then [ nil ] else [ ]);
-
-  dontConfigure = true;
+  nativeBuildInputs = [ nodejs_static pnpm_static.configHook biome ]
+    ++ lib.optionals stdenv.buildPlatform.isDarwin [ sigtool ]
+    ++ (if enableTesting then [ nil ] else [ ]);
 
   preUnpack = ''
     echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
@@ -43,20 +31,20 @@ stdenv.mkDerivation rec {
   '';
 
   postUnpack = ''
-    mkdir source/nil
-    cp -R ${nil}/contracts source/nil
+    #mkdir source/nil
+    #cp -R ${nil}/contracts source/nil
   '';
 
   buildPhase = ''
-    PATH="${pkgs.pkgsStatic.nodejs_22}/bin/:$PATH"
+    #PATH="${nodejs_static}/bin/:$PATH"
 
     patchShebangs docs/node_modules
     patchShebangs niljs/node_modules
-    (cd smart-contracts; npm run build)
-    (cd niljs; npm run build)
+    (cd smart-contracts; pnpm run build)
+    (cd niljs; pnpm run build)
 
     cd clijs
-    npm run bundle
+    pnpm run bundle
   '';
 
   doCheck = enableTesting;
@@ -86,4 +74,3 @@ stdenv.mkDerivation rec {
     mv ./dist/clijs $out/${pname}
   '';
 }
-

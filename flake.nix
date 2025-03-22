@@ -25,12 +25,11 @@
           inherit system;
           overlays = [ (import ./nix/overlay.nix) ];
         };
-      in
-      rec {
+      in rec {
         packages = rec {
           solc = (pkgs.callPackage ./nix/solc.nix { });
           nil = (pkgs.callPackage ./nix/nil.nix { solc = solc; });
-          niljs = (pkgs.callPackage ./nix/niljs.nix { solc = solc; });
+          niljs = (pkgs.callPackage ./nix/niljs.nix { });
           clijs = (pkgs.callPackage ./nix/clijs.nix { nil = nil; });
           nildocs = (pkgs.callPackage ./nix/nildocs.nix {
             nil = nil;
@@ -77,7 +76,6 @@
 
           niljs = (pkgs.callPackage ./nix/niljs.nix {
             nil = packages.nil;
-            solc = packages.solc;
             enableTesting = true;
           });
           clijs = (pkgs.callPackage ./nix/clijs.nix {

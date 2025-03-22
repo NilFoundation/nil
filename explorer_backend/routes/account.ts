@@ -43,7 +43,7 @@ export const accountRouter = router({
           const address = numberToHex(numToken, {
             size: 20,
           });
-          return TokenSchema.parse({ token: address, balance: balance.toString(10) });
+          return TokenSchema.parse({ token: address, balance: balance.toString() });
         }),
         source_code: sourceCode,
         abi,

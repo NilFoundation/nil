@@ -20,9 +20,10 @@
   "dependencies": {
     "@codemirror/state": "6.5.0",
     "@codemirror/view": "^6.34.1",
+    "@codemirror/lint": "6.8.4",
     "@loadable/component": "^5.15.3",
-    "@nilfoundation/niljs": "0.25.0",
-    "@nilfoundation/smart-contracts": "0.7.0",
+    "@nilfoundation/niljs": "workspace:*",
+    "@nilfoundation/smart-contracts": "workspace:*",
     "@nilfoundation/ui-kit": "^2.5.28",
     "@noble/curves": "^1.4.0",
     "@replit/codemirror-lang-solidity": "^6.0.2",
@@ -63,7 +64,8 @@
     "styletron-react": "^6.1.0",
     "typescript": "^5.5.4",
     "viem": "2.17.3",
-    "vite": "^6.0.3"
+    "vite": "^6.0.3",
+    "solc": "^0.8.29"
   },
   "devDependencies": {
     "@types/loadable__component": "^5.13.6",

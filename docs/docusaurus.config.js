@@ -81,7 +81,7 @@ const config = {
   },
   themes: ["@docusaurus/theme-mermaid"],
   plugins: [
-    "custom-loader",
+    [path.resolve(__dirname, "./plugins/custom-loader"), {}],
     [path.resolve(__dirname, "./plugins/nil-playground-plugin"), {}],
     [
       "nil-docusaurus-plugin-typedoc",

@@ -22,7 +22,7 @@
   "dependencies": {
     "@langchain/community": "^0.3.16",
     "@libsql/client": "^0.14.0",
-    "@nilfoundation/smart-contracts": "0.7.0",
+    "@nilfoundation/smart-contracts": "workspace:*",
     "ai": "^4.0.13",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",

@@ -1,20 +1,13 @@
-{ lib
-, stdenv
-, biome
-, python3
-, callPackage
-, npmHooks
-, nodejs
-, enableTesting ? false
-, cypress
-}:
+{ lib, stdenv, biome, python3, callPackage, pnpm, nodejs, enableTesting ? false
+, cypress }:
 
 stdenv.mkDerivation rec {
   name = "explorer";
   pname = "nilexplorer";
   src = lib.sourceByRegex ./.. [
     "package.json"
-    "package-lock.json"
+    "pnpm-workspace.yaml"
+    "pnpm-lock.yaml"
     "^niljs(/.*)?$"
     "^smart-contracts(/.*)?$"
     "biome.json"
@@ -22,13 +15,11 @@ stdenv.mkDerivation rec {
     "^explorer_backend(/.*)?$"
   ];
 
-  npmDeps = (callPackage ./npmdeps.nix { });
+  pnpmDeps = (callPackage ./npmdeps.nix { });
 
   NODE_PATH = "$npmDeps";
 
-  nativeBuildInputs = [ nodejs npmHooks.npmConfigHook biome python3 ];
-
-  dontConfigure = true;
+  nativeBuildInputs = [ nodejs pnpm.configHook biome python3 ];
 
   preUnpack = ''
     echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
@@ -40,13 +31,14 @@ stdenv.mkDerivation rec {
 
   buildPhase = ''
     patchShebangs explorer_frontend/node_modules
+    patchShebangs explorer_backend/node_modules
     patchShebangs node_modules
 
-    (cd smart-contracts; npm run build)
-    (cd niljs; npm run build)
+    (cd smart-contracts; pnpm run build)
+    (cd niljs; pnpm run build)
 
-    (cd explorer_frontend; npm run build)
-    (cd explorer_backend; npm run build)
+    (cd explorer_frontend; pnpm run build)
+    (cd explorer_backend; pnpm run build)
   '';
 
   doCheck = enableTesting;
@@ -55,14 +47,14 @@ stdenv.mkDerivation rec {
     export BIOME_BINARY=${biome}/bin/biome
 
     echo "Checking explorer frontend"
-    (cd explorer_frontend; npm run lint;)
+    (cd explorer_frontend; pnpm run lint;)
 
     echo "Checking explorer backend"
-    (cd explorer_backend; npm run lint;)
+    (cd explorer_backend; pnpm run lint;)
 
     echo "Checking if explorer backend starts up without errors"
     cd explorer_backend
-    npm run start & NPM_PID=$!
+    pnpm run start & NPM_PID=$!
     sleep 7
 
     if kill -0 $NPM_PID 2>/dev/null; then

@@ -1,11 +1,4 @@
-{ lib
-, stdenv
-, biome
-, callPackage
-, npmHooks
-, nodejs
-, nil
-, enableTesting ? false
+{ lib, stdenv, biome, callPackage, npmHooks, nodejs, nil, enableTesting ? false
 }:
 
 stdenv.mkDerivation rec {
@@ -24,22 +17,19 @@ stdenv.mkDerivation rec {
 
   NODE_PATH = "$npmDeps";
 
-  nativeBuildInputs = [
-    nodejs
-    npmHooks.npmConfigHook
-    biome
-  ] ++ (if enableTesting then [ nil ] else [ ]);
+  nativeBuildInputs = [ nodejs npmHooks.npmConfigHook biome ]
+    ++ (if enableTesting then [ nil ] else [ ]);
 
   dontConfigure = true;
 
   buildPhase = ''
     patchShebangs wallet-extension/node_modules
 
-    (cd smart-contracts; npm run build)
-    (cd niljs; npm run build)
+    (cd smart-contracts; pnpm run build)
+    (cd niljs; pnpm run build)
 
     cd wallet-extension
-    npm run build
+    pnpm run build
   '';
 
   doCheck = enableTesting;
@@ -52,8 +42,8 @@ stdenv.mkDerivation rec {
 
     echo "Checking wallet extension"
 
-    npm run lint
-    npm run test:integration --cache=false
+    pnpm run lint
+    pnpm run test:integration --cache=false
 
     kill `cat nild_pid` && rm nild_pid
 

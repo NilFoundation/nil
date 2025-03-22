@@ -1,42 +1,27 @@
-{ lib
-, stdenv
-, npmHooks
-, nodejs
-, nil
-, openssl
-, callPackage
-, autoconf
-, automake
-, libtool
-, biome
-, solc
-, solc-select
-, enableTesting ? false
-}:
+{ lib, stdenv, pnpm, nodejs, nil, openssl, callPackage, autoconf, automake
+, libtool, biome, solc, solc-select, enableTesting ? false }:
 
 stdenv.mkDerivation rec {
   name = "nil.docs";
   pname = "nildocs";
   src = lib.sourceByRegex ./.. [
     "package.json"
-    "package-lock.json"
+    "pnpm-workspace.yaml"
+    "pnpm-lock.yaml"
     "^docs(/.*)?$"
     "^niljs(/.*)?$"
     "^smart-contracts(/.*)?$"
     "biome.json"
   ];
 
-  npmDeps = (callPackage ./npmdeps.nix { });
+  pnpmDeps = (callPackage ./npmdeps.nix { });
 
-  NODE_PATH = "$npmDeps";
-
-  buildInputs = [
-    openssl
-  ];
+  buildInputs = [ openssl ];
 
   nativeBuildInputs = [
     nodejs
-    npmHooks.npmConfigHook
+    pnpm
+    pnpm.configHook
     autoconf
     automake
     libtool
@@ -44,8 +29,6 @@ stdenv.mkDerivation rec {
     solc-select
     biome
   ] ++ (if enableTesting then [ nil ] else [ ]);
-
-  dontConfigure = true;
 
   preUnpack = ''
     echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
@@ -60,10 +43,11 @@ stdenv.mkDerivation rec {
 
   buildPhase = ''
     runHook preBuild
+
     patchShebangs docs/node_modules
     patchShebangs niljs/node_modules
-    (cd smart-contracts; npm run build)
-    (cd niljs; npm run build)
+    (cd smart-contracts; pnpm run build)
+    (cd niljs; pnpm run build)
     export NILJS_SRC=${../niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export CMD_NIL=${../nil/cmd/nil/internal}
@@ -76,16 +60,15 @@ stdenv.mkDerivation rec {
     # needed to work-around the openssl incompatibility
     # not sure why it happens, but it does the job
     export NODE_OPTIONS=--openssl-legacy-provider
-    npm run build
+    pnpm run build
   '';
-
 
   doCheck = enableTesting;
 
   checkPhase = ''
     export BIOME_BINARY=${biome}/bin/biome
 
-    npm run lint
+    pnpm run lint
 
     echo "Runnig tests..."
     bash run_tests.sh

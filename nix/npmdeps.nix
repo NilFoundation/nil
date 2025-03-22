@@ -1,12 +1,14 @@
-{ lib, stdenv, fetchNpmDeps }:
+{ lib, stdenv, pnpm_10, nodejs }:
 let
   inherit (lib) fileset;
-in
-(fetchNpmDeps {
+  pnpm = pnpm_10;
+in (pnpm.fetchDeps {
   src = fileset.toSource {
     root = ./..;
     fileset = fileset.unions [
-      ../package-lock.json
+      ../pnpm-workspace.yaml
+      ../pnpm-lock.yaml
+      ../.npmrc
       ../package.json
       ../clijs/package.json
       ../docs/package.json
@@ -18,5 +20,6 @@ in
       ../uniswap/package.json
     ];
   };
-  hash = "sha256-2WEEt2F8UCbviZg0OApUGbuS0UiOQnDrHFddFIt39i8=";
+  pname = "nil";
+  hash = "sha256-lJQoGydpF4ZxIetjLvjsMOv0Ezi2LRr68vwplDjavo4=";
 })
