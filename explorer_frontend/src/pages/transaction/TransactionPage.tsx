@@ -1,8 +1,6 @@
 import { useStyletron } from "baseui";
-import { explorerRoute } from "../../features/routing/routes/explorerRoute";
 import { Meta } from "../../features/shared";
 import { Layout } from "../../features/shared/components/Layout";
-import { SidebarWithBackLink } from "../../features/shared/components/SidebarWithBackLink";
 import { Transaction } from "../../features/transaction";
 
 const TransactionPage = () => {
