@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -463,11 +464,11 @@ func (i *IBFT) startRound(ctx context.Context) {
 
 	// Check if any block needs to be proposed
 	if i.backend.IsProposer(id, view.Height, view.Round) {
-		i.log.Info("we are the proposer")
+		i.log.Info(fmt.Sprintf("we are the proposer height = %d, round = %d", view.Height, view.Round))
 
 		proposalMessage := i.buildProposal(ctx, view)
 		if proposalMessage == nil {
-			i.log.Error("unable to build proposal")
+			i.log.Error(fmt.Sprintf("unable to build proposal height = %d, round = %d", view.Height, view.Round))
 
 			return
 		}

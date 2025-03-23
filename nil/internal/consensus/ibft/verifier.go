@@ -12,16 +12,23 @@ import (
 func (i *backendIBFT) IsValidProposal(rawProposal []byte) bool {
 	proposal, err := i.unmarshalProposal(rawProposal)
 	if err != nil {
+		i.logger.Error().Err(err).Msg("Failed to unmarshal proposal")
 		return false
 	}
 
 	_, err = i.validator.VerifyProposal(i.ctx, proposal)
+	if err != nil {
+		i.logger.Error().
+			Err(err).
+			Msgf("Failed to verify proposal: %s", err.Error())
+	}
 	return err == nil
 }
 
 func (i *backendIBFT) IsValidValidator(msg *protoIBFT.IbftMessage) bool {
 	msgNoSig, err := msg.PayloadNoSig()
 	if err != nil {
+		i.logger.Error().Err(err).Msg("Failed to get message payload")
 		return false
 	}
 

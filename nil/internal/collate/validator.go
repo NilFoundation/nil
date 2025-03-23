@@ -11,6 +11,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -129,6 +130,13 @@ func (s *Validator) TxPool() TxnPool {
 }
 
 func (s *Validator) BuildProposal(ctx context.Context) (*execution.ProposalSSZ, error) {
+	started := time.Now()
+	s.logger.Warn().Msgf("Started to BuildProposal(shard id = %s)", s.params.ShardId)
+	defer func() {
+		s.logger.Warn().Dur("duration", time.Since(started)).Msgf("BuildProposal duration %v (shard id = %s)",
+			time.Since(started), s.params.ShardId)
+	}()
+
 	// No lock since it doesn't directly access last block/hash
 	proposer := newProposer(s.params, s.params.Topology, s.pool, s.logger)
 	proposal, err := proposer.GenerateProposal(ctx, s.txFabric)
@@ -179,97 +187,14 @@ func (s *Validator) InsertProposal(
 	return s.insertProposalUnlocked(ctx, proposal, params)
 }
 
-func (s *Validator) insertProposalUnlocked(
-	ctx context.Context,
-	proposal *execution.ProposalSSZ,
-	params *types.ConsensusParams,
-) error {
-	p, err := execution.ConvertProposal(proposal)
-	if err != nil {
-		return err
+func (s *Validator) validateBlockForProposalUnlocked(ctx context.Context, block *types.BlockWithExtractedData) error {
+	proposal := &execution.Proposal{
+		PrevBlockId:   block.Block.Id - 1,
+		PrevBlockHash: block.Block.PrevBlock,
+		MainShardHash: block.Block.MainShardHash,
+		ShardHashes:   block.ChildBlocks,
 	}
-	if err := s.validateProposalUnlocked(ctx, p); err != nil {
-		return err
-	}
-
-	prevBlock, err := s.getBlock(ctx, proposal.PrevBlockHash)
-	if err != nil {
-		return err
-	}
-
-	s.params.ExecutionMode = execution.ModeProposal
-	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric, prevBlock)
-	if err != nil {
-		return fmt.Errorf("failed to create block generator: %w", err)
-	}
-	defer gen.Rollback()
-
-	res, err := gen.GenerateBlock(p, params)
-	if err != nil {
-		return fmt.Errorf("failed to generate block: %w", err)
-	}
-
-	s.onBlockCommitUnlocked(ctx, res, p)
-
-	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &types.BlockWithExtractedData{
-		Block:           res.Block,
-		InTransactions:  res.InTxns,
-		OutTransactions: res.OutTxns,
-		ChildBlocks:     proposal.ShardHashes,
-		Config:          res.ConfigParams,
-	})
-}
-
-func (s *Validator) onBlockCommitUnlocked(
-	ctx context.Context, res *execution.BlockGenerationResult, proposal *execution.Proposal,
-) {
-	s.setLastBlockUnlocked(res.Block, res.BlockHash)
-
-	if !reflect.ValueOf(s.pool).IsNil() {
-		if err := s.pool.OnCommitted(ctx, res.Block.BaseFee, proposal.ExternalTxns); err != nil {
-			s.logger.Warn().Err(err).
-				Msgf("Failed to remove %d committed transactions from pool", len(proposal.ExternalTxns))
-		}
-	}
-
-	s.notify(res.Block.Id)
-}
-
-func (s *Validator) logBlockDiffError(expected, got *types.Block, expHash, gotHash common.Hash) error {
-	msg := fmt.Sprintf("block hash mismatch: expected %x, got %x", expHash, gotHash)
-	blockMarshal, err := json.Marshal(got)
-	check.PanicIfErr(err)
-	lastBlockMarshal, err := json.Marshal(expected)
-	check.PanicIfErr(err)
-	s.logger.Error().
-		Stringer(logging.FieldBlockNumber, expected.Id).
-		Stringer("expectedHash", expHash).
-		Stringer("gotHash", gotHash).
-		RawJSON("expected", blockMarshal).
-		RawJSON("got", lastBlockMarshal).
-		Msg(msg)
-	return returnErrorOrPanic(errors.New(msg))
-}
-
-func (s *Validator) validateRepliedBlock(
-	in *types.Block, replied *execution.BlockGenerationResult, inHash common.Hash, inTxns []*types.Transaction,
-) error {
-	if replied.Block.OutTransactionsRoot != in.OutTransactionsRoot {
-		return returnErrorOrPanic(fmt.Errorf("out transactions root mismatch. Expected %x, got %x",
-			in.OutTransactionsRoot, replied.Block.OutTransactionsRoot))
-	}
-	if len(replied.OutTxns) != len(inTxns) {
-		return returnErrorOrPanic(fmt.Errorf("out transactions count mismatch. Expected %d, got %d",
-			len(inTxns), len(replied.InTxns)))
-	}
-	if replied.Block.ConfigRoot != in.ConfigRoot {
-		return returnErrorOrPanic(fmt.Errorf("config root mismatch. Expected %x, got %x",
-			in.ConfigRoot, replied.Block.ConfigRoot))
-	}
-	if replied.BlockHash != inHash {
-		return s.logBlockDiffError(in, replied.Block, inHash, replied.BlockHash)
-	}
-	return nil
+	return s.validateProposalUnlocked(ctx, proposal)
 }
 
 func (s *Validator) validateProposalUnlocked(ctx context.Context, proposal *execution.Proposal) error {
@@ -309,10 +234,136 @@ func (s *Validator) validateProposalUnlocked(ctx context.Context, proposal *exec
 	return nil
 }
 
+func (s *Validator) insertProposalUnlocked(
+	ctx context.Context,
+	proposal *execution.ProposalSSZ,
+	params *types.ConsensusParams,
+) error {
+	p, err := execution.ConvertProposal(proposal)
+	if err != nil {
+		return err
+	}
+	if err := s.validateProposalUnlocked(ctx, p); err != nil {
+		return err
+	}
+
+	prevBlock, err := s.getBlock(ctx, proposal.PrevBlockHash)
+	if err != nil {
+		return err
+	}
+
+	s.params.ExecutionMode = execution.ModeProposal
+	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric, prevBlock)
+	if err != nil {
+		return fmt.Errorf("failed to create block generator: %w", err)
+	}
+	defer gen.Rollback()
+
+	res, err := gen.GenerateBlock(p, params)
+	if err != nil {
+		return fmt.Errorf("failed to generate block: %w", err)
+	}
+
+	s.onBlockCommitUnlocked(ctx, res, p)
+
+	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &types.BlockWithExtractedData{
+		Block:           res.Block,
+		InTransactions:  res.InTxns,
+		OutTransactions: res.OutTxns,
+		ChildBlocks:     proposal.ShardHashes,
+		Config: common.TransformMap(res.ConfigParams, func(k string, v []byte) (string, hexutil.Bytes) {
+			return k, hexutil.Bytes(v)
+		}),
+	})
+}
+
+func (s *Validator) onBlockCommitUnlocked(
+	ctx context.Context, res *execution.BlockGenerationResult, proposal *execution.Proposal,
+) {
+	s.setLastBlockUnlocked(res.Block, res.BlockHash)
+
+	if !reflect.ValueOf(s.pool).IsNil() {
+		if err := s.pool.OnCommitted(ctx, res.Block.BaseFee, proposal.ExternalTxns); err != nil {
+			s.logger.Warn().Err(err).
+				Msgf("Failed to remove %d committed transactions from pool", len(proposal.ExternalTxns))
+		}
+	}
+
+	s.notify(res.Block.Id)
+}
+
+func (s *Validator) logBlockDiffError(expected, got *types.Block, expHash, gotHash common.Hash) error {
+	msg := fmt.Sprintf("block hash mismatch: expected %x, got %x", expHash, gotHash)
+	blockMarshal, err := json.Marshal(got)
+	check.PanicIfErr(err)
+	lastBlockMarshal, err := json.Marshal(expected)
+	check.PanicIfErr(err)
+	s.logger.Error().
+		Stringer(logging.FieldBlockNumber, expected.Id).
+		Stringer("expectedHash", expHash).
+		Stringer("gotHash", gotHash).
+		RawJSON("expected", blockMarshal).
+		RawJSON("got", lastBlockMarshal).
+		Msg(msg)
+	return returnErrorOrPanic(errors.New(msg))
+}
+
+func (s *Validator) validateRepliedBlock(
+	in *types.BlockWithExtractedData, replied *execution.BlockGenerationResult,
+	inHash common.Hash, inTxns []*types.Transaction,
+) error {
+	if replied.Block.OutTransactionsRoot != in.OutTransactionsRoot {
+		return returnErrorOrPanic(fmt.Errorf("out transactions root mismatch. Expected %x, got %x",
+			in.OutTransactionsRoot, replied.Block.OutTransactionsRoot))
+	}
+	if len(replied.OutTxns) != len(inTxns) {
+		return returnErrorOrPanic(fmt.Errorf("out transactions count mismatch. Expected %d, got %d",
+			len(inTxns), len(replied.InTxns)))
+	}
+	if replied.Block.ConfigRoot != in.ConfigRoot {
+		expectedConfigJson, err := json.Marshal(in.Config)
+		check.PanicIfErr(err)
+
+		gotConfig := common.TransformMap(replied.ConfigParams, func(k string, v []byte) (string, hexutil.Bytes) {
+			return k, hexutil.Bytes(v)
+		})
+		gotConfigJson, err := json.Marshal(gotConfig)
+		check.PanicIfErr(err)
+
+		err = fmt.Errorf("config root mismatch. Expected %x, got %x", in.ConfigRoot, replied.Block.ConfigRoot)
+		s.logger.Error().Err(err).
+			RawJSON("expectedConfig", expectedConfigJson).
+			RawJSON("gotConfig", gotConfigJson).
+			Msg("config root mismatch")
+		return returnErrorOrPanic(err)
+	}
+	if replied.BlockHash != inHash {
+		return s.logBlockDiffError(in.Block, replied.Block, inHash, replied.BlockHash)
+	}
+	return nil
+}
+
 func (s *Validator) ReplayBlock(ctx context.Context, block *types.BlockWithExtractedData) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.replayBlockUnlocked(ctx, block)
+}
+
+func (s *Validator) validateInternalTxnsCount(expected, got int) error {
+	if !s.params.ShardId.IsMainShard() {
+		if expected != got {
+			return fmt.Errorf("internal transactions count mismatch. Expected %d, got %d",
+				expected, got)
+		}
+	} else {
+		maxDiff := 1
+		diff := expected - got
+		if !(0 <= diff && diff <= maxDiff) {
+			return fmt.Errorf("internal transactions count mismatch. Expected %d, got %d (max allowed diff %d)",
+				expected, got, maxDiff)
+		}
+	}
+	return nil
 }
 
 func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockWithExtractedData) error {
@@ -322,14 +373,46 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 		Stringer(logging.FieldBlockHash, blockHash).
 		Msg("Replaying block")
 
-	proposal := &execution.Proposal{
-		PrevBlockId:   block.Block.Id - 1,
-		PrevBlockHash: block.Block.PrevBlock,
-		MainShardHash: block.Block.MainShardHash,
-		ShardHashes:   block.ChildBlocks,
+	tx, err := s.txFabric.CreateRoTx(ctx)
+	if err != nil {
+		return err
 	}
-	proposal.InternalTxns, proposal.ExternalTxns = execution.SplitInTransactions(block.InTransactions)
-	proposal.ForwardTxns, _ = execution.SplitOutTransactions(block.OutTransactions, s.params.ShardId)
+	defer tx.Rollback()
+
+	prevBlock, prevBlockHash, err := s.getLastBlockUnlocked(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := s.validateBlockForProposalUnlocked(ctx, block); err != nil {
+		if errors.Is(err, errHashMismatch) {
+			return returnErrorOrPanic(err)
+		}
+		return err
+	}
+
+	// internalTxns includes system transactions (e.g. update L1 attributes)
+	internalTxns, externalTxns := execution.SplitInTransactions(block.InTransactions)
+	proposer := newProposer(s.params, s.params.Topology, nil, s.logger)
+
+	proposalSSZ, err := proposer.GenerateProposalForBlock(
+		ctx, tx, prevBlock, prevBlockHash, block.MainShardHash, block.ChildBlocks, externalTxns)
+	if err != nil {
+		return err
+	}
+
+	// TODO: add check to be sure that all internalTxnRefs is present in internalTxns
+	if err := s.validateInternalTxnsCount(len(internalTxns), len(proposalSSZ.InternalTxnRefs)); err != nil {
+		return returnErrorOrPanic(err)
+	}
+
+	proposal, err := execution.ConvertProposal(proposalSSZ)
+	if err != nil {
+		return err
+	}
+
+	// GenerateProposalForBlock doesn't return "special" transactions. E.g. for update L1 attributes.
+	proposal.InternalTxns = internalTxns
 
 	var gasPrices []types.Uint256
 	if s.params.ShardId.IsMainShard() {
@@ -340,11 +423,6 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 			}
 			gasPrices = param.Shards
 		}
-	}
-
-	prevBlock, _, err := s.getLastBlockUnlocked(ctx)
-	if err != nil {
-		return err
 	}
 
 	if !s.params.ShardId.IsMainShard() {
@@ -369,13 +447,6 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 		}
 	}
 
-	if err := s.validateProposalUnlocked(ctx, proposal); err != nil {
-		if errors.Is(err, errHashMismatch) {
-			return returnErrorOrPanic(err)
-		}
-		return err
-	}
-
 	s.params.ExecutionMode = execution.ModeReplay
 	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric, prevBlock)
 	if err != nil {
@@ -391,12 +462,12 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 	}
 
 	// Check generated block and proposed are equal
-	if err = s.validateRepliedBlock(block.Block, resBlock, blockHash, block.OutTransactions); err != nil {
+	if err = s.validateRepliedBlock(block, resBlock, blockHash, block.OutTransactions); err != nil {
 		return fmt.Errorf("failed to validate replied block: %w", err)
 	}
 
 	// Finally, write generated block into the database
-	if err = gen.Finalize(resBlock, &block.ConsensusParams); err != nil {
+	if err = gen.Finalize(proposal, resBlock, &block.ConsensusParams); err != nil {
 		return fmt.Errorf("failed to finalize block: %w", err)
 	}
 

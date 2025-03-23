@@ -65,15 +65,13 @@ func newProposer(params *Params, topology ShardTopology, pool TxnPool, logger lo
 }
 
 func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execution.ProposalSSZ, error) {
-	p.proposal = &execution.ProposalSSZ{}
-
 	tx, err := txFabric.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	block, err := p.fetchPrevBlock(tx)
+	block, hash, err := db.ReadLastBlock(tx, p.params.ShardId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch previous block: %w", err)
 	}
@@ -83,41 +81,20 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 			"block patch level %d is higher than supported %d", block.PatchLevel, validatorPatchLevel)
 	}
 
-	p.proposal.PatchLevel = block.PatchLevel
-	p.proposal.RollbackCounter = block.RollbackCounter
-
-	configAccessor, err := config.NewConfigAccessorFromBlockWithTx(tx, block, p.params.ShardId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create config accessor: %w", err)
-	}
-
-	p.executionState, err = execution.NewExecutionState(tx, p.params.ShardId, execution.StateParams{
-		Block:          block,
-		ConfigAccessor: configAccessor,
-		FeeCalculator:  p.params.FeeCalculator,
-		Mode:           execution.ModeProposal,
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	p.logger.Trace().Msg("Collating...")
 
-	if err := p.fetchLastBlockHashes(tx); err != nil {
+	mainShardHash, shardHashes, err := fetchLastBlockHashes(tx, p.params.ShardId, p.params.NShards)
+	if err != nil {
 		return nil, fmt.Errorf("failed to fetch last block hashes: %w", err)
+	}
+
+	if _, err := p.GenerateProposalForBlock(ctx, tx, block, hash, mainShardHash, shardHashes, nil); err != nil {
+		return nil, fmt.Errorf("failed to generate proposal for block: %w", err)
 	}
 
 	if err := p.handleL1Attributes(tx); err != nil {
 		// TODO: change to Error severity once Consensus/Proposer increase time intervals
 		p.logger.Trace().Err(err).Msg("Failed to handle L1 attributes")
-	}
-
-	if err := p.handleTransactionsFromNeighbors(tx); err != nil {
-		return nil, fmt.Errorf("failed to handle transactions from neighbors: %w", err)
-	}
-
-	if err := p.handleTransactionsFromPool(); err != nil {
-		return nil, fmt.Errorf("failed to handle transactions from pool: %w", err)
 	}
 
 	if rollback := p.executionState.GetRollback(); rollback != nil {
@@ -140,38 +117,82 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	return p.proposal, nil
 }
 
-func (p *proposer) fetchPrevBlock(tx db.RoTx) (*types.Block, error) {
-	b, hash, err := db.ReadLastBlock(tx, p.params.ShardId)
+func (p *proposer) GenerateProposalForBlock(
+	ctx context.Context, tx db.RoTx,
+	block *types.Block, blockHash common.Hash,
+	mainShardHash common.Hash, shardHashes []common.Hash,
+	externalTxns []*types.Transaction,
+) (*execution.ProposalSSZ, error) {
+	p.proposal = &execution.ProposalSSZ{}
+
+	p.setPrevBlock(block, blockHash)
+
+	configAccessor, err := config.NewConfigAccessorFromBlockWithTx(tx, block, p.params.ShardId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create config accessor: %w", err)
+	}
+
+	p.executionState, err = execution.NewExecutionState(tx, p.params.ShardId, execution.StateParams{
+		Block:          block,
+		ConfigAccessor: configAccessor,
+		FeeCalculator:  p.params.FeeCalculator,
+		Mode:           execution.ModeProposal,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	p.proposal.PrevBlockId = b.Id
-	p.proposal.PrevBlockHash = hash
-	return b, nil
+	p.setLastBlockHashes(mainShardHash, shardHashes)
+
+	if err := p.handleTransactionsFromNeighbors(tx, block); err != nil {
+		return nil, fmt.Errorf("failed to handle transactions from neighbors: %w", err)
+	}
+
+	if externalTxns != nil {
+		p.proposal.ExternalTxns = externalTxns
+	} else {
+		if err := p.handleTransactionsFromPool(); err != nil {
+			return nil, fmt.Errorf("failed to handle transactions from pool: %w", err)
+		}
+	}
+
+	return p.proposal, nil
 }
 
-func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
-	if p.params.ShardId.IsMainShard() {
-		p.proposal.ShardHashes = make([]common.Hash, p.params.NShards-1)
-		for i := uint32(1); i < p.params.NShards; i++ {
+func (p *proposer) setPrevBlock(block *types.Block, blockHash common.Hash) {
+	p.proposal.PrevBlockId = block.Id
+	p.proposal.PrevBlockHash = blockHash
+	p.proposal.PatchLevel = block.PatchLevel
+	p.proposal.RollbackCounter = block.RollbackCounter
+}
+
+func (p *proposer) setLastBlockHashes(mainShardHash common.Hash, shardHashes []common.Hash) {
+	p.proposal.ShardHashes = shardHashes
+	p.proposal.MainShardHash = mainShardHash
+}
+
+func fetchLastBlockHashes(tx db.RoTx, shardId types.ShardId, nShards uint32) (common.Hash, []common.Hash, error) {
+	var shardHashes []common.Hash
+	var mainShardHash common.Hash
+	var err error
+	if shardId.IsMainShard() {
+		shardHashes = make([]common.Hash, nShards-1)
+		for i := uint32(1); i < nShards; i++ {
 			shardId := types.ShardId(i)
 			lastBlockHash, err := db.ReadLastBlockHash(tx, shardId)
 			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-				return err
+				return mainShardHash, shardHashes, err
 			}
 
-			p.proposal.ShardHashes[i-1] = lastBlockHash
+			shardHashes[i-1] = lastBlockHash
 		}
 	} else {
-		lastBlockHash, err := db.ReadLastBlockHash(tx, types.MainShardId)
+		mainShardHash, err = db.ReadLastBlockHash(tx, types.MainShardId)
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-			return err
+			return mainShardHash, shardHashes, err
 		}
-		p.proposal.MainShardHash = lastBlockHash
 	}
-
-	return nil
+	return mainShardHash, shardHashes, nil
 }
 
 func (p *proposer) handleL1Attributes(tx db.RoTx) error {
@@ -291,6 +312,10 @@ func (p *proposer) handleTransaction(txn *types.Transaction, txnHash common.Hash
 }
 
 func (p *proposer) handleTransactionsFromPool() error {
+	if p.pool == nil {
+		return nil
+	}
+
 	poolTxns, err := p.pool.Peek(maxTxnsFromPool)
 	if err != nil {
 		return err
@@ -328,6 +353,7 @@ func (p *proposer) handleTransactionsFromPool() error {
 		return true, nil
 	}
 
+	externalTxns := make([]*types.Transaction, 0, len(poolTxns))
 	for _, txn := range poolTxns {
 		if ok, err := handle(txn); err != nil {
 			return err
@@ -336,9 +362,10 @@ func (p *proposer) handleTransactionsFromPool() error {
 				break
 			}
 
-			p.proposal.ExternalTxns = append(p.proposal.ExternalTxns, txn.Transaction)
+			externalTxns = append(externalTxns, txn.Transaction)
 		}
 	}
+	p.proposal.ExternalTxns = externalTxns
 
 	if len(unverified) > 0 {
 		p.logger.Debug().Msgf("Removing %d unverifiable transactions from the pool", len(unverified))
@@ -356,7 +383,7 @@ func (p *proposer) handleTransactionsFromPool() error {
 	return nil
 }
 
-func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
+func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx, block *types.Block) error {
 	state, err := db.ReadCollatorState(tx, p.params.ShardId)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return err
@@ -365,6 +392,19 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 	neighborIndexes := common.SliceToMap(state.Neighbors, func(i int, t types.Neighbor) (types.ShardId, int) {
 		return t.ShardId, i
 	})
+
+	var mainShardHash common.Hash
+	if shardId := p.params.ShardId; shardId.IsMainShard() {
+		mainShardHash = block.Hash(shardId)
+	} else {
+		mainShardHash = p.proposal.MainShardHash
+	}
+
+	shardHashes, err := execution.ReadMainShardHashesByHash(tx, mainShardHash)
+	if err != nil {
+		return err
+	}
+	shardHashes[types.MainShardId] = mainShardHash
 
 	checkLimits := func() bool {
 		return p.executionState.GasUsed < p.params.MaxGasInBlock &&
@@ -383,8 +423,9 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 		}
 		neighbor := &state.Neighbors[position]
 
+		lastBlockHash := shardHashes[neighborId]
 		var lastBlockNumber types.BlockNumber
-		lastBlock, _, err := db.ReadLastBlock(tx, neighborId)
+		lastBlock, err := db.ReadBlock(tx, neighborId, lastBlockHash)
 		if !errors.Is(err, db.ErrKeyNotFound) {
 			if err != nil {
 				return err

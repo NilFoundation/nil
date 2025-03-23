@@ -35,9 +35,9 @@ func (s *ProposerTestSuite) TearDownTest() {
 	s.db.Close()
 }
 
-func (s *ProposerTestSuite) newParams() *Params {
+func (s *ProposerTestSuite) newParams(shardId types.ShardId) *Params {
 	return &Params{
-		BlockGeneratorParams: execution.NewBlockGeneratorParams(s.shardId, 2),
+		BlockGeneratorParams: execution.NewBlockGeneratorParams(shardId, 2),
 	}
 }
 
@@ -70,7 +70,7 @@ func (s *ProposerTestSuite) TestBlockGas() {
 	pool := &MockTxnPool{}
 	pool.Add(m1, m2)
 
-	params := s.newParams()
+	params := s.newParams(s.shardId)
 
 	s.Run("DefaultMaxGasInBlock", func() {
 		p := newTestProposer(params, pool)
@@ -89,33 +89,36 @@ func (s *ProposerTestSuite) TestBlockGas() {
 	})
 }
 
+func (s *ProposerTestSuite) generateBlock(p *proposer) *execution.Proposal {
+	s.T().Helper()
+	proposal := s.generateProposal(p)
+
+	tx, err := s.db.CreateRoTx(s.T().Context())
+	s.Require().NoError(err)
+	defer tx.Rollback()
+
+	block, err := db.ReadBlock(tx, p.params.ShardId, proposal.PrevBlockHash)
+	s.Require().NoError(err)
+
+	blockGenerator, err := execution.NewBlockGenerator(s.T().Context(), p.params.BlockGeneratorParams, s.db, block)
+	s.Require().NoError(err)
+	defer blockGenerator.Rollback()
+
+	_, err = blockGenerator.GenerateBlock(proposal, &types.ConsensusParams{})
+	s.Require().NoError(err)
+
+	return proposal
+}
+
 func (s *ProposerTestSuite) TestCollator() {
 	to := contracts.CounterAddress(s.T(), s.shardId)
 
 	pool := &MockTxnPool{}
-	params := s.newParams()
+	params := s.newParams(s.shardId)
+	mainParams := s.newParams(types.MainShardId)
 	p := newTestProposer(params, pool)
+	mainP := newTestProposer(mainParams, nil)
 	shardId := p.params.ShardId
-
-	generateBlock := func() *execution.Proposal {
-		proposal := s.generateProposal(p)
-
-		tx, err := s.db.CreateRoTx(s.T().Context())
-		s.Require().NoError(err)
-		defer tx.Rollback()
-
-		block, err := db.ReadBlock(tx, shardId, proposal.PrevBlockHash)
-		s.Require().NoError(err)
-
-		blockGenerator, err := execution.NewBlockGenerator(s.T().Context(), params.BlockGeneratorParams, s.db, block)
-		s.Require().NoError(err)
-		defer blockGenerator.Rollback()
-
-		_, err = blockGenerator.GenerateBlock(proposal, &types.ConsensusParams{})
-		s.Require().NoError(err)
-
-		return proposal
-	}
 
 	s.Run("GenerateZeroState", func() {
 		execution.GenerateZeroState(s.T(), types.MainShardId, s.db)
@@ -133,7 +136,7 @@ func (s *ProposerTestSuite) TestCollator() {
 		pool.Reset()
 		pool.Add(m1, m2)
 
-		proposal := generateBlock()
+		proposal := s.generateBlock(p)
 		r1 := s.checkReceipt(shardId, m1)
 		r2 := s.checkReceipt(shardId, m2)
 		s.Equal(pool.Txns, proposal.ExternalTxns)
@@ -150,15 +153,19 @@ func (s *ProposerTestSuite) TestCollator() {
 	p.params.MaxInternalTransactionsInBlock = 1
 	pool.Reset()
 
+	// Include transactions in the main shard.
+	s.generateBlock(p)
+	s.generateBlock(mainP)
+
 	s.Run("ProcessInternalTransaction1", func() {
-		generateBlock()
+		s.generateBlock(p)
 
 		s.Equal(balance, s.getMainBalance())
 		s.Equal(txnValue, s.getBalance(shardId, to))
 	})
 
 	s.Run("ProcessInternalTransaction2", func() {
-		generateBlock()
+		s.generateBlock(p)
 
 		s.Equal(balance, s.getMainBalance())
 		s.Equal(txnValue.Add(txnValue), s.getBalance(shardId, to))
@@ -167,7 +174,11 @@ func (s *ProposerTestSuite) TestCollator() {
 	p.params.MaxInternalTransactionsInBlock = defaultMaxInternalTxns
 
 	s.Run("ProcessRefundTransactions", func() {
-		generateBlock()
+		s.generateBlock(p)
+		s.generateBlock(mainP)
+		s.generateBlock(p)
+		s.generateBlock(mainP)
+		s.generateBlock(p)
 
 		balance = balance.Add(feeCredit).Add(feeCredit)
 		s.Equal(balance, s.getMainBalance())
@@ -180,7 +191,7 @@ func (s *ProposerTestSuite) TestCollator() {
 		pool.Reset()
 		pool.Add(m1, m2)
 
-		proposal := generateBlock()
+		proposal := s.generateBlock(p)
 		s.Empty(proposal.ExternalTxns)
 		s.Empty(proposal.InternalTxns)
 		s.Empty(proposal.ForwardTxns)
@@ -195,7 +206,7 @@ func (s *ProposerTestSuite) TestCollator() {
 		pool.Reset()
 		pool.Add(m)
 
-		generateBlock()
+		s.generateBlock(p)
 		s.checkReceipt(shardId, m)
 	})
 
@@ -204,7 +215,7 @@ func (s *ProposerTestSuite) TestCollator() {
 		pool.Reset()
 		pool.Add(m)
 
-		generateBlock()
+		s.generateBlock(p)
 		s.checkReceipt(shardId, m)
 	})
 
@@ -215,13 +226,13 @@ func (s *ProposerTestSuite) TestCollator() {
 		pool.Add(m01, m02)
 
 		// send tokens
-		generateBlock()
+		s.generateBlock(p)
 
 		// process internal transactions
-		generateBlock()
+		s.generateBlock(p)
 
 		// process refunds
-		generateBlock()
+		s.generateBlock(p)
 
 		// check refunds seqnos
 		s.checkSeqno(shardId)

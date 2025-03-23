@@ -145,7 +145,7 @@ func (s *Scheduler) doCollate(ctx context.Context) error {
 				s.logger.Debug().
 					Uint64(logging.FieldBlockNumber, height).
 					Err(err).
-					Msg("Consensus interrupted by syncer")
+					Msgf("Consensus on height %d interrupted by syncer: inserted new block %d", height, newBlockId)
 				return nil
 			case err := <-consCh:
 				return err

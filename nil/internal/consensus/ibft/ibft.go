@@ -78,6 +78,7 @@ func (i *backendIBFT) BuildProposal(view *protoIBFT.View) []byte {
 		i.logger.Error().Err(err).Msg("failed to marshal proposal")
 		return nil
 	}
+	i.logger.Warn().Int("size", len(data)).Msgf("BuildProposal size %v (shardId = %s)", len(data), i.shardId)
 
 	return data
 }

@@ -88,6 +88,7 @@ type RPCBlock struct {
 	L1Number            uint64              `json:"l1Number"`
 	LogsBloom           hexutil.Bytes       `json:"logsBloom,omitempty"`
 	GasUsed             types.Gas           `json:"gasUsed,omitempty"`
+	types.ConsensusParams
 }
 
 type DebugRPCBlock struct {
@@ -396,6 +397,7 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 		LogsBloom:           bloom,
 		L1Number:            block.L1BlockNumber,
 		GasUsed:             block.GasUsed,
+		ConsensusParams:     block.ConsensusParams,
 	}, nil
 }
 

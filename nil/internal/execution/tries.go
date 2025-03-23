@@ -1,6 +1,8 @@
 package execution
 
 import (
+	"errors"
+
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -109,6 +111,27 @@ func NewShardBlocksTrieReader(parent *mpt.Reader) *ShardBlocksTrieReader {
 		func(k types.ShardId) []byte { return k.Bytes() },
 		func(bs []byte) (types.ShardId, error) { return types.BytesToShardId(bs), nil },
 	}
+}
+
+func ReadMainShardHashes(tx db.RoTx, mainBlock *types.Block) map[types.ShardId]common.Hash {
+	shardHashes := make(map[types.ShardId]common.Hash)
+	treeShards := NewDbShardBlocksTrieReader(tx, types.MainShardId, mainBlock.Id)
+	treeShards.SetRootHash(mainBlock.ChildBlocksRootHash)
+	for key, value := range treeShards.Iterate() {
+		shardHashes[types.BytesToShardId(key)] = common.BytesToHash(value)
+	}
+	return shardHashes
+}
+
+func ReadMainShardHashesByHash(tx db.RoTx, blockHash common.Hash) (map[types.ShardId]common.Hash, error) {
+	mainBlock, err := db.ReadBlock(tx, types.MainShardId, blockHash)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return make(map[types.ShardId]common.Hash), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return ReadMainShardHashes(tx, mainBlock), nil
 }
 
 func NewContractTrie(parent *mpt.MerklePatriciaTrie) *ContractTrie {

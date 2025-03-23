@@ -123,12 +123,7 @@ func (p *BlockGenerator) CollectGasPrices(prevBlockId types.BlockNumber) []types
 		return nil
 	}
 
-	treeShards := NewDbShardBlocksTrieReader(p.rwTx, types.MainShardId, mainBlock.Id)
-	treeShards.SetRootHash(mainBlock.ChildBlocksRootHash)
-	shardHashes := make(map[types.ShardId]common.Hash)
-	for key, value := range treeShards.Iterate() {
-		shardHashes[types.BytesToShardId(key)] = common.BytesToHash(value)
-	}
+	shardHashes := ReadMainShardHashes(p.rwTx, mainBlock)
 
 	// In main shard we collect gas prices from all shards. Gas price for the main shard is not required.
 	shards := make([]types.Uint256, len(shardHashes)+1)
@@ -186,7 +181,7 @@ func (g *BlockGenerator) GenerateZeroState(config *ZeroStateConfig) (*types.Bloc
 		return nil, err
 	}
 
-	res, err := g.finalize(0, &types.ConsensusParams{})
+	res, err := g.finalize(nil, &types.ConsensusParams{})
 	if err != nil {
 		return nil, err
 	}
@@ -307,11 +302,7 @@ func (g *BlockGenerator) GenerateBlock(
 
 	g.mh.RecordGasPrice(g.ctx, g.executionState.GasPrice)
 
-	if err := db.WriteCollatorState(g.rwTx, g.params.ShardId, proposal.CollatorState); err != nil {
-		return nil, fmt.Errorf("failed to write collator state: %w", err)
-	}
-
-	return g.finalize(proposal.PrevBlockId+1, params)
+	return g.finalize(proposal, params)
 }
 
 func ValidateInternalTransaction(transaction *types.Transaction) error {
@@ -381,20 +372,33 @@ func (g *BlockGenerator) addReceipt(execResult *ExecutionResult) {
 }
 
 func (g *BlockGenerator) finalize(
-	blockId types.BlockNumber,
+	proposal *Proposal,
 	params *types.ConsensusParams,
 ) (*BlockGenerationResult, error) {
+	var blockId types.BlockNumber
+	if proposal != nil {
+		blockId = proposal.PrevBlockId + 1
+	}
+
 	blockRes, err := g.executionState.BuildBlock(blockId)
 	if err != nil {
 		return nil, err
 	}
 
-	return blockRes, g.Finalize(blockRes, params)
+	return blockRes, g.Finalize(proposal, blockRes, params)
 }
 
-func (g *BlockGenerator) Finalize(blockRes *BlockGenerationResult, params *types.ConsensusParams) error {
+func (g *BlockGenerator) Finalize(
+	proposal *Proposal, blockRes *BlockGenerationResult, params *types.ConsensusParams,
+) error {
 	if err := g.executionState.CommitBlock(blockRes, params); err != nil {
 		return err
+	}
+
+	if proposal != nil {
+		if err := db.WriteCollatorState(g.rwTx, g.params.ShardId, proposal.CollatorState); err != nil {
+			return fmt.Errorf("failed to write collator state: %w", err)
+		}
 	}
 
 	if err := PostprocessBlock(g.rwTx, g.params.ShardId, blockRes); err != nil {
