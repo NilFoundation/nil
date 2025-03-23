@@ -57,9 +57,7 @@ func (b *ByReceiverAndSeqno) seqno(to types.Address) (seqno types.Seqno, ok bool
 }
 
 func (b *ByReceiverAndSeqno) ascendAll(f func(*metaTxn) bool) {
-	b.tree.Ascend(func(mm *metaTxn) bool {
-		return f(mm)
-	})
+	b.tree.Ascend(f)
 }
 
 func (b *ByReceiverAndSeqno) ascend(to types.Address, f func(*metaTxn) bool) {

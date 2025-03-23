@@ -92,7 +92,8 @@ func (p *TxnPool) listen(ctx context.Context, sub *network.Subscription) {
 			continue
 		}
 
-		mm := newMetaTxn(txn, p.baseFee)
+		mm := newMetaTxn(txn, p.GetBaseFee())
+
 		reasons, err := p.add(mm)
 		if err != nil {
 			p.logger.Error().Err(err).
@@ -110,9 +111,14 @@ func (p *TxnPool) listen(ctx context.Context, sub *network.Subscription) {
 }
 
 func (p *TxnPool) Add(ctx context.Context, txns ...*types.Transaction) ([]DiscardReason, error) {
+	if len(txns) == 0 {
+		return nil, nil
+	}
 	mms := make([]*metaTxn, len(txns))
+
+	baseFee := p.GetBaseFee()
 	for i, txn := range txns {
-		mms[i] = newMetaTxn(txn, p.baseFee)
+		mms[i] = newMetaTxn(txn, baseFee)
 	}
 
 	reasons, err := p.add(mms...)
@@ -213,6 +219,12 @@ func (p *TxnPool) SeqnoToAddress(addr types.Address) (seqno types.Seqno, inPool 
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	return p.all.seqno(addr)
+}
+
+func (p *TxnPool) GetBaseFee() (baseFee types.Value) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	return p.baseFee
 }
 
 func (p *TxnPool) Get(hash common.Hash) (*types.Transaction, error) {
@@ -330,13 +342,13 @@ func (p *TxnPool) OnCommitted(_ context.Context, baseFee types.Value, committed 
 	}
 	if p.baseFee != baseFee {
 		p.baseFee = baseFee
-		p.UpdateTransactions()
+		p.updateTransactionsLocked()
 	}
 
 	return nil
 }
 
-func (p *TxnPool) UpdateTransactions() {
+func (p *TxnPool) updateTransactionsLocked() {
 	p.all.ascendAll(func(txn *metaTxn) bool {
 		txn.effectivePriorityFee, txn.valid = execution.GetEffectivePriorityFee(p.baseFee, txn.Transaction)
 		return true
