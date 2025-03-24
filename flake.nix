@@ -101,6 +101,9 @@
             nil = packages.nil;
             enableTesting = true;
           });
+          rollup-bridge-contracts = (pkgs.callPackage ./nix/rollup-bridge-contracts.nix {
+            enableTesting = true;
+          });
         };
 
         bundlers = rec {
