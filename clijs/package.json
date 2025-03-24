@@ -8,6 +8,7 @@
   },
   "bugs": "https://github.com/nil-blockchain/issues",
   "dependencies": {
+    "@libp2p/crypto": "^5.0.15",
     "@libp2p/peer-id": "^5.0.9",
     "@nilfoundation/niljs": "0.25.0",
     "@oclif/core": "^4",
