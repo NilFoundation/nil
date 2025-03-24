@@ -8,6 +8,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -113,7 +114,7 @@ func (s *TracerMockClientTestSuite) makeClient() client.Client {
 		blockWithData := &types.BlockWithExtractedData{
 			Block:          block,
 			InTransactions: s.inMsgs,
-			Config:         make(map[string][]byte),
+			Config:         make(map[string]hexutil.Bytes),
 		}
 		rawBlock, err := blockWithData.EncodeSSZ()
 		s.Require().NoError(err)

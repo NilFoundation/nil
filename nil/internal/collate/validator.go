@@ -11,6 +11,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	cerrors "github.com/NilFoundation/nil/nil/internal/collate/errors"
 	"github.com/NilFoundation/nil/nil/internal/config"
@@ -213,7 +214,9 @@ func (s *Validator) insertProposalUnlocked(
 		InTransactions:  res.InTxns,
 		OutTransactions: res.OutTxns,
 		ChildBlocks:     proposal.ShardHashes,
-		Config:          res.ConfigParams,
+		Config: common.TransformMap(res.ConfigParams, func(k string, v []byte) (string, hexutil.Bytes) {
+			return k, hexutil.Bytes(v)
+		}),
 	})
 }
 
@@ -250,7 +253,8 @@ func (s *Validator) logBlockDiffError(expected, got *types.Block, expHash, gotHa
 }
 
 func (s *Validator) validateRepliedBlock(
-	in *types.Block, replied *execution.BlockGenerationResult, inHash common.Hash, inTxns []*types.Transaction,
+	in *types.BlockWithExtractedData, replied *execution.BlockGenerationResult,
+	inHash common.Hash, inTxns []*types.Transaction,
 ) error {
 	if replied.Block.OutTransactionsRoot != in.OutTransactionsRoot {
 		return returnErrorOrPanic(fmt.Errorf("out transactions root mismatch. Expected %x, got %x",
@@ -261,13 +265,37 @@ func (s *Validator) validateRepliedBlock(
 			len(inTxns), len(replied.InTxns)))
 	}
 	if replied.Block.ConfigRoot != in.ConfigRoot {
-		return returnErrorOrPanic(fmt.Errorf("config root mismatch. Expected %x, got %x",
-			in.ConfigRoot, replied.Block.ConfigRoot))
+		expectedConfigJson, err := json.Marshal(in.Config)
+		check.PanicIfErr(err)
+
+		gotConfig := common.TransformMap(replied.ConfigParams, func(k string, v []byte) (string, hexutil.Bytes) {
+			return k, hexutil.Bytes(v)
+		})
+		gotConfigJson, err := json.Marshal(gotConfig)
+		check.PanicIfErr(err)
+
+		err = fmt.Errorf("config root mismatch. Expected %x, got %x", in.ConfigRoot, replied.Block.ConfigRoot)
+		s.logger.Error().Err(err).
+			RawJSON("expectedConfig", expectedConfigJson).
+			RawJSON("gotConfig", gotConfigJson).
+			Msg("config root mismatch")
+		return returnErrorOrPanic(err)
 	}
 	if replied.BlockHash != inHash {
-		return s.logBlockDiffError(in, replied.Block, inHash, replied.BlockHash)
+		return s.logBlockDiffError(in.Block, replied.Block, inHash, replied.BlockHash)
 	}
 	return nil
+}
+
+// +checklocksread:s.mutex
+func (s *Validator) validateBlockForProposalUnlocked(ctx context.Context, block *types.BlockWithExtractedData) error {
+	proposal := &execution.Proposal{
+		PrevBlockId:   block.Block.Id - 1,
+		PrevBlockHash: block.Block.PrevBlock,
+		MainShardHash: block.Block.MainShardHash,
+		ShardHashes:   block.ChildBlocks,
+	}
+	return s.validateProposalUnlocked(ctx, proposal)
 }
 
 // +checklocksread:s.mutex
@@ -328,6 +356,13 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 		Stringer(logging.FieldBlockHash, blockHash).
 		Msg("Replaying block")
 
+	if err := s.validateBlockForProposalUnlocked(ctx, block); err != nil {
+		if errors.Is(err, cerrors.ErrHashMismatch) {
+			return returnErrorOrPanic(err)
+		}
+		return err
+	}
+
 	proposal := &execution.Proposal{
 		PrevBlockId:   block.Block.Id - 1,
 		PrevBlockHash: block.Block.PrevBlock,
@@ -375,13 +410,6 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 		}
 	}
 
-	if err := s.validateProposalUnlocked(ctx, proposal); err != nil {
-		if errors.Is(err, cerrors.ErrHashMismatch) {
-			return returnErrorOrPanic(err)
-		}
-		return err
-	}
-
 	s.params.ExecutionMode = execution.ModeReplay
 	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric, prevBlock)
 	if err != nil {
@@ -397,7 +425,7 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 	}
 
 	// Check generated block and proposed are equal
-	if err = s.validateRepliedBlock(block.Block, resBlock, blockHash, block.OutTransactions); err != nil {
+	if err = s.validateRepliedBlock(block, resBlock, blockHash, block.OutTransactions); err != nil {
 		return fmt.Errorf("failed to validate replied block: %w", err)
 	}
 

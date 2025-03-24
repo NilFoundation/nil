@@ -6,6 +6,7 @@ import (
 
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/crypto/bls"
 )
@@ -83,13 +84,13 @@ type RawBlockWithExtractedData struct {
 
 type BlockWithExtractedData struct {
 	*Block
-	InTransactions  []*Transaction         `json:"inTransactions"`
-	OutTransactions []*Transaction         `json:"outTransactions"`
-	Receipts        []*Receipt             `json:"receipts"`
-	Errors          map[common.Hash]string `json:"errors,omitempty"`
-	ChildBlocks     []common.Hash          `json:"childBlocks"`
-	DbTimestamp     uint64                 `json:"dbTimestamp"`
-	Config          map[string][]byte      `json:"config"`
+	InTransactions  []*Transaction           `json:"inTransactions"`
+	OutTransactions []*Transaction           `json:"outTransactions"`
+	Receipts        []*Receipt               `json:"receipts"`
+	Errors          map[common.Hash]string   `json:"errors,omitempty"`
+	ChildBlocks     []common.Hash            `json:"childBlocks"`
+	DbTimestamp     uint64                   `json:"dbTimestamp"`
+	Config          map[string]hexutil.Bytes `json:"config"`
 }
 
 // interfaces
@@ -134,7 +135,9 @@ func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error)
 		Errors:          b.Errors,
 		ChildBlocks:     b.ChildBlocks,
 		DbTimestamp:     b.DbTimestamp,
-		Config:          b.Config,
+		Config: common.TransformMap(b.Config, func(k string, v []byte) (string, hexutil.Bytes) {
+			return k, hexutil.Bytes(v)
+		}),
 	}, nil
 }
 
@@ -163,7 +166,9 @@ func (b *BlockWithExtractedData) EncodeSSZ() (*RawBlockWithExtractedData, error)
 		Errors:          b.Errors,
 		ChildBlocks:     b.ChildBlocks,
 		DbTimestamp:     b.DbTimestamp,
-		Config:          b.Config,
+		Config: common.TransformMap(b.Config, func(k string, v hexutil.Bytes) (string, []byte) {
+			return k, []byte(v)
+		}),
 	}, nil
 }
 
