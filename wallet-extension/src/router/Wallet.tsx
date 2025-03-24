@@ -20,6 +20,7 @@ import {
 } from "../pages/wallet";
 import { AddCustomToken } from "../pages/wallet/AddCustomToken.tsx";
 import { ManageTokens } from "../pages/wallet/ManageTokens.tsx";
+import { PrivateKey } from "../pages/wallet/Privatekey.tsx";
 import { ErrorScreen } from "./Error.tsx";
 import { WalletRoutes } from "./routes.ts";
 
@@ -54,6 +55,9 @@ export const WalletRouter = () => {
     </Route>,
     <Route key="wallet-endpoint" path={WalletRoutes.WALLET.ENDPOINT}>
       <Route index element={<Endpoint />} />
+    </Route>,
+    <Route key="wallet-privatekey" path={WalletRoutes.WALLET.PRIVATE_KEY}>
+      <Route index element={<PrivateKey />} />
     </Route>,
     <Route key="wallet-testnet" path={WalletRoutes.WALLET.TESTNET}>
       <Route index element={<Testnet />} />
