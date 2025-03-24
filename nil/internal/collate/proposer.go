@@ -73,26 +73,25 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	}
 	defer tx.Rollback()
 
-	block, err := p.fetchPrevBlock(tx)
+	prevBlock, prevBlockHash, err := db.ReadLastBlock(tx, p.params.ShardId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch previous block: %w", err)
 	}
 
-	if block.PatchLevel > validatorPatchLevel {
+	if prevBlock.PatchLevel > validatorPatchLevel {
 		return nil, fmt.Errorf(
-			"block patch level %d is higher than supported %d", block.PatchLevel, validatorPatchLevel)
+			"block patch level %d is higher than supported %d", prevBlock.PatchLevel, validatorPatchLevel)
 	}
 
-	p.proposal.PatchLevel = block.PatchLevel
-	p.proposal.RollbackCounter = block.RollbackCounter
+	p.setPrevBlockData(prevBlock, prevBlockHash)
 
-	configAccessor, err := config.NewConfigAccessorFromBlockWithTx(tx, block, p.params.ShardId)
+	configAccessor, err := config.NewConfigAccessorFromBlockWithTx(tx, prevBlock, p.params.ShardId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create config accessor: %w", err)
 	}
 
 	p.executionState, err = execution.NewExecutionState(tx, p.params.ShardId, execution.StateParams{
-		Block:          block,
+		Block:          prevBlock,
 		ConfigAccessor: configAccessor,
 		FeeCalculator:  p.params.FeeCalculator,
 		Mode:           execution.ModeProposal,
@@ -107,7 +106,7 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		return nil, fmt.Errorf("failed to fetch last block hashes: %w", err)
 	}
 
-	if err := p.handleL1Attributes(tx); err != nil {
+	if err := p.handleL1Attributes(tx, prevBlockHash); err != nil {
 		// TODO: change to Error severity once Consensus/Proposer increase time intervals
 		p.logger.Trace().Err(err).Msg("Failed to handle L1 attributes")
 	}
@@ -140,15 +139,11 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	return p.proposal, nil
 }
 
-func (p *proposer) fetchPrevBlock(tx db.RoTx) (*types.Block, error) {
-	b, hash, err := db.ReadLastBlock(tx, p.params.ShardId)
-	if err != nil {
-		return nil, err
-	}
-
-	p.proposal.PrevBlockId = b.Id
-	p.proposal.PrevBlockHash = hash
-	return b, nil
+func (p *proposer) setPrevBlockData(block *types.Block, blockHash common.Hash) {
+	p.proposal.PrevBlockId = block.Id
+	p.proposal.PrevBlockHash = blockHash
+	p.proposal.PatchLevel = block.PatchLevel
+	p.proposal.RollbackCounter = block.RollbackCounter
 }
 
 func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
@@ -174,7 +169,7 @@ func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
 	return nil
 }
 
-func (p *proposer) handleL1Attributes(tx db.RoTx) error {
+func (p *proposer) handleL1Attributes(tx db.RoTx, mainShardHash common.Hash) error {
 	if !p.params.ShardId.IsMainShard() {
 		return nil
 	}
@@ -192,7 +187,7 @@ func (p *proposer) handleL1Attributes(tx db.RoTx) error {
 	}
 
 	// Check if this L1 block was already processed
-	if cfgAccessor, err := config.NewConfigReader(tx, nil); err == nil {
+	if cfgAccessor, err := config.NewConfigReader(tx, &mainShardHash); err == nil {
 		if prevL1Block, err := config.GetParamL1Block(cfgAccessor); err == nil {
 			if prevL1Block != nil && prevL1Block.Number >= block.Number.Uint64() {
 				return nil
