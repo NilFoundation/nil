@@ -20,6 +20,11 @@ export const PrivateKey = () => {
 
   // Copy the private key to clipboard
   const handleCopyPrivateKey = async () => {
+    if (!privateKeyValue) {
+      console.error("No private key found");
+      return;
+    }
+
     // Only copy if there's something in privateKeyValue
     if (privateKeyValue.trim()) {
       setIsLoading(true); // Set loading state to true
@@ -67,7 +72,7 @@ export const PrivateKey = () => {
         <Input
           id="walletAddress"
           placeholder={t("wallet.privateKeyPage.inputPlaceholder")}
-          value={privateKeyValue}
+          value={privateKeyValue || ""}
           readOnly
           overrides={{
             Root: {
