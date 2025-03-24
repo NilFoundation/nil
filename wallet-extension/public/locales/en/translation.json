@@ -74,6 +74,12 @@
       "copiedButton": "Copied",
       "getEndpointButton": "Open RPC Bot"
     },
+    "privateKeyPage": {
+      "title": "View Private Key",
+      "inputPlaceholder": "Private Key",
+      "copyButton": "Copy",
+      "copiedButton": "Copied"
+    },
     "connectionPage": {
       "title": "Manage DApps"
     },
@@ -97,6 +103,7 @@
     "settingsPage": {
       "title": "Settings",
       "endpointSection": "View endpoint",
+      "privateKeySection": "View private key",
       "getSupport": "Get support",
       "manageConnection": "Manage DApps",
       "feedback": "Share Feedback",

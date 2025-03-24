@@ -12,6 +12,7 @@ export const WalletRoutes = {
     TOP_UP: "/top-up",
     SEND: "/send",
     ENDPOINT: "/endpoint",
+    PRIVATE_KEY: "/private-key",
     TESTNET: "/testnet",
     ERROR: "/error",
     MANAGE_TOKENS: "/manage-tokens",
