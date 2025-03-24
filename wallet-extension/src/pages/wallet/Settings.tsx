@@ -96,7 +96,6 @@ export const Settings = () => {
           cursor: "pointer",
           color: COLORS.gray50,
           ":hover": { color: COLORS.gray200 },
-          marginTop: "48px",
           marginBottom: "24px",
         }}
         onClick={handlePrivateKey}
