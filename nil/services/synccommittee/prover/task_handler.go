@@ -61,6 +61,11 @@ func newTaskHandlerConfig(nilRpcEndpoint string) taskHandlerConfig {
 	}
 }
 
+func (h *taskHandler) IsReadyToHandle(ctx context.Context) (bool, error) {
+	// Prover is always ready to pick up a new task after finishing a previous one
+	return true, nil
+}
+
 func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorId, task *types.Task) error {
 	var taskResult *types.TaskResult
 

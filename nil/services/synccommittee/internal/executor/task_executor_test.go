@@ -25,7 +25,9 @@ type TestSuite struct {
 func (s *TestSuite) SetupTest() {
 	s.context, s.cancellation = context.WithCancel(context.Background())
 	s.requestHandler = newTaskRequestHandlerMock()
-	s.taskHandler = &api.TaskHandlerMock{}
+	s.taskHandler = &api.TaskHandlerMock{
+		IsReadyToHandleFunc: func(ctx context.Context) (bool, error) { return true, nil },
+	}
 
 	config := Config{
 		TaskPollingInterval: 10 * time.Millisecond,
@@ -97,4 +99,24 @@ func (s *TestSuite) Test_TaskExecutor_Executes_Tasks() {
 		s.Require().Equal(s.taskExecutor.Id(), call.ExecutorId,
 			"Task executor should have passed its id in the result")
 	}
+}
+
+func (s *TestSuite) Test_TaskExecutor_Busy_Handler() {
+	// Make task handler not ready for tasks and check that Handle() was not called
+	s.taskHandler.IsReadyToHandleFunc = func(ctx context.Context) (bool, error) {
+		return false, nil
+	}
+	ctx, cancelFunc := context.WithTimeout(s.context, 5*time.Second)
+	defer cancelFunc()
+	started := make(chan struct{})
+	go func() {
+		_ = s.taskExecutor.Run(ctx, started)
+	}()
+	s.Require().Never(
+		func() bool {
+			return len(s.taskHandler.HandleCalls()) != 0
+		},
+		5*time.Second,
+		time.Second,
+	)
 }

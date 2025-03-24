@@ -76,6 +76,12 @@ func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
 		cfg.SkipRate,
 		"rate of skip tasks, will skip N from 10, where N is value of option (0 means no skip)."+
 			" Possible values: [0,10]")
+	cmd.Flags().IntVar(
+		&cfg.MaxActiveTasks,
+		"max-active-tasks",
+		cfg.MaxActiveTasks,
+		"maximum value of active tasks that proof provider should keep",
+	)
 	logLevel := cmd.Flags().String(
 		"log-level",
 		"info",

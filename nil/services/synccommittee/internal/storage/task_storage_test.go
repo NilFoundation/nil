@@ -77,6 +77,11 @@ func (s *TaskStorageSuite) Test_Request_And_Process_Result() {
 	s.Require().NoError(err)
 	s.Require().Nil(task)
 
+	// Check count of active tasks
+	count, err := s.ts.GetActiveTaskCount(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Equal(4, count)
+
 	// Make lower priority task ready for execution
 	err = s.ts.ProcessTaskResult(
 		s.ctx,
