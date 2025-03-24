@@ -18,7 +18,8 @@
     "ini": "^5.0.0",
     "pino": "^9.5.0",
     "pino-pretty": "^13.0.0",
-    "postject": "^1.0.0-alpha.6"
+    "postject": "^1.0.0-alpha.6",
+    "vitest": "^3.0.9"
   },
   "devDependencies": {
     "@oclif/test": "^4",
