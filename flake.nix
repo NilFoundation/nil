@@ -141,7 +141,7 @@
                 bash ${
                   ./scripts/binary_patch_version.sh
                 } ./usr/bin/cometa ${versionFull}
-                ${pkgs.fpm}/bin/fpm -s dir -t deb --name ${pkg.pname} -v ${version} --deb-use-file-permissions usr
+                ${pkgs.fpm}/bin/fpm -s dir -t deb --name ${pkg.pname} -v ${version} --deb-compression xz --deb-use-file-permissions usr
               '';
               installPhase = ''
                 mkdir -p $out
