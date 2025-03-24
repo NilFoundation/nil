@@ -12,18 +12,13 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	cerrors "github.com/NilFoundation/nil/nil/internal/collate/errors"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/signer"
 	"github.com/NilFoundation/nil/nil/internal/types"
-)
-
-var (
-	errOldBlock     = errors.New("received old block")
-	errOutOfOrder   = errors.New("received block is out of order")
-	errHashMismatch = errors.New("block hash mismatch")
 )
 
 type invalidSignatureError struct {
@@ -40,20 +35,20 @@ func newErrInvalidSignature(inner error) invalidSignatureError {
 
 type Validator struct {
 	params             *Params
-	mainShardValidator *Validator
+	mainShardValidator *Validator // +checklocksignore: thread safe
 
 	txFabric       db.DB
 	pool           TxnPool
-	networkManager *network.Manager
-	blockVerifier  *signer.BlockVerifier
+	networkManager *network.Manager      // +checklocksignore: thread safe
+	blockVerifier  *signer.BlockVerifier // +checklocksignore: thread safe
 
 	mutex         sync.RWMutex
-	lastBlock     *types.Block
-	lastBlockHash common.Hash
+	lastBlock     *types.Block // +checklocks:mutex
+	lastBlockHash common.Hash  // +checklocks:mutex
 
 	subsMutex sync.Mutex
-	subsId    uint64
-	subs      map[uint64]chan types.BlockNumber
+	subsId    uint64                            // +checklocks:subsMutex
+	subs      map[uint64]chan types.BlockNumber // +checklocks:subsMutex
 
 	logger logging.Logger
 }
@@ -75,6 +70,7 @@ func NewValidator(
 	}
 }
 
+// +checklocksread:s.mutex
 func (s *Validator) getLastBlockUnlocked(ctx context.Context) (*types.Block, common.Hash, error) {
 	if s.lastBlock != nil {
 		return s.lastBlock, s.lastBlockHash, nil
@@ -144,14 +140,14 @@ func (s *Validator) VerifyProposal(ctx context.Context, proposal *execution.Prop
 		return nil, err
 	}
 
-	// No lock since it accesses last block/hash only inside "locked" GetLastBlock function
-	prevBlock, prevBlockHash, err := s.GetLastBlock(ctx)
-	if err != nil {
+	// No lock since below we use only locked functions and only in read mode
+	if err := s.validateProposal(ctx, p); err != nil {
 		return nil, err
 	}
 
-	if prevBlockHash != proposal.PrevBlockHash {
-		return nil, fmt.Errorf("%w: expected %x, got %x", errHashMismatch, prevBlockHash, proposal.PrevBlockHash)
+	prevBlock, _, err := s.GetLastBlock(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	s.params.ExecutionMode = execution.ModeVerify
@@ -179,6 +175,7 @@ func (s *Validator) InsertProposal(
 	return s.insertProposalUnlocked(ctx, proposal, params)
 }
 
+// +checklocks:s.mutex
 func (s *Validator) insertProposalUnlocked(
 	ctx context.Context,
 	proposal *execution.ProposalSSZ,
@@ -220,6 +217,7 @@ func (s *Validator) insertProposalUnlocked(
 	})
 }
 
+// +checklocks:s.mutex
 func (s *Validator) onBlockCommitUnlocked(
 	ctx context.Context, res *execution.BlockGenerationResult, proposal *execution.Proposal,
 ) {
@@ -272,6 +270,7 @@ func (s *Validator) validateRepliedBlock(
 	return nil
 }
 
+// +checklocksread:s.mutex
 func (s *Validator) validateProposalUnlocked(ctx context.Context, proposal *execution.Proposal) error {
 	lastBlock, lastBlockHash, err := s.getLastBlockUnlocked(ctx)
 	if err != nil {
@@ -281,17 +280,17 @@ func (s *Validator) validateProposalUnlocked(ctx context.Context, proposal *exec
 	blockId := proposal.PrevBlockId + 1
 	if blockId <= lastBlock.Id {
 		s.logger.Trace().
-			Err(errOldBlock).
+			Err(cerrors.ErrOldBlock).
 			Stringer(logging.FieldBlockNumber, blockId).
 			Send()
-		return errOldBlock
+		return cerrors.ErrOldBlock
 	}
 
 	if blockId != lastBlock.Id+1 {
 		s.logger.Debug().
 			Stringer(logging.FieldBlockNumber, blockId).
 			Msgf("Received block %d is out of order with the last block %d", blockId, lastBlock.Id)
-		return errOutOfOrder
+		return cerrors.ErrOutOfOrder
 	}
 
 	if lastBlockHash != proposal.PrevBlockHash {
@@ -303,10 +302,16 @@ func (s *Validator) validateProposalUnlocked(ctx context.Context, proposal *exec
 			Stringer("lastHash", lastBlockHash).
 			Stringer("expectedLastHash", proposal.PrevBlockHash).
 			Msgf("Previous block hash mismatch: expected %x, got %x", lastBlockHash, proposal.PrevBlockHash)
-		return errHashMismatch
+		return cerrors.ErrHashMismatch
 	}
 
 	return nil
+}
+
+func (s *Validator) validateProposal(ctx context.Context, proposal *execution.Proposal) error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.validateProposalUnlocked(ctx, proposal)
 }
 
 func (s *Validator) ReplayBlock(ctx context.Context, block *types.BlockWithExtractedData) error {
@@ -315,6 +320,7 @@ func (s *Validator) ReplayBlock(ctx context.Context, block *types.BlockWithExtra
 	return s.replayBlockUnlocked(ctx, block)
 }
 
+// +checklocks:s.mutex
 func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockWithExtractedData) error {
 	blockHash := block.Block.Hash(s.params.ShardId)
 	s.logger.Trace().
@@ -370,7 +376,7 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 	}
 
 	if err := s.validateProposalUnlocked(ctx, proposal); err != nil {
-		if errors.Is(err, errHashMismatch) {
+		if errors.Is(err, cerrors.ErrHashMismatch) {
 			return returnErrorOrPanic(err)
 		}
 		return err
@@ -405,6 +411,7 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 	return nil
 }
 
+// +checklocks:s.mutex
 func (s *Validator) setLastBlockUnlocked(block *types.Block, hash common.Hash) {
 	s.lastBlock = block
 	s.lastBlockHash = hash
@@ -447,6 +454,7 @@ func (s *Validator) checkBlock(ctx context.Context, expectedHash common.Hash) (b
 	return s.checkBlockUnlocked(ctx, expectedHash)
 }
 
+// +checklocksread:s.mutex
 func (s *Validator) checkBlockUnlocked(ctx context.Context, expectedHash common.Hash) (bool, error) {
 	_, hash, err := s.getLastBlockUnlocked(ctx)
 	if err != nil {

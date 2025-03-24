@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	cerrors "github.com/NilFoundation/nil/nil/internal/collate/errors"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -239,10 +240,10 @@ func (s *Syncer) processTopicTransaction(ctx context.Context, data []byte) (bool
 
 	if err := s.saveBlock(ctx, b); err != nil {
 		switch {
-		case errors.Is(err, errOutOfOrder):
+		case errors.Is(err, cerrors.ErrOutOfOrder):
 			// todo: queue the block for later processing
 			return false, nil
-		case errors.Is(err, errOldBlock):
+		case errors.Is(err, cerrors.ErrOldBlock):
 			return false, nil
 		default:
 			return false, err
@@ -265,7 +266,7 @@ func (s *Syncer) fetchBlocks(ctx context.Context) {
 		for block := range blocksCh {
 			count++
 			if err := s.saveBlock(ctx, block); err != nil {
-				if errors.Is(err, errOldBlock) {
+				if errors.Is(err, cerrors.ErrOldBlock) {
 					continue
 				}
 				s.logger.Error().

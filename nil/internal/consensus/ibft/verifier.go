@@ -2,20 +2,35 @@ package ibft
 
 import (
 	"bytes"
+	"errors"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/go-ibft/messages"
 	protoIBFT "github.com/NilFoundation/nil/nil/go-ibft/messages/proto"
+	cerrors "github.com/NilFoundation/nil/nil/internal/collate/errors"
 	"github.com/NilFoundation/nil/nil/internal/config"
 )
 
 func (i *backendIBFT) IsValidProposal(rawProposal []byte) bool {
 	proposal, err := i.unmarshalProposal(rawProposal)
 	if err != nil {
+		i.logger.Error().
+			Err(err).
+			Uint64(logging.FieldHeight, uint64(proposal.PrevBlockId)+1).
+			Msg("Failed to unmarshal proposal")
 		return false
 	}
 
 	_, err = i.validator.VerifyProposal(i.ctx, proposal)
+	if err != nil {
+		event := i.logger.Error()
+		if errors.Is(err, cerrors.ErrOldBlock) {
+			event = i.logger.Debug()
+		}
+		event.Err(err).
+			Uint64(logging.FieldHeight, uint64(proposal.PrevBlockId)+1).
+			Msg("Proposal is invalid")
+	}
 	return err == nil
 }
 
@@ -114,6 +129,15 @@ func (i *backendIBFT) IsValidProposalHash(proposal *protoIBFT.Proposal, hash []b
 
 	block, err := i.validator.VerifyProposal(i.ctx, prop)
 	if err != nil {
+		event := i.logger.Error()
+		if errors.Is(err, cerrors.ErrOldBlock) {
+			event = i.logger.Debug()
+		}
+
+		event.Err(err).
+			Uint64(logging.FieldRound, proposal.Round).
+			Uint64(logging.FieldHeight, uint64(prop.PrevBlockId)+1).
+			Msg("Failed to verify proposal")
 		return false
 	}
 
