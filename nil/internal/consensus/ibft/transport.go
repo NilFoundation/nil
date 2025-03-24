@@ -88,7 +88,7 @@ func (i *backendIBFT) setupTransport(ctx context.Context) error {
 					event = event.Uint64(logging.FieldHeight, view.Height).
 						Uint64(logging.FieldRound, view.Round)
 				}
-				event.Msg("Validator message received")
+				// event.Msg("Validator message received")
 
 				i.consensus.AddMessage(msg)
 				i.mh.IncReceivedMessages(ctx, msg.Type.String())

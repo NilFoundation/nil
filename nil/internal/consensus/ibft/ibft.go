@@ -64,6 +64,9 @@ func (i *backendIBFT) unmarshalProposal(raw []byte) (*execution.ProposalSSZ, err
 }
 
 func (i *backendIBFT) BuildProposal(view *protoIBFT.View) []byte {
+	i.logger.Info().Msgf("Start to build proposal (shardId = %s)", i.shardId)
+	defer i.logger.Info().Msgf("Finish to build proposal (shardId = %s)", i.shardId)
+
 	i.mh.StartBuildProposalMeasurement(i.transportCtx, view.Round)
 	defer i.mh.EndBuildProposalMeasurement(i.transportCtx)
 
@@ -149,6 +152,9 @@ func (i *backendIBFT) InsertProposal(proposal *protoIBFT.Proposal, committedSeal
 	i.mh.StartInsertProposalMeasurement(i.transportCtx, proposal.Round)
 	defer i.mh.EndInsertProposalMeasurement(i.transportCtx)
 
+	i.logger.Info().Msgf("Start to insert proposal (shardId = %s)", i.shardId)
+	defer i.logger.Info().Msgf("Finish to insert proposal (shardId = %s)", i.shardId)
+
 	proposalBlock, err := i.unmarshalProposal(proposal.RawProposal)
 	if err != nil {
 		i.logger.Error().Err(err).Msg("failed to unmarshal proposal")
@@ -196,7 +202,8 @@ func (i *backendIBFT) isActiveValidator() bool {
 func NewConsensus(cfg *ConsensusParams) (*backendIBFT, error) {
 	logger := logging.NewLogger("consensus").With().Stringer(logging.FieldShardId, cfg.ShardId).Logger()
 	l := &ibftLogger{
-		logger: logger.With().CallerWithSkipFrameCount(3).Logger(),
+		logger:  logger.With().CallerWithSkipFrameCount(3).Logger(),
+		shardId: cfg.ShardId,
 	}
 
 	const mhName = "github.com/NilFoundation/nil/nil/internal/consensus"

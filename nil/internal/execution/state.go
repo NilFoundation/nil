@@ -306,10 +306,10 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 	if params.Block != nil {
 		baseFeePerGas = feeCalculator.CalculateBaseFee(params.Block)
 		if baseFeePerGas.Cmp(params.Block.BaseFee) != 0 {
-			logger.Debug().
-				Stringer("Old", params.Block.BaseFee).
-				Stringer("New", baseFeePerGas).
-				Msg("BaseFee changed")
+			// logger.Debug().
+			// 	Stringer("Old", params.Block.BaseFee).
+			// 	Stringer("New", baseFeePerGas).
+			// 	Msg("BaseFee changed")
 		}
 		prevBlockHash = params.Block.Hash(shardId)
 	}
@@ -1071,7 +1071,7 @@ func (es *ExecutionState) HandleTransaction(
 		if retError.Failed() {
 			ev.Msg("Transaction completed with error")
 		} else {
-			ev.Msg("Transaction completed successfully")
+			// ev.Msg("Transaction completed successfully")
 		}
 	}()
 
@@ -1190,10 +1190,10 @@ func (es *ExecutionState) handleDeployTransaction(_ context.Context, transaction
 	addr := transaction.To
 	deployTxn := types.ParseDeployPayload(transaction.Data)
 
-	es.logger.Debug().
-		Stringer(logging.FieldTransactionTo, addr).
-		Stringer(logging.FieldShardId, es.ShardId).
-		Msg("Handling deploy transaction...")
+	// es.logger.Debug().
+	// 	Stringer(logging.FieldTransactionTo, addr).
+	// 	Stringer(logging.FieldShardId, es.ShardId).
+	// 	Msg("Handling deploy transaction...")
 
 	if err := es.newVm(transaction.IsInternal(), transaction.From, nil); err != nil {
 		return NewExecutionResult().SetFatal(err)
@@ -1208,7 +1208,7 @@ func (es *ExecutionState) handleDeployTransaction(_ context.Context, transaction
 	if err != nil {
 		event.Err(err).Msg("Contract deployment failed.")
 	} else {
-		event.Msg("Created new contract.")
+		// event.Msg("Created new contract.")
 	}
 
 	return NewExecutionResult().
@@ -1281,14 +1281,14 @@ func (es *ExecutionState) handleExecutionTransaction(
 ) *ExecutionResult {
 	check.PanicIfNot(transaction.IsExecution())
 	addr := transaction.To
-	es.logger.Debug().
-		Stringer(logging.FieldTransactionFrom, transaction.From).
-		Stringer(logging.FieldTransactionTo, addr).
-		Stringer(logging.FieldTransactionFlags, transaction.Flags).
-		Stringer(logging.FieldTransactionHash, transaction.Hash()).
-		Stringer("value", transaction.Value).
-		Stringer("feeCredit", transaction.FeeCredit).
-		Msg("Handling execution transaction...")
+	// es.logger.Debug().
+	// 	Stringer(logging.FieldTransactionFrom, transaction.From).
+	// 	Stringer(logging.FieldTransactionTo, addr).
+	// 	Stringer(logging.FieldTransactionFlags, transaction.Flags).
+	// 	Stringer(logging.FieldTransactionHash, transaction.Hash()).
+	// 	Stringer("value", transaction.Value).
+	// 	Stringer("feeCredit", transaction.FeeCredit).
+	// 	Msg("Handling execution transaction...")
 
 	caller := (vm.AccountRef)(transaction.From)
 
@@ -1347,7 +1347,7 @@ func decodeRevertTransaction(data []byte) string {
 
 func (es *ExecutionState) handleRefundTransaction(_ context.Context, transaction *types.Transaction) error {
 	err := es.AddBalance(transaction.To, transaction.Value, tracing.BalanceIncreaseRefund)
-	es.logger.Debug().Err(err).Msgf("Refunded %s to %v", transaction.Value, transaction.To)
+	// es.logger.Debug().Err(err).Msgf("Refunded %s to %v", transaction.Value, transaction.To)
 	return err
 }
 

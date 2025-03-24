@@ -162,12 +162,12 @@ func (p *TxnPool) add(txns ...*metaTxn) ([]DiscardReason, error) {
 			continue
 		}
 		discardReasons[i] = NotSet // unnecessary
-		p.logger.Debug().
-			Uint64(logging.FieldShardId, uint64(txn.To.ShardId())).
-			Stringer(logging.FieldTransactionHash, txn.Hash()).
-			Stringer(logging.FieldTransactionTo, txn.To).
-			Int("total", p.all.tree.Len()).
-			Msg("Added new transaction.")
+		// p.logger.Debug().
+		// 	Uint64(logging.FieldShardId, uint64(txn.To.ShardId())).
+		// 	Stringer(logging.FieldTransactionHash, txn.Hash()).
+		// 	Stringer(logging.FieldTransactionTo, txn.To).
+		// 	Int("total", p.all.tree.Len()).
+		// 	Msg("Added new transaction")
 	}
 
 	return discardReasons, nil

@@ -112,25 +112,16 @@
                 export HOME=$PWD
 
                 mkdir -p ./usr
-                mkdir -p ./usr/share/${packages.nildocs.pname}
-                mkdir -p ./usr/share/${packages.nilexplorer.name}
-                mkdir -p ./usr/share/${packages.docsaibackend.name}
                 mkdir -p ./usr/share/${packages.l1-contracts.name}
                 mkdir -p ./usr/share/${packages.rollup-bridge-contracts.name}
 
                 cp -r ${pkg}/bin ./usr/
                 cp -r ${pkg}/share ./usr/
-                cp -r ${packages.nildocs.outPath}/* ./usr/share/${packages.nildocs.pname}
-                cp -r ${packages.nilexplorer.outPath}/* ./usr/share/${packages.nilexplorer.name}
-                cp -r ${packages.docsaibackend.outPath}/* ./usr/share/${packages.nilexplorer.name}
                 cp -r ${packages.l1-contracts.outPath}/* ./usr/share/${packages.l1-contracts.name}
                 cp -r ${packages.rollup-bridge-contracts.outPath}/{.,}* ./usr/share/${packages.rollup-bridge-contracts.name}
 
                 chmod -R u+rw,g+r,o+r ./usr
                 chmod -R u+rwx,g+rx,o+rx ./usr/bin
-                chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nildocs.pname}
-                chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nilexplorer.name}
-                chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.docsaibackend.name}
 
                 bash ${
                   ./scripts/binary_patch_version.sh
@@ -141,7 +132,7 @@
                 bash ${
                   ./scripts/binary_patch_version.sh
                 } ./usr/bin/cometa ${versionFull}
-                ${pkgs.fpm}/bin/fpm -s dir -t deb --name ${pkg.pname} -v ${version} --deb-use-file-permissions usr
+                ${pkgs.fpm}/bin/fpm -s dir -t deb --name ${pkg.pname} -v ${version} --deb-compression xz --deb-use-file-permissions usr
               '';
               installPhase = ''
                 mkdir -p $out

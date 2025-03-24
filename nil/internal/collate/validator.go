@@ -152,14 +152,14 @@ func (s *Validator) VerifyProposal(ctx context.Context, proposal *execution.Prop
 		return nil, err
 	}
 
-	// No lock since it accesses last block/hash only inside "locked" GetLastBlock function
-	prevBlock, prevBlockHash, err := s.GetLastBlock(ctx)
-	if err != nil {
+	if err := s.validateProposal(ctx, p); err != nil {
 		return nil, err
 	}
 
-	if prevBlockHash != proposal.PrevBlockHash {
-		return nil, fmt.Errorf("%w: expected %x, got %x", errHashMismatch, prevBlockHash, proposal.PrevBlockHash)
+	// No lock since it accesses last block/hash only inside "locked" GetLastBlock function
+	prevBlock, _, err := s.GetLastBlock(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	s.params.ExecutionMode = execution.ModeVerify
@@ -194,6 +194,12 @@ func (s *Validator) validateBlockForProposalUnlocked(ctx context.Context, block 
 		MainShardHash: block.Block.MainShardHash,
 		ShardHashes:   block.ChildBlocks,
 	}
+	return s.validateProposalUnlocked(ctx, proposal)
+}
+
+func (s *Validator) validateProposal(ctx context.Context, proposal *execution.Proposal) error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	return s.validateProposalUnlocked(ctx, proposal)
 }
 

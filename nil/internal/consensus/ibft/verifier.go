@@ -7,9 +7,15 @@ import (
 	"github.com/NilFoundation/nil/nil/go-ibft/messages"
 	protoIBFT "github.com/NilFoundation/nil/nil/go-ibft/messages/proto"
 	"github.com/NilFoundation/nil/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
 func (i *backendIBFT) IsValidProposal(rawProposal []byte) bool {
+	if i.shardId == types.BaseShardId {
+		i.logger.Info().Msgf("Start IsValidProposal (shardId = %s)", i.shardId)
+		defer i.logger.Info().Msgf("Finish IsValidProposal (shardId = %s)", i.shardId)
+	}
+
 	proposal, err := i.unmarshalProposal(rawProposal)
 	if err != nil {
 		i.logger.Error().Err(err).Msg("Failed to unmarshal proposal")
@@ -26,6 +32,11 @@ func (i *backendIBFT) IsValidProposal(rawProposal []byte) bool {
 }
 
 func (i *backendIBFT) IsValidValidator(msg *protoIBFT.IbftMessage) bool {
+	if i.shardId == types.BaseShardId {
+		i.logger.Info().Msgf("Start IsValidValidator (shardId = %s)", i.shardId)
+		defer i.logger.Info().Msgf("Finish IsValidValidator (shardId = %s)", i.shardId)
+	}
+
 	msgNoSig, err := msg.PayloadNoSig()
 	if err != nil {
 		i.logger.Error().Err(err).Msg("Failed to get message payload")
@@ -100,6 +111,11 @@ func (i *backendIBFT) getPrevProposer(height uint64) *uint64 {
 }
 
 func (i *backendIBFT) IsProposer(id []byte, height, round uint64) bool {
+	if i.shardId == types.BaseShardId {
+		i.logger.Info().Msgf("Start IsProposer %d (shardId = %s)", height, i.shardId)
+		defer i.logger.Info().Msgf("Finish IsProposer %d (shardId = %s)", height, i.shardId)
+	}
+
 	prevProposerIndex := i.getPrevProposer(height)
 	proposer, _, err := i.calcProposer(height, round, prevProposerIndex)
 	if err != nil {
@@ -114,6 +130,11 @@ func (i *backendIBFT) IsProposer(id []byte, height, round uint64) bool {
 }
 
 func (i *backendIBFT) IsValidProposalHash(proposal *protoIBFT.Proposal, hash []byte) bool {
+	if i.shardId == types.BaseShardId {
+		i.logger.Info().Msgf("Start IsValidProposalHash (shardId = %s)", i.shardId)
+		defer i.logger.Info().Msgf("Finish IsValidProposalHash (shardId = %s)", i.shardId)
+	}
+
 	prop, err := i.unmarshalProposal(proposal.RawProposal)
 	if err != nil {
 		return false
@@ -121,6 +142,11 @@ func (i *backendIBFT) IsValidProposalHash(proposal *protoIBFT.Proposal, hash []b
 
 	block, err := i.validator.VerifyProposal(i.ctx, prop)
 	if err != nil {
+		i.logger.Warn().
+			Err(err).
+			Uint64(logging.FieldRound, proposal.Round).
+			Uint64(logging.FieldHeight, uint64(prop.PrevBlockId)+1).
+			Msg("Failed to verify proposal hash")
 		return false
 	}
 
