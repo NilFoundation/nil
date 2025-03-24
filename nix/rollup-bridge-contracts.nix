@@ -77,7 +77,6 @@ stdenv.mkDerivation rec {
     source .env
 
     export FOUNDRY_ROOT=$(realpath ../)
-    solc=pkgs.solc;
     export FOUNDRY_SOLC=$(command -v solc)
     echo "FOUNDRY_SOLC=$FOUNDRY_SOLC"
 
@@ -87,9 +86,9 @@ stdenv.mkDerivation rec {
 
     echo "Copying Foundry libraries from Nix store"
     mkdir -p lib/forge-std lib/solmate lib/ds-test
-    cp -r ${forgeStd}/* lib/forge-std
-    cp -r ${solmate}/* lib/solmate
-    cp -r ${dsTest}/* lib/ds-test
+    ln -s ${forgeStd}/* lib/forge-std
+    ln -s ${solmate}/* lib/solmate
+    ln -s ${dsTest}/* lib/ds-test
 
     eval forge test --remappings hardhat/=/build/source/node_modules/hardhat/ --remappings forge-std/=rollup-bridge-contracts/lib/forge-std/src/ --remappings ds-test/=rollup-bridge-contracts/lib/ds-test/src/ --remappings solmate/=rollup-bridge-contracts/lib/solmate/src/ --remappings @openzeppelin/=/build/source/node_modules/@openzeppelin/ --remappings @solady/=/build/source/node_modules/solady/src/
   '';
