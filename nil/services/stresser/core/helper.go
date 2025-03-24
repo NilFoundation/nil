@@ -83,9 +83,9 @@ func (h *Helper) DeployContract(name string, shardId types.ShardId) (*Contract, 
 
 	tx, addr, err := h.Client.DeployExternal(h.ctx, shardId, payload, types.NewFeePackFromGas(100_000_000))
 	if err != nil {
-		return nil, fmt.Errorf("failed to deploy contract: %w", err)
+		return nil, fmt.Errorf("failed to deploy contract at %s: %w", addr, err)
 	}
-	receipt, err := common.WaitForValue[jsonrpc.RPCReceipt](h.ctx, time.Second*9, time.Millisecond*500,
+	receipt, err := common.WaitForValue(h.ctx, 30*time.Second, 500*time.Millisecond,
 		func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
 			return h.Client.GetInTransactionReceipt(ctx, tx)
 		})
@@ -93,12 +93,12 @@ func (h *Helper) DeployContract(name string, shardId types.ShardId) (*Contract, 
 		return nil, fmt.Errorf("failed to get receipt: %w", err)
 	}
 	if !receipt.Success {
-		return nil, fmt.Errorf("failed to deploy contract: %s", receipt.Status)
+		return nil, fmt.Errorf("failed to deploy contract at %s: %s", addr, receipt.Status)
 	}
 
 	balance, err := h.Client.GetBalance(h.ctx, addr, "latest")
 	if err != nil {
-		h.logger.Error().Err(err).Str("addr", addr.Hex()).Msgf("Failed to get balance")
+		h.logger.Error().Err(err).Stringer("addr", addr).Msg("Failed to get balance")
 	}
 
 	h.logger.Info().Msgf("Contract deployed at %x, balance: %s", addr, balance)
@@ -135,8 +135,8 @@ func (h *Helper) TopUp(addr types.Address, value types.Value) error {
 		return fmt.Errorf("failed to top up via faucet: %w", err)
 	} else {
 		if receipt, err := h.WaitTx(tx); err != nil {
-			return fmt.Errorf("failed to get receipt during top up: %w", err)
-		} else if !receipt.Success {
+			return fmt.Errorf("failed to get receipt %s during top up: %w", tx, err)
+		} else if !receipt.AllSuccess() {
 			return fmt.Errorf("failed to top up via faucet: %s", receipt.Status)
 		}
 	}
@@ -144,8 +144,15 @@ func (h *Helper) TopUp(addr types.Address, value types.Value) error {
 }
 
 func (h *Helper) WaitTx(tx common.Hash) (*jsonrpc.RPCReceipt, error) {
-	return common.WaitForValue[jsonrpc.RPCReceipt](h.ctx, time.Second*3, time.Millisecond*500,
+	return common.WaitForValue(h.ctx, 30*time.Second, 500*time.Millisecond,
 		func(ctx context.Context) (*jsonrpc.RPCReceipt, error) {
-			return h.Client.GetInTransactionReceipt(ctx, tx)
+			receipt, err := h.Client.GetInTransactionReceipt(ctx, tx)
+			if err != nil {
+				return nil, err
+			}
+			if !receipt.IsComplete() {
+				return nil, nil
+			}
+			return receipt, nil
 		})
 }
