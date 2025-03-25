@@ -38,6 +38,8 @@ buildGo124Module rec {
     esac
   '';
 
+  tags = [ "assert" ];
+
   src = lib.sourceByRegex ./.. [
     "Makefile"
     "go.mod"

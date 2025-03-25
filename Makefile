@@ -23,7 +23,7 @@ test: generated
 %.cmd: generated
 	@# Note: $* is replaced by the command name
 	@echo "Building $*"
-	@cd ./nil/cmd/$* && $(GOBUILD) -o $(GOBIN)/$*
+	@cd ./nil/cmd/$* && $(GOBUILD) -o $(GOBIN)/$* -tags assert
 	@echo "Run \"$(GOBIN)/$*\" to launch $*."
 
 %.runcmd: %.cmd

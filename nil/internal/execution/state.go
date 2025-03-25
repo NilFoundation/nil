@@ -1464,16 +1464,17 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 				return nil, fmt.Errorf("outbound transaction %v does not belong to any inbound transaction", outTxnHash)
 			}
 		}
+		// Check that each inbound transaction has its receipt in the same index
+		for i, txnHash := range es.InTransactionHashes {
+			if txnHash != es.Receipts[i].TxnHash {
+				return nil, fmt.Errorf("receipt hash doesn't match its transaction #%d", i)
+			}
+		}
 	}
 	if len(es.InTransactions) != len(es.Receipts) {
 		return nil, fmt.Errorf(
 			"number of transactions does not match number of receipts: %d != %d",
 			len(es.InTransactions), len(es.Receipts))
-	}
-	for i, txnHash := range es.InTransactionHashes {
-		if txnHash != es.Receipts[i].TxnHash {
-			return nil, fmt.Errorf("receipt hash doesn't match its transaction #%d", i)
-		}
 	}
 
 	// Update receipts trie
