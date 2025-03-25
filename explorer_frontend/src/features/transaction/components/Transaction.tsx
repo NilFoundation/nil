@@ -47,7 +47,13 @@ export const Transaction = () => {
   }, [transaction]);
 
   return (
-    <>
+    <div
+      className={css({
+        display: "block",
+        width: "100%",
+        minWidth: "100vw",
+      })}
+    >
       <HeadingXLarge className={css({ marginBottom: SPACE[32] })}>Transaction</HeadingXLarge>
       {!transaction ? (
         pending ? (
@@ -82,7 +88,7 @@ export const Transaction = () => {
           )}
         </Tabs>
       )}
-    </>
+    </div>
   );
 };
 
