@@ -10,6 +10,10 @@ import AbiCommand from "./commands/abi";
 import AbiDecode from "./commands/abi/decode";
 import AbiEncode from "./commands/abi/encode";
 import BlockCommand from "./commands/block";
+import SystemCommand from "./commands/system";
+import ChainId from "./commands/system/chain-id";
+import GasPrice from "./commands/system/gas-price";
+import Shards from "./commands/system/shards";
 import SmartAccountBalance from "./commands/smart-account/balance.js";
 import SmartAccountCallReadOnly from "./commands/smart-account/call-readonly";
 import SmartAccountDeploy from "./commands/smart-account/deploy.js";
@@ -44,6 +48,11 @@ export const COMMANDS: Record<string, Command.Class> = {
   "smart-account:send-transaction": SmartAccountSendTransaction,
   "smart-account:seqno": SmartAccountSeqno,
   "smart-account:top-up": SmartAccountTopup,
+
+  system: SystemCommand,
+  "system:chain-id": ChainId,
+  "system:gas-price": GasPrice,
+  "system:shards": Shards,
 };
 
 export async function run() {
