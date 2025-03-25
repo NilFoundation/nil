@@ -136,7 +136,7 @@ export const registerContractInCometaFx = createEffect<
   },
   void
 >(async ({ name, app, address, cometaClient, solidityVersion }) => {
-  const result = createCompileInput(app.sourcecode);
+  const result = await createCompileInput(app.sourcecode);
 
   const refinedSolidityVersion = solidityVersion.match(/\d+\.\d+\.\d+/)?.[0] || "";
 
@@ -270,12 +270,12 @@ export const setParams = createEvent<{
   functionName: string;
   paramName: string;
   value:
-    | string
-    | boolean
-    | {
-        type: string;
-        value: string | boolean;
-      }[];
+  | string
+  | boolean
+  | {
+    type: string;
+    value: string | boolean;
+  }[];
   type: string;
 }>();
 
@@ -354,11 +354,11 @@ export const sendMethodFx = createEffect<
   const receipts = await smartAccount.client.getTransactionReceiptByHash(hash);
   const logs = receipts
     ? [
-        ...(receipts.outputReceipts?.flatMap((receipt) => {
-          return receipt ? receipt.logs : [];
-        }) ?? []),
-        ...receipts.logs,
-      ]
+      ...(receipts.outputReceipts?.flatMap((receipt) => {
+        return receipt ? receipt.logs : [];
+      }) ?? []),
+      ...receipts.logs,
+    ]
     : [];
   const txLogs = logs
     .map((log): string | null => {
