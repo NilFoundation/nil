@@ -5,7 +5,7 @@ export default class Shards extends BaseCommand {
 
     static override examples = ["$ nil system shards"];
 
-    async run(): Promise<void> {
+    async run(): Promise<number[]> {
         const { rpcClient } = this;
         if (!rpcClient) {
             this.error("RPC client is not initialized");
@@ -13,7 +13,8 @@ export default class Shards extends BaseCommand {
 
         try {
             const shards = await rpcClient.getShardIdList();
-            this.info(JSON.stringify(shards, null, 2));
+            this.log(JSON.stringify(shards, null, 2));
+            return shards;
         } catch (error) {
             this.error(`Failed to get shards: ${error}`);
         }
