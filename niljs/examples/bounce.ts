@@ -4,7 +4,6 @@ import {
   PublicClient,
   SmartAccountV1,
   generateSmartAccount,
-  waitTillCompleted,
 } from "../src/index.js";
 import { FAUCET_ENDPOINT, RPC_ENDPOINT, generateRandomAddress } from "./helpers.js";
 
@@ -35,7 +34,7 @@ console.log("anotherSmartAccount", anotherSmartAccount.address);
 const bounceAddress = generateRandomAddress();
 
 // bounce transaction
-const hash = await smartAccount.sendTransaction({
+const transaction = await smartAccount.sendTransaction({
   to: anotherSmartAccount.address,
   value: 10_000_000n,
   bounceTo: bounceAddress,
@@ -46,7 +45,7 @@ const hash = await smartAccount.sendTransaction({
   }),
 });
 
-await waitTillCompleted(client, hash);
+await transaction.wait();
 
 console.log("bounce address", bounceAddress);
 

@@ -1,5 +1,5 @@
 import { encodeFunctionData } from "viem";
-import { SmartAccountV1, waitTillCompleted } from "../../src/index.js";
+import { SmartAccountV1 } from "../../src/index.js";
 import { generateRandomAddress, generateTestSmartAccount, newClient } from "./helpers.js";
 
 const client = newClient();
@@ -12,7 +12,7 @@ test("bounce", async () => {
 
   const bounceAddress = generateRandomAddress();
 
-  const hash = await smartAccount.sendTransaction({
+  const tx = await smartAccount.sendTransaction({
     to: anotherSmartAccount.address,
     value: 10_000_000n,
     bounceTo: bounceAddress,
@@ -24,7 +24,8 @@ test("bounce", async () => {
     }),
   });
 
-  const receipts = await waitTillCompleted(client, hash);
+  // const receipts = await waitTillCompleted(client, hash);
+  const receipts = await tx.wait();
 
   expect(receipts.length).toBeDefined();
   expect(receipts.some((r) => !r.success)).toBe(true);

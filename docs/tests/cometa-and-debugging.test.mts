@@ -14,7 +14,6 @@ import {
   HttpTransport,
   PublicClient,
   generateSmartAccount,
-  waitTillCompleted,
 } from "@nilfoundation/niljs";
 //endNilJSImport
 
@@ -139,7 +138,7 @@ describe.skip.sequential("Nil.js correctly interacts with Cometa", () => {
 
     const compilationResult = await cometa.compileContract(counterBugJson);
 
-    const { address, hash } = await smartAccount.deployContract({
+    const { address, tx } = await smartAccount.deployContract({
       bytecode: compilationResult.code,
       abi: compilationResult.abi as unknown as Abi,
       args: [],
@@ -148,7 +147,7 @@ describe.skip.sequential("Nil.js correctly interacts with Cometa", () => {
       shardId: 1,
     });
 
-    const receipts = await waitTillCompleted(client, hash);
+    const receipts = await tx.wait();
 
     if (receipts.some((receipt) => !receipt.success)) {
       throw new Error("Contract deployment failed");
@@ -156,14 +155,14 @@ describe.skip.sequential("Nil.js correctly interacts with Cometa", () => {
 
     await cometa.registerContractData(compilationResult, address);
 
-    const incrementHash = await smartAccount.sendTransaction({
+    const incrementTx = await smartAccount.sendTransaction({
       to: address,
       functionName: "increment",
       abi: compilationResult.abi as unknown as Abi,
       feeCredit: 300_000n,
     });
 
-    await waitTillCompleted(client, incrementHash);
+    await incrementTx.wait();
 
     //endNilJSCometaTutorialSnippet
   });

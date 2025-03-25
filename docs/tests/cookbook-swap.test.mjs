@@ -5,7 +5,6 @@ const {
   HttpTransport,
   PublicClient,
   generateSmartAccount,
-  waitTillCompleted,
 } = require("@nilfoundation/niljs");
 import { SWAP_MATCH_COMPILATION_COMMAND } from "./compilationCommands";
 
@@ -76,7 +75,7 @@ describe.sequential("Nil.js handles the full swap tutorial flow", async () => {
         faucetEndpoint: FAUCET_ENDPOINT,
       });
 
-      const { address: swapMatchAddress, hash: deploymentTransactionHash } =
+      const { address: swapMatchAddress, tx: deploymentTransaction } =
         await smartAccount.deployContract({
           bytecode: SWAP_MATCH_BYTECODE,
           value: 0n,
@@ -85,7 +84,7 @@ describe.sequential("Nil.js handles the full swap tutorial flow", async () => {
           shardId: 4,
         });
 
-      const receipts = await waitTillCompleted(client, deploymentTransactionHash);
+      const receipts = await deploymentTransaction.wait();
       //endDeploymentOfSwapMatch
       function bigIntReplacer(unusedKey, value) {
         return typeof value === "bigint" ? value.toString() : value;
@@ -100,20 +99,20 @@ describe.sequential("Nil.js handles the full swap tutorial flow", async () => {
 
       //startTokenCreation
       {
-        const hashTransaction = await smartAccountOne.mintToken(100_000_000n);
-        await waitTillCompleted(client, hashTransaction);
+        const tx = await smartAccountOne.mintToken(100_000_000n);
+        await tx.wait();
       }
 
       {
-        const hashTransaction = await smartAccountTwo.mintToken(100_000_000n);
-        await waitTillCompleted(client, hashTransaction);
+        const tx = await smartAccountTwo.mintToken(100_000_000n);
+        await tx.wait();
       }
       //endTokenCreation
 
       //startFirstSendRequest
       {
         const gasPrice = await client.getGasPrice(smartAccountOne.shardId);
-        const hashTransaction = await smartAccountOne.sendTransaction({
+        const tx = await smartAccountOne.sendTransaction({
           to: swapMatchAddress,
           tokens: [
             {
@@ -127,14 +126,14 @@ describe.sequential("Nil.js handles the full swap tutorial flow", async () => {
           feeCredit: gasPrice * 1_000_000n,
         });
 
-        await waitTillCompleted(client, hashTransaction);
+        await tx.wait();
       }
       //endFirstSendRequest
 
       //startSecondSendRequest
       {
         const gasPrice = await client.getGasPrice(smartAccountTwo.shardId);
-        const hashTransaction = await smartAccountTwo.sendTransaction({
+        const tx = await smartAccountTwo.sendTransaction({
           to: swapMatchAddress,
           tokens: [
             {
@@ -148,7 +147,7 @@ describe.sequential("Nil.js handles the full swap tutorial flow", async () => {
           feeCredit: gasPrice * 1_000_000n,
         });
 
-        await waitTillCompleted(client, hashTransaction);
+        await tx.wait();
       }
 
       //endSecondSendRequest

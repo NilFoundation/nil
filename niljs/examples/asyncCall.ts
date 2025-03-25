@@ -1,9 +1,4 @@
-import {
-  HttpTransport,
-  PublicClient,
-  generateSmartAccount,
-  waitTillCompleted,
-} from "../src/index.js";
+import { HttpTransport, PublicClient, generateSmartAccount } from "../src/index.js";
 import { FAUCET_ENDPOINT, RPC_ENDPOINT, generateRandomAddress } from "./helpers.js";
 
 const client = new PublicClient({
@@ -25,13 +20,13 @@ console.log("smartAccountAddress", smartAccountAddress);
 const anotherAddress = generateRandomAddress();
 
 const gasPrice = await client.getGasPrice(1);
-const hash = await smartAccount.sendTransaction({
+const transaction = await smartAccount.sendTransaction({
   to: anotherAddress,
   value: 10_000_000n,
   feeCredit: 100_000n * gasPrice,
 });
 
-await waitTillCompleted(client, hash);
+await transaction.wait();
 
 const balance = await client.getBalance(anotherAddress, "latest");
 

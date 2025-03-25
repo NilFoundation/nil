@@ -2,7 +2,6 @@ import {
   HttpTransport,
   PublicClient,
   generateSmartAccount,
-  waitTillCompleted,
 } from "@nilfoundation/niljs";
 import { TutorialChecksStatus } from "../../../pages/tutorials/model";
 import type { CheckProps } from "../CheckProps";
@@ -53,7 +52,7 @@ async function runTutorialCheckFour(props: CheckProps) {
 
   const salt = BigInt(Math.floor(Math.random() * 1000000));
 
-  const hashDeploy = await smartAccount.sendTransaction({
+  const deployTx = await smartAccount.sendTransaction({
     to: resultDeployer.address,
     abi: deployerContract.abi,
     functionName: "deploy",
@@ -61,7 +60,7 @@ async function runTutorialCheckFour(props: CheckProps) {
     feeCredit: gasPrice * 500_000n,
   });
 
-  const resDeploy = await waitTillCompleted(client, hashDeploy);
+  const resDeploy = await deployTx.wait();
 
   const checkDeploy = await resDeploy.some((receipt) => !receipt.success);
 
@@ -76,7 +75,7 @@ async function runTutorialCheckFour(props: CheckProps) {
 
   const counterAddress = resDeploy.at(2)?.contractAddress as `0x${string}`;
 
-  const hashIncrement = await smartAccount.sendTransaction({
+  const incrementTx = await smartAccount.sendTransaction({
     to: counterAddress,
     abi: counterContract.abi,
     functionName: "increment",
@@ -84,7 +83,7 @@ async function runTutorialCheckFour(props: CheckProps) {
     feeCredit: gasPrice * 500_000n,
   });
 
-  const resIncrement = await waitTillCompleted(client, hashIncrement);
+  const resIncrement = await incrementTx.wait();
 
   const checkIncrement = resIncrement.some((receipt) => !receipt.success);
 

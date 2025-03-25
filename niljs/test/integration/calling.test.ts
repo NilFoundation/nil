@@ -1,4 +1,3 @@
-import { waitTillCompleted } from "../../src/index.js";
 import { generateRandomAddress, generateTestSmartAccount, newClient } from "./helpers.js";
 
 const client = newClient();
@@ -10,13 +9,13 @@ test("Async call to another shard send value", async () => {
 
   const gasPriceOnShard2 = await client.getGasPrice(2);
 
-  const hash = await smartAccount.sendTransaction({
+  const tx = await smartAccount.sendTransaction({
     to: anotherAddress,
     value: 50_000_000n,
     feeCredit: 100_000n * gasPriceOnShard2,
   });
 
-  const receipts = await waitTillCompleted(client, hash);
+  const receipts = await tx.wait();
 
   expect(receipts).toBeDefined();
   expect(receipts.some((r) => !r.success)).toBe(false);
@@ -30,7 +29,7 @@ test("sync call same shard send value", async () => {
 
   const anotherAddress = generateRandomAddress(1);
 
-  const hash = await smartAccount.syncSendTransaction({
+  const tx = await smartAccount.syncSendTransaction({
     to: anotherAddress,
     value: 10n,
     gas: 100000n,
@@ -38,7 +37,7 @@ test("sync call same shard send value", async () => {
     maxFeePerGas: 1_000_000_000_000n,
   });
 
-  const receipts = await waitTillCompleted(client, hash);
+  const receipts = await tx.wait();
 
   expect(receipts).toBeDefined();
   expect(receipts.some((r) => !r.success)).toBe(false);

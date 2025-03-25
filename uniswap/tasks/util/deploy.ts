@@ -1,7 +1,6 @@
 import {
   type SmartAccountV1,
   getContract,
-  waitTillCompleted,
 } from "@nilfoundation/niljs";
 import type { Abi } from "abitype";
 
@@ -13,7 +12,7 @@ export async function deployNilContract(
   shardId?: number,
   externalMethods: string[] = [],
 ) {
-  const { hash, address } = await smartAccount.deployContract({
+  const { tx, address } = await smartAccount.deployContract({
     abi: abi,
     args: args,
     // @ts-ignore
@@ -23,7 +22,7 @@ export async function deployNilContract(
     feeCredit: BigInt("19340180000000"),
   });
 
-  const receipts = await waitTillCompleted(smartAccount.client, hash);
+  const receipts = await tx.wait();
   if (!receipts.every((receipt) => receipt.success)) {
     throw new Error(
       `One or more receipts indicate failure: ${JSON.stringify(receipts)}`,
@@ -45,7 +44,7 @@ export async function deployNilContract(
   const code = await smartAccount.client.getCode(address);
   if (!code) {
     throw new Error(
-      "No code for deployed contract " + address + ", hash: " + hash,
+      "No code for deployed contract " + address + ", hash: " + tx.hash,
     );
   }
 

@@ -4,7 +4,6 @@ import {
   PublicClient,
   SmartAccountV1,
   generateSmartAccount,
-  waitTillCompleted,
 } from "../src/index.js";
 import { FAUCET_ENDPOINT, RPC_ENDPOINT, generateRandomAddress } from "./helpers.js";
 
@@ -27,7 +26,7 @@ console.log("smartAccountAddress", smartAccountAddress);
 
 const gasPrice = await client.getGasPrice(1);
 
-const hashTransaction = await smartAccount.sendTransaction({
+const transaction = await smartAccount.sendTransaction({
   to: smartAccountAddress,
   feeCredit: 1_000_000n * gasPrice,
   maxPriorityFeePerGas: 10n,
@@ -40,9 +39,9 @@ const hashTransaction = await smartAccount.sendTransaction({
   }),
 });
 
-await waitTillCompleted(client, hashTransaction);
+await transaction.wait();
 
-const hashTransaction2 = await smartAccount.sendTransaction({
+const transaction2 = await smartAccount.sendTransaction({
   to: smartAccountAddress,
   feeCredit: 1_000_000n * gasPrice,
   maxPriorityFeePerGas: 10n,
@@ -55,7 +54,7 @@ const hashTransaction2 = await smartAccount.sendTransaction({
   }),
 });
 
-await waitTillCompleted(client, hashTransaction2);
+await transaction2.wait();
 
 const tokens = await client.getTokens(smartAccountAddress, "latest");
 
@@ -63,7 +62,7 @@ console.log("tokens", tokens);
 
 const anotherAddress = generateRandomAddress();
 
-const sendHash = await smartAccount.sendTransaction({
+const sendTx = await smartAccount.sendTransaction({
   to: anotherAddress,
   value: 10_000_000n,
   feeCredit: 100_000n * gasPrice,
@@ -77,7 +76,7 @@ const sendHash = await smartAccount.sendTransaction({
   ],
 });
 
-await waitTillCompleted(client, sendHash);
+await sendTx.wait();
 
 const anotherTokens = await client.getTokens(anotherAddress, "latest");
 

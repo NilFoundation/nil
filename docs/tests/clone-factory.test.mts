@@ -5,7 +5,6 @@ import {
   HttpTransport,
   PublicClient,
   generateSmartAccount,
-  waitTillCompleted,
 } from "@nilfoundation/niljs";
 import type { Abi } from "viem";
 import { CLONE_FACTORY_COMPILATION_COMMAND } from "./compilationCommands";
@@ -89,7 +88,7 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
 
     const gasPrice = await client.getGasPrice(1);
 
-    const { address: factoryManagerAddress, hash: factoryManagerHash } =
+    const { address: factoryManagerAddress, tx: factoryManagerTx } =
       await smartAccount.deployContract({
         bytecode: FACTORY_MANAGER_BYTECODE,
         abi: FACTORY_MANAGER_ABI,
@@ -99,11 +98,11 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
         shardId: 1,
       });
 
-    const factoryManagerReceipts = await waitTillCompleted(client, factoryManagerHash);
+    const factoryManagerReceipts = await factoryManagerTx.wait();
 
     expect(factoryManagerReceipts.some((receipt) => !receipt.success)).toBe(false);
 
-    const createMasterChildHash = await smartAccount.sendTransaction({
+    const createMasterChildTx = await smartAccount.sendTransaction({
       to: factoryManagerAddress,
       feeCredit: 1_000_000n * gasPrice,
       abi: FACTORY_MANAGER_ABI,
@@ -111,7 +110,7 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
       args: [2, SALT],
     });
 
-    const createMasterChildReceipts = await waitTillCompleted(client, createMasterChildHash);
+    const createMasterChildReceipts = await createMasterChildTx.wait();
 
     const masterChildAddress = createMasterChildReceipts[2].contractAddress as `0x${string}`;
 
@@ -119,7 +118,7 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
 
     expect(createMasterChildReceipts.some((receipt) => !receipt.success)).toBe(false);
 
-    const createFactoryHash = await smartAccount.sendTransaction({
+    const createFactoryTx = await smartAccount.sendTransaction({
       to: factoryManagerAddress,
       feeCredit: 1_000_000n * gasPrice,
       abi: FACTORY_MANAGER_ABI,
@@ -127,7 +126,7 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
       args: [2, SALT],
     });
 
-    const createFactoryReceipts = await waitTillCompleted(client, createFactoryHash);
+    const createFactoryReceipts = await createFactoryTx.wait();
 
     const factoryAddress = createFactoryReceipts[2].contractAddress as `0x${string}`;
 
@@ -135,7 +134,7 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
 
     expect(createFactoryReceipts.some((receipt) => !receipt.success)).toBe(false);
 
-    const createCloneHash = await smartAccount.sendTransaction({
+    const createCloneTx = await smartAccount.sendTransaction({
       to: factoryAddress,
       feeCredit: 5_000_000n * gasPrice,
       abi: CLONE_FACTORY_ABI,
@@ -143,13 +142,13 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
       args: [SALT],
     });
 
-    const createCloneReceipts = await waitTillCompleted(client, createCloneHash);
+    const createCloneReceipts = await createCloneTx.wait();
 
     const cloneAddress = createCloneReceipts[2].contractAddress as `0x${string}`;
 
     expect(createCloneReceipts.some((receipt) => !receipt.success)).toBe(false);
 
-    const incrementHash = await smartAccount.sendTransaction({
+    const incrementTx = await smartAccount.sendTransaction({
       to: cloneAddress as `0x${string}`,
       abi: MASTER_CHILD_ABI,
       functionName: "increment",
@@ -159,7 +158,7 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
 
     console.log(cloneAddress);
 
-    const incrementReceipts = await waitTillCompleted(client, incrementHash);
+    const incrementReceipts = await incrementTx.wait();
 
     expect(incrementReceipts.some((receipt) => !receipt.success)).toBe(false);
 
