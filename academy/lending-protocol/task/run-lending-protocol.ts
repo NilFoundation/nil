@@ -23,12 +23,15 @@ task(
   const InterestManager = require("../artifacts/contracts/InterestManager.sol/InterestManager.json");
   const LendingPool = require("../artifacts/contracts/LendingPool.sol/LendingPool.json");
   const Oracle = require("../artifacts/contracts/Oracle.sol/Oracle.json");
+
   // Initialize the PublicClient to interact with the blockchain
   const client = new PublicClient({
     transport: new HttpTransport({
       endpoint: process.env.NIL_RPC_ENDPOINT as string,
     }),
   });
+  const listOfShards = await client.getShardIdList();
+  console.log("List of shards:", listOfShards);
 
   // Initialize the FaucetClient to top up accounts with test tokens
   const faucet = new FaucetClient({
@@ -42,7 +45,7 @@ task(
   // Deploying a new smart account for the deployer
   console.log("Deploying Wallet");
   const deployerWallet = await generateSmartAccount({
-    shardId: 1,
+    shardId: listOfShards[0],
     rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
     faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
   });
@@ -63,10 +66,10 @@ task(
     `Deployer smart account ${deployerWallet.address} has been topped up with 3000 USDT at tx hash ${topUpSmartAccount}`,
   );
 
-  // Deploy InterestManager contract on shard 2
+  // Deploy InterestManager contract on second shard
   const { address: deployInterestManager, hash: deployInterestManagerHash } =
     await deployerWallet.deployContract({
-      shardId: 2,
+      shardId: listOfShards[1],
       args: [],
       bytecode: InterestManager.bytecode as `0x${string}`,
       abi: InterestManager.abi as Abi,
@@ -75,13 +78,13 @@ task(
 
   await waitTillCompleted(client, deployInterestManagerHash);
   console.log(
-    `Interest Manager deployed at ${deployInterestManager} with hash ${deployInterestManagerHash} on shard 2`,
+    `Interest Manager deployed at ${deployInterestManager} with hash ${deployInterestManagerHash} on shard ${listOfShards[1]}`,
   );
 
-  // Deploy GlobalLedger contract on shard 3
+  // Deploy GlobalLedger contract on third shard
   const { address: deployGlobalLedger, hash: deployGlobalLedgerHash } =
     await deployerWallet.deployContract({
-      shardId: 3,
+      shardId: listOfShards[2],
       args: [],
       bytecode: GlobalLedger.bytecode as `0x${string}`,
       abi: GlobalLedger.abi as Abi,
@@ -90,13 +93,13 @@ task(
 
   await waitTillCompleted(client, deployGlobalLedgerHash);
   console.log(
-    `Global Ledger deployed at ${deployGlobalLedger} with hash ${deployGlobalLedgerHash} on shard 3`,
+    `Global Ledger deployed at ${deployGlobalLedger} with hash ${deployGlobalLedgerHash} on shard ${listOfShards[2]}`,
   );
 
-  // Deploy Oracle contract on shard 4
+  // Deploy Oracle contract on fourth shard
   const { address: deployOracle, hash: deployOracleHash } =
     await deployerWallet.deployContract({
-      shardId: 4,
+      shardId: listOfShards[3],
       args: [],
       bytecode: Oracle.bytecode as `0x${string}`,
       abi: Oracle.abi as Abi,
@@ -105,33 +108,66 @@ task(
 
   await waitTillCompleted(client, deployOracleHash);
   console.log(
-    `Oracle deployed at ${deployOracle} with hash ${deployOracleHash} on shard 4`,
+    `Oracle deployed at ${deployOracle} with hash ${deployOracleHash} on shard ${listOfShards[3]}`,
   );
 
-  // Deploy LendingPool contract on shard 1, linking all other contracts
-  const { address: deployLendingPool, hash: deployLendingPoolHash } =
-    await deployerWallet.deployContract({
-      shardId: 1,
-      args: [
-        deployGlobalLedger,
-        deployInterestManager,
-        deployOracle,
-        process.env.USDT,
-        process.env.ETH,
-      ],
-      bytecode: LendingPool.bytecode as `0x${string}`,
-      abi: LendingPool.abi as Abi,
-      salt: BigInt(Math.floor(Math.random() * 10000)),
-    });
+  // Deploy LendingPool contracts on all shards
+  const lendingPools: { address: `0x${string}`; shardId: number }[] = [];
 
-  await waitTillCompleted(client, deployLendingPoolHash);
-  console.log(
-    `Lending Pool deployed at ${deployLendingPool} with hash ${deployLendingPoolHash} on shard 1`,
-  );
+  for (const shardId of listOfShards) {
+    const { address: deployLendingPool, hash: deployLendingPoolHash } =
+      await deployerWallet.deployContract({
+        shardId,
+        args: [
+          deployGlobalLedger,
+          deployInterestManager,
+          deployOracle,
+          process.env.USDT as `0x${string}`,
+          process.env.ETH as `0x${string}`,
+        ],
+        bytecode: LendingPool.bytecode as `0x${string}`,
+        abi: LendingPool.abi as Abi,
+        salt: BigInt(Math.floor(Math.random() * 10000)),
+      });
+
+    await waitTillCompleted(client, deployLendingPoolHash);
+    console.log(
+      `Lending Pool deployed at ${deployLendingPool} with hash ${deployLendingPoolHash} on shard ${shardId}`,
+    );
+
+    lendingPools.push({ address: deployLendingPool as `0x${string}`, shardId });
+  }
+
+  // Register lending pools with each other
+  for (let i = 0; i < lendingPools.length; i++) {
+    const currentPool = lendingPools[i];
+
+    for (let j = 0; j < lendingPools.length; j++) {
+      if (i !== j) {
+        const otherPool = lendingPools[j];
+
+        const registerCallData = encodeFunctionData({
+          abi: LendingPool.abi as Abi,
+          functionName: "registerLendingPool",
+          args: [otherPool.address],
+        });
+
+        const registerResponse = await deployerWallet.sendTransaction({
+          to: currentPool.address,
+          data: registerCallData,
+        });
+
+        await waitTillCompleted(client, registerResponse);
+        console.log(
+          `Registered lending pool ${otherPool.address} (shard ${otherPool.shardId}) with ${currentPool.address} (shard ${currentPool.shardId}) at tx hash ${registerResponse}`,
+        );
+      }
+    }
+  }
 
   // Generate two smart accounts (account1 and account2)
   const account1 = await generateSmartAccount({
-    shardId: 1,
+    shardId: listOfShards[0],
     rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
     faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
   });
@@ -139,7 +175,7 @@ task(
   console.log(`Account 1 generated at ${account1.address}`);
 
   const account2 = await generateSmartAccount({
-    shardId: 3,
+    shardId: listOfShards[2],
     rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
     faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
   });
@@ -277,14 +313,14 @@ task(
   console.log(`Price of USDT is ${usdtPrice}`);
   console.log(`Price of ETH is ${ethPrice}`);
 
-  // Perform a deposit of USDT by account1 into the LendingPool
+  // Perform a deposit of USDT by account1 into the LendingPool on shard 1
   const depositUSDT = {
     id: process.env.USDT as `0x${string}`,
     amount: 12n,
   };
 
   const depositUSDTResponse = await account1.sendTransaction({
-    to: deployLendingPool,
+    to: lendingPools[0].address,
     functionName: "deposit",
     abi: LendingPool.abi as Abi,
     tokens: [depositUSDT],
@@ -296,14 +332,14 @@ task(
     `Account 1 deposited 12 USDT at tx hash ${depositUSDTResponse}`,
   );
 
-  // Perform a deposit of ETH by account2 into the LendingPool
+  // Perform a deposit of ETH by account2 into the LendingPool on shard 3
   const depositETH = {
     id: process.env.ETH as `0x${string}`,
     amount: 5n,
   };
 
   const depositETHResponse = await account2.sendTransaction({
-    to: deployLendingPool,
+    to: lendingPools[2].address,
     functionName: "deposit",
     abi: LendingPool.abi as Abi,
     tokens: [depositETH],
@@ -311,7 +347,7 @@ task(
   });
 
   await waitTillCompleted(client, depositETHResponse);
-  console.log(`Account 2 deposited 1 ETH at tx hash ${depositETHResponse}`);
+  console.log(`Account 2 deposited 5 ETH at tx hash ${depositETHResponse}`);
 
   // Retrieve the deposit balances of account1 and account2 from GlobalLedger
   const globalLedgerContract = getContract({
@@ -332,7 +368,7 @@ task(
   console.log(`Account 1 balance in global ledger is ${account1Balance}`);
   console.log(`Account 2 balance in global ledger is ${account2Balance}`);
 
-  // Perform a borrow operation by account1 for 1 ETH
+  // Perform a cross-shard borrow operation by account1 for 5 ETH
   const borrowETH = encodeFunctionData({
     abi: LendingPool.abi as Abi,
     functionName: "borrow",
@@ -346,7 +382,7 @@ task(
   console.log("Account 1 balance before borrow:", account1BalanceBeforeBorrow);
 
   const borrowETHResponse = await account1.sendTransaction({
-    to: deployLendingPool,
+    to: lendingPools[0].address,
     data: borrowETH,
     feeCredit: convertEthToWei(0.001),
   });
@@ -393,14 +429,14 @@ task(
   });
 
   const repayETHResponse = await account1.sendTransaction({
-    to: deployLendingPool,
+    to: lendingPools[0].address,
     data: repayETHData,
     tokens: repayETH,
     feeCredit: convertEthToWei(0.001),
   });
 
   await waitTillCompleted(client, repayETHResponse);
-  console.log(`Account 1 repaid 1 ETH at tx hash ${repayETHResponse}`);
+  console.log(`Account 1 repaid 6 ETH at tx hash ${repayETHResponse}`);
 
   const account1BalanceAfterRepay = await client.getTokens(
     account1.address,
