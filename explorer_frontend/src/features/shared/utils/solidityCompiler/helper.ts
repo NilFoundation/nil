@@ -10,7 +10,6 @@ export const createCompileInput = async (contractBody: string, options: any = {}
 
   await processImports(contractBody, "", sources);
 
-  console.log("sources", JSON.stringify({ sources }, null, 2));
   const CompileInput = {
     language: "Solidity",
     sources,
