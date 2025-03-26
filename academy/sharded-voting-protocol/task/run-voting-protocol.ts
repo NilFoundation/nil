@@ -51,7 +51,7 @@ const sleep = async (intervalMs: number) => {
 function getVotingTimestamps(
   blockTime: number,
   offsetInSeconds = 60,
-  durationInSeconds = 120
+  durationInSeconds = 240
 ) {
   const roundedBlockTime = Math.ceil(blockTime / 10) * 10;
   const startTime = roundedBlockTime + offsetInSeconds;
@@ -216,7 +216,7 @@ task("e2e", "🔁 End-to-end test for sharded voting").setAction(async () => {
       address: voteShard4Address,
     });
 
-    console.log("⏱ Waiting for voting to start...");
+    console.log("Waiting for voting to start...");
     await waitUntilDbTimestamp(client, startTime);
 
     console.log("🗳 Casting Votes...");
@@ -228,7 +228,7 @@ task("e2e", "🔁 End-to-end test for sharded voting").setAction(async () => {
       feeCredit: convertEthToWei(0.001),
     });
     await waitTillCompleted(client, vote1);
-    console.log("🗳️ Voter 1 voted for Candidate 1 ✅");
+    console.log("🗳️ Voter 1 voted for Candidate 1 in Shard 1✅");
 
     const vote2 = await voter2.sendTransaction({
       to: voteShard2Address,
@@ -238,7 +238,7 @@ task("e2e", "🔁 End-to-end test for sharded voting").setAction(async () => {
       feeCredit: convertEthToWei(0.001),
     });
     await waitTillCompleted(client, vote2);
-    console.log("🗳️ Voter 2 voted for Candidate 2 ✅");
+    console.log("🗳️ Voter 2 voted for Candidate 2 in Shard 2 ✅");
 
     const vote3 = await voter3.sendTransaction({
       to: voteShard3Address,
@@ -248,7 +248,7 @@ task("e2e", "🔁 End-to-end test for sharded voting").setAction(async () => {
       feeCredit: convertEthToWei(0.001),
     });
     await waitTillCompleted(client, vote3);
-    console.log("🗳️ Voter 3 voted for Candidate 3 ✅");
+    console.log("🗳️ Voter 3 voted for Candidate 3 in Shard 3 ✅");
 
     const vote4 = await voter4.sendTransaction({
       to: voteShard4Address,
@@ -258,7 +258,7 @@ task("e2e", "🔁 End-to-end test for sharded voting").setAction(async () => {
       feeCredit: convertEthToWei(0.001),
     });
     await waitTillCompleted(client, vote4);
-    console.log("🗳️ Voter 4 voted for Candidate 1 ✅");
+    console.log("🗳️ Voter 4 voted for Candidate 1 in Shard 4 ✅");
 
     console.log("🛑 Waiting for voting to end...");
     await waitUntilDbTimestamp(client, endTime);
@@ -305,7 +305,7 @@ task("e2e", "🔁 End-to-end test for sharded voting").setAction(async () => {
 
     await waitTillCompleted(client, tallyShardsVotesResponse);
 
-    await new Promise((res) => setTimeout(res, 5000));
+    await new Promise((res) => setTimeout(res, 10000));
 
     const totalTally = (await voteManagerContract.read.getVotingResult(
       []
