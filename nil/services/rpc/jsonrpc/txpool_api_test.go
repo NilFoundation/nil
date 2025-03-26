@@ -68,7 +68,7 @@ func (suite *SuiteTxnPoolApi) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.blockHash = blockRes.BlockHash
 
-	err = execution.PostprocessBlock(tx, shardId, blockRes)
+	err = execution.PostprocessBlock(tx, shardId, blockRes, execution.ModeVerify)
 	suite.Require().NotNil(blockRes.Block)
 	suite.Require().NoError(err)
 
@@ -110,7 +110,7 @@ func (suite *SuiteTxnPoolApi) TestGetTxnpoolStatus() {
 
 	txs, err := suite.txnpoolApi.GetTxpoolContent(ctx, types.MainShardId)
 	suite.Require().NoError(err)
-	suite.Require().Equal(len(txs), uint64(txAmount))
+	suite.Require().Equal(len(txs), txAmount)
 	suite.Require().Equal(txs[0].Data, types.Code{byte(0)})
 }
 
