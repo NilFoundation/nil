@@ -26,8 +26,8 @@ const deployNilVerifier: DeployFunction = async function (
     const config: NetworkConfig = loadConfig(networkName);
 
     // Check if NilVerifier is already deployed
-    if (config.nilVerifier && isValidAddress(config.nilVerifier)) {
-        console.log(`NilVerifier already deployed at: ${config.nilVerifier}`);
+    if (config.nilRollupConfig.nilVerifier && isValidAddress(config.nilRollupConfig.nilVerifier)) {
+        console.log(`NilVerifier already deployed at: ${config.nilRollupConfig.nilVerifier}`);
         archiveConfig(networkName, config);
     }
 
@@ -38,7 +38,7 @@ const deployNilVerifier: DeployFunction = async function (
     });
 
     console.log('NilVerifier deployed to:', nilVerifier.address);
-    config.nilVerifier = nilVerifier.address;
+    config.nilRollupConfig.nilVerifier = nilVerifier.address;
 
     // Save the updated config
     saveConfig(networkName, config);

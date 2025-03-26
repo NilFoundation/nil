@@ -22,7 +22,7 @@ const upgradeNilRollup: DeployFunction = async function (
     const config: NetworkConfig = loadConfig(networkName);
 
     // Check if NilRollup is already deployed
-    if (!config.nilRollupProxy || !isValidAddress(config.nilRollupProxy)) {
+    if (!config.nilRollupConfig.nilRollupProxy || !isValidAddress(config.nilRollupConfig.nilRollupProxy)) {
         throw new Error(
             `NilRollup is not deployed yet on chain: ${networkName}`,
         );
@@ -30,7 +30,7 @@ const upgradeNilRollup: DeployFunction = async function (
 
     archiveConfig(networkName, config);
 
-    const nilRollupProxyAddress: string = config.nilRollupProxy;
+    const nilRollupProxyAddress: string = config.nilRollupConfig.nilRollupProxy;
 
     console.log('Checking current implementation address...');
     const currentImplementationAddress =
@@ -66,7 +66,7 @@ const upgradeNilRollup: DeployFunction = async function (
     }
 
     console.log('All checks passed: Upgrade is successful');
-    config.nilRollupImplementation = newImplementationAddress;
+    config.nilRollupConfig.nilRollupImplementation = newImplementationAddress;
 
     // save updated config
     saveConfig(networkName, config);

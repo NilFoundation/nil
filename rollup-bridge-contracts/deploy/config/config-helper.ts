@@ -3,22 +3,75 @@ import path from 'path';
 import { ethers } from 'ethers';
 
 export interface NetworkConfig {
+    nilRollupConfig: NilRollupConfig;
+    l1Common: L1CommonConfig;
+    l1BridgeRouterConfig: L1BridgeRouterConfig;
+    l1BridgeMessengerConfig: L1BridgeMessengerConfig;
+    l1ERC20Bridge: L1ERC20BridgeConfig;
+    l1ETHBridgeConfig: L1ETHBridgeConfig;
+    nilGasPriceOracleConfig: NilGasPriceOracleConfig;
+}
+
+export interface L1CommonConfig {
+    owner: string;
+    admin: string;
+    weth: string;
+}
+
+export interface NilRollupConfig {
+    owner: string;
+    admin: string;
+    proxyAdmin: string;
     nilRollupImplementation: string;
     nilRollupProxy: string;
     nilVerifier: string;
-    proxyAdminAddress: string;
-    nilRollupOwnerAddress: string;
-    defaultAdminAddress: string;
     proposerAddress: string;
     l2ChainId: number;
     genesisStateRoot: string;
-    l1BridgeRouter: string;
+}
+
+export interface L1ERC20BridgeConfig {
+    owner: string;
+    admin: string;
+    proxyAdmin: string;
+    l1ERC20BridgeProxy: string;
+    l1ERC20BridgeImplementation: string;
+}
+
+export interface L1ETHBridgeConfig {
+    owner: string;
+    admin: string;
+    proxyAdmin: string;
+    l1ETHBridgeProxy: string;
+    l1ETHBridgeImplementation: string;
+}
+
+export interface NilGasPriceOracleConfig {
+    owner: string;
+    admin: string;
+    proxyAdmin: string;
+    nilGasPriceOracleProxy: string;
+    nilGasPriceOracleImplementation: string;
+    nilGasPriceSetterAddress: string;
+    nilGasPriceOracleMaxFeePerGas: number;
+    nilGasPriceOracleMaxPriorityFeePerGas: number;
+}
+
+export interface L1BridgeMessengerConfig {
+    owner: string;
+    admin: string;
+    proxyAdmin: string;
     l1BridgeMessengerProxy: string;
     l1BridgeMessengerImplementation: string;
     maxProcessingTimeInEpochSeconds: number;
-    l1ERC20Bridge: string;
-    l1ETHBridge: string;
-    nilGasPriceOracle: string;
+}
+
+export interface L1BridgeRouterConfig {
+    owner: string;
+    admin: string;
+    proxyAdmin: string;
+    l1BridgeRouterProxy: string;
+    l1BridgeRouterImplementation: string;
 }
 
 export interface Config {
