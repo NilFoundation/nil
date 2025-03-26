@@ -3,13 +3,14 @@ package core
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
@@ -18,6 +19,7 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/suite"
 )
@@ -28,7 +30,7 @@ type ProposerTestSuite struct {
 	ctx          context.Context
 	cancellation context.CancelFunc
 
-	params           ProposerParams
+	params           ProposerConfig
 	db               db.DB
 	clock            clockwork.Clock
 	storage          *storage.BlockStorage
@@ -36,72 +38,7 @@ type ProposerTestSuite struct {
 	rpcClientMock    *client.ClientMock
 	proposer         *proposer
 	testData         *types.ProposalData
-	callContractMock *callContractMock
-}
-
-type callContractMock struct {
-	methodsReturnValue map[string][][]interface{}
-}
-
-func newCallContractMock() *callContractMock {
-	callContractMock := callContractMock{}
-	callContractMock.Reset()
-	return &callContractMock
-}
-
-func (c *callContractMock) Reset() {
-	c.methodsReturnValue = make(map[string][][]interface{})
-}
-
-type noValue struct{}
-
-func (c *callContractMock) AddExpectedCall(methodName string, returnValues ...interface{}) {
-	c.methodsReturnValue[methodName] = append(c.methodsReturnValue[methodName], returnValues)
-}
-
-func (c *callContractMock) CallContract(
-	ctx context.Context,
-	call ethereum.CallMsg,
-	blockNumber *big.Int,
-) ([]byte, error) {
-	abi, err := rollupcontract.RollupcontractMetaData.GetAbi()
-	if err != nil {
-		return nil, err
-	}
-	methodId := call.Data[:4]
-	method, err := abi.MethodById(methodId)
-	if err != nil {
-		return nil, err
-	}
-
-	returnValuesSlice, ok := c.methodsReturnValue[method.Name]
-	if !ok {
-		return nil, errors.New("method not mocked")
-	}
-
-	if len(returnValuesSlice) == 0 {
-		return nil, errors.New("not enough return values for method")
-	}
-	returnValues := returnValuesSlice[0]
-	c.methodsReturnValue[method.Name] = returnValuesSlice[1:]
-
-	if len(returnValues) == 1 {
-		if _, ok := returnValues[0].(noValue); ok {
-			// If it's noValue, call Pack with no arguments
-			return method.Outputs.Pack()
-		}
-	}
-
-	return method.Outputs.Pack(returnValues...)
-}
-
-func (c *callContractMock) EverythingCalled() error {
-	for methodName, returnValues := range c.methodsReturnValue {
-		if len(returnValues) != 0 {
-			return fmt.Errorf("not all calls were executed for %s", methodName)
-		}
-	}
-	return nil
+	callContractMock *testaide.CallContractMock
 }
 
 func TestProposerSuite(t *testing.T) {
@@ -121,9 +58,12 @@ func (s *ProposerTestSuite) SetupSuite() {
 
 	s.clock = testaide.NewTestClock()
 	s.storage = storage.NewBlockStorage(s.db, storage.DefaultBlockStorageConfig(), s.clock, metricsHandler, logger)
-	s.params = NewDefaultProposerParams()
+	s.params = NewDefaultProposerConfig()
 	s.testData = testaide.NewProposalData(3, s.clock.Now())
-	s.callContractMock = newCallContractMock()
+
+	abi, err := rollupcontract.RollupcontractMetaData.GetAbi()
+	s.Require().NoError(err)
+	s.callContractMock = testaide.NewCallContractMock(abi)
 	s.ethClient = &rollupcontract.EthClientMock{
 		CallContractFunc:    s.callContractMock.CallContract,
 		EstimateGasFunc:     func(ctx context.Context, call ethereum.CallMsg) (uint64, error) { return 123, nil },
@@ -144,9 +84,29 @@ func (s *ProposerTestSuite) SetupSuite() {
 		TransactionReceiptFunc: func(ctx context.Context, txHash ethcommon.Hash) (*ethtypes.Receipt, error) {
 			return &ethtypes.Receipt{Status: ethtypes.ReceiptStatusSuccessful}, nil
 		},
+		FilterLogsFunc: func(ctx context.Context, q ethereum.FilterQuery) ([]ethtypes.Log, error) {
+			return []ethtypes.Log{{
+				Topics: []ethcommon.Hash{q.Topics[0][0], q.Topics[1][0]},
+				TxHash: ethcommon.HexToHash("0x12345"),
+			}}, nil
+		},
+		TransactionByHashFunc: func(ctx context.Context, hash ethcommon.Hash) (*ethtypes.Transaction, bool, error) {
+			txInTest := ethtypes.NewTx(&ethtypes.BlobTx{
+				Sidecar: &ethtypes.BlobTxSidecar{
+					// only number of elements matters here, validation is mocked
+					Blobs:       []kzg4844.Blob{{}, {}, {}},
+					Commitments: []kzg4844.Commitment{{}, {}, {}},
+				},
+			})
+			return txInTest, false, nil
+		},
 	}
 	s.rpcClientMock = &client.ClientMock{}
-	s.proposer, err = NewProposer(s.ctx, s.params, s.storage, s.ethClient, s.rpcClientMock, metricsHandler, logger)
+	contractWrapper, err := rollupcontract.NewWrapperWithEthClient(
+		s.ctx, rollupcontract.NewDefaultWrapperConfig(), s.ethClient, logger,
+	)
+	s.Require().NoError(err)
+	s.proposer, err = NewProposer(s.params, s.storage, contractWrapper, s.rpcClientMock, metricsHandler, logger)
 	s.Require().NoError(err)
 }
 
@@ -161,56 +121,110 @@ func (s *ProposerTestSuite) TearDownSuite() {
 	s.cancellation()
 }
 
-func (s *ProposerTestSuite) TestSendProof() {
-	// Calls inside CommitBatch
-	s.callContractMock.AddExpectedCall("isBatchCommitted", false)
+// Normal execution
+func (s *ProposerTestSuite) TestSendProofCommitedBatch() {
 	// Calls inside UpdateState
-	s.callContractMock.AddExpectedCall("verifyDataProof", noValue{})
-	s.callContractMock.AddExpectedCall("verifyDataProof", noValue{})
-	s.callContractMock.AddExpectedCall("verifyDataProof", noValue{})
 	s.callContractMock.AddExpectedCall("isBatchFinalized", false)
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
 	s.callContractMock.AddExpectedCall("lastFinalizedBatchIndex", "testingFinalizedBatchIndex")
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", s.testData.OldProvedStateRoot)
+	// one verification per blob
+	s.callContractMock.AddExpectedCall("verifyDataProof", testaide.NoValue{})
+	s.callContractMock.AddExpectedCall("verifyDataProof", testaide.NoValue{})
+	s.callContractMock.AddExpectedCall("verifyDataProof", testaide.NoValue{})
 
-	err := s.proposer.sendProof(s.ctx, s.testData)
+	err := s.proposer.updateState(s.ctx, s.testData)
 	s.Require().NoError(err, "failed to send proof")
 
 	s.Require().NoError(s.callContractMock.EverythingCalled())
-	s.Require().Len(s.ethClient.SendTransactionCalls(), 2, "wrong number of calls to rpc client")
+	s.Require().Len(s.ethClient.SendTransactionCalls(), 1, "wrong number of calls to rpc client")
 }
 
-// Only UpdateState tx should be created
-func (s *ProposerTestSuite) TestSendProofCommitedBatch() {
-	// Calls inside CommitBatch
-	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
+// Batch not committed, should fail
+func (s *ProposerTestSuite) TestSendProofNotCommitedBatch() {
 	// Calls inside UpdateState
-	s.callContractMock.AddExpectedCall("verifyDataProof", noValue{})
-	s.callContractMock.AddExpectedCall("verifyDataProof", noValue{})
-	s.callContractMock.AddExpectedCall("verifyDataProof", noValue{})
+	s.callContractMock.AddExpectedCall("isBatchFinalized", false)
+	s.callContractMock.AddExpectedCall("isBatchCommitted", false)
+
+	err := s.proposer.updateState(s.ctx, s.testData)
+	s.Require().ErrorIs(err, rollupcontract.ErrBatchNotCommitted)
+
+	s.Require().NoError(s.callContractMock.EverythingCalled())
+	s.Require().Empty(s.ethClient.SendTransactionCalls())
+}
+
+// Batch already finalized, should fail
+func (s *ProposerTestSuite) TestSendProofFinalizedBatch() {
+	// Calls inside UpdateState
+	s.callContractMock.AddExpectedCall("isBatchFinalized", true)
+
+	err := s.proposer.updateState(s.ctx, s.testData)
+	s.Require().ErrorIs(err, rollupcontract.ErrBatchAlreadyFinalized)
+
+	s.Require().NoError(s.callContractMock.EverythingCalled())
+	s.Require().Empty(s.ethClient.SendTransactionCalls(), "no tx should be created")
+}
+
+// Verification failure
+func (s *ProposerTestSuite) TestSendProofVerificationFailed() {
+	// Calls inside UpdateState
 	s.callContractMock.AddExpectedCall("isBatchFinalized", false)
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
 	s.callContractMock.AddExpectedCall("lastFinalizedBatchIndex", "testingFinalizedBatchIndex")
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", s.testData.OldProvedStateRoot)
+	// failing verification, should lead to `updateState` error
+	s.callContractMock.AddExpectedCall("verifyDataProof", errors.New("verification failed"))
 
-	err := s.proposer.sendProof(s.ctx, s.testData)
-	s.Require().NoError(err, "failed to send proof")
+	err := s.proposer.updateState(s.ctx, s.testData)
+	s.Require().Error(err)
 
-	s.Require().Len(s.ethClient.SendTransactionCalls(), 1, "wrong number of calls to rpc client")
+	s.Require().NoError(s.callContractMock.EverythingCalled())
+	s.Require().Empty(s.ethClient.SendTransactionCalls())
 }
 
-// No tx should be created
-func (s *ProposerTestSuite) TestSendProofFinalizedBatch() {
-	// Calls inside CommitBatch
-	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
+// Test if proposal data is removed from the storage on success
+func (s *ProposerTestSuite) TestStorageProposalDataRemoved() {
 	// Calls inside UpdateState
-	s.callContractMock.AddExpectedCall("verifyDataProof", noValue{})
-	s.callContractMock.AddExpectedCall("verifyDataProof", noValue{})
-	s.callContractMock.AddExpectedCall("verifyDataProof", noValue{})
-	s.callContractMock.AddExpectedCall("isBatchFinalized", true)
+	s.callContractMock.AddExpectedCall("isBatchFinalized", false)
+	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
+	s.callContractMock.AddExpectedCall("lastFinalizedBatchIndex", "testingFinalizedBatchIndex")
+	s.callContractMock.AddExpectedCall("finalizedStateRoots", s.testData.OldProvedStateRoot)
+	// one verification per blob
+	s.callContractMock.AddExpectedCall("verifyDataProof", testaide.NoValue{})
+	s.callContractMock.AddExpectedCall("verifyDataProof", testaide.NoValue{})
+	s.callContractMock.AddExpectedCall("verifyDataProof", testaide.NoValue{})
 
-	err := s.proposer.sendProof(s.ctx, s.testData)
-	s.Require().NoError(err, "failed to send proof")
+	s.Require().NoError(s.storage.SetBlockBatch(
+		s.ctx,
+		&types.BlockBatch{Id: s.testData.BatchId, MainShardBlock: &jsonrpc.RPCBlock{Hash: common.HexToHash("0x1")}},
+	))
+	s.Require().NoError(s.storage.SetBatchAsProved(s.ctx, s.testData.BatchId))
+	s.Require().NoError(s.storage.SetProvedStateRoot(s.ctx, s.testData.OldProvedStateRoot))
 
-	s.Require().Empty(s.ethClient.SendTransactionCalls(), "no tx should be created")
+	err := s.proposer.updateStateIfReady(s.ctx)
+	s.Require().NoError(err)
+
+	// after `SetBatchAsProposed` call inside `updateStateIfReady` there should be no new proposal data
+	data, err := s.storage.TryGetNextProposalData(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Nil(data)
+
+	s.Require().NoError(s.callContractMock.EverythingCalled())
+	s.Require().Len(s.ethClient.SendTransactionCalls(), 1)
+}
+
+// Test if storage proved state root is updated from L1
+func (s *ProposerTestSuite) TestStorageProvedRootUpdate() {
+	// Calls inside FinalizedBatchIndex
+	s.callContractMock.AddExpectedCall("finalizedStateRoots", s.testData.OldProvedStateRoot)
+	s.callContractMock.AddExpectedCall("lastFinalizedBatchIndex", "testingFinalizedBatchIndex")
+	err := s.proposer.updateStoredStateRootFromL1(s.ctx)
+	s.Require().NoError(err)
+
+	storageProvedStateRoot, err := s.storage.TryGetProvedStateRoot(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Equal(s.testData.OldProvedStateRoot, *storageProvedStateRoot)
+
+	s.Require().NoError(s.callContractMock.EverythingCalled())
+	s.Require().Empty(s.ethClient.SendTransactionCalls())
 }

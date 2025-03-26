@@ -2,8 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
-	"math/big"
 	"testing"
 	"time"
 
@@ -12,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/tests"
 	"github.com/jonboulle/clockwork"
@@ -78,12 +75,8 @@ func (s *SyncCommitteeTestSuite) newService() *SyncCommittee {
 
 	cfg := NewDefaultConfig()
 	cfg.RpcEndpoint = s.url
-	ethClientMock := &rollupcontract.EthClientMock{
-		ChainIDFunc: func(ctx context.Context) (*big.Int, error) {
-			return big.NewInt(0), errors.New("Empty mocked call")
-		},
-	}
-	syncCommittee, err := New(cfg, s.scDb, ethClientMock)
+	cfg.ContractWrapperConfig.DisableL1 = true
+	syncCommittee, err := New(cfg, s.scDb)
 	s.Require().NoError(err)
 	return syncCommittee
 }

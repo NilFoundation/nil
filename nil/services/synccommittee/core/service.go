@@ -22,7 +22,7 @@ type SyncCommittee struct {
 	srv.Service
 }
 
-func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*SyncCommittee, error) {
+func New(cfg *Config, database db.DB) (*SyncCommittee, error) {
 	logger := logging.NewLogger("sync_committee")
 
 	if err := telemetry.Init(context.Background(), cfg.Telemetry); err != nil {
@@ -46,24 +46,31 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 	//  and pass it here in https://github.com/NilFoundation/nil/pull/419
 	stateResetter := reset.NewStateResetter(logger, blockStorage)
 
+	rollupContractWrapper, err := rollupcontract.NewWrapper(
+		context.Background(),
+		cfg.ContractWrapperConfig,
+		logger,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing rollup contract wrapper: %w", err)
+	}
+
 	agg := NewAggregator(
 		client,
 		blockStorage,
 		taskStorage,
 		stateResetter,
+		rollupContractWrapper,
 		clock,
 		logger,
 		metricsHandler,
 		cfg.AggregatorConfig,
 	)
 
-	ctx := context.Background()
-
 	prop, err := NewProposer(
-		ctx,
 		cfg.ProposerParams,
 		blockStorage,
-		ethClient,
+		rollupContractWrapper,
 		client,
 		metricsHandler,
 		logger,

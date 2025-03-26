@@ -17,6 +17,7 @@ import (
 	v1 "github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode/v1"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -72,6 +73,7 @@ func NewAggregator(
 	blockStorage AggregatorBlockStorage,
 	taskStorage AggregatorTaskStorage,
 	resetter *reset.StateResetter,
+	rollupContractWrapper rollupcontract.Wrapper,
 	clock clockwork.Clock,
 	logger logging.Logger,
 	metrics AggregatorMetrics,
@@ -84,7 +86,7 @@ func NewAggregator(
 		batchCommitter: batches.NewBatchCommitter(
 			v1.NewEncoder(logger),
 			blob.NewBuilder(),
-			nil, // TODO
+			rollupContractWrapper,
 			logger,
 			batches.DefaultCommitOptions(),
 		),
