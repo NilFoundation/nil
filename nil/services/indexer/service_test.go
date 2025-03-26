@@ -37,7 +37,7 @@ func (s *SuiteServiceTest) SetupTest() {
 		UseBadger: true,
 		DbPath:    s.dbPath,
 	}
-	service, err := NewService(s.ctx, cfg, s.client)
+	service, err := NewService(s.ctx, cfg, &s.client)
 	s.Require().NoError(err)
 	s.service = service
 }
