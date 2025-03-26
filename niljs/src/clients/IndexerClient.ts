@@ -1,7 +1,7 @@
+import type { IAddress } from "../signers/types/IAddress.js";
 import type { Hex } from "../types/Hex.js";
 import { BaseClient } from "./BaseClient.js";
 import type { IClientBaseConfig } from "./types/Configs.js";
-import type { IAddress } from "../signers/types/IAddress.js";
 
 class IndexerClient extends BaseClient {
   // biome-ignore lint/complexity/noUselessConstructor: may be useful in the future
@@ -15,7 +15,7 @@ class IndexerClient extends BaseClient {
    * @param sinceTimestamp - The timestamp to get actions since.
    * @returns The page of address actions.
    */
-  public async getAddressActions(address: Hex, sinceTimestamp: number = 0) {
+  public async getAddressActions(address: Hex, sinceTimestamp = 0) {
     return await this.request<AddressAction[]>({
       method: "indexer_getAddressActions",
       params: [address, sinceTimestamp],
@@ -24,15 +24,15 @@ class IndexerClient extends BaseClient {
 }
 
 export type AddressAction = {
-  hash: Hex
-  from: IAddress
-  to: IAddress
-  amount: bigint
-  timestamp: number
-  blockId: number
-  type: AddressActionKind
-  status: AddressActionStatus
-}
+  hash: Hex;
+  from: IAddress;
+  to: IAddress;
+  amount: bigint;
+  timestamp: number;
+  blockId: number;
+  type: AddressActionKind;
+  status: AddressActionStatus;
+};
 
 export enum AddressActionKind {
   SendEth = "SendEth",

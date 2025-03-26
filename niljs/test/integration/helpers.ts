@@ -1,3 +1,4 @@
+import { IndexerClient } from "../../src/clients/IndexerClient.js";
 import {
   FaucetClient,
   HttpTransport,
@@ -12,7 +13,6 @@ import {
 } from "../../src/index.js";
 import type { Hex } from "../../src/index.js";
 import { testEnv } from "../testEnv.js";
-import {IndexerClient} from "../../src/clients/IndexerClient.js";
 
 export async function generateTestSmartAccount(shardId = 1) {
   return await generateSmartAccount({
