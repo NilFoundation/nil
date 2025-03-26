@@ -2,16 +2,16 @@ package jsonrpc
 
 import (
 	"context"
-	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
-	"github.com/NilFoundation/nil/nil/services/txnpool"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
+	"github.com/NilFoundation/nil/nil/services/txnpool"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -24,7 +24,6 @@ type SuiteTxnPoolApi struct {
 const defaultMaxFee = 500
 
 var defaultAddress = types.ShardAndHexToAddress(types.BaseShardId, "11")
-var defaultBaseFee = types.NewValueFromUint64(100)
 
 func newTransaction(address types.Address, seqno types.Seqno, priorityFee uint64) *types.Transaction {
 	return &types.Transaction{
@@ -76,12 +75,7 @@ func (suite *SuiteTxnPoolApi) SetupSuite() {
 	err = tx.Commit()
 	suite.Require().NoError(err)
 
-	//shardApi := rawapi.NewLocalShardApi(shardId, suite.db, nil)
-	//localShardApis := map[types.ShardId]rawapi.ShardApi{
-	//	shardId: shardApi,
-	//}
 	suite.pools = NewPools(suite.T(), ctx, 2)
-	//localApi := rawapi.NewNodeApiOverShardApis(localShardApis)
 	database, err := db.NewBadgerDbInMemory()
 	suite.Require().NoError(err)
 	defer database.Close()
@@ -100,18 +94,24 @@ func (suite *SuiteTxnPoolApi) TearDownSuite() {
 }
 
 func (suite *SuiteTxnPoolApi) TestGetTxnpoolStatus() {
-	txAmount := 10
+	txAmount := 1
 	ctx := context.Background()
-	shardTxn := newTransaction(defaultAddress, 0, 123)
-	shardTxn.To = types.ShardAndHexToAddress(0, "deadbeef")
+	for i := range txAmount {
+		shardTxn := newTransaction(defaultAddress, types.Seqno(i), 123)
+		shardTxn.To = types.ShardAndHexToAddress(types.MainShardId, "deadbeef")
+		shardTxn.Data = types.Code{byte(i)}
 
-	for i := 0; i < txAmount; i++ {
 		_, err := suite.pools[0].Add(ctx, shardTxn)
 		suite.Require().NoError(err)
 	}
 	txAmountRes, err := suite.txnpoolApi.GetTxpoolStatus(ctx, types.MainShardId)
 	suite.Require().NoError(err)
 	suite.Require().Equal(uint64(txAmount), txAmountRes)
+
+	txs, err := suite.txnpoolApi.GetTxpoolContent(ctx, types.MainShardId)
+	suite.Require().NoError(err)
+	suite.Require().Equal(len(txs), uint64(txAmount))
+	suite.Require().Equal(txs[0].Data, types.Code{byte(0)})
 }
 
 func TestSuiteTxnPoolApi(t *testing.T) {

@@ -37,6 +37,7 @@ type NetworkTransportProtocolRo interface {
 	GetNumShards() pb.Uint64Response
 
 	ClientVersion() pb.StringResponse
+
 	GetTxpoolStatus() pb.Uint64Response
 	GetTxpoolContent() pb.Uint64Response
 }

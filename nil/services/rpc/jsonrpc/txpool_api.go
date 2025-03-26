@@ -9,7 +9,7 @@ import (
 
 type TxPoolAPI interface {
 	GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error)
-	GetTxpoolContent(ctx context.Context) ([]*types.TxnWithHash, error)
+	GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error)
 }
 
 type TxPoolAPIImpl struct {
