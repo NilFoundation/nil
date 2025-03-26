@@ -245,6 +245,10 @@ func (api *ShardApiAccessor) GetTxpoolStatus(ctx context.Context, shardId types.
 	return sendRequestAndGetResponseWithCallerMethodName[uint64](ctx, api, "GetTxpoolStatus", shardId)
 }
 
+func (api *ShardApiAccessor) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[[]*types.TxnWithHash](ctx, api, "GetTxpoolContent", shardId)
+}
+
 func (api *ShardApiAccessor) setNodeApi(nodeApi NodeApi) {
 	api.onSetNodeApi(nodeApi)
 }

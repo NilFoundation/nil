@@ -65,6 +65,7 @@ type NodeApiRo interface {
 	ClientVersion(ctx context.Context) (string, error)
 
 	GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error)
+	GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error)
 }
 
 type NodeApi interface {
@@ -115,7 +116,8 @@ type ShardApiRo interface {
 	setAsP2pRequestHandlersIfAllowed(
 		ctx context.Context, networkManager *network.Manager, readonly bool, logger logging.Logger) error
 
-	GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error) // zerg
+	GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error)
+	GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error)
 
 	setNodeApi(nodeApi NodeApi)
 }

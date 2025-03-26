@@ -986,3 +986,18 @@ func (c *Client) GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (ui
 
 	return resValue, err
 }
+
+func (c *Client) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error) {
+	request := c.newRequest(Txpool_getTxpoolContent, shardId)
+	res, err := c.performRequest(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	var resValue []*types.TxnWithHash
+	if err := json.Unmarshal(res, &resValue); err != nil {
+		return nil, err
+	}
+
+	return resValue, err
+}

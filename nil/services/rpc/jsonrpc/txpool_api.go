@@ -30,7 +30,6 @@ func (api *TxPoolAPIImpl) GetTxpoolStatus(ctx context.Context, shardId types.Sha
 	return api.rawApi.GetTxpoolStatus(ctx, shardId)
 }
 
-func (api *TxPoolAPIImpl) GetTxpoolContent(cxt context.Context) ([]*types.TxnWithHash, error) {
-	//return api.txnPool[0].Peek(api.txnPool[0].GetQueue().Len())
-	return []*types.TxnWithHash{}, nil
+func (api *TxPoolAPIImpl) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error) {
+	return api.rawApi.GetTxpoolContent(ctx, shardId)
 }

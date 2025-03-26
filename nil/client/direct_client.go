@@ -396,6 +396,10 @@ func (c *DirectClient) DoPanicOnShard(ctx context.Context, shardId types.ShardId
 	return c.devApi.DoPanicOnShard(ctx, shardId)
 }
 
-func (c *DirectClient) GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error) { // Zerg
+func (c *DirectClient) GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error) {
+	panic("Not supported")
+}
+
+func (c *DirectClient) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error) {
 	panic("Not supported")
 }
