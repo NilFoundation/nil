@@ -41,7 +41,7 @@ stdenv.mkDerivation rec {
 
   checkPhase = ''
     patchShebangs node_modules
-    nohup nild run --http-port 8529 --collator-tick-ms=100 > nild.log 2>&1 & echo $! > nild_pid &
+    nohup nild run --http-port 8529 --indexer-config test-indexer-config.yml  --collator-tick-ms=100 > nild.log 2>&1 & echo $! > nild_pid &
 
     export BIOME_BINARY=${biome}/bin/biome
 
