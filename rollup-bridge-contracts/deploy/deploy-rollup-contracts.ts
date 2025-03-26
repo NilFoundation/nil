@@ -12,10 +12,10 @@ import {
 } from './config/config-helper';
 import { BatchInfo, proposerRoleHash } from './config/nil-types';
 
-// npx hardhat deploy --network anvil --tags NilContracts
-// npx hardhat deploy --network geth --tags NilContracts
-// npx hardhat deploy --network sepolia --tags NilContracts
-const deployNilContracts: DeployFunction = async function (
+// npx hardhat deploy --network anvil --tags NilRollupContracts
+// npx hardhat deploy --network geth --tags NilRollupContracts
+// npx hardhat deploy --network sepolia --tags NilRollupContracts
+const deployNilRollupContracts: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
 ) {
     const { deployments, getNamedAccounts, network } = hre;
@@ -258,5 +258,5 @@ async function verifyContractWithRetry(
     }
 }
 
-export default deployNilContracts;
-deployNilContracts.tags = ['NilContracts'];
+export default deployNilRollupContracts;
+deployNilRollupContracts.tags = ['NilRollupContracts'];
