@@ -10,6 +10,7 @@ import {
     NetworkConfig,
     ZeroAddress,
 } from './config/config-helper';
+import { BatchInfo, proposerRoleHash } from './config/nil-types';
 
 // npx hardhat deploy --network anvil --tags NilContracts
 // npx hardhat deploy --network geth --tags NilContracts
@@ -129,9 +130,10 @@ const deployNilContracts: DeployFunction = async function (
             await nilRollup.DEFAULT_ADMIN_ROLE(),
             0,
         );
+
         const storedNilVerifierAddress = await nilRollup.nilVerifierAddress();
         const storedProposerAddress = await nilRollup.getRoleMember(
-            await nilRollup.PROPOSER_ROLE(),
+            proposerRoleHash,
             0,
         );
         const storedGenesisStateRoot = await nilRollup
