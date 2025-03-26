@@ -1,3 +1,5 @@
+// tasks/e2e.ts
+
 import {
   FaucetClient,
   HttpTransport,
@@ -9,33 +11,69 @@ import {
   waitTillCompleted,
 } from "@nilfoundation/niljs";
 
-import { type Abi, decodeFunctionResult, encodeFunctionData } from "viem";
-
+import type { Abi } from "viem";
 import * as dotenv from "dotenv";
 import { task } from "hardhat/config";
 dotenv.config();
 
-function getVotingTimestamps(blockTime: number) {
-  const offsetInMinutes = 1;
-  const durationInMinutes = 2;
-  const startTime = blockTime + offsetInMinutes * 30;
-  const endTime = startTime + durationInMinutes * 30;
-  return { startTime, endTime };
-}
-
+// Extend Block to include dbTimestamp from =nil;
 type NilBlock<T extends boolean = false> = Block<T> & {
   dbTimestamp: number;
 };
 
-task("e2e", "End to end test for the interaction page").setAction(async () => {
+// Waits until the current dbTimestamp is greater than or equal to the target
+const waitUntilDbTimestamp = async (
+  client: PublicClient,
+  target: number,
+  intervalMs = 2000
+) => {
+  while (true) {
+    const block = (await client.getBlockByNumber(
+      "latest",
+      false,
+      1
+    )) as NilBlock;
+
+    console.log(
+      `⏳ Waiting... Current: ${block.dbTimestamp}, Target: ${target}`
+    );
+
+    if (block.dbTimestamp >= target) break;
+    await new Promise((res) => setTimeout(res, intervalMs));
+  }
+};
+
+const sleep = async (intervalMs: number) => {
+  await new Promise((res) => setTimeout(res, intervalMs));
+};
+
+// Generates voting start and end time based on current block timestamp
+function getVotingTimestamps(
+  blockTime: number,
+  offsetInSeconds = 60,
+  durationInSeconds = 120
+) {
+  const roundedBlockTime = Math.ceil(blockTime / 10) * 10;
+  const startTime = roundedBlockTime + offsetInSeconds;
+  const endTime = startTime + durationInSeconds;
+
+  return { startTime, endTime };
+}
+
+task("e2e", "🔁 End-to-end test for sharded voting").setAction(async () => {
   try {
-    console.log("Starting e2e");
+    console.log("🚀 Starting Sharded Voting E2E Test");
 
     const VoteManager = require("../artifacts/contracts/VoteManager.sol/VoteManager.json");
-    const noOfShards = 2;
-    const noOfChoices = 3;
-
     const VoteShard = require("../artifacts/contracts/VoteShard.sol/VoteShard.json");
+
+    const noOfShards = 4;
+    const noOfChoices = 3;
+    const candidate1 = 1;
+    const candidate2 = 2;
+    const candidate3 = 3;
+
+    console.log("🔧 Initializing PublicClient and Faucet...");
 
     const client = new PublicClient({
       transport: new HttpTransport({
@@ -49,49 +87,58 @@ task("e2e", "End to end test for the interaction page").setAction(async () => {
       }),
     });
 
-    console.log("Faucet client created");
+    console.log("👤 Generating Deployer and Voter Accounts...");
 
-    // Generate DeployerWallet contract on shard 1
     const deployerWallet = await generateSmartAccount({
       shardId: 1,
       rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
       faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
     });
 
-    const balance = await deployerWallet.getBalance();
+    const voter1 = await generateSmartAccount({
+      shardId: 1,
+      rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
+      faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
+    });
+    const voter2 = await generateSmartAccount({
+      shardId: 2,
+      rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
+      faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
+    });
+    const voter3 = await generateSmartAccount({
+      shardId: 3,
+      rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
+      faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
+    });
+    const voter4 = await generateSmartAccount({
+      shardId: 4,
+      rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
+      faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
+    });
 
-    console.log(
-      `Deployer smart account generated at ${deployerWallet.address} with bal: ${balance} NIL`
-    );
-
-    // Top up the deployer's smart account with NIL for contract deployment
-    const topUpSmartAccount = await faucet.topUpAndWaitUntilCompletion(
-      {
-        smartAccountAddress: deployerWallet.address,
-        faucetAddress: process.env.NIL as `0x${string}`,
-        amount: convertEthToWei(1000),
-      },
-      client
-    );
-
-    console.log(
-      `Deployer smart account ${deployerWallet.address} has been topped up with 1000 NIL at tx hash ${topUpSmartAccount}`
-    );
+    console.log("💰 Funding accounts with NIL...");
+    for (const acc of [deployerWallet, voter1, voter2, voter3, voter4]) {
+      await faucet.topUpAndWaitUntilCompletion(
+        {
+          smartAccountAddress: acc.address,
+          faucetAddress: process.env.NIL as `0x${string}`,
+          amount: convertEthToWei(1000),
+        },
+        client
+      );
+    }
 
     const block = (await client.getBlockByNumber(
       "latest",
       false,
       1
     )) as NilBlock;
-
     const { startTime, endTime } = getVotingTimestamps(block.dbTimestamp);
 
-    console.log(block.dbTimestamp);
-
-    // Deploy VoteManager contract on shard 1
+    console.log("🏗 Deploying VoteManager on Shard 1...");
     const { address: voteManagerAddress, hash: deployVoteProtocolHash } =
       await deployerWallet.deployContract({
-        shardId: 2,
+        shardId: 1,
         args: [noOfShards, noOfChoices, startTime, endTime],
         bytecode: VoteManager.bytecode as `0x${string}`,
         abi: VoteManager.abi as Abi,
@@ -101,27 +148,23 @@ task("e2e", "End to end test for the interaction page").setAction(async () => {
       });
 
     await waitTillCompleted(client, deployVoteProtocolHash);
-
     let txReceipt = await client.getTransactionReceiptByHash(
       deployVoteProtocolHash
     );
-
-    if (txReceipt && !txReceipt?.success) {
+    if (txReceipt && !txReceipt.success) {
       throw new Error(
-        `VoteManager Deployment Failed.\nReason: ${txReceipt.errorMessage}\nStatus: ${txReceipt.status}`
+        `❌ VoteManager Deployment Failed.\nReason: ${txReceipt.errorMessage}\nStatus: ${txReceipt.status}`
       );
     }
 
-    console.log(
-      `Vote Manager Pool deployed at ${voteManagerAddress} with hash ${deployVoteProtocolHash} on shard 1`
-    );
-
+    console.log(`✅ VoteManager deployed at ${voteManagerAddress}`);
     const voteManagerContract = getContract({
       client,
       abi: VoteManager.abi,
       address: voteManagerAddress,
     });
 
+    console.log("📦 Deploying VoteShards...");
     const deployShardsResponse = await deployerWallet.sendTransaction({
       to: voteManagerAddress,
       functionName: "deployVotingShards",
@@ -130,16 +173,14 @@ task("e2e", "End to end test for the interaction page").setAction(async () => {
     });
 
     await waitTillCompleted(client, deployShardsResponse);
-
     txReceipt = await client.getTransactionReceiptByHash(deployShardsResponse);
-
     if (txReceipt && !txReceipt.success) {
       throw new Error(
-        `Shard deployment failed.\nReason: ${txReceipt.errorMessage}\nStatus: ${txReceipt.status}`
+        `❌ Shard deployment failed.\nReason: ${txReceipt.errorMessage}\nStatus: ${txReceipt.status}`
       );
     }
 
-    console.log(`Voting shards deployed tx hash ${deployShardsResponse}`);
+    console.log("✅ All VoteShards deployed!");
 
     const voteShard1Address = (await voteManagerContract.read.getShardAddress([
       1,
@@ -159,136 +200,126 @@ task("e2e", "End to end test for the interaction page").setAction(async () => {
       abi: VoteShard.abi,
       address: voteShard1Address,
     });
-
     const voteShard2Contract = getContract({
       client,
       abi: VoteShard.abi,
-      address: voteShard1Address,
+      address: voteShard2Address,
+    });
+    const voteShard3Contract = getContract({
+      client,
+      abi: VoteShard.abi,
+      address: voteShard3Address,
+    });
+    const voteShard4Contract = getContract({
+      client,
+      abi: VoteShard.abi,
+      address: voteShard4Address,
     });
 
-    // const voteShard1Contract = getContract({
-    //   client,
-    //   abi: VoteShard.abi,
-    //   address: voteShard1Address as `0x${string}`,
-    // });
+    console.log("⏱ Waiting for voting to start...");
+    await waitUntilDbTimestamp(client, startTime);
 
-    // const voteShard1Contract = getContract({
-    //   client,
-    //   abi: VoteShard.abi,
-    //   address: voteShard1Address as `0x${string}`,
-    // });
-
-    console.log("Vote Shards Addresses");
-    console.log(`Shard 1: ${voteShard1Address}`);
-    console.log(`Shard 2: ${voteShard2Address}`);
-    console.log(`Shard 3: ${voteShard3Address}`);
-    console.log(`Shard 4: ${voteShard4Address}`);
-
-    console.log("Generating Voter Accounts");
-
-    const account1 = await generateSmartAccount({
-      shardId: 1,
-      rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
-      faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
-    });
-
-    const account2 = await generateSmartAccount({
-      shardId: 2,
-      rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
-      faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
-    });
-
-    // const account3 = await generateSmartAccount({
-    //   shardId: 3,
-    //   rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
-    //   faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
-    // });
-
-    // const account4 = await generateSmartAccount({
-    //   shardId: 4,
-    //   rpcEndpoint: process.env.NIL_RPC_ENDPOINT as string,
-    //   faucetEndpoint: process.env.NIL_RPC_ENDPOINT as string,
-    // });
-
-    // Vote On Shards
-    console.log("Vote on Shard 1");
-    const firstVoteResponse = await account1.sendTransaction({
+    console.log("🗳 Casting Votes...");
+    const vote1 = await voter1.sendTransaction({
       to: voteShard1Address,
       functionName: "vote",
-      args: [1, account1.address],
-      abi: VoteShard.abi as Abi,
+      args: [candidate1],
+      abi: VoteShard.abi,
       feeCredit: convertEthToWei(0.001),
     });
+    await waitTillCompleted(client, vote1);
+    console.log("🗳️ Voter 1 voted for Candidate 1 ✅");
 
-    waitTillCompleted(client, firstVoteResponse);
+    const vote2 = await voter2.sendTransaction({
+      to: voteShard2Address,
+      functionName: "vote",
+      args: [candidate2],
+      abi: VoteShard.abi,
+      feeCredit: convertEthToWei(0.001),
+    });
+    await waitTillCompleted(client, vote2);
+    console.log("🗳️ Voter 2 voted for Candidate 2 ✅");
 
-    txReceipt = await client.getTransactionReceiptByHash(firstVoteResponse);
+    const vote3 = await voter3.sendTransaction({
+      to: voteShard3Address,
+      functionName: "vote",
+      args: [candidate3],
+      abi: VoteShard.abi,
+      feeCredit: convertEthToWei(0.001),
+    });
+    await waitTillCompleted(client, vote3);
+    console.log("🗳️ Voter 3 voted for Candidate 3 ✅");
 
-    if (txReceipt && !txReceipt.success) {
-      throw new Error(
-        `First Vote actions failed.\nReason: ${txReceipt.errorMessage}\nStatus: ${txReceipt.status}`
-      );
-    }
+    const vote4 = await voter4.sendTransaction({
+      to: voteShard4Address,
+      functionName: "vote",
+      args: [candidate1],
+      abi: VoteShard.abi,
+      feeCredit: convertEthToWei(0.001),
+    });
+    await waitTillCompleted(client, vote4);
+    console.log("🗳️ Voter 4 voted for Candidate 1 ✅");
 
-    console.log(txReceipt);
+    console.log("🛑 Waiting for voting to end...");
+    await waitUntilDbTimestamp(client, endTime);
 
-    // console.log(firstVoteResponse);
-    // console.log("Vote on Shard 2");
-    // // client.setShardId(2);
-    // const secondVoteResponse = await account2.sendTransaction({
-    //   to: voteShard1Address,
-    //   functionName: "vote",
-    //   args: [1, account2.address],
-    //   abi: VoteShard.abi as Abi,
-    //   feeCredit: convertEthToWei(0.001),
-    // });
+    console.log("📊 Fetching results from shards...");
+    const tallyShard1 = (await voteShard1Contract.read.tallyVotes(
+      []
+    )) as number[];
+    const tallyShard2 = (await voteShard2Contract.read.tallyVotes(
+      []
+    )) as number[];
+    const tallyShard3 = (await voteShard3Contract.read.tallyVotes(
+      []
+    )) as number[];
+    const tallyShard4 = (await voteShard4Contract.read.tallyVotes(
+      []
+    )) as number[];
 
-    // waitTillCompleted(client, secondVoteResponse);
+    console.log("📦 Results from each shard");
+    console.log(
+      `🧩 Shard 1: C1=${tallyShard1[1]}, C2=${tallyShard1[2]}, C3=${tallyShard1[3]}`
+    );
+    console.log(
+      `🧩 Shard 2: C1=${tallyShard2[1]}, C2=${tallyShard2[2]}, C3=${tallyShard2[3]}`
+    );
+    console.log(
+      `🧩 Shard 3: C1=${tallyShard3[1]}, C2=${tallyShard3[2]}, C3=${tallyShard3[3]}`
+    );
+    console.log(
+      `🧩 Shard 4: C1=${tallyShard4[1]}, C2=${tallyShard4[2]}, C3=${tallyShard4[3]}`
+    );
 
-    // txReceipt = await client.getTransactionReceiptByHash(secondVoteResponse);
+    console.log(
+      "🧮 Calculating final tally across all shards using VoteManager..."
+    );
 
-    // if (txReceipt && !txReceipt.success) {
-    //   throw new Error(
-    //     `First Vote actions failed.\nReason: ${txReceipt.errorMessage}\nStatus: ${txReceipt.status}`
-    //   );
-    // }
+    const tallyShardsVotesResponse = await deployerWallet.sendTransaction({
+      to: voteManagerAddress,
+      functionName: "tallyTotalVotes",
+      abi: VoteManager.abi as Abi,
+      feeCredit: convertEthToWei(0.001),
+      value: 5000n,
+    });
 
-    // console.log(secondVoteResponse);
+    await waitTillCompleted(client, tallyShardsVotesResponse);
 
-    // await faucet.topUpAndWaitUntilCompletion(
-    //   {
-    //     smartAccountAddress: deployerWallet.address,
-    //     faucetAddress: process.env.NIL as `0x${string}`,
-    //     amount: convertEthToWei(1000),
-    //   },
-    //   client
-    // );
+    await new Promise((res) => setTimeout(res, 5000));
 
-    // const tallyShardsVotesResponse = await deployerWallet.sendTransaction({
-    //   to: voteManagerAddress,
-    //   functionName: "tallyTotalVotes",
-    //   abi: VoteManager.abi as Abi,
-    //   feeCredit: convertEthToWei(0.001),
-    //   value: 5000n,
-    // });
+    const totalTally = (await voteManagerContract.read.getVotingResult(
+      []
+    )) as number[];
 
-    // console.log(tallyShardsVotesResponse);
+    console.log(
+      `📊 Final Aggregated Results: C1=${totalTally[1]}, C2=${totalTally[2]}, C3=${totalTally[3]}`
+    );
 
-    // // await waitTillCompleted(client, tallyShardsVotesResponse);
-
-    // txReceipt = await client.getTransactionReceiptByHash(
-    //   tallyShardsVotesResponse
-    // );
-    // console.log(txReceipt);
-    // if (txReceipt && !txReceipt.success) {
-    //   throw new Error(
-    //     `Tally votes actions failed.\nReason: ${txReceipt.errorMessage}\nStatus: ${txReceipt.status}`
-    //   );
-    // }
+    console.log("🎉 End-to-end voting test completed!");
   } catch (e: unknown) {
-    console.error(e);
+    console.error("❌ Error occurred:");
     if (e instanceof Error) {
-      console.error("Error:", e.message);
+      console.error(e.message);
     } else {
       console.error("Unknown error occurred during execution.");
     }
