@@ -3,11 +3,10 @@ package driver
 import (
 	"context"
 
-	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
-
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 )
 
 type IndexerDriver interface {

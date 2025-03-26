@@ -4,20 +4,19 @@ import (
 	"context"
 	"fmt"
 
-	driver2 "github.com/NilFoundation/nil/nil/services/indexer/driver"
-	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
-	"github.com/spf13/viper"
-
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/indexer/badger"
 	"github.com/NilFoundation/nil/nil/services/indexer/clickhouse"
+	driver2 "github.com/NilFoundation/nil/nil/services/indexer/driver"
+	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/rs/zerolog"
+	"github.com/spf13/viper"
 )
 
 type Config struct {

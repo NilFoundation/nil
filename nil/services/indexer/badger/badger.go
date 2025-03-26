@@ -7,14 +7,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/services/indexer/driver"
-	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
-
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
+	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 	"github.com/dgraph-io/badger/v4"
 )
 
@@ -28,8 +27,7 @@ type receiptWithSSZ struct {
 }
 
 type blockWithSSZ struct {
-	decoded    *driver.BlockWithShardId         `json:"decoded"`
-	sszEncoded *types.RawBlockWithExtractedData `json:"sszEncoded"`
+	Decoded *driver.BlockWithShardId `json:"decoded"`
 }
 
 var _ driver.IndexerDriver = &BadgerDriver{}
@@ -67,7 +65,7 @@ func (b *BadgerDriver) IndexBlocks(_ context.Context, blocksToIndex []*driver.Bl
 		if err != nil {
 			return fmt.Errorf("failed to encode block: %w", err)
 		}
-		blocks[blockIndex] = blockWithSSZ{decoded: block, sszEncoded: sszEncodedBlock}
+		blocks[blockIndex] = blockWithSSZ{Decoded: block}
 
 		for receiptIndex, receipt := range block.Receipts {
 			receipts[receipt.TxnHash] = receiptWithSSZ{
@@ -114,7 +112,11 @@ func (b *BadgerDriver) IndexBlocks(_ context.Context, blocksToIndex []*driver.Bl
 	return tx.Commit()
 }
 
-func (b *BadgerDriver) indexBlockTransactions(tx *badger.Txn, block *driver.BlockWithShardId, receipts map[common.Hash]receiptWithSSZ) error {
+func (b *BadgerDriver) indexBlockTransactions(
+	tx *badger.Txn,
+	block *driver.BlockWithShardId,
+	receipts map[common.Hash]receiptWithSSZ,
+) error {
 	for _, txn := range block.InTransactions {
 		receipt, exists := receipts[txn.Hash()]
 		if !exists {
@@ -228,43 +230,6 @@ func (b *BadgerDriver) FetchAddressActions(address types.Address, since db.Times
 	return actions, nil
 }
 
-func makeShardCurrentKey(shardId types.ShardId) []byte {
-	key := make([]byte, len("shard:")+4+len(":current"))
-	copy(key[0:], "shard:")
-	binary.BigEndian.PutUint32(key[len("shard:"):], uint32(shardId))
-	copy(key[len("shard:")+4:], ":current")
-	return key
-}
-
-func (b *BadgerDriver) updateShardCurrentBlock(tx *badger.Txn, shardId types.ShardId, blockNumber types.BlockNumber) error {
-	key := makeShardCurrentKey(shardId)
-	value := make([]byte, 8)
-	binary.BigEndian.PutUint64(value, uint64(blockNumber))
-	return tx.Set(key, value)
-}
-
-func (b *BadgerDriver) getShardCurrentBlock(tx *badger.Txn, shardId types.ShardId) (types.BlockNumber, bool, error) {
-	key := makeShardCurrentKey(shardId)
-	item, err := tx.Get(key)
-	if errors.Is(err, badger.ErrKeyNotFound) {
-		return 0, false, nil
-	}
-	if err != nil {
-		return 0, false, fmt.Errorf("failed to get shard current block: %w", err)
-	}
-
-	var blockNumber uint64
-	err = item.Value(func(val []byte) error {
-		blockNumber = binary.BigEndian.Uint64(val)
-		return nil
-	})
-	if err != nil {
-		return 0, false, fmt.Errorf("failed to read shard current block value: %w", err)
-	}
-
-	return types.BlockNumber(blockNumber), true, nil
-}
-
 func makeBlockKey(shardId types.ShardId, blockNumber types.BlockNumber) []byte {
 	key := make([]byte, len("block:")+4+8)
 	copy(key[0:], "block:")
@@ -291,7 +256,7 @@ func (b *BadgerDriver) FetchBlock(_ context.Context, id types.ShardId, number ty
 			if err := json.Unmarshal(val, &blockWithSSZ); err != nil {
 				return fmt.Errorf("failed to deserialize block: %w", err)
 			}
-			block = blockWithSSZ.decoded.Block
+			block = blockWithSSZ.Decoded.Block
 			return nil
 		})
 		return err
@@ -319,21 +284,32 @@ func makeShardLatestProcessedKey(shardId types.ShardId) []byte {
 	return key
 }
 
-func (b *BadgerDriver) updateShardLatestProcessedBlock(tx *badger.Txn, shardId types.ShardId, blockNumber types.BlockNumber) error {
+func (b *BadgerDriver) updateShardLatestProcessedBlock(
+	tx *badger.Txn,
+	shardId types.ShardId,
+	blockNumber types.BlockNumber,
+) error {
 	key := makeShardLatestProcessedKey(shardId)
 	value := make([]byte, 8)
 	binary.BigEndian.PutUint64(value, uint64(blockNumber))
 	return tx.Set(key, value)
 }
 
-func (b *BadgerDriver) updateShardEarliestAbsentBlock(tx *badger.Txn, shardId types.ShardId, blockNumber types.BlockNumber) error {
+func (b *BadgerDriver) updateShardEarliestAbsentBlock(
+	tx *badger.Txn,
+	shardId types.ShardId,
+	blockNumber types.BlockNumber,
+) error {
 	key := makeShardEarliestAbsentKey(shardId)
 	value := make([]byte, 8)
 	binary.BigEndian.PutUint64(value, uint64(blockNumber))
 	return tx.Set(key, value)
 }
 
-func (b *BadgerDriver) getShardLatestProcessedBlock(tx *badger.Txn, shardId types.ShardId) (types.BlockNumber, bool, error) {
+func (b *BadgerDriver) getShardLatestProcessedBlock(
+	tx *badger.Txn,
+	shardId types.ShardId,
+) (types.BlockNumber, bool, error) {
 	key := makeShardLatestProcessedKey(shardId)
 	item, err := tx.Get(key)
 	if errors.Is(err, badger.ErrKeyNotFound) {
@@ -355,7 +331,10 @@ func (b *BadgerDriver) getShardLatestProcessedBlock(tx *badger.Txn, shardId type
 	return types.BlockNumber(blockNumber), true, nil
 }
 
-func (b *BadgerDriver) getShardEarliestAbsentBlock(tx *badger.Txn, shardId types.ShardId) (types.BlockNumber, bool, error) {
+func (b *BadgerDriver) getShardEarliestAbsentBlock(
+	tx *badger.Txn,
+	shardId types.ShardId,
+) (types.BlockNumber, bool, error) {
 	key := makeShardEarliestAbsentKey(shardId)
 	item, err := tx.Get(key)
 	if errors.Is(err, badger.ErrKeyNotFound) {
@@ -403,8 +382,8 @@ func (b *BadgerDriver) FetchLatestProcessedBlockId(_ context.Context, id types.S
 			if err := json.Unmarshal(val, &blockWithSSZ); err != nil {
 				return fmt.Errorf("failed to deserialize block: %w", err)
 			}
-			if blockWithSSZ.decoded != nil {
-				latestBlock = blockWithSSZ.decoded.Block
+			if blockWithSSZ.Decoded != nil {
+				latestBlock = blockWithSSZ.Decoded.Block
 			}
 			return nil
 		})
@@ -445,7 +424,11 @@ func (b *BadgerDriver) FetchEarliestAbsentBlockId(_ context.Context, id types.Sh
 	return earliestAbsent, nil
 }
 
-func (b *BadgerDriver) FetchNextPresentBlockId(_ context.Context, id types.ShardId, number types.BlockNumber) (types.BlockNumber, error) {
+func (b *BadgerDriver) FetchNextPresentBlockId(
+	_ context.Context,
+	id types.ShardId,
+	number types.BlockNumber,
+) (types.BlockNumber, error) {
 	var nextPresent types.BlockNumber
 
 	err := b.db.View(func(txn *badger.Txn) error {
@@ -463,10 +446,6 @@ func (b *BadgerDriver) FetchNextPresentBlockId(_ context.Context, id types.Shard
 	}
 
 	return nextPresent, nil
-}
-
-func (b *BadgerDriver) createRoTx() *badger.Txn {
-	return b.db.NewTransaction(false)
 }
 
 func (b *BadgerDriver) createRwTx() *badger.Txn {

@@ -6,14 +6,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/services/indexer/driver"
-
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 )
 
 const (

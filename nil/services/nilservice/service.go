@@ -11,9 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/services/indexer"
-	"github.com/NilFoundation/nil/nil/services/indexer/driver"
-
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -30,6 +27,8 @@ import (
 	"github.com/NilFoundation/nil/nil/services/admin"
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/faucet"
+	"github.com/NilFoundation/nil/nil/services/indexer"
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	"github.com/NilFoundation/nil/nil/services/rollup"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
@@ -44,7 +43,7 @@ import (
 const syncTimeoutFactor = 5
 
 func startRpcServer(
-	ctx context.Context,
+	parentCtx context.Context,
 	cfg *Config,
 	rawApi rawapi.NodeApi,
 	db db.ReadOnlyDB,
@@ -66,7 +65,7 @@ func startRpcServer(
 		KeepHeaders:     []string{"Client-Version", "Client-Type", "X-UID"},
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(parentCtx)
 	pollBlocksForLogs := cfg.RunMode == NormalRunMode
 
 	var ethApiService any
@@ -130,14 +129,17 @@ func startRpcServer(
 		}
 		apiList = append(apiList, idx.GetRpcApi())
 
-		ctx := context.Background()
-
 		check.PanicIfErr(err)
-		go indexer.StartIndexer(ctx, &indexer.Cfg{
-			Client:        client,
-			IndexerDriver: idx.Driver,
-			BlocksChan:    make(chan *driver.BlockWithShardId, 1000),
-		})
+		go func() {
+			err := indexer.StartIndexer(ctx, &indexer.Cfg{
+				Client:        client,
+				IndexerDriver: idx.Driver,
+				BlocksChan:    make(chan *driver.BlockWithShardId, 1000),
+			})
+			if err != nil {
+				logger.Error().Err(err).Msg("failed to start indexer")
+			}
+		}()
 	}
 
 	if cfg.IsFaucetApiEnabled() {

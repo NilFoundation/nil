@@ -6,11 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/services/indexer/driver"
-
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 	"github.com/stretchr/testify/suite"
 )
@@ -186,5 +185,7 @@ func (s *SuiteServiceTest) TestGetAddressActions() {
 }
 
 func TestServiceSuite(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(SuiteServiceTest))
 }

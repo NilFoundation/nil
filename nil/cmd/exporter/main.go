@@ -7,13 +7,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/NilFoundation/nil/nil/services/indexer"
-	"github.com/NilFoundation/nil/nil/services/indexer/clickhouse"
-
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/cobrax"
+	"github.com/NilFoundation/nil/nil/services/indexer"
+	"github.com/NilFoundation/nil/nil/services/indexer/clickhouse"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -98,7 +97,8 @@ You could config it via config file or flags or environment variables.`,
 
 	ctx := context.Background()
 
-	clickhouseDriver, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
+	clickhouseDriver, err := clickhouse.NewClickhouseDriver(
+		ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
 	check.PanicIfErr(err)
 
 	check.PanicIfErr(indexer.StartIndexer(ctx, &indexer.Cfg{

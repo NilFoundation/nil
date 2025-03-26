@@ -5,8 +5,6 @@ import (
 	"errors"
 	"os"
 
-	"github.com/NilFoundation/nil/nil/services/indexer"
-
 	"github.com/NilFoundation/nil/nil/cmd/nild/nildconfig"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
@@ -18,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
+	"github.com/NilFoundation/nil/nil/services/indexer"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/spf13/cobra"

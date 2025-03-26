@@ -212,7 +212,7 @@ func CreateContractData(
 		}
 		contractData.SourceFilesList[len(contractData.SourceFilesList)-1] = GeneratedSourceFileName
 		contractData.SourceCode[GeneratedSourceFileName] = //
-		contractDescr.Evm.DeployedBytecode.GeneratedSources[0].Contents
+			contractDescr.Evm.DeployedBytecode.GeneratedSources[0].Contents
 	}
 
 	contractData.SourceMap = contractDescr.Evm.DeployedBytecode.SourceMap

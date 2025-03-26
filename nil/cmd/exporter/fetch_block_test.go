@@ -4,11 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/services/indexer"
-
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/indexer"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/tests"
