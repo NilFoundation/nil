@@ -3,6 +3,7 @@ package indexer
 import (
 	"context"
 	"fmt"
+
 	driver2 "github.com/NilFoundation/nil/nil/services/indexer/driver"
 	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 	"github.com/spf13/viper"

@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/NilFoundation/nil/nil/services/indexer"
 	"os"
+
+	"github.com/NilFoundation/nil/nil/services/indexer"
 
 	"github.com/NilFoundation/nil/nil/cmd/nild/nildconfig"
 	"github.com/NilFoundation/nil/nil/common/check"

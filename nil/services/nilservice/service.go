@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/NilFoundation/nil/nil/services/indexer"
-	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	"os"
 	"os/signal"
 	"slices"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/NilFoundation/nil/nil/services/indexer"
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/assert"

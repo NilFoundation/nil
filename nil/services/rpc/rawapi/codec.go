@@ -153,12 +153,12 @@ func newApiCodec(api, transport reflect.Type) (apiCodec, error) {
 			return nil, err
 		}
 		requestPackMethod, requestUnpackMethod, err := //
-			obtainAndValidateRequestConversionMethods(apiMethod, pbRequestType)
+		obtainAndValidateRequestConversionMethods(apiMethod, pbRequestType)
 		if err != nil {
 			return nil, err
 		}
 		responsePackMethod, responseUnpackMethod, err := //
-			obtainAndValidateResponseConversionMethods(apiMethod, pbResponseType)
+		obtainAndValidateResponseConversionMethods(apiMethod, pbResponseType)
 		if err != nil {
 			return nil, err
 		}

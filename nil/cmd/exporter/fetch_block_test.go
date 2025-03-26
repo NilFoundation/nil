@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"github.com/NilFoundation/nil/nil/services/indexer"
 	"testing"
+
+	"github.com/NilFoundation/nil/nil/services/indexer"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/logging"

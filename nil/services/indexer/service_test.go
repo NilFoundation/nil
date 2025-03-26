@@ -2,10 +2,11 @@ package indexer
 
 import (
 	"context"
-	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/internal/db"

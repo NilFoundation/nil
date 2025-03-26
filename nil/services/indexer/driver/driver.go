@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+
 	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -22,7 +23,7 @@ type IndexerDriver interface {
 
 type BlockWithShardId struct {
 	*types.BlockWithExtractedData
-	ShardId types.ShardId
+	ShardId types.ShardId `json:"shardId"`
 }
 
 type SetupParams struct {

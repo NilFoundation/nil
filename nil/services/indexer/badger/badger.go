@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
@@ -27,8 +28,8 @@ type receiptWithSSZ struct {
 }
 
 type blockWithSSZ struct {
-	decoded    *driver.BlockWithShardId
-	sszEncoded *types.RawBlockWithExtractedData
+	decoded    *driver.BlockWithShardId         `json:"decoded"`
+	sszEncoded *types.RawBlockWithExtractedData `json:"sszEncoded"`
 }
 
 var _ driver.IndexerDriver = &BadgerDriver{}

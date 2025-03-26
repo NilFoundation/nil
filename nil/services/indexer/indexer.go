@@ -3,9 +3,10 @@ package indexer
 import (
 	"context"
 	"fmt"
-	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	"sync/atomic"
 	"time"
+
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"

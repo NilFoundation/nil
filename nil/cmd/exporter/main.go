@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/NilFoundation/nil/nil/services/indexer"
-	"github.com/NilFoundation/nil/nil/services/indexer/clickhouse"
 	"os"
 	"strings"
+
+	"github.com/NilFoundation/nil/nil/services/indexer"
+	"github.com/NilFoundation/nil/nil/services/indexer/clickhouse"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/check"
