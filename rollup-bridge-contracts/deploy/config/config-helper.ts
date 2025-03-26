@@ -12,6 +12,13 @@ export interface NetworkConfig {
     proposerAddress: string;
     l2ChainId: number;
     genesisStateRoot: string;
+    l1BridgeRouter: string;
+    l1BridgeMessengerProxy: string;
+    l1BridgeMessengerImplementation: string;
+    maxProcessingTimeInEpochSeconds: number;
+    l1ERC20Bridge: string;
+    l1ETHBridge: string;
+    nilGasPriceOracle: string;
 }
 
 export interface Config {
