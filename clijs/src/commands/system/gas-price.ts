@@ -24,7 +24,6 @@ export default class GasPrice extends BaseCommand {
 
         try {
             const gasPrice = await rpcClient.getGasPrice(shardId);
-            this.log(gasPrice.toString());
             return gasPrice;
         } catch (error) {
             this.error(`Failed to get gas price: ${error}`);

@@ -13,7 +13,6 @@ export default class Shards extends BaseCommand {
 
         try {
             const shards = await rpcClient.getShardIdList();
-            this.log(JSON.stringify(shards, null, 2));
             return shards;
         } catch (error) {
             this.error(`Failed to get shards: ${error}`);
