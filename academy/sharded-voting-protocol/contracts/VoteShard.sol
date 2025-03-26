@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import "@openzeppelin/contracts/utils/Address.sol";
-
 /**
  * @title VoteShard
  * @dev A shard contract for collecting and tallying votes on a subset of users.
@@ -48,7 +46,7 @@ contract VoteShard {
 
         address voter;
 
-        if (Address.isContract(msg.sender)) {
+        if (isContract(msg.sender)) {
             require(msg.sender == voteManager, "Only voteManager can call from contract");
             voter = _sender;
         } else {
@@ -84,5 +82,18 @@ contract VoteShard {
     modifier duringVote() {
         require(block.timestamp >= startTime && block.timestamp <= endTime, "Voting is not active");
         _;
+    }
+
+    /**
+     * @notice check if an address is a contract
+     * @return results Array containing total votes per choice.
+     * @param _addr address to check
+     */
+    function isContract(address _addr) internal view returns (bool) {
+        if (_addr.code.length == 0) {
+            return false;
+        } else {
+            return true;
+        }
     }
 }

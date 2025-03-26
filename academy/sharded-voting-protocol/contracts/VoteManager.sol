@@ -10,17 +10,19 @@ import "./VoteShard.sol";
  * @title VoteManager
  * @dev Manages deployment of voting shards and coordination of vote casting and tallying across shards.
  */
-contract VoteManager is NilBase, Ownable {
+contract VoteManager is NilBase, NilTokenBase, Ownable {
     uint256 public numShards;
     uint16 public numChoices;
     uint256 public startTime;
     uint256 public endTime;
 
     mapping(uint256 => address) public voteShards;
-    mapping(uint16 => uint256) public results;
+    mapping(uint16 => uint256) public voteResults;
 
     event DeploymentComplete(uint256 _numShards, uint256 _numChoices);
-    event VotesTallied(uint256 _shardId, address _voteShard);
+    event VotesTallied(uint256 timestamp);
+
+    receive() external payable {}
 
     /**
      * @dev Initializes the voting manager with shard and voting configuration.
@@ -47,7 +49,7 @@ contract VoteManager is NilBase, Ownable {
     /**
      * @notice Deploys all vote shard contracts deterministically using CREATE2.
      */
-    function deployVotingShards() public payable {
+    function deployVotingShards() public payable onlyOwner {
         for (uint256 i = 1; i <= numShards; i++) {
             uint256 salt = generateSalt(msg.sender, i);
             deploy(i, salt);
@@ -59,9 +61,9 @@ contract VoteManager is NilBase, Ownable {
     /**
      * @dev Deploys a single VoteShard contract using Nil.asyncDeploy.
      * @param _shardId ID of the shard.
-     * @param _salt Deterministic salt for CREATE2 deployment.
+     * @param _salt Deterministic salt for CREATE deployment.
      */
-    function deploy(uint256 _shardId, uint256 _salt) private payable {
+    function deploy(uint256 _shardId, uint256 _salt) private {
         bytes memory data =
             bytes.concat(type(VoteShard).creationCode, abi.encode(address(this), numChoices, startTime, endTime));
         address voteShard = Nil.asyncDeploy(_shardId, address(this), 0, data, _salt);
@@ -89,31 +91,19 @@ contract VoteManager is NilBase, Ownable {
     function tallyTotalVotes() public payable {
         for (uint256 i = 1; i <= numShards; i++) {
             address voteShard = voteShards[i];
+            bytes memory temp;
+            bool ok;
+            (temp, ok) = Nil.awaitCall(voteShard, Nil.ASYNC_REQUEST_MIN_GAS, abi.encodeWithSignature("tallyVotes()"));
 
-            bytes memory callData = abi.encodeWithSignature("tallyVotes()");
-            bytes memory context = abi.encodeWithSelector(this.processVotesTally.selector, i, voteShard);
+            require(ok == true, "Result not true");
 
-            Nil.sendRequest(voteShard, 0, 9_000_000, context, callData);
+            uint256[] memory votes = abi.decode(temp, (uint256[]));
+
+            for (uint16 j = 1; i <= numChoices; j++) {
+                voteResults[j] += votes[j];
+            }
         }
-    }
-
-    /**
-     * @notice Processes tally results returned from a VoteShard.
-     * @param _success Whether the request succeeded.
-     * @param _returnData Encoded results of tallyVotes().
-     * @param _context Encoded shardId and voteShard address.
-     */
-    function processVotesTally(bool _success, bytes memory _returnData, bytes memory _context) public {
-        require(_success, "Vote tally call failed");
-
-        (uint256 shardId, address voteShard) = abi.decode(_context, (uint256, address));
-        uint256[] memory votes = abi.decode(_returnData, (uint256[]));
-
-        for (uint16 i = 1; i <= numChoices; i++) {
-            results[i] += votes[i];
-        }
-
-        emit VotesTallied(shardId, voteShard);
+        emit VotesTallied(block.timestamp);
     }
 
     /**
@@ -130,5 +120,28 @@ contract VoteManager is NilBase, Ownable {
      */
     function generateSalt(address _user, uint256 _nonce) private pure returns (uint256) {
         return uint256(keccak256(abi.encodePacked(_user, _nonce)));
+    }
+
+    /**
+     * @notice Retrieves the address of a deployed VoteShard contract by its shard ID.
+     * @dev Useful for checking where a specific shard is deployed.
+     * @param _shardId The ID of the shard.
+     * @return The address of the corresponding VoteShard contract.
+     */
+    function getShardAddress(uint256 _shardId) public view returns (address) {
+        return voteShards[_shardId];
+    }
+
+    /**
+     * @notice Returns the current voting results aggregated by the VoteManager.
+     * @dev The results array uses index positions corresponding to choice numbers; index 0 is unused.
+     * @return results An array where each index represents the total votes for that choice.
+     */
+    function getVotingResult() public view returns (uint256[] memory results) {
+        results = new uint256[](numChoices + 1); // Index 0 is unused
+
+        for (uint16 i = 1; i <= numChoices; i++) {
+            results[i] = voteResults[i];
+        }
     }
 }

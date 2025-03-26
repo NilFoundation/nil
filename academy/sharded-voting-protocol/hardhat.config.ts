@@ -6,7 +6,7 @@ import "@typechain/hardhat";
 import * as dotenv from "dotenv";
 import type { HardhatUserConfig } from "hardhat/config";
 
-import "./task/run-lending-protocol";
+import "./task/run-voting-protocol";
 
 dotenv.config();
 
