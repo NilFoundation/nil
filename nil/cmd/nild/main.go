@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/NilFoundation/nil/nil/services/indexer"
 	"os"
 
 	"github.com/NilFoundation/nil/nil/cmd/nild/nildconfig"
@@ -159,6 +160,7 @@ func parseArgs() *nildconfig.Config {
 	runCmd.Flags().StringVar(
 		&cfg.ValidatorKeysPath, "validator-keys-path", cfg.ValidatorKeysPath, "path to write validator keys")
 	runCmd.Flags().BoolVar(&cfg.EnableDevApi, "dev-api", cfg.EnableDevApi, "enable development API")
+	runCmd.Flags().StringVar(&cfg.IndexerConfig, "indexer-config", "", "path to Indexer config")
 
 	addBasicFlags(runCmd.Flags(), cfg)
 	cmdflags.AddNetwork(runCmd.Flags(), cfg.Config.Network)
@@ -225,6 +227,13 @@ func parseArgs() *nildconfig.Config {
 		cfg.Cometa = &cometa.Config{}
 		cfg.Cometa.ResetToDefault()
 		cfg.Cometa.UseBadger = true
+	}
+
+	if cfg.IndexerConfig != "" {
+		cfg.Indexer = &indexer.Config{}
+		cfg.Indexer.ResetToDefault()
+		ok := cfg.Indexer.InitFromFile(cfg.IndexerConfig)
+		check.PanicIfNotf(ok, "failed to load indexer config from %s", cfg.IndexerConfig)
 	}
 
 	return cfg
