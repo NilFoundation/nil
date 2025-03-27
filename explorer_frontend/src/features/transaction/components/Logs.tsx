@@ -67,12 +67,9 @@ export const Logs: FC<LogsProps> = ({ logs }) => {
       {logs.length === 0 ? (
         <div className={css(styles.noLogsContainer)}>
           <img src={noLog} alt="no-log" width={88} height={88} />
-          <ParagraphLarge color={COLORS.gray50}>
-            No logs found for this transaction
-          </ParagraphLarge>
+          <ParagraphLarge color={COLORS.gray50}>No logs found for this transaction</ParagraphLarge>
           <ParagraphSmall color={COLORS.gray300}>
-            It looks like this transaction didn’t generate any events
-            or interactions
+            It looks like this transaction didn’t generate any events or interactions
           </ParagraphSmall>
         </div>
       ) : (
@@ -92,9 +89,7 @@ export const Logs: FC<LogsProps> = ({ logs }) => {
                       {addHexPrefix(log.address.toLowerCase())}
                     </Link>
                   </ParagraphSmall>
-                  <CopyButton
-                    textToCopy={addHexPrefix(log.address.toLowerCase())}
-                  />
+                  <CopyButton textToCopy={addHexPrefix(log.address.toLowerCase())} />
                 </div>
                 <ParagraphSmall color={COLORS.gray400}>Topics:</ParagraphSmall>
                 <div>{getTopics(log, css)}</div>
@@ -109,10 +104,7 @@ export const Logs: FC<LogsProps> = ({ logs }) => {
   );
 };
 
-const getTopics = (
-  log: TransactionLog,
-  css: (style: StyleObject) => string
-) => {
+const getTopics = (log: TransactionLog, css: (style: StyleObject) => string) => {
   const limit = log.topics_count;
 
   return Array.from({ length: limit }, (_, i) => {
