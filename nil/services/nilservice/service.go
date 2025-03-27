@@ -82,7 +82,7 @@ func startRpcServer(
 	debugImpl := jsonrpc.NewDebugAPI(rawApi, logger)
 	web3Impl := jsonrpc.NewWeb3API(rawApi)
 
-	txpoolImpl := jsonrpc.NewTxPoolAPI(txnPool, logger)
+	txpoolImpl := jsonrpc.NewTxPoolAPI(rawApi, logger)
 
 	apiList := []transport.API{
 		{

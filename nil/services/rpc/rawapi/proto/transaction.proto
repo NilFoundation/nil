@@ -68,3 +68,14 @@ message ReceiptResponse {
     ReceiptInfo data = 2;
   }
 }
+
+message RawTxnsWithHash {
+  repeated bytes data = 1;
+}
+
+message RawTxnsWithHashResponse {
+  oneof result {
+    Error error = 1;
+    RawTxnsWithHash data = 2;
+  }
+}

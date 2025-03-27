@@ -116,8 +116,8 @@ type ShardApiRo interface {
 	setAsP2pRequestHandlersIfAllowed(
 		ctx context.Context, networkManager *network.Manager, readonly bool, logger logging.Logger) error
 
-	GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error)
-	GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error)
+	GetTxpoolStatus(ctx context.Context) (uint64, error)
+	GetTxpoolContent(ctx context.Context) ([]*types.TxnWithHash, error)
 
 	setNodeApi(nodeApi NodeApi)
 }

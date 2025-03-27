@@ -588,16 +588,14 @@ func (m TransactionFlags) IsResponse() bool {
 	return m.GetBit(TransactionFlagResponse)
 }
 
-//go:generate go run github.com/NilFoundation/fastssz/sszgen --path transaction.go -include ../../common/hexutil/bytes.go,../../common/length.go,address.go,gas.go,value.go,code.go,shard.go,bloom.go,log.go,../../common/hash.go,signature.go,account.go,bitflags.go --objs Transaction,ExternalTransaction,InternalTransactionPayload,TransactionDigest,TransactionFlags,EvmState,AsyncContext,AsyncResponsePayload
-
 type TxnWithHash struct {
-	*Transaction
+	Transaction
 	hash common.Hash
 }
 
 func NewTxnWithHash(txn *Transaction) *TxnWithHash {
 	return &TxnWithHash{
-		Transaction: txn,
+		Transaction: *txn,
 		hash:        txn.Hash(),
 	}
 }
@@ -605,3 +603,5 @@ func NewTxnWithHash(txn *Transaction) *TxnWithHash {
 func (m *TxnWithHash) Hash() common.Hash {
 	return m.hash
 }
+
+//go:generate go run github.com/NilFoundation/fastssz/sszgen --path transaction.go -include ../../common/hexutil/bytes.go,../../common/length.go,address.go,gas.go,value.go,code.go,shard.go,bloom.go,log.go,../../common/hash.go,signature.go,account.go,bitflags.go --objs TxnWithHash,Transaction,ExternalTransaction,InternalTransactionPayload,TransactionDigest,TransactionFlags,EvmState,AsyncContext,AsyncResponsePayload

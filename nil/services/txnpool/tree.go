@@ -35,7 +35,7 @@ func sortBySeqnoLess(a, b *metaTxn) bool {
 func NewBySenderAndSeqno(logger logging.Logger) *ByReceiverAndSeqno {
 	return &ByReceiverAndSeqno{
 		tree:       btree.NewG(32, sortBySeqnoLess),
-		search:     &metaTxn{TxnWithHash: &types.TxnWithHash{Transaction: &types.Transaction{}}},
+		search:     &metaTxn{TxnWithHash: &types.TxnWithHash{Transaction: types.Transaction{}}},
 		toTxnCount: map[types.Address]int{},
 		logger:     logger,
 	}

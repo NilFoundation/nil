@@ -236,7 +236,7 @@ func (p *TxnPool) Get(hash common.Hash) (*types.Transaction, error) {
 	if txn == nil {
 		return nil, nil
 	}
-	return txn.Transaction, nil
+	return &txn.Transaction, nil
 }
 
 func (p *TxnPool) GetQueue() *TxnQueue {
@@ -356,7 +356,7 @@ func (p *TxnPool) OnCommitted(_ context.Context, baseFee types.Value, committed 
 
 func (p *TxnPool) updateTransactionsLocked() {
 	p.all.ascendAll(func(txn *metaTxn) bool {
-		txn.effectivePriorityFee, txn.valid = execution.GetEffectivePriorityFee(p.baseFee, txn.Transaction)
+		txn.effectivePriorityFee, txn.valid = execution.GetEffectivePriorityFee(p.baseFee, &txn.Transaction)
 		return true
 	})
 	p.all.ascendAll(func(txn *metaTxn) bool {

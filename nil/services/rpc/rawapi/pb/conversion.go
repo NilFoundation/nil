@@ -1370,3 +1370,37 @@ func (r *SendTransactionRequest) PackProtoMessage(transactionSSZ []byte) error {
 func (r *SendTransactionRequest) UnpackProtoMessage() ([]byte, error) {
 	return r.TransactionSSZ, nil
 }
+
+func (txn *RawTxnsWithHashResponse) PackProtoMessage(txnWithHash []*types.TxnWithHash, err error) error {
+	if err != nil {
+		txn.Result = &RawTxnsWithHashResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+	var rawTxnsWithHash RawTxnsWithHash
+
+	rawTxnsWithHash.Data, err = sszx.EncodeContainer[*types.TxnWithHash](txnWithHash)
+	if err != nil {
+		return err
+	}
+	txn.Result = &RawTxnsWithHashResponse_Data{Data: &rawTxnsWithHash}
+	return nil
+}
+
+func (txn *RawTxnsWithHashResponse) UnpackProtoMessage() ([]*types.TxnWithHash, error) {
+	switch txn.Result.(type) {
+	case *RawTxnsWithHashResponse_Error:
+		return nil, txn.GetError().UnpackProtoMessage()
+
+	case *RawTxnsWithHashResponse_Data:
+		dataResult := txn.GetData()
+		if dataResult == nil {
+			return nil, errors.New("unexpected response")
+		}
+		data := dataResult.GetData()
+		if data == nil {
+			return nil, errors.New("unexpected response")
+		}
+		return sszx.DecodeContainer[*types.TxnWithHash](data)
+	}
+	return nil, errors.New("unexpected response type")
+}

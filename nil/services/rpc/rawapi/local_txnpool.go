@@ -26,10 +26,10 @@ func (api *LocalShardApi) SendTransaction(ctx context.Context, encoded []byte) (
 	return reasons[0], nil
 }
 
-func (api *LocalShardApi) GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error) {
+func (api *LocalShardApi) GetTxpoolStatus(ctx context.Context) (uint64, error) {
 	return uint64(api.txnpool.GetQueue().Len()), nil
 }
 
-func (api *LocalShardApi) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error) {
+func (api *LocalShardApi) GetTxpoolContent(ctx context.Context) ([]*types.TxnWithHash, error) {
 	return api.txnpool.Peek(api.txnpool.GetQueue().Len())
 }

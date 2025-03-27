@@ -343,7 +343,7 @@ func (api *NodeApiOverShardApis) GetTxpoolStatus(ctx context.Context, shardId ty
 	if !ok {
 		return 0, makeShardNotFoundError(methodName, shardId)
 	}
-	result, err := shardApi.GetTxpoolStatus(ctx, shardId)
+	result, err := shardApi.GetTxpoolStatus(ctx)
 	if err != nil {
 		return 0, makeCallError(methodName, shardId, err)
 	}
@@ -356,7 +356,7 @@ func (api *NodeApiOverShardApis) GetTxpoolContent(ctx context.Context, shardId t
 	if !ok {
 		return nil, makeShardNotFoundError(methodName, shardId)
 	}
-	result, err := shardApi.GetTxpoolContent(ctx, shardId)
+	result, err := shardApi.GetTxpoolContent(ctx)
 	if err != nil {
 		return nil, makeCallError(methodName, shardId, err)
 	}
