@@ -2,6 +2,8 @@
 
 ## Description
 
+dummy update
+
 =nil; is a sharded blockchain whose global state is split between several execution shards. Execution shards are managed by a single main shard that references the latest blocks across all execution shards. Each new block produced in an execution shard must also reference the latest block in the main shard.
 
 This project is an implementation of =nil; in Go.
@@ -80,7 +82,7 @@ To access the =nil; CLI:
 
 ### Using Nix
 
-The repository uses Nix for dependency and project management. 
+The repository uses Nix for dependency and project management.
 
 To enter the Nix development environment:
 
@@ -96,7 +98,7 @@ nix build .#DERIVATION_NAME
 
 ### Using PNPM
 
-The repository uses PNPM Workspaces to manage collective dependencies across the JS/TS projects it is hosting. 
+The repository uses PNPM Workspaces to manage collective dependencies across the JS/TS projects it is hosting.
 
 There can only be one top-level `pnpm-lock` file.
 
