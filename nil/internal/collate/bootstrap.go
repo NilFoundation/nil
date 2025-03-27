@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 const topicVersion = "/nil/version"
@@ -119,12 +120,7 @@ func fetchSnapshot(
 	return fetchShardSnap(ctx, nm, peerId, db, logger)
 }
 
-func fetchGenesisBlockHash(ctx context.Context, nm *network.Manager, peerAddr network.AddrInfo) (common.Hash, error) {
-	peerId, err := nm.Connect(ctx, peerAddr)
-	if err != nil {
-		return common.EmptyHash, fmt.Errorf("failed to connect to %s: %w", peerAddr, err)
-	}
-
+func fetchGenesisBlockHash(ctx context.Context, nm *network.Manager, peerId peer.ID) (common.Hash, error) {
 	resp, err := nm.SendRequestAndGetResponse(ctx, peerId, topicVersion, nil)
 	if err != nil {
 		return common.EmptyHash, fmt.Errorf("failed to fetch genesis block hash: %w", err)

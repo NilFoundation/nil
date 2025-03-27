@@ -19,10 +19,12 @@ func (s *SuiteRpcNode) SetupTest() {
 	port := 11001
 	nShards := uint32(3)
 
-	s.Start(&nilservice.Config{
-		NShards: nShards,
-		RunMode: nilservice.NormalRunMode,
-	}, port)
+	s.Start(
+		&nilservice.Config{
+			NShards: nShards,
+			RunMode: nilservice.NormalRunMode,
+		},
+		port)
 
 	_, archiveNodeAddr := s.StartArchiveNode(&tests.ArchiveNodeConfig{
 		Port:               port + int(nShards),

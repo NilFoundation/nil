@@ -24,10 +24,12 @@ type SuiteFaucet struct {
 }
 
 func (s *SuiteFaucet) SetupSuite() {
-	s.Start(&nilservice.Config{
-		NShards:              3,
-		CollatorTickPeriodMs: 200,
-	}, 10225)
+	s.Start(
+		&nilservice.Config{
+			NShards:              3,
+			CollatorTickPeriodMs: 200,
+		},
+		10225)
 
 	s.DefaultClient, _ = s.StartRPCNode(tests.WithDhtBootstrapByValidators, nil)
 	s.faucetClient, _ = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.DefaultClient)

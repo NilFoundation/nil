@@ -46,10 +46,12 @@ func (s *SuiteCliBase) SetupSuite() {
 }
 
 func (s *SuiteCliBase) SetupTest() {
-	s.Start(&nilservice.Config{
-		NShards:              3,
-		CollatorTickPeriodMs: 200,
-	}, s.basePort)
+	s.Start(
+		&nilservice.Config{
+			NShards:              3,
+			CollatorTickPeriodMs: 200,
+		},
+		s.basePort)
 
 	s.DefaultClient, s.endpoint = s.StartRPCNode(tests.WithDhtBootstrapByValidators, nil)
 	s.cometaEndpoint = rpc.GetSockPathService(s.T(), "cometa")
