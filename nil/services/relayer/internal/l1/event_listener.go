@@ -51,6 +51,7 @@ type EventListener struct {
 	clock           clockwork.Clock
 
 	config       *EventListenerConfig
+	metrics      EventListenerMetrics
 	eventStorage *EventStorage
 
 	state struct {
@@ -70,6 +71,7 @@ func NewEventListener(
 	ethClient EthClient,
 	contractClient L1Contract,
 	storage *EventStorage,
+	metrics EventListenerMetrics,
 	logger logging.Logger,
 ) (*EventListener, error) {
 	el := &EventListener{
@@ -78,6 +80,7 @@ func NewEventListener(
 		clock:           clock,
 		config:          config,
 		eventStorage:    storage,
+		metrics:         metrics,
 	}
 
 	el.state.emitter = make(chan struct{}, config.EmitEventCapacity)
@@ -161,8 +164,6 @@ func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1Messa
 			Err(err).
 			Msg("failed to subscribe to updates from L1 contract")
 		return err
-
-		// TODO(oclaw) metrics
 	}
 	defer sub.Unsubscribe()
 
@@ -181,7 +182,7 @@ func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1Messa
 				Err(err).
 				Msg("L1 subscription is broken")
 
-			// TODO(oclaw) metrics
+			el.metrics.AddSubscriptionError(ctx)
 			return fmt.Errorf("%w: %w", ErrSubscriptionIsBroken, err)
 		}
 		el.logger.Debug().Msg("subscription channel is closed")
@@ -197,6 +198,9 @@ func (el *EventListener) fetcher(ctx context.Context, eventCh chan<- *L1MessageS
 
 	el.logger.Info().Msg("started fetcher")
 
+	el.metrics.SetFetcherActive(ctx)
+	defer el.metrics.SetFetcherIdle(ctx)
+
 	// try fetching as long as possible, force exit after large enough attempt number
 	retrier := common.NewRetryRunner(
 		common.RetryConfig{
@@ -210,12 +214,9 @@ func (el *EventListener) fetcher(ctx context.Context, eventCh chan<- *L1MessageS
 		err := el.fetchPastEvents(ctx, eventCh)
 		if err != nil {
 			el.logger.Error().Err(err).Msg("historical event fetching failed")
-			// TODO (oclaw) metrics
 		}
 		return err
 	})
-
-	// TODO(oclaw) metrics (this routine is not expected to run for too long, we should now if something is stuck here)
 }
 
 func (el *EventListener) fetchPastEvents(ctx context.Context, eventCh chan<- *L1MessageSent) error {
@@ -286,6 +287,7 @@ func (el *EventListener) eventProcessor(
 		if err := el.processEvent(ctx, event); err != nil {
 			return err
 		}
+		el.metrics.AddEventFromFetcher(ctx)
 		processedOldEvents++
 	}
 
@@ -304,6 +306,7 @@ func (el *EventListener) eventProcessor(
 			if err := el.processEvent(ctx, event); err != nil {
 				return err
 			}
+			el.metrics.AddEventFromSubscriber(ctx)
 		case <-ctx.Done():
 			return ctx.Err()
 		}

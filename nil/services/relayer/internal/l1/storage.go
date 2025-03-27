@@ -28,13 +28,8 @@ const (
 	lastProcessedBlockKey   = "last_processed_block_key"
 )
 
-type EventStorageMetrics interface {
-	// TODO(oclaw)
-}
-
 type EventStorage struct {
 	*storage.BaseStorage
-	metrics         EventStorageMetrics
 	eventsSequencer db.Sequence
 }
 
@@ -42,12 +37,11 @@ func NewEventStorage(
 	ctx context.Context,
 	database db.DB,
 	clock clockwork.Clock,
-	metrics EventStorageMetrics,
+	metrics storage.TableMetrics,
 	logger logging.Logger,
 ) (*EventStorage, error) {
 	es := &EventStorage{
-		BaseStorage: storage.NewBaseStorage(ctx, database, clock, logger),
-		metrics:     metrics,
+		BaseStorage: storage.NewBaseStorage(ctx, database, clock, logger, metrics),
 	}
 	var err error
 	es.eventsSequencer, err = database.GetSequence(ctx, []byte(pendingEventsSequencer), 100)
@@ -73,8 +67,6 @@ func (es *EventStorage) StoreEvent(ctx context.Context, evt *Event) error {
 
 		writer := storage.NewJSONWriter[*Event](pendingEventsTable, es.BaseStorage, false)
 		return writer.PutTx(ctx, evt.Hash.Bytes(), evt)
-
-		// TODO (oclaw) metrics
 	})
 }
 
@@ -88,12 +80,15 @@ func (es *EventStorage) IterateEventsByBatch(
 		if err != nil {
 			return err
 		}
+		defer tx.Rollback()
 
 		iter, err := tx.Range(pendingEventsTable, nil, nil)
 		if err != nil {
 			return err
 		}
+		defer iter.Close()
 
+		count := 0
 		batch := make([]*Event, batchSize)
 		idx := 0
 		for iter.HasNext() {
@@ -101,6 +96,7 @@ func (es *EventStorage) IterateEventsByBatch(
 			if err != nil {
 				return err
 			}
+			count++
 			if err := json.Unmarshal(val, &batch[idx]); err != nil {
 				return fmt.Errorf("%w: %w", storage.ErrSerializationFailed, err)
 			}
@@ -116,6 +112,8 @@ func (es *EventStorage) IterateEventsByBatch(
 		if idx > 0 {
 			return callback(batch[:idx])
 		}
+
+		es.Metrics.SetTableSize(ctx, pendingEventsTable, count)
 
 		return nil
 	})
@@ -135,7 +133,9 @@ func (es *EventStorage) DeleteEvents(ctx context.Context, hashes []ethcommon.Has
 			}
 		}
 
-		return es.Commit(tx)
+		return es.Commit(tx, func() {
+			es.Metrics.RecordDeletes(ctx, pendingEventsTable, len(hashes))
+		})
 	})
 }
 
@@ -146,6 +146,7 @@ func (es *EventStorage) GetLastProcessedBlock(ctx context.Context) (*ProcessedBl
 		if err != nil {
 			return err
 		}
+		defer tx.Rollback()
 
 		data, err := tx.Get(lastProcessedBlockTable, []byte(lastProcessedBlockKey))
 		if errors.Is(err, db.ErrKeyNotFound) {
@@ -182,7 +183,5 @@ func (es *EventStorage) SetLastProcessedBlock(ctx context.Context, blk *Processe
 	return es.RetryRunner.Do(ctx, func(ctx context.Context) error {
 		writer := storage.NewJSONWriter[*ProcessedBlock](lastProcessedBlockTable, es.BaseStorage, true)
 		return writer.PutTx(ctx, []byte(lastProcessedBlockKey), blk)
-
-		// TODO(oclaw) metrics
 	})
 }

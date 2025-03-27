@@ -76,6 +76,7 @@ type FinalityEnsurer struct {
 	clock         clockwork.Clock
 	l1Storage     *EventStorage
 	l2Storage     *l2.EventStorage
+	metrics       FinalityEnsurerMetrics
 	eventProvider eventProvider
 
 	emitter chan struct{}
@@ -88,6 +89,7 @@ func NewFinalityEnsurer(
 	logger logging.Logger,
 	l1Storage *EventStorage,
 	l2Storage *l2.EventStorage,
+	metrics FinalityEnsurerMetrics,
 	eventProvider eventProvider,
 ) (*FinalityEnsurer, error) {
 	err := config.Validate()
@@ -103,6 +105,7 @@ func NewFinalityEnsurer(
 		l1Storage:     l1Storage,
 		l2Storage:     l2Storage,
 		eventProvider: eventProvider,
+		metrics:       metrics,
 		emitter:       make(chan struct{}, config.EventEmitterCapacity),
 	}
 
@@ -165,6 +168,12 @@ func (fe *FinalityEnsurer) blockFetcher(ctx context.Context) error {
 				if fe.finalizedBlock != nil {
 					log = log.Uint64("local_finalized_block_number", fe.finalizedBlock.BlockNumber)
 				}
+
+				fe.metrics.SetTimeSinceFinalizedBlockNumberUpdate(
+					ctx,
+					uint64(now.Sub(lastSuccessfulUpdate).Seconds()),
+				)
+
 				log.Msg("failed to fetch last finalized block number from Etherium")
 				continue
 			}
@@ -184,8 +193,7 @@ func (fe *FinalityEnsurer) blockFetcher(ctx context.Context) error {
 				Msg("refreshed actual finalized block number")
 			lastSuccessfulUpdate = now
 
-			// TODO(oclaw) metrics
-			// we should alert somehow if we are unable to obtain actual finalized block number long enough
+			fe.metrics.SetTimeSinceFinalizedBlockNumberUpdate(ctx, 0)
 		}
 	}
 }
@@ -205,6 +213,7 @@ func (fe *FinalityEnsurer) pendingEventPoller(ctx context.Context) error {
 		}
 		if err := fe.forwardFinalizedEvents(ctx); err != nil {
 			fe.logger.Error().Err(err).Msg("failed to process l1 pending events")
+			fe.metrics.AddRelayError(ctx)
 		}
 	}
 }
@@ -265,6 +274,11 @@ func (fe *FinalityEnsurer) forwardFinalizedEvents(ctx context.Context) error {
 		Int("orphaned_blocks_count", len(orphaned)).
 		Msg("checked blocks finality")
 
+	var (
+		finalizedEventCount int
+		orphanedEventCount  = len(events)
+	)
+
 	if len(finalized) > 0 {
 		var l2Events []*l2.Event
 		for _, finblk := range finalized {
@@ -277,6 +291,9 @@ func (fe *FinalityEnsurer) forwardFinalizedEvents(ctx context.Context) error {
 			Int("finalized_event_count", len(l2Events)).
 			Msg("saving messages to L2 event storage")
 
+		finalizedEventCount = len(l2Events)
+		orphanedEventCount = len(events) - finalizedEventCount
+
 		err := fe.l2Storage.StoreEvents(ctx, l2Events)
 		if ignoreErrors(err, storage.ErrKeyExists) != nil {
 			return fmt.Errorf("failed to forward events to L2 storage: %w", err)
@@ -288,6 +305,9 @@ func (fe *FinalityEnsurer) forwardFinalizedEvents(ctx context.Context) error {
 		default:
 		}
 	}
+
+	fe.metrics.AddFinalizedEvents(ctx, uint64(finalizedEventCount))
+	fe.metrics.AddOrphanedEvents(ctx, uint64(orphanedEventCount))
 
 	fe.logger.Info().
 		Int("dropping_events_count", len(events)).
@@ -302,7 +322,6 @@ func (fe *FinalityEnsurer) forwardFinalizedEvents(ctx context.Context) error {
 		return fmt.Errorf("failed to cleanup events from l1 storage: %w", err)
 	}
 
-	// TODO(oclaw) metrics
 	return nil
 }
 

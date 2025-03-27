@@ -19,25 +19,19 @@ const (
 	pendingEventsTable = "pending_l2_events"
 )
 
-type EventStorageMetrics interface {
-	// TODO(oclaw)
-}
-
 type EventStorage struct {
 	*storage.BaseStorage
-	metrics EventStorageMetrics
 }
 
 func NewEventStorage(
 	ctx context.Context,
 	database db.DB,
 	clock clockwork.Clock,
-	metrics EventStorageMetrics,
+	metrics storage.TableMetrics,
 	logger logging.Logger,
 ) *EventStorage {
 	es := &EventStorage{
-		BaseStorage: storage.NewBaseStorage(ctx, database, clock, logger),
-		metrics:     metrics,
+		BaseStorage: storage.NewBaseStorage(ctx, database, clock, logger, metrics),
 	}
 	return es
 }
@@ -51,7 +45,11 @@ func (es *EventStorage) StoreEvents(ctx context.Context, evts []*Event) error {
 	}
 
 	return es.RetryRunner.Do(ctx, func(ctx context.Context) error {
-		writer := storage.NewJSONWriter[*Event](pendingEventsTable, es.BaseStorage, false)
+		writer := storage.NewJSONWriter[*Event](
+			pendingEventsTable,
+			es.BaseStorage,
+			false,
+		)
 		reqs := storage.MakeInsertRequests(
 			evts,
 			func(e *Event) []byte {
@@ -59,8 +57,6 @@ func (es *EventStorage) StoreEvents(ctx context.Context, evts []*Event) error {
 			},
 		)
 		return writer.PutManyTx(ctx, reqs)
-
-		// TODO (oclaw) metrics
 	})
 }
 
@@ -74,14 +70,17 @@ func (es *EventStorage) IterateEventsByBatch(
 		if err != nil {
 			return err
 		}
+		defer tx.Rollback()
 
 		iter, err := tx.Range(pendingEventsTable, nil, nil)
 		if err != nil {
 			return err
 		}
+		defer iter.Close()
 
 		batch := make([]*Event, batchSize)
 		idx := 0
+		count := 0
 		for iter.HasNext() {
 			_, val, err := iter.Next()
 			if err != nil {
@@ -92,6 +91,7 @@ func (es *EventStorage) IterateEventsByBatch(
 			}
 
 			idx++
+			count++
 			if idx >= batchSize {
 				if err := callback(batch); err != nil {
 					return err
@@ -102,6 +102,8 @@ func (es *EventStorage) IterateEventsByBatch(
 		if idx > 0 {
 			return callback(batch[:idx])
 		}
+
+		es.Metrics.SetTableSize(ctx, pendingEventsTable, count)
 
 		return nil
 	})
@@ -121,6 +123,8 @@ func (es *EventStorage) DeleteEvents(ctx context.Context, hashes []ethcommon.Has
 			}
 		}
 
-		return es.Commit(tx)
+		return es.Commit(tx, func() {
+			es.Metrics.RecordDeletes(ctx, pendingEventsTable, len(hashes))
+		})
 	})
 }

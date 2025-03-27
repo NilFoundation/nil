@@ -14,7 +14,11 @@ type jsonDbWriter[T any] struct {
 	upsert  bool
 }
 
-func NewJSONWriter[T any](tableName db.TableName, storage *BaseStorage, upsert bool) *jsonDbWriter[T] {
+func NewJSONWriter[T any](
+	tableName db.TableName,
+	storage *BaseStorage,
+	upsert bool,
+) *jsonDbWriter[T] {
 	return &jsonDbWriter[T]{
 		table:   tableName,
 		storage: storage,
@@ -48,7 +52,9 @@ func (jdwr *jsonDbWriter[T]) PutTx(ctx context.Context, key []byte, value T) err
 		return err
 	}
 
-	return jdwr.storage.Commit(tx)
+	return jdwr.storage.Commit(tx, func() {
+		jdwr.storage.Metrics.RecordInserts(ctx, jdwr.table, 1)
+	})
 }
 
 func (jdwr *jsonDbWriter[T]) PutManyTx(ctx context.Context, reqs []InsertRequest[T]) error {
@@ -78,7 +84,9 @@ func (jdwr *jsonDbWriter[T]) PutManyTx(ctx context.Context, reqs []InsertRequest
 		}
 	}
 
-	return jdwr.storage.Commit(tx)
+	return jdwr.storage.Commit(tx, func() {
+		jdwr.storage.Metrics.RecordInserts(ctx, jdwr.table, len(reqs))
+	})
 }
 
 type InsertRequest[T any] struct {

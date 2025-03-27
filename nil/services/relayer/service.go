@@ -9,8 +9,10 @@ import (
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l1"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l2"
+	"github.com/NilFoundation/nil/nil/services/relayer/internal/storage"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jonboulle/clockwork"
 	"golang.org/x/sync/errgroup"
@@ -21,6 +23,7 @@ type RelayerConfig struct {
 	FinalityEnsurerConfig   *l1.FinalityEnsurerConfig
 	TransactionSenderConfig *l2.TransactionSenderConfig
 	L2ContractConfig        *l2.ContractConfig
+	TelemetryConfig         *telemetry.Config
 }
 
 func DefaultRelayerConfig() *RelayerConfig {
@@ -29,6 +32,9 @@ func DefaultRelayerConfig() *RelayerConfig {
 		FinalityEnsurerConfig:   l1.DefaultFinalityEnsurerConfig(),
 		TransactionSenderConfig: l2.DefaultTransactionSenderConfig(),
 		L2ContractConfig:        l2.DefaultContractConfig(),
+		TelemetryConfig: &telemetry.Config{
+			ServiceName: "relayer",
+		},
 	}
 }
 
@@ -50,11 +56,20 @@ func New(
 		Logger: logging.NewLogger("relayer"),
 	}
 
+	if err := telemetry.Init(ctx, config.TelemetryConfig); err != nil {
+		return nil, fmt.Errorf("failed to init telemetry: %w", err)
+	}
+
+	storageMetrics, err := storage.NewTableMetrics()
+	if err != nil {
+		return nil, err
+	}
+
 	l1Storage, err := l1.NewEventStorage(
 		ctx,
 		database,
 		clock,
-		nil, // TODO(oclaw) metrics
+		storageMetrics,
 		rs.Logger,
 	)
 	if err != nil {
@@ -70,12 +85,18 @@ func New(
 		return nil, err
 	}
 
+	eventListenerMetrics, err := l1.NewEventListenerMetrics()
+	if err != nil {
+		return nil, err
+	}
+
 	rs.L1EventListener, err = l1.NewEventListener(
 		config.EventListenerConfig,
 		clock,
 		l1Client,
 		l1Contract,
 		l1Storage,
+		eventListenerMetrics,
 		rs.Logger,
 	)
 	if err != nil {
@@ -86,9 +107,14 @@ func New(
 		ctx,
 		database,
 		clock,
-		nil, // TODO(oclaw) metrics
+		storageMetrics,
 		rs.Logger,
 	)
+
+	finalityEnsurerMetrics, err := l1.NewFinalityEnsurerMetrics()
+	if err != nil {
+		return nil, err
+	}
 
 	rs.L1FinalityEnsurer, err = l1.NewFinalityEnsurer(
 		config.FinalityEnsurerConfig,
@@ -97,6 +123,7 @@ func New(
 		rs.Logger,
 		l1Storage,
 		l2Storage,
+		finalityEnsurerMetrics,
 		rs.L1EventListener,
 	)
 	if err != nil {
@@ -117,12 +144,18 @@ func New(
 		return nil, err
 	}
 
+	transactionSenderMetrics, err := l2.NewTransactionSenderMetrics()
+	if err != nil {
+		return nil, err
+	}
+
 	rs.L2TransactionSender, err = l2.NewTransactionSender(
 		config.TransactionSenderConfig,
 		l2Storage,
 		rs.Logger,
 		clock,
 		rs.L1FinalityEnsurer,
+		transactionSenderMetrics,
 		l2Contract,
 	)
 	if err != nil {

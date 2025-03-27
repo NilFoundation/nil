@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/services/relayer/internal/storage"
 	"github.com/jonboulle/clockwork"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
@@ -45,12 +46,14 @@ type TransactionSenderTestSuite struct {
 	suite.Suite
 
 	// high-level dependencies
-	database  db.DB
-	logger    logging.Logger
-	l2Storage *EventStorage
+	database       db.DB
+	logger         logging.Logger
+	l2Storage      *EventStorage
+	storageMetrics storage.TableMetrics
 
 	// testing entity
-	transactionSender *TransactionSender
+	transactionSender        *TransactionSender
+	transactionSenderMetrics TransactionSenderMetrics
 
 	// mocks
 	contractMock   *L2ContractMock
@@ -81,11 +84,17 @@ func (s *TransactionSenderTestSuite) SetupTest() {
 
 	s.contractMock = &L2ContractMock{}
 
-	s.l2Storage = NewEventStorage(s.ctx, s.database, s.clockMock, nil, s.logger)
+	s.storageMetrics, err = storage.NewTableMetrics()
+	s.Require().NoError(err)
+
+	s.l2Storage = NewEventStorage(s.ctx, s.database, s.clockMock, s.storageMetrics, s.logger)
 
 	cfg := DefaultTransactionSenderConfig()
 
 	s.eventFinalizer = newEventFinalizerStub()
+
+	s.transactionSenderMetrics, err = NewTransactionSenderMetrics()
+	s.Require().NoError(err)
 
 	s.transactionSender, err = NewTransactionSender(
 		cfg,
@@ -93,6 +102,7 @@ func (s *TransactionSenderTestSuite) SetupTest() {
 		s.logger,
 		s.clockMock,
 		s.eventFinalizer,
+		s.transactionSenderMetrics,
 		s.contractMock,
 	)
 	s.Require().NoError(err, "failed to initialize transaction sender")
