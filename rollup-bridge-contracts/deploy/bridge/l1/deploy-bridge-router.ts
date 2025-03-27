@@ -2,12 +2,12 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, network, upgrades, run } from 'hardhat';
 import {
-    archiveConfig,
+    archiveL1NetworkConfig,
     isValidAddress,
     isValidBytes32,
-    loadConfig,
-    NetworkConfig,
-    saveConfig,
+    L1NetworkConfig,
+    loadL1NetworkConfig,
+    saveL1NetworkConfig,
     ZeroAddress,
 } from '../../config/config-helper';
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../common/proxy-contract-utils';
@@ -21,7 +21,7 @@ const deployL1BridgeRouter: DeployFunction = async function (
     const { getNamedAccounts } = hre;
     const { deployer } = await getNamedAccounts();
     const networkName = network.name;
-    const config: NetworkConfig = loadConfig(networkName);
+    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
     if (!isValidAddress(config.l1BridgeRouterConfig.owner)) {
@@ -46,7 +46,7 @@ const deployL1BridgeRouter: DeployFunction = async function (
     // Check if L1BridgeRouter is already deployed
     if (config.l1BridgeRouterConfig.l1BridgeRouterProxy && isValidAddress(config.l1BridgeRouterConfig.l1BridgeRouterProxy)) {
         console.log(`L1BridgeRouter already deployed at: ${config.l1BridgeRouterConfig.l1BridgeRouterProxy}`);
-        archiveConfig(networkName, config);
+        archiveL1NetworkConfig(networkName, config);
     }
 
     try {
@@ -101,7 +101,7 @@ const deployL1BridgeRouter: DeployFunction = async function (
         const nilRollup = L1BridgeRouter.attach(l1BridgeRouterProxyAddress);
 
         // Save the updated config
-        saveConfig(networkName, config);
+        saveL1NetworkConfig(networkName, config);
 
         // check network and verify if its not geth or anvil
         // Skip verification if the network is local or anvil

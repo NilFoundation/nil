@@ -2,12 +2,12 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, network, upgrades, run } from 'hardhat';
 import {
-    archiveConfig,
+    archiveL1NetworkConfig,
     isValidAddress,
     isValidBytes32,
-    loadConfig,
-    NetworkConfig,
-    saveConfig,
+    L1NetworkConfig,
+    loadL1NetworkConfig,
+    saveL1NetworkConfig,
     ZeroAddress,
 } from '../../config/config-helper';
 import { BatchInfo } from '../../config/nil-types';
@@ -22,7 +22,7 @@ const deployL1ERC20Bridge: DeployFunction = async function (
     const { getNamedAccounts } = hre;
     const { deployer } = await getNamedAccounts();
     const networkName = network.name;
-    const config: NetworkConfig = loadConfig(networkName);
+    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
     if (!isValidAddress(config.l1ERC20Bridge.owner)) {
@@ -35,7 +35,7 @@ const deployL1ERC20Bridge: DeployFunction = async function (
     // Check if L1ERC20Bridge is already deployed
     if (config.l1ERC20Bridge.l1ERC20BridgeProxy && isValidAddress(config.l1ERC20Bridge.l1ERC20BridgeProxy)) {
         console.log(`L1ERC20Bridge already deployed at: ${config.l1ERC20Bridge.l1ERC20BridgeProxy}`);
-        archiveConfig(networkName, config);
+        archiveL1NetworkConfig(networkName, config);
     }
 
     try {
@@ -89,7 +89,7 @@ const deployL1ERC20Bridge: DeployFunction = async function (
         const nilRollup = L1ERC20Bridge.attach(l1ERC20BridgeProxyAddress);
 
         // Save the updated config
-        saveConfig(networkName, config);
+        saveL1NetworkConfig(networkName, config);
 
         // check network and verify if its not geth or anvil
         // Skip verification if the network is local or anvil

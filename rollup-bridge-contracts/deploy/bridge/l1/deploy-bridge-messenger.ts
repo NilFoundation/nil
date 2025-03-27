@@ -2,12 +2,12 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, network, upgrades, run } from 'hardhat';
 import {
-    archiveConfig,
+    archiveL1NetworkConfig,
     isValidAddress,
     isValidBytes32,
-    loadConfig,
-    NetworkConfig,
-    saveConfig,
+    L1NetworkConfig,
+    loadL1NetworkConfig,
+    saveL1NetworkConfig,
     ZeroAddress,
 } from '../../config/config-helper';
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../common/proxy-contract-utils';
@@ -21,7 +21,7 @@ const deployL1BridgeMessenger: DeployFunction = async function (
     const { getNamedAccounts } = hre;
     const { deployer } = await getNamedAccounts();
     const networkName = network.name;
-    const config: NetworkConfig = loadConfig(networkName);
+    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
     if (!isValidAddress(config.nilRollupConfig.owner)) {
@@ -34,7 +34,7 @@ const deployL1BridgeMessenger: DeployFunction = async function (
     // Check if L1BridgeMessenger is already deployed
     if (config.l1BridgeMessengerConfig.l1BridgeMessengerProxy && isValidAddress(config.l1BridgeMessengerConfig.l1BridgeMessengerProxy)) {
         console.log(`l1BridgeMessenger already deployed at: ${config.l1BridgeMessengerConfig.l1BridgeMessengerProxy}`);
-        archiveConfig(networkName, config);
+        archiveL1NetworkConfig(networkName, config);
     }
 
     try {
@@ -87,7 +87,7 @@ const deployL1BridgeMessenger: DeployFunction = async function (
         const nilRollup = L1BridgeMessenger.attach(l1BridgeMessengerProxyAddress);
 
         // Save the updated config
-        saveConfig(networkName, config);
+        saveL1NetworkConfig(networkName, config);
 
         // check network and verify if its not geth or anvil
         // Skip verification if the network is local or anvil

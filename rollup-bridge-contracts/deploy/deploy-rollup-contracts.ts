@@ -2,12 +2,12 @@ import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { ethers, upgrades, run } from 'hardhat';
 import {
-    loadConfig,
-    saveConfig,
-    archiveConfig,
+    archiveL1NetworkConfig,
     isValidAddress,
     isValidBytes32,
-    NetworkConfig,
+    L1NetworkConfig,
+    loadL1NetworkConfig,
+    saveL1NetworkConfig,
     ZeroAddress,
 } from './config/config-helper';
 import { BatchInfo, proposerRoleHash } from './config/nil-types';
@@ -28,7 +28,7 @@ const deployNilRollupContracts: DeployFunction = async function (
     // dummy state root place holder, this will be replaced by a real value provided by team
     // all values can be set in via cli arguments or from a json file
     const genesisStateRootConst = ethers.encodeBytes32String('dummyStateRoot');
-    const config: NetworkConfig = loadConfig(networkName);
+    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     console.log(`NetworkConfig for ${networkName} is: ${JSON.stringify(config)}`);
 
@@ -54,7 +54,7 @@ const deployNilRollupContracts: DeployFunction = async function (
     // Check if NilVerifier is already deployed
     if (config.nilRollupConfig.nilVerifier && isValidAddress(config.nilRollupConfig.nilVerifier)) {
         console.log(`NilVerifier already deployed at: ${config.nilRollupConfig.nilVerifier}`);
-        archiveConfig(networkName, config);
+        archiveL1NetworkConfig(networkName, config);
     }
 
     console.log(`deploying nilVerifier`);
@@ -174,7 +174,7 @@ const deployNilRollupContracts: DeployFunction = async function (
         }
 
         // Save the updated config
-        saveConfig(networkName, config);
+        saveL1NetworkConfig(networkName, config);
 
         // check network and verify if its not geth or anvil
         // Skip verification if the network is local or anvil

@@ -5,19 +5,37 @@
         "nilRollupConfig": {
           "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
           "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-          "proxyAdmin": "",
-          "nilRollupImplementation": "0x36b58F5C1969B7b6591D752ea6F5486D069010AB",
-          "nilRollupProxy": "0x8198f5d8F8CfFE8f9C413d98a0A55aEB8ab9FbB7",
-          "nilVerifier": "0x0355B7B8cb128fA5692729Ab3AAa199C1753f726",
-          "proxyAdminAddress": "0x5971B98C0066517Bae7D44021f42e50B77cfe1F9",
+          "proxyAdmin": "0x179961c9e51F1449c85Be5699e623F38b652Fb84",
+          "nilRollupImplementation": "0xfbC22278A96299D91d41C453234d97b4F5Eb9B2d",
+          "nilRollupProxy": "0x46b142DD1E924FAb83eCc3c08e4D46E82f005e0E",
+          "nilVerifier": "0x2B0d36FACD61B71CC05ab8F3D2355ec3631C0dd5",
           "proposerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
           "l2ChainId": 0,
           "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
         },
         "l1Common": {
-          "owner": "",
-          "admin": "",
-          "weth": ""
+          "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+          "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+          "weth": "",
+          "tokens": [
+            {
+              "name": "USD Coin",
+              "symbol": "USDC",
+              "decimals": 6
+            },
+            {
+              "name": "USD Tether",
+              "symbol": "USDT",
+              "decimals": 6,
+              "address": ""
+            },
+            {
+              "name": "DAI",
+              "symbol": "DAI",
+              "decimals": 18,
+              "address": ""
+            }
+          ]
         },
         "l1BridgeRouterConfig": {
           "owner": "",
@@ -58,24 +76,43 @@
           "nilGasPriceOracleMaxFeePerGas": 0,
           "nilGasPriceOracleMaxPriorityFeePerGas": 0
         },
-        "timestamp": "2025-03-26T18:01:23.881Z"
+        "timestamp": "2025-03-27T07:20:48.991Z"
       },
       {
         "nilRollupConfig": {
           "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
           "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-          "proxyAdmin": "",
-          "nilRollupImplementation": "0xf4B146FbA71F41E0592668ffbF264F1D186b2Ca8",
-          "nilRollupProxy": "0x172076E0166D1F9Cc711C77Adf8488051744980C",
-          "nilVerifier": "0x202CCe504e04bEd6fC0521238dDf04Bc9E8E15aB",
+          "proxyAdmin": "0x985ab7E0663EbfF2E0F523f975D7D5A81bB9E42d",
+          "nilRollupImplementation": "0x1c85638e118b37167e9298c2268758e058DdfDA0",
+          "nilRollupProxy": "0x367761085BF3C12e5DA2Df99AC6E1a824612b8fb",
+          "nilVerifier": "0xC9a43158891282A2B1475592D5719c001986Aaec",
           "proposerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
           "l2ChainId": 0,
           "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
         },
         "l1Common": {
-          "owner": "",
-          "admin": "",
-          "weth": ""
+          "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+          "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+          "weth": "",
+          "tokens": [
+            {
+              "name": "USD Coin",
+              "symbol": "USDC",
+              "decimals": 6
+            },
+            {
+              "name": "USD Tether",
+              "symbol": "USDT",
+              "decimals": 6,
+              "address": ""
+            },
+            {
+              "name": "DAI",
+              "symbol": "DAI",
+              "decimals": 18,
+              "address": ""
+            }
+          ]
         },
         "l1BridgeRouterConfig": {
           "owner": "",
@@ -116,16 +153,16 @@
           "nilGasPriceOracleMaxFeePerGas": 0,
           "nilGasPriceOracleMaxPriorityFeePerGas": 0
         },
-        "timestamp": "2025-03-26T18:02:54.384Z"
+        "timestamp": "2025-03-27T07:21:48.160Z"
       },
       {
         "nilRollupConfig": {
           "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
           "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-          "proxyAdmin": "0x33beA8c72E8b678B0B2b66D1768b8ed1B42e79bD",
-          "nilRollupImplementation": "0xBEc49fA140aCaA83533fB00A2BB19bDdd0290f25",
-          "nilRollupProxy": "0xD84379CEae14AA33C123Af12424A37803F885889",
-          "nilVerifier": "0x4EE6eCAD1c2Dae9f525404De8555724e3c35d07B",
+          "proxyAdmin": "0xD781C44726058d2971B58408c492192877FAAC17",
+          "nilRollupImplementation": "0x7A9Ec1d04904907De0ED7b6839CcdD59c3716AC9",
+          "nilRollupProxy": "0x49fd2BE640DB2910c2fAb69bB8531Ab6E76127ff",
+          "nilVerifier": "0x4C2F7092C2aE51D986bEFEe378e50BD4dB99C901",
           "proposerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
           "l2ChainId": 0,
           "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
@@ -133,7 +170,26 @@
         "l1Common": {
           "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
           "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-          "weth": ""
+          "weth": "",
+          "tokens": [
+            {
+              "name": "USD Coin",
+              "symbol": "USDC",
+              "decimals": 6
+            },
+            {
+              "name": "USD Tether",
+              "symbol": "USDT",
+              "decimals": 6,
+              "address": ""
+            },
+            {
+              "name": "DAI",
+              "symbol": "DAI",
+              "decimals": 18,
+              "address": ""
+            }
+          ]
         },
         "l1BridgeRouterConfig": {
           "owner": "",
@@ -174,68 +230,7 @@
           "nilGasPriceOracleMaxFeePerGas": 0,
           "nilGasPriceOracleMaxPriorityFeePerGas": 0
         },
-        "timestamp": "2025-03-27T04:26:00.307Z"
-      }
-    ],
-    "sepolia": [
-      {
-        "nilRollupConfig": {
-          "owner": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-          "admin": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-          "proxyAdmin": "",
-          "nilRollupImplementation": "0xb161E0B6499412534bDAde55247eC07c0a63d6fe",
-          "nilRollupProxy": "0xAD1be19249cD5Ce2eD3806f64c49b7D497E83870",
-          "nilVerifier": "0xfE049eADDCade5828631Ef3FD884D016dD7dD8a3",
-          "proxyAdminAddress": "0x64be32238d24566a51671E8F82020f453B78b0c8",
-          "proposerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-          "l2ChainId": 0,
-          "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
-        },
-        "l1Common": {
-          "owner": "",
-          "admin": "",
-          "weth": ""
-        },
-        "l1BridgeRouterConfig": {
-          "owner": "",
-          "admin": "",
-          "proxyAdmin": "",
-          "l1BridgeRouterProxy": "",
-          "l1BridgeRouterImplementation": ""
-        },
-        "l1BridgeMessengerConfig": {
-          "owner": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-          "admin": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-          "proxyAdmin": "",
-          "l1BridgeMessengerProxy": "0x27dB71d89F798901F5c26427A63b3730a37c3f84",
-          "l1BridgeMessengerImplementation": "0x932a9043ebc0605dC135bb2C158f24201E3AD654",
-          "maxProcessingTimeInEpochSeconds": 1000
-        },
-        "l1ERC20Bridge": {
-          "owner": "",
-          "admin": "",
-          "proxyAdmin": "",
-          "l1ERC20BridgeProxy": "",
-          "l1ERC20BridgeImplementation": ""
-        },
-        "l1ETHBridgeConfig": {
-          "owner": "",
-          "admin": "",
-          "proxyAdmin": "",
-          "l1ETHBridgeProxy": "",
-          "l1ETHBridgeImplementation": ""
-        },
-        "nilGasPriceOracleConfig": {
-          "owner": "",
-          "admin": "",
-          "proxyAdmin": "",
-          "nilGasPriceOracleProxy": "",
-          "nilGasPriceOracleImplementation": "",
-          "nilGasPriceSetterAddress": "",
-          "nilGasPriceOracleMaxFeePerGas": 0,
-          "nilGasPriceOracleMaxPriorityFeePerGas": 0
-        },
-        "timestamp": "2025-03-27T04:26:23.581Z"
+        "timestamp": "2025-03-27T07:24:10.336Z"
       }
     ]
   }

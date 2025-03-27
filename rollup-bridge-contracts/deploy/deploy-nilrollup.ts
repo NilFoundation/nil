@@ -2,12 +2,12 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, network, upgrades, run } from 'hardhat';
 import {
-    archiveConfig,
+    archiveL1NetworkConfig,
     isValidAddress,
     isValidBytes32,
-    loadConfig,
-    NetworkConfig,
-    saveConfig,
+    L1NetworkConfig,
+    loadL1NetworkConfig,
+    saveL1NetworkConfig,
     ZeroAddress,
 } from './config/config-helper';
 import { BatchInfo } from './config/nil-types';
@@ -23,7 +23,7 @@ const deployNilRollup: DeployFunction = async function (
     const { getNamedAccounts } = hre;
     const { deployer } = await getNamedAccounts();
     const networkName = network.name;
-    const config: NetworkConfig = loadConfig(networkName);
+    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
     if (!isValidAddress(config.nilRollupConfig.owner)) {
@@ -46,7 +46,7 @@ const deployNilRollup: DeployFunction = async function (
     // Check if NilRollup is already deployed
     if (config.nilRollupConfig.nilRollupProxy && isValidAddress(config.nilRollupConfig.nilRollupProxy)) {
         console.log(`NilRollup already deployed at: ${config.nilRollupConfig.nilRollupProxy}`);
-        archiveConfig(networkName, config);
+        archiveL1NetworkConfig(networkName, config);
     }
 
     const l2ChainId = config.nilRollupConfig.l2ChainId;
@@ -83,7 +83,7 @@ const deployNilRollup: DeployFunction = async function (
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
             nilRollupProxyAddress,
         );
-        config.nilRollupConfig.proxyAdminAddress = proxyAdminAddress;
+        config.nilRollupConfig.proxyAdmin = proxyAdminAddress;
 
         if (proxyAdminAddress === ZeroAddress) {
             throw new Error('Invalid proxy admin address');
@@ -152,7 +152,7 @@ const deployNilRollup: DeployFunction = async function (
         }
 
         // Save the updated config
-        saveConfig(networkName, config);
+        saveL1NetworkConfig(networkName, config);
 
         // check network and verify if its not geth or anvil
         // Skip verification if the network is local or anvil

@@ -2,12 +2,12 @@ import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { run } from 'hardhat';
 import {
-    archiveConfig,
     isValidAddress,
     isValidBytes32,
-    loadConfig,
-    NetworkConfig,
-    saveConfig,
+    archiveL1NetworkConfig,
+    L1NetworkConfig,
+    loadL1NetworkConfig,
+    saveL1NetworkConfig,
 } from './config/config-helper';
 import { verifyContractWithRetry } from './common/proxy-contract-utils';
 
@@ -23,12 +23,12 @@ const deployNilVerifier: DeployFunction = async function (
 
     const { deployer } = await getNamedAccounts();
 
-    const config: NetworkConfig = loadConfig(networkName);
+    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Check if NilVerifier is already deployed
     if (config.nilRollupConfig.nilVerifier && isValidAddress(config.nilRollupConfig.nilVerifier)) {
         console.log(`NilVerifier already deployed at: ${config.nilRollupConfig.nilVerifier}`);
-        archiveConfig(networkName, config);
+        archiveL1NetworkConfig(networkName, config);
     }
 
     const nilVerifier = await deploy('NilVerifier', {
@@ -41,7 +41,7 @@ const deployNilVerifier: DeployFunction = async function (
     config.nilRollupConfig.nilVerifier = nilVerifier.address;
 
     // Save the updated config
-    saveConfig(networkName, config);
+    saveL1NetworkConfig(networkName, config);
 
     // Skip verification if the network is local or anvil
     if (

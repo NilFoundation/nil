@@ -2,12 +2,10 @@ import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { run } from 'hardhat';
 import {
-    archiveConfig,
     isValidAddress,
     isValidBytes32,
-    loadConfig,
-    NetworkConfig,
-    saveConfig,
+    L1NetworkConfig,
+    loadL1NetworkConfig,
 } from '../config/config-helper';
 import { verifyContractWithRetry } from '../common/proxy-contract-utils';
 
@@ -23,7 +21,7 @@ const deployWETHToken: DeployFunction = async function (
 
     const { deployer } = await getNamedAccounts();
 
-    const config: NetworkConfig = loadConfig(networkName);
+    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     const testWETH = await deploy('WETH', {
         from: deployer,
