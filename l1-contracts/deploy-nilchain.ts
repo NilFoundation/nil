@@ -22,7 +22,7 @@ async function main() {
 
   console.log("Wallet Connected to Provider.");
 
-  const valueInHex = ethers.toQuantity(ethers.parseEther("100"));
+  const valueInHex = ethers.hexlify(ethers.parseEther("100"));
   const walletAddress = process.env.WALLET_ADDRESS as string;
   console.log("Wallet Address:", walletAddress);
 
