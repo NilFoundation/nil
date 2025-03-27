@@ -1,18 +1,17 @@
 import { useStyletron } from "baseui";
-import { explorerRoute } from "../../features/routing/routes/explorerRoute";
 import { Meta } from "../../features/shared";
 import { Layout } from "../../features/shared/components/Layout";
-import { SidebarWithBackLink } from "../../features/shared/components/SidebarWithBackLink";
 import { Transaction } from "../../features/transaction";
 
 const TransactionPage = () => {
   const [css] = useStyletron();
   return (
-    <Layout sidebar={<SidebarWithBackLink to={explorerRoute} />}>
+    <Layout>
       <div
         className={css({
-          display: "grid",
-          gridTemplateColumns: "1fr",
+          display: "flex",
+          flexDirection: "column",
+          maxWidth: "100%",
           width: "100%",
         })}
       >

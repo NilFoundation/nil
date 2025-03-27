@@ -17,16 +17,28 @@ import { useStyletron } from "styletron-react";
 import { useMobile } from "../../shared";
 import { TransactionList } from "../../transaction-list";
 import { $transaction, fetchTransactionFx } from "../models/transaction";
-import { $transactionChilds, fetchTransactionChildsFx } from "../models/transactionChilds.ts";
-import { $transactionLogs, fetchTransactionLogsFx } from "../models/transactionLogs";
+import {
+  $transactionChilds,
+  fetchTransactionChildsFx,
+} from "../models/transactionChilds.ts";
+import {
+  $transactionLogs,
+  fetchTransactionLogsFx,
+} from "../models/transactionLogs";
 import { Logs } from "./Logs";
 import { Overview } from "./Overview";
 
 export const Transaction = () => {
   const [css] = useStyletron();
   const [isMobile] = useMobile();
-  const [transaction, pending] = useUnit([$transaction, fetchTransactionFx.pending]);
-  const [logs, logsPending] = useUnit([$transactionLogs, fetchTransactionLogsFx.pending]);
+  const [transaction, pending] = useUnit([
+    $transaction,
+    fetchTransactionFx.pending,
+  ]);
+  const [logs, logsPending] = useUnit([
+    $transactionLogs,
+    fetchTransactionLogsFx.pending,
+  ]);
   const [transactionChilds, childsLoading] = useUnit([
     $transactionChilds,
     fetchTransactionChildsFx.pending,
@@ -47,38 +59,74 @@ export const Transaction = () => {
   }, [transaction]);
 
   return (
-    <>
-      <HeadingXLarge className={css({ marginBottom: SPACE[32] })}>Transaction</HeadingXLarge>
+    <div
+      className={css({
+        display: "flex",
+        flexDirection: "column",
+        flexWrap: "nowrap",
+        width: "100%",
+        position: "absolute",
+        left: "0",
+        right: "0",
+        paddingLeft: "48px",
+        paddingRight: "48px",
+      })}
+    >
+      <HeadingXLarge className={css({ marginBottom: SPACE[32] })}>
+        Transaction
+      </HeadingXLarge>
       {!transaction ? (
         pending ? (
           <Skeleton animation />
         ) : (
-          <ParagraphSmall color={COLORS.gray100}>Transaction not found</ParagraphSmall>
+          <ParagraphSmall color={COLORS.gray100}>
+            Transaction not found
+          </ParagraphSmall>
         )
       ) : (
-        <Tabs activeKey={activeKey} onChange={onChangeHandler} overrides={tabsOverrides}>
+        <Tabs
+          activeKey={activeKey}
+          onChange={onChangeHandler}
+          overrides={tabsOverrides}
+        >
           <Tab title="Overview" kind={TAB_KIND.secondary}>
             <Overview transaction={transaction} />
           </Tab>
           <Tab
             title="Logs"
-            endEnhancer={<Tag size={TAG_SIZE.m}>{logs?.length ?? 0}</Tag>}
+            endEnhancer={
+              logs?.length > 0 ? (
+                <Tag size={TAG_SIZE.m}>{logs?.length ?? 0}</Tag>
+              ) : (
+                ""
+              )
+            }
             kind={TAB_KIND.secondary}
           >
             {logsPending ? <Skeleton animation /> : <Logs logs={logs} />}
           </Tab>
-          <Tab
-            title={isMobile ? "Outgoing txn" : "Outgoing transactions"}
-            endEnhancer={
-              <Tag size={TAG_SIZE.m}>{!childsLoading ? transactionChilds?.length : "..."}</Tag>
-            }
-            kind={TAB_KIND.secondary}
-          >
-            <TransactionList type="transaction" identifier={transaction.hash} view="incoming" />
-          </Tab>
+          {!childsLoading && transactionChilds?.length > 0 ? (
+            <Tab
+              title={isMobile ? "Outgoing txn" : "Outgoing transactions"}
+              endEnhancer={
+                <Tag size={TAG_SIZE.m}>
+                  {!childsLoading ? transactionChilds?.length : "..."}
+                </Tag>
+              }
+              kind={TAB_KIND.secondary}
+            >
+              <TransactionList
+                type="transaction"
+                identifier={transaction.hash}
+                view="incoming"
+              />
+            </Tab>
+          ) : (
+            <></>
+          )}
         </Tabs>
       )}
-    </>
+    </div>
   );
 };
 
