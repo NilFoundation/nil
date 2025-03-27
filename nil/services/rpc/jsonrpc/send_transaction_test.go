@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"context"
-	"github.com/NilFoundation/nil/nil/services/txnpool"
 	"testing"
 
 	ssz "github.com/NilFoundation/fastssz"
@@ -13,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
+	"github.com/NilFoundation/nil/nil/services/txnpool"
 	"github.com/stretchr/testify/suite"
 )
 

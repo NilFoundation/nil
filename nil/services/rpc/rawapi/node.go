@@ -350,7 +350,10 @@ func (api *NodeApiOverShardApis) GetTxpoolStatus(ctx context.Context, shardId ty
 	return result, nil
 }
 
-func (api *NodeApiOverShardApis) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error) {
+func (api *NodeApiOverShardApis) GetTxpoolContent(
+	ctx context.Context,
+	shardId types.ShardId,
+) ([]*types.TxnWithHash, error) {
 	methodName := methodNameChecked("GetTxpoolContent")
 	shardApi, ok := api.Apis[shardId]
 	if !ok {

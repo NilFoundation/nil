@@ -46,7 +46,6 @@ func startRpcServer(
 	rawApi rawapi.NodeApi,
 	db db.ReadOnlyDB,
 	client client.Client,
-	txnPool map[types.ShardId]txnpool.Pool,
 ) error {
 	logger := logging.NewLogger("RPC")
 
@@ -536,7 +535,7 @@ func CreateNode(
 					return fmt.Errorf("failed to create node client: %w", err)
 				}
 			}
-			if err := startRpcServer(ctx, cfg, rawApi, database, cl, txnPools); err != nil {
+			if err := startRpcServer(ctx, cfg, rawApi, database, cl); err != nil {
 				logger.Error().Err(err).Msg("RPC server goroutine failed")
 				return err
 			}
