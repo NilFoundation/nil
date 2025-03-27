@@ -80,7 +80,6 @@
     "hardhat-deploy": "0.14.0",
     "path-exists": "^5.0.0",
     "solmate": "^6.8.0",
-    "toml": "3.0.0",
     "yargs": "^17.7.2"
   }
 }
