@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
