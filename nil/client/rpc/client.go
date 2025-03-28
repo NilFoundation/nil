@@ -973,31 +973,9 @@ func simpleCallUint64[ReturnType ~uint64](
 }
 
 func (c *Client) GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error) {
-	request := c.newRequest(Txpool_getTxpoolStatus, shardId)
-	res, err := c.performRequest(ctx, request)
-	if err != nil {
-		return 0, err
-	}
-
-	var resValue uint64
-	if err := json.Unmarshal(res, &resValue); err != nil {
-		return 0, err
-	}
-
-	return resValue, err
+	return simpleCallUint64[uint64](ctx, c, Txpool_getTxpoolStatus, shardId)
 }
 
 func (c *Client) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error) {
-	request := c.newRequest(Txpool_getTxpoolContent, shardId)
-	res, err := c.performRequest(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-
-	var resValue []*types.TxnWithHash
-	if err := json.Unmarshal(res, &resValue); err != nil {
-		return nil, err
-	}
-
-	return resValue, err
+	return simpleCall[[]*types.TxnWithHash](ctx, c, Txpool_getTxpoolContent, shardId)
 }

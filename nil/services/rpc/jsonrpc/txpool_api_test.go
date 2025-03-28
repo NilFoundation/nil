@@ -37,9 +37,8 @@ func newTransaction(address types.Address, seqno types.Seqno, priorityFee uint64
 func (suite *SuiteTxnPoolApi) SetupSuite() {
 	suite.SuiteAccountsBase.SetupSuite()
 	var err error
-	ctx := context.Background()
 
-	suite.pool, err = txnpool.New(ctx, txnpool.NewConfig(types.MainShardId), nil)
+	suite.pool, err = txnpool.New(suite.T().Context(), txnpool.NewConfig(types.MainShardId), nil)
 	suite.Require().NoError(err)
 
 	database, err := db.NewBadgerDbInMemory()
@@ -47,11 +46,11 @@ func (suite *SuiteTxnPoolApi) SetupSuite() {
 	defer database.Close()
 
 	localShardApis := map[types.ShardId]rawapi.ShardApi{
-		types.MainShardId: rawapi.NewLocalShardApi(types.MainShardId, database, suite.pool),
+		types.MainShardId: rawapi.NewLocalShardApi(types.MainShardId, database, suite.pool, false),
 	}
 
 	shardApis := make(map[types.ShardId]rawapi.ShardApi)
-	localShardApi := rawapi.NewLocalShardApi(types.MainShardId, database, suite.pool)
+	localShardApi := rawapi.NewLocalShardApi(types.MainShardId, database, suite.pool, false)
 
 	shardApis[types.MainShardId], err = rawapi.NewLocalRawApiAccessor(types.MainShardId, localShardApi)
 
