@@ -17,7 +17,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
-// DirectClient is a client that interacts with the	 end api directly, without using the rpc server.
+// DirectClient is a client that interacts with the end api directly, without using the rpc server.
 type DirectClient struct {
 	ethApi   jsonrpc.EthAPI
 	debugApi jsonrpc.DebugAPI
