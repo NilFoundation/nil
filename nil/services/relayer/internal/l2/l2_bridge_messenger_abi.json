@@ -1,27 +1,6 @@
 [
     {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_owner",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "_admin",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "_counterpartyBridgeMessenger",
-          "type": "address"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "_genesisL1ReceiveMessageHash",
-          "type": "bytes32"
-        }
-      ],
+      "inputs": [],
       "stateMutability": "nonpayable",
       "type": "constructor"
     },
@@ -53,7 +32,7 @@
     },
     {
       "inputs": [],
-      "name": "ErrorBridgeAlreadyAuthorized",
+      "name": "ErrorBridgeAlreadyAuthorised",
       "type": "error"
     },
     {
@@ -64,6 +43,16 @@
     {
       "inputs": [],
       "name": "ErrorCallerIsNotAdmin",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ErrorCallerIsNotProposer",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ErrorCallerNotAuthorised",
       "type": "error"
     },
     {
@@ -79,6 +68,11 @@
     },
     {
       "inputs": [],
+      "name": "ErrorInvalidAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "ErrorInvalidAmount",
       "type": "error"
     },
@@ -89,7 +83,17 @@
     },
     {
       "inputs": [],
+      "name": "ErrorInvalidBridgeMessenger",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "ErrorInvalidCounterpartBridgeMessenger",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ErrorInvalidDefaultAdmin",
       "type": "error"
     },
     {
@@ -114,12 +118,37 @@
     },
     {
       "inputs": [],
+      "name": "ErrorInvalidOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ErrorInvalidRelayer",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ErrorRelayerNotAuthorised",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "ErrorZeroAddress",
       "type": "error"
     },
     {
       "inputs": [],
       "name": "ExpectedPause",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidInitialization",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotInitializing",
       "type": "error"
     },
     {
@@ -145,9 +174,55 @@
       "type": "error"
     },
     {
-      "inputs": [],
-      "name": "ReentrancyGuardReentrantCall",
-      "type": "error"
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "counterpartyBridgeMessenger",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "counterpartyBridgeMessengerAddress",
+          "type": "address"
+        }
+      ],
+      "name": "CounterpartyBridgeMessengerSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "version",
+          "type": "uint64"
+        }
+      ],
+      "name": "Initialized",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "bridgeRouter",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newBridgeRouter",
+          "type": "address"
+        }
+      ],
+      "name": "L2BridgeRouterSet",
+      "type": "event"
     },
     {
       "anonymous": false,
@@ -205,6 +280,25 @@
         }
       ],
       "name": "Paused",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "relayer",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "relayerAddress",
+          "type": "address"
+        }
+      ],
+      "name": "RelayerSet",
       "type": "event"
     },
     {
@@ -329,7 +423,7 @@
           "type": "address"
         }
       ],
-      "name": "authorizeBridge",
+      "name": "authoriseBridge",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -342,7 +436,7 @@
           "type": "address[]"
         }
       ],
-      "name": "authorizeBridges",
+      "name": "authoriseBridges",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -432,7 +526,20 @@
     },
     {
       "inputs": [],
-      "name": "getAuthorizedBridges",
+      "name": "getAllProposers",
+      "outputs": [
+        {
+          "internalType": "address[]",
+          "name": "",
+          "type": "address[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getAuthorisedBridges",
       "outputs": [
         {
           "internalType": "address[]",
@@ -558,6 +665,32 @@
     {
       "inputs": [
         {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "grantProposerAccess",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "grantProposerAdminRole",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "bytes32",
           "name": "role",
           "type": "bytes32"
@@ -587,6 +720,48 @@
         }
       ],
       "name": "hasRole",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "ownerAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "adminAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "relayerAddress",
+          "type": "address"
+        }
+      ],
+      "name": "initialize",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "proposerArg",
+          "type": "address"
+        }
+      ],
+      "name": "isAProposer",
       "outputs": [
         {
           "internalType": "bool",
@@ -656,7 +831,20 @@
     },
     {
       "inputs": [],
-      "name": "l1ReceiveMessageHash",
+      "name": "isFullyInitialised",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l1MessageHash",
       "outputs": [
         {
           "internalType": "bytes32",
@@ -840,7 +1028,33 @@
           "type": "address"
         }
       ],
-      "name": "revokeBridgeAuthorization",
+      "name": "revokeBridgeAuthorisation",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "revokeProposerAccess",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "revokeProposerAdminRole",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -894,6 +1108,19 @@
       "name": "sendMessage",
       "outputs": [],
       "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "counterpartyBridgeMessengerAddress",
+          "type": "address"
+        }
+      ],
+      "name": "setCounterpartyBridgeMessenger",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
