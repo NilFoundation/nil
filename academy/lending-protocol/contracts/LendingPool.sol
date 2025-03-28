@@ -22,12 +22,13 @@ contract LendingPool is NilBase, NilTokenBase {
     error InvalidCaller();
     error InvalidShardId();
     error ExcessTransfer();
-    error InsufficientFunds(string message);
     error InvalidPoolAddress();
     error PoolAlreadyRegistered();
     error InvalidTransferAmount();
     error InsufficientCollateral();
+    error NoLendingPoolsRegistered();
     error FailedToRetrieveCollateral();
+    error InsufficientFunds(string message);
     error CrossShardCallFailed(string message);
 
     /// @dev Mapping to track lending pools on different shards
@@ -65,12 +66,16 @@ contract LendingPool is NilBase, NilTokenBase {
         eth = _eth;
 
         deployer = msg.sender;
+
+        /// @notice Register the current contract as a lending pool
+        /// @dev This ensures that the current contract is recognized as a valid lending pool
+        registerLendingPool(address(this));
     }
 
     /// @notice Register a new lending pool on a different shard
     /// @dev Allows registration of other lending pools for cross-shard borrowing
     /// @param poolAddress The address of the lending pool to register
-    function registerLendingPool(address poolAddress) external onlyDeployer {
+    function registerLendingPool(address poolAddress) public onlyDeployer {
         if (poolAddress == address(0)) revert InvalidPoolAddress();
 
         uint256 shardId = Nil.getShardId(poolAddress);
@@ -80,101 +85,6 @@ contract LendingPool is NilBase, NilTokenBase {
         lendingPoolsByShard[shardId] = poolAddress;
         lendingPools.push(poolAddress);
         lendingPoolCount++;
-    }
-
-    /// @notice Check liquidity across all registered lending pools
-    /// @dev Queries each registered lending pool for available liquidity
-    /// @param token The token to check liquidity for
-    /// @param amount The amount needed
-    /// @param requestId Unique identifier for this borrow request
-    function checkCrossShardLiquidity(
-        TokenId token,
-        uint256 amount,
-        bytes32 requestId,
-        address borrower
-    ) internal {
-        uint256 currentShardId = Nil.getShardId(address(this));
-
-        if (lendingPoolCount > 0) {
-            for (uint256 i = 0; i < lendingPools.length; i++) {
-                address poolAddress = lendingPools[i];
-                uint256 poolShardId = Nil.getShardId(poolAddress);
-
-                // Skip if the pool is on the same shard
-                if (poolShardId == currentShardId) {
-                    continue;
-                }
-
-                // Query the other pool's token balance
-                bytes memory callData = abi.encodeWithSignature(
-                    "getTokenBalance(address)",
-                    token
-                );
-
-                bytes memory context = abi.encodeWithSelector(
-                    this.handleLiquidityCheck.selector,
-                    token,
-                    amount,
-                    poolAddress,
-                    poolShardId,
-                    requestId,
-                    borrower
-                );
-
-                Nil.sendRequest(poolAddress, 0, 6_000_000, context, callData);
-            }
-        }
-    }
-
-    /// @notice Handle the response from liquidity check
-    /// @dev If liquidity is found on another shard, initiate the cross-shard transfer
-    function handleLiquidityCheck(
-        bool success,
-        bytes memory returnData,
-        bytes memory context
-    ) public payable {
-        if (!success) revert CrossShardCallFailed("Liquidity check failed");
-
-        (
-            TokenId token,
-            uint256 amount,
-            address sourcePool,
-            ,
-            bytes32 requestId,
-            address borrower
-        ) = abi.decode(
-                context,
-                (TokenId, uint256, address, uint256, bytes32, address)
-            );
-
-        uint256 availableLiquidity = abi.decode(returnData, (uint256));
-
-        // Only process if this request hasn't been fulfilled yet
-        if (!activeBorrowRequests[requestId] && availableLiquidity >= amount) {
-            // Mark this request as active to prevent other shards from processing it
-            activeBorrowRequests[requestId] = true;
-
-            // Continue with the normal borrow process first
-            TokenId collateralToken = (token == usdt) ? eth : usdt;
-
-            bytes memory callData = abi.encodeWithSignature(
-                "getPrice(address)",
-                token
-            );
-
-            // Pass the source pool information in the context for later use
-            bytes memory priceContext = abi.encodeWithSelector(
-                this.processLoan.selector,
-                borrower,
-                amount,
-                token,
-                collateralToken,
-                requestId,
-                sourcePool
-            );
-
-            Nil.sendRequest(oracle, 0, 9_000_000, priceContext, callData);
-        }
     }
 
     /// @notice Transfer liquidity to another shard
@@ -244,52 +154,48 @@ contract LendingPool is NilBase, NilTokenBase {
         /// @dev Prevents invalid token types from being borrowed.
         if (borrowToken != usdt && borrowToken != eth) revert InvalidToken();
 
-        /// @notice Check local liquidity first
-        /// @dev If local pool has sufficient liquidity, process the borrow locally
+        /// @notice Determine which collateral token will be used (opposite of the borrow token)
+        /// @dev Identifies the collateral token by comparing the borrow token.
+        TokenId collateralToken = (borrowToken == usdt) ? eth : usdt;
 
-        // Create a unique request ID at the start of the borrow process
-        bytes32 requestId = keccak256(
-            abi.encodePacked(block.timestamp, msg.sender, borrowToken, amount)
+        /// @notice Prepare a call to the Oracle to get the price of the borrow token
+        /// @dev The price of the borrow token is fetched from the Oracle to calculate collateral.
+        /// @param callData The encoded data to fetch the price from the Oracle.
+        bytes memory callData = abi.encodeWithSignature(
+            "getPrice(address)",
+            borrowToken
         );
 
-        // Check local liquidity first
-        if (Nil.tokenBalance(address(this), borrowToken) >= amount) {
-            /// @notice Determine which collateral token will be used (opposite of the borrow token)
-            /// @dev Identifies the collateral token by comparing the borrow token.
-            TokenId collateralToken = (borrowToken == usdt) ? eth : usdt;
+        /// @notice Check if there are any lending pools registered
+        /// @dev If there are no registered lending pools, revert with an error message
+        if (lendingPoolCount == 0) revert NoLendingPoolsRegistered();
 
-            /// @notice Prepare a call to the Oracle to get the price of the borrow token
-            /// @dev The price of the borrow token is fetched from the Oracle to calculate collateral.
-            /// @param callData The encoded data to fetch the price from the Oracle.
-            bytes memory callData = abi.encodeWithSignature(
-                "getPrice(address)",
+        /// @notice Iterate through all registered lending pools
+        /// @dev Check if any lending pool has sufficient balance of the borrow token
+        /// @notice we expect that the first lending pool has this contract in the array thereby checking local liquidity first
+        for (uint256 i = 0; i < lendingPools.length; i++) {
+            uint256 shardBalnce = Nil.tokenBalance(
+                lendingPools[i],
                 borrowToken
             );
 
-            /// @notice Encoding the context to process the loan after the price is fetched
-            /// @dev The context contains the borrower's details, loan amount, borrow token, and collateral token.
-            bytes memory context = abi.encodeWithSelector(
-                this.processLoan.selector,
-                msg.sender,
-                amount,
-                borrowToken,
-                collateralToken,
-                requestId,
-                address(this)
-            );
+            if (shardBalnce >= amount) {
+                bytes memory context = abi.encodeWithSelector(
+                    this.processLoan.selector,
+                    msg.sender,
+                    amount,
+                    borrowToken,
+                    collateralToken,
+                    lendingPools[i]
+                );
 
-            /// @notice Send a request to the Oracle to get the price of the borrow token.
-            /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
-            Nil.sendRequest(oracle, 0, 9_000_000, context, callData);
-        } else {
-            /// @notice If local liquidity is insufficient, check cross-shard liquidity
-            /// @dev Queries other lending pools across shards for available liquidity
-            checkCrossShardLiquidity(
-                borrowToken,
-                amount,
-                requestId,
-                msg.sender
-            );
+                /// @notice Send a request to the Oracle to get the price of the borrow token.
+                /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
+                Nil.sendRequest(oracle, 0, 9_000_000, context, callData);
+
+                /// @notice Break out of the loop after finding a sufficient balance
+                break;
+            }
         }
     }
 
@@ -314,12 +220,8 @@ contract LendingPool is NilBase, NilTokenBase {
             uint256 amount,
             TokenId borrowToken,
             TokenId collateralToken,
-            bytes32 requestId,
             address sourcePool
-        ) = abi.decode(
-                context,
-                (address, uint256, TokenId, TokenId, bytes32, address)
-            );
+        ) = abi.decode(context, (address, uint256, TokenId, TokenId, address));
 
         /// @notice Decode the price data returned from the Oracle
         /// @dev The returned price data is used to calculate the loan value in USD.
@@ -347,7 +249,6 @@ contract LendingPool is NilBase, NilTokenBase {
             amount,
             borrowToken,
             requiredCollateral,
-            requestId,
             sourcePool
         );
 
@@ -383,12 +284,8 @@ contract LendingPool is NilBase, NilTokenBase {
             uint256 amount,
             TokenId borrowToken,
             uint256 requiredCollateral,
-            ,
             address sourcePool
-        ) = abi.decode(
-                context,
-                (address, uint256, TokenId, uint256, bytes32, address)
-            );
+        ) = abi.decode(context, (address, uint256, TokenId, uint256, address));
 
         /// @notice Decode the user's collateral balance from GlobalLedger
         /// @dev Retrieves the user's collateral balance from the GlobalLedger to compare it with the required collateral.
