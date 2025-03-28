@@ -1,11 +1,14 @@
 import { processImports } from "./processImports";
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-export const createCompileInput = async (contractBody: string, options: any = {}): Promise<object> => {
+export const createCompileInput = async (
+  contractBody: string,
+  options: any = {},
+): Promise<object> => {
   const sources: Record<string, { content: string }> = {
     Compiled_Contracts: {
       content: contractBody,
-    }
+    },
   };
 
   await processImports(contractBody, "", sources);

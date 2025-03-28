@@ -292,9 +292,7 @@ task(
   });
 
   await waitTillCompleted(client, depositUSDTResponse);
-  console.log(
-    `Account 1 deposited 12 USDT at tx hash ${depositUSDTResponse}`,
-  );
+  console.log(`Account 1 deposited 12 USDT at tx hash ${depositUSDTResponse}`);
 
   // Perform a deposit of ETH by account2 into the LendingPool
   const depositETH = {
