@@ -274,12 +274,12 @@ export const setParams = createEvent<{
   functionName: string;
   paramName: string;
   value:
-  | string
-  | boolean
-  | {
-    type: string;
-    value: string | boolean;
-  }[];
+    | string
+    | boolean
+    | {
+        type: string;
+        value: string | boolean;
+      }[];
   type: string;
 }>();
 
@@ -358,11 +358,11 @@ export const sendMethodFx = createEffect<
   const receipts = await smartAccount.client.getTransactionReceiptByHash(tx.hash);
   const logs = receipts
     ? [
-      ...(receipts.outputReceipts?.flatMap((receipt) => {
-        return receipt ? receipt.logs : [];
-      }) ?? []),
-      ...receipts.logs,
-    ]
+        ...(receipts.outputReceipts?.flatMap((receipt) => {
+          return receipt ? receipt.logs : [];
+        }) ?? []),
+        ...receipts.logs,
+      ]
     : [];
   const txLogs = logs
     .map((log): string | null => {
