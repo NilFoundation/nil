@@ -10,8 +10,8 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/indexer/badger"
 	"github.com/NilFoundation/nil/nil/services/indexer/clickhouse"
-	driver2 "github.com/NilFoundation/nil/nil/services/indexer/driver"
-	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
+	indexerdriver "github.com/NilFoundation/nil/nil/services/indexer/driver"
+	indexertypes "github.com/NilFoundation/nil/nil/services/indexer/types"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
@@ -49,12 +49,12 @@ func (c *Config) ResetToDefault() {
 }
 
 type Service struct {
-	Driver driver2.IndexerDriver
+	Driver indexerdriver.IndexerDriver
 	client client.Client
 }
 
 type IndexerJsonRpc interface {
-	GetAddressActions(address types.Address, since db.Timestamp) ([]types2.AddressAction, error)
+	GetAddressActions(address types.Address, since db.Timestamp) ([]indexertypes.AddressAction, error)
 }
 
 func (c *Config) InitFromFile(cfgFile string) bool {
@@ -95,7 +95,7 @@ func NewService(ctx context.Context, cfg *Config, client client.Client) (*Servic
 	return s, nil
 }
 
-func (s *Service) GetAddressActions(address types.Address, since db.Timestamp) ([]types2.AddressAction, error) {
+func (s *Service) GetAddressActions(address types.Address, since db.Timestamp) ([]indexertypes.AddressAction, error) {
 	return s.Driver.FetchAddressActions(address, since)
 }
 

@@ -1,2 +1,0 @@
-use-badger: true
-db-path: /tmp/indexer.db

@@ -10,7 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/indexer/driver"
-	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
+	indexertypes "github.com/NilFoundation/nil/nil/services/indexer/types"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -20,11 +20,12 @@ type SuiteServiceTest struct {
 	service *Service
 	client  client.ClientMock
 	ctx     context.Context
+	cancel  context.CancelFunc
 	dbPath  string
 }
 
 func (s *SuiteServiceTest) SetupTest() {
-	s.ctx = context.Background()
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.client = client.ClientMock{}
 
 	// Create a temporary directory for the test database
@@ -50,8 +51,8 @@ func (s *SuiteServiceTest) TearDownTest() {
 
 func (s *SuiteServiceTest) TestGetAddressActions() {
 	// Create test addresses
-	addr1 := types.Address{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
-	addr2 := types.Address{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}
+	addr1 := types.HexToAddress("0x1234567890123456789012345678901234567890")
+	addr2 := types.HexToAddress("0x1234567890123456789012345678901234567891")
 
 	// Create test transactions
 	tx1 := &types.Transaction{
@@ -121,13 +122,13 @@ func (s *SuiteServiceTest) TestGetAddressActions() {
 		name     string
 		address  types.Address
 		since    db.Timestamp
-		expected []types2.AddressAction
+		expected []indexertypes.AddressAction
 	}{
 		{
 			name:    "Get all actions for addr1",
 			address: addr1,
 			since:   0,
-			expected: []types2.AddressAction{
+			expected: []indexertypes.AddressAction{
 				{
 					Hash:      tx1Hash,
 					From:      addr1,
@@ -135,8 +136,8 @@ func (s *SuiteServiceTest) TestGetAddressActions() {
 					Amount:    types.NewValueFromUint64(100),
 					Timestamp: 1000,
 					BlockId:   1,
-					Type:      types2.SendEth,
-					Status:    types2.Success,
+					Type:      indexertypes.SendEth,
+					Status:    indexertypes.Success,
 				},
 				{
 					Hash:      tx2Hash,
@@ -145,8 +146,8 @@ func (s *SuiteServiceTest) TestGetAddressActions() {
 					Amount:    types.NewValueFromUint64(200),
 					Timestamp: 2000,
 					BlockId:   2,
-					Type:      types2.ReceiveEth,
-					Status:    types2.Success,
+					Type:      indexertypes.ReceiveEth,
+					Status:    indexertypes.Success,
 				},
 			},
 		},
@@ -154,7 +155,7 @@ func (s *SuiteServiceTest) TestGetAddressActions() {
 			name:    "Get actions for addr1 since timestamp 1500",
 			address: addr1,
 			since:   1500,
-			expected: []types2.AddressAction{
+			expected: []indexertypes.AddressAction{
 				{
 					Hash:      tx2Hash,
 					From:      addr2,
@@ -162,16 +163,16 @@ func (s *SuiteServiceTest) TestGetAddressActions() {
 					Amount:    types.NewValueFromUint64(200),
 					Timestamp: 2000,
 					BlockId:   2,
-					Type:      types2.ReceiveEth,
-					Status:    types2.Success,
+					Type:      indexertypes.ReceiveEth,
+					Status:    indexertypes.Success,
 				},
 			},
 		},
 		{
 			name:     "Get actions for non-existent address",
-			address:  types.Address{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22},
+			address:  types.HexToAddress("0x1234567890123456789012345678901234567893"),
 			since:    0,
-			expected: []types2.AddressAction{},
+			expected: []indexertypes.AddressAction{},
 		},
 	}
 

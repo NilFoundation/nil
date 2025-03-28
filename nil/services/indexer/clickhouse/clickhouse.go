@@ -14,8 +14,8 @@ import (
 	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	driver2 "github.com/NilFoundation/nil/nil/services/indexer/driver"
-	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
+	dindexerdriver "github.com/NilFoundation/nil/nil/services/indexer/driver"
+	indexertypes "github.com/NilFoundation/nil/nil/services/indexer/types"
 )
 
 type ClickhouseDriver struct {
@@ -65,7 +65,7 @@ func (d *ClickhouseDriver) FetchLatestProcessedBlockId(ctx context.Context, id t
 	return &blockNum, nil
 }
 
-func (d *ClickhouseDriver) FetchAddressActions(address types.Address, timestamp db.Timestamp) ([]types2.AddressAction, error) {
+func (d *ClickhouseDriver) FetchAddressActions(address types.Address, timestamp db.Timestamp) ([]indexertypes.AddressAction, error) {
 	rows, err := d.conn.Query(context.Background(), `
 		SELECT 
 			t.hash,
@@ -85,9 +85,9 @@ func (d *ClickhouseDriver) FetchAddressActions(address types.Address, timestamp 
 	}
 	defer rows.Close()
 
-	var actions []types2.AddressAction
+	var actions []indexertypes.AddressAction
 	for rows.Next() {
-		var action types2.AddressAction
+		var action indexertypes.AddressAction
 		var success bool
 		var txnBinary []byte
 		if err := rows.Scan(
@@ -105,20 +105,20 @@ func (d *ClickhouseDriver) FetchAddressActions(address types.Address, timestamp 
 
 		// Set the status based on success
 		if success {
-			action.Status = types2.Success
+			action.Status = indexertypes.Success
 		} else {
-			action.Status = types2.Failed
+			action.Status = indexertypes.Failed
 		}
 
 		// Set the action type based on the address relationship
 		if action.From == address {
 			if action.Amount.Uint64() == 0 {
-				action.Type = types2.SmartContractCall
+				action.Type = indexertypes.SmartContractCall
 			} else {
-				action.Type = types2.SendEth
+				action.Type = indexertypes.SendEth
 			}
 		} else {
-			action.Type = types2.ReceiveEth
+			action.Type = indexertypes.ReceiveEth
 		}
 
 		actions = append(actions, action)
@@ -131,13 +131,13 @@ func (d *ClickhouseDriver) FetchAddressActions(address types.Address, timestamp 
 	return actions, nil
 }
 
-func (d *ClickhouseDriver) IndexBlocks(ctx context.Context, ids []*driver2.BlockWithShardId) error {
+func (d *ClickhouseDriver) IndexBlocks(ctx context.Context, ids []*dindexerdriver.BlockWithShardId) error {
 	return d.ExportBlocks(ctx, ids)
 }
 
 // I saw this trick. dunno should I use it here too
 var (
-	_ driver2.IndexerDriver = &ClickhouseDriver{}
+	_ dindexerdriver.IndexerDriver = &ClickhouseDriver{}
 )
 
 // extend types.Block with binary field
@@ -270,7 +270,7 @@ func (d *ClickhouseDriver) Reconnect() error {
 	return err
 }
 
-func (d *ClickhouseDriver) SetupScheme(ctx context.Context, params driver2.SetupParams) error {
+func (d *ClickhouseDriver) SetupScheme(ctx context.Context, params dindexerdriver.SetupParams) error {
 	version, err := readVersion(ctx, d.conn)
 	if err != nil {
 		return fmt.Errorf("failed to read version: %w", err)
@@ -332,7 +332,7 @@ func (d *ClickhouseDriver) FetchEarliestAbsentBlockId(ctx context.Context, shard
 }
 
 type blockWithSSZ struct {
-	decoded    *driver2.BlockWithShardId
+	decoded    *dindexerdriver.BlockWithShardId
 	sszEncoded *types.RawBlockWithExtractedData
 }
 
@@ -341,7 +341,7 @@ type receiptWithSSZ struct {
 	sszEncoded sszx.SSZEncodedData
 }
 
-func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*driver2.BlockWithShardId) error {
+func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*dindexerdriver.BlockWithShardId) error {
 	blocks := make([]blockWithSSZ, len(blocksToExport))
 	for blockIndex, block := range blocksToExport {
 		sszEncodedBlock, err := block.EncodeSSZ()

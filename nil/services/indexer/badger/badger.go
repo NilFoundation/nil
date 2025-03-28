@@ -13,7 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/indexer/driver"
-	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
+	indexertypes "github.com/NilFoundation/nil/nil/services/indexer/types"
 	"github.com/dgraph-io/badger/v4"
 )
 
@@ -123,7 +123,7 @@ func (b *BadgerDriver) indexBlockTransactions(
 			return fmt.Errorf("receipt not found for transaction %s", txn.Hash())
 		}
 
-		baseAction := types2.AddressAction{
+		baseAction := indexertypes.AddressAction{
 			Hash:      txn.Hash(),
 			From:      txn.From,
 			To:        txn.To,
@@ -137,13 +137,13 @@ func (b *BadgerDriver) indexBlockTransactions(
 		logger.Debug().Msgf("indexing block transaction %s, from %s to %s", txn.Hash(), txn.From, txn.To)
 
 		fromAction := baseAction
-		fromAction.Type = types2.SendEth
+		fromAction.Type = indexertypes.SendEth
 		if err := storeAddressAction(tx, txn.From, &fromAction); err != nil {
 			return fmt.Errorf("failed to store sender action: %w", err)
 		}
 
 		toAction := baseAction
-		toAction.Type = types2.ReceiveEth
+		toAction.Type = indexertypes.ReceiveEth
 		if err := storeAddressAction(tx, txn.To, &toAction); err != nil {
 			return fmt.Errorf("failed to store receiver action: %w", err)
 		}
@@ -152,14 +152,14 @@ func (b *BadgerDriver) indexBlockTransactions(
 	return nil
 }
 
-func getTransactionStatus(receipt *types.Receipt) types2.AddressActionStatus {
+func getTransactionStatus(receipt *types.Receipt) indexertypes.AddressActionStatus {
 	if receipt.Success {
-		return types2.Success
+		return indexertypes.Success
 	}
-	return types2.Failed
+	return indexertypes.Failed
 }
 
-func storeAddressAction(tx *badger.Txn, address types.Address, action *types2.AddressAction) error {
+func storeAddressAction(tx *badger.Txn, address types.Address, action *indexertypes.AddressAction) error {
 	key := makeAddressActionKey(address, uint64(action.Timestamp), action.Hash)
 	value, err := json.Marshal(action)
 	if err != nil {
@@ -192,8 +192,8 @@ func makeAddressActionTimestampKey(address types.Address, timestamp uint64) []by
 	return key
 }
 
-func (b *BadgerDriver) FetchAddressActions(address types.Address, since db.Timestamp) ([]types2.AddressAction, error) {
-	actions := make([]types2.AddressAction, 0)
+func (b *BadgerDriver) FetchAddressActions(address types.Address, since db.Timestamp) ([]indexertypes.AddressAction, error) {
+	actions := make([]indexertypes.AddressAction, 0)
 	const limit = 100
 
 	err := b.db.View(func(txn *badger.Txn) error {
@@ -209,7 +209,7 @@ func (b *BadgerDriver) FetchAddressActions(address types.Address, since db.Times
 		for it.Valid() && len(actions) < limit {
 			item := it.Item()
 			err := item.Value(func(val []byte) error {
-				var action types2.AddressAction
+				var action indexertypes.AddressAction
 				if err := json.Unmarshal(val, &action); err != nil {
 					return fmt.Errorf("failed to deserialize address action: %w", err)
 				}

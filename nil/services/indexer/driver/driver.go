@@ -6,7 +6,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	types2 "github.com/NilFoundation/nil/nil/services/indexer/types"
+	indexertypes "github.com/NilFoundation/nil/nil/services/indexer/types"
 )
 
 type IndexerDriver interface {
@@ -14,7 +14,7 @@ type IndexerDriver interface {
 	FetchLatestProcessedBlockId(context.Context, types.ShardId) (*types.BlockNumber, error)
 	FetchEarliestAbsentBlockId(context.Context, types.ShardId) (types.BlockNumber, error)
 	FetchNextPresentBlockId(context.Context, types.ShardId, types.BlockNumber) (types.BlockNumber, error)
-	FetchAddressActions(types.Address, db.Timestamp) ([]types2.AddressAction, error)
+	FetchAddressActions(types.Address, db.Timestamp) ([]indexertypes.AddressAction, error)
 	SetupScheme(ctx context.Context, params SetupParams) error
 	IndexBlocks(context.Context, []*BlockWithShardId) error
 	HaveBlock(context.Context, types.ShardId, types.BlockNumber) (bool, error)

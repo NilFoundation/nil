@@ -30,22 +30,22 @@ const (
 func (k AddressActionKind) String() string {
 	switch k {
 	case SendEth:
-		return "SendEth"
+		return "sendeth"
 	case ReceiveEth:
-		return "ReceiveEth"
+		return "receiveeth"
 	case SmartContractCall:
-		return "SmartContractCall"
+		return "smartcontractcall"
 	}
 	panic("unknown AddressActionKind")
 }
 
 func (k *AddressActionKind) Set(input string) error {
 	switch input {
-	case "SendEth":
+	case "sendeth":
 		*k = SendEth
-	case "ReceiveEth":
+	case "receiveeth":
 		*k = ReceiveEth
-	case "SmartContractCall":
+	case "smartcontractcall":
 		*k = SmartContractCall
 	default:
 		return fmt.Errorf("unknown AddressActionKind: %s", input)

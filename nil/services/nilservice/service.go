@@ -43,7 +43,7 @@ import (
 const syncTimeoutFactor = 5
 
 func startRpcServer(
-	parentCtx context.Context,
+	ctx context.Context,
 	cfg *Config,
 	rawApi rawapi.NodeApi,
 	db db.ReadOnlyDB,
@@ -65,16 +65,16 @@ func startRpcServer(
 		KeepHeaders:     []string{"Client-Version", "Client-Type", "X-UID"},
 	}
 
-	ctx, cancel := context.WithCancel(parentCtx)
+	indexerCtx, cancel := context.WithCancel(ctx)
 	pollBlocksForLogs := cfg.RunMode == NormalRunMode
 
 	var ethApiService any
 	if cfg.RunMode == NormalRunMode || cfg.RunMode == RpcRunMode {
-		ethImpl := jsonrpc.NewEthAPI(ctx, rawApi, db, pollBlocksForLogs, cfg.LogClientRpcEvents)
+		ethImpl := jsonrpc.NewEthAPI(indexerCtx, rawApi, db, pollBlocksForLogs, cfg.LogClientRpcEvents)
 		defer ethImpl.Shutdown()
 		ethApiService = ethImpl
 	} else {
-		ethImpl := jsonrpc.NewEthAPIRo(ctx, rawApi, db, pollBlocksForLogs, cfg.LogClientRpcEvents)
+		ethImpl := jsonrpc.NewEthAPIRo(indexerCtx, rawApi, db, pollBlocksForLogs, cfg.LogClientRpcEvents)
 		defer ethImpl.Shutdown()
 		ethApiService = ethImpl
 	}
@@ -115,7 +115,7 @@ func startRpcServer(
 	}
 
 	if cfg.Cometa != nil {
-		cmt, err := cometa.NewService(ctx, cfg.Cometa, client)
+		cmt, err := cometa.NewService(indexerCtx, cfg.Cometa, client)
 		if err != nil {
 			return fmt.Errorf("failed to create cometa service: %w", err)
 		}
@@ -123,7 +123,7 @@ func startRpcServer(
 	}
 
 	if cfg.Indexer != nil {
-		idx, err := indexer.NewService(ctx, cfg.Indexer, client)
+		idx, err := indexer.NewService(indexerCtx, cfg.Indexer, client)
 		if err != nil {
 			return fmt.Errorf("failed to create indexer service: %w", err)
 		}
@@ -131,7 +131,7 @@ func startRpcServer(
 
 		check.PanicIfErr(err)
 		go func() {
-			err := indexer.StartIndexer(ctx, &indexer.Cfg{
+			err := indexer.StartIndexer(indexerCtx, &indexer.Cfg{
 				Client:        client,
 				IndexerDriver: idx.Driver,
 				BlocksChan:    make(chan *driver.BlockWithShardId, 1000),
@@ -160,7 +160,7 @@ func startRpcServer(
 		})
 	}
 
-	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger, nil)
+	return rpc.StartRpcServer(indexerCtx, httpConfig, apiList, logger, nil)
 }
 
 func startAdminServer(ctx context.Context, cfg *Config) error {
