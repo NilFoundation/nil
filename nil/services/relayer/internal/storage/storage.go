@@ -16,6 +16,7 @@ type BaseStorage struct {
 	RetryRunner common.RetryRunner
 	Clock       clockwork.Clock
 	Logger      logging.Logger
+	Metrics     TableMetrics
 }
 
 func NewBaseStorage(
@@ -23,6 +24,7 @@ func NewBaseStorage(
 	database db.DB,
 	clock clockwork.Clock,
 	logger logging.Logger,
+	metrics TableMetrics,
 ) *BaseStorage {
 	return &BaseStorage{
 		Database: database,
@@ -36,14 +38,18 @@ func NewBaseStorage(
 			},
 			logger,
 		),
-		Clock:  clock,
-		Logger: logger,
+		Clock:   clock,
+		Logger:  logger,
+		Metrics: metrics,
 	}
 }
 
-func (*BaseStorage) Commit(tx db.RwTx) error {
+func (*BaseStorage) Commit(tx db.RwTx, onCommitted func()) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	if onCommitted != nil {
+		onCommitted()
 	}
 	return nil
 }

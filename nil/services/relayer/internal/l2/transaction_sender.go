@@ -44,6 +44,7 @@ type TransactionSender struct {
 	logger           logging.Logger
 	storage          *EventStorage
 	eventFinProvider eventFinalizedProvider
+	metrics          TransactionSenderMetrics
 	contractBinding  L2Contract
 }
 
@@ -53,6 +54,7 @@ func NewTransactionSender(
 	logger logging.Logger,
 	clock clockwork.Clock,
 	eventFinProvider eventFinalizedProvider,
+	metrics TransactionSenderMetrics,
 	contractBinding L2Contract,
 ) (*TransactionSender, error) {
 	if err := config.Validate(); err != nil {
@@ -64,6 +66,7 @@ func NewTransactionSender(
 		clock:            clock,
 		storage:          storage,
 		eventFinProvider: eventFinProvider,
+		metrics:          metrics,
 		contractBinding:  contractBinding,
 	}
 	ts.logger = logger.With().Str(logging.FieldComponent, ts.Name()).Logger()
@@ -91,6 +94,7 @@ func (ts *TransactionSender) Run(ctx context.Context, started chan<- struct{}) e
 		}
 		if err := ts.relayEvents(ctx); err != nil {
 			ts.logger.Error().Err(err).Msg("error occurred during relaying events to L2")
+			ts.metrics.AddRelayError(ctx)
 		}
 	}
 }
@@ -153,6 +157,8 @@ func (ts *TransactionSender) relayEvents(ctx context.Context) error {
 		}
 		ts.logger.Debug().Stringer("event_hash", evt.Hash).Msg("event relayed to L2")
 		droppingEvents = append(droppingEvents, evt.Hash)
+
+		ts.metrics.AddRelayedEvents(ctx, 1)
 	}
 
 	return nil

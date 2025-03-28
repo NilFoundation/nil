@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l2"
+	"github.com/NilFoundation/nil/nil/services/relayer/internal/storage"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -50,13 +51,15 @@ type FinalityEnsurerTestSuite struct {
 	suite.Suite
 
 	// high level dependencies
-	database  db.DB
-	l1Storage *EventStorage
-	l2Storage *l2.EventStorage
-	logger    logging.Logger
+	database       db.DB
+	l1Storage      *EventStorage
+	l2Storage      *l2.EventStorage
+	storageMetrics storage.TableMetrics
+	logger         logging.Logger
 
 	// testing entity
-	ensurer *FinalityEnsurer
+	ensurer        *FinalityEnsurer
+	ensurerMetrics FinalityEnsurerMetrics
 
 	// mocks
 	ethClientMock     *EthClientMock
@@ -86,6 +89,9 @@ func (s *FinalityEnsurerTestSuite) SetupTest() {
 	s.database, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err, "failed to initialize database")
 
+	s.storageMetrics, err = storage.NewTableMetrics()
+	s.Require().NoError(err)
+
 	s.clockMock = clockwork.NewFakeClock()
 
 	s.ethClientMock = &EthClientMock{}
@@ -104,15 +110,18 @@ func (s *FinalityEnsurerTestSuite) SetupTest() {
 		return nil, nil
 	}
 
-	s.l1Storage, err = NewEventStorage(s.ctx, s.database, s.clockMock, nil, s.logger)
+	s.l1Storage, err = NewEventStorage(s.ctx, s.database, s.clockMock, s.storageMetrics, s.logger)
 	s.Require().NoError(err, "failed to initialize L1 storage")
 
-	s.l2Storage = l2.NewEventStorage(s.ctx, s.database, s.clockMock, nil, s.logger)
+	s.l2Storage = l2.NewEventStorage(s.ctx, s.database, s.clockMock, s.storageMetrics, s.logger)
 
 	cfg := DefaultFinalityEnsurerConfig()
 	cfg.EventEmitterCapacity = 100
 
 	s.eventListenerStub = newEventListenerStub()
+
+	s.ensurerMetrics, err = NewFinalityEnsurerMetrics()
+	s.Require().NoError(err)
 
 	s.ensurer, err = NewFinalityEnsurer(
 		cfg,
@@ -121,6 +130,7 @@ func (s *FinalityEnsurerTestSuite) SetupTest() {
 		s.logger,
 		s.l1Storage,
 		s.l2Storage,
+		s.ensurerMetrics,
 		s.eventListenerStub,
 	)
 	s.Require().NoError(err)
