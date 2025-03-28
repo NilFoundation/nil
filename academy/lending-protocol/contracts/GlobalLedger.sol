@@ -2,120 +2,74 @@
 pragma solidity ^0.8.28;
 
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @title Lending System - Unified contract for lending pools and global ledger management
-contract LendingSystem is Ownable {
-    using Nil for address;
-
-    mapping(address => bool) public registeredPools;
-    address public factory;
-    mapping(address => uint256) public userDeposits;
-    mapping(address => uint256) public userLoans;
-
-    event PoolRegistered(address indexed pool);
-    event DepositRecorded(address indexed user, uint256 amount);
-    event LoanRecorded(address indexed user, uint256 amount);
-    event LendingPoolDeployed(address pool, address owner);
-
-    modifier onlyFactory() {
-        require(msg.sender == factory, "Not authorized");
-        _;
+/// @title GlobalLedger
+/// @dev Tracks deposits, loans, and repayments across LendingPool contracts
+contract GlobalLedger {
+    struct Deposit {
+        uint256 amount;
+        bool exists;
     }
 
-    constructor(address _owner) Ownable(_owner) {}
-
-    function setFactory(address _factory) external onlyOwner {
-        require(factory == address(0), "Factory already set");
-        factory = _factory;
+    struct Loan {
+        uint256 amount;
+        bool exists;
     }
 
-    function registerLendingPool(address pool) external onlyFactory {
-        registeredPools[pool] = true;
-        emit PoolRegistered(pool);
+    mapping(address => mapping(TokenId => Deposit)) public deposits;
+    mapping(address => mapping(TokenId => Loan)) public loans;
+
+    event DepositRecorded(address indexed user, TokenId token, uint256 amount);
+    event LoanRecorded(address indexed user, TokenId token, uint256 amount);
+    event LoanRepaid(address indexed user, TokenId token, uint256 amount);
+
+    /// @notice Record a deposit from LendingPool
+    function recordDeposit(address user, TokenId token, uint256 amount) external payable {
+        require(amount > 0, "Invalid deposit amount");
+
+        if (!deposits[user][token].exists) {
+            deposits[user][token] = Deposit(amount, true);
+        } else {
+            deposits[user][token].amount += amount;
+        }
+
+        emit DepositRecorded(user, token, amount);
     }
 
-    function recordDeposit(address user, uint256 amount) external {
-        require(registeredPools[msg.sender], "Unauthorized pool");
-        userDeposits[user] += amount;
-        emit DepositRecorded(user, amount);
+    /// @notice Get user's deposit for a specific token
+    function getDeposit(address user, TokenId token) external view returns (uint256) {
+        return deposits[user][token].amount;
     }
 
-    function recordLoan(address user, uint256 amount) external {
-        require(registeredPools[msg.sender], "Unauthorized pool");
-        userLoans[user] += amount;
-        emit LoanRecorded(user, amount);
+    /// @notice Record a loan taken from a LendingPool
+    function recordLoan(address user, TokenId token, uint256 amount) external payable {
+        require(amount > 0, "Invalid loan amount");
+
+        if (!loans[user][token].exists) {
+            loans[user][token] = Loan(amount, true);
+        } else {
+            loans[user][token].amount += amount;
+        }
+
+        emit LoanRecorded(user, token, amount);
     }
 
-    function getDeposit(address user) external view returns (uint256) {
-        return userDeposits[user];
+    /// @notice Get user's outstanding loan for a specific token
+    function getLoan(address user, TokenId token) external view returns (uint256) {
+        return loans[user][token].amount;
     }
 
-    function deployLendingPool() external {
-        // Deploy the LendingPool contract
-        LendingPool newPool = new LendingPool(address(this), msg.sender);
-        address poolAddress = address(newPool);
+    /// @notice Record loan repayment and reduce outstanding balance
+    function repayLoan(address user, TokenId token, uint256 amount) external payable {
+        require(amount > 0, "Invalid repayment amount");
+        require(loans[user][token].exists, "No active loan");
 
-        // Async call to register the pool
-        bytes memory registerCallData = abi.encodeWithSignature(
-            "registerLendingPool(address)",
-            poolAddress
-        );
-        Nil.asyncCall(address(this), address(this), 0, registerCallData);
+        if (loans[user][token].amount <= amount) {
+            delete loans[user][token];
+        } else {
+            loans[user][token].amount -= amount;
+        }
 
-        emit LendingPoolDeployed(poolAddress, msg.sender);
-    }
-}
-
-/// @title LendingPool - Individual lending pools for decentralized lending
-contract LendingPool {
-    using Nil for address;
-
-    address public globalLedger;
-    address public owner;
-
-    constructor(address _globalLedger, address _owner) {
-        globalLedger = _globalLedger;
-        owner = _owner;
-    }
-
-    function deposit() public payable {
-        Nil.Token[] memory tokens = Nil.txnTokens();
-        require(tokens.length > 0 && tokens[0].amount > 0, "Invalid deposit");
-
-        bytes memory callData = abi.encodeWithSignature(
-            "recordDeposit(address,uint256)",
-            msg.sender,
-            tokens[0].amount
-        );
-        Nil.asyncCall(globalLedger, address(this), 0, callData);
-    }
-
-    function borrow(uint256 amount) public payable {
-        bytes memory callData = abi.encodeWithSignature("getDeposit(address)", msg.sender);
-        bytes memory context = abi.encodeWithSelector(
-            this.processLoan.selector,
-            msg.sender,
-            amount
-        );
-        Nil.sendRequest(globalLedger, 0, 6_000_000, context, callData);
-    }
-
-    function processLoan(
-        bool success,
-        bytes memory returnData,
-        bytes memory context
-    ) public payable {
-        require(success, "Failed to fetch deposit balance");
-        (address borrower, uint256 amount) = abi.decode(context, (address, uint256));
-        uint256 userDeposit = abi.decode(returnData, (uint256));
-        require(userDeposit >= amount, "Insufficient collateral");
-
-        bytes memory recordLoanCallData = abi.encodeWithSignature(
-            "recordLoan(address,uint256)",
-            borrower,
-            amount
-        );
-        Nil.asyncCall(globalLedger, address(this), 0, recordLoanCallData);
+        emit LoanRepaid(user, token, amount);
     }
 }
