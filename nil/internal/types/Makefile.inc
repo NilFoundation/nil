@@ -28,5 +28,5 @@ nil/internal/types/version_info_encoding.go: nil/internal/types/version_info.go 
 nil/internal/types/indexer_encoding.go: nil/internal/types/indexer.go
 	cd nil/internal/types && go generate indexer.go
 
-nil/internal/types/error_string.go: exec_errors.go
+nil/internal/types/error_string.go: nil/internal/types/exec_errors.go
 	cd nil/internal/types && go generate exec_errors.go
