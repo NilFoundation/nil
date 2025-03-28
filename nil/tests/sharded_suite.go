@@ -171,7 +171,8 @@ func createAllShardsAllValidatorsCfg(
 }
 
 func (s *ShardedSuite) start(
-	cfg *nilservice.Config, port int,
+	cfg *nilservice.Config,
+	port int,
 	shardCfgGen func(
 		*ShardedSuite,
 		InstanceId,
@@ -179,6 +180,7 @@ func (s *ShardedSuite) start(
 		*network.Config,
 		map[InstanceId]*keys.ValidatorKeysManager,
 	) *nilservice.Config,
+	options ...network.Option,
 ) {
 	s.T().Helper()
 	s.Context, s.ctxCancel = context.WithCancel(context.Background())
@@ -193,6 +195,9 @@ func (s *ShardedSuite) start(
 
 	instanceCount := cfg.NShards - 1
 	networkConfigs, p2pAddresses := network.GenerateConfigs(s.T(), instanceCount, port)
+	for _, networkConfig := range networkConfigs {
+		s.Require().NoError(networkConfig.Apply(options...))
+	}
 	keysManagers := make(map[InstanceId]*keys.ValidatorKeysManager)
 	s.Instances = make([]Instance, instanceCount)
 
@@ -250,10 +255,10 @@ func (s *ShardedSuite) start(
 	s.waitShardsTick(cfg.NShards)
 }
 
-func (s *ShardedSuite) Start(cfg *nilservice.Config, port int) {
+func (s *ShardedSuite) Start(cfg *nilservice.Config, port int, options ...network.Option) {
 	s.T().Helper()
 
-	s.start(cfg, port, createOneShardOneValidatorCfg)
+	s.start(cfg, port, createOneShardOneValidatorCfg, options...)
 }
 
 func (s *ShardedSuite) StartShardAllValidators(cfg *nilservice.Config, port int) {
@@ -289,9 +294,10 @@ type ArchiveNodeConfig struct {
 	Port               int
 	WithBootstrapPeers bool
 	DisableConsensus   bool
+	NetworkOptions     []network.Option
 }
 
-func (s *ShardedSuite) StartArchiveNode(params *ArchiveNodeConfig) (client.Client, network.AddrInfo) {
+func (s *ShardedSuite) RunArchiveNode(params *ArchiveNodeConfig) (*nilservice.Config, network.AddrInfo, chan error) {
 	s.T().Helper()
 
 	ctx := s.Context
@@ -305,6 +311,7 @@ func (s *ShardedSuite) StartArchiveNode(params *ArchiveNodeConfig) (client.Clien
 
 	s.Require().NotEmpty(s.Instances)
 	netCfg, addr := network.GenerateConfig(s.T(), params.Port)
+	s.Require().NoError(netCfg.Apply(params.NetworkOptions...))
 	serviceName := fmt.Sprintf("archive-%d", params.Port)
 
 	cfg := &nilservice.Config{
@@ -322,9 +329,7 @@ func (s *ShardedSuite) StartArchiveNode(params *ArchiveNodeConfig) (client.Clien
 	cfg.MyShards = slices.Collect(common.Range(0, uint(cfg.NShards)))
 	netCfg.DHTBootstrapPeers = slices.Collect(common.Transform(slices.Values(s.Instances), getShardAddress))
 	if params.WithBootstrapPeers {
-		bootstrapPeers := slices.Clone(netCfg.DHTBootstrapPeers)
-		bootstrapPeers = append(bootstrapPeers[0:1], bootstrapPeers...)
-		cfg.BootstrapPeers = bootstrapPeers
+		cfg.BootstrapPeers = slices.Insert(slices.Clone(netCfg.DHTBootstrapPeers), 0, netCfg.DHTBootstrapPeers[0])
 	}
 
 	node, err := nilservice.CreateNode(ctx, serviceName, cfg, s.DbInit(), nil)
@@ -332,15 +337,37 @@ func (s *ShardedSuite) StartArchiveNode(params *ArchiveNodeConfig) (client.Clien
 	s.connectToInstances(node.NetworkManager)
 
 	wg.Add(1)
+	rc := make(chan error, 1)
 	go func() {
 		defer wg.Done()
 		defer node.Close(ctx)
-		s.NoError(node.Run())
+		rc <- node.Run()
+	}()
+
+	return cfg, addr, rc
+}
+
+func (s *ShardedSuite) EnsureArchiveNodeStarted(
+	cfg *nilservice.Config,
+	addr network.AddrInfo,
+	rc chan error,
+) (client.Client, network.AddrInfo) {
+	s.T().Helper()
+
+	go func() {
+		err := <-rc
+		s.NoError(err)
 	}()
 
 	c := rpc_client.NewClient(cfg.HttpUrl, logging.NewFromZerolog(zerolog.New(os.Stderr)))
 	s.checkNodeStart(cfg.NShards, c)
 	return c, addr
+}
+
+func (s *ShardedSuite) StartArchiveNode(params *ArchiveNodeConfig) (client.Client, network.AddrInfo) {
+	s.T().Helper()
+
+	return s.EnsureArchiveNodeStarted(s.RunArchiveNode(params))
 }
 
 func (s *ShardedSuite) StartRPCNode(

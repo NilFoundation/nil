@@ -43,11 +43,13 @@ func (s *SuiteCliTestCall) SetupTest() {
 		}},
 	}
 
-	s.Start(&nilservice.Config{
-		NShards:              2,
-		CollatorTickPeriodMs: 200,
-		ZeroState:            zeroState,
-	}, 10525)
+	s.Start(
+		&nilservice.Config{
+			NShards:              2,
+			CollatorTickPeriodMs: 200,
+			ZeroState:            zeroState,
+		},
+		10525)
 
 	s.client, s.endpoint = s.StartRPCNode(tests.WithDhtBootstrapByValidators, nil)
 

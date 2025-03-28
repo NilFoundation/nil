@@ -15,10 +15,12 @@ type BasicShardSuite struct {
 }
 
 func (s *BasicShardSuite) SetupSuite() {
-	s.Start(&nilservice.Config{
-		NShards:              3,
-		CollatorTickPeriodMs: 1000,
-	}, 10000)
+	s.Start(
+		&nilservice.Config{
+			NShards:              3,
+			CollatorTickPeriodMs: 1000,
+		},
+		10000)
 }
 
 func (s *BasicShardSuite) TearDownSuite() {

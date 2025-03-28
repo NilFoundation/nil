@@ -75,13 +75,15 @@ func (s *SuiteAsyncAwait) SetupSuite() {
 	}
 
 	const disableConsensus = true
-	s.Start(&nilservice.Config{
-		SplitShards:      false,
-		HttpUrl:          rpc.GetSockPath(s.T()),
-		NShards:          nShards,
-		ZeroState:        zeroState,
-		DisableConsensus: disableConsensus,
-	}, port)
+	s.Start(
+		&nilservice.Config{
+			SplitShards:      false,
+			HttpUrl:          rpc.GetSockPath(s.T()),
+			NShards:          nShards,
+			ZeroState:        zeroState,
+			DisableConsensus: disableConsensus,
+		},
+		port)
 
 	_, archiveNodeAddr := s.StartArchiveNode(&tests.ArchiveNodeConfig{
 		Port:               port + int(nShards),

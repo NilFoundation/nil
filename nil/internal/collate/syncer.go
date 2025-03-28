@@ -22,6 +22,15 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type ProtocolVersionMismatchError struct {
+	LocalVersion  string
+	RemoteVersion string
+}
+
+func (e *ProtocolVersionMismatchError) Error() string {
+	return fmt.Sprintf("protocol version mismatch; local: %s, remote: %s", e.LocalVersion, e.RemoteVersion)
+}
+
 type SyncerConfig struct {
 	execution.BlockGeneratorParams
 
@@ -79,30 +88,53 @@ func (s *Syncer) WaitComplete() {
 	s.waitForSync.Wait()
 }
 
-func (s *Syncer) readLocalVersion(ctx context.Context) (common.Hash, error) {
+func (s *Syncer) getLocalVersion(ctx context.Context) (*NodeVersion, error) {
+	protocolVersion := s.networkManager.ProtocolVersion()
+
 	rotx, err := s.db.CreateRoTx(ctx)
 	if err != nil {
-		return common.EmptyHash, err
+		return nil, err
 	}
 	defer rotx.Rollback()
 
 	res, err := db.ReadBlockHashByNumber(rotx, types.MainShardId, 0)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return common.EmptyHash, nil
-	}
-	return res, err
-}
-
-func (s *Syncer) fetchRemoteVersion(ctx context.Context) (common.Hash, error) {
-	var err error
-	for _, peer := range s.config.BootstrapPeers {
-		var res common.Hash
-		res, err = fetchGenesisBlockHash(ctx, s.networkManager, peer)
-		if err == nil {
-			return res, nil
+	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return &NodeVersion{protocolVersion, common.EmptyHash}, nil
+		} else {
+			return nil, err
 		}
 	}
-	return common.EmptyHash, fmt.Errorf("failed to fetch version from all peers; last error: %w", err)
+	return &NodeVersion{protocolVersion, res}, err
+}
+
+type NodeVersion struct {
+	ProtocolVersion  string
+	GenesisBlockHash common.Hash
+}
+
+func (s *Syncer) fetchRemoteVersion(ctx context.Context) (NodeVersion, error) {
+	var err error
+	for _, peer := range s.config.BootstrapPeers {
+		var peerId network.PeerID
+		peerId, err = s.networkManager.Connect(ctx, peer)
+		if err != nil {
+			continue
+		}
+
+		var protocolVersion string
+		protocolVersion, err = s.networkManager.GetPeerProtocolVersion(peerId)
+		if err != nil {
+			continue
+		}
+
+		var res common.Hash
+		res, err = fetchGenesisBlockHash(ctx, s.networkManager, peerId)
+		if err == nil {
+			return NodeVersion{protocolVersion, res}, nil
+		}
+	}
+	return NodeVersion{}, fmt.Errorf("failed to fetch version from all peers; last error: %w", err)
 }
 
 func (s *Syncer) fetchSnapshot(ctx context.Context) error {
@@ -126,13 +158,9 @@ func (s *Syncer) Init(ctx context.Context, allowDbDrop bool) error {
 		return nil
 	}
 
-	version, err := s.readLocalVersion(ctx)
+	version, err := s.getLocalVersion(ctx)
 	if err != nil {
 		return err
-	}
-	if version.Empty() {
-		s.logger.Info().Msg("Local version is empty. Fetching snapshot...")
-		return s.fetchSnapshot(ctx)
 	}
 
 	remoteVersion, err := s.fetchRemoteVersion(ctx)
@@ -142,7 +170,20 @@ func (s *Syncer) Init(ctx context.Context, allowDbDrop bool) error {
 			"Failed to fetch remote version. For now we assume that local version %s is up to date", version)
 		return nil
 	}
-	if version == remoteVersion {
+
+	if version.ProtocolVersion != remoteVersion.ProtocolVersion {
+		return &ProtocolVersionMismatchError{
+			version.ProtocolVersion,
+			remoteVersion.ProtocolVersion,
+		}
+	}
+
+	if version.GenesisBlockHash.Empty() {
+		s.logger.Info().Msg("Local version is empty. Fetching snapshot...")
+		return s.fetchSnapshot(ctx)
+	}
+
+	if version.GenesisBlockHash == remoteVersion.GenesisBlockHash {
 		s.logger.Info().Msgf("Local version %s is up to date. Finished initialization", version)
 		return nil
 	}
@@ -338,7 +379,7 @@ func (s *Syncer) saveBlock(ctx context.Context, block *types.BlockWithExtractedD
 	return nil
 }
 
-func (s *Syncer) GenerateZerostate(ctx context.Context) error {
+func (s *Syncer) GenerateZerostateIfShardIsEmpty(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 

@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -16,8 +17,9 @@ import (
 )
 
 type Manager struct {
-	ctx    context.Context
-	prefix string
+	ctx             context.Context
+	prefix          string
+	protocolVersion string
 
 	host   Host
 	pubSub *PubSub
@@ -73,13 +75,14 @@ func newManagerFromHost(
 	}
 
 	return &Manager{
-		ctx:    ctx,
-		prefix: conf.Prefix,
-		host:   h,
-		pubSub: ps,
-		dht:    dht,
-		meter:  telemetry.NewMeter("github.com/NilFoundation/nil/nil/internal/network"),
-		logger: logger,
+		ctx:             ctx,
+		prefix:          conf.Prefix,
+		protocolVersion: conf.ProtocolVersion,
+		host:            h,
+		pubSub:          ps,
+		dht:             dht,
+		meter:           telemetry.NewMeter("github.com/NilFoundation/nil/nil/internal/network"),
+		logger:          logger,
 	}, nil
 }
 
@@ -121,6 +124,22 @@ func NewClientManager(ctx context.Context, conf *Config, database db.DB) (*Manag
 
 func (m *Manager) PubSub() *PubSub {
 	return m.pubSub
+}
+
+func (m *Manager) ProtocolVersion() string {
+	return m.protocolVersion
+}
+
+func (m *Manager) GetPeerProtocolVersion(peer peer.ID) (string, error) {
+	pv, err := m.host.Peerstore().Get(peer, "ProtocolVersion")
+	if err != nil {
+		return "", err
+	}
+	versionString, ok := pv.(string)
+	if !ok {
+		return "", fmt.Errorf("failed to convert protocol version to string for peer %s", peer)
+	}
+	return versionString, nil
 }
 
 func (m *Manager) AllKnownPeers() []peer.ID {
