@@ -1,4 +1,4 @@
-import { PROGRESS_BAR_SIZE, ProgressBar } from "@nilfoundation/ui-kit";
+import { COLORS, PROGRESS_BAR_SIZE, ProgressBar } from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
@@ -11,7 +11,7 @@ import { ContractsContainer, closeApp } from "../../features/contracts";
 import { NetworkErrorNotification } from "../../features/healthcheck";
 import { $rpcIsHealthy } from "../../features/healthcheck/model";
 import { Logs } from "../../features/logs/components/Logs";
-import { useMobile } from "../../features/shared";
+import { Logo, useMobile } from "../../features/shared";
 import { Navbar } from "../../features/shared/components/Layout/Navbar";
 import { mobileContainerStyle, styles } from "../../features/shared/components/Layout/styles";
 import { fetchSolidityCompiler } from "../../services/compiler";
@@ -21,6 +21,7 @@ export const PlaygroundPage = () => {
   const [isDownloading, isRPCHealthy] = useUnit([fetchSolidityCompiler.pending, $rpcIsHealthy]);
   const [css] = useStyletron();
   const [isMobile] = useMobile();
+  const playgroundVersion = import.meta.env.VITE_PLAYGROUND_VERSION;
 
   useEffect(() => {
     loadedPlaygroundPage();
@@ -33,7 +34,26 @@ export const PlaygroundPage = () => {
   return (
     <div className={css(isMobile ? mobileContainerStyle : styles.container)}>
       {!isRPCHealthy && <NetworkErrorNotification />}
-      <Navbar>
+      <Navbar
+        logo={
+          <Logo
+            subText={
+              playgroundVersion ? (
+                <span
+                  className={css({
+                    marginTop: "4px",
+                    fontSize: "12px",
+                    color: COLORS.gray400,
+                    fontFamily: "Inter, sans-serif",
+                  })}
+                >
+                  {`Playground v${playgroundVersion}`}
+                </span>
+              ) : null
+            }
+          />
+        }
+      >
         <AccountPane />
       </Navbar>
       <div
