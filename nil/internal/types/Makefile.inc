@@ -1,5 +1,5 @@
 .PHONY: ssz_types
-ssz_types: nil/internal/types/signature_encoding.go nil/internal/types/account_encoding.go nil/internal/types/block_encoding.go nil/internal/types/collator_encoding.go nil/internal/types/log_encoding.go nil/internal/types/transaction_encoding.go nil/internal/types/receipt_encoding.go nil/internal/types/version_info_encoding.go nil/internal/types/error_string.go
+ssz_types: nil/internal/types/signature_encoding.go nil/internal/types/account_encoding.go nil/internal/types/block_encoding.go nil/internal/types/collator_encoding.go nil/internal/types/log_encoding.go nil/internal/types/transaction_encoding.go nil/internal/types/receipt_encoding.go nil/internal/types/version_info_encoding.go nil/internal/types/error_string.go 
 
 nil/internal/types/signature_encoding.go: nil/internal/types/signature.go nil/common/length.go
 	cd nil/internal/types && go generate signature.go
@@ -25,8 +25,5 @@ nil/internal/types/account_encoding.go: nil/internal/types/account.go nil/common
 nil/internal/types/version_info_encoding.go: nil/internal/types/version_info.go nil/common/hash.go nil/common/length.go
 	cd nil/internal/types && go generate version_info.go
 
-nil/internal/types/indexer_encoding.go: nil/internal/types/indexer.go
-	cd nil/internal/types && go generate indexer.go
-
-nil/internal/types/error_string.go: exec_errors.go
+nil/internal/types/error_string.go: nil/internal/types/exec_errors.go
 	cd nil/internal/types && go generate exec_errors.go

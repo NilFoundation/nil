@@ -16,8 +16,13 @@ type IndexerDriver interface {
 	FetchNextPresentBlockId(context.Context, types.ShardId, types.BlockNumber) (types.BlockNumber, error)
 	FetchAddressActions(types.Address, db.Timestamp) ([]indexertypes.AddressAction, error)
 	SetupScheme(ctx context.Context, params SetupParams) error
-	IndexBlocks(context.Context, []*types.BlockWithShardId) error
+	IndexBlocks(context.Context, []*BlockWithShardId) error
 	HaveBlock(context.Context, types.ShardId, types.BlockNumber) (bool, error)
+}
+
+type BlockWithShardId struct {
+	*types.BlockWithExtractedData
+	ShardId types.ShardId `json:"shardId"`
 }
 
 type SetupParams struct {

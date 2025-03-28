@@ -3,11 +3,13 @@ package badger
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/indexer/driver"
@@ -17,6 +19,15 @@ import (
 
 type BadgerDriver struct {
 	db *badger.DB
+}
+
+type receiptWithSSZ struct {
+	decoded    *types.Receipt
+	sszEncoded sszx.SSZEncodedData
+}
+
+type blockWithSSZ struct {
+	Decoded *driver.BlockWithShardId `json:"decoded"`
 }
 
 var _ driver.IndexerDriver = &BadgerDriver{}
@@ -40,12 +51,12 @@ func (b *BadgerDriver) SetupScheme(ctx context.Context, params driver.SetupParam
 	return nil
 }
 
-func (b *BadgerDriver) IndexBlocks(_ context.Context, blocksToIndex []*types.BlockWithShardId) error {
+func (b *BadgerDriver) IndexBlocks(_ context.Context, blocksToIndex []*driver.BlockWithShardId) error {
 	tx := b.createRwTx()
 	defer tx.Discard()
 
-	blocks := make([]types.BlockWithSSZ, len(blocksToIndex))
-	receipts := make(map[common.Hash]types.ReceiptWithSSZ)
+	blocks := make([]blockWithSSZ, len(blocksToIndex))
+	receipts := make(map[common.Hash]receiptWithSSZ)
 
 	shardLatest := make(map[types.ShardId]types.BlockNumber)
 
@@ -54,12 +65,12 @@ func (b *BadgerDriver) IndexBlocks(_ context.Context, blocksToIndex []*types.Blo
 		if err != nil {
 			return fmt.Errorf("failed to encode block: %w", err)
 		}
-		blocks[blockIndex] = types.BlockWithSSZ{Decoded: block}
+		blocks[blockIndex] = blockWithSSZ{Decoded: block}
 
 		for receiptIndex, receipt := range block.Receipts {
-			receipts[receipt.TxnHash] = types.ReceiptWithSSZ{
-				Decoded:    receipt,
-				SszEncoded: sszEncodedBlock.Receipts[receiptIndex],
+			receipts[receipt.TxnHash] = receiptWithSSZ{
+				decoded:    receipt,
+				sszEncoded: sszEncodedBlock.Receipts[receiptIndex],
 			}
 		}
 
@@ -68,7 +79,7 @@ func (b *BadgerDriver) IndexBlocks(_ context.Context, blocksToIndex []*types.Blo
 		}
 
 		key := makeBlockKey(block.ShardId, block.Block.Id)
-		value, err := blocks[blockIndex].MarshalSSZ()
+		value, err := json.Marshal(blocks[blockIndex])
 		if err != nil {
 			return fmt.Errorf("failed to serialize block: %w", err)
 		}
@@ -103,8 +114,8 @@ func (b *BadgerDriver) IndexBlocks(_ context.Context, blocksToIndex []*types.Blo
 
 func (b *BadgerDriver) indexBlockTransactions(
 	tx *badger.Txn,
-	block *types.BlockWithShardId,
-	receipts map[common.Hash]types.ReceiptWithSSZ,
+	block *driver.BlockWithShardId,
+	receipts map[common.Hash]receiptWithSSZ,
 ) error {
 	for _, txn := range block.InTransactions {
 		receipt, exists := receipts[txn.Hash()]
@@ -119,7 +130,7 @@ func (b *BadgerDriver) indexBlockTransactions(
 			Amount:    txn.Value,
 			Timestamp: db.Timestamp(block.Block.Timestamp),
 			BlockId:   block.Block.Id,
-			Status:    getTransactionStatus(receipt.Decoded),
+			Status:    getTransactionStatus(receipt.decoded),
 		}
 
 		logger := logging.NewLogger("indexer-badger")
@@ -150,7 +161,7 @@ func getTransactionStatus(receipt *types.Receipt) indexertypes.AddressActionStat
 
 func storeAddressAction(tx *badger.Txn, address types.Address, action *indexertypes.AddressAction) error {
 	key := makeAddressActionKey(address, uint64(action.Timestamp), action.Hash)
-	value, err := action.MarshalSSZ()
+	value, err := json.Marshal(action)
 	if err != nil {
 		return fmt.Errorf("failed to serialize address action: %w", err)
 	}
@@ -202,7 +213,7 @@ func (b *BadgerDriver) FetchAddressActions(
 			item := it.Item()
 			err := item.Value(func(val []byte) error {
 				var action indexertypes.AddressAction
-				if err := action.UnmarshalSSZ(val); err != nil {
+				if err := json.Unmarshal(val, &action); err != nil {
 					return fmt.Errorf("failed to deserialize address action: %w", err)
 				}
 				actions = append(actions, action)
@@ -244,8 +255,8 @@ func (b *BadgerDriver) FetchBlock(_ context.Context, id types.ShardId, number ty
 		}
 
 		err = item.Value(func(val []byte) error {
-			var blockWithSSZ types.BlockWithSSZ
-			if err := blockWithSSZ.UnmarshalSSZ(val); err != nil {
+			var blockWithSSZ blockWithSSZ
+			if err := json.Unmarshal(val, &blockWithSSZ); err != nil {
 				return fmt.Errorf("failed to deserialize block: %w", err)
 			}
 			block = blockWithSSZ.Decoded.Block
@@ -370,8 +381,8 @@ func (b *BadgerDriver) FetchLatestProcessedBlockId(_ context.Context, id types.S
 		}
 
 		err = item.Value(func(val []byte) error {
-			var blockWithSSZ types.BlockWithSSZ
-			if err := blockWithSSZ.UnmarshalSSZ(val); err != nil {
+			var blockWithSSZ blockWithSSZ
+			if err := json.Unmarshal(val, &blockWithSSZ); err != nil {
 				return fmt.Errorf("failed to deserialize block: %w", err)
 			}
 			if blockWithSSZ.Decoded != nil {

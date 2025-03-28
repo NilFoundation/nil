@@ -131,7 +131,7 @@ func (d *ClickhouseDriver) FetchAddressActions(address types.Address, timestamp 
 	return actions, nil
 }
 
-func (d *ClickhouseDriver) IndexBlocks(ctx context.Context, ids []*types.BlockWithShardId) error {
+func (d *ClickhouseDriver) IndexBlocks(ctx context.Context, ids []*dindexerdriver.BlockWithShardId) error {
 	return d.ExportBlocks(ctx, ids)
 }
 
@@ -331,14 +331,24 @@ func (d *ClickhouseDriver) FetchEarliestAbsentBlockId(ctx context.Context, shard
 	return id + 1, nil
 }
 
-func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*types.BlockWithShardId) error {
-	blocks := make([]types.BlockWithSSZ, len(blocksToExport))
+type blockWithSSZ struct {
+	decoded    *dindexerdriver.BlockWithShardId
+	sszEncoded *types.RawBlockWithExtractedData
+}
+
+type receiptWithSSZ struct {
+	decoded    *types.Receipt
+	sszEncoded sszx.SSZEncodedData
+}
+
+func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*dindexerdriver.BlockWithShardId) error {
+	blocks := make([]blockWithSSZ, len(blocksToExport))
 	for blockIndex, block := range blocksToExport {
 		sszEncodedBlock, err := block.EncodeSSZ()
 		if err != nil {
 			return err
 		}
-		blocks[blockIndex] = types.BlockWithSSZ{Decoded: block, SszEncoded: sszEncodedBlock}
+		blocks[blockIndex] = blockWithSSZ{decoded: block, sszEncoded: sszEncodedBlock}
 	}
 
 	if err := exportTransactionsAndLogs(ctx, d.insertConn, blocks); err != nil {
@@ -351,16 +361,16 @@ func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*t
 	}
 
 	for _, block := range blocks {
-		binary, blockErr := block.Decoded.MarshalSSZ()
+		binary, blockErr := block.decoded.MarshalSSZ()
 		if blockErr != nil {
 			return blockErr
 		}
 		binaryBlockExtended := &BlockWithBinary{
-			Block:    *block.Decoded.Block,
+			Block:    *block.decoded.Block,
 			Binary:   binary,
-			ShardId:  block.Decoded.ShardId,
-			Hash:     block.Decoded.Block.Hash(block.Decoded.ShardId),
-			InTxnNum: uint64(len(block.Decoded.InTransactions)),
+			ShardId:  block.decoded.ShardId,
+			Hash:     block.decoded.Block.Hash(block.decoded.ShardId),
+			InTxnNum: uint64(len(block.decoded.InTransactions)),
 		}
 		blockErr = blockBatch.AppendStruct(binaryBlockExtended)
 		if blockErr != nil {
@@ -376,57 +386,57 @@ func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*t
 	return nil
 }
 
-func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []types.BlockWithSSZ) error {
+func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []blockWithSSZ) error {
 	transactionBatch, err := conn.PrepareBatch(ctx, "INSERT INTO transactions")
 	if err != nil {
 		return err
 	}
 
 	for _, block := range blocks {
-		parentIndex := make([]common.Hash, len(block.Decoded.OutTransactions))
-		if len(block.Decoded.InTransactions) != len(block.Decoded.Receipts) {
-			return fmt.Errorf("block in txs count mismatch: %d != %d", len(block.Decoded.InTransactions),
-				len(block.Decoded.Receipts))
+		parentIndex := make([]common.Hash, len(block.decoded.OutTransactions))
+		if len(block.decoded.InTransactions) != len(block.decoded.Receipts) {
+			return fmt.Errorf("block in txs count mismatch: %d != %d", len(block.decoded.InTransactions),
+				len(block.decoded.Receipts))
 		}
-		for inTxnIndex, transaction := range block.Decoded.InTransactions {
+		for inTxnIndex, transaction := range block.decoded.InTransactions {
 			hash := transaction.Hash()
-			receipt := types.ReceiptWithSSZ{
-				Decoded:    block.Decoded.Receipts[inTxnIndex],
-				SszEncoded: block.SszEncoded.Receipts[inTxnIndex],
+			receipt := receiptWithSSZ{
+				decoded:    block.decoded.Receipts[inTxnIndex],
+				sszEncoded: block.sszEncoded.Receipts[inTxnIndex],
 			}
-			if receipt.Decoded.TxnHash != hash {
-				return fmt.Errorf("receipt's transaction hash mismatch: %s != %s", receipt.Decoded.TxnHash, hash)
+			if receipt.decoded.TxnHash != hash {
+				return fmt.Errorf("receipt's transaction hash mismatch: %s != %s", receipt.decoded.TxnHash, hash)
 			}
-			if receipt.Decoded.OutTxnIndex+receipt.Decoded.OutTxnNum > uint32(len(parentIndex)) {
+			if receipt.decoded.OutTxnIndex+receipt.decoded.OutTxnNum > uint32(len(parentIndex)) {
 				return fmt.Errorf(
 					"output txs range is out of bound: [index=%d, num=%d], block out txs count: %d, block: %d.%d",
-					receipt.Decoded.OutTxnIndex, receipt.Decoded.OutTxnNum, len(parentIndex), block.Decoded.ShardId,
-					block.Decoded.Id)
+					receipt.decoded.OutTxnIndex, receipt.decoded.OutTxnNum, len(parentIndex), block.decoded.ShardId,
+					block.decoded.Id)
 			}
-			for i := receipt.Decoded.OutTxnIndex; i < receipt.Decoded.OutTxnIndex+receipt.Decoded.OutTxnNum; i++ {
+			for i := receipt.decoded.OutTxnIndex; i < receipt.decoded.OutTxnIndex+receipt.decoded.OutTxnNum; i++ {
 				parentIndex[i] = hash
 			}
 			mb := NewTransactionWithBinary(
 				transaction,
-				block.SszEncoded.InTransactions[inTxnIndex],
-				receipt.Decoded,
-				receipt.SszEncoded,
-				block.Decoded.BlockWithExtractedData,
+				block.sszEncoded.InTransactions[inTxnIndex],
+				receipt.decoded,
+				receipt.sszEncoded,
+				block.decoded.BlockWithExtractedData,
 				types.TransactionIndex(inTxnIndex),
-				block.Decoded.ShardId)
+				block.decoded.ShardId)
 			if err := transactionBatch.AppendStruct(mb); err != nil {
 				return fmt.Errorf("failed to append transaction to batch: %w", err)
 			}
 		}
-		for outTransactionIndex, transaction := range block.Decoded.OutTransactions {
+		for outTransactionIndex, transaction := range block.decoded.OutTransactions {
 			mb := NewTransactionWithBinary(
 				transaction,
-				block.SszEncoded.OutTransactions[outTransactionIndex],
+				block.sszEncoded.OutTransactions[outTransactionIndex],
 				nil,
 				nil,
-				block.Decoded.BlockWithExtractedData,
+				block.decoded.BlockWithExtractedData,
 				types.TransactionIndex(outTransactionIndex),
-				block.Decoded.ShardId)
+				block.decoded.ShardId)
 			mb.Outgoing = true
 			mb.ParentTransaction = parentIndex[outTransactionIndex]
 			if err := transactionBatch.AppendStruct(mb); err != nil {
@@ -446,7 +456,7 @@ func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []t
 	}
 
 	for _, block := range blocks {
-		for _, receipt := range block.Decoded.Receipts {
+		for _, receipt := range block.decoded.Receipts {
 			for _, log := range receipt.Logs {
 				binary, logErr := log.MarshalSSZ()
 				if logErr != nil {
