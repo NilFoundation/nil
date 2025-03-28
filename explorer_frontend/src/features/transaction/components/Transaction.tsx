@@ -21,6 +21,7 @@ import { $transactionChilds, fetchTransactionChildsFx } from "../models/transact
 import { $transactionLogs, fetchTransactionLogsFx } from "../models/transactionLogs";
 import { Logs } from "./Logs";
 import { Overview } from "./Overview";
+import { getMobileStyles, getTabletStyles, getDesktopStyles } from "../../../styleHelpers";
 
 export const Transaction = () => {
   const [css] = useStyletron();
@@ -56,8 +57,20 @@ export const Transaction = () => {
         position: "absolute",
         left: "0",
         right: "0",
-        paddingLeft: "48px",
-        paddingRight: "48px",
+        ...getMobileStyles({
+          paddingLeft: "16px",
+          paddingRight: "16px",
+        }),
+        ...getTabletStyles({
+          paddingLeft: "48px",
+          paddingRight: "48px",
+        }),
+        ...getDesktopStyles({
+          paddingLeft: "48px",
+          paddingRight: "48px",
+          maxWidth: "1440px",
+          margin: "0 auto",
+        }),
       })}
     >
       <HeadingXLarge className={css({ marginBottom: SPACE[32] })}>Transaction</HeadingXLarge>

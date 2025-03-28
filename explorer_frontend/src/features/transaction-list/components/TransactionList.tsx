@@ -172,6 +172,7 @@ export const TransactionList = ({ type, identifier, view }: TransactionListProps
             }
           : {},
       )}
+      scrollable
     >
       <InfoContainer title={isMobile ? "Transactions" : undefined}>
         <MobileConvertableTable columns={columns} data={mappedTransactions} isMobile={isMobile} />

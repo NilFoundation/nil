@@ -6,6 +6,7 @@ import { type StyleObject, useStyletron } from "styletron-react";
 import { addressRoute } from "../../routing";
 import { Card, Link, addHexPrefix } from "../../shared";
 import type { TransactionLog } from "../types/TransactionLog";
+import { tableContainerStyles } from "../../../styleHelpers";
 import noLog from "./assets/no-log.svg";
 
 type LogsProps = {
@@ -34,6 +35,7 @@ const styles = {
     height: "100%",
     width: "100%",
     flexGrow: 1,
+    ...tableContainerStyles,
   },
   infoContainer: {
     display: "flex",
@@ -75,7 +77,7 @@ export const Logs: FC<LogsProps> = ({ logs }) => {
       ) : (
         <div className={css(styles.logsContainer)}>
           {logs.map((log) => (
-            <Card key={log.transaction_hash}>
+            <Card key={log.transaction_hash} scrollable>
               <div className={css(styles.contaier)}>
                 <ParagraphSmall color={COLORS.gray400}>Address:</ParagraphSmall>
                 <div className={css(styles.infoContainer)}>
