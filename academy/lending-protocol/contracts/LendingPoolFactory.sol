@@ -2,52 +2,58 @@
 pragma solidity ^0.8.28;
 
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
-import "./LendingPool.sol";
+import "./LendingPool.sol"; // Import LendingPool contract
 
-/// @title LendingPoolFactory - Deploys new LendingPool contracts and registers them with the GlobalLedger
+/// @title LendingPoolFactory
+/// @dev Handles deployment of LendingPool contracts across different shards
 contract LendingPoolFactory {
-    using Nil for address;
-
     address public globalLedger;
     address public interestManager;
     address public oracle;
     TokenId public usdt;
     TokenId public eth;
+    uint8 public shardCounter; // Tracks which shard to deploy to (0-3)
 
-    event LendingPoolDeployed(address pool, address owner);
+    event LendingPoolDeployed(address pool, uint8 shardId, address owner);
 
-    constructor(
-        address _globalLedger,
-        address _interestManager,
-        address _oracle,
-        TokenId _usdt,
-        TokenId _eth
-    ) {
+    constructor(address _globalLedger, address _interestManager, address _oracle, TokenId _usdt, TokenId _eth) {
         globalLedger = _globalLedger;
         interestManager = _interestManager;
         oracle = _oracle;
         usdt = _usdt;
         eth = _eth;
+        shardCounter = 0;
     }
 
-    function deployLendingPool() external returns (address) {
-        LendingPool newPool = new LendingPool(
+    /// @notice Deploys a new LendingPool contract to a shard
+    function deployLendingPool() external {
+        bytes memory constructorArgs = abi.encode(
             globalLedger,
             interestManager,
             oracle,
             usdt,
-            eth
-        );
-        address poolAddress = address(newPool);
-
-        // Asynchronously register the new lending pool with the GlobalLedger
-        globalLedger.asyncCall(
-            address(0),
-            0,
-            abi.encodeWithSignature("registerLendingPool(address)", poolAddress)
+            eth,
+            msg.sender // Pool owner
         );
 
-        emit LendingPoolDeployed(poolAddress, msg.sender);
-        return poolAddress;
+        // Compute full contract creation bytecode
+        bytes memory bytecode = bytes.concat(type(LendingPool).creationCode, constructorArgs);
+
+        // Call asyncDeploy with correct parameters
+        address poolAddress = Nil.asyncDeploy(
+            shardCounter,   // Shard ID
+            msg.sender,     // Refund to the sender
+            address(0),     // Bounce to (set to 0 for now)
+            0,              // Fee credit (set to 0 unless required)
+            0,              // Forward kind (set to 0 unless forwarding behavior is needed)
+            0,              // Value (set to 0 unless ETH needs to be sent)
+            bytecode,       // Contract creation code + constructor args
+            0               // Salt (set to 0; can be changed for deterministic addresses)
+        );
+
+        require(poolAddress != address(0), "Deployment failed");
+
+        emit LendingPoolDeployed(poolAddress, shardCounter, msg.sender);
+        shardCounter = (shardCounter + 1) % 4; // Cycle through shards
     }
 }
