@@ -192,7 +192,10 @@ func makeAddressActionTimestampKey(address types.Address, timestamp uint64) []by
 	return key
 }
 
-func (b *BadgerDriver) FetchAddressActions(address types.Address, since db.Timestamp) ([]indexertypes.AddressAction, error) {
+func (b *BadgerDriver) FetchAddressActions(
+	address types.Address,
+	since db.Timestamp,
+) ([]indexertypes.AddressAction, error) {
 	actions := make([]indexertypes.AddressAction, 0)
 	const limit = 100
 
