@@ -40,7 +40,8 @@ func (s *TaskHandlerTestSuite) SetupSuite() {
 	s.taskStorage = storage.NewTaskStorage(s.database, clockwork.NewRealClock(), metricsHandler, logger)
 	taskResultStorage := storage.NewTaskResultStorage(s.database, logger)
 	s.clock = testaide.NewTestClock()
-	s.taskHandler = newTaskHandler(s.taskStorage, taskResultStorage, 0, s.clock, logger)
+	maxActiveTaskCount := 1 // enough to handle only one batch
+	s.taskHandler = newTaskHandler(s.taskStorage, taskResultStorage, 0, maxActiveTaskCount, s.clock, logger)
 }
 
 func TestTaskHandlerSuite(t *testing.T) {
@@ -172,4 +173,19 @@ func (s *TaskHandlerTestSuite) completeTask(sender types.TaskExecutorId, id type
 	result := &types.TaskResult{TaskId: id, Sender: sender}
 	err := s.taskStorage.ProcessTaskResult(s.context, result)
 	s.Require().NoError(err)
+}
+
+func (s *TaskHandlerTestSuite) TestMaxActiveTasksLimit() {
+	// On empty db task handler must be ready
+	s.True(s.taskHandler.IsReadyToHandle(s.context))
+	// Add one batch
+	executorId := testaide.RandomExecutorId()
+	batch := testaide.NewBlockBatch(testaide.ShardsCount)
+	taskEntry, err := types.NewBatchProofTaskEntry(types.NewBatchId(), batch.AllBlocks(), s.clock.Now())
+	s.Require().NoError(err)
+	err = s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
+	s.Require().NoError(err)
+
+	// Now our maximum of active tasks is exceeded
+	s.False(s.taskHandler.IsReadyToHandle(s.context))
 }

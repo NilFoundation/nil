@@ -172,6 +172,30 @@ func (st *TaskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*t
 	return entry, err
 }
 
+// GetActiveTaskCount
+func (st *TaskStorage) GetActiveTaskCount(ctx context.Context) (int, error) {
+	tx, err := st.database.CreateRoTx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	count := 0
+	err = st.iterateOverTaskEntries(tx, func(entry *types.TaskEntry) (bool, error) {
+		if entry.Status == types.WaitingForExecutor ||
+			entry.Status == types.WaitingForInput ||
+			entry.Status == types.Running {
+			count += 1
+		}
+		return true, nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve tasks based on predicate: %w", err)
+	}
+
+	return count, nil
+}
+
 // GetTaskViews Retrieve tasks that match the given predicate function and pushes them to the destination container.
 func (st *TaskStorage) GetTaskViews(
 	ctx context.Context,

@@ -2,6 +2,8 @@ package proofprovider
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
@@ -13,38 +15,60 @@ import (
 
 type HandlerTaskStorage interface {
 	AddTaskEntries(ctx context.Context, tasks ...*types.TaskEntry) error
+	GetActiveTaskCount(ctx context.Context) (int, error)
 }
 
 type taskHandler struct {
-	taskStorage HandlerTaskStorage
-	resultSaver TaskResultSaver
-	skipRate    int
-	taskNum     int
-	clock       clockwork.Clock
-	logger      logging.Logger
+	taskStorage    HandlerTaskStorage
+	resultSaver    TaskResultSaver
+	skipRate       int
+	taskNum        int
+	maxActiveTasks int
+	clock          clockwork.Clock
+	logger         logging.Logger
 }
 
 func newTaskHandler(
 	taskStorage HandlerTaskStorage,
 	resultSaver TaskResultSaver,
 	skipRate int,
+	maxActiveTasks int,
 	clock clockwork.Clock,
 	logger logging.Logger,
 ) api.TaskHandler {
 	return &taskHandler{
-		taskStorage: taskStorage,
-		resultSaver: resultSaver,
-		skipRate:    skipRate,
-		taskNum:     0,
-		clock:       clock,
-		logger:      logger,
+		taskStorage:    taskStorage,
+		resultSaver:    resultSaver,
+		skipRate:       skipRate,
+		maxActiveTasks: maxActiveTasks,
+		taskNum:        0,
+		clock:          clock,
+		logger:         logger,
 	}
+}
+
+func (h *taskHandler) IsReadyToHandle(ctx context.Context) (bool, error) {
+	active, err := h.taskStorage.GetActiveTaskCount(ctx)
+	if err != nil {
+		return false, err
+	}
+	return active <= h.maxActiveTasks, nil
 }
 
 func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorId, task *types.Task) error {
 	if task.TaskType != types.ProofBatch {
 		return types.NewTaskErrNotSupportedType(task.TaskType)
 	}
+
+	// Check if max limit of tasks is not exceeded
+	ready, err := h.IsReadyToHandle(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check task limit: %w", err)
+	}
+	if !ready {
+		return errors.New("too many active prover tasks to take new ones")
+	}
+
 	// skip task
 	taskIdx := h.taskNum % 10
 	h.taskNum++
@@ -73,7 +97,7 @@ func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorI
 		taskEntry.Task.ParentTaskId = &task.Id
 	}
 
-	err := h.taskStorage.AddTaskEntries(ctx, blockTasks...)
+	err = h.taskStorage.AddTaskEntries(ctx, blockTasks...)
 
 	if err != nil {
 		log.NewTaskEvent(h.logger, zerolog.ErrorLevel, task).Err(err).Msg("Failed to create proof task")
