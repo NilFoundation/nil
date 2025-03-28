@@ -4,8 +4,8 @@ pragma solidity ^0.8.28;
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
 
-/// @title LendingPool
-/// @dev Manages deposits, borrowing, repayments, and interactions with GlobalLedger
+// @title LendingPool
+// @dev Manages deposits, borrowing, repayments, and interactions with GlobalLedger
 contract LendingPool is NilBase, NilTokenBase {
     address public globalLedger;
     address public interestManager;

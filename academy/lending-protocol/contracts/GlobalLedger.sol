@@ -3,8 +3,8 @@ pragma solidity ^0.8.28;
 
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
-/// @title GlobalLedger
-/// @dev Tracks deposits, loans, and repayments across LendingPool contracts
+// @title GlobalLedger
+// @dev Tracks deposits, loans, and repayments across LendingPool contracts
 contract GlobalLedger {
     struct Deposit {
         uint256 amount;

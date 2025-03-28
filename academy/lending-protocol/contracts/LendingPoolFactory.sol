@@ -33,7 +33,7 @@ contract LendingPoolFactory {
             oracle,
             usdt,
             eth,
-            msg.sender // Pool owner
+            msg.sender 
         );
 
         // Compute full contract creation bytecode
