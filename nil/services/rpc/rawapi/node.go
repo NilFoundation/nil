@@ -353,7 +353,7 @@ func (api *NodeApiOverShardApis) GetTxpoolStatus(ctx context.Context, shardId ty
 func (api *NodeApiOverShardApis) GetTxpoolContent(
 	ctx context.Context,
 	shardId types.ShardId,
-) ([]*types.TxnWithHash, error) {
+) ([]*types.Transaction, error) {
 	methodName := methodNameChecked("GetTxpoolContent")
 	shardApi, ok := api.Apis[shardId]
 	if !ok {

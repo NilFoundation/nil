@@ -976,6 +976,6 @@ func (c *Client) GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (ui
 	return simpleCallUint64[uint64](ctx, c, Txpool_getTxpoolStatus, shardId)
 }
 
-func (c *Client) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error) {
-	return simpleCall[[]*types.TxnWithHash](ctx, c, Txpool_getTxpoolContent, shardId)
+func (c *Client) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.Transaction, error) {
+	return simpleCall[[]*types.Transaction](ctx, c, Txpool_getTxpoolContent, shardId)
 }

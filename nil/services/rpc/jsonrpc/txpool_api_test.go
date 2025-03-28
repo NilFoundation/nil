@@ -24,6 +24,7 @@ const defaultMaxFee = 500
 
 func newTransaction(address types.Address, seqno types.Seqno, priorityFee uint64, code types.Code) *types.Transaction {
 	return &types.Transaction{
+		From: address,
 		TransactionDigest: types.TransactionDigest{
 			To:                   address,
 			Seqno:                seqno,
@@ -45,18 +46,14 @@ func (suite *SuiteTxnPoolApi) SetupSuite() {
 	suite.Require().NoError(err)
 	defer database.Close()
 
-	localShardApis := map[types.ShardId]rawapi.ShardApi{
-		types.MainShardId: rawapi.NewLocalShardApi(types.MainShardId, database, suite.pool, false),
-	}
+	mainShardApi, err := rawapi.NewLocalRawApiAccessor(
+		types.MainShardId,
+		rawapi.NewLocalShardApi(types.MainShardId, database, suite.pool, false))
+	suite.Require().NoError(err)
+	localShardApis := map[types.ShardId]rawapi.ShardApi{types.MainShardId: mainShardApi}
 
-	shardApis := make(map[types.ShardId]rawapi.ShardApi)
-	localShardApi := rawapi.NewLocalShardApi(types.MainShardId, database, suite.pool, false)
-
-	shardApis[types.MainShardId], err = rawapi.NewLocalRawApiAccessor(types.MainShardId, localShardApi)
-
-	localApi := rawapi.NewNodeApiOverShardApis(localShardApis)
-	suite.txnpoolApi = NewTxPoolAPI(localApi, logging.NewLogger("Test"))
-	suite.api = rawapi.NewNodeApiOverShardApis(shardApis)
+	suite.api = rawapi.NewNodeApiOverShardApis(localShardApis)
+	suite.txnpoolApi = NewTxPoolAPI(suite.api, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 }
 
@@ -89,11 +86,11 @@ func (suite *SuiteTxnPoolApi) TestTnxApi() {
 	suite.Run("TxnpoolApi", func() {
 		txAmountRes, err := suite.txnpoolApi.GetTxpoolStatus(ctx, types.MainShardId)
 		suite.Require().NoError(err)
-		suite.Require().Equal(transactionAmount, txAmountRes)
+		suite.Require().Equal(transactionAmount, txAmountRes.Pending)
 
 		txs, err := suite.txnpoolApi.GetTxpoolContent(ctx, types.MainShardId)
 		suite.Require().NoError(err)
-		txsContentAmount := uint64(len(txs))
+		txsContentAmount := uint64(len(txs.Pending))
 		suite.Require().Equal(transactionAmount, txsContentAmount)
 	})
 }

@@ -39,7 +39,7 @@ type NetworkTransportProtocolRo interface {
 	ClientVersion() pb.StringResponse
 
 	GetTxpoolStatus() pb.Uint64Response
-	GetTxpoolContent() pb.RawTxnsWithHashResponse
+	GetTxpoolContent() pb.RawTxnsResponse
 }
 
 // NetworkTransportProtocol is a helper interface for associating the argument and result types of Api methods

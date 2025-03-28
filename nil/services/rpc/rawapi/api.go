@@ -65,7 +65,7 @@ type NodeApiRo interface {
 	ClientVersion(ctx context.Context) (string, error)
 
 	GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error)
-	GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error)
+	GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.Transaction, error)
 }
 
 type NodeApi interface {
@@ -117,7 +117,7 @@ type ShardApiRo interface {
 		ctx context.Context, networkManager *network.Manager, readonly bool, logger logging.Logger) error
 
 	GetTxpoolStatus(ctx context.Context) (uint64, error)
-	GetTxpoolContent(ctx context.Context) ([]*types.TxnWithHash, error)
+	GetTxpoolContent(ctx context.Context) ([]*types.Transaction, error)
 
 	setNodeApi(nodeApi NodeApi)
 }

@@ -69,13 +69,13 @@ message ReceiptResponse {
   }
 }
 
-message RawTxnsWithHash {
+message RawTxns {
   repeated bytes data = 1;
 }
 
-message RawTxnsWithHashResponse {
+message RawTxnsResponse {
   oneof result {
     Error error = 1;
-    RawTxnsWithHash data = 2;
+    RawTxns data = 2;
   }
 }

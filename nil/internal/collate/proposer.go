@@ -298,7 +298,7 @@ func (p *proposer) handleTransactionsFromPool() error {
 	var unverified []common.Hash
 	handle := func(mt *types.TxnWithHash) (bool, error) {
 		txnHash := mt.Hash()
-		txn := &mt.Transaction
+		txn := mt.Transaction
 
 		if res := execution.ValidateExternalTransaction(p.executionState, txn); res.FatalError != nil {
 			return false, res.FatalError
@@ -331,7 +331,7 @@ func (p *proposer) handleTransactionsFromPool() error {
 				break
 			}
 
-			p.proposal.ExternalTxns = append(p.proposal.ExternalTxns, &txn.Transaction)
+			p.proposal.ExternalTxns = append(p.proposal.ExternalTxns, txn.Transaction)
 		}
 	}
 

@@ -400,6 +400,6 @@ func (c *DirectClient) GetTxpoolStatus(ctx context.Context, shardId types.ShardI
 	panic("Not supported")
 }
 
-func (c *DirectClient) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.TxnWithHash, error) {
+func (c *DirectClient) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.Transaction, error) {
 	panic("Not supported")
 }
