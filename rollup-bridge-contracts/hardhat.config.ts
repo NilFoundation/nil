@@ -6,7 +6,21 @@ import "hardhat-deploy";
 require('@openzeppelin/hardhat-upgrades');
 import { resolve } from "path";
 import fs from "fs";
+import toml from "toml";
+
 dotenv.config();
+
+
+function getRemappings() {
+  const foundryToml = fs.readFileSync("foundry.toml", "utf8");
+  const parsedToml = toml.parse(foundryToml);
+  const remappings = parsedToml.remappings || [];
+  return remappings.map((line: string) => line.trim().split("="));
+}
+
+const remappings = getRemappings();
+
+console.log("Remappings:", remappings);
 
 
 const config: HardhatUserConfig = {
@@ -30,6 +44,20 @@ const config: HardhatUserConfig = {
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts",
+  },
+  preprocess: {
+    eachLine: (hre) => ({
+      transform: (line: string) => {
+        if (line.match(/^\s*import /i)) {
+          getRemappings().forEach(([find, replace]) => {
+            if (line.includes(find)) {
+              line = line.replace(find, replace);
+            }
+          });
+        }
+        return line;
+      },
+    }),
   },
   etherscan: {
     apiKey: {

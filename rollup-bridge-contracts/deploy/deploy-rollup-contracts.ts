@@ -10,11 +10,13 @@ import {
     NetworkConfig,
     ZeroAddress,
 } from './config/config-helper';
+import { BatchInfo, proposerRoleHash } from './config/nil-types';
+import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from './common/proxy-contract-utils';
 
-// npx hardhat deploy --network anvil --tags NilContracts
-// npx hardhat deploy --network geth --tags NilContracts
-// npx hardhat deploy --network sepolia --tags NilContracts
-const deployNilContracts: DeployFunction = async function (
+// npx hardhat deploy --network anvil --tags NilRollupContracts
+// npx hardhat deploy --network geth --tags NilRollupContracts
+// npx hardhat deploy --network sepolia --tags NilRollupContracts
+const deployNilRollupContracts: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
 ) {
     const { deployments, getNamedAccounts, network } = hre;
@@ -27,6 +29,8 @@ const deployNilContracts: DeployFunction = async function (
     // all values can be set in via cli arguments or from a json file
     const genesisStateRootConst = ethers.encodeBytes32String('dummyStateRoot');
     const config: NetworkConfig = loadConfig(networkName);
+
+    console.log(`NetworkConfig for ${networkName} is: ${JSON.stringify(config)}`);
 
     //verify if the config object is not null and valid NetworkConfig
     if (!config) {
@@ -52,6 +56,8 @@ const deployNilContracts: DeployFunction = async function (
         console.log(`NilVerifier already deployed at: ${config.nilVerifier}`);
         archiveConfig(networkName, config);
     }
+
+    console.log(`deploying nilVerifier`);
 
     const nilVerifier = await deploy('NilVerifier', {
         from: deployer,
@@ -129,9 +135,10 @@ const deployNilContracts: DeployFunction = async function (
             await nilRollup.DEFAULT_ADMIN_ROLE(),
             0,
         );
+
         const storedNilVerifierAddress = await nilRollup.nilVerifierAddress();
         const storedProposerAddress = await nilRollup.getRoleMember(
-            await nilRollup.PROPOSER_ROLE(),
+            proposerRoleHash,
             0,
         );
         const storedGenesisStateRoot = await nilRollup
@@ -202,59 +209,5 @@ const deployNilContracts: DeployFunction = async function (
     }
 };
 
-// Sleep for 5 seconds
-function sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function getProxyAdminAddressWithRetry(
-    nilRollupProxyAddress: string,
-    retries: number = 10,
-): Promise<string> {
-    for (let i = 0; i < retries; i++) {
-        const proxyAdminAddress = await upgrades.erc1967.getAdminAddress(
-            nilRollupProxyAddress,
-        );
-        if (proxyAdminAddress !== ZeroAddress) {
-            return proxyAdminAddress;
-        }
-        console.log(
-            `ProxyAdmin address is zero. Retrying... (${i + 1}/${retries})`,
-        );
-        await sleep(1000 * Math.pow(2, i)); // Exponential backoff delay
-    }
-    throw new Error('Failed to get ProxyAdmin address after multiple attempts');
-}
-
-async function verifyContractWithRetry(
-    address: string,
-    constructorArguments: any[],
-    retries: number = 10,
-): Promise<void> {
-    for (let i = 0; i < retries; i++) {
-        try {
-            await run('verify:verify', {
-                address,
-                constructorArguments,
-            });
-            console.log(`Contract at ${address} verified successfully`);
-            return;
-        } catch (error) {
-            console.error(
-                `Verification failed for contract at ${address}:`,
-                error,
-            );
-            if (i < retries - 1) {
-                console.log(`Retrying verification... (${i + 1}/${retries})`);
-                await sleep(1000 * Math.pow(2, i)); // Exponential backoff delay
-            } else {
-                throw new Error(
-                    `Failed to verify contract at ${address} after ${retries} attempts`,
-                );
-            }
-        }
-    }
-}
-
-export default deployNilContracts;
-deployNilContracts.tags = ['NilContracts'];
+export default deployNilRollupContracts;
+deployNilRollupContracts.tags = ['NilRollupContracts'];

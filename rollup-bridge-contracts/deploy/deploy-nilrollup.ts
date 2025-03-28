@@ -11,6 +11,8 @@ import {
     ZeroAddress,
 } from './config/config-helper';
 import { BatchInfo } from './config/nil-types';
+import { sleepInMilliSeconds } from './common/helper-utils';
+import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from './common/proxy-contract-utils';
 
 // npx hardhat deploy --network sepolia --tags NilRollup
 // npx hardhat deploy --network anvil --tags NilRollup
@@ -174,60 +176,6 @@ const deployNilRollup: DeployFunction = async function (
         console.error('Error during deployment:', error);
     }
 };
-
-async function getProxyAdminAddressWithRetry(
-    nilRollupProxyAddress: string,
-    retries: number = 10,
-): Promise<string> {
-    for (let i = 0; i < retries; i++) {
-        const proxyAdminAddress = await upgrades.erc1967.getAdminAddress(
-            nilRollupProxyAddress,
-        );
-        if (proxyAdminAddress !== ZeroAddress) {
-            return proxyAdminAddress;
-        }
-        console.log(
-            `ProxyAdmin address is zero. Retrying... (${i + 1}/${retries})`,
-        );
-        await sleep(1000 * Math.pow(2, i)); // Exponential backoff delay
-    }
-    throw new Error('Failed to get ProxyAdmin address after multiple attempts');
-}
-
-// Sleep for 5 seconds
-function sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function verifyContractWithRetry(
-    address: string,
-    constructorArguments: any[],
-    retries: number = 10,
-): Promise<void> {
-    for (let i = 0; i < retries; i++) {
-        try {
-            await run('verify:verify', {
-                address,
-                constructorArguments,
-            });
-            console.log(`Contract at ${address} verified successfully`);
-            return;
-        } catch (error) {
-            console.error(
-                `Verification failed for contract at ${address}:`,
-                error,
-            );
-            if (i < retries - 1) {
-                console.log(`Retrying verification... (${i + 1}/${retries})`);
-                await sleep(1000 * Math.pow(2, i)); // Exponential backoff delay
-            } else {
-                throw new Error(
-                    `Failed to verify contract at ${address} after ${retries} attempts`,
-                );
-            }
-        }
-    }
-}
 
 export default deployNilRollup;
 deployNilRollup.tags = ['NilRollup'];

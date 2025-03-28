@@ -9,6 +9,7 @@ import {
     NetworkConfig,
     saveConfig,
 } from './config/config-helper';
+import { verifyContractWithRetry } from './common/proxy-contract-utils';
 
 // npx hardhat deploy --network sepolia --tags NilVerifier
 // npx hardhat deploy --network anvil --tags NilVerifier
@@ -49,10 +50,7 @@ const deployNilVerifier: DeployFunction = async function (
         network.name !== 'geth'
     ) {
         try {
-            await run('verify:verify', {
-                address: nilVerifier.address,
-                constructorArguments: [],
-            });
+            await verifyContractWithRetry(nilVerifier.address, [], 6);
             console.log('NilVerifier verified successfully');
         } catch (error) {
             console.error('NilVerifier Verification failed:', error);
