@@ -1,4 +1,4 @@
-package core
+package fetching
 
 import (
 	"context"
@@ -23,8 +23,7 @@ import (
 
 type AggregatorMetrics interface {
 	metrics.BasicMetrics
-	RecordMainBlockFetched(ctx context.Context)
-	RecordBlockBatchSize(ctx context.Context, batchSize int64)
+	RecordBatchCreated(ctx context.Context, batch *types.BlockBatch)
 }
 
 type AggregatorTaskStorage interface {
@@ -323,7 +322,6 @@ func (agg *aggregator) fetchAndProcessBlocks(ctx context.Context, blocksRange ty
 		Int64("blkCount", fetchedLen).
 		Stringer(logging.FieldShardId, shardId).
 		Msg("fetched main shard blocks")
-	agg.metrics.RecordBlockBatchSize(ctx, fetchedLen)
 	return nil
 }
 
@@ -374,7 +372,7 @@ func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 		return fmt.Errorf("error creating proof tasks, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
 	}
 
-	agg.metrics.RecordMainBlockFetched(ctx)
+	agg.metrics.RecordBatchCreated(ctx, batch)
 	return nil
 }
 

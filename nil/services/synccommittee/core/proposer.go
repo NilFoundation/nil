@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
@@ -28,14 +29,14 @@ type ProposerStorage interface {
 
 type ProposerMetrics interface {
 	metrics.BasicMetrics
-	RecordProposerTxSent(ctx context.Context, proposalData *scTypes.ProposalData)
+	RecordStateUpdated(ctx context.Context, proposalData *scTypes.ProposalData)
 }
 
 type proposer struct {
 	storage     ProposerStorage
 	retryRunner common.RetryRunner
 	ethClient   rollupcontract.EthClient
-	rpcClient   RpcBlockFetcher
+	rpcClient   fetching.RpcBlockFetcher
 
 	rollupContractWrapper *rollupcontract.Wrapper
 	params                ProposerParams
@@ -69,7 +70,7 @@ func NewProposer(
 	params ProposerParams,
 	storage ProposerStorage,
 	ethClient rollupcontract.EthClient,
-	rpcClient RpcBlockFetcher,
+	rpcClient fetching.RpcBlockFetcher,
 	metrics ProposerMetrics,
 	logger logging.Logger,
 ) (*proposer, error) {
@@ -337,7 +338,7 @@ func (p *proposer) updateState(
 			Int("cost", int(tx.Cost().Uint64())).
 			Msg("UpdateState transaction sent")
 
-		p.metrics.RecordProposerTxSent(ctx, data)
+		p.metrics.RecordStateUpdated(ctx, data)
 	}
 
 	return nil

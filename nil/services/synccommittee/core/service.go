@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
@@ -46,7 +47,7 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 	//  and pass it here in https://github.com/NilFoundation/nil/pull/419
 	stateResetter := reset.NewStateResetter(logger, blockStorage)
 
-	agg := NewAggregator(
+	agg := fetching.NewAggregator(
 		client,
 		blockStorage,
 		taskStorage,
@@ -56,6 +57,8 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 		metricsHandler,
 		cfg.AggregatorConfig,
 	)
+
+	lagTracker := fetching.NewLagTracker(client, blockStorage, metricsHandler, logger)
 
 	ctx := context.Background()
 
@@ -91,7 +94,7 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 
 	syncCommittee.Service = srv.NewService(
 		logger,
-		prop, agg, taskScheduler, taskListener,
+		prop, agg, lagTracker, taskScheduler, taskListener,
 	)
 
 	return syncCommittee, nil

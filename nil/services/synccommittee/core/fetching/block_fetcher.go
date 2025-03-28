@@ -1,4 +1,4 @@
-package core
+package fetching
 
 import (
 	"context"
@@ -16,4 +16,5 @@ type RpcBlockFetcher interface {
 		fullTx bool,
 		batchSize int,
 	) ([]*jsonrpc.RPCBlock, error)
+	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 }
