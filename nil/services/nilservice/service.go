@@ -81,6 +81,8 @@ func startRpcServer(
 	debugImpl := jsonrpc.NewDebugAPI(rawApi, logger)
 	web3Impl := jsonrpc.NewWeb3API(rawApi)
 
+	txpoolImpl := jsonrpc.NewTxPoolAPI(rawApi, logger)
+
 	apiList := []transport.API{
 		{
 			Namespace: "eth",
@@ -98,6 +100,12 @@ func startRpcServer(
 			Namespace: "web3",
 			Public:    true,
 			Service:   jsonrpc.Web3API(web3Impl),
+			Version:   "1.0",
+		},
+		{
+			Namespace: "txpool",
+			Public:    true,
+			Service:   jsonrpc.TxPoolAPI(txpoolImpl),
 			Version:   "1.0",
 		},
 	}

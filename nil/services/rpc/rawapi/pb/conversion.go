@@ -1370,3 +1370,37 @@ func (r *SendTransactionRequest) PackProtoMessage(transactionSSZ []byte) error {
 func (r *SendTransactionRequest) UnpackProtoMessage() ([]byte, error) {
 	return r.TransactionSSZ, nil
 }
+
+func (txn *RawTxnsResponse) PackProtoMessage(txnWithHash []*types.Transaction, err error) error {
+	if err != nil {
+		txn.Result = &RawTxnsResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	var rawTxns RawTxns
+	rawTxns.Data, err = sszx.EncodeContainer[*types.Transaction](txnWithHash)
+	if err != nil {
+		return err
+	}
+	txn.Result = &RawTxnsResponse_Data{Data: &rawTxns}
+	return nil
+}
+
+func (txn *RawTxnsResponse) UnpackProtoMessage() ([]*types.Transaction, error) {
+	switch txn.Result.(type) {
+	case *RawTxnsResponse_Error:
+		return nil, txn.GetError().UnpackProtoMessage()
+
+	case *RawTxnsResponse_Data:
+		dataResult := txn.GetData()
+		if dataResult == nil {
+			return nil, errors.New("unexpected response")
+		}
+		data := dataResult.GetData()
+		if data == nil {
+			return nil, errors.New("unexpected response")
+		}
+		return sszx.DecodeContainer[*types.Transaction](data)
+	}
+	return nil, errors.New("unexpected response type")
+}

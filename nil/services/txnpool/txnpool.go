@@ -30,6 +30,7 @@ type Pool interface {
 	Peek(n int) ([]*types.TxnWithHash, error)
 	SeqnoToAddress(addr types.Address) (seqno types.Seqno, inPool bool)
 	Get(hash common.Hash) (*types.Transaction, error)
+	GetQueue() *TxnQueue
 }
 
 type TxnPool struct {
@@ -236,6 +237,10 @@ func (p *TxnPool) Get(hash common.Hash) (*types.Transaction, error) {
 		return nil, nil
 	}
 	return txn.Transaction, nil
+}
+
+func (p *TxnPool) GetQueue() *TxnQueue {
+	return p.queue
 }
 
 func (p *TxnPool) getLocked(hash common.Hash) *metaTxn {

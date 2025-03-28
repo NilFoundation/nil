@@ -25,3 +25,19 @@ func (api *LocalShardApi) SendTransaction(ctx context.Context, encoded []byte) (
 	}
 	return reasons[0], nil
 }
+
+func (api *LocalShardApi) GetTxpoolStatus(ctx context.Context) (uint64, error) {
+	return uint64(api.txnpool.GetQueue().Len()), nil
+}
+
+func (api *LocalShardApi) GetTxpoolContent(ctx context.Context) ([]*types.Transaction, error) {
+	txnWithHash, err := api.txnpool.Peek(api.txnpool.GetQueue().Len())
+	if err != nil {
+		return nil, err
+	}
+	res := make([]*types.Transaction, 0, len(txnWithHash))
+	for _, txn := range txnWithHash {
+		res = append(res, txn.Transaction)
+	}
+	return res, nil
+}

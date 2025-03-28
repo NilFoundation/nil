@@ -336,3 +336,32 @@ func (api *NodeApiOverShardApis) DoPanicOnShard(ctx context.Context, shardId typ
 	}
 	return shardApi.DoPanicOnShard(ctx)
 }
+
+func (api *NodeApiOverShardApis) GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error) {
+	methodName := methodNameChecked("GetTxpoolStatus")
+	shardApi, ok := api.Apis[shardId]
+	if !ok {
+		return 0, makeShardNotFoundError(methodName, shardId)
+	}
+	result, err := shardApi.GetTxpoolStatus(ctx)
+	if err != nil {
+		return 0, makeCallError(methodName, shardId, err)
+	}
+	return result, nil
+}
+
+func (api *NodeApiOverShardApis) GetTxpoolContent(
+	ctx context.Context,
+	shardId types.ShardId,
+) ([]*types.Transaction, error) {
+	methodName := methodNameChecked("GetTxpoolContent")
+	shardApi, ok := api.Apis[shardId]
+	if !ok {
+		return nil, makeShardNotFoundError(methodName, shardId)
+	}
+	result, err := shardApi.GetTxpoolContent(ctx)
+	if err != nil {
+		return nil, makeCallError(methodName, shardId, err)
+	}
+	return result, nil
+}

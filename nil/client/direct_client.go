@@ -395,3 +395,11 @@ func (c *DirectClient) ClientVersion(ctx context.Context) (string, error) {
 func (c *DirectClient) DoPanicOnShard(ctx context.Context, shardId types.ShardId) (uint64, error) {
 	return c.devApi.DoPanicOnShard(ctx, shardId)
 }
+
+func (c *DirectClient) GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error) {
+	panic("Not supported")
+}
+
+func (c *DirectClient) GetTxpoolContent(ctx context.Context, shardId types.ShardId) ([]*types.Transaction, error) {
+	panic("Not supported")
+}

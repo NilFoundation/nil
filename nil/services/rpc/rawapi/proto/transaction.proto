@@ -68,3 +68,14 @@ message ReceiptResponse {
     ReceiptInfo data = 2;
   }
 }
+
+message RawTxns {
+  repeated bytes data = 1;
+}
+
+message RawTxnsResponse {
+  oneof result {
+    Error error = 1;
+    RawTxns data = 2;
+  }
+}

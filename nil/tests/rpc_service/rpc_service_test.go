@@ -225,7 +225,7 @@ func (s *SuiteRpcService) TestRpcError() {
 }
 
 func (s *SuiteRpcService) TestBatch() {
-	apis := `{"db":"1.0","debug":"1.0","eth":"1.0","faucet":"1.0","rpc":"1.0","web3":"1.0"}`
+	apis := `{"db":"1.0","debug":"1.0","eth":"1.0","faucet":"1.0","rpc":"1.0","txpool":"1.0","web3":"1.0"}`
 	testcases := map[string]string{
 		"[]": `{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"empty batch"}}`,
 
