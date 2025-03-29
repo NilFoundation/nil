@@ -81,3 +81,4 @@ openrpc.json
 
 .pnpm/
 .pnpm-store/
+.qodo
