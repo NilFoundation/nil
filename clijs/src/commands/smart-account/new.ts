@@ -102,7 +102,7 @@ export default class SmartAccountNew extends BaseCommand {
 
     this.info("Deploying smart account...");
     const tx = await smartAccount.selfDeploy(true);
-    this.info(`Successfully deployed smart account with tx hash: ${bytesToHex(tx)}`);
+    this.info(`Successfully deployed smart account with tx hash: ${tx.hash}`);
 
     if (this.quiet) {
       this.log(smartAccountAddress);
