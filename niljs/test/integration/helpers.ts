@@ -1,3 +1,4 @@
+import { IndexerClient } from "../../src/clients/IndexerClient.js";
 import {
   FaucetClient,
   HttpTransport,
@@ -57,6 +58,14 @@ export function newFaucetClient() {
   return new FaucetClient({
     transport: new HttpTransport({
       endpoint: testEnv.faucetServiceEndpoint,
+    }),
+  });
+}
+
+export function newIndexerClient() {
+  return new IndexerClient({
+    transport: new HttpTransport({
+      endpoint: testEnv.endpoint,
     }),
   });
 }

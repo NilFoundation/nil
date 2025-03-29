@@ -1,4 +1,4 @@
-package internal
+package indexer
 
 import (
 	"context"
@@ -13,7 +13,7 @@ var logger = logging.NewLogger("fetch-block")
 
 var ErrBlockNotFound = errors.New("block not found")
 
-func (e *exporter) FetchBlocks(
+func (e *Indexer) FetchBlocks(
 	ctx context.Context,
 	shardId types.ShardId,
 	fromId types.BlockNumber,
@@ -36,7 +36,7 @@ func (e *exporter) FetchBlocks(
 	return result, nil
 }
 
-func (e *exporter) FetchBlock(
+func (e *Indexer) FetchBlock(
 	ctx context.Context,
 	shardId types.ShardId,
 	blockId any,
@@ -51,6 +51,6 @@ func (e *exporter) FetchBlock(
 	return latestBlock.DecodeSSZ()
 }
 
-func (e *exporter) FetchShards(ctx context.Context) ([]types.ShardId, error) {
+func (e *Indexer) FetchShards(ctx context.Context) ([]types.ShardId, error) {
 	return e.client.GetShardIdList(ctx)
 }

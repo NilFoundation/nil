@@ -8,17 +8,17 @@ import (
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/cmd/exporter/internal"
-	"github.com/NilFoundation/nil/nil/cmd/exporter/internal/clickhouse"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/cobrax"
+	"github.com/NilFoundation/nil/nil/services/indexer"
+	"github.com/NilFoundation/nil/nil/services/indexer/clickhouse"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	logger  = logging.NewLogger("exporter")
+	logger  = logging.NewLogger("indexer")
 	cfgFile string
 )
 
@@ -49,7 +49,7 @@ func main() {
 	cobra.OnInitialize(initConfig)
 	rootCmd := &cobra.Command{
 		Use:   "exporter [-c config.yaml] [flags]",
-		Short: "Exporter is a tool to export data from Nil blockchain to Clickhouse.",
+		Short: "exporter is a tool to export data from Nil blockchain to Clickhouse.",
 		Long: `Exporter is a tool to export data from Nil blockchain to Clickhouse.
 You could config it via config file or flags or environment variables.`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -97,15 +97,15 @@ You could config it via config file or flags or environment variables.`,
 
 	ctx := context.Background()
 
-	clickhouseExporter, err := clickhouse.NewClickhouseDriver(
+	clickhouseDriver, err := clickhouse.NewClickhouseDriver(
 		ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
 	check.PanicIfErr(err)
 
-	check.PanicIfErr(internal.StartExporter(ctx, &internal.Cfg{
-		Client:         rpc.NewClient(apiEndpoint, logger),
-		ExporterDriver: clickhouseExporter,
-		AllowDbDrop:    allowDbDrop,
+	check.PanicIfErr(indexer.StartIndexer(ctx, &indexer.Cfg{
+		Client:        rpc.NewClient(apiEndpoint, logger),
+		IndexerDriver: clickhouseDriver,
+		AllowDbDrop:   allowDbDrop,
 	}))
 
-	logger.Info().Msg("Exporter stopped")
+	logger.Info().Msg("Indexer stopped")
 }

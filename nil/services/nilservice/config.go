@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
+	"github.com/NilFoundation/nil/nil/services/indexer"
 	"github.com/NilFoundation/nil/nil/services/rollup"
 )
 
@@ -78,6 +79,7 @@ type Config struct {
 	ZeroState *execution.ZeroStateConfig `yaml:"zeroState,omitempty"`
 	Replay    *ReplayConfig              `yaml:"replay,omitempty"`
 	Cometa    *cometa.Config             `yaml:"cometa,omitempty"`
+	Indexer   *indexer.Config            `yaml:"indexer,omitempty"`
 	RpcNode   *RpcNodeConfig             `yaml:"rpcNode,omitempty"`
 
 	L1Fetcher rollup.L1BlockFetcher `yaml:"-"`

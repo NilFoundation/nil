@@ -27,6 +27,8 @@ import (
 	"github.com/NilFoundation/nil/nil/services/admin"
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/faucet"
+	"github.com/NilFoundation/nil/nil/services/indexer"
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	"github.com/NilFoundation/nil/nil/services/rollup"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
@@ -63,16 +65,16 @@ func startRpcServer(
 		KeepHeaders:     []string{"Client-Version", "Client-Type", "X-UID"},
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	indexerCtx, cancel := context.WithCancel(ctx)
 	pollBlocksForLogs := cfg.RunMode == NormalRunMode
 
 	var ethApiService any
 	if cfg.RunMode == NormalRunMode || cfg.RunMode == RpcRunMode {
-		ethImpl := jsonrpc.NewEthAPI(ctx, rawApi, db, pollBlocksForLogs, cfg.LogClientRpcEvents)
+		ethImpl := jsonrpc.NewEthAPI(indexerCtx, rawApi, db, pollBlocksForLogs, cfg.LogClientRpcEvents)
 		defer ethImpl.Shutdown()
 		ethApiService = ethImpl
 	} else {
-		ethImpl := jsonrpc.NewEthAPIRo(ctx, rawApi, db, pollBlocksForLogs, cfg.LogClientRpcEvents)
+		ethImpl := jsonrpc.NewEthAPIRo(indexerCtx, rawApi, db, pollBlocksForLogs, cfg.LogClientRpcEvents)
 		defer ethImpl.Shutdown()
 		ethApiService = ethImpl
 	}
@@ -113,11 +115,31 @@ func startRpcServer(
 	}
 
 	if cfg.Cometa != nil {
-		cmt, err := cometa.NewService(ctx, cfg.Cometa, client)
+		cmt, err := cometa.NewService(indexerCtx, cfg.Cometa, client)
 		if err != nil {
 			return fmt.Errorf("failed to create cometa service: %w", err)
 		}
 		apiList = append(apiList, cmt.GetRpcApi())
+	}
+
+	if cfg.Indexer != nil {
+		idx, err := indexer.NewService(indexerCtx, cfg.Indexer, client)
+		if err != nil {
+			return fmt.Errorf("failed to create indexer service: %w", err)
+		}
+		apiList = append(apiList, idx.GetRpcApi())
+
+		check.PanicIfErr(err)
+		go func() {
+			err := indexer.StartIndexer(indexerCtx, &indexer.Cfg{
+				Client:        client,
+				IndexerDriver: idx.Driver,
+				BlocksChan:    make(chan *driver.BlockWithShardId, 1000),
+			})
+			if err != nil {
+				logger.Error().Err(err).Msg("failed to start indexer")
+			}
+		}()
 	}
 
 	if cfg.IsFaucetApiEnabled() {
@@ -138,7 +160,7 @@ func startRpcServer(
 		})
 	}
 
-	return rpc.StartRpcServer(ctx, httpConfig, apiList, logger, nil)
+	return rpc.StartRpcServer(indexerCtx, httpConfig, apiList, logger, nil)
 }
 
 func startAdminServer(ctx context.Context, cfg *Config) error {
@@ -529,7 +551,7 @@ func CreateNode(
 			}
 
 			var cl client.Client
-			if cfg.Cometa != nil || cfg.IsFaucetApiEnabled() {
+			if cfg.Cometa != nil || cfg.IsFaucetApiEnabled() || cfg.Indexer != nil {
 				cl, err = client.NewEthClient(ctx, database, rawApi, logger)
 				if err != nil {
 					return fmt.Errorf("failed to create node client: %w", err)
