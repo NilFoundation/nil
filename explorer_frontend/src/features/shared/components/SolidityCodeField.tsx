@@ -27,6 +27,7 @@ export const SolidityCodeField = ({
 
   return (
     <CodeField
+    className="solidity-code-field"
       extensions={codemirrorExtensions}
       displayCopy={displayCopy}
       highlightOnHover={highlightOnHover}
@@ -41,6 +42,8 @@ export const SolidityCodeField = ({
         },
       }}
       {...rest}
+
+ 
     />
   );
 };
