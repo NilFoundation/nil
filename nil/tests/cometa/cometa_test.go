@@ -73,7 +73,11 @@ func (s *SuiteCometaClickhouse) SetupSuite() {
 	s.Require().NoError(err)
 
 	time.Sleep(1 * time.Second)
-	createDb := exec.Command("clickhouse-client", "--port=9002", "--query", "CREATE DATABASE IF NOT EXISTS "+s.cometaCfg.DbName) //nolint:gosec
+	createDb := exec.Command( //nolint:gosec
+		"clickhouse-client",
+		"--port=9002",
+		"--query",
+		"CREATE DATABASE IF NOT EXISTS "+s.cometaCfg.DbName)
 	out, err := createDb.CombinedOutput()
 	s.Require().NoErrorf(err, "output: %s", out)
 
@@ -100,8 +104,19 @@ func (s *SuiteCometa) SetupTest() {
 	s.Require().NoError(err)
 	zerostateCfg := &execution.ZeroStateConfig{
 		Contracts: []*execution.ContractDescr{
-			{Name: "MainSmartAccount", Contract: "SmartAccount", Address: types.MainSmartAccountAddress, Value: mainSmartAccountValue, CtorArgs: []any{execution.MainPublicKey}},
-			{Name: "Tests", Contract: "tests/Test", Address: s.testAddress, Value: types.NewValueFromUint64(100000000)},
+			{
+				Name:     "MainSmartAccount",
+				Contract: "SmartAccount",
+				Address:  types.MainSmartAccountAddress,
+				Value:    mainSmartAccountValue,
+				CtorArgs: []any{execution.MainPublicKey},
+			},
+			{
+				Name:     "Tests",
+				Contract: "tests/Test",
+				Address:  s.testAddress,
+				Value:    types.NewValueFromUint64(100000000),
+			},
 		},
 	}
 	s.cometaCfg.DbPath = s.T().TempDir() + "/cometa.db"
@@ -126,10 +141,13 @@ func (s *SuiteCometa) TestTwinContracts() {
 	deployCode1 := types.BuildDeployPayload(smartAccountCode, common.EmptyHash)
 	deployCode2 := types.BuildDeployPayload(smartAccountCode, common.HexToHash("0x1234"))
 
-	smartAccountAddr1, _ := s.DeployContractViaMainSmartAccount(types.BaseShardId, deployCode1, s.GasToValue(10_000_000))
-	smartAccountAddr2, _ := s.DeployContractViaMainSmartAccount(types.BaseShardId, deployCode2, s.GasToValue(10_000_000))
+	smartAccountAddr1, _ := s.DeployContractViaMainSmartAccount(
+		types.BaseShardId, deployCode1, s.GasToValue(10_000_000))
+	smartAccountAddr2, _ := s.DeployContractViaMainSmartAccount(
+		types.BaseShardId, deployCode2, s.GasToValue(10_000_000))
 
-	err = s.cometaClient.RegisterContractFromFile("../../contracts/solidity/compile-smart-account.json", smartAccountAddr1)
+	err = s.cometaClient.RegisterContractFromFile(
+		"../../contracts/solidity/compile-smart-account.json", smartAccountAddr1)
 	s.Require().NoError(err)
 
 	contract1, err := s.cometaClient.GetContractFields(smartAccountAddr1, []string{"Name", "InitCode"})
@@ -176,7 +194,9 @@ func (s *SuiteCometa) TestGeneratedCode() {
 
 	loc, err = s.cometaClient.GetLocation(testAddress, uint64(receipt.FailedPc))
 	s.Require().NoError(err)
-	s.Require().Equal("#utility.yul:8, function: revert_error_dbdddcbe895c83990c08b3492a0e83918d802a52331272ac6fdb6a7c4aea3b1b", loc.String())
+	s.Require().Equal(
+		"#utility.yul:8, function: revert_error_dbdddcbe895c83990c08b3492a0e83918d802a52331272ac6fdb6a7c4aea3b1b",
+		loc.String())
 }
 
 func (s *SuiteCometa) TestMethodList() {
@@ -185,7 +205,9 @@ func (s *SuiteCometa) TestMethodList() {
 	smartAccountAbi, err := contracts.GetAbi(contracts.NameSmartAccount)
 	s.Require().NoError(err)
 
-	err = s.cometaClient.RegisterContractFromFile("../../contracts/solidity/compile-smart-account.json", types.MainSmartAccountAddress)
+	err = s.cometaClient.RegisterContractFromFile(
+		"../../contracts/solidity/compile-smart-account.json",
+		types.MainSmartAccountAddress)
 	s.Require().NoError(err)
 
 	err = s.cometaClient.RegisterContractFromFile("../../contracts/solidity/tests/compile-test.json", s.testAddress)

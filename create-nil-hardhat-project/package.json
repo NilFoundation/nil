@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node scripts/cli.js",
     "tests": "npx hardhat test --network nil",
-    "pub": "npm publish"
+    "pub": "pnpm publish"
   },
   "publishConfig": {
     "access": "public",
@@ -22,6 +22,6 @@
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "dotenv": "^16.4.5",
     "ts-node": "^10.9.2",
-    "@nilfoundation/smart-contracts": "0.6.0"
+    "@nilfoundation/smart-contracts": "0.7.0"
   }
 }

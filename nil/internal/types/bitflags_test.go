@@ -1,6 +1,7 @@
 package types
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -48,6 +49,29 @@ func test[T constraints.Integer](t *testing.T) {
 			require.False(t, b2.GetBit(i))
 		}
 	}
+
+	b.Clear()
+
+	require.True(t, b.None())
+
+	err := b.SetRange(0, 5)
+	require.NoError(t, err)
+	require.Equal(t, uint64(0x1f), b.Uint64())
+
+	b.Clear()
+	err = b.SetRange(4, 3)
+	require.NoError(t, err)
+	require.Equal(t, uint64(0x70), b.Uint64())
+
+	b.Clear()
+	err = b.SetRange(0, 0)
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), b.Uint64())
+
+	err = b.SetRange(math.MaxUint64, 5)
+	require.Error(t, err)
+	err = b.SetRange(1, uint(bitSize))
+	require.Error(t, err)
 }
 
 func TestBitFlags(t *testing.T) {

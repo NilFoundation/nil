@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/NilFoundation/nil/nil/common/concurrent"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/debug"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
 	"github.com/rs/zerolog"
@@ -22,14 +23,14 @@ type CmdParams interface {
 type Executor[P CmdParams] struct {
 	writer io.StringWriter
 	params P
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
 type CmdOutput = string
 
 const EmptyOutput = ""
 
-func NewExecutor[P CmdParams](writer io.StringWriter, params P, logger zerolog.Logger) *Executor[P] {
+func NewExecutor[P CmdParams](writer io.StringWriter, params P, logger logging.Logger) *Executor[P] {
 	return &Executor[P]{
 		writer: writer,
 		params: params,

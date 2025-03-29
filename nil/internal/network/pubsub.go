@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/telemetry/telattr"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/rs/zerolog"
 )
 
 const subscriptionChannelSize = 100
@@ -27,11 +26,16 @@ type PubSub struct {
 	published     telemetry.Counter
 	publishedSize telemetry.Counter
 
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
 type SubscriptionCounters struct {
 	SkippedMessages atomic.Uint32
+}
+
+type PubSubMessage struct {
+	Data         []byte
+	ReceivedFrom PeerID
 }
 
 type Subscription struct {
@@ -40,12 +44,12 @@ type Subscription struct {
 
 	received     telemetry.Counter
 	receivedSize telemetry.Counter
-	logger       zerolog.Logger
+	logger       logging.Logger
 	counters     SubscriptionCounters
 }
 
 // newPubSub creates a new PubSub instance. It must be closed after use.
-func newPubSub(ctx context.Context, h Host, conf *Config, logger zerolog.Logger) (*PubSub, error) {
+func newPubSub(ctx context.Context, h Host, conf *Config, logger logging.Logger) (*PubSub, error) {
 	impl, err := pubsub.NewGossipSub(ctx, h)
 	if err != nil {
 		return nil, err
@@ -190,8 +194,8 @@ func (ps *PubSub) getTopic(topic string) (*pubsub.Topic, error) {
 	return t, nil
 }
 
-func (s *Subscription) Start(ctx context.Context, skipSelfMessages bool) <-chan []byte {
-	msgCh := make(chan []byte, subscriptionChannelSize)
+func (s *Subscription) Start(ctx context.Context, skipSelfMessages bool) <-chan PubSubMessage {
+	msgCh := make(chan PubSubMessage, subscriptionChannelSize)
 
 	go func() {
 		s.logger.Debug().Msg("Starting subscription loop...")
@@ -222,7 +226,7 @@ func (s *Subscription) Start(ctx context.Context, skipSelfMessages bool) <-chan 
 			s.receivedSize.Add(ctx, int64(len(msg.Data)), attrs)
 			s.logger.Trace().Msg("Received message")
 
-			msgCh <- msg.Data
+			msgCh <- PubSubMessage{msg.Data, msg.ReceivedFrom}
 		}
 
 		close(msgCh)

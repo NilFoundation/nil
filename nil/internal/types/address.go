@@ -231,6 +231,15 @@ func GenerateRandomAddress(shardId ShardId) Address {
 	return BytesToAddress(raw)
 }
 
+func GenerateRandomHash() common.Hash {
+	randomBytes := make([]byte, 32)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		panic(err)
+	}
+	return common.BytesToHash(randomBytes)
+}
+
 func ToShardedHash(h common.Hash, shardId ShardId) common.Hash {
 	raw := h
 	setShardId(raw[:], shardId)

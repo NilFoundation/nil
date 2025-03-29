@@ -15,13 +15,13 @@ func (s *PubSubSuite) SetupSuite() {
 	s.port = 1345
 }
 
-func (s *PubSubSuite) receive(ch <-chan []byte, expected []byte) {
+func (s *PubSubSuite) receive(ch <-chan PubSubMessage, expected []byte) {
 	s.T().Helper()
 
 	s.Eventually(func() bool {
 		select {
 		case received := <-ch:
-			s.Equal(expected, received)
+			s.Equal(expected, received.Data)
 			return true
 		default:
 			return false
@@ -29,7 +29,7 @@ func (s *PubSubSuite) receive(ch <-chan []byte, expected []byte) {
 	}, 10*time.Second, 100*time.Millisecond)
 }
 
-func (s *PubSubSuite) ensureSkipped(sub *Subscription, ch <-chan []byte, curSkippedCounter int) {
+func (s *PubSubSuite) ensureSkipped(sub *Subscription, ch <-chan PubSubMessage, curSkippedCounter int) {
 	s.T().Helper()
 
 	s.Eventually(func() bool {
@@ -127,7 +127,7 @@ func (s *PubSubSuite) TestComplexScenario() {
 	s.Require().NotEqual(msg1, msg2)
 
 	topic1Subs := make([]*Subscription, n)
-	topic1Channels := make([]<-chan []byte, n)
+	topic1Channels := make([]<-chan PubSubMessage, n)
 
 	s.Run("Subscribe all to topic 1", func() {
 		for i := range n {

@@ -7,9 +7,9 @@ import {
   COLORS,
   LabelMedium,
 } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import type { FC } from "react";
-import { useStyletron } from "styletron-react";
 import { OverflowEllipsis } from "../../../shared";
 import { closeApp } from "../../models/base";
 import { exportAppFx } from "../../models/exportApp";
@@ -29,7 +29,7 @@ export const ContractManagementHeader: FC<ContractManagementHeaderProps> = ({
   name,
   loading,
 }) => {
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
   const isExportingApp = useUnit(exportAppFx.pending);
 
   return (
@@ -40,7 +40,7 @@ export const ContractManagementHeader: FC<ContractManagementHeaderProps> = ({
         alignItems: "center",
         position: "sticky",
         top: "-1px",
-        backgroundColor: COLORS.gray900,
+        backgroundColor: theme.colors.backgroundPrimary,
         paddingTop: "16px",
         paddingBottom: "16px",
       })}
@@ -54,6 +54,10 @@ export const ContractManagementHeader: FC<ContractManagementHeaderProps> = ({
               width: "32px",
               height: "32px",
               flexShrink: 0,
+              backgroundColor: theme.colors.backgroundSecondary,
+              ":hover": {
+                backgroundColor: theme.colors.backgroundTertiary,
+              },
             },
           },
         }}

@@ -23,7 +23,7 @@ export const PlaygroundPage = () => {
   const [isMobile] = useMobile();
 
   useEffect(() => {
-    loadedPlaygroundPage(false);
+    loadedPlaygroundPage();
 
     return () => {
       closeApp();

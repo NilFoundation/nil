@@ -8,9 +8,9 @@ import {
   StatefulTooltip,
 } from "@nilfoundation/ui-kit";
 import type { AbiFunction } from "abitype";
+import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { useMemo } from "react";
-import { useStyletron } from "styletron-react";
 import { formatEther } from "viem";
 import { addressRoute } from "../../../routing";
 import { Link, ShareIcon, useMobile } from "../../../shared";
@@ -44,7 +44,7 @@ export const ContractManagement = () => {
       $txHashes,
     ]);
   const [isMobile] = useMobile();
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
   const functions = useMemo(() => {
     if (!app) {
       return [];
@@ -109,6 +109,10 @@ export const ContractManagement = () => {
                 style: {
                   height: "32px",
                   width: "32px",
+                  backgroundColor: theme.colors.backgroundSecondary,
+                  ":hover": {
+                    backgroundColor: theme.colors.backgroundTertiary,
+                  },
                 },
               },
             }}
@@ -122,6 +126,10 @@ export const ContractManagement = () => {
                     style: {
                       height: "32px",
                       width: "32px",
+                      backgroundColor: theme.colors.backgroundSecondary,
+                      ":hover": {
+                        backgroundColor: theme.colors.backgroundTertiary,
+                      },
                     },
                   },
                 }}

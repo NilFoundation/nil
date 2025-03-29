@@ -67,7 +67,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.blockHash = blockRes.BlockHash
 
-	err = execution.PostprocessBlock(tx, shardId, blockRes)
+	err = execution.PostprocessBlock(tx, shardId, blockRes, execution.ModeVerify)
 	suite.Require().NotNil(blockRes.Block)
 	suite.Require().NoError(err)
 

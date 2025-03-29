@@ -13,7 +13,8 @@ import (
 	"github.com/NilFoundation/nil/nil/services/txnpool"
 )
 
-// SendRawTransaction implements eth_sendRawTransaction. Creates new transaction or a contract creation for previously-signed transaction.
+// SendRawTransaction implements eth_sendRawTransaction.
+// Creates new transaction or a contract creation for previously-signed transaction.
 func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Bytes) (common.Hash, error) {
 	var extTxn types.ExternalTransaction
 	if err := extTxn.UnmarshalSSZ(encoded); err != nil {

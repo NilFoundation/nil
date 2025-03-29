@@ -26,7 +26,7 @@ func writeTestBlock(t *testing.T, tx db.RwTx, shardId types.ShardId, blockNumber
 			ReceiptsRoot:        writeReceipts(t, tx, shardId, receipts).RootHash(),
 			OutTransactionsNum:  types.TransactionIndex(len(outTransactions)),
 			ChildBlocksRootHash: common.EmptyHash,
-			MainChainHash:       common.EmptyHash,
+			MainShardHash:       common.EmptyHash,
 		},
 	}
 	hash := block.Hash(types.BaseShardId)
@@ -51,7 +51,12 @@ func writeTestBlock(t *testing.T, tx db.RwTx, shardId types.ShardId, blockNumber
 	}
 }
 
-func writeTransactions(t *testing.T, tx db.RwTx, shardId types.ShardId, transactions []*types.Transaction) *execution.TransactionTrie {
+func writeTransactions(
+	t *testing.T,
+	tx db.RwTx,
+	shardId types.ShardId,
+	transactions []*types.Transaction,
+) *execution.TransactionTrie {
 	t.Helper()
 	transactionRoot := execution.NewDbTransactionTrie(tx, shardId)
 	for i, transaction := range transactions {

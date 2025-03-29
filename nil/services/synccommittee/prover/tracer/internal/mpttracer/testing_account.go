@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Helper function to create a test account with storage trie.
-func CreateTestAccount(t *testing.T) (types.Address, *MPTTracer) {
+// Helper function to create a test account with tracer (they shared underlying MPT storage).
+func CreateTestAccountAndTracer(t *testing.T) (types.Address, *MPTTracer, db.RwTx) {
 	t.Helper()
 
 	ctx := t.Context()
@@ -45,13 +45,15 @@ func CreateTestAccount(t *testing.T) (types.Address, *MPTTracer) {
 
 	mptTracer := NewWithReader(contractReader, rwTx, shardId)
 
-	return addr, mptTracer
+	return addr, mptTracer, rwTx
 }
 
 type TestContractReader struct {
 	RwTx         db.RwTx
 	ContractTrie *execution.BaseMPT[common.Hash, types.SmartContract, *types.SmartContract]
 }
+
+var _ ContractReader = (*TestContractReader)(nil)
 
 func (tcr *TestContractReader) GetRwTx() db.RwTx {
 	return tcr.RwTx
@@ -61,13 +63,11 @@ func (tcr *TestContractReader) GetRwTx() db.RwTx {
 func (tcr *TestContractReader) AppendToJournal(je execution.JournalEntry) {
 }
 
-func (tcr *TestContractReader) GetAccount(_ context.Context, addr types.Address) (*TracerAccount, mpt.Proof, error) {
+func (tcr *TestContractReader) GetAccount(
+	_ context.Context,
+	addr types.Address,
+) (*types.SmartContract, mpt.Proof, error) {
 	contract, err := tcr.ContractTrie.Fetch(addr.Hash())
-	if err != nil {
-		return nil, mpt.Proof{}, err
-	}
-
-	tracerAccount, err := NewTracerAccount(tcr, contract.Address, contract)
 	if err != nil {
 		return nil, mpt.Proof{}, err
 	}
@@ -77,7 +77,5 @@ func (tcr *TestContractReader) GetAccount(_ context.Context, addr types.Address)
 		return nil, mpt.Proof{}, err
 	}
 
-	return tracerAccount, proof, nil
+	return contract, proof, nil
 }
-
-var _ ContractReader = &TestContractReader{}

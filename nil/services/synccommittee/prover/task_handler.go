@@ -11,12 +11,13 @@ import (
 	"syscall"
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/commands"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/internal/constants"
+	"github.com/jonboulle/clockwork"
 	"github.com/rs/zerolog"
 )
 
@@ -26,20 +27,20 @@ type TaskResultSaver interface {
 
 type taskHandler struct {
 	resultSaver TaskResultSaver
-	timer       common.Timer
-	logger      zerolog.Logger
+	clock       clockwork.Clock
+	logger      logging.Logger
 	config      taskHandlerConfig
 }
 
 func newTaskHandler(
 	resultSaver TaskResultSaver,
-	timer common.Timer,
-	logger zerolog.Logger,
+	clock clockwork.Clock,
+	logger logging.Logger,
 	config taskHandlerConfig,
 ) api.TaskHandler {
 	return &taskHandler{
 		resultSaver: resultSaver,
-		timer:       timer,
+		clock:       clock,
 		logger:      logger,
 		config:      config,
 	}
@@ -76,7 +77,7 @@ func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorI
 }
 
 func (h *taskHandler) handleImpl(ctx context.Context, task *types.Task) (*executionResult, error) {
-	if task.TaskType == types.ProofBlock {
+	if task.TaskType == types.ProofBatch {
 		return nil, types.NewTaskErrNotSupportedType(task.TaskType)
 	}
 
@@ -130,10 +131,10 @@ func (h *taskHandler) executeCommand(execCmd *exec.Cmd) error {
 
 	h.logger.Info().Msgf("Run command %v\n", cmdString)
 
-	startTime := h.timer.NowTime()
+	startTime := h.clock.Now()
 	err := execCmd.Run()
 	h.logger.Trace().Msgf("Task execution stdout:\n%v\n", stdout.String())
-	execTime := h.timer.NowTime().Sub(startTime)
+	execTime := h.clock.Now().Sub(startTime)
 
 	if err == nil {
 		h.logger.Info().

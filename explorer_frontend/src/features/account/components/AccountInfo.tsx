@@ -10,7 +10,7 @@ import {
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { useEffect } from "react";
-import { $cometaService } from "../../cometa/model";
+import { $cometaClient } from "../../cometa/model";
 import { addressRoute } from "../../routing";
 import { Divider } from "../../shared";
 import { Info } from "../../shared/components/Info";
@@ -43,14 +43,14 @@ export const AccountInfo = () => {
     loadAccountStateFx.pending,
     loadAccountCometaInfoFx.pending,
     addressRoute.$params,
-    $cometaService,
+    $cometaClient,
   ]);
   const [css] = useStyletron();
   const sourceCode = accountCometaInfo?.sourceCode?.Compiled_Contracts;
 
   useEffect(() => {
     loadAccountStateFx(params.address);
-    loadAccountCometaInfoFx({ address: params.address, cometaService: cometa });
+    loadAccountCometaInfoFx({ address: params.address, cometaClient: cometa });
   }, [params.address, cometa]);
 
   if (isLoading) return <AccountLoading />;

@@ -1,3 +1,3 @@
 import { createRoute } from "../utils/createRoute";
 
-export const tutorialWithStageRoute = createRoute<{ stage: string }>();
+export const tutorialWithUrlStringRoute = createRoute<{ urlSlug: string }>();

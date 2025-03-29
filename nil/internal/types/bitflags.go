@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"unsafe"
 
 	"golang.org/x/exp/constraints"
@@ -25,6 +26,18 @@ func (b BitFlags[T]) Set(i int, v bool) BitFlags[T] {
 		b.ClearBit(i)
 	}
 	return b
+}
+
+func (b *BitFlags[T]) SetRange(start, count uint) error {
+	if count == 0 {
+		return nil
+	}
+	end := start + count
+	if start >= end || end >= uint(unsafe.Sizeof(b.Bits)*8) {
+		return fmt.Errorf("invalid range: %d-%d", start, end)
+	}
+	b.Bits |= ((T(1) << (end - start)) - 1) << start
+	return nil
 }
 
 func (b *BitFlags[T]) SetBit(i int) {
@@ -54,4 +67,12 @@ func (b *BitFlags[T]) Clear() {
 
 func (b *BitFlags[T]) BitsNum() int {
 	return int(unsafe.Sizeof(b.Bits) * 8)
+}
+
+func (b *BitFlags[T]) Uint64() uint64 {
+	return uint64(b.Bits)
+}
+
+func (b *BitFlags[T]) None() bool {
+	return b.Bits == 0
 }

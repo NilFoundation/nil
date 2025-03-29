@@ -8,9 +8,9 @@ import {
   ParagraphXSmall,
   PlusIcon,
 } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import type { FC } from "react";
-import { useStyletron } from "styletron-react";
 import { $shardIdIsValid, decrementShardId, incrementShardId } from "../../models/base";
 import { $shardsAmount } from "../../models/shardsAmount";
 
@@ -20,20 +20,24 @@ type ShardIdInputProps = {
   disabled?: boolean;
 };
 
-const btnOverrides = {
-  Root: {
-    style: {
-      width: "46px",
-      height: "46px",
-      marginBottom: "16px",
-    },
-  },
-};
-
 export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId, disabled }) => {
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
   const [shardsAmount, shardIdIsValid] = useUnit([$shardsAmount, $shardIdIsValid]);
   const failedToGetShardsAmount = shardsAmount === -1;
+
+  const btnOverrides = {
+    Root: {
+      style: {
+        width: "46px",
+        height: "46px",
+        marginBottom: "16px",
+        backgroundColor: theme.colors.backgroundSecondary,
+        ":hover": {
+          backgroundColor: theme.colors.backgroundTertiary,
+        },
+      },
+    },
+  };
 
   return (
     <div
@@ -88,6 +92,10 @@ export const ShardIdInput: FC<ShardIdInputProps> = ({ shardId, setShardId, disab
                 Root: {
                   style: {
                     width: "145px",
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    ":hover": {
+                      backgroundColor: theme.colors.backgroundTertiary,
+                    },
                   },
                 },
               }}

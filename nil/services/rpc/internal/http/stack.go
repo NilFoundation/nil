@@ -14,9 +14,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
 	"github.com/gorilla/handlers"
-	"github.com/rs/zerolog"
 )
 
 // HttpConfig is the HTTP configuration.
@@ -38,7 +38,7 @@ type rpcHandler struct {
 }
 
 type httpServer struct {
-	logger   zerolog.Logger
+	logger   logging.Logger
 	timeouts httpcfg.HTTPTimeouts
 
 	mu       sync.Mutex
@@ -57,7 +57,7 @@ type httpServer struct {
 	handlerNames map[string]string
 }
 
-func newHTTPServer(logger zerolog.Logger, timeouts httpcfg.HTTPTimeouts) *httpServer {
+func newHTTPServer(logger logging.Logger, timeouts httpcfg.HTTPTimeouts) *httpServer {
 	h := &httpServer{logger: logger, timeouts: timeouts, handlerNames: make(map[string]string)}
 
 	h.httpHandler.Store((*rpcHandler)(nil))

@@ -62,17 +62,19 @@ class PublicClient extends BaseClient {
    * const block = await client.getBlockByHash(HASH);
    */
   public async getBlockByHash(hash: Hex, fullTx = false) {
-    try {
-      return await this.request<Block<typeof fullTx>>({
-        method: "eth_getBlockByHash",
-        params: [hash, fullTx],
-      });
-    } catch (error) {
+    const block = await this.request<Block<typeof fullTx>>({
+      method: "eth_getBlockByHash",
+      params: [hash, fullTx],
+    });
+
+    if (block === null) {
       throw new BlockNotFoundError({
         blockNumberOrHash: hash,
-        cause: error,
+        docsPath: "/reference/client/classes/PublicClient#getblockbyhash",
       });
     }
+
+    return block;
   }
 
   /**
@@ -97,17 +99,19 @@ class PublicClient extends BaseClient {
   ) {
     assertIsValidShardId(shardId);
 
-    try {
-      return await this.request<Block<typeof fullTx>>({
-        method: "eth_getBlockByNumber",
-        params: [shardId, blockNumber, fullTx],
-      });
-    } catch (error) {
+    const block = await this.request<Block<typeof fullTx>>({
+      method: "eth_getBlockByNumber",
+      params: [shardId, blockNumber, fullTx],
+    });
+
+    if (block === null) {
       throw new BlockNotFoundError({
         blockNumberOrHash: blockNumber,
-        cause: error,
+        docsPath: "/reference/client/classes/PublicClient#getblockbynumber",
       });
     }
+
+    return block;
   }
 
   /**
@@ -124,15 +128,16 @@ class PublicClient extends BaseClient {
    * const count = await client.getBlockTransactionCountByNumber(1);
    *
    */
-  public async getBlockTransactionCountByNumber(blockNumber: string, shardId = this.shardId) {
+  public async getBlockTransactionCountByNumber(
+    blockNumber: Hex | BlockTag,
+    shardId = this.shardId,
+  ) {
     assertIsValidShardId(shardId);
 
-    const res = await this.request<number>({
+    return await this.request<number>({
       method: "eth_getBlockTransactionCountByNumber",
       params: [shardId, blockNumber],
     });
-
-    return res;
   }
 
   /**
@@ -149,12 +154,10 @@ class PublicClient extends BaseClient {
    * const count = await client.getBlockTransactionCountByHash(HASH);
    */
   public async getBlockTransactionCountByHash(hash: Hex) {
-    const res = await this.request<number>({
+    return await this.request<number>({
       method: "eth_getBlockTransactionCountByHash",
       params: [hash],
     });
-
-    return res;
   }
 
   /**

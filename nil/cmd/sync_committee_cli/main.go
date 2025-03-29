@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +43,7 @@ func execute() error {
 	return rootCmd.Execute()
 }
 
-func buildGetTasksCmd(commonParam *commands.ExecutorParams, logger zerolog.Logger) *cobra.Command {
+func buildGetTasksCmd(commonParam *commands.ExecutorParams, logger logging.Logger) *cobra.Command {
 	cmdParams := &commands.GetTasksParams{
 		ExecutorParams:   *commonParam,
 		TaskDebugRequest: public.DefaultTaskDebugRequest(),
@@ -88,7 +87,7 @@ func buildGetTasksCmd(commonParam *commands.ExecutorParams, logger zerolog.Logge
 	return cmd
 }
 
-func buildGetTaskTreeCmd(commonParam *commands.ExecutorParams, logger zerolog.Logger) (*cobra.Command, error) {
+func buildGetTaskTreeCmd(commonParam *commands.ExecutorParams, logger logging.Logger) (*cobra.Command, error) {
 	cmdParams := &commands.GetTaskTreeParams{
 		ExecutorParams: *commonParam,
 	}
@@ -113,7 +112,7 @@ func buildGetTaskTreeCmd(commonParam *commands.ExecutorParams, logger zerolog.Lo
 	return cmd, nil
 }
 
-func buildDecodeBatchCmd(_ *commands.ExecutorParams, logger zerolog.Logger) *cobra.Command {
+func buildDecodeBatchCmd(_ *commands.ExecutorParams, logger logging.Logger) *cobra.Command {
 	params := &commands.DecodeBatchParams{}
 
 	cmd := &cobra.Command{
@@ -125,7 +124,11 @@ func buildDecodeBatchCmd(_ *commands.ExecutorParams, logger zerolog.Logger) *cob
 	}
 
 	cmd.Flags().Var(&params.BatchId, "batch-id", "unique ID of L1-stored batch")
-	cmd.Flags().StringVar(&params.BatchFile, "batch-file", "", "file with binary content of concatenated blobs of the batch")
+	cmd.Flags().StringVar(
+		&params.BatchFile,
+		"batch-file",
+		"",
+		"file with binary content of concatenated blobs of the batch")
 	cmd.Flags().StringVar(&params.OutputFile, "output-file", "", "target file to keep decoded batch data")
 
 	return cmd

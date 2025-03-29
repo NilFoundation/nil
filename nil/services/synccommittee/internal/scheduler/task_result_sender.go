@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
@@ -33,14 +34,14 @@ type TaskResultSender struct {
 
 	requestHandler api.TaskRequestHandler
 	resultSource   TaskResultSource
-	logger         zerolog.Logger
+	logger         logging.Logger
 	config         ResultSenderConfig
 }
 
 func NewTaskResultSender(
 	requestHandler api.TaskRequestHandler,
 	resultSource TaskResultSource,
-	logger zerolog.Logger,
+	logger logging.Logger,
 ) *TaskResultSender {
 	sender := &TaskResultSender{
 		requestHandler: requestHandler,

@@ -39,7 +39,7 @@ func (cmd *consistencyCheckCmd) MakeCommandDefinition(task *types.Task) (*Comman
 	consistencyChallenges := []string{"--consistency-checks-challenges-file", consistencyChallengeFile}
 
 	outFile := filepath.Join(cmd.outDir,
-		fmt.Sprintf("LPC_consistency_check_proof.%v.%v.%v", circuitIdx(task.CircuitType), task.ShardId, task.BlockHash.String()))
+		fmt.Sprintf("LPC_consistency_check_proof.%v.%v", circuitIdx(task.CircuitType), task.BatchId))
 	outArg := []string{"--proof", outFile}
 
 	allArgs := slices.Concat(stage, commitmentState, combinedQ, consistencyChallenges, outArg)

@@ -116,7 +116,8 @@ export const Endpoint = () => {
               <Icon
                 src={CheckmarkIcon}
                 size={16}
-                color={COLORS.gray200}
+                alt="checkmark"
+                // color={COLORS.gray200}
                 iconSize="100%"
                 background={"transparent"}
               />

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/rs/zerolog"
 )
 
 var ErrApiKeyNotFound = errors.New("key not found in db api")
@@ -24,13 +24,13 @@ type DbAPIImpl struct {
 	ts *uint64
 	db db.ReadOnlyDB
 
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
 var _ DbAPI = (*DbAPIImpl)(nil)
 
 // NewDbAPI creates a new DbAPI instance.
-func NewDbAPI(db db.ReadOnlyDB, logger zerolog.Logger) *DbAPIImpl {
+func NewDbAPI(db db.ReadOnlyDB, logger logging.Logger) *DbAPIImpl {
 	return &DbAPIImpl{
 		db:     db,
 		logger: logger,
@@ -68,11 +68,21 @@ func (dbApi *DbAPIImpl) Get(ctx context.Context, tableName db.TableName, key []b
 	return res, err
 }
 
-func (dbApi *DbAPIImpl) ExistsInShard(ctx context.Context, shardId types.ShardId, tableName db.ShardedTableName, key []byte) (bool, error) {
+func (dbApi *DbAPIImpl) ExistsInShard(
+	ctx context.Context,
+	shardId types.ShardId,
+	tableName db.ShardedTableName,
+	key []byte,
+) (bool, error) {
 	return dbApi.Exists(ctx, db.ShardTableName(tableName, shardId), key)
 }
 
-func (dbApi *DbAPIImpl) GetFromShard(ctx context.Context, shardId types.ShardId, tableName db.ShardedTableName, key []byte) ([]byte, error) {
+func (dbApi *DbAPIImpl) GetFromShard(
+	ctx context.Context,
+	shardId types.ShardId,
+	tableName db.ShardedTableName,
+	key []byte,
+) ([]byte, error) {
 	return dbApi.Get(ctx, db.ShardTableName(tableName, shardId), key)
 }
 

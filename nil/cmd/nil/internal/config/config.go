@@ -12,10 +12,11 @@ import (
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/mitchellh/mapstructure"
-	"github.com/rs/zerolog"
+	"github.com/go-viper/encoding/ini"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/viper"
 )
 
@@ -58,6 +59,10 @@ func init() {
 	check.PanicIfErr(err)
 
 	DefaultConfigPath = filepath.Join(homeDir, ".config/nil/config.ini")
+
+	codecRegistry := viper.NewCodecRegistry()
+	check.PanicIfErr(codecRegistry.RegisterCodec("ini", ini.Codec{}))
+	viper.SetOptions(viper.WithCodecRegistry(codecRegistry))
 }
 
 func InitDefaultConfig(configPath string) (string, error) {
@@ -160,7 +165,7 @@ func updateDecoderConfig(config *mapstructure.DecoderConfig) {
 }
 
 // LoadConfig loads the configuration from the config file
-func LoadConfig(cfgFilePath string, logger zerolog.Logger) (*common.Config, error) {
+func LoadConfig(cfgFilePath string, logger logging.Logger) (*common.Config, error) {
 	err := viper.ReadInConfig()
 
 	// Create file if it doesn't exist
@@ -196,7 +201,7 @@ func LoadConfig(cfgFilePath string, logger zerolog.Logger) (*common.Config, erro
 }
 
 // validateConfig perform some simple configuration validation
-func validateConfig(config *common.Config, logger zerolog.Logger) error {
+func validateConfig(config *common.Config, logger logging.Logger) error {
 	if config.RPCEndpoint == "" {
 		return MissingKeyError(RPCEndpointField, logger)
 	}
@@ -208,8 +213,9 @@ var generateCommands = map[string]string{
 	AddressField:    "smart-account new",
 }
 
-func MissingKeyError(key string, logger zerolog.Logger) error {
-	logger.Info().Msgf("%s not specified in config.\nRun `%s config set %s <value>` or set via config file.", key, os.Args[0], key)
+func MissingKeyError(key string, logger logging.Logger) error {
+	logger.Info().Msgf(
+		"%s not specified in config.\nRun `%s config set %s <value>` or set via config file.", key, os.Args[0], key)
 
 	if cmd, ok := generateCommands[key]; ok {
 		logger.Info().Msgf("You can also run `%s %s` to generate a new one.", os.Args[0], cmd)

@@ -13,8 +13,14 @@ import (
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
-// Call implements eth_call. Executes a new transaction call immediately without creating a transaction on the block chain.
-func (api *APIImplRo) Call(ctx context.Context, args CallArgs, mainBlockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error) {
+// Call implements eth_call.
+// Executes a new transaction call immediately without creating a transaction on the block chain.
+func (api *APIImplRo) Call(
+	ctx context.Context,
+	args CallArgs,
+	mainBlockNrOrHash transport.BlockNumberOrHash,
+	overrides *StateOverrides,
+) (*CallRes, error) {
 	blockRef := rawapitypes.BlockReferenceAsBlockReferenceOrHashWithChildren(toBlockReference(mainBlockNrOrHash))
 	if args.Fee.FeeCredit.IsZero() {
 		args.Fee = types.NewFeePackFromGas(1_000_000_000_000_000_000)
@@ -53,7 +59,11 @@ func refineOutTxnResult(txns []*rpctypes.OutTransaction) types.Value {
 }
 
 // Call implements eth_estimateGas.
-func (api *APIImplRo) EstimateFee(ctx context.Context, args CallArgs, mainBlockNrOrHash transport.BlockNumberOrHash) (*EstimateFeeRes, error) {
+func (api *APIImplRo) EstimateFee(
+	ctx context.Context,
+	args CallArgs,
+	mainBlockNrOrHash transport.BlockNumberOrHash,
+) (*EstimateFeeRes, error) {
 	balanceCap, err := types.NewValueFromDecimal("1000000000000000000000000") // 1 MEther
 	check.PanicIfErr(err)
 	feeCreditCap, err := types.NewValueFromDecimal("500000000000000000000000") // 0.5 MEther

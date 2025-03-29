@@ -94,19 +94,15 @@ To build a project according to its derivation:
 nix build .#DERIVATION_NAME
 ```
 
-### Using NPM
+### Using PNPM
 
-The repository uses NPM Workspaces to manage collective dependencies across the JS/TS projects it is hosting. 
+The repository uses PNPM Workspaces to manage collective dependencies across the JS/TS projects it is hosting. 
 
-There can only be one top-level `package-lock.json` file that can be regenerated as follows:
+There can only be one top-level `pnpm-lock` file.
 
-```bash
-npm run install:clean
-```
+Individual projects should not have separate `pnpm-lock` files. If such files exist, it may lead to unintended behaviors.
 
-Individual projects should not have separate `package-lock.json` files. If such files exist, it may lead to unintended behaviors.
-
-In addition, Nix validates the hashum of the `package-lock.json` file when building the project. Perform the following actions after running the `install:clean` script:
+Perform the following actions after running the `pnpm install` script:
 
 1. Open the `./nix/npmdeps.nix` file
 2. Remove the current hashsum (located under the list of all `package.json` files)

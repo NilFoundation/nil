@@ -1,11 +1,9 @@
 package ibft
 
-import (
-	"github.com/rs/zerolog"
-)
+import "github.com/NilFoundation/nil/nil/common/logging"
 
 type ibftLogger struct {
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
 func (l *ibftLogger) Info(msg string, args ...any) {

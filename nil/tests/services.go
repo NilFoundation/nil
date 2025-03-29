@@ -14,7 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func StartFaucetService(t *testing.T, ctx context.Context, wg *sync.WaitGroup, client client.Client) (*faucet.Client, string) {
+func StartFaucetService(
+	t *testing.T,
+	ctx context.Context,
+	wg *sync.WaitGroup,
+	client client.Client,
+) (*faucet.Client, string) {
 	t.Helper()
 
 	endpoint := rpc.GetSockPathService(t, "faucet")

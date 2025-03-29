@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
@@ -51,10 +50,8 @@ func makeTaskViewCommon(taskEntry *types.TaskEntry, currentTime time.Time) TaskV
 type TaskView struct {
 	TaskViewCommon
 
-	BatchId     BatchId     `json:"batchId"`
-	ShardId     ShardId     `json:"shardId"`
-	BlockNumber BlockNumber `json:"blockNumber"`
-	BlockHash   common.Hash `json:"blockHash"`
+	BatchId  BatchId         `json:"batchId"`
+	BlockIds []types.BlockId `json:"blockIds"`
 
 	CreatedAt time.Time  `json:"createdAt"`
 	StartedAt *time.Time `json:"startedAt,omitempty"`
@@ -64,10 +61,8 @@ func NewTaskView(taskEntry *types.TaskEntry, currentTime time.Time) *TaskView {
 	return &TaskView{
 		TaskViewCommon: makeTaskViewCommon(taskEntry, currentTime),
 
-		BatchId:     taskEntry.Task.BatchId,
-		ShardId:     taskEntry.Task.ShardId,
-		BlockNumber: taskEntry.Task.BlockNum,
-		BlockHash:   taskEntry.Task.BlockHash,
+		BatchId:  taskEntry.Task.BatchId,
+		BlockIds: taskEntry.Task.BlockIds,
 
 		CreatedAt: taskEntry.Created,
 		StartedAt: taskEntry.Started,

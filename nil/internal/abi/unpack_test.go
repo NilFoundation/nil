@@ -140,18 +140,18 @@ var unpackTests = []unpackTest{
 	},
 	{
 		def:  `[{"type": "bytes"}]`,
-		enc:  "000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000200100000000000000000000000000000000000000000000000000000000000000",
+		enc:  "000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000200100000000000000000000000000000000000000000000000000000000000000", //nolint: lll
 		want: [32]byte{1},
 	},
 	{
 		def:  `[{"type": "bytes32"}]`,
-		enc:  "000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000200100000000000000000000000000000000000000000000000000000000000000",
+		enc:  "000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000200100000000000000000000000000000000000000000000000000000000000000", //nolint: lll
 		want: []byte(nil),
 		err:  "abi: cannot unmarshal [32]uint8 in to []uint8",
 	},
 	{
 		def: `[{"name":"___","type":"int256"}]`,
-		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002", //nolint: lll
 		want: struct {
 			IntOne *big.Int
 			Intone *big.Int
@@ -159,7 +159,7 @@ var unpackTests = []unpackTest{
 	},
 	{
 		def: `[{"name":"int_one","type":"int256"},{"name":"IntOne","type":"int256"}]`,
-		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002", //nolint: lll
 		want: struct {
 			Int1 *big.Int
 			Int2 *big.Int
@@ -168,7 +168,7 @@ var unpackTests = []unpackTest{
 	},
 	{
 		def: `[{"name":"int","type":"int256"},{"name":"Int","type":"int256"}]`,
-		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002", //nolint: lll
 		want: struct {
 			Int1 *big.Int
 			Int2 *big.Int
@@ -177,7 +177,7 @@ var unpackTests = []unpackTest{
 	},
 	{
 		def: `[{"name":"int","type":"int256"},{"name":"_int","type":"int256"}]`,
-		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002", //nolint: lll
 		want: struct {
 			Int1 *big.Int
 			Int2 *big.Int
@@ -186,7 +186,7 @@ var unpackTests = []unpackTest{
 	},
 	{
 		def: `[{"name":"Int","type":"int256"},{"name":"_int","type":"int256"}]`,
-		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002", //nolint: lll
 		want: struct {
 			Int1 *big.Int
 			Int2 *big.Int
@@ -195,7 +195,7 @@ var unpackTests = []unpackTest{
 	},
 	{
 		def: `[{"name":"Int","type":"int256"},{"name":"_","type":"int256"}]`,
-		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002", //nolint: lll
 		want: struct {
 			Int1 *big.Int
 			Int2 *big.Int
@@ -205,21 +205,21 @@ var unpackTests = []unpackTest{
 	// Make sure only the first argument is consumed
 	{
 		def: `[{"name":"int_one","type":"int256"}]`,
-		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002", //nolint: lll
 		want: struct {
 			IntOne *big.Int
 		}{big.NewInt(1)},
 	},
 	{
 		def: `[{"name":"int__one","type":"int256"}]`,
-		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002", //nolint: lll
 		want: struct {
 			IntOne *big.Int
 		}{big.NewInt(1)},
 	},
 	{
 		def: `[{"name":"int_one_","type":"int256"}]`,
-		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+		enc: "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002", //nolint: lll
 		want: struct {
 			IntOne *big.Int
 		}{big.NewInt(1)},
@@ -261,14 +261,30 @@ func TestLocalUnpackTests(t *testing.T) { //nolint:tparallel
 func TestUnpackIntoInterfaceSetDynamicArrayOutput(t *testing.T) {
 	t.Parallel()
 
-	abi, err := JSON(strings.NewReader(`[{"constant":true,"inputs":[],"name":"testDynamicFixedBytes15","outputs":[{"name":"","type":"bytes15[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"testDynamicFixedBytes32","outputs":[{"name":"","type":"bytes32[]"}],"payable":false,"stateMutability":"view","type":"function"}]`))
+	abi, err := JSON(strings.NewReader(`[{
+		"constant":true,
+		"inputs":[],
+		"name":"testDynamicFixedBytes15",
+		"outputs":[{"name":"","type":"bytes15[]"}],
+		"payable":false,
+		"stateMutability":"view",
+		"type":"function"
+	},{
+		"constant":true,
+		"inputs":[],
+		"name":"testDynamicFixedBytes32",
+		"outputs":[{"name":"","type":"bytes32[]"}],
+		"payable":false,
+		"stateMutability":"view",
+		"type":"function"
+	}]`))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var (
-		marshalledReturn32 = hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000230783132333435363738393000000000000000000000000000000000000000003078303938373635343332310000000000000000000000000000000000000000")
-		marshalledReturn15 = hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000230783031323334350000000000000000000000000000000000000000000000003078393837363534000000000000000000000000000000000000000000000000")
+		marshalledReturn32 = hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000230783132333435363738393000000000000000000000000000000000000000003078303938373635343332310000000000000000000000000000000000000000") //nolint: lll
+		marshalledReturn15 = hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000230783031323334350000000000000000000000000000000000000000000000003078393837363534000000000000000000000000000000000000000000000000") //nolint: lll
 
 		out32 [][32]byte
 		out15 [][15]byte
@@ -315,8 +331,14 @@ type methodMultiOutput struct {
 }
 
 func methodMultiReturn(require *require.Assertions) (ABI, []byte, methodMultiOutput) {
-	const definition = `[
-	{ "name" : "multi", "type": "function", "outputs": [ { "name": "Int", "type": "uint256" }, { "name": "String", "type": "string" } ] }]`
+	const definition = `[{
+		"name" : "multi",
+		"type": "function",
+		"outputs": [
+			{ "name": "Int", "type": "uint256" },
+			{ "name": "String", "type": "string" }
+		]
+}]`
 	expected := methodMultiOutput{big.NewInt(1), "hello"}
 
 	abi, err := JSON(strings.NewReader(definition))
@@ -408,13 +430,20 @@ func TestMethodMultiReturn(t *testing.T) { //nolint:tparallel
 func TestMultiReturnWithArray(t *testing.T) {
 	t.Parallel()
 
-	const definition = `[{"name" : "multi", "type": "function", "outputs": [{"type": "uint64[3]"}, {"type": "uint64"}]}]`
+	const definition = `[{
+		"name" : "multi",
+		"type": "function",
+		"outputs": [
+			{"type": "uint64[3]"},
+			{"type": "uint64"}
+		]
+	}]`
 	abi, err := JSON(strings.NewReader(definition))
 	if err != nil {
 		t.Fatal(err)
 	}
 	buff := new(bytes.Buffer)
-	buff.Write(hexutil.Hex2Bytes("000000000000000000000000000000000000000000000000000000000000000900000000000000000000000000000000000000000000000000000000000000090000000000000000000000000000000000000000000000000000000000000009"))
+	buff.Write(hexutil.Hex2Bytes("000000000000000000000000000000000000000000000000000000000000000900000000000000000000000000000000000000000000000000000000000000090000000000000000000000000000000000000000000000000000000000000009")) //nolint: lll
 	buff.Write(hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000008"))
 
 	ret1, ret1Exp := new([3]uint64), [3]uint64{9, 9, 9}
@@ -433,13 +462,22 @@ func TestMultiReturnWithArray(t *testing.T) {
 func TestMultiReturnWithStringArray(t *testing.T) {
 	t.Parallel()
 
-	const definition = `[{"name" : "multi", "type": "function", "outputs": [{"name": "","type": "uint256[3]"},{"name": "","type": "address"},{"name": "","type": "string[2]"},{"name": "","type": "bool"}]}]`
+	const definition = `[{
+		"name" : "multi",
+		"type": "function",
+		"outputs": [
+			{"name": "","type": "uint256[3]"},
+			{"name": "","type": "address"},
+			{"name": "","type": "string[2]"},
+			{"name": "","type": "bool"}]
+		}
+	]`
 	abi, err := JSON(strings.NewReader(definition))
 	if err != nil {
 		t.Fatal(err)
 	}
 	buff := new(bytes.Buffer)
-	buff.Write(hexutil.Hex2Bytes("000000000000000000000000000000000000000000000000000000005c1b78ea0000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000001a055690d9db80000000000000000000000000000ab1257528b3782fb40d7ed5f72e624b744dffb2f00000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000008457468657265756d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001048656c6c6f2c20457468657265756d2100000000000000000000000000000000"))
+	buff.Write(hexutil.Hex2Bytes("000000000000000000000000000000000000000000000000000000005c1b78ea0000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000001a055690d9db80000000000000000000000000000ab1257528b3782fb40d7ed5f72e624b744dffb2f00000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000008457468657265756d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001048656c6c6f2c20457468657265756d2100000000000000000000000000000000")) //nolint: lll
 	temp, _ := big.NewInt(0).SetString("30000000000000000000", 10)
 	ret1, ret1Exp := new([3]*big.Int), [3]*big.Int{big.NewInt(1545304298), big.NewInt(6), temp}
 	ret2, ret2Exp := new(types.Address), types.HexToAddress("ab1257528b3782fb40d7ed5f72e624b744dffb2f")
@@ -465,24 +503,43 @@ func TestMultiReturnWithStringArray(t *testing.T) {
 func TestMultiReturnWithStringSlice(t *testing.T) {
 	t.Parallel()
 
-	const definition = `[{"name" : "multi", "type": "function", "outputs": [{"name": "","type": "string[]"},{"name": "","type": "uint256[]"}]}]`
+	const definition = `[{
+		"name" : "multi",
+		"type": "function",
+		"outputs": [
+			{"name": "","type": "string[]"},
+			{"name": "","type": "uint256[]"}
+		]
+	}]`
 	abi, err := JSON(strings.NewReader(definition))
 	if err != nil {
 		t.Fatal(err)
 	}
 	buff := new(bytes.Buffer)
-	buff.Write(hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000040")) // output[0] offset
-	buff.Write(hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000120")) // output[1] offset
-	buff.Write(hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")) // output[0] length
-	buff.Write(hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000040")) // output[0][0] offset
-	buff.Write(hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000080")) // output[0][1] offset
-	buff.Write(hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000008")) // output[0][0] length
-	buff.Write(hexutil.Hex2Bytes("657468657265756d000000000000000000000000000000000000000000000000")) // output[0][0] value
-	buff.Write(hexutil.Hex2Bytes("000000000000000000000000000000000000000000000000000000000000000b")) // output[0][1] length
-	buff.Write(hexutil.Hex2Bytes("676f2d657468657265756d000000000000000000000000000000000000000000")) // output[0][1] value
-	buff.Write(hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")) // output[1] length
-	buff.Write(hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000064")) // output[1][0] value
-	buff.Write(hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000065")) // output[1][1] value
+	buff.Write(
+		hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000040")) // output[0] offset
+	buff.Write(
+		hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000120")) // output[1] offset
+	buff.Write(
+		hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")) // output[0] length
+	buff.Write(
+		hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000040")) // output[0][0] offset
+	buff.Write(
+		hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000080")) // output[0][1] offset
+	buff.Write(
+		hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000008")) // output[0][0] length
+	buff.Write(
+		hexutil.Hex2Bytes("657468657265756d000000000000000000000000000000000000000000000000")) // output[0][0] value
+	buff.Write(
+		hexutil.Hex2Bytes("000000000000000000000000000000000000000000000000000000000000000b")) // output[0][1] length
+	buff.Write(
+		hexutil.Hex2Bytes("676f2d657468657265756d000000000000000000000000000000000000000000")) // output[0][1] value
+	buff.Write(
+		hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")) // output[1] length
+	buff.Write(
+		hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000064")) // output[1][0] value
+	buff.Write(
+		hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000065")) // output[1][1] value
 	ret1, ret1Exp := new([]string), []string{"ethereum", "go-ethereum"}
 	ret2, ret2Exp := new([]*big.Int), []*big.Int{big.NewInt(100), big.NewInt(101)}
 	if err := abi.UnpackIntoInterface(&[]interface{}{ret1, ret2}, "multi", buff.Bytes()); err != nil {
@@ -503,7 +560,14 @@ func TestMultiReturnWithDeeplyNestedArray(t *testing.T) {
 	//  values of nested static arrays count towards the size as well, and any element following
 	//  after such nested array argument should be read with the correct offset,
 	//  so that it does not read content from the previous array argument.
-	const definition = `[{"name" : "multi", "type": "function", "outputs": [{"type": "uint64[3][2][4]"}, {"type": "uint64"}]}]`
+	const definition = `[{
+		"name" : "multi",
+		"type": "function",
+		"outputs": [
+			{"type": "uint64[3][2][4]"},
+			{"type": "uint64"}
+		]
+	}]`
 	abi, err := JSON(strings.NewReader(definition))
 	if err != nil {
 		t.Fatal(err)
@@ -549,8 +613,23 @@ func TestUnmarshal(t *testing.T) { //nolint:maintidx
 	{ "name" : "multi", "type": "function", "outputs": [ { "type": "bytes" }, { "type": "bytes" } ] },
 	{ "name" : "intArraySingle", "type": "function", "outputs": [ { "type": "uint256[3]" } ] },
 	{ "name" : "addressSliceSingle", "type": "function", "outputs": [ { "type": "address[]" } ] },
-	{ "name" : "addressSliceDouble", "type": "function", "outputs": [ { "name": "a", "type": "address[]" }, { "name": "b", "type": "address[]" } ] },
-	{ "name" : "mixedBytes", "type": "function", "stateMutability" : "view", "outputs": [ { "name": "a", "type": "bytes" }, { "name": "b", "type": "bytes32" } ] }]`
+	{
+		"name" : "addressSliceDouble",
+		"type": "function",
+		"outputs": [
+			{ "name": "a", "type": "address[]" },
+			{ "name": "b", "type": "address[]" }
+		]
+	},
+	{
+		"name" : "mixedBytes",
+		"type": "function",
+		"stateMutability" : "view",
+		"outputs": [
+			{ "name": "a", "type": "bytes" },
+			{ "name": "b", "type": "bytes32" }
+		]
+	}]`
 
 	abi, err := JSON(strings.NewReader(definition))
 	if err != nil {
@@ -583,7 +662,10 @@ func TestUnmarshal(t *testing.T) { //nolint:maintidx
 
 	// marshal int
 	var Int *big.Int
-	err = abi.UnpackIntoInterface(&Int, "int", hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001"))
+	err = abi.UnpackIntoInterface(
+		&Int,
+		"int",
+		hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -594,7 +676,10 @@ func TestUnmarshal(t *testing.T) { //nolint:maintidx
 
 	// marshal bool
 	var Bool bool
-	err = abi.UnpackIntoInterface(&Bool, "bool", hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001"))
+	err = abi.UnpackIntoInterface(
+		&Bool,
+		"bool",
+		hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -792,7 +877,18 @@ func TestUnmarshal(t *testing.T) { //nolint:maintidx
 func TestUnpackTuple(t *testing.T) {
 	t.Parallel()
 
-	const simpleTuple = `[{"name":"tuple","type":"function","outputs":[{"type":"tuple","name":"ret","components":[{"type":"int256","name":"a"},{"type":"int256","name":"b"}]}]}]`
+	const simpleTuple = `[{
+		"name":"tuple",
+		"type":"function",
+		"outputs":[{
+			"type":"tuple",
+			"name":"ret",
+			"components":[
+				{"type":"int256","name":"a"},
+				{"type":"int256","name":"b"}
+			]}
+		]}
+	]`
 	abi, err := JSON(strings.NewReader(simpleTuple))
 	if err != nil {
 		t.Fatal(err)
@@ -822,7 +918,13 @@ func TestUnpackTuple(t *testing.T) {
 
 	// Test nested tuple
 	const nestedTuple = `[{"name":"tuple","type":"function","outputs":[
-		{"type":"tuple","name":"s","components":[{"type":"uint256","name":"a"},{"type":"uint256[]","name":"b"},{"type":"tuple[]","name":"c","components":[{"name":"x", "type":"uint256"},{"name":"y","type":"uint256"}]}]},
+		{"type":"tuple","name":"s","components":[
+			{"type":"uint256","name":"a"},
+			{"type":"uint256[]","name":"b"},
+			{"type":"tuple[]","name":"c","components":[
+				{"name":"x", "type":"uint256"},
+				{"name":"y","type":"uint256"}]}
+		]},
 		{"type":"tuple","name":"t","components":[{"name":"x", "type":"uint256"},{"name":"y","type":"uint256"}]},
 		{"type":"uint256","name":"a"}
 	]}]`

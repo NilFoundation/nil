@@ -1,16 +1,16 @@
 package commands
 
 import (
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	"github.com/rs/zerolog"
 )
 
 type CommandFactory struct {
 	config CommandConfig
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
-func NewCommandFactory(config CommandConfig, logger zerolog.Logger) *CommandFactory {
+func NewCommandFactory(config CommandConfig, logger logging.Logger) *CommandFactory {
 	return &CommandFactory{
 		config: config,
 		logger: logger,
@@ -31,9 +31,7 @@ func (factory *CommandFactory) MakeHandlerCommandForTaskType(taskType types.Task
 		return NewConsistencyCheckCmd(factory.config), nil
 	case types.MergeProof:
 		return NewMergeProofCmd(factory.config), nil
-	case types.AggregateProofs:
-		return NewAggregateProofCmd(factory.config), nil
-	case types.ProofBlock:
+	case types.ProofBatch:
 		return nil, types.NewTaskErrNotSupportedType(taskType)
 	case types.TaskTypeNone:
 		return nil, types.NewTaskExecErrorf(types.TaskErrInvalidTask, "TaskType cannot be None")

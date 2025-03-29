@@ -1,8 +1,7 @@
-import { COLORS } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
 import { useSwipeable } from "react-swipeable";
-import { useStyletron } from "styletron-react";
 import { ActiveComponent } from "../ActiveComponent";
 import { $activeComponent, setActiveComponent } from "../model";
 import { MainScreen } from "./MainScreen";
@@ -17,7 +16,7 @@ featureMap.set(ActiveComponent.Topup, TopUpPanel);
 const AccountContainer = () => {
   const activeComponent = useUnit($activeComponent);
   const Component = activeComponent ? featureMap.get(activeComponent) : null;
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
   const handlers = useSwipeable({
     onSwipedLeft: () => setActiveComponent(ActiveComponent.RpcUrl),
     onSwipedRight: () => setActiveComponent(ActiveComponent.RpcUrl),
@@ -31,7 +30,7 @@ const AccountContainer = () => {
         ...expandProperty("borderRadius", "16px"),
         width: "100%",
         maxWidth: "420px",
-        backgroundColor: COLORS.gray800,
+        backgroundColor: theme.colors.backgroundSecondary,
         "@media (min-width: 421px)": {
           width: "420px",
           margin: "0 auto",

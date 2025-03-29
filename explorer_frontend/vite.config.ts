@@ -1,6 +1,5 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { nodePolyfills } from "vite-plugin-node-polyfills";
 import vitePluginString from "vite-plugin-string";
 
 // https://vitejs.dev/config/
@@ -11,7 +10,7 @@ export default defineConfig({
   plugins: [
     react(),
     vitePluginString({
-      include: ["**/*.sol"],
+      include: ["**/*.sol", "**/*.md"],
       compress: false,
     }),
     {

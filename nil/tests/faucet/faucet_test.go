@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/faucet"
@@ -14,7 +15,6 @@ import (
 	"github.com/NilFoundation/nil/nil/tests"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
-	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -43,10 +43,12 @@ func (s *SuiteFaucet) createSmartAccountViaFaucet(ownerPrivateKey *ecdsa.Private
 	ownerPublicKey := crypto.CompressPubkey(&ownerPrivateKey.PublicKey)
 
 	salt := uint256.NewInt(123).Bytes32()
-	callData, err := contracts.NewCallData(contracts.NameFaucet, "createSmartAccount", ownerPublicKey, salt, big.NewInt(value))
+	callData, err := contracts.NewCallData(
+		contracts.NameFaucet, "createSmartAccount", ownerPublicKey, salt, big.NewInt(value))
 	s.Require().NoError(err)
 
-	resHash, err := s.DefaultClient.SendExternalTransaction(s.Context, callData, types.FaucetAddress, nil, types.FeePack{})
+	resHash, err := s.DefaultClient.SendExternalTransaction(
+		s.Context, callData, types.FaucetAddress, nil, types.FeePack{})
 	s.Require().NoError(err)
 
 	res := s.WaitForReceipt(resHash)
@@ -93,8 +95,8 @@ func (s *SuiteFaucet) TestDeployContractViaFaucet() {
 		s.Require().True(r.Success)
 	}
 
-	txnHash, receiptContractAddress, err := s.DefaultClient.DeployExternal(s.Context, smartAccountAddr.ShardId(), code,
-		types.NewFeePackFromGas(10_000_000))
+	txnHash, receiptContractAddress, err := s.DefaultClient.DeployExternal(
+		s.Context, smartAccountAddr.ShardId(), code, types.NewFeePackFromGas(10_000_000))
 	s.Require().NoError(err)
 	s.Require().Equal(smartAccountAddr, receiptContractAddress)
 	receipt = s.WaitForReceipt(txnHash)
@@ -107,7 +109,7 @@ func (s *SuiteFaucet) TestDeployContractViaFaucet() {
 	s.Require().NoError(err)
 	s.Require().Less(balance.Uint64(), value.Uint64())
 	s.Require().Positive(balance.Uint64())
-	log.Logger.Info().Msgf("Spent %s nil", value.Sub(balance))
+	logging.GlobalLogger.Info().Msgf("Spent %s nil", value.Sub(balance))
 }
 
 func (s *SuiteFaucet) TestTopUpViaFaucet() {
@@ -116,7 +118,10 @@ func (s *SuiteFaucet) TestTopUpViaFaucet() {
 	pubKey := crypto.CompressPubkey(&pk.PublicKey)
 	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pubKey)
 
-	address, receipt := s.DeployContractViaMainSmartAccount(types.BaseShardId, types.BuildDeployPayload(smartAccountCode, common.EmptyHash), types.Value{})
+	address, receipt := s.DeployContractViaMainSmartAccount(
+		types.BaseShardId,
+		types.BuildDeployPayload(smartAccountCode, common.EmptyHash),
+		types.Value{})
 	receipt = s.WaitForReceipt(receipt.TxnHash)
 	s.Require().NotNil(receipt)
 	s.Require().True(receipt.Success)
@@ -174,13 +179,21 @@ func (s *SuiteFaucet) TestTopUpTokenViaFaucet() {
 	pubKey := crypto.CompressPubkey(&pk.PublicKey)
 	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pubKey)
 
-	address, receipt := s.DeployContractViaMainSmartAccount(types.BaseShardId, types.BuildDeployPayload(smartAccountCode, common.EmptyHash), types.Value{})
+	address, receipt := s.DeployContractViaMainSmartAccount(
+		types.BaseShardId,
+		types.BuildDeployPayload(smartAccountCode, common.EmptyHash),
+		types.Value{})
 	receipt = s.WaitForReceipt(receipt.TxnHash)
 	s.Require().NotNil(receipt)
 	s.Require().True(receipt.Success)
 
 	value := types.NewValueFromUint64(1000)
-	faucetsAddr := []types.Address{types.EthFaucetAddress, types.UsdtFaucetAddress, types.BtcFaucetAddress, types.UsdcFaucetAddress}
+	faucetsAddr := []types.Address{
+		types.EthFaucetAddress,
+		types.UsdtFaucetAddress,
+		types.BtcFaucetAddress,
+		types.UsdcFaucetAddress,
+	}
 	for _, faucet := range faucetsAddr {
 		mshHash, err := s.faucetClient.TopUpViaFaucet(faucet, address, value)
 		s.Require().NoError(err)
@@ -194,8 +207,17 @@ func (s *SuiteFaucet) TestTopUpTokenViaFaucet() {
 	tokens, err := s.DefaultClient.GetTokens(s.Context, address, transport.LatestBlockNumber)
 	s.Require().NoError(err)
 	s.Require().Len(tokens, 4)
+
+	debugContract, err := s.DefaultClient.GetDebugContract(s.Context, address, "latest")
+	s.Require().NoError(err)
+	s.Require().Len(debugContract.Tokens, 4)
+
 	for _, faucet := range faucetsAddr {
 		curValue, ok := tokens[types.TokenId(faucet)]
+		s.Require().True(ok)
+		s.Require().Equal(value.Uint64(), curValue.Uint64())
+
+		curValue, ok = debugContract.Tokens[types.TokenId(faucet)]
 		s.Require().True(ok)
 		s.Require().Equal(value.Uint64(), curValue.Uint64())
 	}

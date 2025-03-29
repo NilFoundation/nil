@@ -2,6 +2,7 @@ package ibft
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"slices"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/go-ibft/core"
 	"github.com/NilFoundation/nil/nil/go-ibft/messages"
 	protoIBFT "github.com/NilFoundation/nil/nil/go-ibft/messages/proto"
+	cerrors "github.com/NilFoundation/nil/nil/internal/collate/errors"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/crypto/bls"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -17,7 +19,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/telemetry/telattr"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/rs/zerolog"
 )
 
 const ibftProto = "/ibft/0.2"
@@ -32,7 +33,7 @@ type ConsensusParams struct {
 
 type validator interface {
 	BuildProposal(ctx context.Context) (*execution.ProposalSSZ, error)
-	VerifyProposal(ctx context.Context, proposal *execution.ProposalSSZ) (*types.Block, error)
+	IsValidProposal(ctx context.Context, proposal *execution.ProposalSSZ) error
 	InsertProposal(ctx context.Context, proposal *execution.ProposalSSZ, params *types.ConsensusParams) error
 	GetLastBlock(ctx context.Context) (*types.Block, common.Hash, error)
 }
@@ -46,7 +47,7 @@ type backendIBFT struct {
 	consensus    *core.IBFT
 	shardId      types.ShardId
 	validator    validator
-	logger       zerolog.Logger
+	logger       logging.Logger
 	nm           *network.Manager
 	transport    transport
 	signer       *Signer
@@ -83,7 +84,11 @@ func (i *backendIBFT) BuildProposal(view *protoIBFT.View) []byte {
 	return data
 }
 
-func (i *backendIBFT) buildSignature(committedSeals []*messages.CommittedSeal, height uint64, logger zerolog.Logger) (*types.BlsAggregateSignature, error) {
+func (i *backendIBFT) buildSignature(
+	committedSeals []*messages.CommittedSeal,
+	height uint64,
+	logger logging.Logger,
+) (*types.BlsAggregateSignature, error) {
 	params, err := config.GetConfigParams(i.ctx, i.txFabric, i.shardId, height)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to get validators' params")
@@ -177,7 +182,11 @@ func (i *backendIBFT) InsertProposal(proposal *protoIBFT.Proposal, committedSeal
 		ProposerIndex: proposerIndex,
 		Signature:     sig,
 	}); err != nil {
-		logger.Error().Err(err).Msg("Failed to insert proposal")
+		event := i.logger.Error()
+		if errors.Is(err, cerrors.ErrOldBlock) {
+			event = i.logger.Debug()
+		}
+		event.Err(err).Msg("Failed to insert proposal")
 	}
 }
 

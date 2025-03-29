@@ -17,9 +17,13 @@ import (
 )
 
 func CalcAddress(m *Manager) AddrInfo {
-	addr, err := peer.AddrInfoFromString(m.host.Addrs()[0].String() + "/p2p/" + m.host.ID().String())
+	addr, err := peer.AddrInfoFromString(hostAddress(m))
 	check.PanicIfErr(err)
 	return AddrInfo(*addr)
+}
+
+func hostAddress(m *Manager) string {
+	return m.host.Addrs()[0].String() + "/p2p/" + m.host.ID().String()
 }
 
 func NewTestManagerWithBaseConfig(t *testing.T, ctx context.Context, conf *Config) *Manager {
@@ -35,7 +39,7 @@ func NewTestManagerWithBaseConfig(t *testing.T, ctx context.Context, conf *Confi
 		conf.PrivateKey = privateKey
 	}
 
-	m, err := NewManager(ctx, conf)
+	m, err := NewManager(ctx, conf, nil)
 	require.NoError(t, err)
 	return m
 }

@@ -1,10 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"math/big"
+	"os"
 	"os/exec"
 	"sync"
 	"testing"
@@ -29,6 +30,7 @@ type SuiteJournaldForwarder struct {
 	ctxCancel  context.CancelFunc
 	cfg        journald_forwarder.Config
 	clickhouse *exec.Cmd
+	connect    driver.Conn
 	wg         sync.WaitGroup
 	runErrCh   chan error
 }
@@ -43,7 +45,8 @@ func (s *SuiteJournaldForwarder) SetupSuite() {
 		}
 	}()
 
-	dir := s.T().TempDir()
+	dir := s.T().TempDir() + "/clickhouse"
+	s.Require().NoError(os.MkdirAll(dir, 0o755))
 	s.clickhouse = exec.Command( //nolint:gosec
 		"clickhouse", "server", "--",
 		"--tcp_port=9001",
@@ -54,20 +57,31 @@ func (s *SuiteJournaldForwarder) SetupSuite() {
 	s.clickhouse.Dir = dir
 	err := s.clickhouse.Start()
 	s.Require().NoError(err)
+	time.Sleep(time.Second)
 
 	s.cfg = journald_forwarder.Config{
 		ListenAddr: "127.0.0.1:5678", ClickhouseAddr: "127.0.0.1:9001", DbUser: "default",
 		DbDatabase: "default", DbPassword: "",
 	}
+
+	s.connect, err = clickhouse.Open(&clickhouse.Options{
+		Addr: []string{s.cfg.ClickhouseAddr},
+		Auth: clickhouse.Auth{
+			Database: s.cfg.DbDatabase,
+			Username: s.cfg.DbUser,
+			Password: "",
+		},
+	})
+	s.Require().NoError(err, "Failed to connect to ClickHouse")
+	defer s.connect.Close()
+	s.dropDatabase(journald_forwarder.DefaultDatabase)
+
 	s.runErrCh = make(chan error, 1)
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := journald_forwarder.Run(s.context, s.cfg, logging.NewLogger("test_journald_forwarder")); err != nil {
-			s.runErrCh <- err
-		} else {
-			s.runErrCh <- nil
-		}
+		s.runErrCh <- journald_forwarder.Run(
+			s.context, s.cfg, logging.NewLoggerWithStore("test_journald_forwarder", false))
 	}()
 	time.Sleep(time.Second)
 
@@ -80,74 +94,6 @@ func (s *SuiteJournaldForwarder) TearDownSuite() {
 	if s.clickhouse != nil {
 		err := s.clickhouse.Process.Kill()
 		s.Require().NoError(err)
-	}
-}
-
-func (s *SuiteJournaldForwarder) getTableValues(connect driver.Conn, database, table string) []map[string]any {
-	s.T().Helper()
-	query := fmt.Sprintf("SELECT * FROM %s.%s;", database, table)
-
-	schema := s.getTableSchema(connect, database, table)
-
-	rows, err := connect.Query(context.Background(), query)
-	s.Require().NoError(err)
-
-	defer rows.Close()
-
-	columns := rows.Columns()
-	s.Require().NotEmpty(columns)
-
-	var results []map[string]any
-	for rows.Next() {
-		values := make([]any, len(columns))
-		for i, col := range columns {
-			switch schema[col] {
-			case "DateTime":
-				values[i] = new(time.Time)
-			case "UInt8":
-				values[i] = new(bool)
-			case "Int64":
-				values[i] = new(int64)
-			case "UInt256":
-				values[i] = new(big.Int)
-			case "Float64":
-				values[i] = new(float64)
-			case "String":
-				values[i] = new(string)
-			default:
-				values[i] = new(any)
-			}
-		}
-		s.Require().NoError(rows.Scan(values...))
-
-		row := make(map[string]any)
-		for i, col := range columns {
-			row[col] = dereference(values[i])
-		}
-
-		results = append(results, row)
-	}
-	s.Require().NoError(rows.Err())
-
-	return results
-}
-
-func dereference(value any) any {
-	switch v := value.(type) {
-	case *string:
-		return *v
-	case *int64:
-		return *v
-	case *big.Int:
-		return v.String()
-	case *bool:
-		return *v
-	case *float64:
-		return *v
-	case *time.Time:
-		return v.Format("2006-01-02T15:04:05Z") // Format DateTime as ISO8601 string
-	default:
-		return v
 	}
 }
 
@@ -173,87 +119,81 @@ func (s *SuiteJournaldForwarder) getTableSchema(connect driver.Conn, database, t
 	return schema
 }
 
-func (s *SuiteJournaldForwarder) dropDatabase(connect clickhouse.Conn, dbName string) {
+func (s *SuiteJournaldForwarder) dropDatabase(dbName string) {
 	s.T().Helper()
 	query := fmt.Sprintf("DROP DATABASE IF EXISTS %s;", dbName)
-	s.Require().NoError(connect.Exec(context.Background(), query))
+	s.Require().NoError(s.connect.Exec(context.Background(), query))
 }
 
 func (s *SuiteJournaldForwarder) TestLogDataInsert() {
-	connect, err := clickhouse.Open(&clickhouse.Options{
-		Addr: []string{s.cfg.ClickhouseAddr},
-		Auth: clickhouse.Auth{
-			Database: "default",
-			Username: s.cfg.DbUser,
-			Password: "",
-		},
+	s.Run("Check insert columns and values", func() {
+		valueString := "test log"
+		valueFloat := 123.01
+		valueMessage := "test log1"
+
+		logBuf := new(bytes.Buffer)
+		logger := logging.NewLoggerWithWriter("log1", logBuf).With().
+			Float64("valueFloat", valueFloat).Str("valueStr", valueString).Logger()
+		logger.Info().Err(errors.New("test error")).Msg(valueMessage)
+
+		s.Require().NoError(sendLogs(s.cfg.ListenAddr, logBuf.String()))
+		time.Sleep(1 * time.Second)
+
+		schema1 := map[string]string{
+			"_HOSTNAME":     "String",
+			"_SYSTEMD_UNIT": "String",
+			"time":          "DateTime64(3)",
+			"level":         "String",
+			"error":         "String",
+			"message":       "String",
+			"caller":        "String",
+			"component":     "String",
+			"valueFloat":    "Float64",
+			"valueStr":      "String",
+		}
+		schemaRes := s.getTableSchema(s.connect, journald_forwarder.DefaultDatabase, journald_forwarder.DefaultTable)
+		s.Require().Equal(schema1, schemaRes)
+
+		query := fmt.Sprintf(
+			"SELECT component, valueStr, valueFloat FROM %s.%s WHERE message = '%s';",
+			journald_forwarder.DefaultDatabase, journald_forwarder.DefaultTable, valueMessage,
+		)
+		rows, err := s.connect.Query(context.Background(), query)
+		s.Require().NoError(err)
+		defer rows.Close()
+
+		s.Require().True(rows.Next())
+
+		var resComponent, resValueStr string
+		var resValueFloat float64
+		s.Require().NoError(rows.Scan(&resComponent, &resValueStr, &resValueFloat))
+
+		s.Require().Equal("log1", resComponent)
+		s.Require().Equal(valueString, resValueStr)
+		s.Require().InEpsilon(valueFloat, resValueFloat, 0.0001)
+
+		logBuf = new(bytes.Buffer)
+		logger = logging.NewLoggerWithWriter("log2", logBuf).With().
+			Uint256(
+				"valueUInt256",
+				"115792089237316195423570985008687907853269984665640564039457584007913129639935").
+			Logger()
+		logger.Log().Msg("test log2")
+		s.Require().NoError(sendLogs(s.cfg.ListenAddr, logBuf.String()))
+		time.Sleep(1 * time.Second)
+		schema2 := schema1
+		schema2["valueUInt256"] = "UInt256"
+		schemaRes = s.getTableSchema(s.connect, journald_forwarder.DefaultDatabase, journald_forwarder.DefaultTable)
+		s.Require().Equal(schema2, schemaRes)
+
+		logBuf = new(bytes.Buffer)
+		logger = logging.NewLoggerWithWriterStore("log2noCh", false, logBuf).With().Bool("newBool", false).Logger()
+		logger.Log().Msg("test log2notCh")
+		s.Require().NoError(sendLogs(s.cfg.ListenAddr, logBuf.String()))
+		time.Sleep(1 * time.Second)
+		schemaRes = s.getTableSchema(s.connect, journald_forwarder.DefaultDatabase, journald_forwarder.DefaultTable)
+		s.Require().Equal(schema2, schemaRes)
 	})
-	s.Require().NoErrorf(err, "Failed to connect to ClickHouse")
-	defer connect.Close()
-
-	database := "x1"
-	table := "x2"
-	s.dropDatabase(connect, database)
-
-	valueUInt256, _ := new(big.Int).SetString("115792089237316195423570985008687907853269984665640564039457584007913129639935", 10)
-	metrics := map[string]any{
-		"valueFloat":   123.01,
-		"valueStr":     "test log",
-		"valueBool":    false,
-		"valueDate":    "2023-12-17T10:30:00Z",
-		"valueInt64":   int64(123456789012345),
-		"valueUInt256": valueUInt256.String(),
-	}
-	data := map[string]any{
-		"store_to_clickhouse": true,
-		"database":            database,
-		"table":               table,
-	}
-	dataNoSend1 := map[string]any{
-		"store_to_clickhouse": false,
-		"database":            database,
-		"table":               table,
-	}
-	dataNoSend2 := map[string]any{
-		"database": database,
-		"table":    table,
-	}
-	dataArray := []map[string]any{data, dataNoSend1, dataNoSend2}
-	dataStringArray := make([]string, 0, len(dataArray))
-
-	for _, curData := range dataArray {
-		for key, value := range metrics {
-			curData[key] = value
-		}
-		dataString, err := json.Marshal(curData)
-		if err != nil {
-			fmt.Printf("Error converting map to JSON: %v\n", err)
-			return
-		}
-		dataStringArray = append(dataStringArray, string(dataString))
-	}
-	dataType := map[string]any{
-		"valueFloat":   "Float64",
-		"valueStr":     "String",
-		"valueBool":    "UInt8",
-		"valueDate":    "DateTime",
-		"valueInt64":   "Int64",
-		"valueUInt256": "UInt256",
-	}
-	for _, dataString := range dataStringArray {
-		s.Require().NoError(sendLogs(s.cfg.ListenAddr, dataString))
-	}
-	time.Sleep(1 * time.Second)
-	schema := s.getTableSchema(connect, database, table)
-	s.Require().NoError(err)
-	for key, value := range dataType {
-		s.Require().Contains(schema, key)
-		s.Require().Equal(value, schema[key])
-	}
-	values := s.getTableValues(connect, database, table)
-	s.Require().NoError(err)
-	s.Require().Len(values, 1)
-	s.Require().Equal(metrics, values[0])
 }
 
 func createLogRecord(key, value string) *v1.LogRecord {

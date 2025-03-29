@@ -1,15 +1,15 @@
-import { BUTTON_KIND, BUTTON_SIZE, Button, COLORS, Card, Spinner } from "@nilfoundation/ui-kit";
+import { BUTTON_KIND, BUTTON_SIZE, Button, Card, Spinner } from "@nilfoundation/ui-kit";
 import { useUnit } from "effector-react";
 import {
   $code,
   $error,
   $warnings,
   changeCode,
+  clickOnContractsButton,
+  clickOnLogButton,
   compile,
   compileCodeFx,
   fetchCodeSnippetFx,
-  сlickOnContractsButton,
-  сlickOnLogButton,
 } from "./model";
 import "./init";
 import { type Diagnostic, linter } from "@codemirror/lint";
@@ -23,7 +23,6 @@ import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
 import { SolidityCodeField } from "../shared/components/SolidityCodeField";
 import { CodeToolbar } from "./code-toolbar/CodeToolbar";
-import { CompilerVersionButton } from "./code-toolbar/CompilerVersionButton";
 import { useCompileButton } from "./hooks/useCompileButton";
 
 interface CodeProps {
@@ -43,9 +42,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
     compileCodeFx.pending,
     $warnings,
   ]);
-  const [css] = useStyletron();
-  const compilerVersionButton =
-    extraToolbarButton === undefined ? <CompilerVersionButton disabled={isDownloading} /> : null;
+  const [css, theme] = useStyletron();
   const btnTextContent = useCompileButton();
 
   const preventNewlineOnCmdEnter = useMemo(
@@ -144,10 +141,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
             height: "auto",
           })}
         >
-          <MemoizedCodeToolbar
-            disabled={isDownloading}
-            compilerVersionButton={compilerVersionButton}
-          />
+          <MemoizedCodeToolbar disabled={isDownloading} extraToolbarButton={extraToolbarButton} />
           {!isMobile && (
             <Button
               kind={BUTTON_KIND.primary}
@@ -169,7 +163,6 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
               {btnTextContent}
             </Button>
           )}
-          {!isMobile && extraToolbarButton && extraToolbarButton}
         </div>
         {fetchingCodeSnippet ? (
           <div
@@ -179,7 +172,6 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
               alignItems: "center",
               width: "100%",
               height: "100%",
-              backgroundColor: COLORS.gray900,
               borderTopLeftRadius: "12px",
               borderTopRightRadius: "12px",
               borderBottomLeftRadius: "12px",
@@ -193,7 +185,6 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
             className={css({
               width: "100%",
               height: `calc(100% - ${isMobile ? "32px - 8px - 8px - 48px - 8px - 48px - 8px" : "48px - 8px"})`,
-              backgroundColor: COLORS.gray900,
               borderTopLeftRadius: "12px",
               borderTopRightRadius: "12px",
               borderBottomLeftRadius: "12px",
@@ -213,6 +204,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
                 height: "100%",
                 overflow: "auto!important",
                 overscrollBehavior: "contain",
+                backgroundColor: `${theme.colors.backgroundPrimary} !important`,
               })}
               data-testid="code-field"
             />
@@ -250,13 +242,17 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
                 Root: {
                   style: {
                     gridColumn: "1 / 2",
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    ":hover": {
+                      backgroundColor: theme.colors.backgroundTertiary,
+                    },
                   },
                 },
               }}
               kind={BUTTON_KIND.secondary}
               size={BUTTON_SIZE.large}
               onClick={() => {
-                сlickOnLogButton();
+                clickOnLogButton();
               }}
             >
               Logs
@@ -266,13 +262,17 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
                 Root: {
                   style: {
                     gridColumn: "2 / 3",
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    ":hover": {
+                      backgroundColor: theme.colors.backgroundTertiary,
+                    },
                   },
                 },
               }}
               kind={BUTTON_KIND.secondary}
               size={BUTTON_SIZE.large}
               onClick={() => {
-                сlickOnContractsButton();
+                clickOnContractsButton();
               }}
             >
               Contracts

@@ -5,7 +5,7 @@ export * from "./clients/types/IDeployContractOptions.js";
 export * from "./clients/types/ISendTransactionOptions.js";
 export * from "./clients/types/ISignTransactionOptions.js";
 export * from "./clients/FaucetClient.js";
-export * from "./clients/CometaService.js";
+export * from "./clients/CometaClient.js";
 export * from "./clients/types/CometaTypes.js";
 export * from "./clients/types/EstimateFeeResult.js";
 

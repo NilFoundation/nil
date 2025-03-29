@@ -140,7 +140,7 @@ createSmartAccountFx.use(async ({ privateKey, rpcUrl }) => {
         {
           smartAccountAddress: smartAccount.address,
           faucetAddress: tokenFaucetAddress,
-          amount: 10,
+          amount: 10n,
         },
         client,
       );
@@ -235,14 +235,6 @@ $balanceToken.reset($smartAccount);
 initializePrivateKey();
 
 initilizeSmartAccount();
-
-sample({
-  clock: sendMethodFx.doneData,
-  target: fetchBalanceFx,
-  source: $smartAccount,
-  filter: (smartAccount) => smartAccount !== null,
-  fn: (smartAccount) => smartAccount as SmartAccountV1,
-});
 
 $activeComponent.on(setActiveComponent, (_, payload) => payload);
 

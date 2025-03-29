@@ -10,13 +10,12 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/concurrent"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/rs/zerolog"
 )
 
 type Wrapper struct {
@@ -26,10 +25,17 @@ type Wrapper struct {
 	privateKey      *ecdsa.PrivateKey
 	chainID         *big.Int
 	ethClient       EthClient
-	logger          zerolog.Logger
+	logger          logging.Logger
 }
 
-func NewWrapper(ctx context.Context, contractAddressHex, privateKeyHex string, ethClient EthClient, requestTimeout time.Duration, logger zerolog.Logger) (*Wrapper, error) {
+func NewWrapper(
+	ctx context.Context,
+	contractAddressHex string,
+	privateKeyHex string,
+	ethClient EthClient,
+	requestTimeout time.Duration,
+	logger logging.Logger,
+) (*Wrapper, error) {
 	contactAddress := ethcommon.HexToAddress(contractAddressHex)
 	rollupContract, err := NewRollupcontract(contactAddress, ethClient)
 	if err != nil {
@@ -124,14 +130,18 @@ func (r *Wrapper) WaitForReceipt(ctx context.Context, txnHash ethcommon.Hash) (*
 		ReceiptWaitFor  = 30 * time.Second
 		ReceiptWaitTick = 500 * time.Millisecond
 	)
-	return concurrent.WaitFor(ctx, ReceiptWaitFor, ReceiptWaitTick, func(ctx context.Context) (*ethtypes.Receipt, error) {
-		receipt, err := r.ethClient.TransactionReceipt(ctx, txnHash)
-		if errors.Is(err, ethereum.NotFound) {
-			// retry
-			return nil, nil
-		}
-		return receipt, err
-	})
+	return common.WaitForValue(
+		ctx,
+		ReceiptWaitFor,
+		ReceiptWaitTick,
+		func(ctx context.Context) (*ethtypes.Receipt, error) {
+			receipt, err := r.ethClient.TransactionReceipt(ctx, txnHash)
+			if errors.Is(err, ethereum.NotFound) {
+				// retry
+				return nil, nil
+			}
+			return receipt, err
+		})
 }
 
 func (r *Wrapper) verifyDataProofs(
@@ -143,7 +153,8 @@ func (r *Wrapper) verifyDataProofs(
 	defer cancel()
 	for i, blobHash := range hashes {
 		if err := r.rollupContract.VerifyDataProof(opts, blobHash, dataProofs[i]); err != nil {
-			// TODO: make verification return a value. Currently, no way to distinguish network error from verification one
+			// TODO: make verification return a value.
+			//  Currently, no way to distinguish network error from verification one
 			return fmt.Errorf("proof verification failed for versioned hash %s (%w)", blobHash.Hex(), err)
 		}
 	}
@@ -184,7 +195,11 @@ type BatchValidation struct {
 	LastFinalizedStateRoot  common.Hash
 }
 
-func (r *Wrapper) validateBatch(ctx context.Context, batchIndex string, oldStateRoot common.Hash) (*BatchValidation, error) {
+func (r *Wrapper) validateBatch(
+	ctx context.Context,
+	batchIndex string,
+	oldStateRoot common.Hash,
+) (*BatchValidation, error) {
 	validation := &BatchValidation{}
 
 	// Check if batch is finalized

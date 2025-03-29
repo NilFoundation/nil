@@ -5,9 +5,9 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/faucet"
-	"github.com/rs/zerolog"
 )
 
 type Service struct {
@@ -15,7 +15,7 @@ type Service struct {
 	ctx          context.Context
 	client       client.Client
 	privateKey   *ecdsa.PrivateKey
-	logger       zerolog.Logger
+	logger       logging.Logger
 	faucetClient *faucet.Client
 }
 
@@ -31,4 +31,14 @@ func NewService(ctx context.Context, c client.Client, privateKey *ecdsa.PrivateK
 	s.privateKey = privateKey
 
 	return s
+}
+
+func (s *Service) Client() client.Client {
+	return s.client
+}
+
+func (s *Service) CloneWithPrivateKey(privateKey *ecdsa.PrivateKey) *Service {
+	service := common.CopyPtr(s)
+	service.privateKey = privateKey
+	return service
 }

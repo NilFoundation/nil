@@ -136,7 +136,12 @@ func GetParamValidators(c ConfigAccessor) (*ParamValidators, error) {
 	return getParamImpl[ParamValidators](c)
 }
 
-func NewConfigAccessorFromBlock(ctx context.Context, database db.DB, block *types.Block, shardId types.ShardId) (ConfigAccessor, error) {
+func NewConfigAccessorFromBlock(
+	ctx context.Context,
+	database db.DB,
+	block *types.Block,
+	shardId types.ShardId,
+) (ConfigAccessor, error) {
 	tx, err := database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -164,13 +169,14 @@ func NewConfigAccessorFromBlockWithTx(tx db.RoTx, block *types.Block, shardId ty
 
 	if mainShardHash != nil {
 		if _, err := db.ReadBlock(tx, types.MainShardId, *mainShardHash); errors.Is(err, db.ErrKeyNotFound) {
-			// It is possible that the needed main chain block has not arrived yet, or that this one is some byzantine block.
+			// It is possible that the needed main chain block has not arrived yet,
+			// or that this one is some byzantine block.
 			// Because right now the config is actually constant, we can use whatever version we like in this case,
 			// so we use the latest accessible config.
 			// TODO(@isergeyam): create some subscription mechanism that will handle this correctly.
 			log.Warn().
 				Stringer(logging.FieldBlockNumber, block.Id).
-				Stringer(logging.FieldBlockMainChainHash, mainShardHash).
+				Stringer(logging.FieldBlockMainShardHash, mainShardHash).
 				Msg("Main chain block not found, using the latest accessible config")
 			return NewConfigAccessorTx(tx, nil)
 		}

@@ -36,7 +36,7 @@ type Proposal struct {
 	PatchLevel      uint32              `json:"patchLevel"`
 	RollbackCounter uint32              `json:"rollbackCounter"`
 	CollatorState   types.CollatorState `json:"collatorState"`
-	MainChainHash   common.Hash         `json:"mainChainHash"`
+	MainShardHash   common.Hash         `json:"mainShardHash"`
 	ShardHashes     []common.Hash       `json:"shardHashes"`
 
 	InternalTxns []*types.Transaction `json:"internalTxns"`
@@ -47,12 +47,13 @@ type Proposal struct {
 type ProposalSSZ struct {
 	PrevBlockId   types.BlockNumber
 	PrevBlockHash common.Hash
+	BlockHash     common.Hash
 
 	PatchLevel      uint32
 	RollbackCounter uint32
 
 	CollatorState types.CollatorState
-	MainChainHash common.Hash
+	MainShardHash common.Hash
 	ShardHashes   []common.Hash `ssz-max:"4096"`
 
 	ParentBlocks []*ParentBlockSSZ `ssz-max:"1024"`
@@ -99,7 +100,10 @@ func (pb *ParentBlock) ToSerializable() *ParentBlockSSZ {
 	}
 }
 
-func SplitTransactions(transactions []*types.Transaction, f func(t *types.Transaction) bool) (a, b []*types.Transaction) {
+func SplitTransactions(
+	transactions []*types.Transaction,
+	f func(t *types.Transaction) bool,
+) (a, b []*types.Transaction) {
 	if pos := slices.IndexFunc(transactions, f); pos != -1 {
 		return transactions[:pos], transactions[pos:]
 	}
@@ -117,7 +121,10 @@ func SplitInTransactions(transactions []*types.Transaction) (internal, external 
 
 // SplitOutTransactions splits outgoing transactions in the block into forwarded and generated ones.
 // Forwarded transactions come before the generated ones.
-func SplitOutTransactions(transactions []*types.Transaction, shardId types.ShardId) (forwarded, generated []*types.Transaction) {
+func SplitOutTransactions(
+	transactions []*types.Transaction,
+	shardId types.ShardId,
+) (forwarded, generated []*types.Transaction) {
 	return SplitTransactions(transactions, func(t *types.Transaction) bool {
 		return t.From.ShardId() == shardId
 	})
@@ -133,7 +140,8 @@ func ConvertTxnRefs(refs []*InternalTxnReference, parentBlocks []*ParentBlock) (
 		pb := parentBlocks[ref.ParentBlockIndex]
 		txn, err := pb.TxnTrie.Fetch(ref.TxnIndex)
 		if err != nil {
-			return nil, fmt.Errorf("faulty transaction %d in block (%s, %s): %w", ref.TxnIndex, pb.ShardId, pb.Block.Id, err)
+			return nil, fmt.Errorf(
+				"faulty transaction %d in block (%s, %s): %w", ref.TxnIndex, pb.ShardId, pb.Block.Id, err)
 		}
 		res[i] = txn
 	}
@@ -165,7 +173,7 @@ func ConvertProposal(proposal *ProposalSSZ) (*Proposal, error) {
 		PatchLevel:      proposal.PatchLevel,
 		RollbackCounter: proposal.RollbackCounter,
 		CollatorState:   proposal.CollatorState,
-		MainChainHash:   proposal.MainChainHash,
+		MainShardHash:   proposal.MainShardHash,
 		ShardHashes:     proposal.ShardHashes,
 
 		// todo: special txns should be validated

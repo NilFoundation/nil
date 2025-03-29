@@ -1,4 +1,4 @@
-import { type CometaService, type Hex, addHexPrefix } from "@nilfoundation/niljs";
+import { type CometaClient, type Hex, addHexPrefix } from "@nilfoundation/niljs";
 import { createDomain } from "effector";
 import { fetchAccountState } from "../../api/account";
 import type { AccountCometaInfo, AccountState } from "./types";
@@ -15,7 +15,7 @@ export const loadAccountStateFx = createEffect<string, AccountState>();
 export const loadAccountCometaInfoFx = createEffect<
   {
     address: Hex;
-    cometaService: CometaService;
+    cometaClient: CometaClient;
   },
   AccountCometaInfo
 >();
@@ -24,7 +24,7 @@ loadAccountStateFx.use(async (address) => {
   return fetchAccountState(address);
 });
 
-loadAccountCometaInfoFx.use(async ({ address, cometaService }) => {
-  const res = await cometaService.getContract(addHexPrefix(address));
+loadAccountCometaInfoFx.use(async ({ address, cometaClient }) => {
+  const res = await cometaClient.getContract(addHexPrefix(address));
   return res;
 });

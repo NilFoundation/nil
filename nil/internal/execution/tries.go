@@ -184,7 +184,11 @@ func NewDbTokenTrieReader(tx db.RoTx, shardId types.ShardId) *TokenTrieReader {
 	return NewTokenTrieReader(mpt.NewDbReader(tx, shardId, db.TokenTrieTable))
 }
 
-func NewDbShardBlocksTrieReader(tx db.RoTx, shardId types.ShardId, blockNumber types.BlockNumber) *ShardBlocksTrieReader {
+func NewDbShardBlocksTrieReader(
+	tx db.RoTx,
+	shardId types.ShardId,
+	blockNumber types.BlockNumber,
+) *ShardBlocksTrieReader {
 	return NewShardBlocksTrieReader(mpt.NewDbReader(tx, shardId, db.ShardBlocksTrieTableName(blockNumber)))
 }
 
@@ -306,7 +310,11 @@ func (m *BaseMPT[K, V, VPtr]) UpdateBatch(keys []K, values []VPtr) error {
 	return m.rwTrie.SetBatch(k, v)
 }
 
-func UpdateFromMap[K comparable, MV any, V any, VPtr MPTValue[V]](m *BaseMPT[K, V, VPtr], data map[K]MV, extract func(MV) VPtr) error {
+func UpdateFromMap[K comparable, MV any, V any, VPtr MPTValue[V]](
+	m *BaseMPT[K, V, VPtr],
+	data map[K]MV,
+	extract func(MV) VPtr,
+) error {
 	if len(data) == 0 {
 		return nil
 	}

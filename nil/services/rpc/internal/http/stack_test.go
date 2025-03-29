@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,7 +15,7 @@ func TestServer(t *testing.T) {
 
 	DoTestServer(
 		t,
-		func(t *testing.T, conf *HttpConfig) (*StoppableSingleRequestServer, zerolog.Logger) {
+		func(t *testing.T, conf *HttpConfig) (*StoppableSingleRequestServer, logging.Logger) {
 			t.Helper()
 
 			logger := logging.NewLogger("Test server")

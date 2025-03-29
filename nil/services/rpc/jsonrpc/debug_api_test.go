@@ -13,7 +13,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -69,19 +68,19 @@ func TestDebugGetBlock(t *testing.T) {
 		err = db.WriteBlock(tx, types.MainShardId, b.BlockHash, b.Block)
 		require.NoError(t, err)
 
-		err = execution.PostprocessBlock(tx, types.MainShardId, b)
+		err = execution.PostprocessBlock(tx, types.MainShardId, b, execution.ModeVerify)
 		require.NoError(t, err)
 	}
 
 	err = tx.Commit()
 	require.NoError(t, err)
 
-	mainShardApi := rawapi.NewLocalShardApi(types.MainShardId, database, nil)
+	mainShardApi := rawapi.NewLocalShardApi(types.MainShardId, database, nil, false)
 	localShardApis := map[types.ShardId]rawapi.ShardApi{
 		types.MainShardId: mainShardApi,
 	}
 	localApi := rawapi.NewNodeApiOverShardApis(localShardApis)
-	api := NewDebugAPI(localApi, log.Logger)
+	api := NewDebugAPI(localApi, logging.GlobalLogger)
 
 	// When: Get the latest block
 	res1, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.LatestBlockNumber, false)
@@ -150,14 +149,14 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.blockHash = blockRes.BlockHash
 
-	err = execution.PostprocessBlock(tx, shardId, blockRes)
+	err = execution.PostprocessBlock(tx, shardId, blockRes, execution.ModeVerify)
 	suite.Require().NotNil(blockRes.Block)
 	suite.Require().NoError(err)
 
 	err = tx.Commit()
 	suite.Require().NoError(err)
 
-	shardApi := rawapi.NewLocalShardApi(shardId, suite.db, nil)
+	shardApi := rawapi.NewLocalShardApi(shardId, suite.db, nil, false)
 	localShardApis := map[types.ShardId]rawapi.ShardApi{
 		shardId: shardApi,
 	}
@@ -172,7 +171,10 @@ func (suite *SuiteDbgContracts) TearDownSuite() {
 
 func (suite *SuiteDbgContracts) TestGetContract() {
 	ctx := context.Background()
-	res, err := suite.debugApi.GetContract(ctx, suite.smcAddr, transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber})
+	res, err := suite.debugApi.GetContract(
+		ctx,
+		suite.smcAddr,
+		transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber})
 	suite.Require().NoError(err)
 
 	suite.Run("storage", func() {

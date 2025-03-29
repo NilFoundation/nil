@@ -17,13 +17,13 @@ type TaskResultSaver interface {
 type taskStateChangeHandler struct {
 	resultStorage     TaskResultSaver
 	currentExecutorId types.TaskExecutorId
-	logger            zerolog.Logger
+	logger            logging.Logger
 }
 
 func newTaskStateChangeHandler(
 	resultStorage TaskResultSaver,
 	currentExecutorId types.TaskExecutorId,
-	logger zerolog.Logger,
+	logger logging.Logger,
 ) api.TaskStateChangeHandler {
 	return &taskStateChangeHandler{
 		resultStorage:     resultStorage,
@@ -32,13 +32,17 @@ func newTaskStateChangeHandler(
 	}
 }
 
-func (h taskStateChangeHandler) OnTaskTerminated(ctx context.Context, task *types.Task, result *types.TaskResult) error {
+func (h taskStateChangeHandler) OnTaskTerminated(
+	ctx context.Context,
+	task *types.Task,
+	result *types.TaskResult,
+) error {
 	if task.ParentTaskId == nil {
 		log.NewTaskEvent(h.logger, zerolog.ErrorLevel, task).Msg("Task has nil parentTaskId")
 		return nil
 	}
 
-	if task.TaskType != types.MergeProof && task.TaskType != types.AggregateProofs {
+	if task.TaskType != types.MergeProof {
 		log.NewTaskEvent(h.logger, zerolog.DebugLevel, task).Msgf("Task has type %d, skipping", task.TaskType)
 		return nil
 	}

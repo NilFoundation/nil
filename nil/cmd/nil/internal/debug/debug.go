@@ -1,6 +1,7 @@
 package debug
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,9 +17,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const invalidPc = ^uint64(0)
-
 var logger = logging.NewLogger("debugCommand")
+
+var params = &debugParams{}
+
+type debugParams struct {
+	fullOutput bool
+}
 
 type DebugHandler struct {
 	Service          *cliservice.Service
@@ -45,7 +50,7 @@ func GetCommand() *cobra.Command {
 		RunE:  runCommand,
 	}
 
-	cmd.Flags().Uint64("pc", invalidPc, "Specify the Program Counter to debug")
+	cmd.Flags().BoolVar(&params.fullOutput, "full", false, "Show full data output(don't truncate big data)")
 
 	return cmd
 }
@@ -102,7 +107,10 @@ func (d *DebugHandler) CollectReceipts(rootReceipt *jsonrpc.RPCReceipt) error {
 	return nil
 }
 
-func (d *DebugHandler) CollectReceiptsRec(parentReceipt *ReceiptInfo, receipt *jsonrpc.RPCReceipt) (*ReceiptInfo, error) {
+func (d *DebugHandler) CollectReceiptsRec(
+	parentReceipt *ReceiptInfo,
+	receipt *jsonrpc.RPCReceipt,
+) (*ReceiptInfo, error) {
 	contract, err := d.GetContract(receipt.ContractAddress)
 	if err != nil {
 		contract = nil
@@ -200,17 +208,19 @@ func (d *DebugHandler) ShowFailures() {
 
 var (
 	keyColor      = color.New(color.FgCyan)
-	unknownColor  = color.New(color.FgRed)
 	calldataColor = color.New(color.FgMagenta)
 	logsColor     = color.New(color.FgMagenta)
 )
 
-func (d *DebugHandler) PrintReceipt(receipt *ReceiptInfo, indentEntry, indent string) {
-	name := unknownColor.Sprint("unknown")
-	hasContract := receipt.Contract != nil
-	if hasContract {
-		name = receipt.Contract.ShortName()
+func (d *DebugHandler) truncateData(length int, data []byte) string {
+	if len(data) > length && !params.fullOutput {
+		return fmt.Sprintf("%x...<%d bytes>", data[:length], len(data)-length)
 	}
+	return hex.EncodeToString(data)
+}
+
+func (d *DebugHandler) PrintReceipt(receipt *ReceiptInfo, indentEntry, indent string) {
+	hasContract := receipt.Contract != nil
 
 	makeKey := func(key string) string {
 		key = keyColor.Sprint(key)
@@ -228,19 +238,21 @@ func (d *DebugHandler) PrintReceipt(receipt *ReceiptInfo, indentEntry, indent st
 	}
 
 	fmt.Printf("%s0x%x\n", makeKeyEntry("Transaction"), receipt.Transaction.Hash)
-	fmt.Printf("%s%s\n", makeKey("Contract"), color.MagentaString(name))
-	fmt.Printf("%s%s\n", makeKey("Flags"), flags)
+	if hasContract {
+		fmt.Printf("%s%s\n", makeKey("Contract"), color.MagentaString(receipt.Contract.ShortName()))
+	}
+	fmt.Printf("%s%s\n", makeKey("Flags"), color.YellowString(flags))
 	fmt.Printf("%s%s\n", makeKey("Address"), receipt.Receipt.ContractAddress.Hex())
 	if hasContract && !receipt.Transaction.Flags.GetBit(types.TransactionFlagResponse) {
 		calldata, err := receipt.Contract.DecodeCallData(receipt.Transaction.Data)
 		if err != nil {
 			errStr := color.RedString("Failed to decode: %s", err.Error())
-			fmt.Printf("%s[%s]%s\n", makeKey("CallData"), errStr, types.Code(receipt.Transaction.Data).Hex())
+			fmt.Printf("%s[%s]%s\n", makeKey("CallData"), errStr, d.truncateData(48, receipt.Transaction.Data))
 		} else {
 			fmt.Printf("%s%s\n", makeKey("CallData"), calldataColor.Sprint(calldata))
 		}
 	} else if len(receipt.Transaction.Data) != 0 {
-		fmt.Printf("%s%s\n", makeKey("CallData"), types.Code(receipt.Transaction.Data).Hex())
+		fmt.Printf("%s%s\n", makeKey("CallData"), d.truncateData(96, receipt.Transaction.Data))
 	}
 	if len(receipt.Receipt.Logs) != 0 {
 		fmt.Println(makeKey("Logs"))
@@ -298,11 +310,23 @@ func (d *DebugHandler) PrintReceipt(receipt *ReceiptInfo, indentEntry, indent st
 	} else {
 		fmt.Printf("%s%s\n", makeKey("Status"), color.GreenString(receipt.Receipt.Status))
 	}
-	if !receipt.Transaction.Flags.GetBit(types.TransactionFlagRefund) {
+	if !receipt.Transaction.Flags.IsRefund() && !receipt.Transaction.Flags.IsBounce() {
 		fmt.Printf("%s%d\n", makeKey("GasUsed"), receipt.Receipt.GasUsed)
+		fmt.Printf("%s%s\n", makeKey("FeeCredit"), receipt.Transaction.FeeCredit)
+		fmt.Printf("%s%s\n", makeKey("MaxFee"), receipt.Transaction.MaxFeePerGas)
+		if !receipt.Transaction.MaxPriorityFeePerGas.IsZero() {
+			fmt.Printf("%s%s\n", makeKey("PriorityFee"), receipt.Transaction.MaxPriorityFeePerGas)
+		}
+		fmt.Printf("%s%s\n", makeKey("GasPrice"), receipt.Receipt.GasPrice)
 	}
-	fmt.Printf("%s%d\n", makeKey("RequestId"), receipt.Transaction.RequestId)
-	fmt.Printf("%s%d:%d\n", makeKey("Block"), receipt.Receipt.ContractAddress.ShardId(), receipt.Transaction.BlockNumber)
+	if !receipt.Transaction.Value.IsZero() {
+		fmt.Printf("%s%s\n", makeKey("Value"), receipt.Transaction.Value)
+	}
+	if receipt.Transaction.RequestId != 0 {
+		fmt.Printf("%s%d\n", makeKey("RequestId"), receipt.Transaction.RequestId)
+	}
+	fmt.Printf(
+		"%s%d:%d\n", makeKey("Block"), receipt.Receipt.ContractAddress.ShardId(), receipt.Transaction.BlockNumber)
 
 	if len(receipt.OutReceipts) > 0 {
 		for i, outReceipt := range receipt.OutReceipts {

@@ -134,19 +134,33 @@ func NewIBFTWithMetrics(
 ) (*IBFT, error) {
 	var err error
 	ibft := NewIBFT(log, backend, transport)
-	if ibft.roundHistogram, err = meter.Float64Histogram("round.duration", metric.WithDescription("Round duration")); err != nil {
+	ibft.roundHistogram, err = meter.Float64Histogram(
+		"round.duration", metric.WithDescription("Round duration"))
+	if err != nil {
 		return nil, err
 	}
-	if ibft.sequenceHistogram, err = meter.Float64Histogram("sequence.duration", metric.WithDescription("Sequence duration")); err != nil {
+	ibft.sequenceHistogram, err = meter.Float64Histogram(
+		"sequence.duration", metric.WithDescription("Sequence duration"),
+	)
+	if err != nil {
 		return nil, err
 	}
-	if ibft.prepareHistogram, err = meter.Float64Histogram("prepare.duration", metric.WithDescription("Prepare stage duration")); err != nil {
+	ibft.prepareHistogram, err = meter.Float64Histogram(
+		"prepare.duration", metric.WithDescription("Prepare stage duration"),
+	)
+	if err != nil {
 		return nil, err
 	}
-	if ibft.newRoundHistogram, err = meter.Float64Histogram("new_round.duration", metric.WithDescription("New round stage duration")); err != nil {
+	ibft.newRoundHistogram, err = meter.Float64Histogram(
+		"new_round.duration", metric.WithDescription("New round stage duration"),
+	)
+	if err != nil {
 		return nil, err
 	}
-	if ibft.commitHistogram, err = meter.Float64Histogram("commit.duration", metric.WithDescription("Commit stage duration")); err != nil {
+	ibft.commitHistogram, err = meter.Float64Histogram(
+		"commit.duration", metric.WithDescription("Commit stage duration"),
+	)
+	if err != nil {
 		return nil, err
 	}
 	ibft.metricAttrs = attrs

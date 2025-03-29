@@ -92,7 +92,8 @@ func (api *APIImplRo) NewBlockFilter(_ context.Context) (string, error) {
 	return string(id), err
 }
 
-// NewFilter implements eth_newFilter. Creates an arbitrary filter object, based on filter options, to notify when the state changes (logs).
+// NewFilter implements eth_newFilter.
+// Creates an arbitrary filter object, based on filter options, to notify when the state changes (logs).
 func (api *APIImplRo) NewFilter(_ context.Context, query filters.FilterQuery) (string, error) {
 	id, err := api.logs.CreateFilter(&query)
 	if err != nil {

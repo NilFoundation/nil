@@ -1,23 +1,43 @@
 import { sample } from "effector";
+import { persist } from "effector-storage/local";
 import { changeCode, loadedTutorialPage } from "../code/model";
-import { history } from "../routing/routes/routes";
-import { tutorialWithStageRoute } from "../routing/routes/tutorialRoute";
-import { $tutorial, fetchTutorialEvent, fetchTutorialFx } from "./model";
+import { notFoundRoute } from "../routing/routes/routes";
+import { tutorialWithUrlStringRoute } from "../routing/routes/tutorialRoute";
+import {
+  $completedTutorials,
+  $tutorial,
+  $tutorials,
+  fetchAllTutorialsFx,
+  fetchTutorialEvent,
+  fetchTutorialFx,
+  setCompletedTutorial,
+} from "./model";
 
 $tutorial.on(fetchTutorialFx.doneData, (_, tutorial) => tutorial);
+$tutorials.on(fetchAllTutorialsFx.doneData, (_, tutorials) => tutorials);
+
+persist({
+  key: "completedTutorials",
+  store: $completedTutorials,
+});
+
+sample({
+  clock: [loadedTutorialPage, tutorialWithUrlStringRoute.$params],
+  source: tutorialWithUrlStringRoute.$params,
+  fn: (params) => params.urlSlug,
+  filter: (urlSlug) => urlSlug !== undefined,
+  target: fetchTutorialFx,
+});
 
 sample({
   clock: loadedTutorialPage,
-  source: tutorialWithStageRoute.$params,
-  fn: (params) => params.stage,
-  filter: (stage) => stage !== undefined,
-  target: fetchTutorialFx,
+  target: fetchAllTutorialsFx,
 });
 
 sample({
   clock: fetchTutorialEvent,
   source: fetchTutorialEvent,
-  fn: (tutorial) => tutorial.stage.toString(),
+  fn: (tutorial) => tutorial.urlSlug.toString(),
   target: fetchTutorialFx,
 });
 
@@ -29,5 +49,17 @@ sample({
 
 sample({
   clock: fetchTutorialFx.failData,
-  fn: () => history.push("/404"),
+  fn: () => notFoundRoute.open(),
+});
+
+sample({
+  clock: setCompletedTutorial,
+  fn: (stage) => {
+    const completedTutorials = $completedTutorials.getState();
+    if (!completedTutorials.includes(stage)) {
+      return [...completedTutorials, stage];
+    }
+    return completedTutorials;
+  },
+  target: $completedTutorials,
 });

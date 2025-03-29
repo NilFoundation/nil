@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/crypto/bls"
@@ -12,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/keys"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/rollup"
@@ -39,6 +41,7 @@ type Config struct {
 	// RPC
 	RPCPort        int                   `yaml:"rpcPort,omitempty"`
 	BootstrapPeers network.AddrInfoSlice `yaml:"bootstrapPeers,omitempty"`
+	EnableDevApi   bool                  `yaml:"enableDevApi,omitempty"`
 
 	// Profiling
 	PprofPort int `yaml:"pprofPort,omitempty"`
@@ -54,9 +57,6 @@ type Config struct {
 	MainKeysPath         string                     `yaml:"mainKeysPath,omitempty"`
 	ValidatorKeysPath    string                     `yaml:"validatorKeysPath,omitempty"`
 	ValidatorKeysManager *keys.ValidatorKeysManager `yaml:"-"`
-
-	// deprecated
-	NetworkKeysPath string `yaml:"networkKeysPath,omitempty"`
 
 	// HttpUrl is calculated from RPCPort
 	HttpUrl string `yaml:"-"`
@@ -210,10 +210,14 @@ func (c *Config) LoadValidatorPrivateKey() (bls.PrivateKey, error) {
 }
 
 func (c *Config) BlockGeneratorParams(shardId types.ShardId) execution.BlockGeneratorParams {
+	var verboseTracingHook *tracing.Hooks
+	if c.TraceEVM {
+		verboseTracingHook = execution.VerboseTracingHooks(logging.NewLogger("tracer"))
+	}
 	return execution.BlockGeneratorParams{
 		ShardId:          shardId,
 		NShards:          c.NShards,
-		TraceEVM:         c.TraceEVM,
+		EvmTracingHooks:  verboseTracingHook,
 		MainKeysPath:     c.MainKeysPath,
 		DisableConsensus: c.DisableConsensus,
 		FeeCalculator:    c.FeeCalculator,

@@ -8,12 +8,12 @@ import (
 	"io"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
-	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -57,7 +57,7 @@ func PublishBlock(
 	return networkManager.PubSub().Publish(ctx, topicShardBlocks(shardId), data)
 }
 
-func logError(logger zerolog.Logger, err error, msg string) {
+func logError(logger logging.Logger, err error, msg string) {
 	if err == nil || errors.Is(err, io.EOF) {
 		return
 	}
@@ -107,7 +107,7 @@ func writeBlockToStream(s network.Stream, block *pb.RawFullBlock) error {
 }
 
 func RequestBlocks(ctx context.Context, networkManager *network.Manager, peerID network.PeerID,
-	shardId types.ShardId, blockNumber types.BlockNumber, logger zerolog.Logger,
+	shardId types.ShardId, blockNumber types.BlockNumber, logger logging.Logger,
 ) (<-chan *types.BlockWithExtractedData, error) {
 	var err error
 	req, err := proto.Marshal(&pb.BlocksRangeRequest{Id: int64(blockNumber)})
@@ -176,7 +176,7 @@ func unmarshalBlockSSZ(pbBlock *pb.RawFullBlock) (*types.BlockWithExtractedData,
 }
 
 func SetRequestHandler(
-	ctx context.Context, networkManager *network.Manager, shardId types.ShardId, database db.DB, logger zerolog.Logger,
+	ctx context.Context, networkManager *network.Manager, shardId types.ShardId, database db.DB, logger logging.Logger,
 ) {
 	if networkManager == nil {
 		// we don't always want to run the network

@@ -14,7 +14,10 @@ import (
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
 
-func (api *LocalShardApi) GetInTransactionReceipt(ctx context.Context, hash common.Hash) (*rawapitypes.ReceiptInfo, error) {
+func (api *LocalShardApi) GetInTransactionReceipt(
+	ctx context.Context,
+	hash common.Hash,
+) (*rawapitypes.ReceiptInfo, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
@@ -32,18 +35,32 @@ func (api *LocalShardApi) GetInTransactionReceipt(ctx context.Context, hash comm
 
 	includedInMain := false
 	if block != nil {
-		receipt, err = getBlockEntity[*types.Receipt](tx, api.ShardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.TransactionIndex.Bytes())
+		receipt, err = getBlockEntity[*types.Receipt](
+			tx, api.ShardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.TransactionIndex.Bytes())
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return nil, err
 		}
-		transaction, err = getBlockEntity[*types.Transaction](tx, api.ShardId, db.TransactionTrieTable, block.InTransactionsRoot, indexes.TransactionIndex.Bytes())
+		transaction, err = getBlockEntity[*types.Transaction](
+			tx,
+			api.ShardId,
+			db.TransactionTrieTable,
+			block.InTransactionsRoot,
+			indexes.TransactionIndex.Bytes())
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return nil, err
 		}
-		gasPrice = block.BaseFee
+
+		priorityFee, ok := execution.GetEffectivePriorityFee(block.BaseFee, transaction)
+		if !ok {
+			return nil, errors.New("critical error: effective priority fee is invalid")
+		}
+		gasPrice = block.BaseFee.Add(priorityFee)
 
 		// Check if the transaction is included in the main chain
-		rawMainBlock, err := api.nodeApi.GetFullBlockData(ctx, types.MainShardId, rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
+		rawMainBlock, err := api.nodeApi.GetFullBlockData(
+			ctx,
+			types.MainShardId,
+			rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
 		if err == nil {
 			mainBlockData, err := rawMainBlock.DecodeSSZ()
 			if err != nil {
@@ -54,8 +71,10 @@ func (api *LocalShardApi) GetInTransactionReceipt(ctx context.Context, hash comm
 				includedInMain = mainBlockData.Id >= block.Id
 			} else {
 				if len(rawMainBlock.ChildBlocks) < int(api.ShardId) {
-					return nil, fmt.Errorf("%w: main shard includes only %d blocks",
-						makeShardNotFoundError(methodNameChecked("GetInTransactionReceipt"), api.ShardId), len(rawMainBlock.ChildBlocks))
+					return nil, fmt.Errorf(
+						"%w: main shard includes only %d blocks",
+						makeShardNotFoundError(methodNameChecked("GetInTransactionReceipt"), api.ShardId),
+						len(rawMainBlock.ChildBlocks))
 				}
 				blockHash := rawMainBlock.ChildBlocks[api.ShardId-1]
 				if last, err := api.accessor.Access(tx, api.ShardId).GetBlock().ByHash(blockHash); err == nil {
@@ -91,7 +110,10 @@ func (api *LocalShardApi) GetInTransactionReceipt(ctx context.Context, hash comm
 	if receipt.OutTxnNum != 0 {
 		outReceipts = make([]*rawapitypes.ReceiptInfo, 0, receipt.OutTxnNum)
 		for i := receipt.OutTxnIndex; i < receipt.OutTxnIndex+receipt.OutTxnNum; i++ {
-			res, err := api.accessor.Access(tx, api.ShardId).GetOutTransaction().ByIndex(types.TransactionIndex(i), block)
+			res, err := api.accessor.
+				Access(tx, api.ShardId).
+				GetOutTransaction().
+				ByIndex(types.TransactionIndex(i), block)
 			if err != nil {
 				return nil, err
 			}
@@ -140,7 +162,11 @@ func (api *LocalShardApi) GetInTransactionReceipt(ctx context.Context, hash comm
 	}, nil
 }
 
-func (api *LocalShardApi) getBlockAndInTransactionIndexByTransactionHash(tx db.RoTx, shardId types.ShardId, hash common.Hash) (*types.Block, db.BlockHashAndTransactionIndex, error) {
+func (api *LocalShardApi) getBlockAndInTransactionIndexByTransactionHash(
+	tx db.RoTx,
+	shardId types.ShardId,
+	hash common.Hash,
+) (*types.Block, db.BlockHashAndTransactionIndex, error) {
 	var index db.BlockHashAndTransactionIndex
 	value, err := tx.GetFromShard(shardId, db.BlockHashAndInTransactionIndexByTransactionHash, hash.Bytes())
 	if err != nil {
@@ -163,7 +189,13 @@ func getBlockEntity[
 		fastssz.Unmarshaler
 	},
 	S any,
-](tx db.RoTx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte) (*S, error) {
+](
+	tx db.RoTx,
+	shardId types.ShardId,
+	tableName db.ShardedTableName,
+	rootHash common.Hash,
+	entityKey []byte,
+) (*S, error) {
 	root := mpt.NewDbReader(tx, shardId, tableName)
 	root.SetRootHash(rootHash)
 	return mpt.GetEntity[T](root, entityKey)

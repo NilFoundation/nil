@@ -1,4 +1,5 @@
 import { BUTTON_KIND, ButtonIcon, DownloadIcon, StatefulTooltip } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import type { FC } from "react";
 import { exportApp } from "../models/exportApp.ts";
 
@@ -11,6 +12,7 @@ export const DownloadAppButton: FC<DownloadAppButtonProps> = ({
   disabled,
   kind = BUTTON_KIND.text,
 }) => {
+  const [css, theme] = useStyletron();
   return (
     <StatefulTooltip
       content="Download contract and compilation artifacts"
@@ -32,6 +34,10 @@ export const DownloadAppButton: FC<DownloadAppButtonProps> = ({
               paddingRight: "6px",
               width: "32px",
               height: "32px",
+              backgroundColor: theme.colors.backgroundSecondary,
+              ":hover": {
+                backgroundColor: theme.colors.backgroundTertiary,
+              },
             },
           },
         }}

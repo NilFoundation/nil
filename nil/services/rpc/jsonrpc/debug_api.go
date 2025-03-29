@@ -6,27 +6,36 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/rs/zerolog"
 )
 
 type DebugAPI interface {
-	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withTransactions bool) (*DebugRPCBlock, error)
+	GetBlockByNumber(
+		ctx context.Context,
+		shardId types.ShardId,
+		number transport.BlockNumber,
+		withTransactions bool,
+	) (*DebugRPCBlock, error)
 	GetBlockByHash(ctx context.Context, hash common.Hash, withTransactions bool) (*DebugRPCBlock, error)
-	GetContract(ctx context.Context, contractAddr types.Address, blockNrOrHash transport.BlockNumberOrHash) (*DebugRPCContract, error)
+	GetContract(
+		ctx context.Context,
+		contractAddr types.Address,
+		blockNrOrHash transport.BlockNumberOrHash,
+	) (*DebugRPCContract, error)
 }
 
 type DebugAPIImpl struct {
-	logger zerolog.Logger
+	logger logging.Logger
 	rawApi rawapi.NodeApi
 }
 
 var _ DebugAPI = &DebugAPIImpl{}
 
-func NewDebugAPI(rawApi rawapi.NodeApi, logger zerolog.Logger) *DebugAPIImpl {
+func NewDebugAPI(rawApi rawapi.NodeApi, logger logging.Logger) *DebugAPIImpl {
 	return &DebugAPIImpl{
 		logger: logger,
 		rawApi: rawApi,
@@ -34,7 +43,12 @@ func NewDebugAPI(rawApi rawapi.NodeApi, logger zerolog.Logger) *DebugAPIImpl {
 }
 
 // GetBlockByNumber implements eth_getBlockByNumber. Returns information about a block given the block's number.
-func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, withTransactions bool) (*DebugRPCBlock, error) {
+func (api *DebugAPIImpl) GetBlockByNumber(
+	ctx context.Context,
+	shardId types.ShardId,
+	number transport.BlockNumber,
+	withTransactions bool,
+) (*DebugRPCBlock, error) {
 	var blockReference rawapitypes.BlockReference
 	if number <= 0 {
 		switch number {
@@ -56,12 +70,21 @@ func (api *DebugAPIImpl) GetBlockByNumber(ctx context.Context, shardId types.Sha
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
-func (api *DebugAPIImpl) GetBlockByHash(ctx context.Context, hash common.Hash, withTransactions bool) (*DebugRPCBlock, error) {
+func (api *DebugAPIImpl) GetBlockByHash(
+	ctx context.Context,
+	hash common.Hash,
+	withTransactions bool,
+) (*DebugRPCBlock, error) {
 	shardId := types.ShardIdFromHash(hash)
 	return api.getBlockByReference(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash), withTransactions)
 }
 
-func (api *DebugAPIImpl) getBlockByReference(ctx context.Context, shardId types.ShardId, blockReference rawapitypes.BlockReference, withTransactions bool) (*DebugRPCBlock, error) {
+func (api *DebugAPIImpl) getBlockByReference(
+	ctx context.Context,
+	shardId types.ShardId,
+	blockReference rawapitypes.BlockReference,
+	withTransactions bool,
+) (*DebugRPCBlock, error) {
 	var blockData *types.RawBlockWithExtractedData
 	var err error
 	if withTransactions {
@@ -79,7 +102,11 @@ func (api *DebugAPIImpl) getBlockByReference(ctx context.Context, shardId types.
 	return EncodeRawBlockWithExtractedData(blockData)
 }
 
-func (api *DebugAPIImpl) GetContract(ctx context.Context, contractAddr types.Address, blockNrOrHash transport.BlockNumberOrHash) (*DebugRPCContract, error) {
+func (api *DebugAPIImpl) GetContract(
+	ctx context.Context,
+	contractAddr types.Address,
+	blockNrOrHash transport.BlockNumberOrHash,
+) (*DebugRPCContract, error) {
 	contract, err := api.rawApi.GetContract(ctx, contractAddr, toBlockReference(blockNrOrHash))
 	if err != nil {
 		return nil, err

@@ -15,7 +15,11 @@ import (
 
 var errBlockNotFound = errors.New("block not found")
 
-func (api *LocalShardApi) GetBalance(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Value, error) {
+func (api *LocalShardApi) GetBalance(
+	ctx context.Context,
+	address types.Address,
+	blockReference rawapitypes.BlockReference,
+) (types.Value, error) {
 	shardId := address.ShardId()
 	if shardId != api.ShardId {
 		return types.Value{}, fmt.Errorf("address is not in the shard %d", api.ShardId)
@@ -37,7 +41,11 @@ func (api *LocalShardApi) GetBalance(ctx context.Context, address types.Address,
 	return acc.Balance, nil
 }
 
-func (api *LocalShardApi) GetCode(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (types.Code, error) {
+func (api *LocalShardApi) GetCode(
+	ctx context.Context,
+	address types.Address,
+	blockReference rawapitypes.BlockReference,
+) (types.Code, error) {
 	shardId := address.ShardId()
 	if shardId != api.ShardId {
 		return types.Code{}, fmt.Errorf("address is not in the shard %d", api.ShardId)
@@ -67,7 +75,11 @@ func (api *LocalShardApi) GetCode(ctx context.Context, address types.Address, bl
 	return code, nil
 }
 
-func (api *LocalShardApi) GetTokens(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (map[types.TokenId]types.Value, error) {
+func (api *LocalShardApi) GetTokens(
+	ctx context.Context,
+	address types.Address,
+	blockReference rawapitypes.BlockReference,
+) (map[types.TokenId]types.Value, error) {
 	shardId := address.ShardId()
 	if shardId != api.ShardId {
 		return nil, fmt.Errorf("address is not in the shard %d", api.ShardId)
@@ -94,12 +106,18 @@ func (api *LocalShardApi) GetTokens(ctx context.Context, address types.Address, 
 		return nil, err
 	}
 
-	return common.SliceToMap(entries, func(_ int, kv execution.Entry[types.TokenId, *types.Value]) (types.TokenId, types.Value) {
-		return kv.Key, *kv.Val
-	}), nil
+	return common.SliceToMap(
+		entries,
+		func(_ int, kv execution.Entry[types.TokenId, *types.Value]) (types.TokenId, types.Value) {
+			return kv.Key, *kv.Val
+		}), nil
 }
 
-func (api *LocalShardApi) GetContract(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (*rawapitypes.SmartContract, error) {
+func (api *LocalShardApi) GetContract(
+	ctx context.Context,
+	address types.Address,
+	blockReference rawapitypes.BlockReference,
+) (*rawapitypes.SmartContract, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
@@ -107,8 +125,24 @@ func (api *LocalShardApi) GetContract(ctx context.Context, address types.Address
 	defer tx.Rollback()
 
 	contractRaw, proofBuilder, err := api.getRawSmartContract(tx, address, blockReference)
+	if err != nil && proofBuilder == nil {
+		return nil, err
+	}
+
+	// Create proof regardless of whether we have contract data
+	proof, err := proofBuilder(mpt.ReadMPTOperation)
 	if err != nil {
 		return nil, err
+	}
+
+	encodedProof, err := proof.Encode()
+	if err != nil {
+		return nil, err
+	}
+
+	// If we don't have contract data, return just the proof
+	if contractRaw == nil {
+		return &rawapitypes.SmartContract{ProofEncoded: encodedProof}, nil
 	}
 
 	contract := new(types.SmartContract)
@@ -123,16 +157,6 @@ func (api *LocalShardApi) GetContract(ctx context.Context, address types.Address
 		} else {
 			return nil, err
 		}
-	}
-
-	proof, err := proofBuilder(mpt.ReadMPTOperation)
-	if err != nil {
-		return nil, err
-	}
-
-	encodedProof, err := proof.Encode()
-	if err != nil {
-		return nil, err
 	}
 
 	storageReader := execution.NewDbStorageTrieReader(tx, address.ShardId())
@@ -150,7 +174,7 @@ func (api *LocalShardApi) GetContract(ctx context.Context, address types.Address
 	}
 
 	asyncContextReader := execution.NewDbAsyncContextTrieReader(tx, address.ShardId())
-	asyncContextReader.SetRootHash(contract.TokenRoot)
+	asyncContextReader.SetRootHash(contract.AsyncContextRoot)
 	asyncContextEntries, err := asyncContextReader.Entries()
 	if err != nil {
 		return nil, err
@@ -174,7 +198,11 @@ func makeProofBuilder(root *mpt.Reader, key []byte) proofBuilder {
 	}
 }
 
-func (api *LocalShardApi) getRawSmartContract(tx db.RoTx, address types.Address, blockReference rawapitypes.BlockReference) ([]byte, proofBuilder, error) {
+func (api *LocalShardApi) getRawSmartContract(
+	tx db.RoTx,
+	address types.Address,
+	blockReference rawapitypes.BlockReference,
+) ([]byte, proofBuilder, error) {
 	rawBlock, err := api.getBlockByReference(tx, blockReference, false)
 	if err != nil {
 		return nil, nil, err
@@ -192,13 +220,21 @@ func (api *LocalShardApi) getRawSmartContract(tx db.RoTx, address types.Address,
 	addressBytes := address.Hash().Bytes()
 	contractRaw, err := root.Get(addressBytes)
 	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			// there is no such contract, provide proof of absence
+			return nil, makeProofBuilder(root, addressBytes), err
+		}
 		return nil, nil, err
 	}
 
 	return contractRaw, makeProofBuilder(root, addressBytes), nil
 }
 
-func (api *LocalShardApi) getSmartContract(tx db.RoTx, address types.Address, blockReference rawapitypes.BlockReference) (*types.SmartContract, error) {
+func (api *LocalShardApi) getSmartContract(
+	tx db.RoTx,
+	address types.Address,
+	blockReference rawapitypes.BlockReference,
+) (*types.SmartContract, error) {
 	contractRaw, _, err := api.getRawSmartContract(tx, address, blockReference)
 	if err != nil {
 		return nil, err
@@ -212,7 +248,11 @@ func (api *LocalShardApi) getSmartContract(tx db.RoTx, address types.Address, bl
 	return contract, nil
 }
 
-func (api *LocalShardApi) GetTransactionCount(ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (uint64, error) {
+func (api *LocalShardApi) GetTransactionCount(
+	ctx context.Context,
+	address types.Address,
+	blockReference rawapitypes.BlockReference,
+) (uint64, error) {
 	if blockReference.Type() == rawapitypes.NamedBlockIdentifierReference &&
 		blockReference.NamedBlockIdentifier() == rawapitypes.PendingBlock {
 		if api.txnpool != nil {

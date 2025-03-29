@@ -7,7 +7,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/google/btree"
-	"github.com/rs/zerolog"
 )
 
 // ByReceiverAndSeqno - designed to perform the most expensive operation in TxnPool:
@@ -22,7 +21,7 @@ type ByReceiverAndSeqno struct {
 	search     *metaTxn
 	toTxnCount map[types.Address]int // count of receiver's txns in the pool - may differ from seqno
 
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
 func sortBySeqnoLess(a, b *metaTxn) bool {
@@ -33,7 +32,7 @@ func sortBySeqnoLess(a, b *metaTxn) bool {
 	return a.Seqno < b.Seqno
 }
 
-func NewBySenderAndSeqno(logger zerolog.Logger) *ByReceiverAndSeqno {
+func NewBySenderAndSeqno(logger logging.Logger) *ByReceiverAndSeqno {
 	return &ByReceiverAndSeqno{
 		tree:       btree.NewG(32, sortBySeqnoLess),
 		search:     &metaTxn{TxnWithHash: &types.TxnWithHash{Transaction: &types.Transaction{}}},
@@ -58,9 +57,7 @@ func (b *ByReceiverAndSeqno) seqno(to types.Address) (seqno types.Seqno, ok bool
 }
 
 func (b *ByReceiverAndSeqno) ascendAll(f func(*metaTxn) bool) {
-	b.tree.Ascend(func(mm *metaTxn) bool {
-		return f(mm)
-	})
+	b.tree.Ascend(f)
 }
 
 func (b *ByReceiverAndSeqno) ascend(to types.Address, f func(*metaTxn) bool) {

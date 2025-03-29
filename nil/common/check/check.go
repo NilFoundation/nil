@@ -3,7 +3,7 @@ package check
 import (
 	"fmt"
 
-	"github.com/rs/zerolog"
+	"github.com/NilFoundation/nil/nil/common/logging"
 )
 
 // These functions are meant to simplify panicking in the code
@@ -44,7 +44,7 @@ func PanicIfErr(err error) {
 }
 
 // LogAndPanicIfErrf logs the error with the provided logger and message and panics if err is not nil.
-func LogAndPanicIfErrf(err error, logger zerolog.Logger, format string, args ...interface{}) {
+func LogAndPanicIfErrf(err error, logger logging.Logger, format string, args ...interface{}) {
 	if err != nil {
 		l := logger.With().CallerWithSkipFrameCount(3).Logger()
 		l.Error().Err(err).Msgf(format, args...)

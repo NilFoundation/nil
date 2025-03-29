@@ -2,25 +2,11 @@
   "name": "nil-monorepo",
   "private": true,
   "version": "1.0.0",
-  "workspaces": [
-    "smart-contracts",
-    "niljs",
-    "create-nil-hardhat-project",
-    "docs",
-    "explorer_frontend",
-    "explorer_backend",
-    "uniswap",
-    "clijs",
-    "wallet-extension",
-    "docs_ai_backend",
-    "rollup-bridge-contracts"
-  ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
-    "lint:fix": "npm run lint:fix --workspaces --if-present",
-    "install:clean": "rm -rf package-lock.json && rm -rf node_modules && rm -rf */node_modules && rm -rf */package-lock.json && npm i && npm dedupe",
-    "pub": "npm run pub --workspaces --if-present"
+    "build": "pnpm --filter '!nil-monorepo' run build",
+    "lint": "pnpm --filter '!nil-monorepo' run lint",
+    "lint:fix": "pnpm --filter '!nil-monorepo' run lint:fix",
+    "preinstall": "npx only-allow pnpm"
   },
   "author": "",
   "license": "ISC",
@@ -28,20 +14,59 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "fs-extra": "^11.3.0",
-    "hardhat": "^2.22.19"
+    "hardhat": "^2.22.19",
+    "rimraf": "^6.0.1",
+    "vitest": "^2.1.9"
   },
-  "optionalDependencies": {
-    "@biomejs/cli-linux-x64": "1.9.4",
-    "@biomejs/cli-win32-x64": "1.9.4"
+  "pnpm": {
+    "supportedArchitectures": {
+      "os": [
+        "current",
+        "linux",
+        "darwin"
+      ],
+      "cpu": [
+        "x64",
+        "arm64"
+      ]
+    },
+    "ignoredBuiltDependencies": [
+      "baseui",
+      "core-js",
+      "core-js-pure",
+      "cypress",
+      "esbuild",
+      "fast-folder-size",
+      "gifsicle",
+      "highlight.js",
+      "jpegtran-bin",
+      "keccak",
+      "optipng-bin",
+      "protobufjs",
+      "secp256k1",
+      "sharp",
+      "yarn"
+    ],
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "@biomejs/biome"
+    ],
+    "overrides": {
+      "rollup": "npm:@rollup/wasm-node@^4.0.0"
+    }
   },
   "overrides": {
     "whatwg-url": "13.0.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "rollup": "npm:@rollup/wasm-node@^4.0.0"
+    "@types/react": "18.3.1",
+    "rollup": "npm:@rollup/wasm-node@^4.0.0",
+    "@types/node": "18.19.80"
   },
   "engines": {
     "node": ">=22.0.0",
-    "npm": ">=10.0.0"
-  }
+    "npm": "please-use-pnpm",
+    "pnpm": ">=10.5.2"
+  },
+  "packageManager": "pnpm@10.5.2"
 }

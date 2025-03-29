@@ -12,7 +12,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/filters"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/rs/zerolog"
 )
 
 type EthAPIRo interface {
@@ -26,7 +25,8 @@ type EthAPIRo interface {
 		@param fullTx FullTx
 		@returns rpcBlock RPCBlock
 	*/
-	GetBlockByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool) (*RPCBlock, error)
+	GetBlockByNumber(
+		ctx context.Context, shardId types.ShardId, number transport.BlockNumber, fullTx bool) (*RPCBlock, error)
 
 	/*
 		@name GetBlockByHash
@@ -48,7 +48,8 @@ type EthAPIRo interface {
 		@param number BlockNumber
 		@returns transactionNumber TransactionNumber
 	*/
-	GetBlockTransactionCountByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (hexutil.Uint, error)
+	GetBlockTransactionCountByNumber(
+		ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (hexutil.Uint, error)
 
 	/*
 		@name GetBlockTransactionCountByHash
@@ -72,18 +73,21 @@ type EthAPIRo interface {
 
 	/*
 		@name GetInTransactionByBlockHashAndIndex
-		@summary Returns the structure of the internal transaction with the given index and contained within the block with the given hash.
+		@summary Returns the structure of the internal transaction with the given index
+		         and contained within the block with the given hash.
 		@description
 		@tags [Transactions]
 		@param hash BlockHash
 		@param index TransactionIndex
 		@returns rpcInTransaction RPCInTransaction
 	*/
-	GetInTransactionByBlockHashAndIndex(ctx context.Context, hash common.Hash, index hexutil.Uint64) (*RPCInTransaction, error)
+	GetInTransactionByBlockHashAndIndex(
+		ctx context.Context, hash common.Hash, index hexutil.Uint64) (*RPCInTransaction, error)
 
 	/*
 		@name GetInTransactionByBlockNumberAndIndex
-		@summary Returns the structure of the internal transaction with the given index and contained within the block with the given number.
+		@summary Returns the structure of the internal transaction with the given index
+		         and contained within the block with the given number.
 		@description
 		@tags [Transactions]
 		@param shardId TransactionShardId
@@ -91,11 +95,17 @@ type EthAPIRo interface {
 		@param index TransactionIndex
 		@returns rpcInTransaction RPCInTransaction
 	*/
-	GetInTransactionByBlockNumberAndIndex(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, index hexutil.Uint64) (*RPCInTransaction, error)
+	GetInTransactionByBlockNumberAndIndex(
+		ctx context.Context,
+		shardId types.ShardId,
+		number transport.BlockNumber,
+		index hexutil.Uint64,
+	) (*RPCInTransaction, error)
 
 	/*
 		@name GetRawInTransactionByBlockNumberAndIndex
-		@summary Returns the bytecode of the internal transaction with the given index and contained within the block with the given number.
+		@summary Returns the bytecode of the internal transaction with the given index
+		         and contained within the block with the given number.
 		@description
 		@tags [Transactions]
 		@param shardId TransactionShardId
@@ -103,18 +113,25 @@ type EthAPIRo interface {
 		@param index TransactionIndex
 		@returns transactionBytecode TransactionBytecode
 	*/
-	GetRawInTransactionByBlockNumberAndIndex(ctx context.Context, shardId types.ShardId, number transport.BlockNumber, index hexutil.Uint64) (hexutil.Bytes, error)
+	GetRawInTransactionByBlockNumberAndIndex(
+		ctx context.Context,
+		shardId types.ShardId,
+		number transport.BlockNumber,
+		index hexutil.Uint64,
+	) (hexutil.Bytes, error)
 
 	/*
 		@name GetRawInTransactionByBlockHashAndIndex
-		@summary Returns the bytecode of the internal transaction with the given index and contained within the block with the given hash.
+		@summary Returns the bytecode of the internal transaction with the given index
+		         and contained within the block with the given hash.
 		@description
 		@tags [Transactions]
 		@param hash BlockHash
 		@param index TransactionIndex
 		@returns transactionBytecode TransactionBytecode
 	*/
-	GetRawInTransactionByBlockHashAndIndex(ctx context.Context, hash common.Hash, index hexutil.Uint64) (hexutil.Bytes, error)
+	GetRawInTransactionByBlockHashAndIndex(
+		ctx context.Context, hash common.Hash, index hexutil.Uint64) (hexutil.Bytes, error)
 
 	/*
 		@name GetRawInTransactionByHash
@@ -145,7 +162,8 @@ type EthAPIRo interface {
 		@param blockNumberOrHash BlockNumberOrHash
 		@returns balance Balance
 	*/
-	GetBalance(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)
+	GetBalance(
+		ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)
 
 	/*
 		@name GasPrice
@@ -166,7 +184,8 @@ type EthAPIRo interface {
 		@param blockNumberOrHash BlockNumberOrHash
 		@returns transactionCount TransactionCount
 	*/
-	GetTransactionCount(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Uint64, error)
+	GetTransactionCount(
+		ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Uint64, error)
 
 	/*
 		@name GetCode
@@ -177,7 +196,8 @@ type EthAPIRo interface {
 		@param blockNumberOrHash BlockNumberOrHash
 		@returns contractBytecode ContractBytecode
 	*/
-	GetCode(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
+	GetCode(
+		ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (hexutil.Bytes, error)
 
 	/*
 		@name NewFilter
@@ -265,7 +285,12 @@ type EthAPIRo interface {
 		@param overrides StateOverrides
 		@returns callRes CallRes
 	*/
-	Call(ctx context.Context, args CallArgs, mainBlockNrOrHash transport.BlockNumberOrHash, overrides *StateOverrides) (*CallRes, error)
+	Call(
+		ctx context.Context,
+		args CallArgs,
+		mainBlockNrOrHash transport.BlockNumberOrHash,
+		overrides *StateOverrides,
+	) (*CallRes, error)
 
 	/*
 		@name EstimateFee
@@ -276,7 +301,11 @@ type EthAPIRo interface {
 		@param mainBlockNrOrHash BlockNumberOrHash
 		@returns feeEstimation Value
 	*/
-	EstimateFee(ctx context.Context, args CallArgs, mainBlockNrOrHash transport.BlockNumberOrHash) (*EstimateFeeRes, error)
+	EstimateFee(
+		ctx context.Context,
+		args CallArgs,
+		mainBlockNrOrHash transport.BlockNumberOrHash,
+	) (*EstimateFeeRes, error)
 
 	/*
 		@name ChainId
@@ -296,7 +325,11 @@ type EthAPIRo interface {
 		@param blockNumberOrHash BlockNumberOrHash
 		@returns balance Balance of all tokens
 	*/
-	GetTokens(ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (map[types.TokenId]types.Value, error)
+	GetTokens(
+		ctx context.Context,
+		address types.Address,
+		blockNrOrHash transport.BlockNumberOrHash,
+	) (map[types.TokenId]types.Value, error)
 }
 
 // EthAPI is a collection of functions that are exposed in the JSON-RPC API.
@@ -319,8 +352,8 @@ type APIImplRo struct {
 	accessor *execution.StateAccessor
 
 	logs            *LogsAggregator
-	logger          zerolog.Logger
-	clientEventsLog logging.CHLogger
+	logger          logging.Logger
+	clientEventsLog logging.Logger
 	rawapi          rawapi.NodeApi
 }
 
@@ -334,23 +367,35 @@ var (
 	_ EthAPIRo = (*APIImplRo)(nil)
 )
 
-func NewEthAPIRo(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pollBlocksForLogs, logClientEvents bool) *APIImplRo {
+func NewEthAPIRo(
+	ctx context.Context,
+	rawapi rawapi.NodeApi,
+	db db.ReadOnlyDB,
+	pollBlocksForLogs bool,
+	logClientEvents bool,
+) *APIImplRo {
 	accessor := execution.NewStateAccessor()
 	api := &APIImplRo{
 		logger:          logging.NewLogger("eth-api"),
 		accessor:        accessor,
 		rawapi:          rawapi,
-		clientEventsLog: logging.NewCHLogger("eth-api", "rpc_requests"),
+		clientEventsLog: logging.NewLogger("eth-api-rpc-requests"),
 	}
 	api.logs = NewLogsAggregator(ctx, db, pollBlocksForLogs)
 	if !logClientEvents {
-		api.clientEventsLog = api.clientEventsLog.Disable()
+		api.clientEventsLog = logging.Nop()
 	}
 	return api
 }
 
 // NewEthAPI returns APIImpl instance
-func NewEthAPI(ctx context.Context, rawapi rawapi.NodeApi, db db.ReadOnlyDB, pollBlocksForLogs, logClientEvents bool) *APIImpl {
+func NewEthAPI(
+	ctx context.Context,
+	rawapi rawapi.NodeApi,
+	db db.ReadOnlyDB,
+	pollBlocksForLogs bool,
+	logClientEvents bool,
+) *APIImpl {
 	roApi := NewEthAPIRo(ctx, rawapi, db, pollBlocksForLogs, logClientEvents)
 	return &APIImpl{roApi}
 }

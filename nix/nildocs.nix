@@ -1,6 +1,6 @@
 { lib
 , stdenv
-, npmHooks
+, pnpm_10
 , nodejs
 , nil
 , openssl
@@ -19,16 +19,16 @@ stdenv.mkDerivation rec {
   pname = "nildocs";
   src = lib.sourceByRegex ./.. [
     "package.json"
-    "package-lock.json"
+    "pnpm-lock.yaml"
+    "pnpm-workspace.yaml"
+    ".npmrc"
     "^docs(/.*)?$"
     "^niljs(/.*)?$"
     "^smart-contracts(/.*)?$"
     "biome.json"
   ];
 
-  npmDeps = (callPackage ./npmdeps.nix { });
-
-  NODE_PATH = "$npmDeps";
+  pnpmDeps = (callPackage ./npmdeps.nix { });
 
   buildInputs = [
     openssl
@@ -36,7 +36,8 @@ stdenv.mkDerivation rec {
 
   nativeBuildInputs = [
     nodejs
-    npmHooks.npmConfigHook
+    pnpm_10
+    pnpm_10.configHook
     autoconf
     automake
     libtool
@@ -44,8 +45,6 @@ stdenv.mkDerivation rec {
     solc-select
     biome
   ] ++ (if enableTesting then [ nil ] else [ ]);
-
-  dontConfigure = true;
 
   preUnpack = ''
     echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
@@ -62,8 +61,8 @@ stdenv.mkDerivation rec {
     runHook preBuild
     patchShebangs docs/node_modules
     patchShebangs niljs/node_modules
-    (cd smart-contracts; npm run build)
-    (cd niljs; npm run build)
+    (cd smart-contracts; pnpm run build)
+    (cd niljs; pnpm run build)
     export NILJS_SRC=${../niljs}
     export OPENRPC_JSON=${nil}/share/doc/nil/openrpc.json
     export CMD_NIL=${../nil/cmd/nil/internal}
@@ -76,7 +75,7 @@ stdenv.mkDerivation rec {
     # needed to work-around the openssl incompatibility
     # not sure why it happens, but it does the job
     export NODE_OPTIONS=--openssl-legacy-provider
-    npm run build
+    pnpm run build
   '';
 
 
@@ -85,7 +84,7 @@ stdenv.mkDerivation rec {
   checkPhase = ''
     export BIOME_BINARY=${biome}/bin/biome
 
-    npm run lint
+    pnpm run lint
 
     echo "Runnig tests..."
     bash run_tests.sh

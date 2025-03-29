@@ -3,16 +3,20 @@ package types
 import (
 	"errors"
 	"fmt"
+	"iter"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/google/uuid"
 )
 
 var (
-	ErrBatchNotReady = errors.New("batch is not ready for handling")
-	ErrBatchMismatch = errors.New("batch mismatch")
+	ErrBatchNotReady  = errors.New("batch is not ready for handling")
+	ErrBatchMismatch  = errors.New("batch mismatch")
+	ErrBatchNotProved = errors.New("batch is not proved")
+	ErrBlockMismatch  = errors.New("block mismatch")
 )
 
 // BatchId Unique ID of a batch of blocks.
@@ -47,97 +51,171 @@ func (id *BatchId) Set(val string) error {
 }
 
 type BlockBatch struct {
-	Id             BatchId             `json:"id"`
-	ParentId       *BatchId            `json:"parentId"`
-	MainShardBlock *jsonrpc.RPCBlock   `json:"mainShardBlock"`
-	ChildBlocks    []*jsonrpc.RPCBlock `json:"childBlocks"`
+	Id        BatchId    `json:"id"`
+	ParentId  *BatchId   `json:"parentId"`
+	Subgraphs []Subgraph `json:"subgraphs"`
 }
 
-func NewBlockBatch(
-	parentId *BatchId,
-	mainShardBlock *jsonrpc.RPCBlock,
-	childBlocks []*jsonrpc.RPCBlock,
-) (*BlockBatch, error) {
-	if err := validateBatch(mainShardBlock, childBlocks); err != nil {
+func NewBlockBatch(parentId *BatchId, subgraphs ...Subgraph) (*BlockBatch, error) {
+	if err := validateBatch(subgraphs); err != nil {
 		return nil, err
 	}
 
 	return &BlockBatch{
-		Id:             NewBatchId(),
-		ParentId:       parentId,
-		MainShardBlock: mainShardBlock,
-		ChildBlocks:    childBlocks,
+		Id:        NewBatchId(),
+		ParentId:  parentId,
+		Subgraphs: subgraphs,
 	}, nil
 }
 
-func validateBatch(mainShardBlock *jsonrpc.RPCBlock, childBlocks []*jsonrpc.RPCBlock) error {
-	switch {
-	case mainShardBlock == nil:
-		return errors.New("mainShardBlock cannot be nil")
-
-	case childBlocks == nil:
-		return errors.New("childBlocks cannot be nil")
-
-	case mainShardBlock.ShardId != types.MainShardId:
-		return fmt.Errorf("mainShardBlock is not from the main shard: %d", mainShardBlock.ShardId)
-
-	case len(childBlocks) != len(mainShardBlock.ChildBlocks):
-		return fmt.Errorf(
-			"childBlocks and mainShardBlock.ChildBlocks have different length: %d != %d",
-			len(childBlocks), len(mainShardBlock.ChildBlocks),
-		)
+func validateBatch(subgraphs []Subgraph) error {
+	if len(subgraphs) == 0 {
+		return errors.New("subgraphs cannot be empty")
 	}
 
-	for i, childHash := range mainShardBlock.ChildBlocks {
-		child := childBlocks[i]
-		if child == nil {
-			if childHash.Empty() {
-				return fmt.Errorf("%w: mainShardBlock.ChildBlocks[%d] is nil", ErrBatchNotReady, i)
-			}
-
-			return fmt.Errorf(
-				"childBlocks[%d] cannot be nil, mainShardBlock.ChildBlocks[%d] = %s",
-				i, i, childHash,
-			)
+	for i, subgraph := range subgraphs {
+		if i == 0 {
+			continue
 		}
 
-		if childHash != child.Hash {
-			return fmt.Errorf(
-				"childBlocks[%d].Hash != mainShardBlock.ChildBlocks[%d]: %s != %s",
-				i, i, childHash, childBlocks[i].Hash,
-			)
+		parentMainRef := BlockToRef(subgraphs[i-1].Main)
+		if err := parentMainRef.ValidateNext(subgraph.Main); err != nil {
+			return fmt.Errorf("parent-child subgraph mismatch at index %d: %w", i, err)
 		}
 	}
+
 	return nil
 }
 
 func (b *BlockBatch) BlocksCount() uint32 {
-	return uint32(len(b.ChildBlocks) + 1)
+	sum := uint32(0)
+	for _, subgraph := range b.Subgraphs {
+		sum += subgraph.BlocksCount()
+	}
+	return sum
 }
 
-func (b *BlockBatch) AllBlocks() []*jsonrpc.RPCBlock {
-	blocks := make([]*jsonrpc.RPCBlock, 0, len(b.ChildBlocks)+1)
-	blocks = append(blocks, b.MainShardBlock)
-	blocks = append(blocks, b.ChildBlocks...)
+func (b *BlockBatch) BlockIds() []BlockId {
+	blockIds := make([]BlockId, 0, b.BlocksCount())
+	for block := range b.BlocksIter() {
+		blockIds = append(blockIds, IdFromBlock(block))
+	}
+	return blockIds
+}
+
+// BlocksIter provides an iterator for traversing over all blocks in the batch
+// ordering them by pair (ShardId, BlockNumber)
+func (b *BlockBatch) BlocksIter() iter.Seq[*Block] {
+	return func(yield func(*Block) bool) {
+		for _, subgraph := range b.Subgraphs {
+			if !yield(subgraph.Main) {
+				return
+			}
+		}
+
+		for _, shard := range b.sortedExecShards() {
+			for _, subgraph := range b.Subgraphs {
+				chainSegment := subgraph.Children[shard]
+				for _, block := range chainSegment {
+					if !yield(block) {
+						return
+					}
+				}
+			}
+		}
+	}
+}
+
+func (b *BlockBatch) FirstMainBlock() *Block {
+	if len(b.Subgraphs) == 0 {
+		return nil
+	}
+	return b.Subgraphs[0].Main
+}
+
+func (b *BlockBatch) LatestMainBlock() *Block {
+	if len(b.Subgraphs) == 0 {
+		return nil
+	}
+	return b.Subgraphs[len(b.Subgraphs)-1].Main
+}
+
+// ParentRefs returns refs to parent blocks for each shard included in the batch
+func (b *BlockBatch) ParentRefs() map[types.ShardId]*BlockRef {
+	firstBlocks := b.getEdgeBlocks(false)
+	refs := make(map[types.ShardId]*BlockRef)
+	for shardId, block := range firstBlocks {
+		refs[shardId] = GetParentRef(block)
+	}
+	return refs
+}
+
+// EarliestRefs returns refs to the earliest blocks for each shard in the batch
+func (b *BlockBatch) EarliestRefs() BlockRefs {
+	return b.getEdgeRefs(false)
+}
+
+// LatestRefs returns refs to the latest blocks for each shard in the batch
+func (b *BlockBatch) LatestRefs() BlockRefs {
+	return b.getEdgeRefs(true)
+}
+
+func (b *BlockBatch) getEdgeRefs(latest bool) BlockRefs {
+	latestBlocks := b.getEdgeBlocks(latest)
+	refs := make(BlockRefs)
+	for shardId, block := range latestBlocks {
+		refs[shardId] = BlockToRef(block)
+	}
+	return refs
+}
+
+// getEdgeBlocks identifies and returns either the first or last blocks
+// for each shard in the batch based on the `latest` parameter.
+func (b *BlockBatch) getEdgeBlocks(latest bool) map[types.ShardId]*Block {
+	blocks := make(map[types.ShardId]*Block)
+
+	var subgraphsIter iter.Seq2[int, Subgraph]
+	if latest {
+		subgraphsIter = slices.Backward(b.Subgraphs)
+	} else {
+		subgraphsIter = slices.All(b.Subgraphs)
+	}
+
+	for _, subgraph := range subgraphsIter {
+		if _, ok := blocks[subgraph.Main.ShardId]; !ok {
+			blocks[subgraph.Main.ShardId] = subgraph.Main
+		}
+		for shardId, segment := range subgraph.Children {
+			if _, ok := blocks[shardId]; ok {
+				continue
+			}
+
+			if latest {
+				blocks[shardId] = segment.Latest()
+			} else {
+				blocks[shardId] = segment.Earliest()
+			}
+		}
+	}
+
 	return blocks
 }
 
-func (b *BlockBatch) CreateProofTasks(currentTime time.Time) ([]*TaskEntry, error) {
-	taskEntries := make([]*TaskEntry, 0, len(b.ChildBlocks)+1)
+func (b *BlockBatch) sortedExecShards() []types.ShardId {
+	shards := make(map[types.ShardId]struct{})
 
-	aggregateProofsTask := NewAggregateProofsTaskEntry(b.Id, b.MainShardBlock, currentTime)
-	taskEntries = append(taskEntries, aggregateProofsTask)
-
-	for _, childBlock := range b.ChildBlocks {
-		blockProofTask, err := NewBlockProofTaskEntry(b.Id, aggregateProofsTask, childBlock, currentTime)
-		if err != nil {
-			return nil, err
+	for _, subgraph := range b.Subgraphs {
+		for shard := range subgraph.Children {
+			shards[shard] = struct{}{}
 		}
-
-		taskEntries = append(taskEntries, blockProofTask)
 	}
 
-	return taskEntries, nil
+	return slices.Sorted(maps.Keys(shards))
+}
+
+func (b *BlockBatch) CreateProofTask(currentTime time.Time) (*TaskEntry, error) {
+	blockIds := b.BlockIds()
+	return NewBatchProofTaskEntry(b.Id, blockIds, currentTime)
 }
 
 type PrunedBatch struct {
@@ -149,9 +227,10 @@ func NewPrunedBatch(batch *BlockBatch) *PrunedBatch {
 	out := &PrunedBatch{
 		BatchId: batch.Id,
 	}
-	for _, blk := range batch.ChildBlocks {
-		out.Blocks = append(out.Blocks, NewPrunedBlock(blk))
+
+	for block := range batch.BlocksIter() {
+		out.Blocks = append(out.Blocks, NewPrunedBlock(block))
 	}
-	out.Blocks = append(out.Blocks, NewPrunedBlock(batch.MainShardBlock))
+
 	return out
 }

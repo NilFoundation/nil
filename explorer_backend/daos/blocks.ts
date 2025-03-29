@@ -6,7 +6,7 @@ const formatFields = (prefix = "") => `${prefix ? `${prefix}.` : ""}shard_id as 
 hex(${prefix ? `${prefix}.` : ""}hash) AS hash,
 hex(${prefix ? `${prefix}.` : ""}prev_block) as prev_block,
 hex(${prefix ? `${prefix}.` : ""}main_chain_hash) as master_chain_hash,
-${prefix ? `${prefix}.` : ""}out_txn_num as out_txn_num,
+${prefix ? `${prefix}.` : ""}out_transaction_num as out_txn_num,
 ${prefix ? `${prefix}.` : ""}in_txn_num as in_txn_num,
 ${prefix ? `${prefix}.` : ""}timestamp as timestamp,
 ${prefix ? `${prefix}.` : ""}id as id`;

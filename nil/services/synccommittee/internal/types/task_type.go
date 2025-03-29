@@ -11,8 +11,7 @@ type TaskType uint8
 
 const (
 	TaskTypeNone TaskType = iota
-	AggregateProofs
-	ProofBlock
+	ProofBatch
 	PartialProve
 	AggregatedChallenge
 	CombinedQ
@@ -22,8 +21,7 @@ const (
 )
 
 var TaskTypes = map[string]TaskType{
-	"AggregateProofs":      AggregateProofs,
-	"ProofBlock":           ProofBlock,
+	"ProofBatch":           ProofBatch,
 	"PartialProve":         PartialProve,
 	"AggregatedChallenge":  AggregatedChallenge,
 	"CombinedQ":            CombinedQ,

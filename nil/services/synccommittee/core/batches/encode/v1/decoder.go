@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode"
 	protoTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types/proto"
-	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -17,10 +17,10 @@ type decompressor interface {
 
 type decoder struct {
 	decompressor decompressor
-	logger       zerolog.Logger
+	logger       logging.Logger
 }
 
-func NewDecoder(logger zerolog.Logger) *decoder {
+func NewDecoder(logger logging.Logger) *decoder {
 	return &decoder{
 		decompressor: NewZstdDecompressor(logger),
 		logger:       logger,

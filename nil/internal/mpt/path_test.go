@@ -67,3 +67,15 @@ func TestCombine(t *testing.T) {
 	toCompare := newPath([]byte{0x23, 0x48}, false)
 	require.True(t, common.Equal(toCompare))
 }
+
+func TestConsume(t *testing.T) {
+	t.Parallel()
+
+	nibbles := newPath([]byte{0x12, 0x34}, false)
+	nibbles.Consume(1)
+	require.True(t, nibbles.Equal(newPath([]byte{0x2, 0x34}, true)))
+
+	nibbles = newPath([]byte{0x1, 0x23, 0x45}, true)
+	nibbles.Consume(2)
+	require.True(t, nibbles.Equal(newPath([]byte{0x3, 0x45}, true)))
+}

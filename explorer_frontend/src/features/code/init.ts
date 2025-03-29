@@ -3,7 +3,6 @@ import dayjs from "dayjs";
 import { combine, sample } from "effector";
 import { persist } from "effector-storage/local";
 import { fetchSolidityCompiler } from "../../services/compiler";
-import type { App } from "../../types";
 import { playgroundRoute, playgroundWithHashRoute } from "../routing/routes/playgroundRoute";
 import { getRuntimeConfigOrThrow } from "../runtime-config";
 import {
@@ -20,12 +19,16 @@ import {
   compileCodeFx,
   fetchCodeSnippetEvent,
   fetchCodeSnippetFx,
+  loadedPlaygroundPage,
   setCodeSnippetEvent,
   setCodeSnippetFx,
   updateRecentProjects,
 } from "./model";
+import type { App } from "./types";
 
-$code.on(changeCode, (_, x) => x);
+$code.on(changeCode, (_, x) => {
+  return x;
+});
 
 persist({
   key: "code",
@@ -89,6 +92,15 @@ sample({
     version,
   })),
   clock: compile,
+  target: compileCodeFx,
+});
+
+sample({
+  source: combine($code, $solidityVersion, (code, version) => ({
+    code,
+    version,
+  })),
+  clock: loadedPlaygroundPage,
   target: compileCodeFx,
 });
 

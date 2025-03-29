@@ -41,7 +41,8 @@ func (s *BasicShardSuite) TestBasic() {
 					continue
 				}
 				s.Require().Eventually(func() bool {
-					otherBlock, err := otherShard.Client.GetBlock(s.Context, shardId, transport.BlockNumber(rpcBlock.Number), false)
+					otherBlock, err := otherShard.Client.GetBlock(
+						s.Context, shardId, transport.BlockNumber(rpcBlock.Number), false)
 					if err != nil || otherBlock == nil {
 						return false
 					}

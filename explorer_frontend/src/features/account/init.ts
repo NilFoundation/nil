@@ -1,6 +1,6 @@
 import { sample } from "effector";
 import { combine } from "effector";
-import { $cometaService } from "../cometa/model";
+import { $cometaClient } from "../cometa/model";
 import { addressRoute } from "../routing";
 import { $account, $accountCometaInfo, loadAccountCometaInfoFx, loadAccountStateFx } from "./model";
 
@@ -13,11 +13,11 @@ sample({
 
 sample({
   clock: addressRoute.navigated,
-  source: combine(addressRoute.$params, $cometaService, (params, cometaService) => ({
+  source: combine(addressRoute.$params, $cometaClient, (params, cometaClient) => ({
     params,
-    cometaService,
+    cometaClient,
   })),
-  filter: ({ cometaService }) => cometaService !== null,
+  filter: ({ cometaClient }) => cometaClient !== null,
   fn: (params) => params.address,
   target: loadAccountCometaInfoFx,
 });

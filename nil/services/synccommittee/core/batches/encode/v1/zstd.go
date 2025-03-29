@@ -3,8 +3,8 @@ package v1
 import (
 	"io"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/klauspost/compress/zstd"
-	"github.com/rs/zerolog"
 )
 
 // some aux interfaces for operating on memory buffers
@@ -17,10 +17,10 @@ type Growable interface {
 }
 
 type zstdCompressor struct {
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
-func NewZstdCompressor(logger zerolog.Logger) *zstdCompressor {
+func NewZstdCompressor(logger logging.Logger) *zstdCompressor {
 	return &zstdCompressor{
 		logger: logger,
 	}
@@ -55,10 +55,10 @@ func (zc *zstdCompressor) Compress(from io.Reader, to io.Writer) (err error) {
 }
 
 type zstdDecompressor struct {
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
-func NewZstdDecompressor(logger zerolog.Logger) *zstdDecompressor {
+func NewZstdDecompressor(logger logging.Logger) *zstdDecompressor {
 	return &zstdDecompressor{
 		logger: logger,
 	}

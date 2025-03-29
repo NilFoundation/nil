@@ -94,7 +94,16 @@ type Method struct {
 // A method should always be created using NewMethod.
 // It also precomputes the sig representation and the string representation
 // of the method.
-func NewMethod(name string, rawName string, funType FunctionType, mutability string, isConst, isPayable bool, inputs Arguments, outputs Arguments) Method {
+func NewMethod(
+	name string,
+	rawName string,
+	funType FunctionType,
+	mutability string,
+	isConst bool,
+	isPayable bool,
+	inputs Arguments,
+	outputs Arguments,
+) Method {
 	var (
 		types       = make([]string, len(inputs))
 		inputNames  = make([]string, len(inputs))
@@ -137,7 +146,8 @@ func NewMethod(name string, rawName string, funType FunctionType, mutability str
 	} else if funType == Constructor {
 		identity = "constructor"
 	}
-	str := fmt.Sprintf("%v(%v) %sreturns(%v)", identity, strings.Join(inputNames, ", "), state, strings.Join(outputNames, ", "))
+	str := fmt.Sprintf(
+		"%v(%v) %sreturns(%v)", identity, strings.Join(inputNames, ", "), state, strings.Join(outputNames, ", "))
 
 	return Method{
 		Name:            name,

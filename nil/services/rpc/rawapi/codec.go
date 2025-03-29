@@ -64,7 +64,9 @@ func (c *methodCodec) unpackRequest(request []byte) ([]reflect.Value, error) {
 
 func (c *methodCodec) packResponse(apiCallResults ...reflect.Value) ([]byte, error) {
 	pbResponseValuePtr := reflect.New(c.pbResponseType)
-	if _, err := callMethodWithLastOutputError(c.responsePackMethod.Func, append([]reflect.Value{pbResponseValuePtr}, apiCallResults...)); err != nil {
+	if _, err := callMethodWithLastOutputError(
+		c.responsePackMethod.Func,
+		append([]reflect.Value{pbResponseValuePtr}, apiCallResults...)); err != nil {
 		return c.packError(err), nil
 	}
 	transaction, ok := pbResponseValuePtr.Interface().(proto.Message)
@@ -79,7 +81,9 @@ func (c *methodCodec) packResponse(apiCallResults ...reflect.Value) ([]byte, err
 
 func (c *methodCodec) packError(err error) []byte {
 	pbResponseValuePtr := reflect.New(c.pbResponseType)
-	_, err = callMethodWithLastOutputError(c.responsePackMethod.Func, []reflect.Value{pbResponseValuePtr, reflect.New(c.apiMethodResultType).Elem(), reflect.ValueOf(err)})
+	_, err = callMethodWithLastOutputError(
+		c.responsePackMethod.Func,
+		[]reflect.Value{pbResponseValuePtr, reflect.New(c.apiMethodResultType).Elem(), reflect.ValueOf(err)})
 	check.PanicIfErr(err)
 
 	transaction, ok := pbResponseValuePtr.Interface().(proto.Message)
@@ -120,7 +124,8 @@ func unpackResponse[ResultType any](codec *methodCodec, response []byte) (Result
 type apiCodec map[string]*methodCodec
 
 // Iterating through the API methods, we look for NetworkTransportProtocol methods with appropriate names.
-// Next we check that the PackProtoMessage/UnpackProtoMessage functions are defined for the Protobuf request and response types.
+// Next we check that the PackProtoMessage/UnpackProtoMessage functions are defined for the Protobuf request
+// and response types.
 // In this case, the following conditions are met:
 //   - The PackProtoMessage method of the request type accepts the same arguments as the corresponding API method
 //     (excluding the context)
@@ -128,7 +133,8 @@ type apiCodec map[string]*methodCodec
 //     coincides with the set of arguments of the corresponding API method
 //   - The PackProtoMessage method of the response type accepts two arguments returned by the corresponding API method
 //     (the second is always an error)
-//   - The UnpackProtoMessage method of the response type returns the same type as the corresponding API method and error
+//   - The UnpackProtoMessage method of the response type returns the same type as the corresponding API method
+//     and error
 //
 // If any of the conditions are not met, an error is returned.
 func newApiCodec(api, transport reflect.Type) (apiCodec, error) {
@@ -146,11 +152,13 @@ func newApiCodec(api, transport reflect.Type) (apiCodec, error) {
 		if err != nil {
 			return nil, err
 		}
-		requestPackMethod, requestUnpackMethod, err := obtainAndValidateRequestConversionMethods(apiMethod, pbRequestType)
+		requestPackMethod, requestUnpackMethod, err := //
+			obtainAndValidateRequestConversionMethods(apiMethod, pbRequestType)
 		if err != nil {
 			return nil, err
 		}
-		responsePackMethod, responseUnpackMethod, err := obtainAndValidateResponseConversionMethods(apiMethod, pbResponseType)
+		responsePackMethod, responseUnpackMethod, err := //
+			obtainAndValidateResponseConversionMethods(apiMethod, pbResponseType)
 		if err != nil {
 			return nil, err
 		}
@@ -184,12 +192,18 @@ func isExportedMethod(m reflect.Method) bool {
 	return m.IsExported()
 }
 
-func checkTransportMethodSignatureAndExtractPbTypes(transportApiType reflect.Type, method reflect.Method) (reflect.Type, reflect.Type, error) {
+func checkTransportMethodSignatureAndExtractPbTypes(
+	transportApiType reflect.Type,
+	method reflect.Method,
+) (reflect.Type, reflect.Type, error) {
 	if method.Type.NumIn() > 1 {
-		return nil, nil, fmt.Errorf("method %s.%s must have 1 or 0 arguments, got: %d", transportApiType.Name(), method.Name, method.Type.NumIn())
+		return nil, nil, fmt.Errorf(
+			"method %s.%s must have 1 or 0 arguments, got: %d",
+			transportApiType.Name(), method.Name, method.Type.NumIn())
 	}
 	if method.Type.NumOut() != 1 {
-		return nil, nil, fmt.Errorf("method %s.%s must have exactly 1 return value", transportApiType.Name(), method.Name)
+		return nil, nil, fmt.Errorf(
+			"method %s.%s must have exactly 1 return value", transportApiType.Name(), method.Name)
 	}
 	var reqType reflect.Type
 	if method.Type.NumIn() == 1 {
@@ -208,7 +222,8 @@ func checkApiMethodSignature(apiMethod reflect.Method) error {
 	}
 
 	if apiMethodType.NumOut() != 2 {
-		return fmt.Errorf("API method %s must return exactly 2 values, but returned %d", apiMethod.Name, apiMethodType.NumOut())
+		return fmt.Errorf(
+			"API method %s must return exactly 2 values, but returned %d", apiMethod.Name, apiMethodType.NumOut())
 	}
 	if !isErrorType(apiMethodType.Out(1)) {
 		return fmt.Errorf("second output argument of API method %s must be error", apiMethod.Name)
@@ -216,7 +231,10 @@ func checkApiMethodSignature(apiMethod reflect.Method) error {
 	return nil
 }
 
-func obtainAndValidateRequestConversionMethods(apiMethod reflect.Method, pbRequestType reflect.Type) (reflect.Method, reflect.Method, error) {
+func obtainAndValidateRequestConversionMethods(
+	apiMethod reflect.Method,
+	pbRequestType reflect.Type,
+) (reflect.Method, reflect.Method, error) {
 	if pbRequestType == nil {
 		return reflect.Method{}, reflect.Method{}, nil
 	}
@@ -226,12 +244,14 @@ func obtainAndValidateRequestConversionMethods(apiMethod reflect.Method, pbReque
 
 	packProtoMessage, ok := reflect.PointerTo(pbRequestType).MethodByName(packMethodName)
 	if !ok {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("method %s not found in %s", packMethodName, pbRequestType)
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"method %s not found in %s", packMethodName, pbRequestType)
 	}
 
 	unpackProtoMessage, ok := reflect.PointerTo(pbRequestType).MethodByName(unpackMethodName)
 	if !ok {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("method %s not found in %s", unpackMethodName, pbRequestType)
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"method %s not found in %s", unpackMethodName, pbRequestType)
 	}
 
 	apiMethodType := apiMethod.Type
@@ -239,14 +259,17 @@ func obtainAndValidateRequestConversionMethods(apiMethod reflect.Method, pbReque
 	unpackProtoMessageType := unpackProtoMessage.Type
 
 	if packProtoMessageType.NumOut() != 1 {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("%s must return exactly 1 value, but returned %d", packMethodName, packProtoMessageType.NumOut())
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"%s must return exactly 1 value, but returned %d", packMethodName, packProtoMessageType.NumOut())
 	}
 	if !isLastOutputError(packProtoMessage) {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("%s of type %s must return error", packMethodName, pbRequestType.Name())
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"%s of type %s must return error", packMethodName, pbRequestType.Name())
 	}
 
 	if !isLastOutputError(unpackProtoMessage) {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("last output argument of %s.%s must be error", pbRequestType, unpackMethodName)
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"last output argument of %s.%s must be error", pbRequestType, unpackMethodName)
 	}
 
 	apiMethodSkipArgumentCount := 1 // context
@@ -257,38 +280,55 @@ func obtainAndValidateRequestConversionMethods(apiMethod reflect.Method, pbReque
 	unpackProtoMessageResultCount := unpackProtoMessageType.NumOut() - unpackProtoMessageSkipResultCount
 
 	if apiMethodArgumentsCount != packProtoMessageArgumentCount {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("API method %s requires %d arguments, but %s.%s accepts %d arguments", apiMethod.Name, apiMethodArgumentsCount, pbRequestType, packMethodName, packProtoMessageArgumentCount)
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"API method %s requires %d arguments, but %s.%s accepts %d arguments",
+			apiMethod.Name, apiMethodArgumentsCount, pbRequestType, packMethodName, packProtoMessageArgumentCount)
 	}
 	if apiMethodArgumentsCount != unpackProtoMessageResultCount {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("API method %s requires %d arguments, but %s.%s returns %d arguments, including the error", apiMethod.Name, apiMethodArgumentsCount, pbRequestType, unpackMethodName, unpackProtoMessageType.NumOut())
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"API method %s requires %d arguments, but %s.%s returns %d arguments, including the error",
+			apiMethod.Name, apiMethodArgumentsCount, pbRequestType, unpackMethodName, unpackProtoMessageType.NumOut())
 	}
 
 	for i := range apiMethodArgumentsCount {
-		if apiMethodType.In(i+apiMethodSkipArgumentCount) != packProtoMessageType.In(i+packProtoMessageSkipArgumentCount) {
-			return reflect.Method{}, reflect.Method{}, fmt.Errorf("type of #%d (excluding the context) argument of API method %s and #%d of %s.%s does not match: %s != %s",
-				i, apiMethod.Name, i, pbRequestType, packMethodName, apiMethodType.In(i+apiMethodSkipArgumentCount), packProtoMessageType.In(i+packProtoMessageSkipArgumentCount))
+		if apiMethodType.In(i+apiMethodSkipArgumentCount) !=
+			packProtoMessageType.In(i+packProtoMessageSkipArgumentCount) {
+			return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+				"type of #%d (excluding the context) argument of API method %s and #%d of %s.%s does not match: %s != %s", //nolint: lll
+				i, apiMethod.Name,
+				i, pbRequestType, packMethodName,
+				apiMethodType.In(i+apiMethodSkipArgumentCount),
+				packProtoMessageType.In(i+packProtoMessageSkipArgumentCount))
 		}
 		if apiMethodType.In(i+apiMethodSkipArgumentCount) != unpackProtoMessageType.Out(i) {
-			return reflect.Method{}, reflect.Method{}, fmt.Errorf("type of #%d (excluding the context) argument of API method %s and #%d return type of %s.%s does not match: %s != %s",
-				i, apiMethod.Name, i, pbRequestType, unpackMethodName, apiMethodType.In(i+apiMethodSkipArgumentCount), unpackProtoMessageType.Out(i))
+			return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+				"type of #%d (excluding the context) argument of API method %s and #%d return type of %s.%s does not match: %s != %s", //nolint: lll
+				i, apiMethod.Name,
+				i, pbRequestType, unpackMethodName,
+				apiMethodType.In(i+apiMethodSkipArgumentCount), unpackProtoMessageType.Out(i))
 		}
 	}
 
 	return packProtoMessage, unpackProtoMessage, nil
 }
 
-func obtainAndValidateResponseConversionMethods(apiMethod reflect.Method, pbResponseType reflect.Type) (reflect.Method, reflect.Method, error) {
+func obtainAndValidateResponseConversionMethods(
+	apiMethod reflect.Method,
+	pbResponseType reflect.Type,
+) (reflect.Method, reflect.Method, error) {
 	const packMethodName = "PackProtoMessage"
 	const unpackMethodName = "UnpackProtoMessage"
 
 	packProtoMessage, ok := reflect.PointerTo(pbResponseType).MethodByName(packMethodName)
 	if !ok {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("method %s not found in %s", packMethodName, pbResponseType)
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"method %s not found in %s", packMethodName, pbResponseType)
 	}
 
 	unpackProtoMessage, ok := reflect.PointerTo(pbResponseType).MethodByName(unpackMethodName)
 	if !ok {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("method %s not found in %s", unpackMethodName, pbResponseType)
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"method %s not found in %s", unpackMethodName, pbResponseType)
 	}
 
 	apiMethodType := apiMethod.Type
@@ -296,28 +336,39 @@ func obtainAndValidateResponseConversionMethods(apiMethod reflect.Method, pbResp
 	unpackProtoMessageType := unpackProtoMessage.Type
 
 	if packProtoMessageType.NumIn()-1 != 2 {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("%s must accept exactly 2 arguments, but accepted %d", packMethodName, packProtoMessageType.NumIn()-1)
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"%s must accept exactly 2 arguments, but accepted %d",
+			packMethodName, packProtoMessageType.NumIn()-1)
 	}
 	if !isErrorType(packProtoMessageType.In(2)) {
 		return reflect.Method{}, reflect.Method{}, fmt.Errorf("last argument of %s must be error", packMethodName)
 	}
 
 	if unpackProtoMessageType.NumIn() != 1 {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("%s must accept exactly 1 argument, but accepted %d", unpackMethodName, unpackProtoMessageType.NumIn())
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"%s must accept exactly 1 argument, but accepted %d",
+			unpackMethodName, unpackProtoMessageType.NumIn())
 	}
 	if unpackProtoMessageType.NumOut() != 2 {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("%s must return exactly 2 values, but returned %d", unpackMethodName, unpackProtoMessageType.NumOut())
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"%s must return exactly 2 values, but returned %d",
+			unpackMethodName, unpackProtoMessageType.NumOut())
 	}
 	if !isErrorType(unpackProtoMessageType.Out(1)) {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("last output argument of %s must be error", unpackMethodName)
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"last output argument of %s must be error", unpackMethodName)
 	}
 
 	if apiMethodType.Out(0) != packProtoMessageType.In(1) {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("API method outputs %s type, but %s expects %s", apiMethodType.Out(0), packMethodName, packProtoMessageType.In(1))
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"API method outputs %s type, but %s expects %s",
+			apiMethodType.Out(0), packMethodName, packProtoMessageType.In(1))
 	}
 
 	if apiMethodType.Out(0) != unpackProtoMessageType.Out(0) {
-		return reflect.Method{}, reflect.Method{}, fmt.Errorf("API method outputs %s type, but %s expects %s", apiMethodType.Out(0), unpackMethodName, unpackProtoMessageType.Out(0))
+		return reflect.Method{}, reflect.Method{}, fmt.Errorf(
+			"API method outputs %s type, but %s expects %s",
+			apiMethodType.Out(0), unpackMethodName, unpackProtoMessageType.Out(0))
 	}
 
 	return packProtoMessage, unpackProtoMessage, nil

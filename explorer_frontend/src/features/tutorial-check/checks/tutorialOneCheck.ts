@@ -1,61 +1,62 @@
-import { HttpTransport, PublicClient, waitTillCompleted } from "@nilfoundation/niljs";
 import {
-  $tutorialChecksState,
-  TutorialChecksStatus,
-  setTutorialChecksState,
-} from "../../../pages/tutorials/model";
-import type { App } from "../../../types";
-import { $rpcUrl, $smartAccount } from "../../account-connector/model";
-import { $contracts, deploySmartContractFx } from "../../contracts/models/base";
-import { tutorialContractStepFailedEvent, tutorialContractStepPassedEvent } from "../model";
+  HttpTransport,
+  PublicClient,
+  generateSmartAccount,
+  waitTillCompleted,
+} from "@nilfoundation/niljs";
+import { TutorialChecksStatus } from "../../../pages/tutorials/model";
+import type { CheckProps } from "../CheckProps";
+import {} from "../model";
 
-async function runTutorialCheckOne() {
+async function runTutorialCheckOne(props: CheckProps) {
   const client = new PublicClient({
     transport: new HttpTransport({
-      endpoint: $rpcUrl.getState(),
+      endpoint: props.rpcUrl,
     }),
     shardId: 1,
   });
 
-  const callerContract = $contracts.getState().find((contract) => contract.name === "Caller")!;
+  const callerContract = props.contracts.find((contract) => contract.name === "Caller")!;
 
-  const receiverContract = $contracts.getState().find((contract) => contract.name === "Receiver")!;
+  const receiverContract = props.contracts.find((contract) => contract.name === "Receiver")!;
 
-  const appCaller: App = {
+  const appCaller = {
     name: "Caller",
     bytecode: callerContract.bytecode,
     abi: callerContract.abi,
     sourcecode: callerContract.sourcecode,
   };
 
-  console.log("appCaller", appCaller.sourcecode);
-
-  const appReceiver: App = {
+  const appReceiver = {
     name: "Receiver",
     bytecode: receiverContract.bytecode,
     abi: receiverContract.abi,
     sourcecode: receiverContract.sourcecode,
   };
 
-  console.log("appReceiver", appReceiver.sourcecode);
+  const smartAccount = await generateSmartAccount({
+    shardId: 1,
+    rpcEndpoint: props.rpcUrl,
+    faucetEndpoint: props.rpcUrl,
+  });
 
-  const smartAccount = $smartAccount.getState()!;
+  props.tutorialContractStepPassed("A new smart account has been generated!");
 
-  const resultCaller = await deploySmartContractFx({
+  const resultCaller = await props.deploymentEffect({
     app: appCaller,
     args: [],
     shardId: 1,
     smartAccount,
   });
 
-  const resultReceiver = await deploySmartContractFx({
+  const resultReceiver = await props.deploymentEffect({
     app: appReceiver,
     args: [],
     shardId: 2,
     smartAccount,
   });
 
-  tutorialContractStepPassedEvent("Caller and Receiver have been deployed!");
+  props.tutorialContractStepPassed("Caller and Receiver have been deployed!");
 
   const hashCaller = await smartAccount.sendTransaction({
     to: resultCaller.address,
@@ -70,23 +71,27 @@ async function runTutorialCheckOne() {
   const checkCaller = resCaller.some((receipt) => !receipt.success);
 
   if (checkCaller) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
-    console.log("current state", $tutorialChecksState.getState());
-    tutorialContractStepFailedEvent("Failed to call Caller.sendValue()!");
-    return;
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
+    console.log(resCaller);
+    props.tutorialContractStepFailed("Failed to call Caller.sendValue()!");
+    return false;
   }
-  tutorialContractStepPassedEvent("Caller sendValue has been called successfully!");
+  props.tutorialContractStepPassed("Caller sendValue has been called successfully!");
 
   const receiverBalance = await client.getBalance(resultReceiver.address);
 
   if (receiverBalance !== 300_000n) {
-    setTutorialChecksState(TutorialChecksStatus.Failed);
-    tutorialContractStepFailedEvent("Receiver failed to receive tokens!");
-    return;
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
+    props.tutorialContractStepFailed("Receiver failed to receive tokens!");
+    return false;
   }
-  tutorialContractStepPassedEvent("Receiver got 300_000 tokens!");
-  setTutorialChecksState(TutorialChecksStatus.Successful);
-  tutorialContractStepPassedEvent("Tutorial has been completed successfully!");
+  props.tutorialContractStepPassed("Receiver got 300_000 tokens!");
+  props.setTutorialChecksEvent(TutorialChecksStatus.Successful);
+  props.tutorialContractStepPassed("Tutorial has been completed successfully!");
+
+  props.setCompletedTutorialEvent(1);
+
+  return true;
 }
 
 export default runTutorialCheckOne;

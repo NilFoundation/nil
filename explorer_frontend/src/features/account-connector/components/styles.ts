@@ -10,7 +10,7 @@ export const styles = {
     alignItems: "center",
     width: "100%",
     height: "46px",
-    backgroundColor: COLORS.gray900,
+    backgroundColor: COLORS.gray800,
     ...expandProperty("borderRadius", "8px"),
     position: "relative",
     ...getMobileStyles({
@@ -46,7 +46,6 @@ export const styles = {
   menu: {
     listStyle: "none",
     ...expandProperty("borderRadius", "8px"),
-    backgroundColor: COLORS.gray800,
     ...getMobileStyles({
       maxWidth: "250px",
     }),

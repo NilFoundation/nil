@@ -52,7 +52,8 @@ func (s *SuiteReadThroughDb) initCache() {
 	s.cache.DbInit = func() db.DB {
 		inDb, err := db.NewBadgerDbInMemory()
 		check.PanicIfErr(err)
-		db, err := readthroughdb.NewReadThroughDbWithMainShard(s.cache.Context, s.server.Client, inDb, transport.LatestBlockNumber)
+		db, err := readthroughdb.NewReadThroughDbWithMainShard(
+			s.cache.Context, s.server.Client, inDb, transport.LatestBlockNumber)
 		check.PanicIfErr(err)
 		return db
 	}
@@ -89,7 +90,10 @@ func (s *SuiteReadThroughDb) TestBasic() {
 	value := int32(5)
 
 	s.Run("Increment", func() {
-		receipt = s.server.SendTransactionViaSmartAccount(types.MainSmartAccountAddress, addrCallee, execution.MainPrivateKey,
+		receipt = s.server.SendTransactionViaSmartAccount(
+			types.MainSmartAccountAddress,
+			addrCallee,
+			execution.MainPrivateKey,
 			contracts.NewCounterAddCallData(s.T(), value))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
@@ -103,7 +107,10 @@ func (s *SuiteReadThroughDb) TestBasic() {
 	})
 
 	s.Run("IncrementCache", func() {
-		receipt := s.cache.SendTransactionViaSmartAccount(types.MainSmartAccountAddress, addrCallee, execution.MainPrivateKey,
+		receipt := s.cache.SendTransactionViaSmartAccount(
+			types.MainSmartAccountAddress,
+			addrCallee,
+			execution.MainPrivateKey,
 			contracts.NewCounterAddCallData(s.T(), value))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})
@@ -136,7 +143,10 @@ func (s *SuiteReadThroughDb) TestIsolation() {
 
 	value := int32(5)
 	s.Run("Increment", func() {
-		receipt = s.server.SendTransactionViaSmartAccount(types.MainSmartAccountAddress, addrCallee, execution.MainPrivateKey,
+		receipt = s.server.SendTransactionViaSmartAccount(
+			types.MainSmartAccountAddress,
+			addrCallee,
+			execution.MainPrivateKey,
 			contracts.NewCounterAddCallData(s.T(), value))
 		s.Require().True(receipt.OutReceipts[0].Success)
 	})

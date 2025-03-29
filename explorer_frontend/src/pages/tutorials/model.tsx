@@ -1,4 +1,5 @@
 import { createEvent, createStore } from "effector";
+import type { Tutorial } from "../../features/tutorial/model";
 
 export enum TutorialChecksStatus {
   NotInitialized = "0",
@@ -12,6 +13,7 @@ export enum TutorialLayoutComponent {
   Contracts = "1",
   Logs = "2",
   TutorialText = "3",
+  Tutorials = "4",
 }
 
 export const $activeComponentTutorial = createStore<TutorialLayoutComponent>(
@@ -26,4 +28,14 @@ export const $tutorialChecksState = createStore<TutorialChecksStatus>(
 
 export const setTutorialChecksState = createEvent<TutorialChecksStatus>();
 
-export const сlickOnTutorialButton = createEvent();
+export const openTutorialText = createEvent();
+
+export const $selectedTutorial = createStore<Tutorial | null>(null);
+
+export const setSelectedTutorial = createEvent<Tutorial | null>();
+
+export const clickOnTutorialsBackButton = createEvent();
+
+export const changeActiveTab = createEvent<string>();
+
+export const $activeTab = createStore("0").on(changeActiveTab, (_, newTab) => newTab);

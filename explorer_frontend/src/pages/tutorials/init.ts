@@ -1,26 +1,48 @@
+import { sample } from "effector";
 import { persist } from "effector-storage/session";
 import {
+  clickOnBackButton,
+  clickOnContractsButton,
+  clickOnLogButton,
   compileCodeFx,
-  сlickOnBackButton,
-  сlickOnContractsButton,
-  сlickOnLogButton,
+  loadedTutorialPage,
 } from "../../features/code/model";
+import { tutorialWithUrlStringRoute } from "../../features/routing/routes/tutorialRoute";
 import {
   $activeComponentTutorial,
+  $selectedTutorial,
   $tutorialChecksState,
   TutorialChecksStatus,
   TutorialLayoutComponent,
+  clickOnTutorialsBackButton,
+  openTutorialText,
+  setSelectedTutorial,
   setTutorialChecksState,
-  сlickOnTutorialButton,
 } from "./model";
 
-$activeComponentTutorial.on(сlickOnLogButton, () => TutorialLayoutComponent.Logs);
-$activeComponentTutorial.on(сlickOnContractsButton, () => TutorialLayoutComponent.Contracts);
-$activeComponentTutorial.on(сlickOnBackButton, () => TutorialLayoutComponent.Code);
-$activeComponentTutorial.on(сlickOnTutorialButton, () => TutorialLayoutComponent.TutorialText);
-$tutorialChecksState.on(setTutorialChecksState, (_, payload) => {
-  console.log("setTutorialChecksState", payload);
-  return payload;
+$activeComponentTutorial.on(clickOnLogButton, () => TutorialLayoutComponent.Logs);
+$activeComponentTutorial.on(clickOnContractsButton, () => TutorialLayoutComponent.Contracts);
+$activeComponentTutorial.on(clickOnBackButton, () => TutorialLayoutComponent.Code);
+$activeComponentTutorial.on(openTutorialText, () => TutorialLayoutComponent.TutorialText);
+$activeComponentTutorial.on(clickOnTutorialsBackButton, () => TutorialLayoutComponent.Tutorials);
+$tutorialChecksState.on(setTutorialChecksState, (_, payload) => payload);
+$tutorialChecksState.on(compileCodeFx.doneData, () => TutorialChecksStatus.Initialized);
+
+sample({
+  clock: setSelectedTutorial,
+  target: $selectedTutorial,
+});
+
+sample({
+  clock: clickOnTutorialsBackButton,
+  fn: () => null,
+  target: setSelectedTutorial,
+});
+
+sample({
+  clock: [loadedTutorialPage, tutorialWithUrlStringRoute.$params],
+  fn: () => TutorialChecksStatus.NotInitialized,
+  target: setTutorialChecksState,
 });
 $tutorialChecksState.on(compileCodeFx.doneData, () => TutorialChecksStatus.Initialized);
 

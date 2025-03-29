@@ -9,22 +9,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/journald"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
 )
+
+var GlobalLogger Logger
 
 var (
 	componentsFilter = make(map[string]bool)
 	all              = true
-	lock             = sync.Mutex{}
+	lock             = sync.RWMutex{}
 )
 
 type ComponentFilterWriter struct {
-	Writer io.Writer
-	Name   string
+	Writer          io.Writer
+	Name            string
+	IsConsoleWriter bool
 }
 
 func (w ComponentFilterWriter) Write(p []byte) (n int, err error) {
@@ -33,18 +34,38 @@ func (w ComponentFilterWriter) Write(p []byte) (n int, err error) {
 		return 0, err
 	}
 
-	lock.Lock()
-	defer lock.Unlock()
-
+	lock.RLock()
 	enabled, found := componentsFilter[w.Name]
+	lock.RUnlock()
+
 	if !found {
 		enabled = all
 	}
-	if enabled {
-		return w.Writer.Write(p)
+	if !enabled {
+		return len(p), nil
 	}
-
-	return len(p), nil
+	if w.IsConsoleWriter {
+		// Remove the type suffix from the log fields in case of console logger.
+		logWithoutType := make(map[string]any)
+		for k, v := range log {
+			switch k {
+			case zerolog.CallerFieldName,
+				zerolog.TimestampFieldName,
+				zerolog.MessageFieldName,
+				zerolog.LevelFieldName,
+				FieldComponent:
+				logWithoutType[k] = v
+				continue
+			}
+			logWithoutType[k[:len(k)-LogAbbreviationSize]] = v
+		}
+		res, err := json.Marshal(logWithoutType)
+		if err != nil {
+			return 0, err
+		}
+		return w.Writer.Write(res)
+	}
+	return w.Writer.Write(p)
 }
 
 func ApplyComponentsFilterEnv() {
@@ -82,8 +103,10 @@ func ApplyComponentsFilter(filter string) {
 }
 
 func SetupGlobalLogger(level string) {
-	check.PanicIfErr(TrySetupGlobalLevel(level))
-	log.Logger = NewLogger("global")
+	if err := TrySetupGlobalLevel(level); err != nil {
+		panic(err)
+	}
+	GlobalLogger = NewLogger("global")
 }
 
 func TrySetupGlobalLevel(level string) error {
@@ -124,7 +147,7 @@ func isSystemd() bool {
 	return os.Getenv("INVOCATION_ID") != ""
 }
 
-func NewLogger(component string) zerolog.Logger {
+func NewLoggerWithStore(component string, storeToClick bool) Logger {
 	var logger zerolog.Logger
 	if isSystemd() {
 		logger = newJournalDLogger()
@@ -132,23 +155,40 @@ func NewLogger(component string) zerolog.Logger {
 		logger = newConsoleLogger(component)
 	}
 
-	return logger.With().
+	customCtx := Context{ctx: logger.With()}
+	if isSystemd() {
+		customCtx = customCtx.Bool(FieldStoreToClickhouse, storeToClick)
+	}
+
+	return customCtx.
 		Str(FieldComponent, component).
 		Caller().
 		Timestamp().
 		Logger()
 }
 
-func NewLoggerWithWriter(component string, writer io.Writer) zerolog.Logger {
+func NewLogger(component string) Logger {
+	return NewLoggerWithStore(component, true)
+}
+
+func NewLoggerWithWriterStore(component string, storeToClick bool, writer io.Writer) Logger {
 	logger := zerolog.New(ComponentFilterWriter{
 		Writer: writer,
 		Name:   component,
 	})
-	return logger.With().
+
+	ctx := Context{ctx: logger.With()}
+
+	return ctx.
+		Bool(FieldStoreToClickhouse, storeToClick).
 		Str(FieldComponent, component).
 		Caller().
 		Timestamp().
 		Logger()
+}
+
+func NewLoggerWithWriter(component string, writer io.Writer) Logger {
+	return NewLoggerWithWriterStore(component, true, writer)
 }
 
 func newJournalDLogger() zerolog.Logger {
@@ -173,8 +213,17 @@ func newConsoleLogger(component string) zerolog.Logger {
 		NoColor:          noColor,
 	}
 	writer := ComponentFilterWriter{
-		Writer: consoleWriter,
-		Name:   component,
+		Writer:          consoleWriter,
+		Name:            component,
+		IsConsoleWriter: true,
 	}
 	return zerolog.New(writer)
+}
+
+func Nop() Logger {
+	return Logger{logger: zerolog.Nop()}
+}
+
+func NewFromZerolog(logger zerolog.Logger) Logger {
+	return Logger{logger: logger}
 }

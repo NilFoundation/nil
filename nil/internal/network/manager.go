@@ -7,13 +7,12 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/network/internal"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/rs/zerolog"
 )
 
 type Manager struct {
@@ -26,14 +25,14 @@ type Manager struct {
 
 	meter telemetry.Meter
 
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
-func ConnectToPeers(ctx context.Context, peers AddrInfoSlice, m Manager, logger zerolog.Logger) {
+func ConnectToPeers(ctx context.Context, peers AddrInfoSlice, m Manager, logger logging.Logger) {
 	connectToPeers(ctx, peers, m.host, logger)
 }
 
-func connectToPeers(ctx context.Context, peers AddrInfoSlice, h Host, logger zerolog.Logger) {
+func connectToPeers(ctx context.Context, peers AddrInfoSlice, h Host, logger logging.Logger) {
 	for _, peerInfo := range peers {
 		if h.ID() == peerInfo.ID {
 			// Skip connecting to self.
@@ -48,20 +47,22 @@ func connectToPeers(ctx context.Context, peers AddrInfoSlice, h Host, logger zer
 	}
 }
 
-func connectToDhtBootstrapPeers(ctx context.Context, conf *Config, h Host, logger zerolog.Logger) {
+func connectToDhtBootstrapPeers(ctx context.Context, conf *Config, h Host, logger logging.Logger) {
 	connectToPeers(ctx, conf.DHTBootstrapPeers, h, logger)
 }
 
-func newManagerFromHost(ctx context.Context, conf *Config, h host.Host) (*Manager, error) {
-	logger := internal.Logger.With().
-		Stringer(logging.FieldP2PIdentity, h.ID()).
-		Logger()
-
+func newManagerFromHost(
+	ctx context.Context,
+	conf *Config,
+	h host.Host,
+	database db.DB,
+	logger logging.Logger,
+) (*Manager, error) {
 	logger.Info().Msgf("Listening on addresses:\n%s\n", common.Join("\n", h.Addrs()...))
 
 	connectToDhtBootstrapPeers(ctx, conf, h, logger)
 
-	dht, err := NewDHT(ctx, h, conf, logger)
+	dht, err := NewDHT(ctx, h, conf, database, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +87,7 @@ func (m *Manager) withNetworkPrefix(prefix string) string {
 	return m.prefix + prefix
 }
 
-func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
+func NewManager(ctx context.Context, conf *Config, database db.DB) (*Manager, error) {
 	if !conf.Enabled() {
 		return nil, ErrNetworkDisabled
 	}
@@ -103,19 +104,19 @@ func NewManager(ctx context.Context, conf *Config) (*Manager, error) {
 		conf.PrivateKey = privateKey
 	}
 
-	h, err := newHost(ctx, conf)
+	h, logger, err := newHost(ctx, conf)
 	if err != nil {
 		return nil, err
 	}
-	return newManagerFromHost(ctx, conf, h)
+	return newManagerFromHost(ctx, conf, h, database, logger)
 }
 
-func NewClientManager(ctx context.Context, conf *Config) (*Manager, error) {
-	h, err := newClient(ctx, conf)
+func NewClientManager(ctx context.Context, conf *Config, database db.DB) (*Manager, error) {
+	h, logger, err := newClient(ctx, conf)
 	if err != nil {
 		return nil, err
 	}
-	return newManagerFromHost(ctx, conf, h)
+	return newManagerFromHost(ctx, conf, h, database, logger)
 }
 
 func (m *Manager) PubSub() *PubSub {
@@ -198,7 +199,7 @@ func (m *Manager) logError(err error, msg string) {
 	m.logErrorWithLogger(m.logger, err, msg)
 }
 
-func (m *Manager) logErrorWithLogger(logger zerolog.Logger, err error, msg string) {
+func (m *Manager) logErrorWithLogger(logger logging.Logger, err error, msg string) {
 	if m.ctx.Err() != nil {
 		// If we're already closing, no need to log errors.
 		return

@@ -1,0 +1,29 @@
+# This file contains a list of git hashes of revisions to be ignored by git blame.
+# These revisions are considered "unimportant" in
+# that they are unlikely to be what you are interested in when blaming.
+#
+# Instructions:
+# - Only large (generally automated) reformatting or renaming CLs should be
+#   added to this list. Do not put things here just because you feel they are
+#   trivial or unimportant. If in doubt, do not put it on this list.
+# - Precede each revision with a comment containing the first line of its log.
+#   For bulk work over many commits, place all commits in a block with a single
+#   comment at the top describing the work done in those commits.
+# - Only put full 40-character hashes on this list (not short hashes or any
+#   other revision reference).
+# - Append to the bottom of the file (revisions should be in chronological order
+#   from oldest to newest).
+# - Because you must use a hash, you need to append to this list in a follow-up
+#   CL to the actual reformatting CL that you are trying to ignore.
+#
+# To take advantage of this feature, you must execute `git blame` with the `--ignore-revs-file` option
+# (https://git-scm.com/docs/git-blame#Documentation/git-blame.txt---ignore-revs-fileltfilegt):
+#
+# $ git blame --ignore-revs-file .git-blame-ignore-revs <files>
+#
+# Either configure to enable the ignore option by default for all projects:
+#
+# $ git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# [GH-#] Limit the length of lines to 120 characters.
+6b4337b2c06b129966cf0f6546415cfed8cd49e9

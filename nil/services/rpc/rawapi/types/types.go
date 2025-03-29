@@ -103,7 +103,8 @@ func BlockReferenceAsBlockReferenceOrHashWithChildren(reference BlockReference) 
 	return BlockReferenceOrHashWithChildren{reference: reference, isReference: true}
 }
 
-func BlockHashWithChildrenAsBlockReferenceOrHashWithChildren(hash common.Hash, childBlocks []common.Hash) BlockReferenceOrHashWithChildren {
+func BlockHashWithChildrenAsBlockReferenceOrHashWithChildren(hash common.Hash, childBlocks []common.Hash,
+) BlockReferenceOrHashWithChildren {
 	return BlockReferenceOrHashWithChildren{hash: hash, childBlocks: childBlocks, isReference: false}
 }
 

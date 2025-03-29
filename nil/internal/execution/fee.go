@@ -88,13 +88,6 @@ func (m *MainFeeCalculator) CalculateBaseFee(prevBlock *types.Block) types.Value
 		resultBaseFee = types.NewValueFromBigMust(newFee.BigInt())
 	}
 
-	if resultBaseFee.Cmp(prevBlock.BaseFee) != 0 {
-		logger.Debug().
-			Stringer("Old", prevBlock.BaseFee).
-			Stringer("New", resultBaseFee).
-			Msg("Gas price updated")
-	}
-
 	return resultBaseFee
 }
 

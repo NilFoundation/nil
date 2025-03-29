@@ -31,6 +31,7 @@ linters:
     - grouper
     - importas
     - intrange
+    - lll
     - loggercheck
     - maintidx
     - mirror
@@ -65,6 +66,13 @@ linters-settings:
   testifylint:
     enable-all: true
 
+  lll:
+    # max line length, lines longer will be reported. Default is 120.
+    # '\t' is counted as 1 character by default, and can be changed with the tab-width option
+    line-length: 120
+    # tab width in spaces. Default to 1.
+    tab-width: 4
+
   gosec:
     excludes:
       - G115
@@ -76,9 +84,33 @@ linters-settings:
       - shadow
 
 issues:
+  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+  max-issues-per-linter: 0
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0
   exclude-dirs:
     - clickhouse
+  exclude-rules:
+    - linters:
+        - lll
+      source: "^// @(component|componentprop)"
+    - linters:
+        - lll
+      path: "(nil/services/cliservice/block_format_test.go|nil/services/cliservice/block.go)"
+    - linters:
+        - lll
+      path: "nil/internal/abi/abi_test.go"
+      source: "^//	receipt{status=1 cgas=23949"
+    - linters:
+        - lll
+      path: "nil/services/synccommittee/prover/internal/constants/proof_producer_codes.go"
+      source: "^// https://github.com/NilFoundation/placeholder/"
+    - linters:
+        - lll
+      path: "nil/services/synccommittee/core/reset/resetter.go"
+      source: "^		// https://www.notion.so/nilfoundation/"
 
 run:
   build-tags:
     - test
+    - goexperiment.synctest

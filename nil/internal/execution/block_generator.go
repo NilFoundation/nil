@@ -11,17 +11,18 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/rs/zerolog"
 )
 
 type BlockGeneratorParams struct {
 	ShardId          types.ShardId
 	NShards          uint32
-	TraceEVM         bool
+	EvmTracingHooks  *tracing.Hooks
 	MainKeysPath     string
 	DisableConsensus bool
 	FeeCalculator    FeeCalculator
+	ExecutionMode    string
 }
 
 func NewBlockGeneratorParams(shardId types.ShardId, nShards uint32) BlockGeneratorParams {
@@ -39,7 +40,7 @@ type BlockGenerator struct {
 	rwTx           db.RwTx
 	executionState *ExecutionState
 
-	logger   zerolog.Logger
+	logger   logging.Logger
 	mh       *MetricsHandler
 	counters *BlockGeneratorCounters
 }
@@ -54,7 +55,12 @@ type BlockGenerationResult struct {
 	ConfigParams map[string][]byte
 }
 
-func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabric db.DB, block *types.Block) (*BlockGenerator, error) {
+func NewBlockGenerator(
+	ctx context.Context,
+	params BlockGeneratorParams,
+	txFabric db.DB,
+	block *types.Block,
+) (*BlockGenerator, error) {
 	rwTx, err := txFabric.CreateRwTx(ctx)
 	if err != nil {
 		return nil, err
@@ -69,12 +75,23 @@ func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabri
 		Block:          block,
 		ConfigAccessor: configAccessor,
 		FeeCalculator:  params.FeeCalculator,
+		Mode:           params.ExecutionMode,
 	})
 	if err != nil {
 		return nil, err
 	}
-	executionState.TraceVm = params.TraceEVM
+	executionState.EvmTracingHooks = params.EvmTracingHooks
 
+	return NewBlockGeneratorWithEs(ctx, params, txFabric, rwTx, executionState)
+}
+
+func NewBlockGeneratorWithEs(
+	ctx context.Context,
+	params BlockGeneratorParams,
+	txFabric db.DB,
+	rwTx db.RwTx,
+	es *ExecutionState,
+) (*BlockGenerator, error) {
 	const mhName = "github.com/NilFoundation/nil/nil/internal/execution"
 	mh, err := NewMetricsHandler(mhName, params.ShardId)
 	if err != nil {
@@ -86,7 +103,7 @@ func NewBlockGenerator(ctx context.Context, params BlockGeneratorParams, txFabri
 		params:         params,
 		txFabric:       txFabric,
 		rwTx:           rwTx,
-		executionState: executionState,
+		executionState: es,
 		logger: logging.NewLogger("block-gen").With().
 			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
@@ -104,7 +121,7 @@ func (p *BlockGenerator) CollectGasPrices(prevBlockId types.BlockNumber) []types
 		return nil
 	}
 
-	// Basically we load configuration from block.MainChainHash.
+	// Basically we load configuration from block.MainShardHash.
 	// But for main shard this value should be block.PrevBlock.
 	// The first block uses configuration from itself.
 	configBlockId := prevBlockId
@@ -173,7 +190,7 @@ func (g *BlockGenerator) GenerateZeroState(config *ZeroStateConfig) (*types.Bloc
 		if err != nil {
 			return nil, fmt.Errorf("failed to read main block hash: %w", err)
 		}
-		g.executionState.MainChainHash = mainBlockHash
+		g.executionState.MainShardHash = mainBlockHash
 	}
 
 	if err := g.executionState.GenerateZeroState(config); err != nil {
@@ -221,7 +238,7 @@ func (g *BlockGenerator) prepareExecutionState(proposal *Proposal, gasPrices []t
 		return fmt.Errorf("failed to update gas prices: %w", err)
 	}
 
-	g.executionState.MainChainHash = proposal.MainChainHash
+	g.executionState.MainShardHash = proposal.MainShardHash
 	g.executionState.PatchLevel = proposal.PatchLevel
 	g.executionState.RollbackCounter = proposal.RollbackCounter
 
@@ -241,9 +258,9 @@ func (g *BlockGenerator) prepareExecutionState(proposal *Proposal, gasPrices []t
 		g.executionState.AppendForwardTransaction(txn)
 	}
 
-	g.executionState.ChildChainBlocks = make(map[types.ShardId]common.Hash, len(proposal.ShardHashes))
+	g.executionState.ChildShardBlocks = make(map[types.ShardId]common.Hash, len(proposal.ShardHashes))
 	for i, shardHash := range proposal.ShardHashes {
-		g.executionState.ChildChainBlocks[types.ShardId(i+1)] = shardHash
+		g.executionState.ChildShardBlocks[types.ShardId(i+1)] = shardHash
 	}
 	return nil
 }
@@ -287,7 +304,10 @@ func (g *BlockGenerator) BuildBlock(proposal *Proposal, gasPrices []types.Uint25
 	return g.executionState.BuildBlock(proposal.PrevBlockId + 1)
 }
 
-func (g *BlockGenerator) GenerateBlock(proposal *Proposal, params *types.ConsensusParams) (*BlockGenerationResult, error) {
+func (g *BlockGenerator) GenerateBlock(
+	proposal *Proposal,
+	params *types.ConsensusParams,
+) (*BlockGenerationResult, error) {
 	g.mh.StartProcessingMeasurement(g.ctx, proposal.PrevBlockId+1)
 	defer func() { g.mh.EndProcessingMeasurement(g.ctx, g.counters) }()
 
@@ -371,7 +391,10 @@ func (g *BlockGenerator) addReceipt(execResult *ExecutionResult) {
 	}
 }
 
-func (g *BlockGenerator) finalize(blockId types.BlockNumber, params *types.ConsensusParams) (*BlockGenerationResult, error) {
+func (g *BlockGenerator) finalize(
+	blockId types.BlockNumber,
+	params *types.ConsensusParams,
+) (*BlockGenerationResult, error) {
 	blockRes, err := g.executionState.BuildBlock(blockId)
 	if err != nil {
 		return nil, err
@@ -385,7 +408,7 @@ func (g *BlockGenerator) Finalize(blockRes *BlockGenerationResult, params *types
 		return err
 	}
 
-	if err := PostprocessBlock(g.rwTx, g.params.ShardId, blockRes); err != nil {
+	if err := PostprocessBlock(g.rwTx, g.params.ShardId, blockRes, g.params.ExecutionMode); err != nil {
 		return err
 	}
 

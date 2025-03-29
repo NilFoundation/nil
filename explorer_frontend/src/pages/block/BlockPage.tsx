@@ -19,10 +19,9 @@ import { useStore } from "effector-react";
 import { BlockInfo } from "../../features/block/components/BlockInfo";
 import { $block } from "../../features/block/models/model";
 import { blockDetailsRoute, blockRoute } from "../../features/routing/routes/blockRoute";
-import { explorerRoute } from "../../features/routing/routes/explorerRoute";
 import { Meta, formatShard, useMobile } from "../../features/shared";
+import { InternalPageContainer } from "../../features/shared";
 import { Layout } from "../../features/shared/components/Layout";
-import { SidebarWithBackLink } from "../../features/shared/components/SidebarWithBackLink";
 import { TransactionList } from "../../features/transaction-list";
 
 const secondary = TAB_KIND.secondary;
@@ -60,15 +59,9 @@ export const BlockPage = () => {
     alignItems: "center",
   });
   return (
-    <Layout sidebar={<SidebarWithBackLink to={explorerRoute} />}>
+    <Layout>
       <Meta title="Block" description="zkSharding for Ethereum" />
-      <div
-        className={css({
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          width: "100%",
-        })}
-      >
+      <InternalPageContainer>
         <div
           className={css({
             display: "flex",
@@ -182,7 +175,7 @@ export const BlockPage = () => {
             />
           </Tab>
         </Tabs>
-      </div>
+      </InternalPageContainer>
     </Layout>
   );
 };

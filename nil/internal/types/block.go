@@ -6,6 +6,7 @@ import (
 
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/crypto/bls"
 )
@@ -36,15 +37,15 @@ type BlockData struct {
 	PrevBlock          common.Hash `json:"prevBlock" ch:"prev_block"`
 	SmartContractsRoot common.Hash `json:"smartContractsRoot" ch:"smart_contracts_root"`
 	InTransactionsRoot common.Hash `json:"inTransactionsRoot" ch:"in_transactions_root"`
-	// OutTransactionsRoot stores all outbound transactions produced by transactions of this block. The key of the tree is a
-	// sequential index of the transaction, value is a Transaction struct.
+	// OutTransactionsRoot stores all outbound transactions produced by transactions of this block.
+	// The key of the tree is a sequential index of the transaction, value is a Transaction struct.
 	// It can be considered as an array, where each segment is referred by corresponding receipt.
 	OutTransactionsRoot common.Hash `json:"outTransactionsRoot" ch:"out_transactions_root"`
 	// We cache the size of out transactions, otherwise we should iterate all the tree to get its size
 	OutTransactionsNum  TransactionIndex `json:"outTransactionsNum" ch:"out_transaction_num"`
 	ReceiptsRoot        common.Hash      `json:"receiptsRoot" ch:"receipts_root"`
 	ChildBlocksRootHash common.Hash      `json:"childBlocksRootHash" ch:"child_blocks_root_hash"`
-	MainChainHash       common.Hash      `json:"mainChainHash" ch:"main_chain_hash"`
+	MainShardHash       common.Hash      `json:"mainShardHash" ch:"main_chain_hash"`
 	ConfigRoot          common.Hash      `json:"configRoot" ch:"config_root"`
 	Timestamp           uint64           `json:"timestamp" ch:"timestamp"`
 	BaseFee             Value            `json:"gasPrice" ch:"gas_price"`
@@ -83,13 +84,13 @@ type RawBlockWithExtractedData struct {
 
 type BlockWithExtractedData struct {
 	*Block
-	InTransactions  []*Transaction         `json:"inTransactions"`
-	OutTransactions []*Transaction         `json:"outTransactions"`
-	Receipts        []*Receipt             `json:"receipts"`
-	Errors          map[common.Hash]string `json:"errors,omitempty"`
-	ChildBlocks     []common.Hash          `json:"childBlocks"`
-	DbTimestamp     uint64                 `json:"dbTimestamp"`
-	Config          map[string][]byte      `json:"config"`
+	InTransactions  []*Transaction           `json:"inTransactions"`
+	OutTransactions []*Transaction           `json:"outTransactions"`
+	Receipts        []*Receipt               `json:"receipts"`
+	Errors          map[common.Hash]string   `json:"errors,omitempty"`
+	ChildBlocks     []common.Hash            `json:"childBlocks"`
+	DbTimestamp     uint64                   `json:"dbTimestamp"`
+	Config          map[string]hexutil.Bytes `json:"config"`
 }
 
 // interfaces
@@ -106,7 +107,7 @@ func (b *Block) GetMainShardHash(shardId ShardId) common.Hash {
 	if shardId.IsMainShard() {
 		return b.PrevBlock
 	}
-	return b.MainChainHash
+	return b.MainShardHash
 }
 
 func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error) {
@@ -134,7 +135,9 @@ func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error)
 		Errors:          b.Errors,
 		ChildBlocks:     b.ChildBlocks,
 		DbTimestamp:     b.DbTimestamp,
-		Config:          b.Config,
+		Config: common.TransformMap(b.Config, func(k string, v []byte) (string, hexutil.Bytes) {
+			return k, hexutil.Bytes(v)
+		}),
 	}, nil
 }
 
@@ -163,7 +166,9 @@ func (b *BlockWithExtractedData) EncodeSSZ() (*RawBlockWithExtractedData, error)
 		Errors:          b.Errors,
 		ChildBlocks:     b.ChildBlocks,
 		DbTimestamp:     b.DbTimestamp,
-		Config:          b.Config,
+		Config: common.TransformMap(b.Config, func(k string, v hexutil.Bytes) (string, []byte) {
+			return k, []byte(v)
+		}),
 	}, nil
 }
 

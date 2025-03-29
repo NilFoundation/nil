@@ -78,3 +78,6 @@ node_modules
 /docs_interactive_tutorials_service/.next
 
 openrpc.json
+
+.pnpm/
+.pnpm-store/

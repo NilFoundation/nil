@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rs/zerolog"
+	"github.com/NilFoundation/nil/nil/common/logging"
 )
 
 const (
@@ -23,10 +23,10 @@ type Service struct {
 	started      atomic.Bool
 	cancellation chan context.CancelFunc
 	stopped      chan struct{}
-	logger       zerolog.Logger
+	logger       logging.Logger
 }
 
-func NewService(logger zerolog.Logger, workers ...Worker) Service {
+func NewService(logger logging.Logger, workers ...Worker) Service {
 	return Service{
 		workers:      workers,
 		cancellation: make(chan context.CancelFunc, 1),

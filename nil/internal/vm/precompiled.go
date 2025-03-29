@@ -26,6 +26,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
@@ -34,7 +35,6 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
-	"github.com/rs/zerolog/log"
 )
 
 func init() {
@@ -191,7 +191,12 @@ func (a *simple) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error
 	return a.contract.RequiredGas(input), nil
 }
 
-func (a *simple) Run(_ StateDBReadOnly /* state */, input []byte, _ *uint256.Int /* value */, _ ContractRef /* caller */) ([]byte, error) {
+func (a *simple) Run(
+	_ StateDBReadOnly, /* state */
+	input []byte,
+	_ *uint256.Int, /* value */
+	_ ContractRef, /* caller */
+) ([]byte, error) {
 	return a.contract.Run(input)
 }
 
@@ -242,7 +247,7 @@ func setRefundTo(refundTo *types.Address, txn *types.Transaction) {
 		}
 	}
 	if *refundTo == types.EmptyAddress {
-		log.Logger.Warn().Msg("refund address is empty")
+		logging.GlobalLogger.Warn().Msg("refund address is empty")
 	}
 }
 
@@ -258,7 +263,7 @@ func setBounceTo(bounceTo *types.Address, txn *types.Transaction) {
 		}
 	}
 	if *bounceTo == types.EmptyAddress {
-		log.Logger.Warn().Msg("bounce address is empty")
+		logging.GlobalLogger.Warn().Msg("bounce address is empty")
 	}
 }
 
@@ -271,7 +276,9 @@ func withdrawFunds(state StateDB, addr types.Address, value types.Value) error {
 		return err
 	}
 	if balance.Cmp(value) < 0 {
-		log.Logger.Error().Msgf("withdrawFunds failed: insufficient balance on address %v, expected at least %v, got %v", addr, value, balance)
+		logging.GlobalLogger.Error().Msgf(
+			"withdrawFunds failed: insufficient balance on address %v, expected at least %v, got %v",
+			addr, value, balance)
 		return ErrInsufficientBalance
 	}
 	return state.SubBalance(addr, value, tracing.BalanceDecreasePrecompile)
@@ -334,12 +341,12 @@ func (c *sendRawTransaction) Run(state StateDB, input []byte, value *uint256.Int
 
 var gasScale = types.DefaultGasPrice.Div(types.Value100)
 
-// GetExtraGasForOutboundTransaction returns the extra gas required for sending a transaction to a shard according to its gas
-// price. If the gas price is higher than the default gas price, the extra gas will be higher.
+// GetExtraGasForOutboundTransaction returns the extra gas required for sending a transaction to a shard
+// according to its gas price. If the gas price is higher than the default gas price, the extra gas will be higher.
 func GetExtraGasForOutboundTransaction(state StateDBReadOnly, shardId types.ShardId) uint64 {
 	gasPrice, err := state.GetGasPrice(shardId)
 	if err != nil {
-		log.Logger.Error().Msgf("GetExtraGasForOutboundTransaction failed to get gas price: %s", err)
+		logging.GlobalLogger.Error().Msgf("GetExtraGasForOutboundTransaction failed to get gas price: %s", err)
 		return 0
 	}
 
@@ -430,7 +437,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	// Get `tokens` argument, which is a slice of `TokenBalance`
 	tokens, err := extractTokens(args[6])
 	if err != nil {
-		log.Logger.Error().Err(err).Msgf("failed to extract tokens from %T", args[6])
+		logging.GlobalLogger.Error().Err(err).Msgf("failed to extract tokens from %T", args[6])
 		if types.IsVmError(err) {
 			return nil, err
 		}
@@ -550,7 +557,8 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 	// Get `responseProcessingGas` argument
 	responseProcessingGas := types.Gas(extractUintParam(args[1], "awaitCall", "responseProcessingGas").Uint64())
 	if responseProcessingGas < MinGasReserveForAsyncRequest {
-		log.Logger.Error().Msgf("awaitCall failed: responseProcessingGas is too low (%d)", responseProcessingGas)
+		logging.GlobalLogger.Error().Msgf(
+			"awaitCall failed: responseProcessingGas is too low (%d)", responseProcessingGas)
 		return nil, types.NewVmError(types.ErrorAwaitCallTooLowResponseProcessingGas)
 	}
 
@@ -572,7 +580,7 @@ func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller Contr
 	setRefundTo(&payload.RefundTo, state.GetInTransaction())
 
 	if _, err = state.AddOutRequestTransaction(caller.Address(), &payload, responseProcessingGas, true); err != nil {
-		log.Logger.Error().Msgf("AddOutRequestTransaction failed: %s", err)
+		logging.GlobalLogger.Error().Msgf("AddOutRequestTransaction failed: %s", err)
 		return nil, types.NewVmVerboseError(types.ErrorPrecompileStateDbReturnedError, err.Error())
 	}
 
@@ -616,14 +624,15 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 	// Get `tokens` argument, which is a slice of `TokenBalance`
 	tokens, err := extractTokens(args[1])
 	if err != nil {
-		log.Logger.Error().Err(err).Msg("tokens is not a slice of TokenBalance")
+		logging.GlobalLogger.Error().Err(err).Msg("tokens is not a slice of TokenBalance")
 		return nil, types.NewVmVerboseError(types.ErrorPrecompileInvalidTokenArray, err.Error())
 	}
 
 	// Get `responseProcessingGas` argument
 	responseProcessingGas := types.Gas(extractUintParam(args[2], "sendRequest", "responseProcessingGas").Uint64())
 	if responseProcessingGas < MinGasReserveForAsyncRequest {
-		log.Logger.Error().Msgf("sendRequest failed: responseProcessingGas is too low (%d)", responseProcessingGas)
+		logging.GlobalLogger.Error().Msgf(
+			"sendRequest failed: responseProcessingGas is too low (%d)", responseProcessingGas)
 		return nil, types.NewVmError(types.ErrorAwaitCallTooLowResponseProcessingGas)
 	}
 
@@ -653,7 +662,7 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 	setRefundTo(&payload.RefundTo, state.GetInTransaction())
 
 	if _, err = state.AddOutRequestTransaction(caller.Address(), &payload, responseProcessingGas, false); err != nil {
-		log.Logger.Error().Msgf("AddOutRequestTransaction failed: %s", err)
+		logging.GlobalLogger.Error().Msgf("AddOutRequestTransaction failed: %s", err)
 		return nil, types.NewVmVerboseError(types.ErrorPrecompileStateDbReturnedError, err.Error())
 	}
 
@@ -691,17 +700,20 @@ func (a *verifySignature) Run(input []byte) ([]byte, error) {
 	return common.EmptyHash[:], nil
 }
 
-func VerifySignatureArgs() abi.Arguments {
-	// arguments: bytes pubkey, uint256 hash, bytes signature
-	// returns: bool signatureValid
-	uint256Ty, _ := abi.NewType("uint256", "", nil)
-	bytesTy, _ := abi.NewType("bytes", "", nil)
-	args := abi.Arguments{
+// arguments: bytes pubkey, uint256 hash, bytes signature
+// returns: bool signatureValid
+var (
+	uint256Ty, _        = abi.NewType("uint256", "", nil)
+	bytesTy, _          = abi.NewType("bytes", "", nil)
+	verifySignatureArgs = abi.Arguments{
 		abi.Argument{Name: "pubkey", Type: bytesTy},
 		abi.Argument{Name: "hash", Type: uint256Ty},
 		abi.Argument{Name: "signature", Type: bytesTy},
 	}
-	return args
+)
+
+func VerifySignatureArgs() abi.Arguments {
+	return verifySignatureArgs
 }
 
 type checkIsInternal struct{}
@@ -712,7 +724,12 @@ func (c *checkIsInternal) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
 	return 10, nil
 }
 
-func (a *checkIsInternal) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (a *checkIsInternal) Run(
+	state StateDBReadOnly,
+	input []byte,
+	value *uint256.Int,
+	caller ContractRef,
+) ([]byte, error) {
 	res := make([]byte, 32)
 
 	if state.IsInternalTransaction() {
@@ -790,7 +807,12 @@ func (c *checkIsResponse) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
 	return 10, nil
 }
 
-func (a *checkIsResponse) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (a *checkIsResponse) Run(
+	state StateDBReadOnly,
+	input []byte,
+	value *uint256.Int,
+	caller ContractRef,
+) ([]byte, error) {
 	if !state.GetTransactionFlags().IsResponse() {
 		return nil, types.NewVmError(types.ErrorOnlyResponseCheckFailed)
 	}
@@ -843,7 +865,8 @@ func (c *manageToken) Run(state StateDB, input []byte, value *uint256.Int, calle
 		if !mint {
 			actionName = "SubToken"
 		}
-		return nil, types.NewVmVerboseError(types.ErrorPrecompileWrongNumberOfArguments, fmt.Sprintf("%s failed: %v", actionName, err))
+		return nil, types.NewVmVerboseError(
+			types.ErrorPrecompileWrongNumberOfArguments, fmt.Sprintf("%s failed: %v", actionName, err))
 	}
 
 	// Set return data to boolean `true` value
@@ -860,7 +883,12 @@ func (c *tokenBalance) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
 	return 10, nil
 }
 
-func (a *tokenBalance) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (a *tokenBalance) Run(
+	state StateDBReadOnly,
+	input []byte,
+	value *uint256.Int,
+	caller ContractRef,
+) ([]byte, error) {
 	if len(input) < 4 {
 		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
 	}
@@ -953,7 +981,12 @@ func (c *getTransactionTokens) RequiredGas([]byte, StateDBReadOnly) (uint64, err
 	return 10, nil
 }
 
-func (c *getTransactionTokens) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (c *getTransactionTokens) Run(
+	state StateDBReadOnly,
+	input []byte,
+	value *uint256.Int,
+	caller ContractRef,
+) ([]byte, error) {
 	callerTokens := caller.Token()
 	res, err := getPrecompiledMethod("precompileGetTransactionTokens").Outputs.Pack(callerTokens)
 	if err != nil {
@@ -1014,7 +1047,12 @@ func (c *poseidonHash) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
 	return 10, nil
 }
 
-func (c *poseidonHash) Run(state StateDBReadOnly, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+func (c *poseidonHash) Run(
+	state StateDBReadOnly,
+	input []byte,
+	value *uint256.Int,
+	caller ContractRef,
+) ([]byte, error) {
 	if len(input) < 4 {
 		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
 	}

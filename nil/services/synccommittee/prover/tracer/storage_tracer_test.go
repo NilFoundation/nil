@@ -49,7 +49,7 @@ func newTracerWithMockedGetter(t *testing.T) *StorageOpTracer {
 	return NewStorageOpTracer(
 		&RwCounter{},
 		0,
-		&StateGetterSetterMock{
+		&StateGetterMock{
 			GetStateFunc: func(addr types.Address, key common.Hash) (common.Hash, error) {
 				return PrevValue, nil
 			},
@@ -61,7 +61,8 @@ func TestIgnoresNonStorageOperations(t *testing.T) {
 	t.Parallel()
 	tracer := newTracerWithMockedGetter(t)
 
-	assert.False(t, traceStorageOperation(t, tracer, vm.ADD, 0, *uint256.NewInt(0))) // Non-storage opcode should result in no operation captured
+	// Non-storage opcode should result in no operation captured
+	assert.False(t, traceStorageOperation(t, tracer, vm.ADD, 0, *uint256.NewInt(0)))
 
 	assert.Empty(t, tracer.storageOps)
 }

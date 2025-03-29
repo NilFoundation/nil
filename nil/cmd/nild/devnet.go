@@ -31,11 +31,12 @@ type nodeSpec struct {
 	ArchiveNodeIndices   []int  `yaml:"archiveNodeIndices"`
 }
 
-type devnetSpec struct {
+type clusterSpec struct {
 	NilServerName          string   `yaml:"nil_server_name"`
 	NilCertEmail           string   `yaml:"nil_cert_email"`
 	NildConfigDir          string   `yaml:"nild_config_dir"`
 	NildCredentialsDir     string   `yaml:"nild_credentials_dir"`
+	NildPromBasePort       int      `yaml:"nild_prom_base_port"`
 	NildP2PBaseTCPPort     int      `yaml:"nild_p2p_base_tcp_port"`
 	PprofBaseTCPPort       int      `yaml:"pprof_base_tcp_port"`
 	NilWipeOnUpdate        bool     `yaml:"nil_wipe_on_update"`
@@ -68,7 +69,8 @@ type server struct {
 	service         string
 	name            string
 	identity        string
-	port            int
+	p2pPort         int
+	promPort        int
 	pprofPort       int
 	rpcPort         int
 	credsDir        string
@@ -78,8 +80,8 @@ type server struct {
 	vkm             *keys.ValidatorKeysManager
 }
 
-type devnet struct {
-	spec       *devnetSpec
+type cluster struct {
+	spec       *clusterSpec
 	baseDir    string
 	validators []server
 	archivers  []server
@@ -104,7 +106,7 @@ func validatorKeysFile(credsDir string) string {
 	return filepath.Join(credsDir, "validator-keys.yaml")
 }
 
-func (spec *devnetSpec) ensureValidatorKeys(srv *server) (*keys.ValidatorKeysManager, error) {
+func (spec *clusterSpec) ensureValidatorKeys(srv *server) (*keys.ValidatorKeysManager, error) {
 	vkm := keys.NewValidatorKeyManager(validatorKeysFile(srv.credsDir))
 	if err := vkm.InitKey(); err != nil {
 		return nil, err
@@ -112,7 +114,7 @@ func (spec *devnetSpec) ensureValidatorKeys(srv *server) (*keys.ValidatorKeysMan
 	return vkm, nil
 }
 
-func (devnet devnet) generateZeroState(nShards uint32, servers []server) (*execution.ZeroStateConfig, error) {
+func (c *cluster) generateZeroState(nShards uint32, servers []server) (*execution.ZeroStateConfig, error) {
 	validators := make([]config.ListValidators, nShards-1)
 	for _, srv := range servers {
 		key, err := srv.vkm.GetPublicKey()
@@ -131,7 +133,7 @@ func (devnet devnet) generateZeroState(nShards uint32, servers []server) (*execu
 		}
 	}
 
-	mainKeyPath := devnet.spec.NildCredentialsDir + "/keys.yaml"
+	mainKeyPath := c.spec.NildCredentialsDir + "/keys.yaml"
 	mainPublicKey, err := ensurePublicKey(mainKeyPath)
 	if err != nil {
 		return nil, err
@@ -183,7 +185,7 @@ func genDevnet(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't read devnet spec %s: %w", specFile, err)
 	}
 
-	spec := &devnetSpec{}
+	spec := &clusterSpec{}
 	if err := yaml.Unmarshal(specYaml, spec); err != nil {
 		return fmt.Errorf("can't parse devnet spec %s: %w", specFile, err)
 	}
@@ -192,23 +194,32 @@ func genDevnet(cmd *cobra.Command, args []string) error {
 	if spec.EnableRPCOnValidators {
 		validatorRPCBasePort = spec.NilRPCPort + len(spec.NilRPCConfig)
 	}
-	validators, err := spec.makeServers(spec.NilConfig, spec.NildP2PBaseTCPPort, spec.PprofBaseTCPPort, validatorRPCBasePort, "nil", baseDir, false)
+	validators, err := spec.makeServers(spec.NilConfig,
+		spec.NildP2PBaseTCPPort, spec.NildPromBasePort, spec.PprofBaseTCPPort, validatorRPCBasePort,
+		"nil", baseDir, false)
 	if err != nil {
 		return fmt.Errorf("failed to setup validator nodes: %w", err)
 	}
 
-	devnet := devnet{spec: spec, baseDir: baseDir, validators: validators}
+	c := &cluster{spec: spec, baseDir: baseDir, validators: validators}
 
 	archiveBaseP2P := spec.NildP2PBaseTCPPort + len(validators)
+	archiveBaseProm := spec.NildPromBasePort + len(validators)
 	archiveBasePprof := spec.PprofBaseTCPPort + len(validators)
 
-	if devnet.archivers, err = spec.makeServers(spec.NilArchiveConfig, archiveBaseP2P, archiveBasePprof, 0, "nil-archive", baseDir, false); err != nil {
+	c.archivers, err = spec.makeServers(spec.NilArchiveConfig,
+		archiveBaseP2P, archiveBaseProm, archiveBasePprof, 0,
+		"nil-archive", baseDir, false)
+	if err != nil {
 		return fmt.Errorf("failed to setup archive nodes: %w", err)
 	}
 
-	rpcBasePprof := spec.PprofBaseTCPPort + len(validators) + len(devnet.archivers)
+	rpcBasePprof := spec.PprofBaseTCPPort + len(validators) + len(c.archivers)
 
-	if devnet.rpcNodes, err = spec.makeServers(spec.NilRPCConfig, 0, rpcBasePprof, spec.NilRPCPort, "nil-rpc", baseDir, true); err != nil {
+	c.rpcNodes, err = spec.makeServers(spec.NilRPCConfig,
+		0, 0, rpcBasePprof, spec.NilRPCPort,
+		"nil-rpc", baseDir, true)
+	if err != nil {
 		return fmt.Errorf("failed to setup rpc nodes: %w", err)
 	}
 
@@ -217,16 +228,16 @@ func genDevnet(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get only flag: %w", err)
 	}
 
-	if devnet.zeroState, err = devnet.generateZeroState(spec.NShards, devnet.validators); err != nil {
+	if c.zeroState, err = c.generateZeroState(spec.NShards, c.validators); err != nil {
 		return err
 	}
-	if err := devnet.writeConfigs(devnet.validators, "validator", only); err != nil {
+	if err := c.writeConfigs(c.validators, "validator", only); err != nil {
 		return err
 	}
-	if err := devnet.writeConfigs(devnet.archivers, "archiver", only); err != nil {
+	if err := c.writeConfigs(c.archivers, "archiver", only); err != nil {
 		return err
 	}
-	if err := devnet.writeConfigs(devnet.rpcNodes, "RPC node", only); err != nil {
+	if err := c.writeConfigs(c.rpcNodes, "RPC node", only); err != nil {
 		return err
 	}
 
@@ -234,7 +245,7 @@ func genDevnet(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (spec *devnetSpec) EnsureValidatorKeys(srv server) (*keys.ValidatorKeysManager, error) {
+func (spec *clusterSpec) EnsureValidatorKeys(srv server) (*keys.ValidatorKeysManager, error) {
 	if err := os.MkdirAll(srv.credsDir, directoryPermissions); err != nil {
 		return nil, err
 	}
@@ -242,27 +253,39 @@ func (spec *devnetSpec) EnsureValidatorKeys(srv server) (*keys.ValidatorKeysMana
 	return spec.ensureValidatorKeys(&srv)
 }
 
-func (devnet devnet) writeConfigs(servers []server, name string, only string) error {
+func (c *cluster) writeConfigs(servers []server, name string, only string) error {
 	for i, server := range servers {
-		if err := devnet.writeServerConfig(i, server, only); err != nil {
+		if err := c.writeServerConfig(i, server, only); err != nil {
 			return fmt.Errorf("failed to write %s config: %w", name, err)
 		}
 	}
 	return nil
 }
 
-func (spec devnetSpec) makeServers(nodeSpecs []nodeSpec, basePort int, pprofBasePort int, baseHTTPPort int, service string, baseDir string, logClientEvents bool) ([]server, error) {
+func (spec *clusterSpec) makeServers(
+	nodeSpecs []nodeSpec,
+	baseP2pPort int,
+	basePromPort int,
+	basePprofPort int,
+	baseHTTPPort int,
+	service string,
+	baseDir string,
+	logClientEvents bool,
+) ([]server, error) {
 	servers := make([]server, len(nodeSpecs))
 	for i, nodeSpec := range nodeSpecs {
 		servers[i].service = service
 		servers[i].name = fmt.Sprintf("%s-%d", service, i)
 		servers[i].nodeSpec = nodeSpec
 		servers[i].logClientEvents = logClientEvents
-		if basePort != 0 {
-			servers[i].port = basePort + i
+		if baseP2pPort != 0 {
+			servers[i].p2pPort = baseP2pPort + i
 		}
-		if pprofBasePort != 0 {
-			servers[i].pprofPort = pprofBasePort + i
+		if basePromPort != 0 {
+			servers[i].promPort = basePromPort + i
+		}
+		if basePprofPort != 0 {
+			servers[i].pprofPort = basePprofPort + i
 		}
 		if baseHTTPPort != 0 {
 			servers[i].rpcPort = baseHTTPPort + i
@@ -292,7 +315,7 @@ const (
 	filePermissions      = 0o644
 )
 
-func (spec *devnetSpec) EnsureIdentity(srv server) (string, error) {
+func (spec *clusterSpec) EnsureIdentity(srv server) (string, error) {
 	if err := os.MkdirAll(srv.credsDir, directoryPermissions); err != nil {
 		return "", err
 	}
@@ -304,20 +327,43 @@ func (spec *devnetSpec) EnsureIdentity(srv server) (string, error) {
 	return identity.String(), err
 }
 
-func (devnet *devnet) writeServerConfig(instanceId int, srv server, only string) error {
+func (c *cluster) writeServerConfig(instanceId int, srv server, only string) error {
 	if only != "" && srv.name != only {
 		return nil
 	}
 
-	cfg := nildconfig.Config{}
-	cfg.Config = &nilservice.Config{
-		Network:   &network.Config{},
-		Telemetry: &telemetry.Config{},
+	spec := c.spec
+	inst := srv.nodeSpec
+
+	cfg := nildconfig.Config{
+		Config: &nilservice.Config{
+			NShards:            spec.NShards,
+			AllowDbDrop:        spec.NilWipeOnUpdate,
+			LogClientRpcEvents: srv.logClientEvents,
+
+			MyShards:       inst.Shards,
+			SplitShards:    inst.SplitShards,
+			BootstrapPeers: getPeers(c.validators, inst.BootstrapPeersIdx),
+
+			RPCPort:         srv.rpcPort,
+			PprofPort:       srv.pprofPort,
+			AdminSocketPath: srv.workDir + "/admin_socket",
+
+			ZeroState: c.zeroState,
+
+			Network: &network.Config{
+				TcpPort: srv.p2pPort,
+
+				DHTEnabled:        true,
+				DHTBootstrapPeers: getPeers(c.validators, inst.DHTBootstrapPeersIdx),
+			},
+			Telemetry: &telemetry.Config{
+				ExportMetrics:  true,
+				PrometheusPort: srv.promPort,
+			},
+		},
+		DB: db.NewDefaultBadgerDBOptions(),
 	}
-	cfg.RPCPort = srv.rpcPort
-	cfg.Network.TcpPort = srv.port
-	cfg.PprofPort = srv.pprofPort
-	cfg.ZeroState = devnet.zeroState
 
 	var err error
 	cfg.Network.KeysPath, err = filepath.Abs(srv.NetworkKeysFile())
@@ -330,43 +376,26 @@ func (devnet *devnet) writeServerConfig(instanceId int, srv server, only string)
 		return fmt.Errorf("failed to get absolute path for validator keys: %w", err)
 	}
 
-	spec := devnet.spec
-	cfg.NShards = spec.NShards
-	inst := srv.nodeSpec
-	cfg.AllowDbDrop = spec.NilWipeOnUpdate
-	cfg.MyShards = inst.Shards
-	cfg.SplitShards = inst.SplitShards
-	cfg.BootstrapPeers = getPeers(devnet.validators, inst.BootstrapPeersIdx)
-	cfg.AdminSocketPath = srv.workDir + "/admin_socket"
-	cfg.LogClientRpcEvents = srv.logClientEvents
-	cfg.DB = db.NewDefaultBadgerDBOptions()
-	cfg.DB.Path = srv.workDir + "/database"
-	cfg.Network.DHTEnabled = true
-	cfg.Network.DHTBootstrapPeers = getPeers(devnet.validators, inst.DHTBootstrapPeersIdx)
-
 	if len(inst.ArchiveNodeIndices) > 0 {
 		cfg.RpcNode = &nilservice.RpcNodeConfig{
-			ArchiveNodeList: getPeers(devnet.archivers, inst.ArchiveNodeIndices),
+			ArchiveNodeList: getPeers(c.archivers, inst.ArchiveNodeIndices),
 		}
 	}
-
-	cfg.Telemetry.ExportMetrics = true
 
 	serialized, err := yaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	err = os.MkdirAll(srv.workDir, directoryPermissions)
-	if err != nil {
+	if err := os.MkdirAll(srv.workDir, directoryPermissions); err != nil {
 		return err
 	}
 
 	configDir := fmt.Sprintf("%s/%s-%d", spec.NildConfigDir, srv.service, instanceId)
-	err = os.MkdirAll(configDir, directoryPermissions)
-	if err != nil {
+	if err := os.MkdirAll(configDir, directoryPermissions); err != nil {
 		return err
 	}
+
 	return os.WriteFile(configDir+"/nild.yaml", serialized, filePermissions)
 }
 
@@ -376,7 +405,7 @@ func identityToAddress(port int, identity string) string {
 
 func getPeer(srv server) network.AddrInfo {
 	var peer network.AddrInfo
-	address := identityToAddress(srv.port, srv.identity)
+	address := identityToAddress(srv.p2pPort, srv.identity)
 	check.PanicIfErr(peer.Set(address))
 	return peer
 }

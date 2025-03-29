@@ -46,7 +46,11 @@ func TestMakeBlobs_ValidInput(t *testing.T) {
 	require.Equal(t, blobs[1][lastWordStart:lastWordEnd], bytes.Repeat([]byte{0xFF}, 12), "invalid end of data")
 
 	// check that the rest of the buffer is empty
-	require.Equal(t, blobs[1][lastWordEnd:], bytes.Repeat([]byte{0x00}, blobSize-lastWordEnd), "end of blob is not zero padded")
+	require.Equal(
+		t,
+		blobs[1][lastWordEnd:],
+		bytes.Repeat([]byte{0x00}, blobSize-lastWordEnd),
+		"end of blob is not zero padded")
 }
 
 func TestMakeBlobs_InputExceedsBlobLimit(t *testing.T) {

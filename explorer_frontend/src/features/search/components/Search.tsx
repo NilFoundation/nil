@@ -14,10 +14,9 @@ import { SearchResult } from "./SearchResult";
 
 const Search = () => {
   const [query, focused, results] = useUnit([$query, $focused, $results]);
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
 
   const isShowResult = focused && query.length > 0;
-
   return (
     <div
       className={css({
@@ -43,6 +42,16 @@ const Search = () => {
         clearable
         onClear={() => {
           clearSearch();
+        }}
+        overrides={{
+          Root: {
+            style: {
+              backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundColor,
+              ":hover": {
+                backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundHoverColor,
+              },
+            },
+          },
         }}
       />
       {isShowResult && (

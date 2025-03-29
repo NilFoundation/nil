@@ -50,6 +50,10 @@ type Iter interface {
 	Close()
 }
 
+type Sequence interface {
+	Next() (uint64, error)
+}
+
 type ReadOnlyDB interface {
 	CreateRoTx(ctx context.Context) (RoTx, error)
 	CreateRoTxAt(ctx context.Context, ts Timestamp) (RoTx, error)
@@ -60,6 +64,7 @@ type DB interface {
 	ReadOnlyDB
 
 	CreateRwTx(ctx context.Context) (RwTx, error)
+	GetSequence(ctx context.Context, key []byte, bandwidth uint64) (Sequence, error)
 
 	DropAll() error
 	LogGC(ctx context.Context, discardRation float64, gcFrequency time.Duration) error

@@ -12,7 +12,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/tests"
 	"github.com/NilFoundation/nil/nil/tools/solc"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -25,10 +24,16 @@ type NilBlockGeneratorTestSuite struct {
 	deployArgs       []string
 	callArgs         []string
 	url              string
-	logger           zerolog.Logger
+	logger           logging.Logger
 }
 
-func NewNilBlockGeneratorTestSuite(contractCodePath, contractName, method, deployArgs, callArgs string) *NilBlockGeneratorTestSuite {
+func NewNilBlockGeneratorTestSuite(
+	contractCodePath string,
+	contractName string,
+	method string,
+	deployArgs string,
+	callArgs string,
+) *NilBlockGeneratorTestSuite {
 	return &NilBlockGeneratorTestSuite{
 		contractCodePath: contractCodePath,
 		contractName:     contractName,
@@ -111,5 +116,6 @@ func (s *NilBlockGeneratorTestSuite) TestGetBlock() {
 func TestNilBlockGeneratorTestSuite(t *testing.T) {
 	t.Parallel()
 
-	suite.Run(t, NewNilBlockGeneratorTestSuite("../../../../tests/contracts/increment.sol", "Incrementer", "increment", "0", ""))
+	suite.Run(t, NewNilBlockGeneratorTestSuite(
+		"../../../../tests/contracts/increment.sol", "Incrementer", "increment", "0", ""))
 }

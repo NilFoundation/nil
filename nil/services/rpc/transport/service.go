@@ -11,9 +11,9 @@ import (
 	"unicode"
 
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/rs/zerolog"
 )
 
 var (
@@ -25,7 +25,7 @@ var (
 type serviceRegistry struct {
 	mu       sync.Mutex
 	services map[string]service
-	logger   zerolog.Logger
+	logger   logging.Logger
 }
 
 // service represents a registered object.
@@ -42,7 +42,7 @@ type callback struct {
 	hasCtx     bool           // method's first argument is a context (not included in argTypes)
 	errPos     int            // err return idx, of -1 when method cannot return error
 	streamable bool           // support JSON streaming (more efficient for large responses)
-	logger     zerolog.Logger
+	logger     logging.Logger
 }
 
 func (r *serviceRegistry) registerName(name string, rcvr interface{}) error {
@@ -88,7 +88,7 @@ func (r *serviceRegistry) callback(method string) *callback {
 // suitableCallbacks iterates over the methods of the given type. It determines if a method
 // satisfies the criteria for a RPC callback and adds it to the collection of callbacks.
 // See server documentation for a summary of these criteria.
-func suitableCallbacks(receiver reflect.Value, logger zerolog.Logger) map[string]*callback {
+func suitableCallbacks(receiver reflect.Value, logger logging.Logger) map[string]*callback {
 	typ := receiver.Type()
 	callbacks := make(map[string]*callback)
 	for m := range typ.NumMethod() {
@@ -108,7 +108,7 @@ func suitableCallbacks(receiver reflect.Value, logger zerolog.Logger) map[string
 
 // newCallback turns fn (a function) into a callback object. It returns nil if the function
 // is unsuitable as an RPC callback.
-func newCallback(receiver, fn reflect.Value, name string, logger zerolog.Logger) *callback {
+func newCallback(receiver, fn reflect.Value, name string, logger logging.Logger) *callback {
 	fntype := fn.Type()
 	c := &callback{fn: fn, rcvr: receiver, errPos: -1, logger: logger}
 	// Determine parameter types. They must all be exported or builtin types.
@@ -121,7 +121,8 @@ func newCallback(receiver, fn reflect.Value, name string, logger zerolog.Logger)
 		outs[i] = fntype.Out(i)
 	}
 	if len(outs) > 2 {
-		logger.Warn().Msg(fmt.Sprintf("Cannot register RPC callback [%s] - maximum 2 return values are allowed, got %d", name, len(outs)))
+		logger.Warn().Msg(fmt.Sprintf(
+			"Cannot register RPC callback [%s] - maximum 2 return values are allowed, got %d", name, len(outs)))
 		return nil
 	}
 	// If an error is returned, it must be the last returned value.
@@ -137,7 +138,8 @@ func newCallback(receiver, fn reflect.Value, name string, logger zerolog.Logger)
 	}
 	// If there is only one return value (error), and the last argument is *jsoniter.Stream, mark it as streamable
 	if len(outs) != 1 && c.streamable {
-		logger.Warn().Msg(fmt.Sprintf("Cannot register RPC callback [%s] - streamable method may only return 1 value (error)", name))
+		logger.Warn().Msg(fmt.Sprintf(
+			"Cannot register RPC callback [%s] - streamable method may only return 1 value (error)", name))
 		return nil
 	}
 	return c
@@ -169,7 +171,12 @@ func (c *callback) makeArgTypes() {
 }
 
 // call invokes the callback.
-func (c *callback) call(ctx context.Context, method string, args []reflect.Value, stream *jsoniter.Stream) (res interface{}, errRes error) {
+func (c *callback) call(
+	ctx context.Context,
+	method string,
+	args []reflect.Value,
+	stream *jsoniter.Stream,
+) (res interface{}, errRes error) {
 	// Create the argument slice.
 	fullargs := make([]reflect.Value, 0, 2+len(args))
 	if c.rcvr.IsValid() {

@@ -339,7 +339,13 @@ func BenchmarkTreeInsertions(b *testing.B) {
 		}
 
 		// and insert some new keys
-		for _, kv := range generateTestCase(gen, b.N, 2, 16, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") {
+		for _, kv := range generateTestCase(
+			gen,
+			b.N,
+			2,
+			16,
+			"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+		) {
 			require.NoError(b, trie.Set(kv.key, kv.value))
 		}
 	})
@@ -372,7 +378,13 @@ func BenchmarkTreeInsertions(b *testing.B) {
 		require.NoError(b, trie.SetBatch(keys, values))
 
 		// and insert some new keys
-		for i, kv := range generateTestCase(gen, b.N, 2, 16, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") {
+		for i, kv := range generateTestCase(
+			gen,
+			b.N,
+			2,
+			16,
+			"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+		) {
 			keys[i] = kv.key
 			values[i] = kv.value
 		}

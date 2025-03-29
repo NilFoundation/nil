@@ -15,14 +15,14 @@ import "../init";
 import { useStyletron } from "baseui";
 import { useCallback, useEffect, useRef } from "react";
 import { getMobileStyles } from "../../../styleHelpers";
-import { сlickOnBackButton } from "../../code/model";
+import { clickOnBackButton } from "../../code/model";
 import { ClearIcon, useMobile } from "../../shared";
 import { $logs, clearLogs } from "../model";
 import { LogsGreeting } from "./LogsGreeting";
 
 export const Logs = () => {
   const [logs] = useUnit([$logs]);
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
   const [isMobile] = useMobile();
   const lastItemRef = useRef<HTMLDivElement>(null);
   const scrollToBottom = useCallback(() => {
@@ -65,12 +65,16 @@ export const Logs = () => {
                 style: {
                   paddingLeft: 0,
                   paddingRight: 0,
+                  backgroundColor: theme.colors.backgroundSecondary,
+                  ":hover": {
+                    backgroundColor: theme.colors.backgroundTertiary,
+                  },
                 },
               },
             }}
             kind={BUTTON_KIND.secondary}
             size={BUTTON_SIZE.compact}
-            onClick={() => сlickOnBackButton()}
+            onClick={() => clickOnBackButton()}
           >
             <ArrowUpIcon
               size={12}
@@ -86,7 +90,7 @@ export const Logs = () => {
         overrides={{
           Root: {
             style: {
-              backgroundColor: "#212121",
+              backgroundColor: theme.colors.backgroundPrimary,
               width: "100%",
               maxWidth: "none",
               height: "100%",
@@ -171,6 +175,11 @@ export const Logs = () => {
                   position: "absolute",
                   top: "16px",
                   right: "16px",
+                  backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundColor,
+                  ":hover": {
+                    backgroundColor:
+                      theme.colors.inputButtonAndDropdownOverrideBackgroundHoverColor,
+                  },
                 },
               },
             }}

@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
+	cm "github.com/NilFoundation/nil/nil/internal/network/connection_manager"
 	"github.com/NilFoundation/nil/nil/internal/network/internal"
 	"github.com/libp2p/go-libp2p"
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	"github.com/libp2p/go-libp2p/p2p/security/noise"
@@ -20,40 +23,53 @@ type Host = host.Host
 
 var defaultGracePeriod = connmgr.WithGracePeriod(time.Minute)
 
-func getCommonOptions(ctx context.Context, privateKey libp2pcrypto.PrivKey) ([]libp2p.Option, error) {
-	cm, err := connmgr.NewConnManager(100, 400, defaultGracePeriod)
+func getCommonOptions(ctx context.Context, conf *Config) ([]libp2p.Option, logging.Logger, error) {
+	pid, err := peer.IDFromPublicKey(conf.PrivateKey.GetPublic())
 	if err != nil {
-		return nil, err
+		return nil, logging.Nop(), err
 	}
 
-	pid, err := peer.IDFromPublicKey(privateKey.GetPublic())
+	logger := internal.Logger.With().
+		Stringer(logging.FieldP2PIdentity, pid).
+		Logger()
+
+	cm, err := cm.NewConnectionManagerWithPeerReputationTracking(
+		ctx,
+		conf.ConnectionManagerConfig,
+		logger,
+		// lo and hi are watermarks governing the number of connections that'll be maintained.
+		// When the peer count exceeds the 'high watermark', as many peers will be pruned (and
+		// their connections terminated) until 'low watermark' peers remain.
+		100, // low
+		400, // hi
+		defaultGracePeriod)
 	if err != nil {
-		return nil, err
+		return nil, logger, err
 	}
 
 	metrics, err := internal.NewMetricsReporter(ctx, pid)
 	if err != nil {
-		return nil, err
+		return nil, logger, err
 	}
 
 	return []libp2p.Option{
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.ConnectionManager(cm),
-		libp2p.Identity(privateKey),
+		libp2p.Identity(conf.PrivateKey),
 		libp2p.BandwidthReporter(metrics),
-	}, nil
+	}, logger, nil
 }
 
 // newHost creates a new libp2p host. It must be closed after use.
-func newHost(ctx context.Context, conf *Config) (Host, error) {
+func newHost(ctx context.Context, conf *Config) (Host, logging.Logger, error) {
 	addr := conf.IPV4Address
 	if addr == "" {
 		addr = "0.0.0.0"
 	}
 
-	options, err := getCommonOptions(ctx, conf.PrivateKey)
+	options, logger, err := getCommonOptions(ctx, conf)
 	if err != nil {
-		return nil, err
+		return nil, logging.Nop(), err
 	}
 
 	if conf.TcpPort != 0 {
@@ -70,15 +86,39 @@ func newHost(ctx context.Context, conf *Config) (Host, error) {
 		)
 	}
 
-	if conf.Relay {
+	if conf.ServeRelay {
 		options = append(options, libp2p.EnableRelayService())
+
+		// todo: remove it after relay is tested
+		// this is to make sure that the relay is not disabled
+		if conf.Reachability == network.ReachabilityUnknown {
+			options = append(options, libp2p.ForceReachabilityPublic())
+		}
 	}
 
-	return libp2p.New(options...)
+	if len(conf.Relays) > 0 {
+		options = append(options, libp2p.EnableAutoRelayWithStaticRelays(ToLibP2pAddrInfoSlice(conf.Relays)))
+	}
+
+	// In tests, we might wish to force a specific reachability
+	switch conf.Reachability {
+	case network.ReachabilityUnknown:
+		// default
+	case network.ReachabilityPublic:
+		options = append(options, libp2p.ForceReachabilityPublic())
+	case network.ReachabilityPrivate:
+		options = append(options, libp2p.ForceReachabilityPrivate())
+	}
+
+	host, err := libp2p.New(options...)
+	if err != nil {
+		return nil, logging.Nop(), err
+	}
+	return host, logger, nil
 }
 
 // newClient creates a new libp2p host that doesn't listen to any port. It must be closed after use.
-func newClient(ctx context.Context, conf *Config) (Host, error) {
+func newClient(ctx context.Context, conf *Config) (Host, logging.Logger, error) {
 	var privateKey libp2pcrypto.PrivKey
 	if conf != nil && conf.PrivateKey != nil {
 		privateKey = conf.PrivateKey
@@ -87,14 +127,18 @@ func newClient(ctx context.Context, conf *Config) (Host, error) {
 		var err error
 		privateKey, err = GeneratePrivateKey()
 		if err != nil {
-			return nil, err
+			return nil, logging.Nop(), err
 		}
 	}
 
-	options, err := getCommonOptions(ctx, privateKey)
+	options, logger, err := getCommonOptions(ctx, &Config{PrivateKey: privateKey})
 	if err != nil {
-		return nil, err
+		return nil, logging.Nop(), err
 	}
 	options = append(options, libp2p.NoListenAddrs)
-	return libp2p.New(options...)
+	host, err := libp2p.New(options...)
+	if err != nil {
+		return nil, logging.Nop(), err
+	}
+	return host, logger, nil
 }

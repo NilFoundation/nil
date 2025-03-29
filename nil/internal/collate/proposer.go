@@ -18,7 +18,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rollup"
 	"github.com/NilFoundation/nil/nil/services/txnpool"
 	l1types "github.com/ethereum/go-ethereum/core/types"
-	"github.com/rs/zerolog"
 )
 
 const (
@@ -36,7 +35,7 @@ type proposer struct {
 	topology ShardTopology
 	pool     TxnPool
 
-	logger zerolog.Logger
+	logger logging.Logger
 
 	proposal       *execution.ProposalSSZ
 	executionState *execution.ExecutionState
@@ -46,7 +45,7 @@ type proposer struct {
 	l1BlockFetcher rollup.L1BlockFetcher
 }
 
-func newProposer(params *Params, topology ShardTopology, pool TxnPool, logger zerolog.Logger) *proposer {
+func newProposer(params *Params, topology ShardTopology, pool TxnPool, logger logging.Logger) *proposer {
 	if params.MaxGasInBlock == 0 {
 		params.MaxGasInBlock = defaultMaxGasInBlock
 	}
@@ -74,27 +73,28 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	}
 	defer tx.Rollback()
 
-	block, err := p.fetchPrevBlock(tx)
+	prevBlock, prevBlockHash, err := db.ReadLastBlock(tx, p.params.ShardId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch previous block: %w", err)
 	}
 
-	if block.PatchLevel > validatorPatchLevel {
-		return nil, fmt.Errorf("block patch level %d is higher than supported %d", block.PatchLevel, validatorPatchLevel)
+	if prevBlock.PatchLevel > validatorPatchLevel {
+		return nil, fmt.Errorf(
+			"block patch level %d is higher than supported %d", prevBlock.PatchLevel, validatorPatchLevel)
 	}
 
-	p.proposal.PatchLevel = block.PatchLevel
-	p.proposal.RollbackCounter = block.RollbackCounter
+	p.setPrevBlockData(prevBlock, prevBlockHash)
 
-	configAccessor, err := config.NewConfigAccessorFromBlockWithTx(tx, block, p.params.ShardId)
+	configAccessor, err := config.NewConfigAccessorFromBlockWithTx(tx, prevBlock, p.params.ShardId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create config accessor: %w", err)
 	}
 
 	p.executionState, err = execution.NewExecutionState(tx, p.params.ShardId, execution.StateParams{
-		Block:          block,
+		Block:          prevBlock,
 		ConfigAccessor: configAccessor,
 		FeeCalculator:  p.params.FeeCalculator,
+		Mode:           execution.ModeProposal,
 	})
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		return nil, fmt.Errorf("failed to fetch last block hashes: %w", err)
 	}
 
-	if err := p.handleL1Attributes(tx); err != nil {
+	if err := p.handleL1Attributes(tx, prevBlockHash); err != nil {
 		// TODO: change to Error severity once Consensus/Proposer increase time intervals
 		p.logger.Trace().Err(err).Msg("Failed to handle L1 attributes")
 	}
@@ -125,25 +125,25 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		p.proposal.RollbackCounter = rollback.Counter + 1
 	}
 
-	if len(p.proposal.InternalTxnRefs) == 0 && len(p.proposal.ExternalTxns) == 0 && len(p.proposal.ForwardTxnRefs) == 0 {
+	if len(
+		p.proposal.InternalTxnRefs) == 0 && len(p.proposal.ExternalTxns) == 0 && len(p.proposal.ForwardTxnRefs) == 0 {
 		p.logger.Trace().Msg("No transactions collected")
 	} else {
 		p.logger.Debug().Msgf("Collected %d internal, %d external (%d gas) and %d forward transactions",
-			len(p.proposal.InternalTxnRefs), len(p.proposal.ExternalTxns), p.executionState.GasUsed, len(p.proposal.ForwardTxnRefs))
+			len(p.proposal.InternalTxnRefs),
+			len(p.proposal.ExternalTxns),
+			p.executionState.GasUsed,
+			len(p.proposal.ForwardTxnRefs))
 	}
 
 	return p.proposal, nil
 }
 
-func (p *proposer) fetchPrevBlock(tx db.RoTx) (*types.Block, error) {
-	b, hash, err := db.ReadLastBlock(tx, p.params.ShardId)
-	if err != nil {
-		return nil, err
-	}
-
-	p.proposal.PrevBlockId = b.Id
-	p.proposal.PrevBlockHash = hash
-	return b, nil
+func (p *proposer) setPrevBlockData(block *types.Block, blockHash common.Hash) {
+	p.proposal.PrevBlockId = block.Id
+	p.proposal.PrevBlockHash = blockHash
+	p.proposal.PatchLevel = block.PatchLevel
+	p.proposal.RollbackCounter = block.RollbackCounter
 }
 
 func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
@@ -163,13 +163,13 @@ func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return err
 		}
-		p.proposal.MainChainHash = lastBlockHash
+		p.proposal.MainShardHash = lastBlockHash
 	}
 
 	return nil
 }
 
-func (p *proposer) handleL1Attributes(tx db.RoTx) error {
+func (p *proposer) handleL1Attributes(tx db.RoTx, mainShardHash common.Hash) error {
 	if !p.params.ShardId.IsMainShard() {
 		return nil
 	}
@@ -187,7 +187,7 @@ func (p *proposer) handleL1Attributes(tx db.RoTx) error {
 	}
 
 	// Check if this L1 block was already processed
-	if cfgAccessor, err := config.NewConfigReader(tx, nil); err == nil {
+	if cfgAccessor, err := config.NewConfigReader(tx, &mainShardHash); err == nil {
 		if prevL1Block, err := config.GetParamL1Block(cfgAccessor); err == nil {
 			if prevL1Block != nil && prevL1Block.Number >= block.Number.Uint64() {
 				return nil
@@ -291,6 +291,10 @@ func (p *proposer) handleTransactionsFromPool() error {
 		return err
 	}
 
+	if len(poolTxns) != 0 {
+		p.logger.Debug().Int("txNum", len(poolTxns)).Msg("Start handling transactions from the pool")
+	}
+
 	var unverified []common.Hash
 	handle := func(mt *types.TxnWithHash) (bool, error) {
 		txnHash := mt.Hash()
@@ -340,7 +344,15 @@ func (p *proposer) handleTransactionsFromPool() error {
 		}
 	}
 
+	if len(poolTxns) != 0 {
+		p.logger.Debug().Int("txAdded", len(p.proposal.ExternalTxns)).Msg("Finish transactions handling")
+	}
+
 	return nil
+}
+
+func (p *proposer) isTxProcessed(dbTx db.RoTx, txHash common.Hash) (bool, error) {
+	return dbTx.ExistsInShard(p.params.ShardId, db.BlockHashAndInTransactionIndexByTransactionHash, txHash.Bytes())
 }
 
 func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
@@ -381,7 +393,8 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 
 		for checkLimits() {
 			// We will break the loop when lastBlockNumber is reached anyway,
-			// but in case of read-through mode, we will make unnecessary requests to the server if we don't check it here.
+			// but in case of read-through mode, we will make unnecessary requests to the server
+			// if we don't check it here.
 			if lastBlockNumber < neighbor.BlockNumber {
 				break
 			}
@@ -425,13 +438,24 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 				}
 
 				if txn.To.ShardId() == p.params.ShardId {
+					// TODO: Temporary workaround to prevent transaction duplication
+					isProcessed, err := p.isTxProcessed(tx, txn.Hash())
+					if err != nil {
+						return err
+					}
+					if isProcessed {
+						continue
+					}
+
 					txnHash := txn.Hash()
 					if err := execution.ValidateInternalTransaction(txn); err != nil {
 						p.logger.Warn().Err(err).
 							Stringer(logging.FieldTransactionHash, txnHash).
 							Msg("Invalid internal transaction")
 					} else {
-						if err := p.handleTransaction(txn, txnHash, execution.NewTransactionPayer(txn, p.executionState)); err != nil {
+						if err := p.handleTransaction(
+							txn, txnHash, execution.NewTransactionPayer(txn, p.executionState),
+						); err != nil {
 							return err
 						}
 					}

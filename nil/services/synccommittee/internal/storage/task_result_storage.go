@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	"github.com/rs/zerolog"
 )
 
 // taskResultTable stores task execution results. Key: types.TaskId, Value: types.TaskResult;
@@ -20,7 +19,7 @@ const (
 
 func NewTaskResultStorage(
 	db db.DB,
-	logger zerolog.Logger,
+	logger logging.Logger,
 ) *TaskResultStorage {
 	return &TaskResultStorage{
 		commonStorage: makeCommonStorage(db, logger),

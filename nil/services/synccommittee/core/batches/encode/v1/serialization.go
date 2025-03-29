@@ -77,7 +77,7 @@ func ConvertFromProto(batch *proto.Batch) (*types.PrunedBatch, error) {
 			PrevBlockHash: common.BytesToHash(pblk.PrevBlockHash),
 		}
 		for _, ptx := range pblk.Transactions {
-			tx := &types.PrunedTransaction{
+			tx := types.PrunedTransaction{
 				Flags: coreTypes.NewTransactionFlagsFromBits(uint8(ptx.GetFlags())),
 				Seqno: hexutil.Uint64(ptx.GetSeqNo()),
 				From:  coreTypes.BytesToAddress(ptx.AddrFrom.AddressBytes),

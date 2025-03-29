@@ -386,6 +386,26 @@ func (br *Uint64Response) UnpackProtoMessage() (uint64, error) {
 	}
 }
 
+// StringResponse converters
+func (br *StringResponse) PackProtoMessage(value string, err error) error {
+	br.Result = &StringResponse_Value{Value: value}
+	if err != nil {
+		br.Result = &StringResponse_Error{Error: new(Error).PackProtoMessage(err)}
+	}
+	return nil
+}
+
+func (br *StringResponse) UnpackProtoMessage() (string, error) {
+	switch br.Result.(type) {
+	case *StringResponse_Error:
+		return "", br.GetError().UnpackProtoMessage()
+	case *StringResponse_Value:
+		return br.GetValue(), nil
+	default:
+		return "", errors.New("unexpected response type")
+	}
+}
+
 func (br *BalanceResponse) PackProtoMessage(balance types.Value, err error) error {
 	if err != nil {
 		br.Result = &BalanceResponse_Error{Error: new(Error).PackProtoMessage(err)}
@@ -466,6 +486,29 @@ func (cr *TokensResponse) UnpackProtoMessage() (map[types.TokenId]types.Value, e
 	return nil, errors.New("unexpected response type")
 }
 
+// AsyncContext converters
+
+func (ac *AsyncContext) PackProtoMessage(context *types.AsyncContext) {
+	if context == nil {
+		return
+	}
+
+	ac.IsAwait = context.IsAwait
+	ac.Data = context.Data
+	ac.ResponseProcessingGas = context.ResponseProcessingGas.Uint64()
+}
+
+func (rc *AsyncContext) UnpackProtoMessage() types.AsyncContext {
+	if rc == nil {
+		return types.AsyncContext{}
+	}
+	return types.AsyncContext{
+		IsAwait:               rc.IsAwait,
+		Data:                  rc.Data,
+		ResponseProcessingGas: types.Gas(rc.ResponseProcessingGas),
+	}
+}
+
 // RawContract converters
 
 func (rc *RawContract) PackProtoMessage(contract *rawapitypes.SmartContract) error {
@@ -477,6 +520,25 @@ func (rc *RawContract) PackProtoMessage(contract *rawapitypes.SmartContract) err
 		rc.Storage = make(map[string]*Uint256)
 		for k, v := range contract.Storage {
 			rc.Storage[k.Hex()] = new(Uint256).PackProtoMessage(v)
+		}
+	}
+
+	if contract.Tokens != nil {
+		rc.Tokens = make(map[string]*Uint256)
+		for k, v := range contract.Tokens {
+			u := new(Uint256)
+			if v.Uint256 != nil {
+				u = u.PackProtoMessage(*v.Uint256)
+			}
+			rc.Tokens[k.String()] = u
+		}
+	}
+
+	if contract.AsyncContext != nil {
+		rc.AsyncContext = make(map[uint64]*AsyncContext)
+		for k, v := range contract.AsyncContext {
+			rc.AsyncContext[uint64(k)] = new(AsyncContext)
+			rc.AsyncContext[uint64(k)].PackProtoMessage(&v)
 		}
 	}
 
@@ -496,6 +558,22 @@ func (rc *RawContract) UnpackProtoMessage() (*rawapitypes.SmartContract, error) 
 			storage[common.HexToHash(k)] = v.UnpackProtoMessage()
 		}
 		contract.Storage = storage
+	}
+
+	if len(rc.Tokens) > 0 {
+		tokens := make(map[types.TokenId]types.Value)
+		for k, v := range rc.Tokens {
+			tokens[types.TokenId(types.HexToAddress(k))] = newValueFromUint256(v)
+		}
+		contract.Tokens = tokens
+	}
+
+	if len(rc.AsyncContext) > 0 {
+		asyncContext := make(map[types.TransactionIndex]types.AsyncContext)
+		for k, v := range rc.AsyncContext {
+			asyncContext[types.TransactionIndex(k)] = v.UnpackProtoMessage()
+		}
+		contract.AsyncContext = asyncContext
 	}
 
 	return contract, nil
@@ -604,13 +682,17 @@ func (o *StateOverrides) PackProtoMessage(overrides *rpctypes.StateOverrides) *S
 	return o
 }
 
-func (brd *BlockReferenceOrHashWithChildren) PackProtoMessage(blockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren) error {
+func (brd *BlockReferenceOrHashWithChildren) PackProtoMessage(
+	blockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren,
+) error {
 	if blockReferenceOrHashWithChildren.IsReference() {
 		blockReference := new(BlockReference)
 		if err := blockReference.PackProtoMessage(blockReferenceOrHashWithChildren.Reference()); err != nil {
 			return err
 		}
-		brd.BlockReferenceOrHashWithChildren = &BlockReferenceOrHashWithChildren_BlockReference{BlockReference: blockReference}
+		brd.BlockReferenceOrHashWithChildren = &BlockReferenceOrHashWithChildren_BlockReference{
+			BlockReference: blockReference,
+		}
 	} else {
 		hash, childBlocks := blockReferenceOrHashWithChildren.HashAndChildren()
 		blockHashWithChildren := new(BlockHashWithChildren)
@@ -627,12 +709,16 @@ func (brd *BlockReferenceOrHashWithChildren) PackProtoMessage(blockReferenceOrHa
 			}
 			blockHashWithChildren.Children = append(blockHashWithChildren.Children, childBlockHash)
 		}
-		brd.BlockReferenceOrHashWithChildren = &BlockReferenceOrHashWithChildren_BlockHashWithChildren{BlockHashWithChildren: blockHashWithChildren}
+		brd.BlockReferenceOrHashWithChildren = &BlockReferenceOrHashWithChildren_BlockHashWithChildren{
+			BlockHashWithChildren: blockHashWithChildren,
+		}
 	}
 	return nil
 }
 
-func (brd *BlockReferenceOrHashWithChildren) UnpackProtoMessage() (rawapitypes.BlockReferenceOrHashWithChildren, error) {
+func (brd *BlockReferenceOrHashWithChildren) UnpackProtoMessage() (
+	rawapitypes.BlockReferenceOrHashWithChildren, error,
+) {
 	switch brd.BlockReferenceOrHashWithChildren.(type) {
 	case *BlockReferenceOrHashWithChildren_BlockReference:
 		blockReference, err := brd.GetBlockReference().UnpackProtoMessage()
@@ -657,12 +743,15 @@ func (brd *BlockReferenceOrHashWithChildren) UnpackProtoMessage() (rawapitypes.B
 }
 
 func (cr *CallRequest) PackProtoMessage(
-	args rpctypes.CallArgs, mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren, overrides *rpctypes.StateOverrides,
+	args rpctypes.CallArgs,
+	mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren,
+	overrides *rpctypes.StateOverrides,
 ) error {
 	cr.Args = new(CallArgs).PackProtoMessage(args)
 
 	cr.MainBlockReferenceOrHashWithChildren = &BlockReferenceOrHashWithChildren{}
-	if err := cr.MainBlockReferenceOrHashWithChildren.PackProtoMessage(mainBlockReferenceOrHashWithChildren); err != nil {
+	err := cr.MainBlockReferenceOrHashWithChildren.PackProtoMessage(mainBlockReferenceOrHashWithChildren)
+	if err != nil {
 		return err
 	}
 
@@ -750,7 +839,12 @@ func (cr *StateOverrides) UnpackProtoMessage() *rpctypes.StateOverrides {
 	return &args
 }
 
-func (cr *CallRequest) UnpackProtoMessage() (rpctypes.CallArgs, rawapitypes.BlockReferenceOrHashWithChildren, *rpctypes.StateOverrides, error) {
+func (cr *CallRequest) UnpackProtoMessage() (
+	rpctypes.CallArgs,
+	rawapitypes.BlockReferenceOrHashWithChildren,
+	*rpctypes.StateOverrides,
+	error,
+) {
 	br, err := cr.MainBlockReferenceOrHashWithChildren.UnpackProtoMessage()
 	if err != nil {
 		return rpctypes.CallArgs{}, rawapitypes.BlockReferenceOrHashWithChildren{}, nil, err
@@ -1007,7 +1101,9 @@ func (r *TransactionResponse) UnpackProtoMessage() (*rawapitypes.TransactionInfo
 	return nil, errors.New("unexpected response type")
 }
 
-func (r *TransactionRequestByBlockRefAndIndex) PackProtoMessage(ref rawapitypes.BlockReference, index types.TransactionIndex) error {
+func (r *TransactionRequestByBlockRefAndIndex) PackProtoMessage(
+	ref rawapitypes.BlockReference, index types.TransactionIndex,
+) error {
 	r.BlockRef = &BlockReference{}
 	if err := r.BlockRef.PackProtoMessage(ref); err != nil {
 		return err
@@ -1016,7 +1112,9 @@ func (r *TransactionRequestByBlockRefAndIndex) PackProtoMessage(ref rawapitypes.
 	return nil
 }
 
-func (r *TransactionRequestByBlockRefAndIndex) UnpackProtoMessage() (rawapitypes.BlockReference, types.TransactionIndex, error) {
+func (r *TransactionRequestByBlockRefAndIndex) UnpackProtoMessage() (
+	rawapitypes.BlockReference, types.TransactionIndex, error,
+) {
 	ref, err := r.BlockRef.UnpackProtoMessage()
 	if err != nil {
 		return rawapitypes.BlockReference{}, 0, err

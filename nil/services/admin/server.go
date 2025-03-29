@@ -7,11 +7,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/rs/zerolog"
 )
 
 var defaultTimeout = 30 * time.Second
@@ -19,10 +20,10 @@ var defaultTimeout = 30 * time.Second
 type adminServer struct {
 	mux    *http.ServeMux
 	cfg    *ServerConfig
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
-func StartAdminServer(ctx context.Context, cfg *ServerConfig, logger zerolog.Logger) error {
+func StartAdminServer(ctx context.Context, cfg *ServerConfig, logger logging.Logger) error {
 	if !cfg.Enabled {
 		return nil
 	}
@@ -36,6 +37,10 @@ func StartAdminServer(ctx context.Context, cfg *ServerConfig, logger zerolog.Log
 	// GET http:/./set_log_level?level=info
 	srv.mux.HandleFunc("/set_log_level", srv.setLogLevel)
 	srv.mux.HandleFunc("/set_libp2p_log_level", srv.setLibp2pLogLevel)
+	srv.mux.HandleFunc("/set_block_profile_rate", srv.setBlockProfileRate)
+	srv.mux.HandleFunc("/set_cpu_profile_rate", srv.setCPUProfileRate)
+	srv.mux.HandleFunc("/set_mutex_profile_fraction", srv.setMutexProfileFraction)
+	srv.mux.HandleFunc("/set_mem_profile_rate", srv.setMemProfileRate)
 	srv.mux.HandleFunc("/ping", srv.ping)
 
 	if err := srv.serve(ctx); err != nil {
@@ -90,8 +95,7 @@ func (s *adminServer) serve(ctx context.Context) error {
 
 func (s *adminServer) writeResponse(w http.ResponseWriter, err error, okMsg string) {
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = fmt.Fprintf(w, "error: %s", err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	} else {
 		w.WriteHeader(http.StatusOK)
 		_, _ = fmt.Fprint(w, okMsg)
@@ -112,4 +116,48 @@ func (s *adminServer) setLibp2pLogLevel(w http.ResponseWriter, r *http.Request) 
 
 func (s *adminServer) ping(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *adminServer) setBlockProfileRate(w http.ResponseWriter, r *http.Request) {
+	rateStr := r.URL.Query().Get("rate")
+	rate, err := strconv.Atoi(rateStr)
+	if err != nil {
+		http.Error(w, "Invalid rate value", http.StatusBadRequest)
+		return
+	}
+	runtime.SetBlockProfileRate(rate)
+	s.writeResponse(w, nil, "SetBlockProfileRate set to "+rateStr)
+}
+
+func (s *adminServer) setCPUProfileRate(w http.ResponseWriter, r *http.Request) {
+	rateStr := r.URL.Query().Get("rate")
+	rate, err := strconv.Atoi(rateStr)
+	if err != nil {
+		http.Error(w, "Invalid rate value", http.StatusBadRequest)
+		return
+	}
+	runtime.SetCPUProfileRate(rate)
+	s.writeResponse(w, nil, "SetCPUProfileRate set to "+rateStr)
+}
+
+func (s *adminServer) setMutexProfileFraction(w http.ResponseWriter, r *http.Request) {
+	fractionStr := r.URL.Query().Get("fraction")
+	fraction, err := strconv.Atoi(fractionStr)
+	if err != nil {
+		http.Error(w, "Invalid fraction value", http.StatusBadRequest)
+		return
+	}
+	runtime.SetMutexProfileFraction(fraction)
+	s.writeResponse(w, nil, "SetMutexProfileFraction set to "+fractionStr)
+}
+
+func (s *adminServer) setMemProfileRate(w http.ResponseWriter, r *http.Request) {
+	rateStr := r.URL.Query().Get("rate")
+	rate, err := strconv.Atoi(rateStr)
+	if err != nil {
+		http.Error(w, "Invalid rate value", http.StatusBadRequest)
+		return
+	}
+	runtime.MemProfileRate = rate
+	s.writeResponse(w, nil, "MemProfileRate set to "+rateStr)
 }

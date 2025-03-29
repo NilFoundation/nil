@@ -38,7 +38,10 @@ func (s *Service) GetBalance(contractAddress types.Address) (types.Value, error)
 func (s *Service) GetSeqno(contractAddress types.Address) (types.Seqno, error) {
 	seqno, err := s.client.GetTransactionCount(s.ctx, contractAddress, "latest")
 	if err != nil {
-		s.logger.Error().Err(err).Str(logging.FieldRpcMethod, rpc.Eth_getTransactionCount).Msg("Failed to get contract seqno")
+		s.logger.Error().
+			Err(err).
+			Str(logging.FieldRpcMethod, rpc.Eth_getTransactionCount).
+			Msg("Failed to get contract seqno")
 		return types.Seqno(0), err
 	}
 
@@ -79,7 +82,8 @@ func (s *Service) GetTokens(contractAddress types.Address) (types.TokensMap, err
 func (s *Service) RunContract(smartAccount types.Address, bytecode []byte, fee types.FeePack, value types.Value,
 	tokens []types.TokenBalance, contract types.Address,
 ) (common.Hash, error) {
-	txHash, err := s.client.SendTransactionViaSmartAccount(s.ctx, smartAccount, bytecode, fee, value, tokens, contract, s.privateKey)
+	txHash, err := s.client.SendTransactionViaSmartAccount(
+		s.ctx, smartAccount, bytecode, fee, value, tokens, contract, s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return common.EmptyHash, err
@@ -97,7 +101,8 @@ func (s *Service) SendExternalTransaction(bytecode []byte, contract types.Addres
 	if noSign {
 		pk = nil
 	}
-	txHash, err := s.client.SendExternalTransaction(s.ctx, types.Code(bytecode), contract, pk, types.NewFeePackFromGas(0))
+	txHash, err := s.client.SendExternalTransaction(
+		s.ctx, types.Code(bytecode), contract, pk, types.NewFeePackFromGas(0))
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send external transaction")
 		return common.EmptyHash, err
@@ -110,7 +115,10 @@ func (s *Service) SendExternalTransaction(bytecode []byte, contract types.Addres
 }
 
 // DeployContractViaSmartAccount deploys a new smart contract with the given bytecode via the smart account
-func (s *Service) DeployContractViaSmartAccount(shardId types.ShardId, smartAccount types.Address, deployPayload types.DeployPayload,
+func (s *Service) DeployContractViaSmartAccount(
+	shardId types.ShardId,
+	smartAccount types.Address,
+	deployPayload types.DeployPayload,
 	value types.Value,
 ) (common.Hash, types.Address, error) {
 	txHash, contractAddr, err := s.client.DeployContract(s.ctx, shardId, smartAccount, deployPayload, value,
@@ -128,7 +136,11 @@ func (s *Service) DeployContractViaSmartAccount(shardId types.ShardId, smartAcco
 }
 
 // DeployContractExternal deploys a new smart contract with the given bytecode via external transaction
-func (s *Service) DeployContractExternal(shardId types.ShardId, payload types.DeployPayload, fee types.FeePack) (common.Hash, types.Address, error) {
+func (s *Service) DeployContractExternal(
+	shardId types.ShardId,
+	payload types.DeployPayload,
+	fee types.FeePack,
+) (common.Hash, types.Address, error) {
 	txHash, contractAddr, err := s.client.DeployExternal(s.ctx, shardId, payload, fee)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")

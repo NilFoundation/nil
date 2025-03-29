@@ -1,0 +1,42 @@
+{
+  "contractName": "Test.sol:Foo",
+  "compilerVersion": "0.8.28",
+  "solcStandardJson": {
+    "language": "Solidity",
+    "sources": {
+      "Test.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity >= 0.8.17;\ncontract Foo { constructor() payable {}\n function bar() public pure returns (uint) { return 42; } }\n"
+      },
+      "TestLib.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity >= 0.8.17;\ncontract Bar { constructor() {}\n function foo() public pure returns (uint) { return 43; } }\n"
+      }
+    },
+    "settings": {
+      "optimizer": {
+        "enabled": true
+      },
+      "debug": {
+        "debugInfo": ["location", "snippet"]
+      },
+      "evmVersion": "cancun",
+      "metadata": {
+        "appendCBOR": true,
+        "bytecodeHash": "ipfs"
+      },
+      "outputSelection": {
+        "*": {
+          "*": [
+            "abi",
+            "metadata",
+            "evm.bytecode.object",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.sourceMap",
+            "evm.deployedBytecode.generatedSources",
+            "evm.deployedBytecode.functionDebugData",
+            "evm.methodIdentifiers"
+          ]
+        }
+      }
+    }
+  }
+}

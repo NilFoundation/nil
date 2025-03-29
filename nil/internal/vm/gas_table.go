@@ -108,13 +108,18 @@ func gasSStore(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySi
 	//
 	// (1.) If current value equals new value (this is a no-op), 200 gas is deducted.
 	// (2.) If current value does not equal new value
-	//	(2.1.) If original value equals current value (this storage slot has not been changed by the current execution context)
+	//	(2.1.) If original value equals current value (this storage slot has not been changed
+	//	       by the current execution context)
 	//		(2.1.1.) If original value is 0, 20000 gas is deducted.
 	//		(2.1.2.) Otherwise, 5000 gas is deducted. If new value is 0, add 15000 gas to refund counter.
-	//	(2.2.) If original value does not equal current value (this storage slot is dirty), 200 gas is deducted. Apply both of the following clauses.
+	//	(2.2.) If original value does not equal current value (this storage slot is dirty), 200 gas is deducted.
+	//	       Apply both of the following clauses.
 	//		(2.2.1.) If original value is not 0
-	//			(2.2.1.1.) If current value is 0 (also means that new value is not 0), remove 15000 gas from refund counter. We can prove that refund counter will never go below 0.
-	//			(2.2.1.2.) If new value is 0 (also means that current value is not 0), add 15000 gas to refund counter.
+	//			(2.2.1.1.) If current value is 0 (also means that new value is not 0),
+	//			           remove 15000 gas from refund counter.
+	//			           We can prove that refund counter will never go below 0.
+	//			(2.2.1.2.) If new value is 0 (also means that current value is not 0),
+	//			           add 15000 gas to refund counter.
 	//		(2.2.2.) If original value equals new value (this storage slot is reset)
 	//			(2.2.2.1.) If original value is 0, add 19800 gas to refund counter.
 	//			(2.2.2.2.) Otherwise, add 4800 gas to refund counter.
@@ -154,13 +159,18 @@ func gasSStore(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySi
 //	(0.) If *gasleft* is less than or equal to 2300, fail the current call.
 //	(1.) If current value equals new value (this is a no-op), SLOAD_GAS is deducted.
 //	(2.) If current value does not equal new value:
-//		(2.1.) If original value equals current value (this storage slot has not been changed by the current execution context):
+//		(2.1.) If original value equals current value (this storage slot has not been changed
+//		       by the current execution context):
 //			(2.1.1.) If original value is 0, SSTORE_SET_GAS (20K) gas is deducted.
-//			(2.1.2.) Otherwise, SSTORE_RESET_GAS gas is deducted. If new value is 0, add SSTORE_CLEARS_SCHEDULE to refund counter.
-//		(2.2.) If original value does not equal current value (this storage slot is dirty), SLOAD_GAS gas is deducted. Apply both of the following clauses:
+//			(2.1.2.) Otherwise, SSTORE_RESET_GAS gas is deducted. If new value is 0, add SSTORE_CLEARS_SCHEDULE
+//			         to refund counter.
+//		(2.2.) If original value does not equal current value (this storage slot is dirty), SLOAD_GAS gas is deducted.
+//		       Apply both of the following clauses:
 //			(2.2.1.) If original value is not 0:
-//				(2.2.1.1.) If current value is 0 (also means that new value is not 0), subtract SSTORE_CLEARS_SCHEDULE gas from refund counter.
-//				(2.2.1.2.) If new value is 0 (also means that current value is not 0), add SSTORE_CLEARS_SCHEDULE gas to refund counter.
+//				(2.2.1.1.) If current value is 0 (also means that new value is not 0), subtract SSTORE_CLEARS_SCHEDULE
+//				           gas from refund counter.
+//				(2.2.1.2.) If new value is 0 (also means that current value is not 0), add SSTORE_CLEARS_SCHEDULE
+//				           gas to refund counter.
 //			(2.2.2.) If original value equals new value (this storage slot is reset):
 //				(2.2.2.1.) If original value is 0, add SSTORE_SET_GAS - SLOAD_GAS to refund counter.
 //				(2.2.2.2.) Otherwise, add SSTORE_RESET_GAS - SLOAD_GAS gas to refund counter.

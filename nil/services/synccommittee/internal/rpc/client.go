@@ -8,7 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/rs/zerolog"
+	"github.com/NilFoundation/nil/nil/common/logging"
 )
 
 var retryConfig = common.RetryConfig{
@@ -16,7 +16,7 @@ var retryConfig = common.RetryConfig{
 	NextDelay:   common.DelayExponential(100*time.Millisecond, time.Second),
 }
 
-func NewRetryClient(rpcEndpoint string, logger zerolog.Logger) client.Client {
+func NewRetryClient(rpcEndpoint string, logger logging.Logger) client.Client {
 	return rpc.NewClient(
 		rpcEndpoint,
 		logger,

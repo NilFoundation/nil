@@ -4,17 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
 )
-
-const listenerHttpEndpoint = "tcp://127.0.0.1:8530"
 
 type TaskRequestHandlerTestSuite struct {
 	suite.Suite
@@ -29,8 +26,9 @@ func (s *TaskRequestHandlerTestSuite) SetupSuite() {
 	s.scheduler = newTaskSchedulerMock()
 
 	started := make(chan struct{})
+	listenerHttpEndpoint := rpc.GetSockPath(s.T())
 	go func() {
-		err := runTaskListener(s.context, s.scheduler, started)
+		err := runTaskListener(s.context, s.scheduler, listenerHttpEndpoint, started)
 		s.NoError(err)
 	}()
 	err := testaide.WaitFor(s.context, started, 10*time.Second)
@@ -50,7 +48,12 @@ func (s *TaskRequestHandlerTestSuite) TearDownSuite() {
 	s.cancellation()
 }
 
-func runTaskListener(ctx context.Context, scheduler scheduler.TaskScheduler, started chan<- struct{}) error {
+func runTaskListener(
+	ctx context.Context,
+	scheduler scheduler.TaskScheduler,
+	listenerHttpEndpoint string,
+	started chan<- struct{},
+) error {
 	taskListener := NewTaskListener(
 		&TaskListenerConfig{HttpEndpoint: listenerHttpEndpoint},
 		scheduler,
@@ -92,16 +95,12 @@ var tasksForExecutors = map[types.TaskExecutorId]*types.Task{
 	firstExecutorId: {
 		Id:          types.NewTaskId(),
 		BatchId:     types.NewBatchId(),
-		ShardId:     coreTypes.MainShardId,
-		BlockNum:    1,
-		BlockHash:   common.EmptyHash,
 		TaskType:    types.PartialProve,
 		CircuitType: types.CircuitBytecode,
 	},
 	secondExecutorId: {
 		Id:          types.NewTaskId(),
 		BatchId:     types.NewBatchId(),
-		BlockNum:    10,
 		TaskType:    types.AggregatedFRI,
 		CircuitType: types.CircuitReadWrite,
 		DependencyResults: map[types.TaskId]types.TaskResultDetails{

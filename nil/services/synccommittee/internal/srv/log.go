@@ -1,7 +1,7 @@
 package srv
 
-import "github.com/rs/zerolog"
+import "github.com/NilFoundation/nil/nil/common/logging"
 
-func WorkerLogger(logger zerolog.Logger, worker Worker) zerolog.Logger {
+func WorkerLogger(logger logging.Logger, worker Worker) logging.Logger {
 	return logger.With().Str("worker", worker.Name()).Logger()
 }

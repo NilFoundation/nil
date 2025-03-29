@@ -19,12 +19,12 @@ import (
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/rs/zerolog"
 )
 
 // CallError represents an error that occurs during a remote procedure call,
@@ -79,6 +79,8 @@ const (
 	Debug_getBlockByHash                 = "debug_getBlockByHash"
 	Debug_getBlockByNumber               = "debug_getBlockByNumber"
 	Debug_getContract                    = "debug_getContract"
+	Web3_clientVersion                   = "web3_clientVersion"
+	Dev_doPanicOnShard                   = "dev_doPanicOnShard"
 )
 
 const (
@@ -94,7 +96,7 @@ type Client struct {
 	seqno    atomic.Uint64
 	client   http.Client
 	headers  map[string]string
-	logger   zerolog.Logger
+	logger   logging.Logger
 	retrier  *common.RetryRunner
 }
 
@@ -150,7 +152,8 @@ func (b *BatchRequestImpl) SendTransactionViaSmartContract(
 ) (uint64, error) {
 	id := len(b.requests)
 
-	r, err := b.client.getSendTransactionViaSmartContractRequest(ctx, smartAccountAddress, bytecode, fee, value, tokens, contractAddress, pk, false, id)
+	r, err := b.client.getSendTransactionViaSmartContractRequest(
+		ctx, smartAccountAddress, bytecode, fee, value, tokens, contractAddress, pk, false, id)
 	if err != nil {
 		return 0, err
 	}
@@ -199,11 +202,11 @@ func RunContractBatch(ctx context.Context, client *Client, smartAccount types.Ad
 	return txHash, nil
 }
 
-func NewClient(endpoint string, logger zerolog.Logger, opts ...Option) *Client {
+func NewClient(endpoint string, logger logging.Logger, opts ...Option) *Client {
 	return NewClientWithDefaultHeaders(endpoint, logger, nil, opts...)
 }
 
-func NewRawClient(endpoint string, logger zerolog.Logger, opts ...Option) client.RawClient {
+func NewRawClient(endpoint string, logger logging.Logger, opts ...Option) client.RawClient {
 	return NewClient(endpoint, logger, opts...)
 }
 
@@ -226,7 +229,7 @@ func NewHttpClient(url string) (http.Client, string) {
 }
 
 func NewClientWithDefaultHeaders(
-	url string, logger zerolog.Logger, headers map[string]string, opts ...Option,
+	url string, logger logging.Logger, headers map[string]string, opts ...Option,
 ) *Client {
 	var cfg config
 	for _, opt := range opts {
@@ -375,17 +378,10 @@ func (c *Client) GetCode(ctx context.Context, addr types.Address, blockId any) (
 	if err != nil {
 		return types.Code{}, err
 	}
-
-	raw, err := c.call(ctx, Eth_getCode, addr, blockNrOrHash)
+	codeHex, err := simpleCall[string](ctx, c, Eth_getCode, addr, blockNrOrHash)
 	if err != nil {
 		return types.Code{}, err
 	}
-
-	var codeHex string
-	if err := json.Unmarshal(raw, &codeHex); err != nil {
-		return types.Code{}, err
-	}
-
 	return hexutil.FromHex(codeHex), nil
 }
 
@@ -447,7 +443,12 @@ func (c *Client) getSendTransactionViaSmartContractRequest(ctx context.Context, 
 	return request, nil
 }
 
-func (c *Client) GetBlock(ctx context.Context, shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error) {
+func (c *Client) GetBlock(
+	ctx context.Context,
+	shardId types.ShardId,
+	blockId any,
+	fullTx bool,
+) (*jsonrpc.RPCBlock, error) {
 	request, err := c.getBlockRequest(shardId, blockId, fullTx, false)
 	if err != nil {
 		return nil, err
@@ -468,7 +469,12 @@ func toRPCBlock(raw json.RawMessage) (*jsonrpc.RPCBlock, error) {
 	return block, nil
 }
 
-func (c *Client) GetDebugBlock(ctx context.Context, shardId types.ShardId, blockId any, fullTx bool) (*jsonrpc.DebugRPCBlock, error) {
+func (c *Client) GetDebugBlock(
+	ctx context.Context,
+	shardId types.ShardId,
+	blockId any,
+	fullTx bool,
+) (*jsonrpc.DebugRPCBlock, error) {
 	request, err := c.getBlockRequest(shardId, blockId, fullTx, true)
 	if err != nil {
 		return nil, err
@@ -502,42 +508,15 @@ func (c *Client) SendTransaction(ctx context.Context, txn *types.ExternalTransac
 }
 
 func (c *Client) SendRawTransaction(ctx context.Context, data []byte) (common.Hash, error) {
-	res, err := c.call(ctx, Eth_sendRawTransaction, hexutil.Bytes(data))
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	var hash common.Hash
-	if err := json.Unmarshal(res, &hash); err != nil {
-		return common.EmptyHash, err
-	}
-	return hash, nil
+	return simpleCall[common.Hash](ctx, c, Eth_sendRawTransaction, hexutil.Bytes(data))
 }
 
 func (c *Client) GetInTransactionByHash(ctx context.Context, hash common.Hash) (*jsonrpc.RPCInTransaction, error) {
-	res, err := c.call(ctx, Eth_getInTransactionByHash, hash)
-	if err != nil {
-		return nil, err
-	}
-
-	var txn *jsonrpc.RPCInTransaction
-	if err := json.Unmarshal(res, &txn); err != nil {
-		return nil, err
-	}
-	return txn, nil
+	return simpleCall[*jsonrpc.RPCInTransaction](ctx, c, Eth_getInTransactionByHash, hash)
 }
 
 func (c *Client) GetInTransactionReceipt(ctx context.Context, hash common.Hash) (*jsonrpc.RPCReceipt, error) {
-	res, err := c.call(ctx, Eth_getInTransactionReceipt, hash)
-	if err != nil {
-		return nil, err
-	}
-
-	var receipt *jsonrpc.RPCReceipt
-	if err := json.Unmarshal(res, &receipt); err != nil {
-		return nil, err
-	}
-	return receipt, nil
+	return simpleCall[*jsonrpc.RPCReceipt](ctx, c, Eth_getInTransactionReceipt, hash)
 }
 
 func (c *Client) GetTransactionCount(ctx context.Context, address types.Address, blockId any) (types.Seqno, error) {
@@ -546,24 +525,20 @@ func (c *Client) GetTransactionCount(ctx context.Context, address types.Address,
 		return 0, err
 	}
 
-	res, err := c.call(ctx, Eth_getTransactionCount, address, transport.BlockNumberOrHash(blockNrOrHash))
-	if err != nil {
-		return 0, err
-	}
+	return simpleCallUint64[types.Seqno](
+		ctx, c, Eth_getTransactionCount, address, transport.BlockNumberOrHash(blockNrOrHash))
+}
 
-	val, err := toUint64(res)
-	if err != nil {
-		return 0, err
+func toString(raw json.RawMessage) string {
+	res := strings.TrimSpace(string(raw))
+	if len(res) >= 2 && res[0] == '"' && res[len(res)-1] == '"' {
+		res = res[1 : len(res)-1]
 	}
-	return types.Seqno(val), nil
+	return res
 }
 
 func toUint64(raw json.RawMessage) (uint64, error) {
-	input := strings.TrimSpace(string(raw))
-	if len(input) >= 2 && input[0] == '"' && input[len(input)-1] == '"' {
-		input = input[1 : len(input)-1]
-	}
-	return strconv.ParseUint(input, 0, 64)
+	return strconv.ParseUint(toString(raw), 0, 64)
 }
 
 func (c *Client) GetBlockTransactionCount(ctx context.Context, shardId types.ShardId, blockId any) (uint64, error) {
@@ -584,20 +559,16 @@ func (c *Client) GetBlockTransactionCount(ctx context.Context, shardId types.Sha
 	return 0, nil
 }
 
-func (c *Client) getBlockTransactionCountByNumber(ctx context.Context, shardId types.ShardId, number transport.BlockNumber) (uint64, error) {
-	res, err := c.call(ctx, Eth_getBlockTransactionCountByNumber, shardId, number)
-	if err != nil {
-		return 0, err
-	}
-	return toUint64(res)
+func (c *Client) getBlockTransactionCountByNumber(
+	ctx context.Context,
+	shardId types.ShardId,
+	number transport.BlockNumber,
+) (uint64, error) {
+	return simpleCallUint64[uint64](ctx, c, Eth_getBlockTransactionCountByNumber, shardId, number)
 }
 
 func (c *Client) getBlockTransactionCountByHash(ctx context.Context, hash common.Hash) (uint64, error) {
-	res, err := c.call(ctx, Eth_getBlockTransactionCountByHash, hash)
-	if err != nil {
-		return 0, err
-	}
-	return toUint64(res)
+	return simpleCallUint64[uint64](ctx, c, Eth_getBlockTransactionCountByHash, hash)
 }
 
 func (c *Client) GetBalance(ctx context.Context, address types.Address, blockId any) (types.Value, error) {
@@ -606,16 +577,10 @@ func (c *Client) GetBalance(ctx context.Context, address types.Address, blockId 
 		return types.Value{}, err
 	}
 
-	res, err := c.call(ctx, Eth_getBalance, address.String(), transport.BlockNumberOrHash(blockNrOrHash))
+	bigVal, err := simpleCall[hexutil.Big](ctx, c, Eth_getBalance, address, transport.BlockNumberOrHash(blockNrOrHash))
 	if err != nil {
 		return types.Value{}, err
 	}
-
-	bigVal := &hexutil.Big{}
-	if err := bigVal.UnmarshalJSON(res); err != nil {
-		return types.Value{}, err
-	}
-
 	return types.NewValueFromBigMust(bigVal.ToInt()), nil
 }
 
@@ -624,29 +589,11 @@ func (c *Client) GetTokens(ctx context.Context, address types.Address, blockId a
 	if err != nil {
 		return nil, err
 	}
-
-	res, err := c.call(ctx, Eth_getTokens, address.String(), transport.BlockNumberOrHash(blockNrOrHash))
-	if err != nil {
-		return nil, err
-	}
-
-	tokens := make(types.RPCTokensMap)
-	err = json.Unmarshal(res, &tokens)
-	return tokens, err
+	return simpleCall[types.TokensMap](ctx, c, Eth_getTokens, address, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
 func (c *Client) GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error) {
-	res, err := c.call(ctx, Eth_gasPrice, shardId)
-	if err != nil {
-		return types.Value{}, err
-	}
-
-	val := types.Value{}
-	if err := val.UnmarshalJSON(res); err != nil {
-		return types.Value{}, err
-	}
-
-	return val, nil
+	return simpleCall[types.Value](ctx, c, Eth_gasPrice, shardId)
 }
 
 func (c *Client) ChainId(ctx context.Context) (types.ChainId, error) {
@@ -663,30 +610,29 @@ func (c *Client) ChainId(ctx context.Context) (types.ChainId, error) {
 }
 
 func (c *Client) GetShardIdList(ctx context.Context) ([]types.ShardId, error) {
-	res, err := c.call(ctx, Eth_getShardIdList)
-	if err != nil {
-		return []types.ShardId{}, err
-	}
-
-	var shardIdList []types.ShardId
-	if err := json.Unmarshal(res, &shardIdList); err != nil {
-		return []types.ShardId{}, err
-	}
-	return shardIdList, nil
+	return simpleCall[[]types.ShardId](ctx, c, Eth_getShardIdList)
 }
 
 func (c *Client) GetNumShards(ctx context.Context) (uint64, error) {
-	res, err := c.call(ctx, Eth_getNumShards)
-	if err != nil {
-		return 0, err
-	}
+	return simpleCallUint64[uint64](ctx, c, Eth_getNumShards)
+}
 
-	return toUint64(res)
+func (c *Client) ClientVersion(ctx context.Context) (string, error) {
+	res, err := c.call(ctx, Web3_clientVersion)
+	if err != nil {
+		return "", err
+	}
+	return toString(res), nil
 }
 
 func (c *Client) DeployContract(
-	ctx context.Context, shardId types.ShardId, smartAccountAddress types.Address, payload types.DeployPayload,
-	value types.Value, fee types.FeePack, pk *ecdsa.PrivateKey,
+	ctx context.Context,
+	shardId types.ShardId,
+	smartAccountAddress types.Address,
+	payload types.DeployPayload,
+	value types.Value,
+	fee types.FeePack,
+	pk *ecdsa.PrivateKey,
 ) (common.Hash, types.Address, error) {
 	contractAddr := types.CreateAddress(shardId, payload)
 	txHash, err := client.SendTransactionViaSmartAccount(ctx, c, smartAccountAddress, payload.Bytes(), fee,
@@ -697,17 +643,29 @@ func (c *Client) DeployContract(
 	return txHash, contractAddr, nil
 }
 
-func (c *Client) DeployExternal(ctx context.Context, shardId types.ShardId, deployPayload types.DeployPayload, fee types.FeePack) (common.Hash, types.Address, error) {
+func (c *Client) DeployExternal(
+	ctx context.Context,
+	shardId types.ShardId,
+	deployPayload types.DeployPayload,
+	fee types.FeePack,
+) (common.Hash, types.Address, error) {
 	address := types.CreateAddress(shardId, deployPayload)
 	msgHash, err := client.SendExternalTransaction(ctx, c, deployPayload.Bytes(), address, nil, fee, true, false)
 	return msgHash, address, err
 }
 
 func (c *Client) SendTransactionViaSmartAccount(
-	ctx context.Context, smartAccountAddress types.Address, bytecode types.Code, fee types.FeePack, value types.Value,
-	tokens []types.TokenBalance, contractAddress types.Address, pk *ecdsa.PrivateKey,
+	ctx context.Context,
+	smartAccountAddress types.Address,
+	bytecode types.Code,
+	fee types.FeePack,
+	value types.Value,
+	tokens []types.TokenBalance,
+	contractAddress types.Address,
+	pk *ecdsa.PrivateKey,
 ) (common.Hash, error) {
-	return client.SendTransactionViaSmartAccount(ctx, c, smartAccountAddress, bytecode, fee, value, tokens, contractAddress, pk, false)
+	return client.SendTransactionViaSmartAccount(
+		ctx, c, smartAccountAddress, bytecode, fee, value, tokens, contractAddress, pk, false)
 }
 
 func (c *Client) SendExternalTransaction(
@@ -716,43 +674,37 @@ func (c *Client) SendExternalTransaction(
 	return client.SendExternalTransaction(ctx, c, bytecode, contractAddress, pk, fee, false, false)
 }
 
-func (c *Client) Call(ctx context.Context, args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides) (*jsonrpc.CallRes, error) {
+func (c *Client) Call(
+	ctx context.Context,
+	args *jsonrpc.CallArgs,
+	blockId any,
+	stateOverride *jsonrpc.StateOverrides,
+) (*jsonrpc.CallRes, error) {
 	blockNrOrHash, err := transport.AsBlockReference(blockId)
 	if err != nil {
 		return nil, err
 	}
-
-	raw, err := c.call(ctx, Eth_call, args, blockNrOrHash, stateOverride)
-	if err != nil {
-		return nil, err
-	}
-
-	var res *jsonrpc.CallRes
-	if err := json.Unmarshal(raw, &res); err != nil {
-		return nil, err
-	}
-	return res, nil
+	return simpleCall[*jsonrpc.CallRes](ctx, c, Eth_call, args, blockNrOrHash, stateOverride)
 }
 
-func (c *Client) EstimateFee(ctx context.Context, args *jsonrpc.CallArgs, blockId any) (*jsonrpc.EstimateFeeRes, error) {
+func (c *Client) EstimateFee(
+	ctx context.Context,
+	args *jsonrpc.CallArgs,
+	blockId any,
+) (*jsonrpc.EstimateFeeRes, error) {
 	blockNrOrHash, err := transport.AsBlockReference(blockId)
 	if err != nil {
 		return nil, err
 	}
-
-	raw, err := c.call(ctx, Eth_estimateFee, args, blockNrOrHash)
-	if err != nil {
-		return nil, err
-	}
-
-	var res jsonrpc.EstimateFeeRes
-	if err := json.Unmarshal(raw, &res); err != nil {
-		return nil, err
-	}
-	return &res, nil
+	return simpleCall[*jsonrpc.EstimateFeeRes](ctx, c, Eth_estimateFee, args, blockNrOrHash)
 }
 
-func (c *Client) SetTokenName(ctx context.Context, contractAddr types.Address, name string, pk *ecdsa.PrivateKey) (common.Hash, error) {
+func (c *Client) SetTokenName(
+	ctx context.Context,
+	contractAddr types.Address,
+	name string,
+	pk *ecdsa.PrivateKey,
+) (common.Hash, error) {
 	data, err := contracts.NewCallData(contracts.NameNilTokenBase, "setTokenName", name)
 	if err != nil {
 		return common.EmptyHash, err
@@ -761,7 +713,13 @@ func (c *Client) SetTokenName(ctx context.Context, contractAddr types.Address, n
 	return c.SendExternalTransaction(ctx, data, contractAddr, pk, types.NewFeePackFromGas(100_000))
 }
 
-func (c *Client) ChangeTokenAmount(ctx context.Context, contractAddr types.Address, amount types.Value, pk *ecdsa.PrivateKey, mint bool) (common.Hash, error) {
+func (c *Client) ChangeTokenAmount(
+	ctx context.Context,
+	contractAddr types.Address,
+	amount types.Value,
+	pk *ecdsa.PrivateKey,
+	mint bool,
+) (common.Hash, error) {
 	method := "mintToken"
 	if !mint {
 		method = "burnToken"
@@ -796,7 +754,12 @@ func (c *Client) DbGet(ctx context.Context, tableName db.TableName, key []byte) 
 	return callDbAPI[[]byte](ctx, c, Db_get, tableName, key)
 }
 
-func (c *Client) DbGetFromShard(ctx context.Context, shardId types.ShardId, tableName db.ShardedTableName, key []byte) ([]byte, error) {
+func (c *Client) DbGetFromShard(
+	ctx context.Context,
+	shardId types.ShardId,
+	tableName db.ShardedTableName,
+	key []byte,
+) ([]byte, error) {
 	return callDbAPI[[]byte](ctx, c, Db_getFromShard, shardId, tableName, key)
 }
 
@@ -804,7 +767,12 @@ func (c *Client) DbExists(ctx context.Context, tableName db.TableName, key []byt
 	return callDbAPI[bool](ctx, c, Db_exists, tableName, key)
 }
 
-func (c *Client) DbExistsInShard(ctx context.Context, shardId types.ShardId, tableName db.ShardedTableName, key []byte) (bool, error) {
+func (c *Client) DbExistsInShard(
+	ctx context.Context,
+	shardId types.ShardId,
+	tableName db.ShardedTableName,
+	key []byte,
+) (bool, error) {
 	return callDbAPI[bool](ctx, c, Db_existsInShard, shardId, tableName, key)
 }
 
@@ -855,7 +823,14 @@ func (c *Client) BatchCall(ctx context.Context, req client.BatchRequest) ([]any,
 	return result, nil
 }
 
-func (c *Client) fetchBlocksBatch(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber, fullTx bool, isDebug bool) ([]any, error) {
+func (c *Client) fetchBlocksBatch(
+	ctx context.Context,
+	shardId types.ShardId,
+	from types.BlockNumber,
+	to types.BlockNumber,
+	fullTx bool,
+	isDebug bool,
+) ([]any, error) {
 	batch := c.CreateBatchRequest()
 
 	for i := from; i < to; i++ {
@@ -873,7 +848,15 @@ func (c *Client) fetchBlocksBatch(ctx context.Context, shardId types.ShardId, fr
 	return c.BatchCall(ctx, batch)
 }
 
-func (c *Client) getBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int, isDebug bool) ([]any, error) {
+func (c *Client) getBlocksRange(
+	ctx context.Context,
+	shardId types.ShardId,
+	from types.BlockNumber,
+	to types.BlockNumber,
+	fullTx bool,
+	batchSize int,
+	isDebug bool,
+) ([]any, error) {
 	if from >= to {
 		return nil, nil
 	}
@@ -898,7 +881,14 @@ func (c *Client) getBlocksRange(ctx context.Context, shardId types.ShardId, from
 	return result, nil
 }
 
-func (c *Client) GetDebugBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.DebugRPCBlock, error) {
+func (c *Client) GetDebugBlocksRange(
+	ctx context.Context,
+	shardId types.ShardId,
+	from types.BlockNumber,
+	to types.BlockNumber,
+	fullTx bool,
+	batchSize int,
+) ([]*jsonrpc.DebugRPCBlock, error) {
 	rawBlocks, err := c.getBlocksRange(ctx, shardId, from, to, fullTx, batchSize, true)
 	if err != nil {
 		return nil, err
@@ -913,7 +903,14 @@ func (c *Client) GetDebugBlocksRange(ctx context.Context, shardId types.ShardId,
 	return result, nil
 }
 
-func (c *Client) GetBlocksRange(ctx context.Context, shardId types.ShardId, from, to types.BlockNumber, fullTx bool, batchSize int) ([]*jsonrpc.RPCBlock, error) {
+func (c *Client) GetBlocksRange(
+	ctx context.Context,
+	shardId types.ShardId,
+	from types.BlockNumber,
+	to types.BlockNumber,
+	fullTx bool,
+	batchSize int,
+) ([]*jsonrpc.RPCBlock, error) {
 	rawBlocks, err := c.getBlocksRange(ctx, shardId, from, to, fullTx, batchSize, false)
 	if err != nil {
 		return nil, err
@@ -928,22 +925,47 @@ func (c *Client) GetBlocksRange(ctx context.Context, shardId types.ShardId, from
 	return result, nil
 }
 
-func (c *Client) GetDebugContract(ctx context.Context, contractAddr types.Address, blockId any) (*jsonrpc.DebugRPCContract, error) {
+func (c *Client) GetDebugContract(
+	ctx context.Context,
+	contractAddr types.Address,
+	blockId any,
+) (*jsonrpc.DebugRPCContract, error) {
 	blockRef, err := transport.AsBlockReference(blockId)
 	if err != nil {
 		return nil, err
 	}
 
-	request := c.newRequest(Debug_getContract, contractAddr, blockRef)
-	res, err := c.performRequest(ctx, request)
+	return simpleCall[*jsonrpc.DebugRPCContract](ctx, c, Debug_getContract, contractAddr, blockRef)
+}
+
+func (c *Client) DoPanicOnShard(ctx context.Context, shardId types.ShardId) (uint64, error) {
+	_, err := c.call(ctx, Dev_doPanicOnShard, shardId)
+	return 0, err
+}
+
+func simpleCall[ReturnType any](ctx context.Context, c *Client, method string, params ...any) (ReturnType, error) {
+	res, err := c.call(ctx, method, params...)
+	var result ReturnType
 	if err != nil {
-		return nil, err
+		return result, err
 	}
+	err = json.Unmarshal(res, &result)
+	return result, err
+}
 
-	var DebugRPCContract *jsonrpc.DebugRPCContract
-	if err := json.Unmarshal(res, &DebugRPCContract); err != nil {
-		return nil, err
+func simpleCallUint64[ReturnType ~uint64](
+	ctx context.Context,
+	c *Client,
+	method string,
+	params ...any,
+) (ReturnType, error) {
+	res, err := c.call(ctx, method, params...)
+	if err != nil {
+		return 0, err
 	}
-
-	return DebugRPCContract, err
+	result, err := toUint64(res)
+	if err != nil {
+		return 0, err
+	}
+	return ReturnType(result), err
 }

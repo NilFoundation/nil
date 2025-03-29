@@ -6,10 +6,10 @@ import {
   LabelMedium,
   MenuIcon,
 } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import { ChevronDown, ChevronUp } from "baseui/icon";
 import { useUnit } from "effector-react";
 import { memo, useState } from "react";
-import { useStyletron } from "styletron-react";
 import { OverflowEllipsis, StatefulPopover, useMobile } from "../../shared";
 import { $smartAccount } from "../model";
 import { AccountContainer } from "./AccountContainer";
@@ -19,8 +19,8 @@ const MemoizedAccountContainer = memo(AccountContainer);
 
 const AccountContent = () => {
   const [isMobile] = useMobile();
-  const [css] = useStyletron();
-  const smartAccount = useUnit($smartAccount);
+  const [css, theme] = useStyletron();
+  const [smartAccount] = useUnit([$smartAccount]);
   const address = smartAccount ? smartAccount.address : null;
   const text = address ? address : "Not connected";
   const isAccountConnected = !!smartAccount;
@@ -36,11 +36,45 @@ const AccountContent = () => {
       placement="bottomRight"
       autoFocus
       triggerType="click"
+      overrides={{
+        Inner: {
+          style: {
+            backgroundColor: theme.colors.backgroundSecondary,
+          },
+        },
+      }}
     >
       {isMobile ? (
-        <ButtonIcon kind={BUTTON_KIND.secondary} icon={<MenuIcon />} />
+        <ButtonIcon
+          kind={BUTTON_KIND.secondary}
+          icon={<MenuIcon />}
+          overrides={{
+            Root: {
+              style: {
+                backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundColor,
+                ":hover": {
+                  backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundHoverColor,
+                },
+              },
+            },
+          }}
+        />
       ) : (
-        <Button kind={BUTTON_KIND.secondary} className={css(styles.account)} type="button">
+        <Button
+          kind={BUTTON_KIND.secondary}
+          className={css(styles.account)}
+          type="button"
+          overrides={{
+            Root: {
+              style: {
+                backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundColor,
+                ":hover": {
+                  backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundHoverColor,
+                },
+              },
+            },
+          }}
+        >
           <div
             className={css({
               ...styles.indicator,

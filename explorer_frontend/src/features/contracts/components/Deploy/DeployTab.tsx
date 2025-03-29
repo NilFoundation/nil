@@ -8,8 +8,8 @@ import {
   ParagraphSmall,
   SPACE,
 } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
-import { useStyletron } from "styletron-react";
 import { $smartAccount } from "../../../account-connector/model";
 import { $constructor } from "../../init";
 import {
@@ -35,7 +35,7 @@ export const DeployTab = () => {
       $shardIdIsValid,
       $deploySmartContractError,
     ]);
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
 
   return (
     <>
@@ -54,6 +54,10 @@ export const DeployTab = () => {
               Root: {
                 style: {
                   marginBottom: SPACE[8],
+                  backgroundColor: theme.colors.backgroundSecondary,
+                  ":hover": {
+                    backgroundColor: theme.colors.backgroundTertiary,
+                  },
                 },
               },
             }}
@@ -95,6 +99,10 @@ export const DeployTab = () => {
                         Root: {
                           style: {
                             marginBottom: SPACE[8],
+                            backgroundColor: theme.colors.backgroundSecondary,
+                            ":hover": {
+                              backgroundColor: theme.colors.backgroundTertiary,
+                            },
                           },
                         },
                       }}
@@ -111,6 +119,10 @@ export const DeployTab = () => {
                         Root: {
                           style: {
                             marginBottom: SPACE[8],
+                            backgroundColor: theme.colors.backgroundSecondary,
+                            ":hover": {
+                              backgroundColor: theme.colors.backgroundTertiary,
+                            },
                           },
                         },
                       }}

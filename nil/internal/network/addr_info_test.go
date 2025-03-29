@@ -49,7 +49,8 @@ func TestAddrInfoStringRepresentation(t *testing.T) {
 	addr1, err := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/1500/p2p/16Uiu2HAmQctkUi9y7WfUtYa9rPon1m5TRBtXSvUwi2VtpbWZj4yf")
 	require.NoError(t, err)
 
-	addr2, err := ma.NewMultiaddr("/ip4/192.168.0.10/tcp/4002/p2p/16Uiu2HAmQctkUi9y7WfUtYa9rPon1m5TRBtXSvUwi2VtpbWZj4yf")
+	addr2, err := ma.NewMultiaddr(
+		"/ip4/192.168.0.10/tcp/4002/p2p/16Uiu2HAmQctkUi9y7WfUtYa9rPon1m5TRBtXSvUwi2VtpbWZj4yf")
 	require.NoError(t, err)
 
 	_, id := peer.SplitAddr(addr1)
@@ -58,7 +59,9 @@ func TestAddrInfoStringRepresentation(t *testing.T) {
 		Addrs: []ma.Multiaddr{addr1, addr2},
 	}
 
-	expectedString := "/ip4/127.0.0.1/tcp/1500/p2p/16Uiu2HAmQctkUi9y7WfUtYa9rPon1m5TRBtXSvUwi2VtpbWZj4yf/p2p/16Uiu2HAmQctkUi9y7WfUtYa9rPon1m5TRBtXSvUwi2VtpbWZj4yf," +
-		"/ip4/192.168.0.10/tcp/4002/p2p/16Uiu2HAmQctkUi9y7WfUtYa9rPon1m5TRBtXSvUwi2VtpbWZj4yf/p2p/16Uiu2HAmQctkUi9y7WfUtYa9rPon1m5TRBtXSvUwi2VtpbWZj4yf"
+	expectedString := "/ip4/127.0.0.1/tcp/1500/p2p/16Uiu2HAmQctkUi9y7WfUtYa9rPon1m5TRBtXSvUwi2VtpbWZj4yf" +
+		"/p2p/16Uiu2HAmQctkUi9y7WfUtYa9rPon1m5TRBtXSvUwi2VtpbWZj4yf," +
+		"/ip4/192.168.0.10/tcp/4002/p2p/16Uiu2HAmQctkUi9y7WfUtYa9rPon1m5TRBtXSvUwi2VtpbWZj4yf" +
+		"/p2p/16Uiu2HAmQctkUi9y7WfUtYa9rPon1m5TRBtXSvUwi2VtpbWZj4yf"
 	require.Equal(t, expectedString, addrInfo.String())
 }

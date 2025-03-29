@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	ssz "github.com/NilFoundation/fastssz"
-	"github.com/NilFoundation/nil/nil/common/check"
 )
 
 type Path struct {
@@ -28,8 +27,10 @@ type PathAccessor interface {
 
 func newPath(data []byte, shifted bool) *Path {
 	if shifted {
-		check.PanicIfNot(len(data) > 0)
-		return &Path{Data: data[1:], Shifted: true, FirstNibble: data[0] & 0x0F} //nolint:gosec
+		if len(data) == 0 {
+			panic("shifted path must have at least one nibble")
+		}
+		return &Path{Data: data[1:], Shifted: true, FirstNibble: data[0] & 0x0F}
 	}
 	return &Path{Data: data}
 }
@@ -116,8 +117,8 @@ func (path *Path) Consume(offset int) *Path {
 	return path
 }
 
-func createNew[T PathAccessor](path T, length int) *Path {
-	data := make([]byte, 0, length)
+func createNew(path PathAccessor, length int) *Path {
+	data := make([]byte, 0, (length+1)/2)
 
 	isOddLen := length%2 == 1
 	pos := 0

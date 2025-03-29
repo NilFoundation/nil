@@ -5,10 +5,10 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/common/version"
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/faucet"
-	"github.com/rs/zerolog"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 	faucetClient *faucet.Client
 )
 
-func InitRpcClient(cfg *Config, logger zerolog.Logger) {
+func InitRpcClient(cfg *Config, logger logging.Logger) {
 	client = rpc.NewClientWithDefaultHeaders(
 		cfg.RPCEndpoint,
 		logger,

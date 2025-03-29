@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"context"
+	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
@@ -17,10 +19,13 @@ const (
 )
 
 type taskStorageMetricsHandler struct {
+	provider atomic.Value // types.TaskStatsProvider
+
 	attributes metric.MeasurementOption
 
-	currentActiveTasks  telemetry.UpDownCounter
-	currentPendingTasks telemetry.UpDownCounter
+	activeTasksByType     telemetry.ObservableUpDownCounter
+	activeTasksByExecutor telemetry.ObservableUpDownCounter
+	pendingTasksByType    telemetry.ObservableUpDownCounter
 
 	totalTasksCreated     telemetry.Counter
 	totalTasksSucceeded   telemetry.Counter
@@ -35,11 +40,22 @@ func (h *taskStorageMetricsHandler) init(attributes metric.MeasurementOption, me
 	var err error
 	const tasksNamespace = namespace + "tasks."
 
-	if h.currentActiveTasks, err = meter.Int64UpDownCounter(tasksNamespace + "current_active"); err != nil {
+	h.activeTasksByType, err = meter.Int64ObservableUpDownCounter(tasksNamespace + "current_active_by_type")
+	if err != nil {
 		return err
 	}
 
-	if h.currentPendingTasks, err = meter.Int64UpDownCounter(tasksNamespace + "current_pending"); err != nil {
+	h.activeTasksByExecutor, err = meter.Int64ObservableUpDownCounter(tasksNamespace + "current_active_by_executor")
+	if err != nil {
+		return err
+	}
+
+	h.pendingTasksByType, err = meter.Int64ObservableUpDownCounter(tasksNamespace + "current_pending_by_type")
+	if err != nil {
+		return err
+	}
+
+	if err := h.registerStatsCallback(meter); err != nil {
 		return err
 	}
 
@@ -66,47 +82,78 @@ func (h *taskStorageMetricsHandler) init(attributes metric.MeasurementOption, me
 	return nil
 }
 
+func (h *taskStorageMetricsHandler) registerStatsCallback(meter telemetry.Meter) error {
+	_, err := meter.RegisterCallback(
+		func(ctx context.Context, observer metric.Observer) error {
+			provider, _ := h.provider.Load().(types.TaskStatsProvider)
+			if provider == nil {
+				return nil
+			}
+
+			stats, err := provider.GetTaskStats(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to get task stats: %w", err)
+			}
+
+			for taskType, entry := range stats.CountPerType {
+				attr := telattr.With(
+					attribute.Stringer(attrTaskType, taskType),
+				)
+				observer.ObserveInt64(h.activeTasksByType, int64(entry.ActiveCount), h.attributes, attr)
+				observer.ObserveInt64(h.pendingTasksByType, int64(entry.PendingCount), h.attributes, attr)
+			}
+
+			for executor, count := range stats.CountPerExecutor {
+				attr := telattr.With(
+					attribute.Stringer(attrTaskExecutor, executor),
+				)
+				observer.ObserveInt64(h.activeTasksByExecutor, int64(count), h.attributes, attr)
+			}
+
+			return nil
+		},
+		h.activeTasksByType, h.activeTasksByExecutor, h.pendingTasksByType,
+	)
+	return err
+}
+
+func (h *taskStorageMetricsHandler) SetStatsProvider(provider types.TaskStatsProvider) {
+	h.provider.CompareAndSwap(nil, provider)
+}
+
 func (h *taskStorageMetricsHandler) RecordTaskAdded(ctx context.Context, taskEntry *types.TaskEntry) {
 	taskAttributes := h.getAttrTypeOnly(taskEntry)
 	h.totalTasksCreated.Add(ctx, 1, h.attributes, taskAttributes)
-	h.currentPendingTasks.Add(ctx, 1, h.attributes, taskAttributes)
 }
 
-func (h *taskStorageMetricsHandler) RecordTaskStarted(ctx context.Context, taskEntry *types.TaskEntry) {
-	pendingAttributes := h.getAttrTypeOnly(taskEntry)
-	h.currentPendingTasks.Add(ctx, -1, h.attributes, pendingAttributes)
-
-	activeAttributes := h.getAttrTypeAndOwner(taskEntry)
-	h.currentActiveTasks.Add(ctx, 1, h.attributes, activeAttributes)
-}
-
-func (h *taskStorageMetricsHandler) RecordTaskTerminated(ctx context.Context, taskEntry *types.TaskEntry, taskResult *types.TaskResult) {
+func (h *taskStorageMetricsHandler) RecordTaskTerminated(
+	ctx context.Context,
+	taskEntry *types.TaskEntry,
+	taskResult *types.TaskResult,
+) {
 	taskAttributes := h.getAttrTypeAndOwner(taskEntry)
 
-	h.currentActiveTasks.Add(ctx, -1, h.attributes, taskAttributes)
-
-	if taskResult.IsSuccess() {
-		executionTimeMs := time.Since(*taskEntry.Started).Milliseconds()
-		h.taskExecutionTimeMs.Record(ctx, executionTimeMs, h.attributes, taskAttributes)
-		h.totalTasksSucceeded.Add(ctx, 1, h.attributes, taskAttributes)
-	} else {
+	if !taskResult.IsSuccess() {
 		h.totalTasksFailed.Add(ctx, 1, h.attributes, taskAttributes)
+		return
 	}
+
+	executionTimeMs := time.Since(*taskEntry.Started).Milliseconds()
+	h.taskExecutionTimeMs.Record(ctx, executionTimeMs, h.attributes, taskAttributes)
+	h.totalTasksSucceeded.Add(ctx, 1, h.attributes, taskAttributes)
 }
 
-func (h *taskStorageMetricsHandler) RecordTaskRescheduled(ctx context.Context, taskType types.TaskType, previousExecutor types.TaskExecutorId) {
+func (h *taskStorageMetricsHandler) RecordTaskRescheduled(
+	ctx context.Context,
+	taskType types.TaskType,
+	previousExecutor types.TaskExecutorId,
+) {
 	taskAttributes := telattr.With(
 		attribute.Stringer(attrTaskType, taskType),
 		attribute.Int64(attrTaskExecutor, int64(previousExecutor)),
 	)
 
 	h.totalTasksRescheduled.Add(ctx, 1, h.attributes, taskAttributes)
-	h.currentActiveTasks.Add(ctx, -1, h.attributes, taskAttributes)
-
-	pendingAttributes := telattr.With(
-		attribute.Stringer(attrTaskType, taskType),
-	)
-	h.currentPendingTasks.Add(ctx, 1, h.attributes, pendingAttributes)
 }
 
 func (h *taskStorageMetricsHandler) getAttrTypeOnly(taskEntry *types.TaskEntry) metric.MeasurementOption {

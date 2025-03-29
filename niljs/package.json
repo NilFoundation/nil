@@ -1,7 +1,7 @@
 {
   "name": "@nilfoundation/niljs",
   "author": "=nil; Foundation",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/NilFoundation/nil.js.git"
@@ -37,24 +37,24 @@
     "lint:fix": "biome check --write .",
     "lint:types": "tsc --noEmit -p tsconfig.json",
     "lint:jsdoc": "eslint .",
-    "pub": "npm run build && npm publish"
+    "pub": "pnpm build && pnpm publish"
   },
   "license": "MIT",
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@vitest/coverage-v8": "^1.6.0",
+    "dotenv": "^16.4.7",
     "eslint": "^9.13.0",
     "eslint-plugin-jsdoc": "^50.4.3",
-    "rimraf": "^5.0.7",
     "rollup": "^4.17.2",
-    "rollup-plugin-dts": "^6.1.0",
-    "rollup-plugin-esbuild": "^6.1.1",
+    "rollup-plugin-dts": "6.1.1",
+    "rollup-plugin-esbuild": "6.1.1",
     "rollup-plugin-filesize": "^10.0.0",
     "solc-typed-ast": "^18.2.3",
-    "tsx": "^4.17.0",
+    "tsx": "4.17.0",
     "typescript": "^5.6.2",
     "typescript-eslint": "^8.12.2",
-    "vitest": "^1.6.0"
+    "rimraf": "^6.0.1"
   },
   "publishConfig": {
     "access": "public",
@@ -63,7 +63,7 @@
   "dependencies": {
     "@chainsafe/persistent-merkle-tree": "^0.7.2",
     "@chainsafe/ssz": "^0.16.0",
-    "@nilfoundation/smart-contracts": "0.6.0",
+    "@nilfoundation/smart-contracts": "workspace:*",
     "@noble/curves": "^1.4.0",
     "@open-rpc/client-js": "^1.8.1",
     "@rollup/plugin-json": "^6.1.0",

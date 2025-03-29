@@ -25,9 +25,6 @@ type BadgerDBOptions struct {
 	Path         string        `yaml:"path"`
 	DiscardRatio float64       `yaml:"gcDiscardRatio,omitempty"`
 	GcFrequency  time.Duration `yaml:"gcFrequency,omitempty"`
-
-	// deprecated
-	AllowDrop bool `yaml:"allowDrop,omitempty"`
 }
 
 func NewDefaultBadgerDBOptions() *BadgerDBOptions {
@@ -54,16 +51,25 @@ type BadgerIter struct {
 	toPrefix    []byte
 }
 
+type BadgerSequence struct {
+	seq *badger.Sequence
+}
+
 // interfaces
 var (
-	_ RoTx = new(BadgerRoTx)
-	_ RwTx = new(BadgerRwTx)
-	_ DB   = new(badgerDB)
-	_ Iter = new(BadgerIter)
+	_ RoTx     = new(BadgerRoTx)
+	_ RwTx     = new(BadgerRwTx)
+	_ DB       = new(badgerDB)
+	_ Iter     = new(BadgerIter)
+	_ Sequence = new(BadgerSequence)
 )
 
+func MakeTablePrefix(table TableName) string {
+	return string(table) + ":"
+}
+
 func MakeKey(table TableName, key []byte) []byte {
-	return append([]byte(table+":"), key...)
+	return append([]byte(MakeTablePrefix(table)), key...)
 }
 
 func NewBadgerDb(pathToDb string) (*badgerDB, error) {
@@ -116,6 +122,14 @@ func (db *badgerDB) CreateRoTxAt(ctx context.Context, ts Timestamp) (RoTx, error
 
 func (db *badgerDB) CreateRoTx(ctx context.Context) (RoTx, error) {
 	return db.createRoTx(ctx, db.db.NewTransaction(false), false)
+}
+
+func (db *badgerDB) GetSequence(ctx context.Context, key []byte, bandwidth uint64) (Sequence, error) {
+	seq, err := db.db.GetSequence(key, bandwidth)
+	if err != nil {
+		return nil, err
+	}
+	return &BadgerSequence{seq: seq}, nil
 }
 
 func (db *badgerDB) createRwTx(_ context.Context, txn *badger.Txn) (RwTx, error) {
@@ -190,7 +204,8 @@ func (tx *BadgerRoTx) Rollback() {
 	tx.onFinish()
 	// Managed transaction can be only read-only.
 	// We don't need to discard them, but if we do, than we will have a panic from badger.
-	// It happens because badger tries to move watermarks, because it doesn't distinguish managed transactions in automatic mode
+	// It happens because badger tries to move watermarks,
+	// because it doesn't distinguish managed transactions in automatic mode
 	// TODO: maybe we should patch badger to distinguish managed transactions in automatic mode
 	if !tx.managed {
 		tx.tx.Discard()
@@ -259,7 +274,12 @@ func (tx *BadgerRwTx) DeleteFromShard(shardId types.ShardId, tableName ShardedTa
 	return tx.Delete(ShardTableName(tableName, shardId), key)
 }
 
-func (tx *BadgerRoTx) RangeByShard(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error) {
+func (tx *BadgerRoTx) RangeByShard(
+	shardId types.ShardId,
+	tableName ShardedTableName,
+	from []byte,
+	to []byte,
+) (Iter, error) {
 	return tx.Range(ShardTableName(tableName, shardId), from, to)
 }
 
@@ -292,4 +312,8 @@ func (it *BadgerIter) Next() ([]byte, []byte, error) {
 
 func (it *BadgerIter) Close() {
 	it.iter.Close()
+}
+
+func (seq *BadgerSequence) Next() (uint64, error) {
+	return seq.seq.Next()
 }

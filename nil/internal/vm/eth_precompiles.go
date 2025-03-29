@@ -488,7 +488,8 @@ func (c *bls12381G1Add) RequiredGas(input []byte) uint64 {
 
 func (c *bls12381G1Add) Run(input []byte) ([]byte, error) {
 	// Implements EIP-2537 G1Add precompile.
-	// > G1 addition call expects `256` bytes as an input that is interpreted as byte concatenation of two G1 points (`128` bytes each).
+	// > G1 addition call expects `256` bytes as an input that is interpreted as byte concatenation of two G1 points
+	// > (`128` bytes each).
 	// > Output is an encoding of addition operation result - single G1 point (`128` bytes).
 	if len(input) != 256 {
 		return nil, errBLS12381InvalidInputLength
@@ -524,7 +525,8 @@ func (c *bls12381G1Mul) RequiredGas(input []byte) uint64 {
 
 func (c *bls12381G1Mul) Run(input []byte) ([]byte, error) {
 	// Implements EIP-2537 G1Mul precompile.
-	// > G1 multiplication call expects `160` bytes as an input that is interpreted as byte concatenation of encoding of G1 point (`128` bytes) and encoding of a scalar value (`32` bytes).
+	// > G1 multiplication call expects `160` bytes as an input that is interpreted as byte concatenation of encoding
+	// > of G1 point (`128` bytes) and encoding of a scalar value (`32` bytes).
 	// > Output is an encoding of multiplication operation result - single G1 point (`128` bytes).
 	if len(input) != 160 {
 		return nil, errBLS12381InvalidInputLength
@@ -576,7 +578,9 @@ func (c *bls12381G1MultiExp) RequiredGas(input []byte) uint64 {
 
 func (c *bls12381G1MultiExp) Run(input []byte) ([]byte, error) { //nolint:dupl
 	// Implements EIP-2537 G1MultiExp precompile.
-	// G1 multiplication call expects `160*k` bytes as an input that is interpreted as byte concatenation of `k` slices each of them being a byte concatenation of encoding of G1 point (`128` bytes) and encoding of a scalar value (`32` bytes).
+	// G1 multiplication call expects `160*k` bytes as an input that is interpreted as byte concatenation of `k` slices
+	// each of them being a byte concatenation of encoding of G1 point (`128` bytes) and encoding of a scalar value
+	// (`32` bytes).
 	// Output is an encoding of multiexponentiation operation result - single G1 point (`128` bytes).
 	k := len(input) / 160
 	if len(input) == 0 || len(input)%160 != 0 {
@@ -622,7 +626,8 @@ func (c *bls12381G2Add) RequiredGas(input []byte) uint64 {
 
 func (c *bls12381G2Add) Run(input []byte) ([]byte, error) {
 	// Implements EIP-2537 G2Add precompile.
-	// > G2 addition call expects `512` bytes as an input that is interpreted as byte concatenation of two G2 points (`256` bytes each).
+	// > G2 addition call expects `512` bytes as an input that is interpreted as byte concatenation of two G2 points
+	// > (`256` bytes each).
 	// > Output is an encoding of addition operation result - single G2 point (`256` bytes).
 	if len(input) != 512 {
 		return nil, errBLS12381InvalidInputLength
@@ -659,7 +664,8 @@ func (c *bls12381G2Mul) RequiredGas(input []byte) uint64 {
 
 func (c *bls12381G2Mul) Run(input []byte) ([]byte, error) {
 	// Implements EIP-2537 G2MUL precompile logic.
-	// > G2 multiplication call expects `288` bytes as an input that is interpreted as byte concatenation of encoding of G2 point (`256` bytes) and encoding of a scalar value (`32` bytes).
+	// > G2 multiplication call expects `288` bytes as an input that is interpreted as byte concatenation of encoding
+	// > of G2 point (`256` bytes) and encoding of a scalar value (`32` bytes).
 	// > Output is an encoding of multiplication operation result - single G2 point (`256` bytes).
 	if len(input) != 288 {
 		return nil, errBLS12381InvalidInputLength
@@ -711,7 +717,9 @@ func (c *bls12381G2MultiExp) RequiredGas(input []byte) uint64 {
 
 func (c *bls12381G2MultiExp) Run(input []byte) ([]byte, error) { //nolint:dupl
 	// Implements EIP-2537 G2MultiExp precompile logic
-	// > G2 multiplication call expects `288*k` bytes as an input that is interpreted as byte concatenation of `k` slices each of them being a byte concatenation of encoding of G2 point (`256` bytes) and encoding of a scalar value (`32` bytes).
+	// > G2 multiplication call expects `288*k` bytes as an input that is interpreted as byte concatenation of `k`
+	// > slices each of them being a byte concatenation of encoding of G2 point (`256` bytes) and encoding of a scalar
+	// > value (`32` bytes).
 	// > Output is an encoding of multiexponentiation operation result - single G2 point (`256` bytes).
 	k := len(input) / 288
 	if len(input) == 0 || len(input)%288 != 0 {
@@ -757,10 +765,12 @@ func (c *bls12381Pairing) RequiredGas(input []byte) uint64 {
 
 func (c *bls12381Pairing) Run(input []byte) ([]byte, error) {
 	// Implements EIP-2537 Pairing precompile logic.
-	// > Pairing call expects `384*k` bytes as an inputs that is interpreted as byte concatenation of `k` slices. Each slice has the following structure:
+	// > Pairing call expects `384*k` bytes as an inputs that is interpreted as byte concatenation of `k` slices.
+	// > Each slice has the following structure:
 	// > - `128` bytes of G1 point encoding
 	// > - `256` bytes of G2 point encoding
-	// > Output is a `32` bytes where last single byte is `0x01` if pairing result is equal to multiplicative identity in a pairing target field and `0x00` otherwise
+	// > Output is a `32` bytes where last single byte is `0x01` if pairing result is equal to multiplicative identity
+	// > in a pairing target field and `0x00` otherwise
 	// > (which is equivalent of Big Endian encoding of Solidity values `uint256(1)` and `uin256(0)` respectively).
 	k := len(input) / 384
 	if len(input) == 0 || len(input)%384 != 0 {
@@ -938,7 +948,8 @@ func (c *bls12381MapG2) RequiredGas(input []byte) uint64 {
 
 func (c *bls12381MapG2) Run(input []byte) ([]byte, error) {
 	// Implements EIP-2537 Map_FP2_TO_G2 precompile logic.
-	// > Field-to-curve call expects an `128` bytes input that is interpreted as an element of the quadratic extension field.
+	// > Field-to-curve call expects an `128` bytes input that is interpreted as an element of the quadratic extension
+	// > field.
 	// > Output of this call is `256` bytes and is G2 point following respective encoding rules.
 	if len(input) != 128 {
 		return nil, errBLS12381InvalidInputLength
@@ -970,9 +981,11 @@ func (b *kzgPointEvaluation) RequiredGas(input []byte) uint64 {
 }
 
 const (
-	blobVerifyInputLength           = 192  // Max input length for the point evaluation precompile.
-	blobCommitmentVersionKZG  uint8 = 0x01 // Version byte for the point evaluation precompile.
-	blobPrecompileReturnValue       = "000000000000000000000000000000000000000000000000000000000000100073eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"
+	blobVerifyInputLength = 192
+	// Max input length for the point evaluation precompile.
+	blobCommitmentVersionKZG uint8 = 0x01
+	// Version byte for the point evaluation precompile.
+	blobPrecompileReturnValue = "000000000000000000000000000000000000000000000000000000000000100073eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001" //nolint: lll
 )
 
 var (

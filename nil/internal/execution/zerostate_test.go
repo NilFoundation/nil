@@ -31,88 +31,88 @@ type SuiteZeroState struct {
 	contracts map[string]*compiler.Contract
 }
 
-func (suite *SuiteZeroState) SetupSuite() {
+func (s *SuiteZeroState) SetupSuite() {
 	var err error
-	suite.ctx = context.Background()
+	s.ctx = context.Background()
 
 	defaultZeroStateConfig, err := CreateDefaultZeroStateConfig(MainPublicKey)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
 	faucetAddress := defaultZeroStateConfig.GetContractAddress("Faucet")
-	suite.Require().NotNil(faucetAddress)
-	suite.faucetAddr = faucetAddress
+	s.Require().NotNil(faucetAddress)
+	s.faucetAddr = faucetAddress
 
-	suite.faucetABI, err = contracts.GetAbi(contracts.NameFaucet)
-	suite.Require().NoError(err)
+	s.faucetABI, err = contracts.GetAbi(contracts.NameFaucet)
+	s.Require().NoError(err)
 }
 
-func (suite *SuiteZeroState) SetupTest() {
+func (s *SuiteZeroState) SetupTest() {
 	var err error
-	suite.state = newState(suite.T())
+	s.state = newState(s.T())
 
-	suite.contracts, err = solc.CompileSource("./testdata/call.sol")
-	suite.Require().NoError(err)
+	s.contracts, err = solc.CompileSource("./testdata/call.sol")
+	s.Require().NoError(err)
 }
 
-func (suite *SuiteZeroState) TearDownTest() {
-	suite.state.tx.Rollback()
+func (s *SuiteZeroState) TearDownTest() {
+	s.state.tx.Rollback()
 }
 
-func (suite *SuiteZeroState) getBalance(address types.Address) types.Value {
-	suite.T().Helper()
+func (s *SuiteZeroState) getBalance(address types.Address) types.Value {
+	s.T().Helper()
 
-	account, ok := suite.state.Accounts[address]
-	suite.Require().True(ok)
+	account, ok := s.state.Accounts[address]
+	s.Require().True(ok)
 	return account.Balance
 }
 
-func (suite *SuiteZeroState) TestYamlSerialization() {
+func (s *SuiteZeroState) TestYamlSerialization() {
 	orig, err := CreateDefaultZeroStateConfig(MainPublicKey)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
 	yamlData, err := yaml.Marshal(orig)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
 	deserialized := &ZeroStateConfig{}
 	err = yaml.Unmarshal(yamlData, deserialized)
-	suite.Require().NoError(err)
+	s.Require().NoError(err)
 
-	suite.Require().Equal(orig, deserialized)
+	s.Require().Equal(orig, deserialized)
 }
 
-func (suite *SuiteZeroState) TestWithdrawFromFaucet() {
-	receiverContract := suite.contracts["SimpleContract"]
-	receiverAddr := deployContract(suite.T(), receiverContract, suite.state, 2)
-	faucetBalance := suite.getBalance(suite.faucetAddr)
+func (s *SuiteZeroState) TestWithdrawFromFaucet() {
+	receiverContract := s.contracts["SimpleContract"]
+	receiverAddr := deployContract(s.T(), receiverContract, s.state, 2)
+	faucetBalance := s.getBalance(s.faucetAddr)
 
-	calldata, err := suite.faucetABI.Pack("withdrawTo", receiverAddr, big.NewInt(100))
-	suite.Require().NoError(err)
+	calldata, err := s.faucetABI.Pack("withdrawTo", receiverAddr, big.NewInt(100))
+	s.Require().NoError(err)
 
 	gasLimit := types.Gas(100_000).ToValue(types.DefaultGasPrice)
 	callTransaction := &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
 			Data:         calldata,
-			To:           suite.faucetAddr,
+			To:           s.faucetAddr,
 			FeeCredit:    gasLimit,
 			MaxFeePerGas: types.MaxFeePerGasDefault,
 		},
-		From: suite.faucetAddr,
+		From: s.faucetAddr,
 	}
-	res := suite.state.HandleTransaction(suite.ctx, callTransaction, dummyPayer{})
-	suite.Require().False(res.Failed())
+	res := s.state.AddAndHandleTransaction(s.ctx, callTransaction, dummyPayer{})
+	s.Require().False(res.Failed())
 
-	outTxnHash, ok := reflect.ValueOf(suite.state.OutTransactions).MapKeys()[0].Interface().(common.Hash)
-	suite.Require().True(ok)
-	outTxn := suite.state.OutTransactions[outTxnHash][0]
-	suite.Require().NotNil(outTxn)
+	outTxnHash, ok := reflect.ValueOf(s.state.OutTransactions).MapKeys()[0].Interface().(common.Hash)
+	s.Require().True(ok)
+	outTxn := s.state.OutTransactions[outTxnHash][0]
+	s.Require().NotNil(outTxn)
 
-	res = suite.state.HandleTransaction(suite.ctx, outTxn.Transaction, dummyPayer{})
-	suite.Require().False(res.Failed())
+	res = s.state.AddAndHandleTransaction(s.ctx, outTxn.Transaction, dummyPayer{})
+	s.Require().False(res.Failed())
 
 	faucetBalance = faucetBalance.Sub64(100)
-	newFaucetBalance := suite.getBalance(suite.faucetAddr)
-	suite.Require().Negative(newFaucetBalance.Cmp(faucetBalance))
-	suite.Require().EqualValues(types.NewValueFromUint64(100), suite.getBalance(receiverAddr))
+	newFaucetBalance := s.getBalance(s.faucetAddr)
+	s.Require().Negative(newFaucetBalance.Cmp(faucetBalance))
+	s.Require().EqualValues(types.NewValueFromUint64(100), s.getBalance(receiverAddr))
 }
 
 func TestZerostateFromConfig(t *testing.T) {
@@ -133,7 +133,9 @@ func TestZerostateFromConfig(t *testing.T) {
 
 	zeroState := &ZeroStateConfig{
 		ConfigParams: ConfigParams{
-			GasPrice: config.ParamGasPrice{Shards: []types.Uint256{*types.NewUint256(1), *types.NewUint256(2), *types.NewUint256(3)}},
+			GasPrice: config.ParamGasPrice{
+				Shards: []types.Uint256{*types.NewUint256(1), *types.NewUint256(2), *types.NewUint256(3)},
+			},
 		},
 	}
 	err = state.GenerateZeroState(zeroState)
@@ -146,7 +148,9 @@ func TestZerostateFromConfig(t *testing.T) {
 	require.NoError(t, err)
 	zeroState = &ZeroStateConfig{
 		ConfigParams: ConfigParams{
-			GasPrice: config.ParamGasPrice{Shards: []types.Uint256{*types.NewUint256(1), *types.NewUint256(2), *types.NewUint256(3)}},
+			GasPrice: config.ParamGasPrice{
+				Shards: []types.Uint256{*types.NewUint256(1), *types.NewUint256(2), *types.NewUint256(3)},
+			},
 		},
 	}
 
@@ -160,7 +164,9 @@ func TestZerostateFromConfig(t *testing.T) {
 	require.NoError(t, err)
 	zeroState = &ZeroStateConfig{
 		ConfigParams: ConfigParams{
-			GasPrice: config.ParamGasPrice{Shards: []types.Uint256{*types.NewUint256(1), *types.NewUint256(2), *types.NewUint256(3)}},
+			GasPrice: config.ParamGasPrice{
+				Shards: []types.Uint256{*types.NewUint256(1), *types.NewUint256(2), *types.NewUint256(3)},
+			},
 		},
 	}
 
@@ -175,7 +181,13 @@ func TestZerostateFromConfig(t *testing.T) {
 	zeroState = &ZeroStateConfig{
 		Contracts: []*ContractDescr{
 			{Name: "Faucet", Value: types.NewValueFromUint64(87654321), Contract: "Faucet"},
-			{Name: "MainSmartAccount", Contract: "SmartAccount", Address: smartAccountAddr, Value: types.NewValueFromUint64(12345678), CtorArgs: []any{MainPublicKey}},
+			{
+				Name:     "MainSmartAccount",
+				Contract: "SmartAccount",
+				Address:  smartAccountAddr,
+				Value:    types.NewValueFromUint64(12345678),
+				CtorArgs: []any{MainPublicKey},
+			},
 		},
 	}
 	err = state.GenerateZeroState(zeroState)
@@ -217,7 +229,10 @@ func TestZerostateFromConfig(t *testing.T) {
 	zeroState = &ZeroStateConfig{
 		Contracts: []*ContractDescr{
 			{Name: "Faucet", Value: types.NewValueFromUint64(87654321), Contract: "Faucet", Shard: 1},
-			{Name: "MainSmartAccount", Contract: "SmartAccount", Address: smartAccountAddr, Value: types.NewValueFromUint64(12345678), CtorArgs: []any{MainPublicKey}},
+			{
+				Name: "MainSmartAccount", Contract: "SmartAccount", Address: smartAccountAddr,
+				Value: types.NewValueFromUint64(12345678), CtorArgs: []any{MainPublicKey},
+			},
 		},
 	}
 

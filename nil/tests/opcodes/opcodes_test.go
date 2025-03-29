@@ -34,9 +34,26 @@ func (s *SuitOpcodes) SetupSuite() {
 
 	zeroState := &execution.ZeroStateConfig{
 		Contracts: []*execution.ContractDescr{
-			{Name: "TestSenderShard1", Contract: "tests/Sender", Address: s.senderAddress1, Value: types.NewValueFromUint64(100000000000000)},
-			{Name: "TestSmartAccountShard1", Contract: "SmartAccount", Address: s.smartAccountAddress1, Value: types.Value{}, CtorArgs: []any{execution.MainPublicKey}},
-			{Name: "TestSmartAccountShard2", Contract: "SmartAccount", Address: s.smartAccountAddress2, Value: types.Value{}, CtorArgs: []any{execution.MainPublicKey}},
+			{
+				Name:     "TestSenderShard1",
+				Contract: "tests/Sender",
+				Address:  s.senderAddress1,
+				Value:    types.NewValueFromUint64(100000000000000),
+			},
+			{
+				Name:     "TestSmartAccountShard1",
+				Contract: "SmartAccount",
+				Address:  s.smartAccountAddress1,
+				Value:    types.Value{},
+				CtorArgs: []any{execution.MainPublicKey},
+			},
+			{
+				Name:     "TestSmartAccountShard2",
+				Contract: "SmartAccount",
+				Address:  s.smartAccountAddress2,
+				Value:    types.Value{},
+				CtorArgs: []any{execution.MainPublicKey},
+			},
 		},
 	}
 

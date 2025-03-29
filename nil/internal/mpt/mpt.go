@@ -365,7 +365,9 @@ func (m *MerklePatriciaTrie) delete(nodeRef Reference, path *Path) (deleteAction
 	panic("Unreachable")
 }
 
-func (m *MerklePatriciaTrie) buildNewNodeFromLastBranch(branches *[BranchesNum]Reference) (deleteAction, deletionInfo, error) {
+func (m *MerklePatriciaTrie) buildNewNodeFromLastBranch(
+	branches *[BranchesNum]Reference,
+) (deleteAction, deletionInfo, error) {
 	// Combines nibble of the only branch left with underlying node and creates new node.
 
 	// Find the index of the only stored branch.
@@ -495,7 +497,8 @@ func (m *MerklePatriciaTrie) setBatch(nodeRef Reference, paths []*Path, values [
 	switch node := node.(type) {
 	case *LeafNode:
 		// If we're updating the leaf, there are 2 possible ways:
-		// 1. We have only one key and the node path is equal to the rest of the key. Then we should just update the value of this leaf
+		// 1. We have only one key and the node path is equal to the rest of the key. Then we should just update the
+		//    value of this leaf
 		// 2. We have at least 2 distinct keys. In that keys we need to split the node into several branches
 
 		// We have only one key to update and it's the same as stored in the node. So just update the node value
@@ -542,7 +545,8 @@ func (m *MerklePatriciaTrie) setBatch(nodeRef Reference, paths []*Path, values [
 
 	case *ExtensionNode:
 		// If we're updating an extension, there are 2 possible ways:
-		// 1. All the keys start with the extension node's path. Then we just go ahead and all the work will be done there
+		// 1. All the keys start with the extension node's path. Then we just go ahead and all the work
+		//    will be done there
 		// 2. At least one key doesn't start with extension node's path. Then we have to split extension node
 
 		if commonPrefix.StartsWith(node.Path()) {
@@ -619,7 +623,12 @@ func (m *MerklePatriciaTrie) setBatch(nodeRef Reference, paths []*Path, values [
 
 // Creates a branch node from list of keys / values. Returns a reference to created node.
 // If extension path is non-empty, first store extRef in appropriate branch
-func (m *MerklePatriciaTrie) createBranchNodeFromBatch(paths []*Path, values [][]byte, extPath *Path, extRef Reference) (Reference, error) {
+func (m *MerklePatriciaTrie) createBranchNodeFromBatch(
+	paths []*Path,
+	values [][]byte,
+	extPath *Path,
+	extRef Reference,
+) (Reference, error) {
 	if len(paths) == 0 || len(paths) != len(values) {
 		return nil, ErrInvalidArgSize
 	}

@@ -38,6 +38,8 @@ type StateDB interface {
 
 	GetSeqno(types.Address) (types.Seqno, error)
 	SetSeqno(types.Address, types.Seqno) error
+	GetExtSeqno(types.Address) (types.Seqno, error)
+	SetExtSeqno(types.Address, types.Seqno) error
 
 	GetCode(types.Address) ([]byte, common.Hash, error)
 	SetCode(types.Address, []byte) error

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.28;
 
 /// @title INilAccessControl
 /// @notice An interface that lets admin and owner of the NilRollup contract to perform access management Operations

@@ -24,7 +24,9 @@ type HttpEndpointConfig struct {
 }
 
 // StartHTTPEndpoint starts the HTTP RPC endpoint.
-func StartHTTPEndpoint(urlEndpoint string, cfg *HttpEndpointConfig, handler http.Handler) (*http.Server, net.Addr, error) {
+func StartHTTPEndpoint(
+	urlEndpoint string, cfg *HttpEndpointConfig, handler http.Handler,
+) (*http.Server, net.Addr, error) {
 	// start the HTTP listener
 	var (
 		listener net.Listener
@@ -72,21 +74,32 @@ func StartHTTPEndpoint(urlEndpoint string, cfg *HttpEndpointConfig, handler http
 }
 
 func isIgnoredHttpServerError(serveErr error) bool {
-	return errors.Is(serveErr, context.Canceled) || errors.Is(serveErr, ErrStopped) || errors.Is(serveErr, http.ErrServerClosed)
+	return errors.Is(serveErr, context.Canceled) ||
+		errors.Is(serveErr, ErrStopped) ||
+		errors.Is(serveErr, http.ErrServerClosed)
 }
 
 // CheckTimeouts ensures that timeout values are meaningful
 func CheckTimeouts(timeouts *httpcfg.HTTPTimeouts) {
 	if timeouts.ReadTimeout < time.Second {
-		log.Warn().Str("provided", timeouts.WriteTimeout.String()).Str("updated", httpcfg.DefaultHTTPTimeouts.WriteTimeout.String()).Msg("Sanitizing invalid HTTP read timeout")
+		log.Warn().
+			Str("provided", timeouts.WriteTimeout.String()).
+			Str("updated", httpcfg.DefaultHTTPTimeouts.WriteTimeout.String()).
+			Msg("Sanitizing invalid HTTP read timeout")
 		timeouts.ReadTimeout = httpcfg.DefaultHTTPTimeouts.ReadTimeout
 	}
 	if timeouts.WriteTimeout < time.Second {
-		log.Warn().Str("provided", timeouts.WriteTimeout.String()).Str("updated", httpcfg.DefaultHTTPTimeouts.WriteTimeout.String()).Msg("Sanitizing invalid HTTP write timeout")
+		log.Warn().
+			Str("provided", timeouts.WriteTimeout.String()).
+			Str("updated", httpcfg.DefaultHTTPTimeouts.WriteTimeout.String()).
+			Msg("Sanitizing invalid HTTP write timeout")
 		timeouts.WriteTimeout = httpcfg.DefaultHTTPTimeouts.WriteTimeout
 	}
 	if timeouts.IdleTimeout < time.Second {
-		log.Warn().Str("provided", timeouts.IdleTimeout.String()).Str("updated", httpcfg.DefaultHTTPTimeouts.IdleTimeout.String()).Msg("Sanitizing invalid HTTP idle timeout")
+		log.Warn().
+			Str("provided", timeouts.IdleTimeout.String()).
+			Str("updated", httpcfg.DefaultHTTPTimeouts.IdleTimeout.String()).
+			Msg("Sanitizing invalid HTTP idle timeout")
 		timeouts.IdleTimeout = httpcfg.DefaultHTTPTimeouts.IdleTimeout
 	}
 }

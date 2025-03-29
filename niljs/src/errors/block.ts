@@ -3,9 +3,9 @@ import type { Hex } from "../types/Hex.js";
 import { BaseError, type IBaseErrorParameters } from "./BaseError.js";
 
 /**
- * The interface for the parameters of the {@link BlockNotFoundError} constructor.
+ * The interface for the parameters of the block errors constructor.
  */
-type BlockNotFoundErrorParameters = {
+type BlockErrorParameters = {
   blockNumberOrHash: Hex | BlockTag;
 } & IBaseErrorParameters;
 
@@ -14,16 +14,11 @@ type BlockNotFoundErrorParameters = {
  * This error is thrown when the requested block is not found.
  */
 class BlockNotFoundError extends BaseError {
-  /**
-   * Creates an instance of BlockNotFoundError.
-   *
-   * @constructor
-   * @param {BlockNotFoundErrorParameters} param0 The error params.
-   * @param {*} param0.blockNumberOrHash The block number or hash.
-   * @param {*} param0....rest The remaining error params, see {@link IBaseErrorParameters}.
-   */
-  constructor({ blockNumberOrHash, ...rest }: BlockNotFoundErrorParameters) {
-    super(`Block not found: ${blockNumberOrHash}`, { ...rest });
+  constructor({ blockNumberOrHash, ...rest }: BlockErrorParameters) {
+    super(`Block ${blockNumberOrHash} not found.`, {
+      name: "BlockNotFoundError",
+      ...rest,
+    });
   }
 }
 

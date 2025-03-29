@@ -7,9 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	rpctest "github.com/NilFoundation/nil/nil/services/rpc"
@@ -17,6 +15,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/tests"
+	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -39,8 +38,8 @@ func (s *SyncCommitteeTestSuite) SetupSuite() {
 	nilserviceCfg := &nilservice.Config{
 		NShards:              s.nShards,
 		HttpUrl:              s.url,
-		Topology:             collate.TrivialShardTopologyId,
-		CollatorTickPeriodMs: 100,
+		CollatorTickPeriodMs: 200,
+		DisableConsensus:     true,
 	}
 
 	s.Start(nilserviceCfg)
@@ -56,7 +55,7 @@ func (s *SyncCommitteeTestSuite) SetupSuite() {
 	s.blockStorage = storage.NewBlockStorage(
 		s.scDb,
 		storage.DefaultBlockStorageConfig(),
-		common.NewTimer(),
+		clockwork.NewRealClock(),
 		syncCommitteeMetrics,
 		logging.NewLogger("sync_committee_srv_test"),
 	)
@@ -79,7 +78,11 @@ func (s *SyncCommitteeTestSuite) newService() *SyncCommittee {
 
 	cfg := NewDefaultConfig()
 	cfg.RpcEndpoint = s.url
-	ethClientMock := &rollupcontract.EthClientMock{ChainIDFunc: func(ctx context.Context) (*big.Int, error) { return big.NewInt(0), errors.New("Empty mocked call") }}
+	ethClientMock := &rollupcontract.EthClientMock{
+		ChainIDFunc: func(ctx context.Context) (*big.Int, error) {
+			return big.NewInt(0), errors.New("Empty mocked call")
+		},
+	}
 	syncCommittee, err := New(cfg, s.scDb, ethClientMock)
 	s.Require().NoError(err)
 	return syncCommittee
@@ -89,8 +92,12 @@ func (s *SyncCommitteeTestSuite) waitMainShardToProcess() {
 	s.T().Helper()
 	s.Require().Eventually(
 		func() bool {
-			lastFetched, err := s.blockStorage.TryGetLatestFetched(s.Context)
-			return err == nil && lastFetched != nil && lastFetched.Number > 0
+			latestFetched, err := s.blockStorage.GetLatestFetched(s.Context)
+			if err != nil {
+				return false
+			}
+			mainRef := latestFetched.TryGetMain()
+			return mainRef != nil && mainRef.Number > 0
 		},
 		5*time.Second,
 		100*time.Millisecond,

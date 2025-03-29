@@ -36,8 +36,9 @@ type BlockContext struct {
 	BlockNumber uint64        // Provides information for NUMBER
 	Time        uint64        // Provides information for TIME
 	BaseFee     *big.Int      // Provides information for BASEFEE (0 if vm runs with NoBaseFee flag and 0 gas price)
-	BlobBaseFee *big.Int      // Provides information for BLOBBASEFEE (0 if vm runs with NoBaseFee flag and 0 blob gas price)
-	Random      *common.Hash  // Provides information for PREVRANDAO
+	BlobBaseFee *big.Int      // Provides information for BLOBBASEFEE
+	//                           (0 if vm runs with NoBaseFee flag and 0 blob gas price)
+	Random *common.Hash // Provides information for PREVRANDAO
 
 	RollbackCounter uint32 // Provides information for rollback handling
 }
@@ -102,7 +103,13 @@ type DebugInfo struct {
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
-func NewEVM(blockContext *BlockContext, statedb StateDB, origin types.Address, gasPrice types.Value, state *EvmRestoreData) *EVM {
+func NewEVM(
+	blockContext *BlockContext,
+	statedb StateDB,
+	origin types.Address,
+	gasPrice types.Value,
+	state *EvmRestoreData,
+) *EVM {
 	evm := &EVM{
 		Context: blockContext,
 		StateDB: statedb,
@@ -125,7 +132,13 @@ func (evm *EVM) Interpreter() *EVMInterpreter {
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
-func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas uint64, value *uint256.Int) ([]byte, uint64, error) {
+func (evm *EVM) Call(
+	caller ContractRef,
+	addr types.Address,
+	input []byte,
+	gas uint64,
+	value *uint256.Int,
+) ([]byte, uint64, error) {
 	const readOnly = false
 
 	// Fail if we're trying to execute above the call depth limit
@@ -222,7 +235,13 @@ func (evm *EVM) Call(caller ContractRef, addr types.Address, input []byte, gas u
 //
 // CallCode differs from Call in the sense that it executes the given address'
 // code with the caller as context.
-func (evm *EVM) CallCode(caller ContractRef, addr types.Address, input []byte, gas uint64, value *uint256.Int) ([]byte, uint64, error) {
+func (evm *EVM) CallCode(
+	caller ContractRef,
+	addr types.Address,
+	input []byte,
+	gas uint64,
+	value *uint256.Int,
+) ([]byte, uint64, error) {
 	const readOnly = false
 
 	// Fail if we're trying to execute above the call depth limit
@@ -368,7 +387,13 @@ func (evm *EVM) StaticCall(caller ContractRef, addr types.Address, input []byte,
 }
 
 // create creates a new contract using code as deployment code.
-func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, value *uint256.Int, address types.Address) ([]byte, types.Address, uint64, error) {
+func (evm *EVM) create(
+	caller ContractRef,
+	codeAndHash types.Code,
+	gas uint64,
+	value *uint256.Int,
+	address types.Address,
+) ([]byte, types.Address, uint64, error) {
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
 	if evm.depth > int(params.CallCreateDepth) {
@@ -469,18 +494,30 @@ func (evm *EVM) create(caller ContractRef, codeAndHash types.Code, gas uint64, v
 		if !errors.Is(err, ErrExecutionReverted) {
 			contract.UseGas(contract.Gas, evm.Config.Tracer, tracing.GasChangeCallFailedExecution)
 		}
+		ret = nil
 	}
 
 	return ret, address, contract.Gas, err
 }
 
 // Deploy deploys a new contract from a deployment transaction
-func (evm *EVM) Deploy(addr types.Address, caller ContractRef, code []byte, gas uint64, value *uint256.Int) (ret []byte, deployAddr types.Address, leftOverGas uint64, err error) {
+func (evm *EVM) Deploy(
+	addr types.Address,
+	caller ContractRef,
+	code []byte,
+	gas uint64,
+	value *uint256.Int,
+) (ret []byte, deployAddr types.Address, leftOverGas uint64, err error) {
 	return evm.create(caller, code, gas, value, addr)
 }
 
 // Create creates a new contract using code as deployment code.
-func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *uint256.Int) (ret []byte, contractAddr types.Address, leftOverGas uint64, err error) {
+func (evm *EVM) Create(
+	caller ContractRef,
+	code []byte,
+	gas uint64,
+	value *uint256.Int,
+) (ret []byte, contractAddr types.Address, leftOverGas uint64, err error) {
 	payload := types.BuildDeployPayload(code, common.EmptyHash)
 	contractAddr = types.CreateAddress(caller.Address().ShardId(), payload)
 	return evm.create(caller, code, gas, value, contractAddr)
@@ -490,7 +527,13 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *uint2
 //
 // The difference between Create2 with Create is Create2 uses hash(0xff ++ msg.sender ++ salt ++ hash(init_code))[12:]
 // instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
-func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *uint256.Int, salt *uint256.Int) (ret []byte, contractAddr types.Address, leftOverGas uint64, err error) {
+func (evm *EVM) Create2(
+	caller ContractRef,
+	code []byte,
+	gas uint64,
+	endowment *uint256.Int,
+	salt *uint256.Int,
+) (ret []byte, contractAddr types.Address, leftOverGas uint64, err error) {
 	contractAddr = types.CreateAddressForCreate2(caller.Address(), code, common.BytesToHash(salt.Bytes()))
 	return evm.create(caller, code, gas, endowment, contractAddr)
 }
@@ -564,4 +607,17 @@ func (evm *EVM) SetTokenTransfer(tokens []types.TokenBalance) {
 func (evm *EVM) StopAndDumpState(continuationGasCredit types.Gas) {
 	evm.interpreter.stopAndDumpState = true
 	evm.interpreter.continuationGasCredit = continuationGasCredit
+}
+
+// GetVMContext provides context about the block being executed as well as state
+// to the tracers.
+func (evm *EVM) GetVMContext() *tracing.VMContext {
+	return &tracing.VMContext{
+		Coinbase:    evm.Context.Coinbase,
+		BlockNumber: big.NewInt(int64(evm.Context.BlockNumber)),
+		Time:        evm.Context.Time,
+		Random:      evm.Context.Random,
+		BaseFee:     evm.Context.BaseFee,
+		StateDB:     evm.StateDB,
+	}
 }

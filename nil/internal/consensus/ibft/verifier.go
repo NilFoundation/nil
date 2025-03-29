@@ -2,20 +2,35 @@ package ibft
 
 import (
 	"bytes"
+	"errors"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/go-ibft/messages"
 	protoIBFT "github.com/NilFoundation/nil/nil/go-ibft/messages/proto"
+	cerrors "github.com/NilFoundation/nil/nil/internal/collate/errors"
 	"github.com/NilFoundation/nil/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/internal/db"
 )
 
 func (i *backendIBFT) IsValidProposal(rawProposal []byte) bool {
-	proposal, err := i.unmarshalProposal(rawProposal)
+	p, err := i.unmarshalProposal(rawProposal)
 	if err != nil {
+		i.logger.Error().
+			Err(err).
+			Uint64(logging.FieldHeight, uint64(p.PrevBlockId)+1).
+			Msg("Failed to unmarshal proposal")
 		return false
 	}
 
-	_, err = i.validator.VerifyProposal(i.ctx, proposal)
+	if err = i.validator.IsValidProposal(i.ctx, p); err != nil {
+		event := i.logger.Error()
+		if errors.Is(err, cerrors.ErrOldBlock) {
+			event = i.logger.Debug()
+		}
+		event.Err(err).
+			Uint64(logging.FieldHeight, uint64(p.PrevBlockId)+1).
+			Msg("Proposal is invalid")
+	}
 	return err == nil
 }
 
@@ -107,27 +122,48 @@ func (i *backendIBFT) IsProposer(id []byte, height, round uint64) bool {
 }
 
 func (i *backendIBFT) IsValidProposalHash(proposal *protoIBFT.Proposal, hash []byte) bool {
-	prop, err := i.unmarshalProposal(proposal.RawProposal)
+	p, err := i.unmarshalProposal(proposal.RawProposal)
 	if err != nil {
 		return false
 	}
 
-	block, err := i.validator.VerifyProposal(i.ctx, prop)
-	if err != nil {
-		return false
-	}
-
-	blockHash := block.Hash(i.shardId)
-	isValid := bytes.Equal(blockHash.Bytes(), hash)
-	if !isValid {
+	if !bytes.Equal(p.BlockHash[:], hash) {
 		i.logger.Error().
-			Stringer("expected", blockHash).
+			Stringer("expected", p.BlockHash).
 			Hex("got", hash).
 			Uint64(logging.FieldRound, proposal.Round).
-			Uint64(logging.FieldHeight, uint64(prop.PrevBlockId)+1).
+			Uint64(logging.FieldHeight, uint64(p.PrevBlockId)+1).
 			Msg("Invalid proposal hash")
+		return false
 	}
-	return isValid
+
+	tx, err := i.txFabric.CreateRoTx(i.ctx)
+	if err != nil {
+		i.logger.Error().
+			Err(err).
+			Msg("Failed to create read-only transaction")
+		return false
+	}
+	defer tx.Rollback()
+
+	block, err := db.ReadBlock(tx, i.shardId, p.PrevBlockHash)
+	if err != nil {
+		i.logger.Error().
+			Err(err).
+			Stringer(logging.FieldBlockHash, p.PrevBlockHash).
+			Msg("Failed to read block")
+		return false
+	}
+
+	if block.Id != p.PrevBlockId {
+		i.logger.Error().
+			Uint64(logging.FieldHeight, uint64(p.PrevBlockId)+1).
+			Stringer(logging.FieldBlockHash, p.PrevBlockHash).
+			Msg("Block ID doesn't match")
+		return false
+	}
+
+	return true
 }
 
 func (i *backendIBFT) IsValidCommittedSeal(

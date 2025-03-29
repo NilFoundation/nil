@@ -1,4 +1,5 @@
-import { HttpTransport, PublicClient, addHexPrefix } from "@nilfoundation/niljs";
+import { HttpTransport, addHexPrefix } from "@nilfoundation/niljs";
+import { PublicClient } from "@nilfoundation/niljs";
 import { config } from "../config";
 import { bytesToHex } from "viem";
 

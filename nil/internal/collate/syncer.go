@@ -11,13 +11,14 @@ import (
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	cerrors "github.com/NilFoundation/nil/nil/internal/collate/errors"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
+	cm "github.com/NilFoundation/nil/nil/internal/network/connection_manager"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
 	"github.com/multiformats/go-multistream"
-	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -42,7 +43,7 @@ type Syncer struct {
 	db             db.DB
 	networkManager *network.Manager
 
-	logger zerolog.Logger
+	logger logging.Logger
 
 	waitForSync *sync.WaitGroup
 
@@ -137,7 +138,8 @@ func (s *Syncer) Init(ctx context.Context, allowDbDrop bool) error {
 	remoteVersion, err := s.fetchRemoteVersion(ctx)
 	if err != nil {
 		// todo: when all shards can handle the new protocol, we should return an error here
-		s.logger.Warn().Err(err).Msgf("Failed to fetch remote version. For now we assume that local version %s is up to date", version)
+		s.logger.Warn().Err(err).Msgf(
+			"Failed to fetch remote version. For now we assume that local version %s is up to date", version)
 		return nil
 	}
 	if version == remoteVersion {
@@ -197,9 +199,17 @@ func (s *Syncer) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			s.logger.Debug().Msg("Syncer is terminated")
 			return nil
-		case data := <-ch:
-			saved, err := s.processTopicTransaction(ctx, data)
+		case msg := <-ch:
+			saved, err := s.processTopicTransaction(ctx, msg.Data)
 			if err != nil {
+				if errors.As(err, new(invalidSignatureError)) {
+					peerReputationTracker := network.TryGetPeerReputationTracker(s.networkManager)
+					if peerReputationTracker != nil {
+						peerReputationTracker.ReportPeer(msg.ReceivedFrom, cm.ReputationChangeInvalidBlockSignature)
+					} else {
+						s.logger.Warn().Msg("Peer reputation tracker is not available")
+					}
+				}
 				s.logger.Error().Err(err).Msg("Failed to process topic transaction")
 			}
 			if !saved {
@@ -230,10 +240,10 @@ func (s *Syncer) processTopicTransaction(ctx context.Context, data []byte) (bool
 
 	if err := s.saveBlock(ctx, b); err != nil {
 		switch {
-		case errors.Is(err, errOutOfOrder):
+		case errors.Is(err, cerrors.ErrOutOfOrder):
 			// todo: queue the block for later processing
 			return false, nil
-		case errors.Is(err, errOldBlock):
+		case errors.Is(err, cerrors.ErrOldBlock):
 			return false, nil
 		default:
 			return false, err
@@ -256,7 +266,7 @@ func (s *Syncer) fetchBlocks(ctx context.Context) {
 		for block := range blocksCh {
 			count++
 			if err := s.saveBlock(ctx, block); err != nil {
-				if errors.Is(err, errOldBlock) {
+				if errors.Is(err, cerrors.ErrOldBlock) {
 					continue
 				}
 				s.logger.Error().
@@ -287,6 +297,9 @@ func (s *Syncer) fetchBlocksRange(ctx context.Context) <-chan *types.BlockWithEx
 	if err != nil {
 		return nil
 	}
+	check.PanicIfNotf(
+		lastBlock != nil,
+		"No last block found. If the syncers were correctly initialized, this should be impossible.")
 
 	for _, p := range peers {
 		s.logger.Trace().Msgf("Requesting blocks from %d from peer %s", lastBlock.Id+1, p)

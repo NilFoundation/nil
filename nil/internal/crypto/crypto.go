@@ -10,7 +10,8 @@ import (
 	"github.com/holiman/uint256"
 )
 
-var secp256k1N = new(uint256.Int).SetBytes(hexutil.MustDecodeHex("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"))
+var secp256k1N = new(uint256.Int).SetBytes(hexutil.MustDecodeHex(
+	"0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"))
 
 // PrivateKeyToEthereumFormat formats the private key in Ethereum format (hexadecimal)
 func PrivateKeyToEthereumFormat(priv *ecdsa.PrivateKey) string {

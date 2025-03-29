@@ -5,7 +5,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/rpc/internal/http"
-	"github.com/rs/zerolog"
 )
 
 func TestServer(t *testing.T) {
@@ -13,7 +12,7 @@ func TestServer(t *testing.T) {
 
 	http.DoTestServer(
 		t,
-		func(t *testing.T, conf *http.HttpConfig) (*http.StoppableSingleRequestServer, zerolog.Logger) {
+		func(t *testing.T, conf *http.HttpConfig) (*http.StoppableSingleRequestServer, logging.Logger) {
 			t.Helper()
 
 			logger := logging.NewLogger("Test server")

@@ -38,12 +38,20 @@ func (s *SuiteEthReceipt) SetupSuite() {
 
 	s.receipt = types.Receipt{TxnHash: s.transaction.Hash(), Logs: []*types.Log{}, OutTxnIndex: 0, OutTxnNum: 2}
 
-	s.outTransactions = append(s.outTransactions, &types.Transaction{TransactionDigest: types.TransactionDigest{Data: []byte{12}}})
-	s.outTransactions = append(s.outTransactions, &types.Transaction{TransactionDigest: types.TransactionDigest{Data: []byte{34}}})
+	s.outTransactions = append(
+		s.outTransactions,
+		&types.Transaction{
+			TransactionDigest: types.TransactionDigest{Data: []byte{12}},
+		})
+	s.outTransactions = append(
+		s.outTransactions,
+		&types.Transaction{
+			TransactionDigest: types.TransactionDigest{Data: []byte{34}},
+		})
 
 	blockRes := writeTestBlock(s.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Transaction{s.transaction},
 		[]*types.Receipt{&s.receipt}, s.outTransactions)
-	err = execution.PostprocessBlock(tx, types.BaseShardId, blockRes)
+	err = execution.PostprocessBlock(tx, types.BaseShardId, blockRes, execution.ModeVerify)
 	s.Require().NoError(err)
 
 	err = tx.Commit()

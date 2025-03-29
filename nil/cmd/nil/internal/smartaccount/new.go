@@ -58,8 +58,9 @@ func setFlags(cmd *cobra.Command) {
 func runNew(cmd *cobra.Command, _ []string, cfg *common.Config) error {
 	amount := params.newSmartAccountAmount
 	if amount.Cmp(defaultNewSmartAccountAmount) > 0 {
-		logger.Warn().
-			Msgf("The specified balance (%s) is greater than the limit (%s). Decrease it.", &params.newSmartAccountAmount, defaultNewSmartAccountAmount)
+		logger.Warn().Msgf(
+			"The specified balance (%s) is greater than the limit (%s). Decrease it.",
+			&params.newSmartAccountAmount, defaultNewSmartAccountAmount)
 		amount = defaultNewSmartAccountAmount
 	}
 

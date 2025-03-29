@@ -14,7 +14,7 @@ import {
 import { memo } from "react";
 import { useStyletron } from "styletron-react";
 import { $smartAccount } from "../../../account-connector/model";
-import { compileCodeFx, сlickOnBackButton } from "../../../code/model";
+import { clickOnBackButton, compileCodeFx } from "../../../code/model";
 import { $rpcIsHealthy } from "../../../healthcheck/model";
 import { useMobile } from "../../../shared";
 import { Contract } from "./Contract";
@@ -61,12 +61,16 @@ export const Contracts = () => {
                 style: {
                   paddingLeft: 0,
                   paddingRight: 0,
+                  backgroundColor: theme.colors.backgroundSecondary,
+                  ":hover": {
+                    backgroundColor: theme.colors.backgroundTertiary,
+                  },
                 },
               },
             }}
             kind={BUTTON_KIND.secondary}
             size={BUTTON_SIZE.compact}
-            onClick={() => сlickOnBackButton()}
+            onClick={() => clickOnBackButton()}
           >
             <ArrowUpIcon
               size={12}

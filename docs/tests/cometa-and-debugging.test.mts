@@ -10,7 +10,7 @@ import {
 
 //startNilJSImport
 import {
-  CometaService,
+  CometaClient,
   HttpTransport,
   PublicClient,
   generateSmartAccount,
@@ -100,7 +100,7 @@ describe.sequential("CLI tutorial flows pass correctly for CounterBug", () => {
 describe.skip.sequential("Nil.js correctly interacts with Cometa", () => {
   test.sequential("Nil.js passes the Cometa tutorial flow", async () => {
     //startNilJSCometaTutorialSnippet
-    const cometa = new CometaService({
+    const cometa = new CometaClient({
       transport: new HttpTransport({
         endpoint: COMETA_ENDPOINT,
       }),

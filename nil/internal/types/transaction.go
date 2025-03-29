@@ -150,7 +150,7 @@ func (k ForwardKind) Type() string {
 type TransactionDigest struct {
 	Flags                TransactionFlags `json:"flags" ch:"flags"`
 	FeeCredit            Value            `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
-	MaxPriorityFeePerGas Value            `json:"maxPriorityFeePerGas,omitempty" ch:"max_priority_fee_per_gas" ssz-size:"32"`
+	MaxPriorityFeePerGas Value            `json:"maxPriorityFeePerGas,omitempty" ch:"max_priority_fee_per_gas" ssz-size:"32"` //nolint:lll
 	MaxFeePerGas         Value            `json:"maxFeePerGas,omitempty" ch:"max_fee_per_gas" ssz-size:"32"`
 	To                   Address          `json:"to,omitempty" ch:"to"`
 	ChainId              ChainId          `json:"chainId" ch:"chainId"`
@@ -161,8 +161,8 @@ type TransactionDigest struct {
 type Transaction struct {
 	TransactionDigest
 	From     Address        `json:"from,omitempty" ch:"from"`
-	RefundTo Address        `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo Address        `json:"bounceTo,omitempty" ch:"bounceTo"`
+	RefundTo Address        `json:"refundTo,omitempty" ch:"refund_to"`
+	BounceTo Address        `json:"bounceTo,omitempty" ch:"bounce_to"`
 	Value    Value          `json:"value,omitempty" ch:"value" ssz-size:"32"`
 	Token    []TokenBalance `json:"token,omitempty" ch:"token" ssz-max:"256"`
 
@@ -183,7 +183,7 @@ type OutboundTransaction struct {
 type ExternalTransaction struct {
 	Kind                 TransactionKind `json:"kind,omitempty" ch:"kind"`
 	FeeCredit            Value           `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
-	MaxPriorityFeePerGas Value           `json:"maxPriorityFeePerGas,omitempty" ch:"max_priority_fee_per_gas" ssz-size:"32"`
+	MaxPriorityFeePerGas Value           `json:"maxPriorityFeePerGas,omitempty" ch:"max_priority_fee_per_gas" ssz-size:"32"` //nolint: lll
 	MaxFeePerGas         Value           `json:"maxFeePerGas,omitempty" ch:"max_fee_per_gas" ssz-size:"32"`
 	To                   Address         `json:"to,omitempty" ch:"to"`
 	ChainId              ChainId         `json:"chainId" ch:"chainId"`
@@ -198,8 +198,8 @@ type InternalTransactionPayload struct {
 	FeeCredit      Value           `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
 	ForwardKind    ForwardKind     `json:"forwardKind,omitempty" ch:"forward_kind"`
 	To             Address         `json:"to,omitempty" ch:"to"`
-	RefundTo       Address         `json:"refundTo,omitempty" ch:"refundTo"`
-	BounceTo       Address         `json:"bounceTo,omitempty" ch:"bounceTo"`
+	RefundTo       Address         `json:"refundTo,omitempty" ch:"refund_to"`
+	BounceTo       Address         `json:"bounceTo,omitempty" ch:"bounce_to"`
 	Token          []TokenBalance  `json:"token,omitempty" ch:"token" ssz-max:"256"`
 	Value          Value           `json:"value,omitempty" ch:"value" ssz-size:"32"`
 	Data           Code            `json:"data,omitempty" ch:"data" ssz-max:"24576"`
@@ -214,7 +214,11 @@ type FeePack struct {
 }
 
 func NewFeePackFromGas(gas Gas) FeePack {
-	return FeePack{FeeCredit: GasToValue(uint64(gas)), MaxPriorityFeePerGas: NewZeroValue(), MaxFeePerGas: MaxFeePerGasDefault}
+	return FeePack{
+		FeeCredit:            GasToValue(uint64(gas)),
+		MaxPriorityFeePerGas: NewZeroValue(),
+		MaxFeePerGas:         MaxFeePerGasDefault,
+	}
 }
 
 func NewFeePackFromFeeCredit(feeCredit Value) FeePack {
@@ -233,6 +237,10 @@ type EvmState struct {
 type AsyncRequestInfo struct {
 	Id     uint64  `json:"id"`
 	Caller Address `json:"caller"`
+}
+
+func (a AsyncRequestInfo) Value() (driver.Value, error) {
+	return []any{a.Id, a.Caller}, nil
 }
 
 // AsyncResponsePayload contains data returned in the response.
@@ -385,7 +393,8 @@ func (m *Transaction) TransactionGasPrice(baseFeePerGas Value) (Value, error) {
 	// Zero MaxFeePerGas means no limit
 	if !m.MaxFeePerGas.IsZero() && gasPrice.Cmp(m.MaxFeePerGas) > 0 {
 		if baseFeePerGas.Cmp(m.MaxFeePerGas) > 0 {
-			return Value0, fmt.Errorf("max fee per gas is less than base fee per gas: %s < %s", m.MaxFeePerGas, baseFeePerGas)
+			return Value0, fmt.Errorf(
+				"max fee per gas is less than base fee per gas: %s < %s", m.MaxFeePerGas, baseFeePerGas)
 		}
 		gasPrice = m.MaxFeePerGas
 	}

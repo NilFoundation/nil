@@ -183,7 +183,8 @@ func (s *SuiteRpc) TestRpcContractSendTransaction() {
 			receipt = s.WaitForReceipt(hash)
 			s.Require().True(receipt.Success)
 
-			balance, err := s.Client.GetBalance(s.Context, callerAddr, transport.BlockNumberOrHash{BlockHash: &receipt.BlockHash})
+			balance, err := s.Client.GetBalance(
+				s.Context, callerAddr, transport.BlockNumberOrHash{BlockHash: &receipt.BlockHash})
 			s.Require().NoError(err)
 			s.Require().Greater(prevBalance.Uint64(), balance.Uint64())
 			s.T().Logf("Spent %v nil", prevBalance.Uint64()-balance.Uint64())
@@ -192,7 +193,7 @@ func (s *SuiteRpc) TestRpcContractSendTransaction() {
 			// - `GasToValue(feeCredit)`, cause we buy that amount of gas to send cross-shard transaction
 			// - `GasToValue(feeCredit)`, cause it's set in our ExternalTransaction
 			// - some amount to verify the ext transaction. depends on current implementation
-			minimalExpectedBalance := prevBalance.Uint64() - 2*s.GasToValue(feeCredit).Uint64() - callValue - extTransactionVerificationFee
+			minimalExpectedBalance := prevBalance.Uint64() - 2*s.GasToValue(feeCredit).Uint64() - callValue - extTransactionVerificationFee //nolint: lll
 			s.Require().GreaterOrEqual(balance.Uint64(), minimalExpectedBalance)
 
 			// we should get some non-zero refund
@@ -240,7 +241,8 @@ func (s *SuiteRpc) TestRpcContractSendTransaction() {
 			// - `GasToValue(feeCredit)`, cause we buy that amount of gas to send cross-shard transaction
 			// - `GasToValue(feeCredit)`, cause it's set in our ExternalTransaction
 			// - some amount to verify the ext transaction. depends on current implementation
-			waitTilBalanceAtLeast(prevBalance.Uint64() - 2*s.GasToValue(feeCredit).Uint64() - callValue - extTransactionVerificationFee)
+			waitTilBalanceAtLeast(
+				prevBalance.Uint64() - 2*s.GasToValue(feeCredit).Uint64() - callValue - extTransactionVerificationFee)
 		})
 	}
 
@@ -254,8 +256,14 @@ func (s *SuiteRpc) TestRpcContractSendTransaction() {
 
 	s.Run("SendToNonExistingShard", func() {
 		shardId := types.ShardId(1050)
-		receipt := s.SendTransactionViaSmartAccountNoCheck(types.MainSmartAccountAddress, types.GenerateRandomAddress(shardId),
-			execution.MainPrivateKey, nil, types.NewFeePackFromGas(100_000), types.NewValueFromUint64(100_000), nil)
+		receipt := s.SendTransactionViaSmartAccountNoCheck(
+			types.MainSmartAccountAddress,
+			types.GenerateRandomAddress(shardId),
+			execution.MainPrivateKey,
+			nil,
+			types.NewFeePackFromGas(100_000),
+			types.NewValueFromUint64(100_000),
+			nil)
 		s.Require().False(receipt.Success)
 		s.Equal("ShardIdIsTooBig", receipt.Status)
 	})
@@ -555,7 +563,8 @@ func (s *SuiteRpc) TestAsyncAwaitCall() {
 
 		addCalldata := contracts.NewCounterAddCallData(s.T(), 123)
 		getCalldata := contracts.NewCounterGetCallData(s.T())
-		receipt := s.SendTransactionViaSmartAccount(types.MainSmartAccountAddress, addrCounter, execution.MainPrivateKey, addCalldata)
+		receipt := s.SendTransactionViaSmartAccount(
+			types.MainSmartAccountAddress, addrCounter, execution.MainPrivateKey, addCalldata)
 		s.Require().True(receipt.IsCommitted())
 
 		getCallArgs := &jsonrpc.CallArgs{
@@ -622,7 +631,11 @@ func (s *SuiteRpc) TestInvalidTransactionExternalDeployment() {
 	s.Require().NoError(err)
 
 	smartAccount := types.MainSmartAccountAddress
-	hash, err := s.Client.SendExternalTransaction(s.Context, calldataExt, smartAccount, execution.MainPrivateKey,
+	hash, err := s.Client.SendExternalTransaction(
+		s.Context,
+		calldataExt,
+		smartAccount,
+		execution.MainPrivateKey,
 		types.NewFeePackFromGas(100_000))
 	s.Require().NoError(err)
 	s.Require().NotEmpty(hash)
@@ -640,7 +653,10 @@ func (s *SuiteRpc) TestNoOutTransactionsIfFailure() {
 	abi, err := contracts.GetAbi(contracts.NameTest)
 	s.Require().NoError(err)
 
-	addr, receipt := s.DeployContractViaMainSmartAccount(2, types.BuildDeployPayload(code, common.EmptyHash), tests.DefaultContractValue)
+	addr, receipt := s.DeployContractViaMainSmartAccount(
+		2,
+		types.BuildDeployPayload(code, common.EmptyHash),
+		tests.DefaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	// Call Test contract with invalid argument, so no output transactions should be generated
@@ -674,17 +690,29 @@ func (s *SuiteRpc) TestMultipleRefunds() {
 	var leftShardId types.ShardId = 1
 	var rightShardId types.ShardId = 2
 
-	_, receipt := s.DeployContractViaMainSmartAccount(leftShardId, types.BuildDeployPayload(code, common.EmptyHash), tests.DefaultContractValue)
+	_, receipt := s.DeployContractViaMainSmartAccount(
+		leftShardId,
+		types.BuildDeployPayload(code, common.EmptyHash),
+		tests.DefaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
-	_, receipt = s.DeployContractViaMainSmartAccount(rightShardId, types.BuildDeployPayload(code, common.EmptyHash), tests.DefaultContractValue)
+	_, receipt = s.DeployContractViaMainSmartAccount(
+		rightShardId,
+		types.BuildDeployPayload(code, common.EmptyHash),
+		tests.DefaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
 }
 
 func (s *SuiteRpc) TestRpcBlockContent() {
 	// Deploy transaction
-	hash, _, err := s.Client.DeployContract(s.Context, types.BaseShardId, types.MainSmartAccountAddress,
-		contracts.CounterDeployPayload(s.T()), types.Value{}, types.NewFeePackFromGas(1_000_000), execution.MainPrivateKey)
+	hash, _, err := s.Client.DeployContract(
+		s.Context,
+		types.BaseShardId,
+		types.MainSmartAccountAddress,
+		contracts.CounterDeployPayload(s.T()),
+		types.Value{},
+		types.NewFeePackFromGas(1_000_000),
+		execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	var block *jsonrpc.RPCBlock
@@ -706,8 +734,14 @@ func (s *SuiteRpc) TestRpcBlockContent() {
 
 func (s *SuiteRpc) TestRpcTransactionContent() {
 	shardId := types.ShardId(3)
-	hash, _, err := s.Client.DeployContract(s.Context, shardId, types.MainSmartAccountAddress,
-		contracts.CounterDeployPayload(s.T()), types.Value{}, types.NewFeePackFromGas(1_000_000), execution.MainPrivateKey)
+	hash, _, err := s.Client.DeployContract(
+		s.Context,
+		shardId,
+		types.MainSmartAccountAddress,
+		contracts.CounterDeployPayload(s.T()),
+		types.Value{},
+		types.NewFeePackFromGas(1_000_000),
+		execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.WaitForReceipt(hash)
@@ -789,7 +823,8 @@ func (s *SuiteRpc) TestDebugLogs() {
 	abi, err := contracts.GetAbi(contracts.NameTest)
 	s.Require().NoError(err)
 
-	addr, receipt := s.DeployContractViaMainSmartAccount(2, types.BuildDeployPayload(code, common.EmptyHash), tests.DefaultContractValue)
+	addr, receipt := s.DeployContractViaMainSmartAccount(
+		2, types.BuildDeployPayload(code, common.EmptyHash), tests.DefaultContractValue)
 	s.Require().True(receipt.AllSuccess())
 
 	s.Run("DebugLog in successful transaction", func() {
@@ -841,7 +876,9 @@ func (s *SuiteRpc) TestPanicsInDb() {
 	abi, err := contracts.GetAbi(contracts.NameTest)
 	s.Require().NoError(err)
 
-	addr, receipt := s.DeployContractViaMainSmartAccount(types.ShardId(3), types.BuildDeployPayload(code, common.EmptyHash),
+	addr, receipt := s.DeployContractViaMainSmartAccount(
+		types.ShardId(3),
+		types.BuildDeployPayload(code, common.EmptyHash),
 		tests.DefaultContractValue)
 	s.Require().True(receipt.AllSuccess())
 
@@ -856,7 +893,9 @@ func (s *SuiteRpc) TestPanicsInDb() {
 		if strings.Contains(string(buf), "nil/internal/execution.NewBlockGenerator(") {
 			// Create mock tx only for a block generation
 			txMock := db.NewTxMock(tx)
-			txMock.GetFromShardFunc = func(shardId types.ShardId, tableName db.ShardedTableName, key []byte) ([]byte, error) {
+			txMock.GetFromShardFunc = func(
+				shardId types.ShardId, tableName db.ShardedTableName, key []byte,
+			) ([]byte, error) {
 				buf := getCallStack()
 				if strings.Contains(string(buf), "(*ExecutionState).handleExecutionTransaction") {
 					// Panic only when we execute a transaction

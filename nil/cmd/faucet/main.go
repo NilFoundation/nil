@@ -71,7 +71,11 @@ func parseArgs() *config {
 	}
 	rootCmd.AddCommand(runCmd)
 
-	logLevel := rootCmd.PersistentFlags().StringP("log-level", "l", "info", "log level: trace|debug|info|warn|error|fatal|panic")
+	logLevel := rootCmd.PersistentFlags().StringP(
+		"log-level",
+		"l",
+		"info",
+		"log level: trace|debug|info|warn|error|fatal|panic")
 	logging.SetupGlobalLogger(*logLevel)
 
 	check.PanicIfErr(rootCmd.Execute())

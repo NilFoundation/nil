@@ -35,11 +35,19 @@ message TokensResponse {
   }
 }
 
+message AsyncContext {
+  bool isAwait = 1;
+  bytes data = 2;
+  uint64 responseProcessingGas = 3;
+}
+
 message RawContract {
   bytes contractSSZ = 1;
   bytes code = 2;
   bytes proofEncoded = 3;
   map<string, Uint256> storage = 4;
+  map<string, Uint256> tokens = 5;
+  map<uint64, AsyncContext> asyncContext = 6;
 }
 
 message RawContractResponse {

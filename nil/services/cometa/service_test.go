@@ -100,6 +100,39 @@ func (s *SuiteServiceTest) TestCase2() {
 	s.Require().NotEmpty(jsonContract)
 }
 
+func (s *SuiteServiceTest) TestSolidityInput() {
+	task := s.getCompilerTask("input_solc_json")
+
+	contractData, err := Compile(task)
+	s.Require().NoError(err)
+
+	code := contractData.Code
+	address := types.CreateAddress(types.ShardId(1), types.BuildDeployPayload(code, common.EmptyHash))
+
+	s.client.GetCodeFunc = func(ctx context.Context, addr types.Address, blockId any) (types.Code, error) {
+		s.Require().Equal(address, addr)
+		return code, nil
+	}
+
+	err = s.service.RegisterContractData(s.ctx, contractData, address)
+	s.Require().NoError(err)
+
+	contract, err := s.service.GetContractControl(s.ctx, address)
+	s.Require().NoError(err)
+
+	s.Require().Equal(contractData.Name, task.ContractName)
+	s.Require().Equal(contractData, contract.Data)
+
+	loc, err := s.service.GetLocation(s.ctx, address, 0)
+	s.Require().NoError(err)
+	s.Require().NotNil(loc)
+	s.Require().Equal("Test.sol:3, function: #function_selector", loc.String())
+
+	jsonContract, err := s.service.GetContractAsJson(s.ctx, address)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(jsonContract)
+}
+
 // TestTwinContracts checks that the same contract is returned for the same code
 func (s *SuiteServiceTest) TestTwinContracts() {
 	task := s.getCompilerTask("input_1")

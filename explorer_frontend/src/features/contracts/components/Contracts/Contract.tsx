@@ -7,10 +7,11 @@ import {
   HeadingMedium,
   SPACE,
 } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { FC } from "react";
-import { useStyletron } from "styletron-react";
-import type { App } from "../../../../types";
+
+import type { App } from "../../../code/types";
 import { choseApp } from "../../models/base";
 import { RemoveAppButton } from "../RemoveAppButton";
 
@@ -21,7 +22,7 @@ type ContractProps = {
 };
 
 export const Contract: FC<ContractProps> = ({ contract, deployedApps, disabled }) => {
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
 
   return (
     <div
@@ -81,14 +82,14 @@ export const Contract: FC<ContractProps> = ({ contract, deployedApps, disabled }
                 flexDirection: "row",
                 alignItems: "center",
                 gap: "8px",
-                backgroundColor: COLORS.gray800,
+                backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundColor,
                 ...expandProperty("padding", "12px 16px"),
                 ...expandProperty("borderRadius", "8px"),
                 ...expandProperty("transition", "background-color 0.15s ease-in"),
                 ":hover": {
-                  ...(disabled
-                    ? { backgroundColor: COLORS.gray800 }
-                    : { backgroundColor: COLORS.gray700 }),
+                  backgroundColor: disabled
+                    ? theme.colors.inputButtonAndDropdownOverrideBackgroundColor
+                    : theme.colors.inputButtonAndDropdownOverrideBackgroundHoverColor,
                 },
                 cursor: disabled ? "auto" : "pointer",
                 ":first-child": {
@@ -127,8 +128,13 @@ export const Contract: FC<ContractProps> = ({ contract, deployedApps, disabled }
                   overrides={{
                     Root: {
                       style: {
-                        height: "40px",
-                        width: "40px",
+                        height: theme.sizes.copyButton,
+                        width: theme.sizes.copyButton,
+                        backgroundColor: theme.colors.contractHeaderButtonBackgroundColor,
+                        ":hover": {
+                          backgroundColor: theme.colors.contractHeaderButtonBackgroundHoverColor,
+                        },
+                        marginRight: theme.margins.marginRightCopyButton,
                       },
                     },
                   }}

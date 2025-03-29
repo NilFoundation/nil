@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/internal/telemetry/telattr"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport/rpccfg"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
@@ -29,7 +31,8 @@ type handler struct {
 	rootCtx    context.Context // canceled by close()
 	cancelRoot func()          // cancel function for rootCtx
 	conn       JsonWriter      // where responses will be sent
-	logger     zerolog.Logger
+	logger     logging.Logger
+	mh         *metricsHandler
 
 	maxBatchConcurrency uint
 	traceRequests       bool
@@ -74,15 +77,25 @@ func HandleError(err error, stream *jsoniter.Stream) {
 	stream.WriteObjectEnd()
 }
 
-func newHandler(connCtx context.Context, conn JsonWriter, reg *serviceRegistry, maxBatchConcurrency uint, traceRequests bool, logger zerolog.Logger, rpcSlowLogThreshold time.Duration) *handler {
+func newHandler(
+	connCtx context.Context,
+	conn JsonWriter,
+	reg *serviceRegistry,
+	maxBatchConcurrency uint,
+	traceRequests bool,
+	logger logging.Logger,
+	rpcSlowLogThreshold time.Duration,
+	mh *metricsHandler,
+) *handler {
 	rootCtx, cancelRoot := context.WithCancel(connCtx)
 
-	h := &handler{
+	return &handler{
 		reg:        reg,
 		conn:       conn,
 		rootCtx:    rootCtx,
 		cancelRoot: cancelRoot,
 		logger:     logger,
+		mh:         mh,
 
 		maxBatchConcurrency: maxBatchConcurrency,
 		traceRequests:       traceRequests,
@@ -91,8 +104,6 @@ func newHandler(connCtx context.Context, conn JsonWriter, reg *serviceRegistry, 
 		slowLogBlacklist:  rpccfg.SlowLogBlackList,
 		heavyLogBlacklist: rpccfg.HeavyLogMethods,
 	}
-
-	return h
 }
 
 // some requests have heavy params which make logs harder to read
@@ -227,7 +238,7 @@ func (h *handler) handleCallMsg(ctx context.Context, msg *Message, stream *jsoni
 		}
 
 		if resp != nil && resp.Error != nil {
-			h.log(zerolog.InfoLevel, msg, "Served with error: "+resp.Error.Message, requestDuration)
+			h.log(zerolog.ErrorLevel, msg, "Served with error: "+resp.Error.Message, requestDuration)
 		}
 
 		if resp != nil && resp.Result != nil {
@@ -254,11 +265,26 @@ func (h *handler) handleCall(ctx context.Context, msg *Message, stream *jsoniter
 	if err != nil {
 		return msg.errorResponse(&InvalidParamsError{err.Error()})
 	}
-	return h.runMethod(ctx, msg, callb, args, stream)
+	methodOAttr := telattr.RpcMethod(msg.Method)
+	measurer, err := telemetry.NewMeasurer(h.mh.meter, "rpc", methodOAttr)
+	if err == nil {
+		defer measurer.Measure(ctx)
+	}
+	result := h.runMethod(ctx, msg, callb, args, stream)
+	if result != nil && result.Error != nil {
+		h.mh.failed.Add(ctx, 1, telattr.With(methodOAttr))
+	}
+	return result
 }
 
 // runMethod runs the Go callback for an RPC method.
-func (h *handler) runMethod(ctx context.Context, msg *Message, callb *callback, args []reflect.Value, stream *jsoniter.Stream) *Message {
+func (h *handler) runMethod(
+	ctx context.Context,
+	msg *Message,
+	callb *callback,
+	args []reflect.Value,
+	stream *jsoniter.Stream,
+) *Message {
 	if !callb.streamable {
 		result, err := callb.call(ctx, msg.Method, args, stream)
 		if err != nil {

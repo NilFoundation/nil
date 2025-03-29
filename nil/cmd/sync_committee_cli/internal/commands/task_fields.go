@@ -22,9 +22,6 @@ var TaskViewFields = map[TaskField]struct {
 }{
 	"Id":          {func(task *public.TaskView) string { return task.Id.String() }, true},
 	"BatchId":     {func(task *public.TaskView) string { return task.BatchId.String() }, false},
-	"ShardId":     {func(task *public.TaskView) string { return task.ShardId.String() }, true},
-	"BlockNumber": {func(task *public.TaskView) string { return task.BlockNumber.String() }, true},
-	"BlockHash":   {func(task *public.TaskView) string { return task.BlockHash.String() }, false},
 	"Type":        {func(task *public.TaskView) string { return task.Type.String() }, true},
 	"CircuitType": {func(task *public.TaskView) string { return task.CircuitType.String() }, true},
 	"CreatedAt":   {func(task *public.TaskView) string { return task.CreatedAt.Format(timeFormat) }, true},

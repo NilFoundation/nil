@@ -76,7 +76,11 @@ func (c *Client) sendRequest(method string, params []any) (json.RawMessage, erro
 	return rpcResponse["result"], nil
 }
 
-func (c *Client) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error) {
+func (c *Client) TopUpViaFaucet(
+	faucetAddress types.Address,
+	contractAddressTo types.Address,
+	amount types.Value,
+) (common.Hash, error) {
 	response, err := c.sendRequest("faucet_topUpViaFaucet", []any{faucetAddress, contractAddressTo, amount})
 	if err != nil {
 		return common.EmptyHash, err

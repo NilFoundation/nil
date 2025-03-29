@@ -12,10 +12,10 @@ import {
   PlusIcon,
   StatefulTooltip,
 } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import type { ButtonOverrides } from "baseui/button";
 import { useUnit } from "effector-react";
 import { useEffect, useState } from "react";
-import { useStyletron } from "styletron-react";
 import { formatEther } from "viem";
 import { $rpcIsHealthy } from "../../healthcheck/model";
 import { OverflowEllipsis, useMobile } from "../../shared";
@@ -46,7 +46,7 @@ const btnOverrides: ButtonOverrides = {
 };
 
 const MainScreen = () => {
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
   const [copied, setCopied] = useState(false);
   const rpcUrl = useUnit($rpcUrl);
   const latestActivity = useUnit($latestActivity);
@@ -117,7 +117,7 @@ const MainScreen = () => {
           alignItems: "center",
           gap: "24px",
           top: 0,
-          backgroundColor: COLORS.gray800,
+          backgroundColor: theme.colors.backgroundSecondary,
         })}
       >
         <LabelLarge>Smart Account</LabelLarge>
@@ -155,11 +155,11 @@ const MainScreen = () => {
                   style: {
                     flex: 1,
                     height: "48px",
-                    background: COLORS.gray700,
-                    boxShadow: "none",
+                    backgroundColor: theme.colors.rpcUrlBackgroundColor,
                     ":hover": {
-                      background: COLORS.gray600,
+                      backgroundColor: theme.colors.rpcUrlBackgroundHoverColor,
                     },
+                    boxShadow: "none",
                   },
                 },
               }}

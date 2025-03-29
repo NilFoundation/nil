@@ -92,7 +92,8 @@ func (bb *builder) MakeBlobs(rd io.Reader, blobLimit int) ([]kzg4844.Blob, error
 		}
 	}
 	if !eof {
-		return nil, fmt.Errorf("provided batch does not fit into %d blobs (%d bytes) [written = %d bits] [align = %d bits]",
+		return nil, fmt.Errorf(
+			"provided batch does not fit into %d blobs (%d bytes) [written = %d bits] [align = %d bits]",
 			blobLimit, blobSize*blobLimit, writtenBits, align)
 	}
 	return blobs, nil

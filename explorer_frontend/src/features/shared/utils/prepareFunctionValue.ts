@@ -1,4 +1,4 @@
-import type { InputParameter } from "../../../types";
+import type { InputParameter } from "../../code/types";
 
 export enum SimpleType {
   uint = "uint",

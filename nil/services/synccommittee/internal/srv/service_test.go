@@ -11,7 +11,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -23,7 +22,7 @@ type ServiceTestSuite struct {
 	ctx          context.Context
 	cancellation context.CancelFunc
 
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
 func TestServiceTestSuite(t *testing.T) {
@@ -236,7 +235,10 @@ func (s *ServiceTestSuite) runWorkersAndReturnErrAt(testCase runAndCancelTestCas
 				close(started)
 
 				<-ctx.Done()
-				s.Equal(worker.Name(), activeWorkersStack[len(activeWorkersStack)-1], "worker termination order is not preserved")
+				s.Equal(
+					worker.Name(),
+					activeWorkersStack[len(activeWorkersStack)-1],
+					"worker termination order is not preserved")
 				activeWorkersStack = activeWorkersStack[:len(activeWorkersStack)-1]
 				return ctx.Err()
 			},

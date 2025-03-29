@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common/heap"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler/heap"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
@@ -40,7 +40,11 @@ type TaskScheduler interface {
 type Storage interface {
 	TryGetTaskEntry(ctx context.Context, id types.TaskId) (*types.TaskEntry, error)
 
-	GetTaskViews(ctx context.Context, destination interface{ Add(task *public.TaskView) }, predicate func(*public.TaskView) bool) error
+	GetTaskViews(
+		ctx context.Context,
+		destination interface{ Add(task *public.TaskView) },
+		predicate func(*public.TaskView) bool,
+	) error
 
 	GetTaskTreeView(ctx context.Context, taskId types.TaskId) (*public.TaskTreeView, error)
 
@@ -59,7 +63,7 @@ func New(
 	storage Storage,
 	stateHandler api.TaskStateChangeHandler,
 	metrics Metrics,
-	logger zerolog.Logger,
+	logger logging.Logger,
 ) TaskScheduler {
 	scheduler := &taskSchedulerImpl{
 		storage:      storage,
@@ -68,7 +72,8 @@ func New(
 		metrics:      metrics,
 	}
 
-	scheduler.WorkerLoop = srv.NewWorkerLoop("task_scheduler", scheduler.config.taskCheckInterval, scheduler.runIteration)
+	scheduler.WorkerLoop = srv.NewWorkerLoop(
+		"task_scheduler", scheduler.config.taskCheckInterval, scheduler.runIteration)
 	scheduler.logger = srv.WorkerLogger(logger, scheduler)
 	return scheduler
 }
@@ -80,7 +85,7 @@ type taskSchedulerImpl struct {
 	stateHandler api.TaskStateChangeHandler
 	config       Config
 	metrics      Metrics
-	logger       zerolog.Logger
+	logger       logging.Logger
 }
 
 func (s *taskSchedulerImpl) runIteration(ctx context.Context) {
@@ -127,7 +132,8 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 	}
 
 	if entry == nil {
-		log.NewTaskResultEvent(s.logger, zerolog.WarnLevel, result).Msg("received task result update for unknown task id")
+		log.NewTaskResultEvent(s.logger, zerolog.WarnLevel, result).
+			Msg("received task result update for unknown task id")
 		return nil
 	}
 
@@ -146,7 +152,10 @@ func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.Tas
 	return nil
 }
 
-func (s *taskSchedulerImpl) GetTasks(ctx context.Context, request *public.TaskDebugRequest) ([]*public.TaskView, error) {
+func (s *taskSchedulerImpl) GetTasks(
+	ctx context.Context,
+	request *public.TaskDebugRequest,
+) ([]*public.TaskView, error) {
 	if err := request.Validate(); err != nil {
 		return nil, err
 	}

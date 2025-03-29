@@ -57,7 +57,9 @@ func NewTxMock(tx RwTx) *RwTxMock {
 		GetFromShardFunc: func(shardId types.ShardId, tableName ShardedTableName, key []byte) ([]byte, error) {
 			return tx.GetFromShard(shardId, tableName, key)
 		},
-		RangeByShardFunc: func(shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte) (Iter, error) {
+		RangeByShardFunc: func(
+			shardId types.ShardId, tableName ShardedTableName, from []byte, to []byte,
+		) (Iter, error) {
 			return tx.RangeByShard(shardId, tableName, from, to)
 		},
 		ReadTimestampFunc: func() Timestamp {

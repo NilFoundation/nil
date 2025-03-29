@@ -1,0 +1,7 @@
+mode: devnet
+endpoint: http://127.0.0.1:8529
+devnetFile: ./devnet.yaml
+workingDir: ./
+nildPath: ./build/bin/nild
+numShards: 5
+workloadFile: ./workload.yaml

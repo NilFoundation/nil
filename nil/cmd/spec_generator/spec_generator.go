@@ -146,7 +146,9 @@ func generateComponentsFromFile(filename string) map[string]Component {
 		if line == "" {
 			continue
 		}
-		compMatch := regexp.MustCompile(`^\s*\/\/\s*@component\s+(\w+)\s+(\w+)\s+(\w+)\s+"([^"]+)"`).FindStringSubmatch(line)
+		compMatch := regexp.
+			MustCompile(`^\s*\/\/\s*@component\s+(\w+)\s+(\w+)\s+(\w+)\s+"([^"]+)"`).
+			FindStringSubmatch(line)
 		if len(compMatch) == 5 {
 			name := compMatch[1]
 			title := compMatch[2]
@@ -168,7 +170,9 @@ func generateComponentsFromFile(filename string) map[string]Component {
 		}
 
 		if inObjectComponent {
-			propMatch := regexp.MustCompile(`^\s*\/\/\s*@componentprop\s+(\w+)\s+(\w+)\s+(\w+)\s+(true|false)\s+"([^"]+)"`).FindStringSubmatch(line)
+			propMatch := regexp.
+				MustCompile(`^\s*\/\/\s*@componentprop\s+(\w+)\s+(\w+)\s+(\w+)\s+(true|false)\s+"([^"]+)"`).
+				FindStringSubmatch(line)
 			if len(propMatch) == 6 {
 				propName := propMatch[1]
 				propTitle := propMatch[2]

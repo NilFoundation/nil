@@ -1,5 +1,5 @@
 import {
-  type CometaService,
+  type CometaClient,
   type Hex,
   HttpTransport,
   PublicClient,
@@ -14,9 +14,10 @@ import {
 import type { Abi, Address } from "abitype";
 import { combine, createEffect, createEvent, createStore } from "effector";
 import { ethers } from "ethers";
-import type { App } from "../../../types";
+import type { App } from "../../code/types";
 import { createCompileInput } from "../../shared/utils/solidityCompiler/helper";
 import { ActiveComponent } from "../components/Deploy/ActiveComponent";
+import type { CallParams } from "../types";
 
 export type DeployedApp = App & {
   address: Address;
@@ -88,6 +89,30 @@ export const triggerShardIdValidation = createEvent();
 export const $deploySmartContractError = createStore<string | null>(null);
 
 export const deploySmartContract = createEvent();
+
+export const deployContractFunction = async ({ app, args, smartAccount, shardId }) => {
+  const salt = BigInt(Math.floor(Math.random() * 10000000000000000));
+
+  const { hash, address } = await smartAccount.deployContract({
+    bytecode: app.bytecode,
+    abi: app.abi,
+    args,
+    salt,
+    shardId,
+    feeCredit: convertEthToWei(0.0002),
+  });
+
+  await waitTillCompleted(smartAccount.client, hash);
+
+  return {
+    address,
+    app: app.bytecode,
+    name: app.name,
+    deployedFrom: smartAccount.address,
+    txHash: hash,
+  };
+};
+
 export const deploySmartContractFx = createEffect<
   {
     app: App;
@@ -103,26 +128,7 @@ export const deploySmartContractFx = createEffect<
     txHash: Hex;
   }
 >(async ({ app, args, smartAccount, shardId }) => {
-  const salt = BigInt(Math.floor(Math.random() * 10000000000000000));
-
-  const { hash, address } = await smartAccount.deployContract({
-    bytecode: app.bytecode,
-    abi: app.abi,
-    args,
-    salt,
-    shardId,
-    feeCredit: convertEthToWei(0.00001),
-  });
-
-  await waitTillCompleted(smartAccount.client, hash);
-
-  return {
-    address,
-    app: app.bytecode,
-    name: app.name,
-    deployedFrom: smartAccount.address,
-    txHash: hash,
-  };
+  return await deployContractFunction({ app, args, smartAccount, shardId });
 });
 
 export const registerContractInCometaFx = createEffect<
@@ -130,12 +136,11 @@ export const registerContractInCometaFx = createEffect<
     name: string;
     app: App;
     address: Hex;
-    cometaService: CometaService;
+    cometaClient: CometaClient;
     solidityVersion: string;
   },
   void
->(async ({ name, app, address, cometaService, solidityVersion }) => {
-  console.log("Registering contract in cometa", app, address, solidityVersion, cometaService);
+>(async ({ name, app, address, cometaClient, solidityVersion }) => {
   const result = createCompileInput(app.sourcecode);
 
   const refinedSolidityVersion = solidityVersion.match(/\d+\.\d+\.\d+/)?.[0] || "";
@@ -146,9 +151,7 @@ export const registerContractInCometaFx = createEffect<
     compilerVersion: refinedSolidityVersion,
   };
 
-  console.log("Refined result", refinedResult);
-
-  await cometaService.registerContract(JSON.stringify(refinedResult), address);
+  await cometaClient.registerContract(JSON.stringify(refinedResult), address);
 });
 
 export const $importedSmartContractAddress = createStore<Hex>("" as Hex);
@@ -266,12 +269,19 @@ export const $activeKeys = createStore<Record<string, boolean>>({});
 
 export const toggleActiveKey = createEvent<string>();
 
-export const $callParams = createStore<Record<string, Record<string, unknown>>>({});
+export const $callParams = createStore<CallParams>({});
 
 export const setParams = createEvent<{
   functionName: string;
   paramName: string;
-  value: unknown;
+  value:
+    | string
+    | boolean
+    | {
+        type: string;
+        value: string | boolean;
+      }[];
+  type: string;
 }>();
 
 export const $callResult = createStore<Record<string, unknown>>({});
@@ -386,24 +396,29 @@ export const unlinkApp = createEvent<{
 }>();
 
 export const $valueInputs = createStore<
-  {
-    token: string;
-    amount: string;
-  }[]
->([
-  {
-    token: "NIL",
-    amount: "0",
-  },
-]);
+  Array<{
+    values: {
+      token: string;
+      amount: string;
+    }[];
+    functionName: string;
+  }>
+>([]);
 
 export const setValueInput = createEvent<{
+  functionName: string;
   index: number;
   token: string;
   amount: string;
 }>();
-export const addValueInput = createEvent<string[]>();
-export const removeValueInput = createEvent<number>();
+export const addValueInput = createEvent<{
+  functionName: string;
+  availableTokens: string[];
+}>();
+export const removeValueInput = createEvent<{
+  functionName: string;
+  index: number;
+}>();
 
 export const $activeComponent = createStore<ActiveComponent>(ActiveComponent.Deploy);
 export const setActiveComponent = createEvent<ActiveComponent>();

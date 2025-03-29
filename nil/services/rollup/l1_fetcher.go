@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	l1types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/rs/zerolog"
 )
 
 //go:generate go run github.com/matryer/moq -out l1_fetcher_generated_mock.go -rm -stub -with-resets . L1BlockFetcher
@@ -25,7 +24,7 @@ type L1BlockFetcher interface {
 type L1BlockFetcherRpc struct {
 	client    *rpc.Client
 	header    *l1types.Header
-	logger    zerolog.Logger
+	logger    logging.Logger
 	nodeIndex int
 	lock      sync.RWMutex
 }

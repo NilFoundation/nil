@@ -5,10 +5,10 @@ import (
 	"context"
 	"io"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
-	"github.com/rs/zerolog"
 )
 
 type BatchCommitter interface {
@@ -31,7 +31,7 @@ type batchCommitter struct {
 	encoder      batchEncoder
 	blobBuilder  blobBuilder
 	ethCommitter ethCommitter
-	logger       zerolog.Logger
+	logger       logging.Logger
 	options      *commitOptions
 }
 
@@ -39,7 +39,7 @@ func NewBatchCommitter(
 	encoder batchEncoder,
 	blobBuilder blobBuilder,
 	ethCommitter ethCommitter,
-	logger zerolog.Logger,
+	logger logging.Logger,
 	options *commitOptions,
 ) BatchCommitter {
 	return &batchCommitter{

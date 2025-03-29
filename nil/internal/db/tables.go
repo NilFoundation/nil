@@ -17,22 +17,26 @@ const (
 	codeTable            = ShardedTableName("Code")
 	shardBlocksTrieTable = ShardedTableName("ShardBlocksTrie")
 
-	ContractTrieTable                                = ShardedTableName("ContractTrie")
-	StorageTrieTable                                 = ShardedTableName("StorageTrie")
-	TransactionTrieTable                             = ShardedTableName("TransactionTrie")
-	ReceiptTrieTable                                 = ShardedTableName("ReceiptTrie")
-	TokenTrieTable                                   = ShardedTableName("TokenTrie")
-	ConfigTrieTable                                  = ShardedTableName("ConfigTrie")
-	ContractTable                                    = ShardedTableName("Contract")
-	BlockHashByNumberIndex                           = ShardedTableName("BlockHashByNumber")
-	BlockHashAndInTransactionIndexByTransactionHash  = ShardedTableName("BlockHashAndInTransactionIndexByTransactionHash")
-	BlockHashAndOutTransactionIndexByTransactionHash = ShardedTableName("BlockHashAndOutTransactionIndexByTransactionHash")
-	AsyncCallContextTable                            = ShardedTableName("AsyncCallContext")
+	ContractTrieTable                               = ShardedTableName("ContractTrie")
+	StorageTrieTable                                = ShardedTableName("StorageTrie")
+	TransactionTrieTable                            = ShardedTableName("TransactionTrie")
+	ReceiptTrieTable                                = ShardedTableName("ReceiptTrie")
+	TokenTrieTable                                  = ShardedTableName("TokenTrie")
+	ConfigTrieTable                                 = ShardedTableName("ConfigTrie")
+	ContractTable                                   = ShardedTableName("Contract")
+	BlockHashByNumberIndex                          = ShardedTableName("BlockHashByNumber")
+	BlockHashAndInTransactionIndexByTransactionHash = ShardedTableName(
+		"BlockHashAndInTransactionIndexByTransactionHash")
+	BlockHashAndOutTransactionIndexByTransactionHash = ShardedTableName(
+		"BlockHashAndOutTransactionIndexByTransactionHash")
+	AsyncCallContextTable = ShardedTableName("AsyncCallContext")
 
 	collatorStateTable          = TableName("CollatorState")
 	errorByTransactionHashTable = TableName("ErrorByTransactionHash")
 	schemeVersionTable          = TableName("SchemeVersion")
 	LastBlockTable              = TableName("LastBlock")
+
+	DHTTable = TableName("DHT")
 )
 
 func ShardTableName(tableName ShardedTableName, shardId types.ShardId) TableName {

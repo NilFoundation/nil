@@ -76,7 +76,8 @@ func setDeployFlags(cmd *cobra.Command) {
 		&params.compileInput,
 		compileInput,
 		"",
-		"The path to the JSON file with the compilation input. Contract will be compiled and deployed on the blockchain and the Cometa service",
+		"The path to the JSON file with the compilation input."+
+			" Contract will be compiled and deployed on the blockchain and the Cometa service",
 	)
 }
 
@@ -133,7 +134,8 @@ func runDeploy(cmd *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 
 	payload := types.BuildDeployPayload(bytecode, params.salt.Bytes32())
 
-	txnHash, contractAddr, err := service.DeployContractViaSmartAccount(params.shardId, cfg.Address, payload, params.amount)
+	txnHash, contractAddr, err := service.DeployContractViaSmartAccount(
+		params.shardId, cfg.Address, payload, params.amount)
 	if err != nil {
 		if errors.Is(err, rpc.ErrTxnDataTooLong) {
 			return fmt.Errorf(

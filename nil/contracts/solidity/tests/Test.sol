@@ -276,3 +276,5 @@ contract Test is NilBase {
         return true;
     }
 }
+
+contract Empty {}

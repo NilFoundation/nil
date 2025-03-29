@@ -55,7 +55,10 @@ func (s *SuiteBlockReplay) SetupSuite() {
 	s.Start(s.cfg)
 }
 
-func (s *SuiteBlockReplay) restartReplayMode(shardId types.ShardId, blockNumber types.BlockNumber) (roTxCount, rwTxCount uint64) {
+func (s *SuiteBlockReplay) restartReplayMode(
+	shardId types.ShardId,
+	blockNumber types.BlockNumber,
+) (roTxCount, rwTxCount uint64) {
 	s.T().Helper()
 
 	s.CtxCancel()
@@ -130,8 +133,11 @@ func (s *SuiteBlockReplay) TestBlockReplay() {
 		roTxCount, rwTxCount := s.restartReplayMode(types.BaseShardId, blockToReplay.Number)
 		db, ok := s.Db.(*TxCountingDB)
 		s.Require().True(ok)
-		s.Require().Eventually(func() bool {
-			return db.roTxCount.Load() > roTxCount && db.rwTxCount.Load() > rwTxCount
-		}, tests.ReceiptWaitTimeout, tests.ReceiptPollInterval)
+		s.Require().Eventually(
+			func() bool {
+				return db.roTxCount.Load() > roTxCount && db.rwTxCount.Load() > rwTxCount
+			},
+			tests.ReceiptWaitTimeout,
+			tests.ReceiptPollInterval)
 	})
 }

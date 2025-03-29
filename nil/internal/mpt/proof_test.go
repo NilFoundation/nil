@@ -141,6 +141,11 @@ func TestSparseMPT(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, PopulateMptWithProof(sparse, &p))
+		if len(p.PathToNode) > 0 {
+			encodedNode, err := p.PathToNode[0].Encode()
+			require.NoError(t, err)
+			require.Equal(t, sparse.RootHash().Bytes(), calcNodeKey(encodedNode))
+		}
 	}
 
 	t.Run("Check original keys", func(t *testing.T) {
@@ -263,7 +268,13 @@ func TestSetProof(t *testing.T) {
 		string([]byte{0xf, 0xd, 0xa, 0xa}): "val-7",
 	}
 
-	modifyAndBuildProof := func(t *testing.T, mpt *MerklePatriciaTrie, holder map[string][]byte, key []byte, value []byte) (*MerklePatriciaTrie, Proof) {
+	modifyAndBuildProof := func(
+		t *testing.T,
+		mpt *MerklePatriciaTrie,
+		holder map[string][]byte,
+		key []byte,
+		value []byte,
+	) (*MerklePatriciaTrie, Proof) {
 		t.Helper()
 
 		originalMpt := copyMpt(holder, mpt)

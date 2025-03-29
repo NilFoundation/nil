@@ -206,8 +206,8 @@ export default {
           type: "doc",
           label: "Getting started",
           id: "hardhat/getting-started",
-        }
-      ]
+        },
+      ],
     },
     {
       type: "category",
@@ -359,8 +359,21 @@ export default {
   migrationGuides: [
     {
       type: "category",
-      label: "February 2025 releases",
+      label: "March 2025 releases",
       collapsed: false,
+      collapsible: true,
+      items: [
+        {
+          type: "doc",
+          label: "03 March 2025 guide",
+          id: "migration-guides/march-1803-2025-release",
+        },
+      ],
+    },
+    {
+      type: "category",
+      label: "February 2025 releases",
+      collapsed: true,
       collapsible: true,
       items: [
         {

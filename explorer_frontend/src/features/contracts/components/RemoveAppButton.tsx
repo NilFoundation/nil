@@ -1,5 +1,6 @@
 import type { Hex } from "@nilfoundation/niljs";
 import { BUTTON_KIND, ButtonIcon, StatefulTooltip } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import type { FC } from "react";
 import { unlinkApp } from "../models/base";
 import { DeleteIcon } from "./DeleteIcon";
@@ -17,6 +18,7 @@ export const RemoveAppButton: FC<RemoveAppButtonProps> = ({
   disabled,
   kind = BUTTON_KIND.text,
 }) => {
+  const [css, theme] = useStyletron();
   return (
     <StatefulTooltip content="Remove app" showArrow={false} placement="bottom" popoverMargin={0}>
       <ButtonIcon
@@ -52,6 +54,10 @@ export const RemoveAppButton: FC<RemoveAppButtonProps> = ({
               paddingRight: "6px",
               width: "32px",
               height: "32px",
+              backgroundColor: theme.colors.contractHeaderButtonBackgroundColor,
+              ":hover": {
+                backgroundColor: theme.colors.contractHeaderButtonBackgroundHoverColor,
+              },
             },
           },
         }}

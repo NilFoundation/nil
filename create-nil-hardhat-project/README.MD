@@ -32,7 +32,7 @@ cd ./nil/create-nil-hardhat-project
 Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 ## ⚙️ Configuration

@@ -77,7 +77,12 @@ type accessorCache struct {
 	receiptsLRU        *lru.Cache[common.Hash, []*types.Receipt]
 }
 
-func newAccessorCache(blocksLRUSize, outTransactionsLRUSize, inTransactionsLRUSize, receiptsLRUSize int) *accessorCache {
+func newAccessorCache(
+	blocksLRUSize int,
+	outTransactionsLRUSize int,
+	inTransactionsLRUSize int,
+	receiptsLRUSize int,
+) *accessorCache {
 	blocksLRU, err := lru.New[common.Hash, *types.Block](blocksLRUSize)
 	check.PanicIfErr(err)
 
@@ -105,7 +110,12 @@ type rawAccessorCache struct {
 	receiptsLRU        *lru.Cache[common.Hash, [][]byte]
 }
 
-func newRawAccessorCache(blocksLRUSize, outTransactionsLRUSize, inTransactionsLRUSize, receiptsLRUSize int) *rawAccessorCache {
+func newRawAccessorCache(
+	blocksLRUSize int,
+	outTransactionsLRUSize int,
+	inTransactionsLRUSize int,
+	receiptsLRUSize int,
+) *rawAccessorCache {
 	blocksLRU, err := lru.New[common.Hash, []byte](blocksLRUSize)
 	check.PanicIfErr(err)
 
@@ -131,7 +141,12 @@ type shardAccessor struct {
 }
 
 func collectSszBlockEntities(
-	block common.Hash, sa *rawShardAccessor, cache *lru.Cache[common.Hash, [][]byte], tableName db.ShardedTableName, rootHash common.Hash, res *fieldAccessor[[][]byte],
+	block common.Hash,
+	sa *rawShardAccessor,
+	cache *lru.Cache[common.Hash, [][]byte],
+	tableName db.ShardedTableName,
+	rootHash common.Hash,
+	res *fieldAccessor[[][]byte],
 ) error {
 	if items, ok := cache.Get(block); ok {
 		*res = initWith(items)
@@ -333,19 +348,40 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 	}
 
 	if b.withInTransactions {
-		if err := collectSszBlockEntities(hash, sa, sa.rawCache.inTransactionsLRU, db.TransactionTrieTable, block.InTransactionsRoot, &res.inTransactions); err != nil {
+		if err := collectSszBlockEntities(
+			hash,
+			sa,
+			sa.rawCache.inTransactionsLRU,
+			db.TransactionTrieTable,
+			block.InTransactionsRoot,
+			&res.inTransactions,
+		); err != nil {
 			return rawBlockAccessorResult{}, err
 		}
 	}
 
 	if b.withOutTransactions {
-		if err := collectSszBlockEntities(hash, sa, sa.rawCache.outTransactionsLRU, db.TransactionTrieTable, block.OutTransactionsRoot, &res.outTransactions); err != nil {
+		if err := collectSszBlockEntities(
+			hash,
+			sa,
+			sa.rawCache.outTransactionsLRU,
+			db.TransactionTrieTable,
+			block.OutTransactionsRoot,
+			&res.outTransactions,
+		); err != nil {
 			return rawBlockAccessorResult{}, err
 		}
 	}
 
 	if b.withReceipts {
-		if err := collectSszBlockEntities(hash, sa, sa.rawCache.receiptsLRU, db.ReceiptTrieTable, block.ReceiptsRoot, &res.receipts); err != nil {
+		if err := collectSszBlockEntities(
+			hash,
+			sa,
+			sa.rawCache.receiptsLRU,
+			db.ReceiptTrieTable,
+			block.ReceiptsRoot,
+			&res.receipts,
+		); err != nil {
 			return rawBlockAccessorResult{}, err
 		}
 	}
@@ -497,19 +533,31 @@ func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
 	}
 
 	if b.withInTransactions {
-		if err := unmashalSszEntities[*types.Transaction](hash, raw.InTransactions(), sa.cache.inTransactionsLRU, &res.inTransactions); err != nil {
+		if err := unmashalSszEntities[*types.Transaction](
+			hash,
+			raw.InTransactions(),
+			sa.cache.inTransactionsLRU,
+			&res.inTransactions,
+		); err != nil {
 			return blockAccessorResult{}, err
 		}
 	}
 
 	if b.withOutTransactions {
-		if err := unmashalSszEntities[*types.Transaction](hash, raw.OutTransactions(), sa.cache.outTransactionsLRU, &res.outTransactions); err != nil {
+		if err := unmashalSszEntities[*types.Transaction](
+			hash,
+			raw.OutTransactions(),
+			sa.cache.outTransactionsLRU,
+			&res.outTransactions,
+		); err != nil {
 			return blockAccessorResult{}, err
 		}
 	}
 
 	if b.withReceipts {
-		if err := unmashalSszEntities[*types.Receipt](hash, raw.Receipts(), sa.cache.receiptsLRU, &res.receipts); err != nil {
+		if err := unmashalSszEntities[*types.Receipt](
+			hash, raw.Receipts(), sa.cache.receiptsLRU, &res.receipts,
+		); err != nil {
 			return blockAccessorResult{}, err
 		}
 	}
@@ -558,7 +606,11 @@ func (r transactionAccessorResult) Transaction() *types.Transaction {
 	return r.transaction()
 }
 
-func getBlockAndInTxnIndexByHash(sa *shardAccessor, incoming bool, hash common.Hash) (*types.Block, db.BlockHashAndTransactionIndex, error) {
+func getBlockAndInTxnIndexByHash(
+	sa *shardAccessor,
+	incoming bool,
+	hash common.Hash,
+) (*types.Block, db.BlockHashAndTransactionIndex, error) {
 	var idx db.BlockHashAndTransactionIndex
 
 	table := db.BlockHashAndInTransactionIndexByTransactionHash
@@ -599,7 +651,12 @@ func baseGetTxnByHash(sa *shardAccessor, incoming bool, hash common.Hash) (trans
 	return data, nil
 }
 
-func baseGetTxnByIndex(sa *shardAccessor, incoming bool, idx types.TransactionIndex, block *types.Block) (transactionAccessorResult, error) {
+func baseGetTxnByIndex(
+	sa *shardAccessor,
+	incoming bool,
+	idx types.TransactionIndex,
+	block *types.Block,
+) (transactionAccessorResult, error) {
 	root := block.InTransactionsRoot
 	if !incoming {
 		root = block.OutTransactionsRoot
@@ -626,7 +683,10 @@ func (a outTransactionAccessor) ByHash(hash common.Hash) (outTransactionAccessor
 	return outTransactionAccessorResult{data}, err
 }
 
-func (a outTransactionAccessor) ByIndex(idx types.TransactionIndex, block *types.Block) (outTransactionAccessorResult, error) {
+func (a outTransactionAccessor) ByIndex(
+	idx types.TransactionIndex,
+	block *types.Block,
+) (outTransactionAccessorResult, error) {
 	data, err := baseGetTxnByIndex(a.shardAccessor, false, idx, block)
 	return outTransactionAccessorResult{data}, err
 }
@@ -668,7 +728,10 @@ func (a inTransactionAccessor) ByHash(hash common.Hash) (inTransactionAccessorRe
 	return res, nil
 }
 
-func (a inTransactionAccessor) ByIndex(idx types.TransactionIndex, block *types.Block) (inTransactionAccessorResult, error) {
+func (a inTransactionAccessor) ByIndex(
+	idx types.TransactionIndex,
+	block *types.Block,
+) (inTransactionAccessorResult, error) {
 	data, err := baseGetTxnByIndex(a.shardAccessor, true, idx, block)
 	if err != nil {
 		return inTransactionAccessorResult{}, err
@@ -685,7 +748,9 @@ func (a inTransactionAccessor) ByIndex(idx types.TransactionIndex, block *types.
 	return res, nil
 }
 
-func (a inTransactionAccessor) addReceipt(accessResult inTransactionAccessorResult) (inTransactionAccessorResult, error) {
+func (a inTransactionAccessor) addReceipt(
+	accessResult inTransactionAccessorResult,
+) (inTransactionAccessorResult, error) {
 	if accessResult.Block() == nil {
 		accessResult.receipt = initWith[*types.Receipt](nil)
 		return accessResult, nil

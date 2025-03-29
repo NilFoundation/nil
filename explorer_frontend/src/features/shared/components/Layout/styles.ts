@@ -44,16 +44,24 @@ const navbar = {
 
 const logo = {
   display: "flex",
-  alignItems: "center",
+  alignItems: "start",
   marginRight: "auto",
   ...linkOutlineStyles,
   marginLeft: "32px",
+  flexDirection: "column",
 };
 
 const navigation = {
   display: "flex",
   alignItems: "center",
   justifyContent: "flex-end",
+};
+
+const tutorialText = {
+  marginTop: "4px",
+  fontSize: "12px",
+  color: COLORS.blue400,
+  fontFamily: "Inter, sans-serif",
 };
 
 const navItem = {
@@ -79,6 +87,7 @@ export const styles = {
   navItem,
   content,
   navLink,
+  tutorialText,
 };
 
 export const mobileContainerStyle: StyleObject = {

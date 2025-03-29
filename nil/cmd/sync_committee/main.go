@@ -50,15 +50,55 @@ func execute() error {
 }
 
 func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
-	cmd.Flags().StringVar(&cfg.RpcEndpoint, "endpoint", cfg.RpcEndpoint, "rpc endpoint")
-	cmd.Flags().StringVar(&cfg.TaskListenerRpcEndpoint, "own-endpoint", cfg.TaskListenerRpcEndpoint, "own rpc server endpoint")
-	cmd.Flags().DurationVar(&cfg.AggregatorConfig.RpcPollingInterval, "polling-delay", cfg.AggregatorConfig.RpcPollingInterval, "delay between new block polling")
-	cmd.Flags().StringVar(&cfg.DbPath, "db-path", "sync_committee.db", "path to database")
-	cmd.Flags().StringVar(&cfg.ProposerParams.Endpoint, "l1-endpoint", cfg.ProposerParams.Endpoint, "L1 endpoint")
-	cmd.Flags().StringVar(&cfg.ProposerParams.PrivateKey, "l1-private-key", cfg.ProposerParams.PrivateKey, "L1 account private key")
-	cmd.Flags().StringVar(&cfg.ProposerParams.ContractAddress, "l1-contract-address", cfg.ProposerParams.ContractAddress, "L1 update state contract address")
-	cmd.Flags().DurationVar(&cfg.ProposerParams.EthClientTimeout, "l1-client-timeout", cfg.ProposerParams.EthClientTimeout, "L1 client timeout")
-	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
+	cmd.Flags().StringVar(
+		&cfg.RpcEndpoint,
+		"endpoint",
+		cfg.RpcEndpoint,
+		"rpc endpoint")
+	cmd.Flags().StringVar(
+		&cfg.TaskListenerRpcEndpoint,
+		"own-endpoint",
+		cfg.TaskListenerRpcEndpoint,
+		"own rpc server endpoint")
+	cmd.Flags().DurationVar(
+		&cfg.AggregatorConfig.RpcPollingInterval,
+		"polling-delay",
+		cfg.AggregatorConfig.RpcPollingInterval,
+		"delay between new block polling")
+	cmd.Flags().StringVar(
+		&cfg.DbPath,
+		"db-path",
+		"sync_committee.db",
+		"path to database")
+	cmd.Flags().StringVar(
+		&cfg.ProposerParams.Endpoint,
+		"l1-endpoint",
+		cfg.ProposerParams.Endpoint,
+		"L1 endpoint")
+	cmd.Flags().StringVar(
+		&cfg.ProposerParams.PrivateKey,
+		"l1-private-key",
+		cfg.ProposerParams.PrivateKey,
+		"L1 account private key")
+	cmd.Flags().StringVar(
+		&cfg.ProposerParams.ContractAddress,
+		"l1-contract-address",
+		cfg.ProposerParams.ContractAddress,
+		"L1 update state contract address")
+	cmd.Flags().DurationVar(
+		&cfg.ProposerParams.EthClientTimeout,
+		"l1-client-timeout",
+		cfg.ProposerParams.EthClientTimeout,
+		"L1 client timeout")
+	cmd.Flags().BoolVar(
+		&cfg.ProposerParams.DisableL1,
+		"disable-l1",
+		cfg.ProposerParams.DisableL1,
+		"Disable send trancations to L1")
+	logLevel := cmd.Flags().String(
+		"log-level",
+		"info",
+		"log level: trace|debug|info|warn|error|fatal|panic")
 
 	// Telemetry flags
 	cmd.Flags().BoolVar(&cfg.Telemetry.ExportMetrics, "metrics", cfg.Telemetry.ExportMetrics, "export metrics via grpc")

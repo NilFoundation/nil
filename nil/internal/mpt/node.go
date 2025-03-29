@@ -51,11 +51,11 @@ type LeafNode struct {
 
 type ExtensionNode struct {
 	NodeBase
-	NextRef Reference `ssz-max:"1000"`
+	NextRef Reference `ssz-max:"32"`
 }
 
 type BranchNode struct {
-	Branches [BranchesNum]Reference `ssz-max:"16,1000"`
+	Branches [BranchesNum]Reference `ssz-max:"16,32"`
 	Value    []byte                 `ssz-max:"100000000"`
 }
 

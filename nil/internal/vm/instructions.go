@@ -670,7 +670,7 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byt
 	stack.pop()
 	gas := interpreter.evm.callGasTemp
 	// Pop other call parameters.
-	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
+	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop() //nolint: lll
 	toAddr := types.Address(addr.Bytes20())
 	if isCrossShardTransaction(scope.Contract.Address(), toAddr) {
 		return nil, ErrCrossShardTransaction
@@ -709,7 +709,7 @@ func opCallCode(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([
 	stack.pop()
 	gas := interpreter.evm.callGasTemp
 	// Pop other call parameters.
-	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
+	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop() //nolint:lll
 	toAddr := types.Address(addr.Bytes20())
 	if isCrossShardTransaction(scope.Contract.Address(), toAddr) {
 		return nil, ErrCrossShardTransaction
@@ -833,10 +833,18 @@ func opSelfdestruct6780(pc *uint64, interpreter *EVMInterpreter, scope *ScopeCon
 		return nil, err
 	}
 
-	if err := interpreter.evm.StateDB.SubBalance(scope.Contract.Address(), balance, tracing.BalanceDecreaseSelfdestruct); err != nil {
+	if err := interpreter.evm.StateDB.SubBalance(
+		scope.Contract.Address(),
+		balance,
+		tracing.BalanceDecreaseSelfdestruct,
+	); err != nil {
 		return nil, err
 	}
-	if err := interpreter.evm.StateDB.AddBalance(beneficiary.Bytes20(), balance, tracing.BalanceIncreaseSelfdestruct); err != nil {
+	if err := interpreter.evm.StateDB.AddBalance(
+		beneficiary.Bytes20(),
+		balance,
+		tracing.BalanceIncreaseSelfdestruct,
+	); err != nil {
 		return nil, err
 	}
 	if err := interpreter.evm.StateDB.Selfdestruct6780(scope.Contract.Address()); err != nil {
@@ -845,7 +853,14 @@ func opSelfdestruct6780(pc *uint64, interpreter *EVMInterpreter, scope *ScopeCon
 
 	if tracer := interpreter.evm.Config.Tracer; tracer != nil {
 		if tracer.OnEnter != nil {
-			tracer.OnEnter(interpreter.evm.depth, byte(SELFDESTRUCT), scope.Contract.Address(), beneficiary.Bytes20(), []byte{}, 0, balance.ToBig())
+			tracer.OnEnter(
+				interpreter.evm.depth,
+				byte(SELFDESTRUCT),
+				scope.Contract.Address(),
+				beneficiary.Bytes20(),
+				[]byte{},
+				0,
+				balance.ToBig())
 		}
 		if tracer.OnExit != nil {
 			tracer.OnExit(interpreter.evm.depth, []byte{}, 0, nil, false)

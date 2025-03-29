@@ -4,19 +4,19 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/rs/zerolog"
 )
 
 type commonStorage struct {
 	database    db.DB
 	retryRunner common.RetryRunner
-	logger      zerolog.Logger
+	logger      logging.Logger
 }
 
 func makeCommonStorage(
 	database db.DB,
-	logger zerolog.Logger,
+	logger logging.Logger,
 	additionalRetryPolicies ...common.RetryPolicyFunc,
 ) commonStorage {
 	return commonStorage{

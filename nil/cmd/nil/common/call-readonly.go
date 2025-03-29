@@ -50,7 +50,8 @@ func CallReadonly(
 		}
 	}
 
-	res, err := service.CallContract(address, types.NewFeePackFromFeeCredit(params.Fee.FeeCredit), calldata, inOverrides)
+	res, err := service.CallContract(
+		address, types.NewFeePackFromFeeCredit(params.Fee.FeeCredit), calldata, inOverrides)
 	if err != nil {
 		return err
 	}

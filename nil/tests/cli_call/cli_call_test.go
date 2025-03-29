@@ -35,7 +35,12 @@ func (s *SuiteCliTestCall) SetupSuite() {
 
 func (s *SuiteCliTestCall) SetupTest() {
 	zeroState := &execution.ZeroStateConfig{
-		Contracts: []*execution.ContractDescr{{Name: "Test", Contract: "tests/Test", Address: s.testAddress, Value: types.NewValueFromUint64(100000000000000)}},
+		Contracts: []*execution.ContractDescr{{
+			Name:     "Test",
+			Contract: "tests/Test",
+			Address:  s.testAddress,
+			Value:    types.NewValueFromUint64(100000000000000),
+		}},
 	}
 
 	s.Start(&nilservice.Config{
@@ -75,40 +80,52 @@ func (s *SuiteCliTestCall) TestCliCall() {
 
 	var res string
 
-	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "noReturn", "--abi", abiFile)
+	res = s.RunCallReadonly("noReturn", "--abi", abiFile)
 	s.CheckResult(res, "Success, no result")
 
-	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "noReturn", "--abi", abiFile, "--json")
+	res = s.RunCallReadonly("noReturn", "--abi", abiFile, "--json")
 	s.JSONEq(`{ "result": [] }`, res)
 
-	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getSum", "1", "2", "--abi", abiFile)
+	res = s.RunCallReadonly("getSum", "1", "2", "--abi", abiFile)
 	s.CheckResult(res, "Success, result:", "uint256: 3")
 
-	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getSum", "1", "2", "--abi", abiFile, "--json")
+	res = s.RunCallReadonly("getSum", "1", "2", "--abi", abiFile, "--json")
 	s.JSONEq(`{ "result": [ { "type": "uint256", "value": 3 } ] }`, res)
 
-	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getString", "--abi", abiFile)
-	s.CheckResult(res, "Success, result:", "string: \"Very long string with many characters and words and spaces and numbers and symbols and everything else that can be in a string\"")
+	res = s.RunCallReadonly("getString", "--abi", abiFile)
+	s.CheckResult(
+		res,
+		"Success, result:",
+		"string: \"Very long string with many characters and words and spaces and numbers and symbols and everything"+
+			" else that can be in a string\"")
 
-	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getNumAndString", "--abi", abiFile)
+	res = s.RunCallReadonly("getNumAndString", "--abi", abiFile)
 	s.CheckResult(res, "Success, result:", "uint256: 123456789012345678901234567890", "string: \"Simple string\"")
 
-	res, err = s.RunCliNoCheck("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "nonExistingMethod", "--abi", abiFile)
+	res, err = s.RunCliNoCheck(
+		"-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "nonExistingMethod", "--abi", abiFile)
 	s.Require().Error(err)
 	s.CheckResult(res, "Error: failed to pack method call: method 'nonExistingMethod' not found")
 
 	overridesFile := s.TmpDir + "/overrides.json"
-	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getValue", "--abi", abiFile)
+	res = s.RunCallReadonly("getValue", "--abi", abiFile)
 	s.CheckResult(res, "Success, result:", "uint32: 0")
 
-	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "setValue", "321", "--abi", abiFile, "--out-overrides", overridesFile, "--with-details")
-	s.CheckResult(res, "Success, no result", "Logs:", "Event: stubCalled", "uint32: 321", "Debug logs:", "Value set to [321]")
+	res = s.RunCallReadonly("setValue", "321", "--abi", abiFile, "--out-overrides", overridesFile, "--with-details")
+	s.CheckResult(
+		res, "Success, no result", "Logs:", "Event: stubCalled", "uint32: 321", "Debug logs:", "Value set to [321]")
 
-	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "setValue", "123", "--abi", abiFile, "--out-overrides", overridesFile)
+	res = s.RunCallReadonly("setValue", "123", "--abi", abiFile, "--out-overrides", overridesFile)
 	s.CheckResult(res, "Success, no result")
 
-	res = s.RunCli("-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(), "getValue", "--abi", abiFile, "--in-overrides", overridesFile)
+	res = s.RunCallReadonly("getValue", "--abi", abiFile, "--in-overrides", overridesFile)
 	s.CheckResult(res, "Success, result:", "uint32: 123")
+}
+
+func (s *SuiteCliTestCall) RunCallReadonly(args ...string) string {
+	return s.RunCli(append([]string{
+		"-c", s.cfgPath, "contract", "call-readonly", s.testAddress.Hex(),
+	}, args...)...)
 }
 
 func TestCliCall(t *testing.T) {

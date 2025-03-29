@@ -25,7 +25,8 @@ func ComputeDataProofs(sidecar *ethtypes.BlobTxSidecar) ([][]byte, error) {
 }
 
 func generatePointFromVersionedHash(versionedHash ethcommon.Hash) kzg4844.Point {
-	blsModulo, _ := new(big.Int).SetString("52435875175126190479447740508185965837690552500527637822603658699938581184513", 10)
+	blsModulo, _ := new(big.Int).SetString(
+		"52435875175126190479447740508185965837690552500527637822603658699938581184513", 10)
 	pointHash := common.Keccak256Hash(versionedHash[:])
 
 	pointBigInt := new(big.Int).SetBytes(pointHash.Bytes())
@@ -37,7 +38,12 @@ func generatePointFromVersionedHash(versionedHash ethcommon.Hash) kzg4844.Point 
 	return point
 }
 
-func encodeDataProof(point kzg4844.Point, claim kzg4844.Claim, commitment kzg4844.Commitment, proof kzg4844.Proof) []byte {
+func encodeDataProof(
+	point kzg4844.Point,
+	claim kzg4844.Claim,
+	commitment kzg4844.Commitment,
+	proof kzg4844.Proof,
+) []byte {
 	result := make([]byte, 32+32+48+48)
 
 	copy(result[0:32], point[:])

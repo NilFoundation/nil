@@ -54,7 +54,8 @@ func TestKeccakTracer_IgnoresOtherOperations(t *testing.T) {
 	t.Parallel()
 	tracer := NewKeccakTracer()
 
-	assert.False(t, traceKeccakOperation(t, tracer, vm.ADD, 0, 2, []byte{1, 2, 3, 4})) // Non-KECCAK256 opcode should result in no operation captured
+	// Non-KECCAK256 opcode should result in no operation captured
+	assert.False(t, traceKeccakOperation(t, tracer, vm.ADD, 0, 2, []byte{1, 2, 3, 4}))
 
 	assert.Empty(t, tracer.hashes)
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/rs/zerolog"
 )
 
 // FeeBumpPercentage is the percentage of the priorityFee that a transaction must exceed to replace another transaction.
@@ -45,7 +44,7 @@ type TxnPool struct {
 	byHash map[string]*metaTxn // hash => txn : only those records not committed to db yet
 	all    *ByReceiverAndSeqno // from => (sorted map of txn seqno => *txn)
 	queue  *TxnQueue
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
 func New(ctx context.Context, cfg Config, networkManager *network.Manager) (*TxnPool, error) {
@@ -87,13 +86,14 @@ func (p *TxnPool) listen(ctx context.Context, sub *network.Subscription) {
 
 	for m := range sub.Start(ctx, true) {
 		txn := &types.Transaction{}
-		if err := txn.UnmarshalSSZ(m); err != nil {
+		if err := txn.UnmarshalSSZ(m.Data); err != nil {
 			p.logger.Error().Err(err).
 				Msg("Failed to unmarshal transaction from network")
 			continue
 		}
 
-		mm := newMetaTxn(txn, p.baseFee)
+		mm := newMetaTxn(txn, p.GetBaseFee())
+
 		reasons, err := p.add(mm)
 		if err != nil {
 			p.logger.Error().Err(err).
@@ -111,9 +111,14 @@ func (p *TxnPool) listen(ctx context.Context, sub *network.Subscription) {
 }
 
 func (p *TxnPool) Add(ctx context.Context, txns ...*types.Transaction) ([]DiscardReason, error) {
+	if len(txns) == 0 {
+		return nil, nil
+	}
 	mms := make([]*metaTxn, len(txns))
+
+	baseFee := p.GetBaseFee()
 	for i, txn := range txns {
-		mms[i] = newMetaTxn(txn, p.baseFee)
+		mms[i] = newMetaTxn(txn, baseFee)
 	}
 
 	reasons, err := p.add(mms...)
@@ -144,7 +149,8 @@ func (p *TxnPool) add(txns ...*metaTxn) ([]DiscardReason, error) {
 
 	for i, txn := range txns {
 		if txn.To.ShardId() != p.cfg.ShardId {
-			return nil, fmt.Errorf("transaction shard id %d does not match pool shard id %d", txn.To.ShardId(), p.cfg.ShardId)
+			return nil, fmt.Errorf(
+				"transaction shard id %d does not match pool shard id %d", txn.To.ShardId(), p.cfg.ShardId)
 		}
 
 		if reason, ok := p.validateTxn(txn); !ok {
@@ -166,6 +172,8 @@ func (p *TxnPool) add(txns ...*metaTxn) ([]DiscardReason, error) {
 			Uint64(logging.FieldShardId, uint64(txn.To.ShardId())).
 			Stringer(logging.FieldTransactionHash, txn.Hash()).
 			Stringer(logging.FieldTransactionTo, txn.To).
+			Int(logging.FieldTransactionSeqno, int(txn.Seqno)).
+			Int("total", p.all.tree.Len()).
 			Msg("Added new transaction.")
 	}
 
@@ -212,6 +220,12 @@ func (p *TxnPool) SeqnoToAddress(addr types.Address) (seqno types.Seqno, inPool 
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	return p.all.seqno(addr)
+}
+
+func (p *TxnPool) GetBaseFee() (baseFee types.Value) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	return p.baseFee
 }
 
 func (p *TxnPool) Get(hash common.Hash) (*types.Transaction, error) {
@@ -329,13 +343,13 @@ func (p *TxnPool) OnCommitted(_ context.Context, baseFee types.Value, committed 
 	}
 	if p.baseFee != baseFee {
 		p.baseFee = baseFee
-		p.UpdateTransactions()
+		p.updateTransactionsLocked()
 	}
 
 	return nil
 }
 
-func (p *TxnPool) UpdateTransactions() {
+func (p *TxnPool) updateTransactionsLocked() {
 	p.all.ascendAll(func(txn *metaTxn) bool {
 		txn.effectivePriorityFee, txn.valid = execution.GetEffectivePriorityFee(p.baseFee, txn.Transaction)
 		return true

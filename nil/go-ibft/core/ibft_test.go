@@ -3083,7 +3083,11 @@ func Test_getRoundTimeout(t *testing.T) {
 			t.Parallel()
 
 			got := getRoundTimeout(tt.args.baseRoundTimeout, tt.args.additionalTimeout, tt.args.round)
-			assert.Equalf(t, tt.want, got, "getRoundTimeout(%v, %v, %v)", tt.args.baseRoundTimeout, tt.args.additionalTimeout, tt.args.round)
+			assert.Equalf(
+				t,
+				tt.want,
+				got,
+				"getRoundTimeout(%v, %v, %v)", tt.args.baseRoundTimeout, tt.args.additionalTimeout, tt.args.round)
 		})
 	}
 }

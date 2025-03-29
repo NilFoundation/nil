@@ -8,7 +8,6 @@ import (
 	"github.com/NilFoundation/nil/nil/cmd/nil_block_generator/internal/commands"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +47,7 @@ func execute() error {
 	return rootCmd.Execute()
 }
 
-func buildInitCmd(logger zerolog.Logger) *cobra.Command {
+func buildInitCmd(logger logging.Logger) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize new smartAccount",
@@ -76,7 +75,7 @@ func buildInitCmd(logger zerolog.Logger) *cobra.Command {
 	return cmd
 }
 
-func buildAddContractCmd(logger zerolog.Logger) (*cobra.Command, error) {
+func buildAddContractCmd(logger logging.Logger) (*cobra.Command, error) {
 	var contractName string
 	var contractPath string
 	var argsCmd string
@@ -95,7 +94,8 @@ func buildAddContractCmd(logger zerolog.Logger) (*cobra.Command, error) {
 			}
 
 			deployArgs := strings.Fields(argsCmd)
-			adr, err := commands.DeployContract(cfg.HttpUrl, cfg.SmartAccountAdr, contractPath, cfg.PrivateKey, deployArgs, logger)
+			adr, err := commands.DeployContract(
+				cfg.HttpUrl, cfg.SmartAccountAdr, contractPath, cfg.PrivateKey, deployArgs, logger)
 			if err != nil {
 				return err
 			}
@@ -165,7 +165,7 @@ func buildCallContractCmd() (*cobra.Command, error) {
 	return cmd, nil
 }
 
-func buildGetBlockCmd(logger zerolog.Logger) *cobra.Command {
+func buildGetBlockCmd(logger logging.Logger) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get-block",
 		Short: "Generate block from the current config",

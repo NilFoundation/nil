@@ -1,17 +1,20 @@
 import { createDomain } from "effector";
 import type { App } from "../../types";
+import type { CheckProps } from "./CheckProps";
 import { spec } from "./spec";
 
 export type TutorialCheck = {
-  stage: number;
-  check: () => Promise<void>;
+  urlSlug: string;
+  check: (props: CheckProps) => Promise<boolean>;
 };
 
 export const tutorialCheckDomain = createDomain("tutorial-check");
 
 export const $tutorialCheck = tutorialCheckDomain.createStore<TutorialCheck>({
-  stage: 0,
-  check: async () => {},
+  urlSlug: "",
+  check: async () => {
+    return true;
+  },
 });
 
 export const deployTutorialContract = tutorialCheckDomain.createEvent<{
@@ -26,17 +29,20 @@ export const tutorialContractStepFailedEvent = tutorialCheckDomain.createEvent<s
 
 export const fetchTutorialCheckEvent = tutorialCheckDomain.createEvent<TutorialCheck>();
 
-export const fetchTutorialCheckFx = tutorialCheckDomain.createEffect<number, TutorialCheck>();
+export const fetchTutorialCheckFx = tutorialCheckDomain.createEffect<string, TutorialCheck>();
 
-export const runTutorialCheck = tutorialCheckDomain.createEvent();
+export const runTutorialCheck = tutorialCheckDomain.createEvent<CheckProps>();
 
 export const runTutorialCheckFx = tutorialCheckDomain.createEffect(
-  async (tutorialCheck: TutorialCheck) => {
-    return await tutorialCheck.check();
+  async ({ tutorialCheck, props }: { tutorialCheck: TutorialCheck; props: CheckProps }) => {
+    return await tutorialCheck.check(props);
   },
 );
 
-fetchTutorialCheckFx.use(async (stage) => {
-  const tutorialCheck = spec.find((check) => check.stage === stage)!;
+fetchTutorialCheckFx.use(async (urlSlug) => {
+  const tutorialCheck = spec.find((check) => check.urlSlug === urlSlug);
+  if (!tutorialCheck) {
+    throw new Error("Tutorial check not found");
+  }
   return tutorialCheck;
 });

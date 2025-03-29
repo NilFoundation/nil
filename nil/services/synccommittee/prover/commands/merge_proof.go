@@ -44,7 +44,7 @@ func (cmd *mergeProofCmd) MakeCommandDefinition(task *types.Task) (*CommandDefin
 	aggFRI := []string{"--aggregated-FRI-proof", aggFRIFile}
 
 	outFile := filepath.Join(cmd.outDir,
-		fmt.Sprintf("final-proof.%v.%v", task.ShardId, task.BlockHash.String()))
+		fmt.Sprintf("final-proof.%v", task.BatchId))
 	outArg := []string{"--proof", outFile}
 
 	allArgs := slices.Concat(stage, partialProofs, LPCChecks, aggFRI, outArg)
@@ -55,7 +55,10 @@ func (cmd *mergeProofCmd) MakeCommandDefinition(task *types.Task) (*CommandDefin
 	}, execCmd.Err
 }
 
-func (*mergeProofCmd) AfterCommandExecuted(task *types.Task, results types.TaskOutputArtifacts) (types.TaskResultData, error) {
+func (*mergeProofCmd) AfterCommandExecuted(
+	task *types.Task,
+	results types.TaskOutputArtifacts,
+) (types.TaskResultData, error) {
 	mergedProofFile := results[types.FinalProof]
 	proofContent, err := os.ReadFile(mergedProofFile)
 	if err != nil {

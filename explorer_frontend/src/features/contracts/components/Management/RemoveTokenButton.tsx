@@ -6,11 +6,13 @@ import { DeleteIcon } from "../DeleteIcon.tsx";
 type RemoveTokenButtonProps = {
   index: number;
   kind?: BUTTON_KIND;
+  functionName: string;
 };
 
 export const RemoveTokenButton: FC<RemoveTokenButtonProps> = ({
   index,
   kind = BUTTON_KIND.text,
+  functionName,
 }) => {
   return (
     <StatefulTooltip content="Remove token" showArrow={false} placement="bottom" popoverMargin={6}>
@@ -20,7 +22,7 @@ export const RemoveTokenButton: FC<RemoveTokenButtonProps> = ({
         kind={kind}
         onClick={(e) => {
           e.stopPropagation();
-          removeValueInput(index);
+          removeValueInput({ functionName, index });
         }}
         overrides={{
           Root: {

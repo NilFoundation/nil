@@ -13,7 +13,10 @@ import (
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
 
-func (api *LocalShardApi) GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (sszx.SSZEncodedData, error) {
+func (api *LocalShardApi) GetBlockHeader(
+	ctx context.Context,
+	blockReference rawapitypes.BlockReference,
+) (sszx.SSZEncodedData, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -27,7 +30,10 @@ func (api *LocalShardApi) GetBlockHeader(ctx context.Context, blockReference raw
 	return block.Block, nil
 }
 
-func (api *LocalShardApi) GetFullBlockData(ctx context.Context, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error) {
+func (api *LocalShardApi) GetFullBlockData(
+	ctx context.Context,
+	blockReference rawapitypes.BlockReference,
+) (*types.RawBlockWithExtractedData, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -37,7 +43,10 @@ func (api *LocalShardApi) GetFullBlockData(ctx context.Context, blockReference r
 	return api.getBlockByReference(tx, blockReference, true)
 }
 
-func (api *LocalShardApi) GetBlockTransactionCount(ctx context.Context, blockReference rawapitypes.BlockReference) (uint64, error) {
+func (api *LocalShardApi) GetBlockTransactionCount(
+	ctx context.Context,
+	blockReference rawapitypes.BlockReference,
+) (uint64, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return 0, err
@@ -51,7 +60,11 @@ func (api *LocalShardApi) GetBlockTransactionCount(ctx context.Context, blockRef
 	return uint64(len(res.InTransactions)), nil
 }
 
-func (api *LocalShardApi) getBlockByReference(tx db.RoTx, blockReference rawapitypes.BlockReference, withTransactions bool) (*types.RawBlockWithExtractedData, error) {
+func (api *LocalShardApi) getBlockByReference(
+	tx db.RoTx,
+	blockReference rawapitypes.BlockReference,
+	withTransactions bool,
+) (*types.RawBlockWithExtractedData, error) {
 	blockHash, err := api.getBlockHashByReference(tx, blockReference)
 	if err != nil {
 		return nil, err
@@ -60,7 +73,10 @@ func (api *LocalShardApi) getBlockByReference(tx db.RoTx, blockReference rawapit
 	return api.getBlockByHash(tx, blockHash, withTransactions)
 }
 
-func (api *LocalShardApi) getBlockHashByReference(tx db.RoTx, blockReference rawapitypes.BlockReference) (common.Hash, error) {
+func (api *LocalShardApi) getBlockHashByReference(
+	tx db.RoTx,
+	blockReference rawapitypes.BlockReference,
+) (common.Hash, error) {
 	switch blockReference.Type() {
 	case rawapitypes.NumberBlockReference:
 		return db.ReadBlockHashByNumber(tx, api.ShardId, types.BlockNumber(blockReference.Number()))
@@ -78,10 +94,20 @@ func (api *LocalShardApi) getBlockHashByReference(tx db.RoTx, blockReference raw
 	return common.EmptyHash, errors.New("unknown block reference type")
 }
 
-func (api *LocalShardApi) getBlockByHash(tx db.RoTx, hash common.Hash, withTransactions bool) (*types.RawBlockWithExtractedData, error) {
+func (api *LocalShardApi) getBlockByHash(
+	tx db.RoTx,
+	hash common.Hash,
+	withTransactions bool,
+) (*types.RawBlockWithExtractedData, error) {
 	accessor := api.accessor.RawAccess(tx, api.ShardId).GetBlock()
 	if withTransactions {
-		accessor = accessor.WithInTransactions().WithOutTransactions().WithReceipts().WithChildBlocks().WithDbTimestamp().WithConfig()
+		accessor = accessor.
+			WithInTransactions().
+			WithOutTransactions().
+			WithReceipts().
+			WithChildBlocks().
+			WithDbTimestamp().
+			WithConfig()
 	}
 
 	data, err := accessor.ByHash(hash)

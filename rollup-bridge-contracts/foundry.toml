@@ -34,10 +34,10 @@ remappings = [
 ] 
 script = "script" 
 sender = '0x7580E71C10e5023a46DD11F21116471dcd60C400' # the address of `msg.sender` in tests
-solc = "0.8.26" 
-solc_version = '0.8.26' # override for the solc version (setting this ignores `auto_detect_solc`)
+solc = "0.8.28" 
+solc_version = '0.8.28' # override for the solc version (setting this ignores `auto_detect_solc`)
 src = "contracts" 
-test = "test" 
+test = "/build/source/rollup-bridge-contracts/test" 
 tx_origin = '0x7580E71C10e5023a46DD11F21116471dcd60C400' # the address of `tx.origin` in tests
 verbosity = 2 # the verbosity of tests
 

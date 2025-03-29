@@ -61,7 +61,11 @@ func circuitIdx(ct types.CircuitType) uint8 {
 	return uint8(ct)
 }
 
-func aggregateCircuitDependencies(task *types.Task, dependencyType types.TaskType, resultType types.ProverResultType) ([]string, error) {
+func aggregateCircuitDependencies(
+	task *types.Task,
+	dependencyType types.TaskType,
+	resultType types.ProverResultType,
+) ([]string, error) {
 	depFiles := make(map[types.CircuitType]string)
 	for _, res := range task.DependencyResults {
 		if res.TaskType == dependencyType {
@@ -94,16 +98,24 @@ func aggregateCircuitDependencies(task *types.Task, dependencyType types.TaskTyp
 	return arrangedInputs, nil
 }
 
-func findDependencyResult(task *types.Task, dependencyType types.TaskType, resultType types.ProverResultType) (string, error) {
+func findDependencyResult(
+	task *types.Task,
+	dependencyType types.TaskType,
+	resultType types.ProverResultType,
+) (string, error) {
 	foundFile := ""
 	for _, res := range task.DependencyResults {
 		if res.TaskType == dependencyType {
 			if foundFile != "" {
-				return "", fmt.Errorf("More then one %v files was found as a result for %v dependency", resultType.String(), dependencyType.String())
+				return "", fmt.Errorf(
+					"More then one %v files was found as a result for %v dependency",
+					resultType.String(), dependencyType.String())
 			}
 			path, ok := res.OutputArtifacts[resultType]
 			if !ok {
-				return "", fmt.Errorf("DependencyType %v  has no expected result %v", dependencyType.String(), resultType.String())
+				return "", fmt.Errorf(
+					"DependencyType %v  has no expected result %v",
+					dependencyType.String(), resultType.String())
 			}
 			foundFile = path
 		}

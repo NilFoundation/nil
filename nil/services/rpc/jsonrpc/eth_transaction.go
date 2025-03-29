@@ -30,7 +30,10 @@ func makeRequestByHash(hash common.Hash) rawapitypes.TransactionRequest {
 	}
 }
 
-func makeRequestByBlockRefAndIndex(ref rawapitypes.BlockReference, index types.TransactionIndex) rawapitypes.TransactionRequest {
+func makeRequestByBlockRefAndIndex(
+	ref rawapitypes.BlockReference,
+	index types.TransactionIndex,
+) rawapitypes.TransactionRequest {
 	return rawapitypes.TransactionRequest{
 		ByBlockRefAndIndex: &rawapitypes.TransactionRequestByBlockRefAndIndex{
 			BlockRef: ref,
@@ -58,7 +61,9 @@ func (api *APIImplRo) GetInTransactionByBlockHashAndIndex(
 ) (*RPCInTransaction, error) {
 	shardId := types.ShardIdFromHash(hash)
 	res, err := api.rawapi.GetInTransaction(
-		ctx, shardId, makeRequestByBlockRefAndIndex(rawapitypes.BlockHashAsBlockReference(hash), types.TransactionIndex(index)),
+		ctx,
+		shardId,
+		makeRequestByBlockRefAndIndex(rawapitypes.BlockHashAsBlockReference(hash), types.TransactionIndex(index)),
 	)
 	if err != nil {
 		return nil, err
@@ -103,7 +108,9 @@ func (api *APIImplRo) GetRawInTransactionByBlockHashAndIndex(
 ) (hexutil.Bytes, error) {
 	shardId := types.ShardIdFromHash(hash)
 	res, err := api.rawapi.GetInTransaction(
-		ctx, shardId, makeRequestByBlockRefAndIndex(rawapitypes.BlockHashAsBlockReference(hash), types.TransactionIndex(index)),
+		ctx,
+		shardId,
+		makeRequestByBlockRefAndIndex(rawapitypes.BlockHashAsBlockReference(hash), types.TransactionIndex(index)),
 	)
 	if err != nil {
 		return nil, err

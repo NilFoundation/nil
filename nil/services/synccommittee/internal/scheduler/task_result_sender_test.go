@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -26,7 +25,7 @@ type TaskResultSenderSuite struct {
 	database      db.DB
 	resultStorage *storage.TaskResultStorage
 
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
 func TestTaskResultSenderSuite(t *testing.T) {

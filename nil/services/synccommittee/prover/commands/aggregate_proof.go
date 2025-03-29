@@ -36,7 +36,7 @@ func (cmd *aggregateProofCmd) MakeCommandDefinition(task *types.Task) (*CommandD
 	blockProofs := append([]string{"--block-proof"}, blockProofFiles...)
 
 	outFile := filepath.Join(cmd.outDir,
-		fmt.Sprintf("aggregated-proof.%v.%v", task.ShardId, task.BlockHash.String()))
+		fmt.Sprintf("aggregated-proof.%v", task.BatchId))
 	outArg := []string{"--proof", outFile}
 
 	allArgs := slices.Concat(stage, blockProofs, outArg)
@@ -47,7 +47,10 @@ func (cmd *aggregateProofCmd) MakeCommandDefinition(task *types.Task) (*CommandD
 	}, execCmd.Err
 }
 
-func (cmd *aggregateProofCmd) AfterCommandExecuted(task *types.Task, results types.TaskOutputArtifacts) (types.TaskResultData, error) {
+func (cmd *aggregateProofCmd) AfterCommandExecuted(
+	task *types.Task,
+	results types.TaskOutputArtifacts,
+) (types.TaskResultData, error) {
 	// TODO: pass aggregated proof here
 	return types.TaskResultData{}, nil
 }

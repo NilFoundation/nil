@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/rs/zerolog"
+	"github.com/NilFoundation/nil/nil/common/logging"
 )
 
 type (
@@ -24,10 +24,10 @@ type RetryConfig struct {
 
 type RetryRunner struct {
 	config RetryConfig
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
-func NewRetryRunner(config RetryConfig, logger zerolog.Logger) RetryRunner {
+func NewRetryRunner(config RetryConfig, logger logging.Logger) RetryRunner {
 	return RetryRunner{
 		config: config,
 		logger: logger,
@@ -107,7 +107,7 @@ func DelayExponential(baseDelay, maxDelay time.Duration) NextDelayFunc {
 	}
 }
 
-func DelayJitter(minDelay, maxDelay time.Duration, logger zerolog.Logger) NextDelayFunc {
+func DelayJitter(minDelay, maxDelay time.Duration, logger logging.Logger) NextDelayFunc {
 	if minDelay > maxDelay {
 		log.Panicf("minDelay %s > maxDelay %s", minDelay, maxDelay)
 	}

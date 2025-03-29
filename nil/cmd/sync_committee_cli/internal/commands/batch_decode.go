@@ -7,10 +7,10 @@ import (
 	"os"
 	"sync"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode"
 	v1 "github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode/v1"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
-	"github.com/rs/zerolog"
 )
 
 type DecodeBatchParams struct {
@@ -30,7 +30,7 @@ var (
 	decoderLoader sync.Once
 )
 
-func initDecoders(logger zerolog.Logger) {
+func initDecoders(logger logging.Logger) {
 	decoderLoader.Do(func() {
 		knownDecoders = append(knownDecoders,
 			v1.NewDecoder(logger),
@@ -40,7 +40,7 @@ func initDecoders(logger zerolog.Logger) {
 }
 
 // TODO embed this call into commands.Executor?
-func DecodeBatch(_ context.Context, params *DecodeBatchParams, logger zerolog.Logger) error {
+func DecodeBatch(_ context.Context, params *DecodeBatchParams, logger logging.Logger) error {
 	initDecoders(logger)
 
 	var batchSource io.ReadSeeker

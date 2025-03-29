@@ -52,21 +52,44 @@ const jsondata = `
 	{ "type" : "function", "name" : "int8", "inputs" : [ { "name" : "inputs", "type" : "int8" } ] },
 	{ "type" : "function", "name" : "bytes32", "inputs" : [ { "name" : "inputs", "type" : "bytes32" } ] },
 	{ "type" : "function", "name" : "foo", "inputs" : [ { "name" : "inputs", "type" : "uint32" } ] },
-	{ "type" : "function", "name" : "bar", "inputs" : [ { "name" : "inputs", "type" : "uint32" }, { "name" : "string", "type" : "uint16" } ] },
+	{ "type" : "function", "name" : "bar", "inputs" : [
+		{ "name" : "inputs", "type" : "uint32" },
+		{ "name" : "string", "type" : "uint16" } ] },
 	{ "type" : "function", "name" : "slice", "inputs" : [ { "name" : "inputs", "type" : "uint32[2]" } ] },
 	{ "type" : "function", "name" : "slice256", "inputs" : [ { "name" : "inputs", "type" : "uint256[2]" } ] },
 	{ "type" : "function", "name" : "sliceAddress", "inputs" : [ { "name" : "inputs", "type" : "address[]" } ] },
-	{ "type" : "function", "name" : "sliceMultiAddress", "inputs" : [ { "name" : "a", "type" : "address[]" }, { "name" : "b", "type" : "address[]" } ] },
-	{ "type" : "function", "name" : "nestedArray", "inputs" : [ { "name" : "a", "type" : "uint256[2][2]" }, { "name" : "b", "type" : "address[]" } ] },
+	{ "type" : "function", "name" : "sliceMultiAddress", "inputs" : [
+		{ "name" : "a", "type" : "address[]" },
+		{ "name" : "b", "type" : "address[]" } ] },
+	{ "type" : "function", "name" : "nestedArray", "inputs" : [
+		{ "name" : "a", "type" : "uint256[2][2]" },
+		{ "name" : "b", "type" : "address[]" } ] },
 	{ "type" : "function", "name" : "nestedArray2", "inputs" : [ { "name" : "a", "type" : "uint8[][2]" } ] },
 	{ "type" : "function", "name" : "nestedSlice", "inputs" : [ { "name" : "a", "type" : "uint8[][]" } ] },
-	{ "type" : "function", "name" : "receive", "inputs" : [ { "name" : "memo", "type" : "bytes" }], "outputs" : [], "payable" : true, "stateMutability" : "payable" },
-	{ "type" : "function", "name" : "fixedArrStr", "stateMutability" : "view", "inputs" : [ { "name" : "str", "type" : "string" }, { "name" : "fixedArr", "type" : "uint256[2]" } ] },
-	{ "type" : "function", "name" : "fixedArrBytes", "stateMutability" : "view", "inputs" : [ { "name" : "bytes", "type" : "bytes" }, { "name" : "fixedArr", "type" : "uint256[2]" } ] },
-	{ "type" : "function", "name" : "mixedArrStr", "stateMutability" : "view", "inputs" : [ { "name" : "str", "type" : "string" }, { "name" : "fixedArr", "type" : "uint256[2]" }, { "name" : "dynArr", "type" : "uint256[]" } ] },
-	{ "type" : "function", "name" : "doubleFixedArrStr", "stateMutability" : "view", "inputs" : [ { "name" : "str", "type" : "string" }, { "name" : "fixedArr1", "type" : "uint256[2]" }, { "name" : "fixedArr2", "type" : "uint256[3]" } ] },
-	{ "type" : "function", "name" : "multipleMixedArrStr", "stateMutability" : "view", "inputs" : [ { "name" : "str", "type" : "string" }, { "name" : "fixedArr1", "type" : "uint256[2]" }, { "name" : "dynArr", "type" : "uint256[]" }, { "name" : "fixedArr2", "type" : "uint256[3]" } ] },
-	{ "type" : "function", "name" : "overloadedNames", "stateMutability" : "view", "inputs": [ { "components": [ { "internalType": "uint256", "name": "_f",	"type": "uint256" }, { "internalType": "uint256", "name": "__f", "type": "uint256"}, { "internalType": "uint256", "name": "f", "type": "uint256"}],"internalType": "struct Overloader.F", "name": "f","type": "tuple"}]}
+	{ "type" : "function", "name" : "receive", "inputs" : [ { "name" : "memo", "type" : "bytes" }], "outputs" : [],
+		"payable" : true, "stateMutability" : "payable" },
+	{ "type" : "function", "name" : "fixedArrStr", "stateMutability" : "view",
+		"inputs" : [ { "name" : "str", "type" : "string" }, { "name" : "fixedArr", "type" : "uint256[2]" } ] },
+	{ "type" : "function", "name" : "fixedArrBytes", "stateMutability" : "view",
+		"inputs" : [ { "name" : "bytes", "type" : "bytes" }, { "name" : "fixedArr", "type" : "uint256[2]" } ] },
+	{ "type" : "function", "name" : "mixedArrStr", "stateMutability" : "view", "inputs" : [
+		{ "name" : "str", "type" : "string" },
+		{ "name" : "fixedArr", "type" : "uint256[2]" },
+		{ "name" : "dynArr", "type" : "uint256[]" } ] },
+	{ "type" : "function", "name" : "doubleFixedArrStr", "stateMutability" : "view", "inputs" : [
+		{ "name" : "str", "type" : "string" },
+		{ "name" : "fixedArr1", "type" : "uint256[2]" },
+		{ "name" : "fixedArr2", "type" : "uint256[3]" } ] },
+	{ "type" : "function", "name" : "multipleMixedArrStr", "stateMutability" : "view", "inputs" : [
+		{ "name" : "str", "type" : "string" },
+		{ "name" : "fixedArr1", "type" : "uint256[2]" },
+		{ "name" : "dynArr", "type" : "uint256[]" },
+		{ "name" : "fixedArr2", "type" : "uint256[3]" } ] },
+	{ "type" : "function", "name" : "overloadedNames", "stateMutability" : "view", "inputs": [ { "components": [
+		{ "internalType": "uint256", "name": "_f",	"type": "uint256" },
+		{ "internalType": "uint256", "name": "__f", "type": "uint256"},
+		{ "internalType": "uint256", "name": "f", "type": "uint256"}],
+		"internalType": "struct Overloader.F", "name": "f","type": "tuple"}]}
 ]`
 
 var (
@@ -98,33 +121,211 @@ var (
 )
 
 var methods = map[string]Method{
-	"":                    NewMethod("", "", Function, "", false, false, nil, nil),
-	"balance":             NewMethod("balance", "balance", Function, "view", false, false, nil, nil),
-	"send":                NewMethod("send", "send", Function, "", false, false, []Argument{{"amount", Uint256, false}}, nil),
-	"test":                NewMethod("test", "test", Function, "", false, false, []Argument{{"number", Uint32, false}}, nil),
-	"string":              NewMethod("string", "string", Function, "", false, false, []Argument{{"inputs", String, false}}, nil),
-	"bool":                NewMethod("bool", "bool", Function, "", false, false, []Argument{{"inputs", Bool, false}}, nil),
-	"address":             NewMethod("address", "address", Function, "", false, false, []Argument{{"inputs", Address, false}}, nil),
-	"uint64[]":            NewMethod("uint64[]", "uint64[]", Function, "", false, false, []Argument{{"inputs", Uint64Arr, false}}, nil),
-	"uint64[2]":           NewMethod("uint64[2]", "uint64[2]", Function, "", false, false, []Argument{{"inputs", Uint64Arr2, false}}, nil),
-	"int8":                NewMethod("int8", "int8", Function, "", false, false, []Argument{{"inputs", Int8, false}}, nil),
-	"bytes32":             NewMethod("bytes32", "bytes32", Function, "", false, false, []Argument{{"inputs", Bytes32, false}}, nil),
-	"foo":                 NewMethod("foo", "foo", Function, "", false, false, []Argument{{"inputs", Uint32, false}}, nil),
-	"bar":                 NewMethod("bar", "bar", Function, "", false, false, []Argument{{"inputs", Uint32, false}, {"string", Uint16, false}}, nil),
-	"slice":               NewMethod("slice", "slice", Function, "", false, false, []Argument{{"inputs", Uint32Arr2, false}}, nil),
-	"slice256":            NewMethod("slice256", "slice256", Function, "", false, false, []Argument{{"inputs", Uint256Arr2, false}}, nil),
-	"sliceAddress":        NewMethod("sliceAddress", "sliceAddress", Function, "", false, false, []Argument{{"inputs", AddressArr, false}}, nil),
-	"sliceMultiAddress":   NewMethod("sliceMultiAddress", "sliceMultiAddress", Function, "", false, false, []Argument{{"a", AddressArr, false}, {"b", AddressArr, false}}, nil),
-	"nestedArray":         NewMethod("nestedArray", "nestedArray", Function, "", false, false, []Argument{{"a", Uint256ArrNested, false}, {"b", AddressArr, false}}, nil),
-	"nestedArray2":        NewMethod("nestedArray2", "nestedArray2", Function, "", false, false, []Argument{{"a", Uint8ArrNested, false}}, nil),
-	"nestedSlice":         NewMethod("nestedSlice", "nestedSlice", Function, "", false, false, []Argument{{"a", Uint8SliceNested, false}}, nil),
-	"receive":             NewMethod("receive", "receive", Function, "payable", false, true, []Argument{{"memo", Bytes, false}}, []Argument{}),
-	"fixedArrStr":         NewMethod("fixedArrStr", "fixedArrStr", Function, "view", false, false, []Argument{{"str", String, false}, {"fixedArr", Uint256Arr2, false}}, nil),
-	"fixedArrBytes":       NewMethod("fixedArrBytes", "fixedArrBytes", Function, "view", false, false, []Argument{{"bytes", Bytes, false}, {"fixedArr", Uint256Arr2, false}}, nil),
-	"mixedArrStr":         NewMethod("mixedArrStr", "mixedArrStr", Function, "view", false, false, []Argument{{"str", String, false}, {"fixedArr", Uint256Arr2, false}, {"dynArr", Uint256Arr, false}}, nil),
-	"doubleFixedArrStr":   NewMethod("doubleFixedArrStr", "doubleFixedArrStr", Function, "view", false, false, []Argument{{"str", String, false}, {"fixedArr1", Uint256Arr2, false}, {"fixedArr2", Uint256Arr3, false}}, nil),
-	"multipleMixedArrStr": NewMethod("multipleMixedArrStr", "multipleMixedArrStr", Function, "view", false, false, []Argument{{"str", String, false}, {"fixedArr1", Uint256Arr2, false}, {"dynArr", Uint256Arr, false}, {"fixedArr2", Uint256Arr3, false}}, nil),
-	"overloadedNames":     NewMethod("overloadedNames", "overloadedNames", Function, "view", false, false, []Argument{{"f", TupleF, false}}, nil),
+	"":        NewMethod("", "", Function, "", false, false, nil, nil),
+	"balance": NewMethod("balance", "balance", Function, "view", false, false, nil, nil),
+	"send":    NewMethod("send", "send", Function, "", false, false, []Argument{{"amount", Uint256, false}}, nil),
+	"test":    NewMethod("test", "test", Function, "", false, false, []Argument{{"number", Uint32, false}}, nil),
+	"string":  NewMethod("string", "string", Function, "", false, false, []Argument{{"inputs", String, false}}, nil),
+	"bool":    NewMethod("bool", "bool", Function, "", false, false, []Argument{{"inputs", Bool, false}}, nil),
+	"address": NewMethod(
+		"address",
+		"address",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{{"inputs", Address, false}},
+		nil),
+	"uint64[]": NewMethod(
+		"uint64[]",
+		"uint64[]",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{{"inputs", Uint64Arr, false}},
+		nil),
+	"uint64[2]": NewMethod(
+		"uint64[2]",
+		"uint64[2]",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{{"inputs", Uint64Arr2, false}},
+		nil),
+	"int8":    NewMethod("int8", "int8", Function, "", false, false, []Argument{{"inputs", Int8, false}}, nil),
+	"bytes32": NewMethod("bytes32", "bytes32", Function, "", false, false, []Argument{{"inputs", Bytes32, false}}, nil),
+	"foo":     NewMethod("foo", "foo", Function, "", false, false, []Argument{{"inputs", Uint32, false}}, nil),
+	"bar": NewMethod(
+		"bar",
+		"bar",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{
+			{"inputs", Uint32, false},
+			{"string", Uint16, false},
+		},
+		nil),
+	"slice": NewMethod(
+		"slice",
+		"slice",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{
+			{"inputs", Uint32Arr2, false},
+		},
+		nil),
+	"slice256": NewMethod(
+		"slice256",
+		"slice256",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{
+			{"inputs", Uint256Arr2, false},
+		},
+		nil),
+	"sliceAddress": NewMethod(
+		"sliceAddress",
+		"sliceAddress",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{
+			{"inputs", AddressArr, false},
+		},
+		nil),
+	"sliceMultiAddress": NewMethod(
+		"sliceMultiAddress",
+		"sliceMultiAddress",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{
+			{"a", AddressArr, false},
+			{"b", AddressArr, false},
+		},
+		nil),
+	"nestedArray": NewMethod(
+		"nestedArray",
+		"nestedArray",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{
+			{"a", Uint256ArrNested, false},
+			{"b", AddressArr, false},
+		},
+		nil),
+	"nestedArray2": NewMethod(
+		"nestedArray2",
+		"nestedArray2",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{{"a", Uint8ArrNested, false}},
+		nil),
+	"nestedSlice": NewMethod(
+		"nestedSlice",
+		"nestedSlice",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{{"a", Uint8SliceNested, false}},
+		nil),
+	"receive": NewMethod(
+		"receive",
+		"receive",
+		Function,
+		"payable",
+		false,
+		true,
+		[]Argument{{"memo", Bytes, false}},
+		[]Argument{}),
+	"fixedArrStr": NewMethod(
+		"fixedArrStr",
+		"fixedArrStr",
+		Function,
+		"view",
+		false,
+		false,
+		[]Argument{
+			{"str", String, false},
+			{"fixedArr", Uint256Arr2, false},
+		},
+		nil),
+	"fixedArrBytes": NewMethod(
+		"fixedArrBytes",
+		"fixedArrBytes",
+		Function,
+		"view",
+		false,
+		false,
+		[]Argument{
+			{"bytes", Bytes, false},
+			{"fixedArr", Uint256Arr2, false},
+		},
+		nil),
+	"mixedArrStr": NewMethod(
+		"mixedArrStr",
+		"mixedArrStr",
+		Function,
+		"view",
+		false,
+		false,
+		[]Argument{
+			{"str", String, false},
+			{"fixedArr", Uint256Arr2, false},
+			{"dynArr", Uint256Arr, false},
+		},
+		nil),
+	"doubleFixedArrStr": NewMethod(
+		"doubleFixedArrStr",
+		"doubleFixedArrStr",
+		Function,
+		"view",
+		false,
+		false,
+		[]Argument{
+			{"str", String, false},
+			{"fixedArr1", Uint256Arr2, false},
+			{"fixedArr2", Uint256Arr3, false},
+		},
+		nil),
+	"multipleMixedArrStr": NewMethod(
+		"multipleMixedArrStr",
+		"multipleMixedArrStr",
+		Function,
+		"view",
+		false,
+		false,
+		[]Argument{
+			{"str", String, false},
+			{"fixedArr1", Uint256Arr2, false},
+			{"dynArr", Uint256Arr, false},
+			{"fixedArr2", Uint256Arr3, false},
+		},
+		nil),
+	"overloadedNames": NewMethod(
+		"overloadedNames",
+		"overloadedNames",
+		Function,
+		"view",
+		false,
+		false,
+		[]Argument{{"f", TupleF, false}},
+		nil),
 }
 
 func TestReader(t *testing.T) {
@@ -168,7 +369,11 @@ func TestInvalidABI(t *testing.T) {
 	if err == nil {
 		t.Fatal("invalid json should produce error")
 	}
-	json2 := `[{ "type" : "function", "name" : "send", "constant" : false, "inputs" : [ { "name" : "amount", "typ" : "uint256" } ] }]`
+	json2 := `[{ 
+		"type" : "function",
+		"name" : "send",
+		"constant" : false,
+		"inputs" : [ { "name" : "amount", "typ" : "uint256" } ] }]`
 	_, err = JSON(strings.NewReader(json2))
 	if err == nil {
 		t.Fatal("invalid json should produce error")
@@ -184,8 +389,23 @@ func TestInvalidABI(t *testing.T) {
 func TestConstructor(t *testing.T) {
 	t.Parallel()
 
-	json := `[{	"inputs": [{"internalType": "uint256","name": "a","type": "uint256"	},{	"internalType": "uint256","name": "b","type": "uint256"}],"stateMutability": "nonpayable","type": "constructor"}]`
-	method := NewMethod("", "", Constructor, "nonpayable", false, false, []Argument{{"a", Uint256, false}, {"b", Uint256, false}}, nil)
+	json := `[{	"inputs": [
+			{ "internalType": "uint256","name": "a","type": "uint256" },
+			{ "internalType": "uint256","name": "b","type": "uint256" }
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"}]`
+	method := NewMethod(
+		"",
+		"",
+		Constructor,
+		"nonpayable",
+		false,
+		false,
+		[]Argument{
+			{"a", Uint256, false},
+			{"b", Uint256, false},
+		}, nil)
 	// Test from JSON
 	abi, err := JSON(strings.NewReader(json))
 	if err != nil {
@@ -254,7 +474,17 @@ func TestTestNumbers(t *testing.T) {
 func TestMethodSignature(t *testing.T) {
 	t.Parallel()
 
-	m := NewMethod("foo", "foo", Function, "", false, false, []Argument{{"bar", String, false}, {"baz", String, false}}, nil)
+	m := NewMethod(
+		"foo",
+		"foo",
+		Function,
+		"",
+		false,
+		false,
+		[]Argument{
+			{"bar", String, false},
+			{"baz", String, false},
+		}, nil)
 	exp := "foo(string,string)"
 	if m.Sig != exp {
 		t.Error("signature mismatch", exp, "!=", m.Sig)
@@ -294,7 +524,36 @@ func TestMethodSignature(t *testing.T) {
 func TestOverloadedMethodSignature(t *testing.T) {
 	t.Parallel()
 
-	json := `[{"constant":true,"inputs":[{"name":"i","type":"uint256"},{"name":"j","type":"uint256"}],"name":"foo","outputs":[],"payable":false,"stateMutability":"pure","type":"function"},{"constant":true,"inputs":[{"name":"i","type":"uint256"}],"name":"foo","outputs":[],"payable":false,"stateMutability":"pure","type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"i","type":"uint256"}],"name":"bar","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"i","type":"uint256"},{"indexed":false,"name":"j","type":"uint256"}],"name":"bar","type":"event"}]`
+	json := `[{
+		"constant":true,
+		"inputs":[
+			{"name":"i","type":"uint256"},
+			{"name":"j","type":"uint256"}],
+		"name":"foo",
+		"outputs":[],
+		"payable":false,
+		"stateMutability":"pure",
+		"type":"function"
+	},{
+		"constant":true,
+		"inputs":[{"name":"i","type":"uint256"}],
+		"name":"foo",
+		"outputs":[],
+		"payable":false,
+		"stateMutability":"pure",
+		"type":"function"
+	},{
+		"anonymous":false,
+		"inputs":[{"indexed":false,"name":"i","type":"uint256"}],
+		"name":"bar",
+		"type":"event"
+	},{
+		"anonymous":false,
+		"inputs":[
+			{"indexed":false,"name":"i","type":"uint256"},
+			{"indexed":false,"name":"j","type":"uint256"}],
+		"name":"bar","type":"event"
+	}]`
 	abi, err := JSON(strings.NewReader(json))
 	if err != nil {
 		t.Fatal(err)
@@ -339,7 +598,12 @@ func TestMultiPack(t *testing.T) {
 }
 
 func ExampleJSON() {
-	const definition = `[{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"isBar","outputs":[{"name":"","type":"bool"}],"type":"function"}]`
+	const definition = `[{
+		"constant":true,
+		"inputs":[{"name":"","type":"address"}],
+		"name":"isBar",
+		"outputs":[{"name":"","type":"bool"}],
+		"type":"function"}]`
 
 	abi, err := JSON(strings.NewReader(definition))
 	if err != nil {
@@ -360,9 +624,18 @@ func TestInputVariableInputLength(t *testing.T) {
 
 	const definition = `[
 	{ "type" : "function", "name" : "strOne", "constant" : true, "inputs" : [ { "name" : "str", "type" : "string" } ] },
-	{ "type" : "function", "name" : "bytesOne", "constant" : true, "inputs" : [ { "name" : "str", "type" : "bytes" } ] },
-	{ "type" : "function", "name" : "strTwo", "constant" : true, "inputs" : [ { "name" : "str", "type" : "string" }, { "name" : "str1", "type" : "string" } ] }
-	]`
+	{
+		"type" : "function",
+		"name" : "bytesOne",
+		"constant" : true,
+		"inputs" : [ { "name" : "str", "type" : "bytes" } ] },
+	{
+		"type" : "function",
+		"name" : "strTwo",
+		"constant" : true, "inputs" : [
+			{ "name" : "str", "type" : "string" },
+			{ "name" : "str1", "type" : "string" } ]
+	}]`
 
 	abi, err := JSON(strings.NewReader(definition))
 	if err != nil {
@@ -682,8 +955,20 @@ func TestBareEvents(t *testing.T) {
 	const definition = `[
 	{ "type" : "event", "name" : "balance" },
 	{ "type" : "event", "name" : "anon", "anonymous" : true},
-	{ "type" : "event", "name" : "args", "inputs" : [{ "indexed":false, "name":"arg0", "type":"uint256" }, { "indexed":true, "name":"arg1", "type":"address" }] },
-	{ "type" : "event", "name" : "tuple", "inputs" : [{ "indexed":false, "name":"t", "type":"tuple", "components":[{"name":"a", "type":"uint256"}] }, { "indexed":true, "name":"arg1", "type":"address" }] }
+	{
+		"type" : "event",
+		"name" : "args",
+		"inputs" : [
+			{ "indexed":false, "name":"arg0", "type":"uint256" },
+			{ "indexed":true, "name":"arg1", "type":"address" }]
+	},
+	{
+		"type" : "event",
+		"name" : "tuple",
+		"inputs" : [
+			{ "indexed":false, "name":"t", "type":"tuple", "components":[{"name":"a", "type":"uint256"}] },
+			{ "indexed":true, "name":"arg1", "type":"address" }]
+		}
 	]`
 
 	tuple, _ := NewType("tuple", "", []ArgumentMarshaling{{Name: "a", Type: "uint256"}})
@@ -728,13 +1013,18 @@ func TestBareEvents(t *testing.T) {
 		}
 		for i, arg := range exp.Args {
 			if arg.Name != got.Inputs[i].Name {
-				t.Errorf("events[%s].Input[%d] has an invalid name, want %s, got %s", name, i, arg.Name, got.Inputs[i].Name)
+				t.Errorf(
+					"events[%s].Input[%d] has an invalid name, want %s, got %s", name, i, arg.Name, got.Inputs[i].Name)
 			}
 			if arg.Indexed != got.Inputs[i].Indexed {
-				t.Errorf("events[%s].Input[%d] has an invalid indexed indication, want %v, got %v", name, i, arg.Indexed, got.Inputs[i].Indexed)
+				t.Errorf(
+					"events[%s].Input[%d] has an invalid indexed indication, want %v, got %v",
+					name, i, arg.Indexed, got.Inputs[i].Indexed)
 			}
 			if arg.Type.T != got.Inputs[i].Type.T {
-				t.Errorf("events[%s].Input[%d] has an invalid type, want %x, got %x", name, i, arg.Type.T, got.Inputs[i].Type.T)
+				t.Errorf(
+					"events[%s].Input[%d] has an invalid type, want %x, got %x",
+					name, i, arg.Type.T, got.Inputs[i].Type.T)
 			}
 		}
 	}
@@ -757,13 +1047,35 @@ func TestBareEvents(t *testing.T) {
 func TestUnpackEvent(t *testing.T) {
 	t.Parallel()
 
-	const abiJSON = `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"receive","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"received","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"}],"name":"receivedAddr","type":"event"}]`
+	const abiJSON = `[{
+		"constant":false,
+		"inputs":[{"name":"memo","type":"bytes"}],
+		"name":"receive",
+		"outputs":[],
+		"payable":true,
+		"stateMutability":"payable",
+		"type":"function"
+	},{
+		"anonymous":false,
+		"inputs":[
+			{"indexed":false,"name":"sender","type":"address"},
+			{"indexed":false,"name":"amount","type":"uint256"},
+			{"indexed":false,"name":"memo","type":"bytes"}
+		],
+		"name":"received",
+		"type":"event"
+	},{
+		"anonymous":false,
+		"inputs":[{"indexed":false,"name":"sender","type":"address"}],
+		"name":"receivedAddr",
+		"type":"event"}
+	]`
 	abi, err := JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	const hexdata = `000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158`
+	const hexdata = `000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158` //nolint: lll
 	data, err := hex.DecodeString(hexdata)
 	if err != nil {
 		t.Fatal(err)
@@ -797,13 +1109,35 @@ func TestUnpackEvent(t *testing.T) {
 func TestUnpackEventIntoMap(t *testing.T) {
 	t.Parallel()
 
-	const abiJSON = `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"receive","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"received","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"}],"name":"receivedAddr","type":"event"}]`
+	const abiJSON = `[{
+		"constant":false,
+		"inputs":[{"name":"memo","type":"bytes"}],
+		"name":"receive",
+		"outputs":[],
+		"payable":true,
+		"stateMutability":"payable",
+		"type":"function"
+	},{
+		"anonymous":false,
+		"inputs":[
+			{"indexed":false,"name":"sender","type":"address"},
+			{"indexed":false,"name":"amount","type":"uint256"},
+			{"indexed":false,"name":"memo","type":"bytes"}
+		],
+		"name":"received",
+		"type":"event"
+	},{
+		"anonymous":false,
+		"inputs":[{"indexed":false,"name":"sender","type":"address"}],
+		"name":"receivedAddr",
+		"type":"event"
+	}]`
 	abi, err := JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	const hexdata = `000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158`
+	const hexdata = `000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158` //nolint: lll
 	data, err := hex.DecodeString(hexdata)
 	if err != nil {
 		t.Fatal(err)
@@ -849,12 +1183,36 @@ func TestUnpackEventIntoMap(t *testing.T) {
 func TestUnpackMethodIntoMap(t *testing.T) {
 	t.Parallel()
 
-	const abiJSON = `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"receive","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[],"name":"send","outputs":[{"name":"amount","type":"uint256"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"addr","type":"address"}],"name":"get","outputs":[{"name":"hash","type":"bytes"}],"payable":true,"stateMutability":"payable","type":"function"}]`
+	const abiJSON = `[{
+		"constant":false,
+		"inputs":[{"name":"memo","type":"bytes"}],
+		"name":"receive",
+		"outputs":[],
+		"payable":true,
+		"stateMutability":"payable",
+		"type":"function"
+	},{
+		"constant":false,
+		"inputs":[],
+		"name":"send",
+		"outputs":[{"name":"amount","type":"uint256"}],
+		"payable":true,
+		"stateMutability":"payable",
+		"type":"function"
+	},{
+		"constant":false,
+		"inputs":[{"name":"addr","type":"address"}],
+		"name":"get",
+		"outputs":[{"name":"hash","type":"bytes"}],
+		"payable":true,
+		"stateMutability":"payable",
+		"type":"function"
+	}]`
 	abi, err := JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		t.Fatal(err)
 	}
-	const hexdata = `00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000015800000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000158000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000001580000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000015800000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000158`
+	const hexdata = `00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000015800000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000158000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000001580000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000015800000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000158` //nolint: lll
 	data, err := hex.DecodeString(hexdata)
 	if err != nil {
 		t.Fatal(err)
@@ -892,7 +1250,15 @@ func TestUnpackMethodIntoMap(t *testing.T) {
 	if len(getMap) != 1 {
 		t.Error("unpacked `get` map expected to have length 1")
 	}
-	expectedBytes := []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 88, 0}
+	expectedBytes := []byte{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 96, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 1, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 88, 0,
+	}
 	if !bytes.Equal(getMap["hash"].([]byte), expectedBytes) { //nolint:forcetypeassert
 		t.Errorf("unpacked `get` map expected `hash` value of %v", expectedBytes)
 	}
@@ -902,12 +1268,36 @@ func TestUnpackIntoMapNamingConflict(t *testing.T) {
 	t.Parallel()
 
 	// Two methods have the same name
-	abiJSON := `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"get","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[],"name":"send","outputs":[{"name":"amount","type":"uint256"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"addr","type":"address"}],"name":"get","outputs":[{"name":"hash","type":"bytes"}],"payable":true,"stateMutability":"payable","type":"function"}]`
+	abiJSON := `[{
+		"constant":false,
+		"inputs":[{"name":"memo","type":"bytes"}],
+		"name":"get",
+		"outputs":[],
+		"payable":true,
+		"stateMutability":"payable",
+		"type":"function"
+	},{
+		"constant":false,
+		"inputs":[],
+		"name":"send",
+		"outputs":[{"name":"amount","type":"uint256"}],
+		"payable":true,
+		"stateMutability":"payable",
+		"type":"function"
+	},{
+		"constant":false,
+		"inputs":[{"name":"addr","type":"address"}],
+		"name":"get",
+		"outputs":[{"name":"hash","type":"bytes"}],
+		"payable":true,
+		"stateMutability":"payable",
+		"type":"function"
+	}]`
 	abi, err := JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		t.Fatal(err)
 	}
-	hexdata := `00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158`
+	hexdata := `00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158` //nolint: lll
 	data, err := hex.DecodeString(hexdata)
 	if err != nil {
 		t.Fatal(err)
@@ -921,12 +1311,34 @@ func TestUnpackIntoMapNamingConflict(t *testing.T) {
 	}
 
 	// Two events have the same name
-	abiJSON = `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"receive","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"received","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"}],"name":"received","type":"event"}]`
+	abiJSON = `[{
+		"constant":false,
+		"inputs":[{"name":"memo","type":"bytes"}],
+		"name":"receive",
+		"outputs":[],
+		"payable":true,
+		"stateMutability":"payable",
+		"type":"function"
+	},{
+		"anonymous":false,
+		"inputs":[
+			{"indexed":false,"name":"sender","type":"address"},
+			{"indexed":false,"name":"amount","type":"uint256"},
+			{"indexed":false,"name":"memo","type":"bytes"}
+		],
+		"name":"received",
+		"type":"event"
+	},{
+		"anonymous":false,
+		"inputs":[{"indexed":false,"name":"sender","type":"address"}],
+		"name":"received",
+		"type":"event"
+	}]`
 	abi, err = JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		t.Fatal(err)
 	}
-	hexdata = `000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158`
+	hexdata = `000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158` //nolint: lll
 	data, err = hex.DecodeString(hexdata)
 	if err != nil {
 		t.Fatal(err)
@@ -940,7 +1352,28 @@ func TestUnpackIntoMapNamingConflict(t *testing.T) {
 	}
 
 	// Method and event have the same name
-	abiJSON = `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"received","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"received","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"}],"name":"receivedAddr","type":"event"}]`
+	abiJSON = `[{
+		"constant":false,
+		"inputs":[{"name":"memo","type":"bytes"}],
+		"name":"received",
+		"outputs":[],
+		"payable":true,
+		"stateMutability":"payable",
+		"type":"function"
+	},{
+		"anonymous":false,
+		"inputs":[
+			{"indexed":false,"name":"sender","type":"address"},
+			{"indexed":false,"name":"amount","type":"uint256"},
+			{"indexed":false,"name":"memo","type":"bytes"}
+		],"name":"Received",
+		"type":"event"
+	},{
+		"anonymous":false,
+		"inputs":[{"indexed":false,"name":"sender","type":"address"}],
+		"name":"receivedAddr",
+		"type":"event"
+	}]`
 	abi, err = JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		t.Fatal(err)
@@ -953,7 +1386,29 @@ func TestUnpackIntoMapNamingConflict(t *testing.T) {
 	}
 
 	// Conflict is case sensitive
-	abiJSON = `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"received","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"Received","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"}],"name":"receivedAddr","type":"event"}]`
+	abiJSON = `[{
+		"constant":false,
+		"inputs":[{"name":"memo","type":"bytes"}],
+		"name":"received",
+		"outputs":[],
+		"payable":true,
+		"stateMutability":"payable",
+		"type":"function"
+	},{
+		"anonymous":false,
+		"inputs":[
+			{"indexed":false,"name":"sender","type":"address"},
+			{"indexed":false,"name":"amount","type":"uint256"},
+			{"indexed":false,"name":"memo","type":"bytes"}
+		],
+		"name":"Received",
+		"type":"event"
+	},{
+		"anonymous":false,
+		"inputs":[{"indexed":false,"name":"sender","type":"address"}],
+		"name":"receivedAddr",
+		"type":"event"
+	}]`
 	abi, err = JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		t.Fatal(err)
@@ -1027,29 +1482,126 @@ func TestABI_EventById(t *testing.T) {
 	}{
 		{
 			name: "",
-			json: `[
-			{"type":"event","name":"received","anonymous":false,"inputs":[
-				{"indexed":false,"name":"sender","type":"address"},
-				{"indexed":false,"name":"amount","type":"uint256"},
-				{"indexed":false,"name":"memo","type":"bytes"}
+			json: `[{
+				"type":"event",
+				"name":"received",
+				"anonymous":false,
+				"inputs":[
+					{"indexed":false,"name":"sender","type":"address"},
+					{"indexed":false,"name":"amount","type":"uint256"},
+					{"indexed":false,"name":"memo","type":"bytes"}
 				]
 			}]`,
 			event: "received(address,uint256,bytes)",
 		}, {
 			name: "",
-			json: `[
-				{ "constant": true, "inputs": [], "name": "name", "outputs": [ { "name": "", "type": "string" } ], "payable": false, "stateMutability": "view", "type": "function" },
-				{ "constant": false, "inputs": [ { "name": "_spender", "type": "address" }, { "name": "_value", "type": "uint256" } ], "name": "approve", "outputs": [ { "name": "", "type": "bool" } ], "payable": false, "stateMutability": "nonpayable", "type": "function" },
-				{ "constant": true, "inputs": [], "name": "totalSupply", "outputs": [ { "name": "", "type": "uint256" } ], "payable": false, "stateMutability": "view", "type": "function" },
-				{ "constant": false, "inputs": [ { "name": "_from", "type": "address" }, { "name": "_to", "type": "address" }, { "name": "_value", "type": "uint256" } ], "name": "transferFrom", "outputs": [ { "name": "", "type": "bool" } ], "payable": false, "stateMutability": "nonpayable", "type": "function" },
-				{ "constant": true, "inputs": [], "name": "decimals", "outputs": [ { "name": "", "type": "uint8" } ], "payable": false, "stateMutability": "view", "type": "function" },
-				{ "constant": true, "inputs": [ { "name": "_owner", "type": "address" } ], "name": "balanceOf", "outputs": [ { "name": "balance", "type": "uint256" } ], "payable": false, "stateMutability": "view", "type": "function" },
-				{ "constant": true, "inputs": [], "name": "symbol", "outputs": [ { "name": "", "type": "string" } ], "payable": false, "stateMutability": "view", "type": "function" },
-				{ "constant": false, "inputs": [ { "name": "_to", "type": "address" }, { "name": "_value", "type": "uint256" } ], "name": "transfer", "outputs": [ { "name": "", "type": "bool" } ], "payable": false, "stateMutability": "nonpayable", "type": "function" },
-				{ "constant": true, "inputs": [ { "name": "_owner", "type": "address" }, { "name": "_spender", "type": "address" } ], "name": "allowance", "outputs": [ { "name": "", "type": "uint256" } ], "payable": false, "stateMutability": "view", "type": "function" },
-				{ "payable": true, "stateMutability": "payable", "type": "fallback" },
-				{ "anonymous": false, "inputs": [ { "indexed": true, "name": "owner", "type": "address" }, { "indexed": true, "name": "spender", "type": "address" }, { "indexed": false, "name": "value", "type": "uint256" } ], "name": "Approval", "type": "event" },
-				{ "anonymous": false, "inputs": [ { "indexed": true, "name": "from", "type": "address" }, { "indexed": true, "name": "to", "type": "address" }, { "indexed": false, "name": "value", "type": "uint256" } ], "name": "Transfer", "type": "event" }
+			json: `[{
+				"constant": true, 
+				"inputs": [], 
+				"name": "name", 
+				"outputs": [ { "name": "", "type": "string" } ], 
+				"payable": false, 
+				"stateMutability": "view", 
+				"type": "function"
+			}, {
+				"constant": false,
+				"inputs": [
+					{ "name": "_spender", "type": "address" },
+					{ "name": "_value", "type": "uint256" }
+				],
+				"name": "approve",
+				"outputs": [ { "name": "", "type": "bool" } ],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}, {
+				"constant": true, 
+				"inputs": [], 
+				"name": "totalSupply", 
+				"outputs": [ { "name": "", "type": "uint256" } ], 
+				"payable": false, 
+				"stateMutability": "view", 
+				"type": "function"
+			}, {
+				"constant": false, 
+				"inputs": [
+					{ "name": "_from", "type": "address" },
+					{ "name": "_to", "type": "address" },
+					{ "name": "_value", "type": "uint256" }
+				],
+				"name": "transferFrom",
+				"outputs": [ { "name": "", "type": "bool" } ],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}, {
+				"constant": true, 
+				"inputs": [], 
+				"name": "decimals", 
+				"outputs": [ { "name": "", "type": "uint8" } ], 
+				"payable": false, 
+				"stateMutability": "view", 
+				"type": "function"
+			}, {
+				"constant": true, 
+				"inputs": [ { "name": "_owner", "type": "address" } ], 
+				"name": "balanceOf", 
+				"outputs": [ { "name": "balance", "type": "uint256" } ],
+				"payable": false,
+				"stateMutability": "view",
+				"type": "function"
+			}, {
+				"constant": true,
+				"inputs": [], 
+				"name": "symbol", 
+				"outputs": [ { "name": "", "type": "string" } ], 
+				"payable": false, 
+				"stateMutability": "view", 
+				"type": "function"
+			}, {
+				"constant": false, 
+				"inputs": [
+					{ "name": "_to", "type": "address" },
+					{ "name": "_value", "type": "uint256" }
+				],
+				"name": "transfer",
+				"outputs": [ { "name": "", "type": "bool" } ],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}, {
+				"constant": true,
+				"inputs": [
+					{ "name": "_owner", "type": "address" },
+					{ "name": "_spender", "type": "address" }
+				],
+				"name": "allowance",
+				"outputs": [ { "name": "", "type": "uint256" } ],
+				"payable": false,
+				"stateMutability": "view",
+				"type": "function"
+			}, {
+				"payable": true,
+				"stateMutability": "payable",
+				"type": "fallback"
+			}, {
+				"anonymous": false,
+				"inputs": [
+					{ "indexed": true, "name": "owner", "type": "address" },
+					{ "indexed": true, "name": "spender", "type": "address" },
+					{ "indexed": false, "name": "value", "type": "uint256" }
+				],
+				"name": "Approval",
+				"type": "event"
+			}, {
+				"anonymous": false,
+				"inputs": [
+					{ "indexed": true, "name": "from", "type": "address" },
+					{ "indexed": true, "name": "to", "type": "address" },
+					{ "indexed": false, "name": "value", "type": "uint256" }
+				],
+				"name": "Transfer",
+				"type": "event" }
 			]`,
 			event: "Transfer(address,address,uint256)",
 		},
@@ -1090,7 +1642,43 @@ func TestABI_EventById(t *testing.T) {
 func TestDoubleDuplicateMethodNames(t *testing.T) {
 	t.Parallel()
 
-	abiJSON := `[{"constant":false,"inputs":[{"name":"to","type":"address"},{"name":"value","type":"uint256"}],"name":"transfer","outputs":[{"name":"ok","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"to","type":"address"},{"name":"value","type":"uint256"},{"name":"data","type":"bytes"}],"name":"transfer0","outputs":[{"name":"ok","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"to","type":"address"},{"name":"value","type":"uint256"},{"name":"data","type":"bytes"},{"name":"customFallback","type":"string"}],"name":"transfer","outputs":[{"name":"ok","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"}]`
+	abiJSON := `[{
+		"constant":false,
+		"inputs":[
+			{"name":"to","type":"address"},
+			{"name":"value","type":"uint256"}
+		],
+		"name":"transfer",
+		"outputs":[{"name":"ok","type":"bool"}],
+		"payable":false,
+		"stateMutability":"nonpayable",
+		"type":"function"
+	},{
+		"constant":false,
+		"inputs":[
+			{"name":"to","type":"address"},
+			{"name":"value","type":"uint256"},
+			{"name":"data","type":"bytes"}
+		],
+		"name":"transfer0",
+		"outputs":[{"name":"ok","type":"bool"}],
+		"payable":false,
+		"stateMutability":"nonpayable",
+		"type":"function"
+	},{
+		"constant":false,
+		"inputs":[
+			{"name":"to","type":"address"},
+			{"name":"value","type":"uint256"},
+			{"name":"data","type":"bytes"},
+			{"name":"customFallback","type":"string"}
+		],
+		"name":"transfer",
+		"outputs":[{"name":"ok","type":"bool"}],
+		"payable":false,
+		"stateMutability":"nonpayable",
+		"type":"function"
+}]`
 	contractAbi, err := JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		t.Fatal(err)
@@ -1121,7 +1709,22 @@ func TestDoubleDuplicateMethodNames(t *testing.T) {
 func TestDoubleDuplicateEventNames(t *testing.T) {
 	t.Parallel()
 
-	abiJSON := `[{"anonymous": false,"inputs": [{"indexed": false,"internalType": "uint256","name": "a","type": "uint256"}],"name": "send","type": "event"},{"anonymous": false,"inputs": [],"name": "send0","type": "event"},{	"anonymous": false,	"inputs": [],"name": "send","type": "event"}]`
+	abiJSON := `[{
+		"anonymous": false,
+		"inputs": [{"indexed": false,"internalType": "uint256","name": "a","type": "uint256"}],
+		"name": "send",
+		"type": "event"
+	},{
+		"anonymous": false,
+		"inputs": [],
+		"name": "send0",
+		"type": "event"
+	},{
+		"anonymous": false,
+		"inputs": [],
+		"name": "send",
+		"type": "event"
+	}]`
 	contractAbi, err := JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		t.Fatal(err)
@@ -1150,7 +1753,15 @@ func TestDoubleDuplicateEventNames(t *testing.T) {
 func TestUnnamedEventParam(t *testing.T) {
 	t.Parallel()
 
-	abiJSON := `[{ "anonymous": false, "inputs": [{	"indexed": false,"internalType": "uint256",	"name": "","type": "uint256"},{"indexed": false,"internalType": "uint256","name": "","type": "uint256"}],"name": "send","type": "event"}]`
+	abiJSON := `[{
+		"anonymous": false,
+		"inputs": [{
+			"indexed": false,"internalType": "uint256",	"name": "","type": "uint256"},
+			{"indexed": false,"internalType": "uint256","name": "","type": "uint256"}
+		],
+		"name": "send",
+		"type": "event"
+	}]`
 	contractAbi, err := JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		t.Fatal(err)
@@ -1176,9 +1787,21 @@ func TestUnpackRevert(t *testing.T) { //nolint:tparallel
 		expect    string
 		expectErr error
 	}{
-		{"", "", errors.New("invalid data for unpacking")},
-		{"08c379a1", "", errors.New("invalid data for unpacking")},
-		{"08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d72657665727420726561736f6e00000000000000000000000000000000000000", "revert reason", nil},
+		{
+			"",
+			"",
+			errors.New("invalid data for unpacking"),
+		},
+		{
+			"08c379a1",
+			"",
+			errors.New("invalid data for unpacking"),
+		},
+		{
+			"08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d72657665727420726561736f6e00000000000000000000000000000000000000", //nolint: lll
+			"revert reason",
+			nil,
+		},
 	}
 	for index, c := range cases { //nolint:paralleltest
 		t.Run(fmt.Sprintf("case %d", index), func(t *testing.T) {
@@ -1203,7 +1826,11 @@ func TestUnpackRevert(t *testing.T) { //nolint:tparallel
 func TestCustomErrors(t *testing.T) {
 	t.Parallel()
 
-	json := `[{ "inputs": [	{ "internalType": "uint256", "name": "", "type": "uint256" } ],"name": "MyError", "type": "error"} ]`
+	json := `[{
+		"inputs": [	{ "internalType": "uint256", "name": "", "type": "uint256" } ],
+		"name": "MyError",
+		"type": "error"
+	}]`
 	abi, err := JSON(strings.NewReader(json))
 	if err != nil {
 		t.Fatal(err)

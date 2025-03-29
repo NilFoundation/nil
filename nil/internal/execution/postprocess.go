@@ -2,17 +2,19 @@ package execution
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-func PostprocessBlock(tx db.RwTx, shardId types.ShardId, blockResult *BlockGenerationResult) error {
+func PostprocessBlock(tx db.RwTx, shardId types.ShardId, blockResult *BlockGenerationResult, mode string) error {
 	if blockResult.Block == nil {
 		return errors.New("block is not set")
 	}
-	postprocessor := blockPostprocessor{tx, shardId, blockResult}
+	postprocessor := blockPostprocessor{tx, shardId, blockResult, mode}
 	return postprocessor.Postprocess()
 }
 
@@ -20,6 +22,7 @@ type blockPostprocessor struct {
 	tx          db.RwTx
 	shardId     types.ShardId
 	blockResult *BlockGenerationResult
+	execMode    string
 }
 
 func (pp *blockPostprocessor) Postprocess() error {
@@ -40,7 +43,8 @@ func (pp *blockPostprocessor) fillLastBlockTable() error {
 }
 
 func (pp *blockPostprocessor) fillBlockHashByNumberIndex() error {
-	return pp.tx.PutToShard(pp.shardId, db.BlockHashByNumberIndex, pp.blockResult.Block.Id.Bytes(), pp.blockResult.BlockHash.Bytes())
+	return pp.tx.PutToShard(
+		pp.shardId, db.BlockHashByNumberIndex, pp.blockResult.Block.Id.Bytes(), pp.blockResult.BlockHash.Bytes())
 }
 
 func (pp *blockPostprocessor) fillBlockHashAndTransactionIndexByTransactionHash() error {
@@ -53,6 +57,17 @@ func (pp *blockPostprocessor) fillBlockHashAndTransactionIndexByTransactionHash(
 			value, err := blockHashAndTransactionIndex.MarshalSSZ()
 			if err != nil {
 				return err
+			}
+
+			// In manual replay mode all transactions should be already in DB
+			if assert.Enable && pp.execMode != ModeManualReplay {
+				ok, err := pp.tx.ExistsInShard(pp.shardId, table, hash.Bytes())
+				if err != nil {
+					return fmt.Errorf("fail to check transaction existence in DB: %w", err)
+				}
+				if ok {
+					return fmt.Errorf("fatal: duplicate transaction in %s: %x", table, hash)
+				}
 			}
 
 			if err := pp.tx.PutToShard(pp.shardId, table, hash.Bytes(), value); err != nil {

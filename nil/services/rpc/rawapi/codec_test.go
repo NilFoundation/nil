@@ -24,7 +24,8 @@ type apiWithOtherMethod interface {
 }
 
 type apiWithWrongMethodArguments interface {
-	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference, extraArg int) (sszx.SSZEncodedData, error)
+	TestMethod(
+		ctx context.Context, blockReference rawapitypes.BlockReference, extraArg int) (sszx.SSZEncodedData, error)
 }
 
 type apiWithWrongContextMethodArgument interface {
@@ -49,12 +50,23 @@ func TestApisCompatibility(t *testing.T) {
 	protocolInterfaceType := reflect.TypeFor[compatibleNetworkTransportProtocol]()
 
 	incompatibleApis := map[reflect.Type]string{
-		reflect.TypeFor[apiWithOtherMethod]():                       "method OtherMethod not found in rawapi.compatibleNetworkTransportProtocol",
-		reflect.TypeFor[apiWithWrongMethodArguments]():              "API method TestMethod requires 2 arguments, but pb.BlockRequest.PackProtoMessage accepts 1 arguments",
-		reflect.TypeFor[apiWithWrongContextMethodArgument]():        "first argument of API method TestMethod must be context.Context",
-		reflect.TypeFor[apiWithWrongMethodReturn]():                 "API method outputs int type, but PackProtoMessage expects []uint8",
-		reflect.TypeFor[apiWithPointerInsteadOfValueMethodReturn](): "API method outputs *[]uint8 type, but PackProtoMessage expects []uint8",
-		reflect.TypeFor[apiWithWrongErrorTypeReturn]():              "second output argument of API method TestMethod must be error",
+		reflect.TypeFor[apiWithOtherMethod]()://
+		"method OtherMethod not found in rawapi.compatibleNetworkTransportProtocol",
+
+		reflect.TypeFor[apiWithWrongMethodArguments]()://
+		"API method TestMethod requires 2 arguments, but pb.BlockRequest.PackProtoMessage accepts 1 arguments",
+
+		reflect.TypeFor[apiWithWrongContextMethodArgument]()://
+		"first argument of API method TestMethod must be context.Context",
+
+		reflect.TypeFor[apiWithWrongMethodReturn]()://
+		"API method outputs int type, but PackProtoMessage expects []uint8",
+
+		reflect.TypeFor[apiWithPointerInsteadOfValueMethodReturn]()://
+		"API method outputs *[]uint8 type, but PackProtoMessage expects []uint8",
+
+		reflect.TypeFor[apiWithWrongErrorTypeReturn]()://
+		"second output argument of API method TestMethod must be error",
 	}
 
 	goodApiType := reflect.TypeFor[compatibleApi]()

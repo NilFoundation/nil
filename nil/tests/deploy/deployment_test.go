@@ -5,12 +5,14 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/tests"
 	"github.com/stretchr/testify/suite"
 )
@@ -42,8 +44,19 @@ func (s *SuiteDeployment) SetupTest() {
 
 	zeroState := &execution.ZeroStateConfig{
 		Contracts: []*execution.ContractDescr{
-			{Name: "MainSmartAccount", Contract: "SmartAccount", Address: types.MainSmartAccountAddress, Value: smartAccountValue, CtorArgs: []any{execution.MainPublicKey}},
-			{Name: "Deployer", Contract: "tests/Deployer", Address: s.addressDeployer, Value: smartAccountValue},
+			{
+				Name:     "MainSmartAccount",
+				Contract: "SmartAccount",
+				Address:  types.MainSmartAccountAddress,
+				Value:    smartAccountValue,
+				CtorArgs: []any{execution.MainPublicKey},
+			},
+			{
+				Name:     "Deployer",
+				Contract: "tests/Deployer",
+				Address:  s.addressDeployer,
+				Value:    smartAccountValue,
+			},
 		},
 	}
 
@@ -61,6 +74,9 @@ func (s *SuiteDeployment) TearDownTest() {
 }
 
 func (s *SuiteDeployment) TestDeploy() {
+	abiSmartAccount, err := contracts.GetAbi(contracts.NameSmartAccount)
+	s.Require().NoError(err)
+
 	s.Run("deploy", func() {
 		calldata := s.AbiPack(s.abiDeployer, "deploy", big.NewInt(1), uint32(1234), big.NewInt(5678), big.NewInt(1111))
 		receipt := s.SendExternalTransaction(calldata, s.addressDeployer)
@@ -82,13 +98,12 @@ func (s *SuiteDeployment) TestDeploy() {
 	s.Run("deploy via smart account", func() {
 		salt := big.NewInt(789878)
 
-		abiSmartAccount, err := contracts.GetAbi(contracts.NameSmartAccount)
-		s.Require().NoError(err)
 		code, err := contracts.GetCode(contracts.NameDeployee)
 		s.Require().NoError(err)
 		deployPayload := s.PrepareDefaultDeployPayload(*s.abiDeployee, code, s.addressDeployer, uint32(987654321))
 
-		calldata := s.AbiPack(abiSmartAccount, "asyncDeploy", big.NewInt(2), big.NewInt(1111), deployPayload.Bytes(), salt)
+		calldata := s.AbiPack(
+			abiSmartAccount, "asyncDeploy", big.NewInt(2), big.NewInt(1111), deployPayload.Bytes(), salt)
 		receipt := s.SendExternalTransaction(calldata, types.MainSmartAccountAddress)
 		s.Require().True(receipt.AllSuccess())
 
@@ -102,6 +117,38 @@ func (s *SuiteDeployment) TestDeploy() {
 		s.Require().Equal(uint32(987654321), num)
 
 		s.Require().Equal(types.NewValueFromUint64(1111), s.GetBalance(address))
+	})
+
+	s.Run("deploy with estimated fee", func() {
+		code, err := contracts.GetCode("tests/Empty")
+		s.Require().NoError(err)
+
+		calldata := s.AbiPack(abiSmartAccount, "asyncDeploy", types.NewValueFromUint64(2), types.Value0, []byte(code),
+			types.Value0)
+
+		callArgs := &jsonrpc.CallArgs{
+			Flags: types.NewTransactionFlags(),
+			To:    types.MainSmartAccountAddress,
+			Value: types.Value0,
+			Data:  (*hexutil.Bytes)(&calldata),
+		}
+
+		estimated, err := s.Client.EstimateFee(s.Context, callArgs, "latest")
+		s.Require().NoError(err)
+
+		fee := types.FeePack{
+			FeeCredit:            estimated.FeeCredit,
+			MaxPriorityFeePerGas: estimated.AveragePriorityFee,
+			MaxFeePerGas:         estimated.MaxBasFee,
+		}
+
+		txHash, err := s.Client.SendExternalTransaction(s.Context, calldata, types.MainSmartAccountAddress,
+			execution.MainPrivateKey, fee)
+		s.Require().NoError(err)
+		receipt := s.WaitForReceipt(txHash)
+		s.Require().True(receipt.AllSuccess())
+		// Check that estimated fee is not too high
+		s.Require().Equal(-1, estimated.FeeCredit.Cmp(types.GasToValue(receipt.GasUsed.Uint64()*2)))
 	})
 }
 

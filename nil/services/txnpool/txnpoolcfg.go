@@ -23,19 +23,25 @@ func NewConfig(shardId types.ShardId) Config {
 type DiscardReason uint8
 
 const (
-	NotSet              DiscardReason = 0 // analog of "nil-value", means it will be set in future
+	// analog of "nil-value", means it will be set in future
+	NotSet              DiscardReason = 0
 	Success             DiscardReason = 1
 	AlreadyKnown        DiscardReason = 2
 	Committed           DiscardReason = 3
 	ReplacedByHigherTip DiscardReason = 4
 	InvalidChainId      DiscardReason = 5
-	NegativeValue       DiscardReason = 10 // ensure no one is able to specify a transaction with a negative value.
-	PoolOverflow        DiscardReason = 12
-	SeqnoTooLow         DiscardReason = 18
-	NotReplaced         DiscardReason = 20 // There was an existing transaction with the same sender and seqno, not enough price bump to replace
-	DuplicateHash       DiscardReason = 21 // There was an existing transaction with the same hash
-	Unverified          DiscardReason = 22 // Transaction verification failed
-	TooSmallMaxFee      DiscardReason = 23 // Transaction max fee is too small
+	// ensure no one is able to specify a transaction with a negative value.
+	NegativeValue DiscardReason = 10
+	PoolOverflow  DiscardReason = 12
+	SeqnoTooLow   DiscardReason = 18
+	// There was an existing transaction with the same sender and seqno, not enough price bump to replace
+	NotReplaced DiscardReason = 20
+	// There was an existing transaction with the same hash
+	DuplicateHash DiscardReason = 21
+	// Transaction verification failed
+	Unverified DiscardReason = 22
+	// Transaction max fee is too small
+	TooSmallMaxFee DiscardReason = 23
 )
 
 func (r DiscardReason) String() string {

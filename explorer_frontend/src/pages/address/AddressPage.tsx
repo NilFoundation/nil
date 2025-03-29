@@ -5,8 +5,8 @@ import { type Store, combine } from "effector";
 import { useUnit } from "effector-react";
 import { AccountInfo } from "../../features/account";
 import { addressRoute, addressTransactionsRoute } from "../../features/routing";
-import { explorerRoute } from "../../features/routing/routes/explorerRoute";
-import { Layout, Meta, SidebarWithBackLink } from "../../features/shared";
+import { Layout, Meta } from "../../features/shared";
+import { InternalPageContainer } from "../../features/shared";
 import { TransactionList } from "../../features/transaction-list";
 
 const $routes: Store<[{ address: string }, string]> = combine(
@@ -30,15 +30,9 @@ export const AddressPage = () => {
   const [css] = useStyletron();
 
   return (
-    <Layout sidebar={<SidebarWithBackLink to={explorerRoute} />}>
+    <Layout>
       <Meta title={`Address ${params.address}`} description="zkSharding for Ethereum" />
-      <div
-        className={css({
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          width: "100%",
-        })}
-      >
+      <InternalPageContainer>
         <HeadingXLarge className={css({ marginBottom: SPACE[32], wordBreak: "break-word" })}>
           Account {params.address}
         </HeadingXLarge>
@@ -66,7 +60,7 @@ export const AddressPage = () => {
             <TransactionList type="address" identifier={params.address} view="incoming" />
           </Tab>
         </Tabs>
-      </div>
+      </InternalPageContainer>
     </Layout>
   );
 };

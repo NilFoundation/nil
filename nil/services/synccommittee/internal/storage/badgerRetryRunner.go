@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/dgraph-io/badger/v4"
-	"github.com/rs/zerolog"
 )
 
 const (
@@ -13,7 +13,7 @@ const (
 )
 
 func badgerRetryRunner(
-	logger zerolog.Logger,
+	logger logging.Logger,
 	additionalPolicies ...common.RetryPolicyFunc,
 ) common.RetryRunner {
 	retryPolicy := common.ComposeRetryPolicies(

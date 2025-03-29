@@ -3,7 +3,7 @@ import { Command, Flags } from "@oclif/core";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
-  CometaService,
+  CometaClient,
   FaucetClient,
   type Hex,
   HttpTransport,
@@ -58,7 +58,7 @@ abstract class BaseCommand extends Command {
   protected cfg?: Record<string, string>;
   protected rpcClient?: PublicClient;
   protected faucetClient?: FaucetClient;
-  protected cometaClient?: CometaService;
+  protected cometaClient?: CometaClient;
   protected quiet = false;
 
   public async init(): Promise<void> {
@@ -112,7 +112,7 @@ abstract class BaseCommand extends Command {
     }
 
     if (this.cfg[ConfigKeys.CometaEndpoint]) {
-      this.cometaClient = new CometaService({
+      this.cometaClient = new CometaClient({
         transport: new HttpTransport({
           endpoint: this.cfg[ConfigKeys.CometaEndpoint],
         }),

@@ -4,6 +4,7 @@
 , callPackage
 , npmHooks
 , nodejs
+, pnpm
 , nil
 , solc
 , enableTesting ? false
@@ -12,20 +13,18 @@
 stdenv.mkDerivation rec {
   name = "nil.js";
   pname = "niljs";
-  src = lib.sourceByRegex ./.. [ "package.json" "package-lock.json" "^niljs(/.*)?$" "^smart-contracts(/.*)?$" "biome.json" ];
+  src = lib.sourceByRegex ./.. [ "package.json" ".npmrc" "pnpm-workspace.yaml" "pnpm-lock.yaml" "^niljs(/.*)?$" "^smart-contracts(/.*)?$" "biome.json" ];
 
-  npmDeps = (callPackage ./npmdeps.nix { });
+  pnpmDeps = (callPackage ./npmdeps.nix { });
 
-  NODE_PATH = "$npmDeps";
 
   nativeBuildInputs = [
     nodejs
-    npmHooks.npmConfigHook
     biome
+    pnpm
+    pnpm.configHook
     solc
   ] ++ (if enableTesting then [ nil ] else [ ]);
-
-  dontConfigure = true;
 
   preUnpack = ''
     echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
@@ -33,9 +32,9 @@ stdenv.mkDerivation rec {
   '';
 
   buildPhase = ''
-    (cd smart-contracts; npm run build)
+    (cd smart-contracts; pnpm run build)
     cd niljs
-    npm run build
+    pnpm run build
   '';
 
   doCheck = enableTesting;
@@ -46,12 +45,12 @@ stdenv.mkDerivation rec {
 
     export BIOME_BINARY=${biome}/bin/biome
 
-    npm run lint
-    npm run test:unit
-    npm run test:integration --cache=false
-    npm run test:examples
-    npm run lint:types
-    npm run lint:jsdoc
+    pnpm run lint
+    pnpm run test:unit
+    pnpm run test:integration --cache=false
+    pnpm run test:examples
+    pnpm run lint:types
+    pnpm run lint:jsdoc
 
     kill `cat nild_pid` && rm nild_pid
 

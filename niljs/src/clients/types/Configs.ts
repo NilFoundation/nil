@@ -55,12 +55,12 @@ type FaucetClientConfig = IClientBaseConfig;
 /**
  * The type representing the config for the Cometa service client.
  */
-type CometaServiceConfig = IClientBaseConfig;
+type CometaClientConfig = IClientBaseConfig;
 
 export type {
   IClientBaseConfig,
   IPublicClientConfig,
   ISmartAccountClientConfig,
   FaucetClientConfig,
-  CometaServiceConfig,
+  CometaClientConfig,
 };

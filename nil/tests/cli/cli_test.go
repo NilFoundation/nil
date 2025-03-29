@@ -81,13 +81,20 @@ func (s *SuiteCliService) TestCliBlock() {
 	block, err := s.DefaultClient.GetBlock(s.Context, types.BaseShardId, 0, false)
 	s.Require().NoError(err)
 
-	res, err := s.cli.FetchBlock(types.BaseShardId, block.Hash.Hex())
+	res, err := s.cli.FetchDebugBlock(types.BaseShardId, block.Hash.Hex(), true, false, true)
 	s.Require().NoError(err)
-	s.JSONEq(s.toJSON(block), string(res))
+	var blockRes map[string]any
+	s.Require().NoError(json.Unmarshal(res, &blockRes))
+	s.EqualValues(block.Number, blockRes["id"])
 
-	res, err = s.cli.FetchBlock(types.BaseShardId, "0")
+	res, err = s.cli.FetchDebugBlock(types.BaseShardId, "0", true, false, true)
 	s.Require().NoError(err)
-	s.JSONEq(s.toJSON(block), string(res))
+	s.Require().NoError(json.Unmarshal(res, &blockRes))
+	s.EqualValues(block.Number, blockRes["id"])
+
+	res, err = s.cli.FetchDebugBlock(types.BaseShardId, "10000000000", true, false, true)
+	s.Require().NoError(err)
+	s.Require().Empty(res)
 }
 
 func (s *SuiteCliService) TestCliTransaction() {
@@ -134,7 +141,8 @@ func (s *SuiteCliService) TestContract() {
 	// Deploy contract
 	contractCode, abi := s.LoadContract(common.GetAbsolutePath("../contracts/increment.sol"), "Incrementer")
 	deployCode := s.PrepareDefaultDeployPayload(abi, contractCode, big.NewInt(2))
-	txHash, addr, err := s.cli.DeployContractViaSmartAccount(smartAccount.ShardId()+1, smartAccount, deployCode, types.Value{})
+	txHash, addr, err := s.cli.DeployContractViaSmartAccount(
+		smartAccount.ShardId()+1, smartAccount, deployCode, types.Value{})
 	s.Require().NoError(err)
 
 	receipt := s.WaitIncludedInMain(txHash)
@@ -201,7 +209,8 @@ func (s *SuiteCliService) testNewSmartAccountOnShard(shardId types.ShardId) {
 	ownerPrivateKey, err := crypto.GenerateKey()
 	s.Require().NoError(err)
 
-	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
+	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(
+		crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
 	code := types.BuildDeployPayload(smartAccountCode, common.EmptyHash)
 	expectedAddress := types.CreateAddress(shardId, code)
 	smartAccountAddres, err := s.cli.CreateSmartAccount(shardId, types.NewUint256(0), types.GasToValue(10_000_000),
@@ -221,9 +230,11 @@ func (s *SuiteCliService) TestNewSmartAccountOnRandomShard() {
 func (s *SuiteCliService) TestSendExternalTransaction() {
 	smartAccount := types.MainSmartAccountAddress
 
-	contractCode, abi := s.LoadContract(common.GetAbsolutePath("../contracts/external_increment.sol"), "ExternalIncrementer")
+	contractCode, abi := s.LoadContract(
+		common.GetAbsolutePath("../contracts/external_increment.sol"), "ExternalIncrementer")
 	deployCode := s.PrepareDefaultDeployPayload(abi, contractCode, big.NewInt(2))
-	txHash, addr, err := s.cli.DeployContractViaSmartAccount(types.BaseShardId, smartAccount, deployCode, types.GasToValue(10_000_000))
+	txHash, addr, err := s.cli.DeployContractViaSmartAccount(
+		types.BaseShardId, smartAccount, deployCode, types.GasToValue(10_000_000))
 	s.Require().NoError(err)
 
 	receipt := s.WaitIncludedInMain(txHash)
@@ -306,6 +317,9 @@ func (s *SuiteCliExec) TestCallCliBasic() {
 	res := s.RunCli("-c", cfgPath, "block", "--json", block.Number.String())
 	s.Contains(res, block.Number.String())
 	s.Contains(res, block.Hash.String())
+
+	res = s.RunCli("-c", cfgPath, "block", "--json", "10000000000000")
+	s.Equal("null", res)
 }
 
 func (s *SuiteCliExec) TestCliSmartAccount() {
@@ -346,6 +360,11 @@ faucet_endpoint = {{ .FaucetUrl }}
 		s.Contains(res, "New smart account address:")
 	})
 
+	s.Run("Check seqno", func() {
+		res := s.RunCli("-c", cfgPath, "smart-account", "seqno")
+		s.Contains(res, "Smart account seqno: 1")
+	})
+
 	var addr string
 	s.Run("Get contract address", func() {
 		addr = s.RunCli("-c", cfgPath, "contract", "address", s.incBinPath, "123321", "--abi", s.incAbiPath, "-q")
@@ -372,7 +391,7 @@ faucet_endpoint = {{ .FaucetUrl }}
 
 	s.Run("Check seqno", func() {
 		res := s.RunCli("-c", cfgPath, "smart-account", "seqno")
-		s.Contains(res, "Smart account seqno: 1")
+		s.Contains(res, "Smart account seqno: 2")
 
 		res = s.RunCli("-c", cfgPath, "contract", "seqno", addr)
 		s.Contains(res, "Contract seqno: 0")
@@ -407,15 +426,18 @@ faucet_endpoint = {{ .FaucetUrl }}
 		fmt.Println(resExt)
 		isNums(resExt)
 
-		resInt := s.RunCli("-c", cfgPath, "contract", "estimate-fee", addr, "increment", "--abi", s.incAbiPath, "-q", "--internal")
+		resInt := s.RunCli(
+			"-c", cfgPath, "contract", "estimate-fee", addr, "increment", "--abi", s.incAbiPath, "-q", "--internal")
 		isNums(resInt)
 
-		resSmartAccount := s.RunCli("-c", cfgPath, "smart-account", "estimate-fee", addr, "increment", "--abi", s.incAbiPath, "-q")
+		resSmartAccount := s.RunCli(
+			"-c", cfgPath, "smart-account", "estimate-fee", addr, "increment", "--abi", s.incAbiPath, "-q")
 		isNums(resSmartAccount)
 	})
 
 	s.Run("Call 'increment' function of contract", func() {
-		res := s.RunCli("-c", cfgPath, "smart-account", "send-transaction", addr, "increment", "--abi", s.incAbiPath, "-q")
+		res := s.RunCli(
+			"-c", cfgPath, "smart-account", "send-transaction", addr, "increment", "--abi", s.incAbiPath, "-q")
 		receipt := s.WaitIncludedInMain(common.HexToHash(res))
 		s.Require().True(receipt.AllSuccess())
 	})
@@ -427,7 +449,12 @@ faucet_endpoint = {{ .FaucetUrl }}
 
 	overridesFile := dir + "/overrides.json"
 	s.Run("Call read-only 'increment' via the smart account", func() {
-		res := s.RunCli("-c", cfgPath, "smart-account", "call-readonly", addr, "increment", "--abi", s.incAbiPath, "--out-overrides", overridesFile)
+		res := s.RunCli(
+			"-c", cfgPath,
+			"smart-account", "call-readonly", addr,
+			"increment",
+			"--abi", s.incAbiPath,
+			"--out-overrides", overridesFile)
 		s.Contains(res, "Success, no result")
 	})
 
@@ -441,7 +468,12 @@ faucet_endpoint = {{ .FaucetUrl }}
 	})
 
 	s.Run("Call read-only 'get' via the smart account", func() {
-		res := s.RunCli("-c", cfgPath, "smart-account", "call-readonly", addr, "get", "--abi", s.incAbiPath, "--in-overrides", overridesFile)
+		res := s.RunCli(
+			"-c", cfgPath,
+			"smart-account", "call-readonly", addr,
+			"get",
+			"--abi", s.incAbiPath,
+			"--in-overrides", overridesFile)
 		s.Contains(res, "uint256: 123323")
 	})
 }
@@ -524,7 +556,8 @@ func (s *SuiteCliExec) TestCliCometa() {
 	var txnHash string
 
 	s.Run("Deploy counter", func() {
-		out := s.RunCliCfg("smart-account", "deploy", "--compile-input", "../contracts/counter-compile.json", "--shard-id", "1", "-q")
+		out := s.RunCliCfg(
+			"smart-account", "deploy", "--compile-input", "../contracts/counter-compile.json", "--shard-id", "1", "-q")
 		parts := strings.Split(out, "\n")
 		s.Require().Len(parts, 2)
 		address = types.HexToAddress(parts[1])
@@ -539,7 +572,11 @@ func (s *SuiteCliExec) TestCliCometa() {
 	})
 
 	s.Run("Call Counter.get()", func() {
-		out := s.RunCliCfg("smart-account", "send-transaction", address.Hex(), "--abi", abiFile, "--fee-credit", "500000000000000", "get")
+		out := s.RunCliCfg(
+			"smart-account", "send-transaction", address.Hex(),
+			"--abi", abiFile,
+			"--fee-credit", "500000000000000",
+			"get")
 		parts := strings.Split(out, ": ")
 		s.Require().Len(parts, 2)
 		txnHash = parts[1]
@@ -547,16 +584,13 @@ func (s *SuiteCliExec) TestCliCometa() {
 
 	s.Run("Debug", func() {
 		out := s.RunCliCfg("debug", txnHash)
-		fmt.Println(out)
 		result := parseCometaOutput(out)
 		s.Require().Len(result, 3)
-		s.Require().Equal("unknown", result[0]["Contract"])
-		s.Require().Equal("0x2bb1ae7c", result[0]["CallData"][:10])
+		s.Require().Equal("2bb1ae7c00", result[0]["CallData"][:10])
 		s.Require().Contains(result[0]["Transaction"], txnHash)
 		s.Require().Equal("Counter", result[1]["Contract"])
 		s.Require().Equal("get()", result[1]["CallData"])
-		s.Require().Equal("unknown", result[2]["Contract"])
-		s.Contains(out, "Contract            : Counter")
+		s.Require().Equal("Counter", result[1]["Contract"])
 		s.Contains(out, "└ eventValue: [0]")
 	})
 

@@ -70,7 +70,8 @@ func TestAddressFormat(t *testing.T) {
 	assert.Equal(t, "\"0x0002f09ec9f5cca264eba822bb887f5c900c6e71\"", fmt.Sprintf("%q", addr))
 	assert.Equal(t, "0002f09ec9f5cca264eba822bb887f5c900c6e71", fmt.Sprintf("%x", addr))
 	assert.Equal(t, "0002F09EC9F5CCA264EBA822BB887F5C900C6E71", fmt.Sprintf("%X", addr))
-	assert.Equal(t, "[0 2 240 158 201 245 204 162 100 235 168 34 187 136 127 92 144 12 110 113]", fmt.Sprintf("%d", addr))
+	assert.Equal(
+		t, "[0 2 240 158 201 245 204 162 100 235 168 34 187 136 127 92 144 12 110 113]", fmt.Sprintf("%d", addr))
 	assert.EqualValues(t, "0x0002f09ec9f5cca264eba822bb887f5c900c6e71", addr.hex())
 	assert.Equal(t, "0x0002f09ec9f5cca264eba822bb887f5c900c6e71", addr.String())
 }

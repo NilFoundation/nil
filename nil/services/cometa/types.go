@@ -142,6 +142,10 @@ type CompilerTask struct {
 	BasePath        string             `json:"basePath,omitempty"`
 	Sources         map[string]*Source `json:"sources,omitempty"`
 	Settings        Settings           `json:"settings"`
+	// SolcStandardJson is used to pass raw input to the compiler. If it is specified, it will be directly passed to
+	// solc compiler via `--standard-json` argument.
+	SolcStandardJson *CompilerJsonInput `json:"solcStandardJson,omitempty"`
+
 	// isNormalized is used to check if the input has been already normalized.
 	isNormalized bool
 }
@@ -232,4 +236,27 @@ func (t *CompilerTask) ToCompilerJsonInput() (*CompilerJsonInput, error) {
 	}
 
 	return res, nil
+}
+
+func (c *CompilerOutputContract) Validate() error {
+	if len(c.Abi) == 0 {
+		return errors.New("abi is required")
+	}
+	if len(c.Metadata) == 0 {
+		return errors.New("metadata is required")
+	}
+	if c.Evm.Bytecode.Object == "" {
+		return errors.New("evm.bytecode.object is required")
+	}
+	if c.Evm.DeployedBytecode.Object == "" {
+		return errors.New("evm.deployedBytecode.object is required")
+	}
+	if c.Evm.DeployedBytecode.SourceMap == "" {
+		return errors.New("evm.deployedBytecode.sourceMap is required")
+	}
+	if len(c.Evm.MethodIdentifiers) == 0 {
+		return errors.New("evm.methodIdentifiers is required")
+	}
+
+	return nil
 }

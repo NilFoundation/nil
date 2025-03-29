@@ -29,15 +29,20 @@ import { fetchSolidityCompiler } from "../../services/compiler";
 import { TutorialMobileLayout } from "./TutorialMobileLayout";
 import "./init.ts";
 import { runTutorialCheck, runTutorialCheckFx } from "../../features/tutorial-check/model.ts";
-import { $tutorialChecksState, TutorialChecksStatus } from "./model.tsx";
+import { TutorialsPanel } from "../../features/tutorial/TutorialsPanel.tsx";
+import { $tutorials } from "../../features/tutorial/model.ts";
+import { $selectedTutorial, $tutorialChecksState, TutorialChecksStatus } from "./model.tsx";
 
 export const TutorialPage = () => {
-  const [isDownloading, isRPCHealthy, runningChecks, tutorialChecks] = useUnit([
-    fetchSolidityCompiler.pending,
-    $rpcIsHealthy,
-    runTutorialCheckFx.pending,
-    $tutorialChecksState,
-  ]);
+  const [isDownloading, isRPCHealthy, runningChecks, tutorialChecks, selectedTutorial, tutorials] =
+    useUnit([
+      fetchSolidityCompiler.pending,
+      $rpcIsHealthy,
+      runTutorialCheckFx.pending,
+      $tutorialChecksState,
+      $selectedTutorial,
+      $tutorials,
+    ]);
   const [css] = useStyletron();
   const [isMobile] = useMobile();
   const [activeKey, setActiveKey] = useState("0");
@@ -148,7 +153,15 @@ export const TutorialPage = () => {
                     width: "8px",
                   })}
                 />
-                <Panel minSize={20} defaultSize={33} maxSize={90}>
+                <Panel
+                  minSize={20}
+                  defaultSize={33}
+                  maxSize={90}
+                  className={css({
+                    backgroundColor: COLORS.blue900,
+                    borderRadius: "8px",
+                  })}
+                >
                   <Tabs
                     onChange={({ activeKey }) => {
                       setActiveKey(activeKey);
@@ -184,12 +197,19 @@ export const TutorialPage = () => {
                           justifyContent: "center",
                           fontSize: "16px",
                           fontWeight: "400",
+                          ":hover": {
+                            backgroundColor: COLORS.blue800,
+                          },
                         },
                       },
                     }}
                   >
-                    <Tab title="Tutorial">
-                      <TutorialText />
+                    <Tab title="Tutorials">
+                      {selectedTutorial ? (
+                        <TutorialText />
+                      ) : (
+                        <TutorialsPanel tutorials={tutorials} />
+                      )}
                     </Tab>
                     <Tab title="Contracts" disabled={!tutorialChecks}>
                       <ContractsContainer />

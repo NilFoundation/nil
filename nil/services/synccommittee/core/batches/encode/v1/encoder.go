@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -18,10 +18,10 @@ type compressor interface {
 
 type batchEncoder struct {
 	compressor compressor
-	logger     zerolog.Logger
+	logger     logging.Logger
 }
 
-func NewEncoder(logger zerolog.Logger) *batchEncoder {
+func NewEncoder(logger logging.Logger) *batchEncoder {
 	return &batchEncoder{
 		compressor: NewZstdCompressor(logger),
 	}

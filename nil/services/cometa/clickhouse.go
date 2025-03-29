@@ -42,8 +42,13 @@ func NewStorageClick(ctx context.Context, cfg *Config) (*StorageClick, error) {
 	}
 
 	err = conn.Exec(ctx,
-		`CREATE TABLE IF NOT EXISTS contracts_metadata
-			(address FixedString(20), version UInt32, data_json String, code_hash FixedString(32), abi String, source_code Map(String, String))
+		`CREATE TABLE IF NOT EXISTS contracts_metadata (
+			    address FixedString(20),
+				version UInt32,
+				data_json String,
+				code_hash FixedString(32),
+				abi String,
+				source_code Map(String, String))
 			ENGINE = MergeTree
 			PRIMARY KEY (address, code_hash)
 			ORDER BY (address, code_hash)`)

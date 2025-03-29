@@ -41,14 +41,16 @@ func (cmd *aggregateFRICmd) MakeCommandDefinition(task *types.Task) (*CommandDef
 	combinedQ := append([]string{"--input-combined-Q-polynomial-files"}, combinedQFiles...)
 
 	resFiles := make(types.TaskOutputArtifacts)
-	filePostfix := fmt.Sprintf(".%v.%v", task.ShardId, task.BlockHash.String())
+	filePostfix := fmt.Sprintf(".%v", task.BatchId)
 	resFiles[types.AggregatedFRIProof] = filepath.Join(cmd.outDir, "aggregated_FRI_proof"+filePostfix)
 	resFiles[types.ProofOfWork] = filepath.Join(cmd.outDir, "POW"+filePostfix)
 	resFiles[types.ConsistencyCheckChallenges] = filepath.Join(cmd.outDir, "challenges"+filePostfix)
 
 	aggFRI := []string{"--proof", resFiles[types.AggregatedFRIProof]}
 	POW := []string{"--proof-of-work-file", resFiles[types.ProofOfWork]}
-	consistencyChallenges := []string{"--consistency-checks-challenges-file", resFiles[types.ConsistencyCheckChallenges]}
+	consistencyChallenges := []string{
+		"--consistency-checks-challenges-file", resFiles[types.ConsistencyCheckChallenges],
+	}
 	allArgs := slices.Concat(stage, assignmentTable, aggregatedChallenge, combinedQ, aggFRI, POW, consistencyChallenges)
 	execCmd := exec.Command(binary, allArgs...)
 	return &CommandDefinition{ExecCommands: []*exec.Cmd{execCmd}, ExpectedResult: resFiles}, execCmd.Err

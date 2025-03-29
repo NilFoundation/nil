@@ -122,8 +122,9 @@ func TestDebugBlockToText(t *testing.T) {
 				OutTransactionsRoot: common.HexToHash("0xDEADF00D"),
 				ReceiptsRoot:        common.HexToHash("0xD15EA5E"),
 				ChildBlocksRootHash: common.HexToHash("0xDEADBABE"),
-				MainChainHash:       common.HexToHash("0xB16B055"),
+				MainShardHash:       common.HexToHash("0xB16B055"),
 				Timestamp:           0x12345678,
+				GasUsed:             1234,
 			},
 			LogsBloom: types.Bloom{},
 		},
@@ -147,13 +148,15 @@ func TestDebugBlockToText(t *testing.T) {
 		text, err := s.debugBlockToText(types.ShardId(13), block, false, false)
 		require.NoError(t, err)
 
-		expectedText := `Block #100500 [0x000dad995dc84952f5631bfba6237a9a77520053aa6f282a6471dd1ea1af6a89] @ 13 shard
+		expectedText := `Block #100500 [0x000dba05b595d9709214a9f31c34785e40733b6a01d90f295a44e7ab9a861088] @ 13 shard
   PrevBlock: 0x00000000000000000000000000000000000000000000000000000000deadbeef
+  BaseFee: 0
+  GasUsed: 1234
   ChildBlocksRootHash: 0x00000000000000000000000000000000000000000000000000000000deadbabe
   ChildBlocks:
     - 1: 0x0000000000000000000000000000000000000000000000000000000000000111
     - 2: 0x0000000000000000000000000000000000000000000000000000000000000222
-  MainChainHash: 0x000000000000000000000000000000000000000000000000000000000b16b055
+  MainShardHash: 0x000000000000000000000000000000000000000000000000000000000b16b055
 ▼ InTransactions [0x00000000000000000000000000000000000000000000000000000000deadcafe]:
   # 0 [0x00017baccc8cc4814779c73f52ecde448be9df63b7b3b138e6873bf82fb38a2b] | 0x0000000000000000000000000000000000000001 => 0x0001000000000000000000000000000000000002
     Status: Success

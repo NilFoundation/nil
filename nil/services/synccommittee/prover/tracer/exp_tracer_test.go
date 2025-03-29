@@ -49,7 +49,8 @@ func TestExpOpTracer_IgnoresNonExpOperations(t *testing.T) {
 	t.Parallel()
 	tracer := &ExpOpTracer{}
 
-	assert.False(t, traceExpOperation(t, tracer, vm.ADD, 0, 2, 3)) // Non-EXP opcode should result in no operation captured
+	// Non-EXP opcode should result in no operation captured
+	assert.False(t, traceExpOperation(t, tracer, vm.ADD, 0, 2, 3))
 
 	assert.Empty(t, tracer.res)
 }

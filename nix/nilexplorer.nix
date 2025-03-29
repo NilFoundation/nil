@@ -3,10 +3,12 @@
 , biome
 , python3
 , callPackage
-, npmHooks
+, pnpm_10
 , nodejs
 , enableTesting ? false
 , cypress
+, nil
+, jq
 }:
 
 stdenv.mkDerivation rec {
@@ -14,7 +16,9 @@ stdenv.mkDerivation rec {
   pname = "nilexplorer";
   src = lib.sourceByRegex ./.. [
     "package.json"
-    "package-lock.json"
+    "pnpm-lock.yaml"
+    "pnpm-workspace.yaml"
+    ".npmrc"
     "^niljs(/.*)?$"
     "^smart-contracts(/.*)?$"
     "biome.json"
@@ -22,18 +26,10 @@ stdenv.mkDerivation rec {
     "^explorer_backend(/.*)?$"
   ];
 
-  npmDeps = (callPackage ./npmdeps.nix { });
+  pnpmDeps = (callPackage ./npmdeps.nix { });
 
-  NODE_PATH = "$npmDeps";
-
-  nativeBuildInputs = [
-    nodejs
-    npmHooks.npmConfigHook
-    biome
-    python3
-  ];
-
-  dontConfigure = true;
+  nativeBuildInputs = [ nodejs pnpm_10.configHook pnpm_10 biome python3 jq ]
+    ++ (if enableTesting then [ nil ] else [ ]);
 
   preUnpack = ''
     echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
@@ -44,30 +40,32 @@ stdenv.mkDerivation rec {
   '';
 
   buildPhase = ''
-    patchShebangs explorer_frontend/node_modules
+    (cd smart-contracts; pnpm run build)
+    (cd niljs; pnpm run build)
 
-    (cd smart-contracts; npm run build)
-    (cd niljs; npm run build)
+    (cd explorer_frontend; pnpm run build)
 
-    (cd explorer_frontend; npm run build)
-    (cd explorer_backend; npm run build)
+    (cd explorer_backend; pnpm run build)
   '';
 
   doCheck = enableTesting;
 
   checkPhase = ''
+    export NIL=${nil}
     export BIOME_BINARY=${biome}/bin/biome
 
     echo "Checking explorer frontend"
-    (cd explorer_frontend; npm run lint;)
+    (cd explorer_frontend; pnpm run lint; bash run_tutorial_tests.sh;)
 
     echo "Checking explorer backend"
-    (cd explorer_backend; npm run lint;)
+    (cd explorer_backend; pnpm run lint;)
 
     echo "Checking if explorer backend starts up without errors"
     cd explorer_backend
-    npm run start & NPM_PID=$!
+    pnpm run start & NPM_PID=$!
     sleep 7
+
+
 
     if kill -0 $NPM_PID 2>/dev/null; then
       echo "Explorer backend is running successfully"
@@ -84,7 +82,7 @@ stdenv.mkDerivation rec {
 
   installPhase = ''
     mkdir -p $out
-    mv explorer_frontend/ $out/frontend
-    mv explorer_backend/ $out/backend
+    mv explorer_frontend/dist $out/frontend
+    mv explorer_backend/dist $out/backend
   '';
 }

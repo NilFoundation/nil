@@ -13,6 +13,8 @@ type (
 	UpDownCounter = metric.Int64UpDownCounter
 	Histogram     = metric.Int64Histogram
 	Gauge         = metric.Int64Gauge
+
+	ObservableUpDownCounter = metric.Int64ObservableUpDownCounter
 )
 
 // Measurer is a helper struct to measure the duration of an operation and count the number of operations.

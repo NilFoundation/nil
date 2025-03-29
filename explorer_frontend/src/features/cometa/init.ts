@@ -1,7 +1,7 @@
-import { CometaService, HttpTransport } from "@nilfoundation/niljs";
+import { CometaClient, HttpTransport } from "@nilfoundation/niljs";
 import { combine, sample } from "effector";
 import { $rpcUrl } from "../account-connector/model";
-import { $cometaApiUrl, $cometaService, createCometaService, createCometaServiceFx } from "./model";
+import { $cometaApiUrl, $cometaClient, createCometaService, createCometaServiceFx } from "./model";
 
 const $refinedCometaApiUrl = combine(
   $rpcUrl,
@@ -16,14 +16,14 @@ $refinedCometaApiUrl.watch((url) => {
 });
 
 createCometaServiceFx.use(async (endpoint) => {
-  const cometaService = new CometaService({
+  const cometaClient = new CometaClient({
     transport: new HttpTransport({ endpoint }),
   });
 
-  return cometaService;
+  return cometaClient;
 });
 
-$cometaService.on(createCometaServiceFx.doneData, (_, cometaService) => cometaService);
+$cometaClient.on(createCometaServiceFx.doneData, (_, cometaClient) => cometaClient);
 
 sample({
   clock: createCometaService,

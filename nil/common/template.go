@@ -9,7 +9,12 @@ func ParseTemplate(input string, data map[string]interface{}) (string, error) {
 	return ParseTemplates(input, data, nil, nil)
 }
 
-func ParseTemplates(input string, data map[string]any, funcMap template.FuncMap, extraInputs map[string]string) (string, error) {
+func ParseTemplates(
+	input string,
+	data map[string]any,
+	funcMap template.FuncMap,
+	extraInputs map[string]string,
+) (string, error) {
 	tmpl, err := template.New("tmpl").Funcs(funcMap).Parse(input)
 	if err != nil {
 		return "", err

@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
@@ -10,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
-	"github.com/rs/zerolog"
 )
 
 type TaskListenerConfig struct {
@@ -20,13 +20,13 @@ type TaskListenerConfig struct {
 type TaskListener struct {
 	config    *TaskListenerConfig
 	scheduler scheduler.TaskScheduler
-	logger    zerolog.Logger
+	logger    logging.Logger
 }
 
 func NewTaskListener(
 	config *TaskListenerConfig,
 	scheduler scheduler.TaskScheduler,
-	logger zerolog.Logger,
+	logger logging.Logger,
 ) *TaskListener {
 	listener := &TaskListener{
 		config:    config,

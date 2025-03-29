@@ -80,7 +80,8 @@ func (s *TestSuite) Test_TaskExecutor_Executes_Tasks() {
 	)
 
 	for _, call := range s.requestHandler.GetTaskCalls() {
-		s.Require().Equal(expectedTaskRequest, call.Request, "Task executor should have passed its id to the target handler")
+		s.Require().Equal(expectedTaskRequest, call.Request,
+			"Task executor should have passed its id to the target handler")
 	}
 
 	s.Require().Eventually(
@@ -93,6 +94,7 @@ func (s *TestSuite) Test_TaskExecutor_Executes_Tasks() {
 	)
 
 	for _, call := range s.taskHandler.HandleCalls() {
-		s.Require().Equal(s.taskExecutor.Id(), call.ExecutorId, "Task executor should have passed its id in the result")
+		s.Require().Equal(s.taskExecutor.Id(), call.ExecutorId,
+			"Task executor should have passed its id in the result")
 	}
 }

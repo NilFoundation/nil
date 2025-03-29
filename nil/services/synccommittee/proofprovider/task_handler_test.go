@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
@@ -12,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
+	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -20,7 +20,7 @@ type TaskHandlerTestSuite struct {
 	context      context.Context
 	cancellation context.CancelFunc
 	database     db.DB
-	timer        common.Timer
+	clock        clockwork.Clock
 	taskStorage  *storage.TaskStorage
 	taskHandler  api.TaskHandler
 }
@@ -37,10 +37,10 @@ func (s *TaskHandlerTestSuite) SetupSuite() {
 	metricsHandler, err := metrics.NewProofProviderMetrics()
 	s.Require().NoError(err)
 
-	s.taskStorage = storage.NewTaskStorage(s.database, common.NewTimer(), metricsHandler, logger)
+	s.taskStorage = storage.NewTaskStorage(s.database, clockwork.NewRealClock(), metricsHandler, logger)
 	taskResultStorage := storage.NewTaskResultStorage(s.database, logger)
-	s.timer = testaide.NewTestTimer()
-	s.taskHandler = newTaskHandler(s.taskStorage, taskResultStorage, 0, s.timer, logger)
+	s.clock = testaide.NewTestClock()
+	s.taskHandler = newTaskHandler(s.taskStorage, taskResultStorage, 0, s.clock, logger)
 }
 
 func TestTaskHandlerSuite(t *testing.T) {
@@ -63,9 +63,12 @@ func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
 		taskType types.TaskType
 	}{
 		{name: "PartialProve", taskType: types.PartialProve},
+		{name: "AggregatedChallenge", taskType: types.AggregatedChallenge},
+		{name: "CombinedQ", taskType: types.CombinedQ},
+		{name: "AggregatedFRI", taskType: types.AggregatedFRI},
 		{name: "FRIConsistencyChecks", taskType: types.FRIConsistencyChecks},
 		{name: "MergeProof", taskType: types.MergeProof},
-		{name: "AggregatedFRI", taskType: types.AggregatedFRI},
+		{name: "TaskTypeNone", taskType: types.TaskTypeNone},
 	}
 
 	executorId := testaide.RandomExecutorId()
@@ -83,36 +86,11 @@ func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
 	}
 }
 
-func (s *TaskHandlerTestSuite) TestHandleAggregateProofsTask() {
-	now := s.timer.NowTime()
+func (s *TaskHandlerTestSuite) TestHandleBatchProofTask() {
+	now := s.clock.Now()
 	executorId := testaide.RandomExecutorId()
-	mainBlock := testaide.NewMainShardBlock()
-	taskEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), mainBlock, now)
-	aggProofsTask := taskEntry.Task
-
-	err := s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
-	s.Require().NoError(err)
-
-	otherExecutorId := testaide.RandomExecutorId()
-	requestedTask, err := s.taskStorage.RequestTaskToExecute(s.context, otherExecutorId)
-	s.Require().NoError(err)
-	s.Require().NotNil(requestedTask)
-
-	s.Require().NotEqual(aggProofsTask.Id, requestedTask.Id)
-	s.Require().Equal(&aggProofsTask.Id, requestedTask.ParentTaskId)
-
-	s.Require().Equal(aggProofsTask.BatchId, requestedTask.BatchId)
-	s.Require().Equal(aggProofsTask.ShardId, requestedTask.ShardId)
-	s.Require().Equal(aggProofsTask.BlockNum, requestedTask.BlockNum)
-	s.Require().Equal(aggProofsTask.BlockHash, requestedTask.BlockHash)
-}
-
-func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
-	now := s.timer.NowTime()
-	executorId := testaide.RandomExecutorId()
-	execBlock := testaide.NewExecutionShardBlock()
-	aggregateProofsEntry := types.NewAggregateProofsTaskEntry(types.NewBatchId(), execBlock, now)
-	taskEntry, err := types.NewBlockProofTaskEntry(types.NewBatchId(), aggregateProofsEntry, execBlock, now)
+	batch := testaide.NewBlockBatch(testaide.ShardsCount)
+	taskEntry, err := batch.CreateProofTask(now)
 	s.Require().NoError(err)
 
 	err = s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
@@ -171,7 +149,11 @@ func (s *TaskHandlerTestSuite) TestHandleBlockProofTask() {
 }
 
 // Ensure that we have available task of certain type, or no tasks available
-func (s *TaskHandlerTestSuite) requestTask(executorId types.TaskExecutorId, available bool, expectedType types.TaskType) *types.Task {
+func (s *TaskHandlerTestSuite) requestTask(
+	executorId types.TaskExecutorId,
+	available bool,
+	expectedType types.TaskType,
+) *types.Task {
 	s.T().Helper()
 	t, err := s.taskStorage.RequestTaskToExecute(s.context, executorId)
 	s.Require().NoError(err)

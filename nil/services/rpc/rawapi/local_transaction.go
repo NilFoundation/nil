@@ -54,7 +54,8 @@ func getRawBlockEntity(
 func (api *LocalShardApi) getInTransactionByBlockHashAndIndex(
 	tx db.RoTx, block *types.Block, txnIndex types.TransactionIndex,
 ) (*rawapitypes.TransactionInfo, error) {
-	rawTxn, err := getRawBlockEntity(tx, api.ShardId, db.TransactionTrieTable, block.InTransactionsRoot, txnIndex.Bytes())
+	rawTxn, err := getRawBlockEntity(
+		tx, api.ShardId, db.TransactionTrieTable, block.InTransactionsRoot, txnIndex.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +97,10 @@ func (api *LocalShardApi) getInTransactionByBlockRefAndIndex(
 	return api.getInTransactionByBlockHashAndIndex(tx, block, index)
 }
 
-func (api *LocalShardApi) GetInTransaction(ctx context.Context, request rawapitypes.TransactionRequest) (*rawapitypes.TransactionInfo, error) {
+func (api *LocalShardApi) GetInTransaction(
+	ctx context.Context,
+	request rawapitypes.TransactionRequest,
+) (*rawapitypes.TransactionInfo, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
@@ -106,5 +110,6 @@ func (api *LocalShardApi) GetInTransaction(ctx context.Context, request rawapity
 	if request.ByHash != nil {
 		return api.getTransactionByHash(tx, request.ByHash.Hash)
 	}
-	return api.getInTransactionByBlockRefAndIndex(tx, request.ByBlockRefAndIndex.BlockRef, request.ByBlockRefAndIndex.Index)
+	return api.getInTransactionByBlockRefAndIndex(
+		tx, request.ByBlockRefAndIndex.BlockRef, request.ByBlockRefAndIndex.Index)
 }

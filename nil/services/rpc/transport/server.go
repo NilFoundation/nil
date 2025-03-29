@@ -14,9 +14,10 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	nil_http "github.com/NilFoundation/nil/nil/services/rpc/internal/http"
 	mapset "github.com/deckarep/golang-set"
-	"github.com/rs/zerolog"
 )
 
 const (
@@ -29,6 +30,11 @@ type ContextKey string
 
 var HeadersContextKey ContextKey = "headers"
 
+type metricsHandler struct {
+	meter  telemetry.Meter
+	failed telemetry.Counter
+}
+
 // Server is an RPC server.
 type Server struct {
 	services serviceRegistry
@@ -40,12 +46,23 @@ type Server struct {
 	debugSingleRequest  bool     // Whether to print requests at INFO level
 	batchLimit          int      // Maximum number of requests in a batch
 	keepHeaders         []string // headers to pass to request handler
-	logger              zerolog.Logger
+	logger              logging.Logger
 	rpcSlowLogThreshold time.Duration
+	mh                  *metricsHandler
 }
 
 // NewServer creates a new server instance with no registered handlers.
-func NewServer(traceRequests, debugSingleRequest bool, logger zerolog.Logger, rpcSlowLogThreshold time.Duration, keepHeaders []string) *Server {
+func NewServer(
+	traceRequests bool,
+	debugSingleRequest bool,
+	logger logging.Logger,
+	rpcSlowLogThreshold time.Duration,
+	keepHeaders []string,
+) *Server {
+	meter := telemetry.NewMeter("github.com/NilFoundation/nil/nil/services/rpc/transport")
+	failedCounter, err := meter.Int64Counter("failed")
+	check.PanicIfErr(err)
+
 	server := &Server{
 		services:            serviceRegistry{logger: logger},
 		run:                 1,
@@ -57,6 +74,10 @@ func NewServer(traceRequests, debugSingleRequest bool, logger zerolog.Logger, rp
 		keepHeaders:         keepHeaders,
 		logger:              logger,
 		rpcSlowLogThreshold: rpcSlowLogThreshold,
+		mh: &metricsHandler{
+			meter:  meter,
+			failed: failedCounter,
+		},
 	}
 
 	// Register the default service providing meta-information about the RPC service such
@@ -113,7 +134,7 @@ func newHTTPServerConn(r *http.Request, w http.ResponseWriter) ServerCodec {
 
 // ServeSingleRequest reads and processes a single RPC request from the given codec. This
 // is used to serve HTTP connections.
-func (s *Server) ServeSingleRequest(ctx context.Context, r *http.Request, w http.ResponseWriter) { // codec ServerCodec) {
+func (s *Server) ServeSingleRequest(ctx context.Context, r *http.Request, w http.ResponseWriter) {
 	codec := newHTTPServerConn(r, w)
 	defer codec.Close()
 
@@ -128,7 +149,15 @@ func (s *Server) ServeSingleRequest(ctx context.Context, r *http.Request, w http
 	}
 	ctx = context.WithValue(ctx, HeadersContextKey, headers)
 
-	h := newHandler(ctx, codec, &s.services, s.batchConcurrency, s.traceRequests, s.logger, s.rpcSlowLogThreshold)
+	h := newHandler(
+		ctx,
+		codec,
+		&s.services,
+		s.batchConcurrency,
+		s.traceRequests,
+		s.logger,
+		s.rpcSlowLogThreshold,
+		s.mh)
 
 	reqs, batch, err := codec.Read()
 	if err != nil {
@@ -139,7 +168,8 @@ func (s *Server) ServeSingleRequest(ctx context.Context, r *http.Request, w http
 	}
 	if batch {
 		if s.batchLimit > 0 && len(reqs) > s.batchLimit {
-			_ = codec.WriteJSON(ctx, errorMessage(fmt.Errorf("batch limit %d exceeded. Requested batch of size: %d", s.batchLimit, len(reqs))))
+			_ = codec.WriteJSON(ctx, errorMessage(fmt.Errorf(
+				"batch limit %d exceeded. Requested batch of size: %d", s.batchLimit, len(reqs))))
 		} else {
 			h.handleBatch(reqs)
 		}

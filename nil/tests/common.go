@@ -68,14 +68,27 @@ func GasToValue(gas uint64) types.Value {
 
 // Deploy contract to specific shard
 func DeployContractViaSmartAccount(
-	t *testing.T, ctx context.Context, client client.Client, addrFrom types.Address, key *ecdsa.PrivateKey,
-	shardId types.ShardId, payload types.DeployPayload, initialAmount types.Value,
+	t *testing.T,
+	ctx context.Context,
+	client client.Client,
+	addrFrom types.Address,
+	key *ecdsa.PrivateKey,
+	shardId types.ShardId,
+	payload types.DeployPayload,
+	initialAmount types.Value,
 ) (types.Address, *jsonrpc.RPCReceipt) {
 	t.Helper()
 
 	contractAddr := types.CreateAddress(shardId, payload)
-	txHash, err := client.SendTransactionViaSmartAccount(ctx, addrFrom, types.Code{}, types.NewFeePackFromGas(10_000_000),
-		initialAmount, []types.TokenBalance{}, contractAddr, key)
+	txHash, err := client.SendTransactionViaSmartAccount(
+		ctx,
+		addrFrom,
+		types.Code{},
+		types.NewFeePackFromGas(10_000_000),
+		initialAmount,
+		[]types.TokenBalance{},
+		contractAddr,
+		key)
 	require.NoError(t, err)
 	receipt := WaitForReceipt(t, ctx, client, txHash)
 	require.True(t, receipt.Success)
@@ -113,7 +126,13 @@ func PrepareDefaultDeployPayload(t *testing.T, abi abi.ABI, code []byte, args ..
 	return types.BuildDeployPayload(code, common.EmptyHash)
 }
 
-func WaitBlock(t *testing.T, ctx context.Context, client client.Client, shardId types.ShardId, blockNum uint64) *jsonrpc.RPCBlock {
+func WaitBlock(
+	t *testing.T,
+	ctx context.Context,
+	client client.Client,
+	shardId types.ShardId,
+	blockNum uint64,
+) *jsonrpc.RPCBlock {
 	t.Helper()
 
 	var block *jsonrpc.RPCBlock
@@ -137,10 +156,15 @@ func WaitShardTick(t *testing.T, ctx context.Context, client client.Client, shar
 	block, err := client.GetBlock(ctx, shardId, "latest", false)
 	require.NoError(t, err)
 
-	require.Eventuallyf(t, func() bool {
-		block, err := client.GetBlock(ctx, shardId, transport.BlockNumber(block.Number+1), false)
-		return err == nil && block != nil
-	}, ShardTickWaitTimeout, ShardTickPollInterval, "Failed to wait for shard %d tick after block %d", shardId, block.Number)
+	require.Eventuallyf(
+		t,
+		func() bool {
+			block, err := client.GetBlock(ctx, shardId, transport.BlockNumber(block.Number+1), false)
+			return err == nil && block != nil
+		},
+		ShardTickWaitTimeout,
+		ShardTickPollInterval,
+		"Failed to wait for shard %d tick after block %d", shardId, block.Number)
 }
 
 func GetBalance(t *testing.T, ctx context.Context, client client.Client, address types.Address) types.Value {
@@ -157,12 +181,22 @@ func AbiPack(t *testing.T, abi *abi.ABI, name string, args ...any) []byte {
 	return data
 }
 
-func SendTransactionViaSmartAccount(t *testing.T, client client.Client, addrFrom types.Address, addrTo types.Address, key *ecdsa.PrivateKey,
+func SendTransactionViaSmartAccount(
+	t *testing.T,
+	client client.Client,
+	addrFrom types.Address,
+	addrTo types.Address,
+	key *ecdsa.PrivateKey,
 	calldata []byte,
 ) *jsonrpc.RPCReceipt {
 	t.Helper()
 
-	txHash, err := client.SendTransactionViaSmartAccount(t.Context(), addrFrom, calldata, types.NewFeePackFromGas(1_000_000), types.NewZeroValue(),
+	txHash, err := client.SendTransactionViaSmartAccount(
+		t.Context(),
+		addrFrom,
+		calldata,
+		types.NewFeePackFromGas(1_000_000),
+		types.NewZeroValue(),
 		[]types.TokenBalance{}, addrTo, key)
 	require.NoError(t, err)
 
@@ -174,7 +208,13 @@ func SendTransactionViaSmartAccount(t *testing.T, client client.Client, addrFrom
 	return receipt
 }
 
-func SendExternalTransactionNoCheck(t *testing.T, ctx context.Context, client client.Client, bytecode types.Code, contractAddress types.Address) *jsonrpc.RPCReceipt {
+func SendExternalTransactionNoCheck(
+	t *testing.T,
+	ctx context.Context,
+	client client.Client,
+	bytecode types.Code,
+	contractAddress types.Address,
+) *jsonrpc.RPCReceipt {
 	t.Helper()
 
 	txHash, err := client.SendExternalTransaction(ctx, bytecode, contractAddress, execution.MainPrivateKey,
@@ -185,7 +225,13 @@ func SendExternalTransactionNoCheck(t *testing.T, ctx context.Context, client cl
 }
 
 // AnalyzeReceipt analyzes the receipt and returns the receipt info.
-func AnalyzeReceipt(t *testing.T, ctx context.Context, client client.Client, receipt *jsonrpc.RPCReceipt, namesMap map[types.Address]string) ReceiptInfo {
+func AnalyzeReceipt(
+	t *testing.T,
+	ctx context.Context,
+	client client.Client,
+	receipt *jsonrpc.RPCReceipt,
+	namesMap map[types.Address]string,
+) ReceiptInfo {
 	t.Helper()
 	res := make(ReceiptInfo)
 	analyzeReceiptRec(t, ctx, client, receipt, res, namesMap)
@@ -193,7 +239,14 @@ func AnalyzeReceipt(t *testing.T, ctx context.Context, client client.Client, rec
 }
 
 // analyzeReceiptRec is a recursive function that analyzes the receipt and fills the receipt info.
-func analyzeReceiptRec(t *testing.T, ctx context.Context, client client.Client, receipt *jsonrpc.RPCReceipt, valuesMap ReceiptInfo, namesMap map[types.Address]string) {
+func analyzeReceiptRec(
+	t *testing.T,
+	ctx context.Context,
+	client client.Client,
+	receipt *jsonrpc.RPCReceipt,
+	valuesMap ReceiptInfo,
+	namesMap map[types.Address]string,
+) {
 	t.Helper()
 
 	value := getContractInfo(receipt.ContractAddress, valuesMap)
@@ -224,7 +277,9 @@ func analyzeReceiptRec(t *testing.T, ctx context.Context, client client.Client, 
 		// Bounce transaction also bears refunded gas. If `To` address is equal to `RefundTo`, fee should be credited to
 		// this account.
 		if txn.To == txn.RefundTo {
-			value.RefundReceived = value.RefundReceived.Add(txn.FeeCredit).Sub(receipt.GasUsed.ToValue(receipt.GasPrice))
+			value.RefundReceived = value.RefundReceived.
+				Add(txn.FeeCredit).
+				Sub(receipt.GasUsed.ToValue(receipt.GasPrice))
 		}
 		// Remove the gas used by bounce transaction from the sent value
 		value.ValueSent = value.ValueSent.Sub(receipt.GasUsed.ToValue(receipt.GasPrice))
@@ -250,7 +305,14 @@ func analyzeReceiptRec(t *testing.T, ctx context.Context, client client.Client, 
 	}
 }
 
-func CheckBalance(t *testing.T, ctx context.Context, client client.Client, infoMap ReceiptInfo, balance types.Value, accounts []types.Address) types.Value {
+func CheckBalance(
+	t *testing.T,
+	ctx context.Context,
+	client client.Client,
+	infoMap ReceiptInfo,
+	balance types.Value,
+	accounts []types.Address,
+) types.Value {
 	t.Helper()
 
 	newBalance := types.NewZeroValue()
@@ -269,7 +331,15 @@ func CheckBalance(t *testing.T, ctx context.Context, client client.Client, infoM
 	return newRealBalance
 }
 
-func CallGetter(t *testing.T, ctx context.Context, client client.Client, addr types.Address, calldata []byte, blockId any, overrides *jsonrpc.StateOverrides) []byte {
+func CallGetter(
+	t *testing.T,
+	ctx context.Context,
+	client client.Client,
+	addr types.Address,
+	calldata []byte,
+	blockId any,
+	overrides *jsonrpc.StateOverrides,
+) []byte {
 	t.Helper()
 
 	seqno, err := client.GetTransactionCount(ctx, addr, blockId)
@@ -289,7 +359,15 @@ func CallGetter(t *testing.T, ctx context.Context, client client.Client, addr ty
 	return res.Data
 }
 
-func CheckContractValueEqual[T any](t *testing.T, ctx context.Context, client client.Client, inAbi *abi.ABI, address types.Address, name string, value T) {
+func CheckContractValueEqual[T any](
+	t *testing.T,
+	ctx context.Context,
+	client client.Client,
+	inAbi *abi.ABI,
+	address types.Address,
+	name string,
+	value T,
+) {
 	t.Helper()
 
 	data := AbiPack(t, inAbi, name)
@@ -301,7 +379,14 @@ func CheckContractValueEqual[T any](t *testing.T, ctx context.Context, client cl
 	require.Equal(t, value, gotValue)
 }
 
-func CallGetterT[T any](t *testing.T, ctx context.Context, client client.Client, inAbi *abi.ABI, address types.Address, name string) T {
+func CallGetterT[T any](
+	t *testing.T,
+	ctx context.Context,
+	client client.Client,
+	inAbi *abi.ABI,
+	address types.Address,
+	name string,
+) T {
 	t.Helper()
 
 	data := AbiPack(t, inAbi, name)

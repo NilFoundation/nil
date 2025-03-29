@@ -81,7 +81,7 @@ const config = {
   },
   themes: ["@docusaurus/theme-mermaid"],
   plugins: [
-    "custom-loader",
+    [path.resolve(__dirname, "./plugins/custom-loader"), {}],
     [path.resolve(__dirname, "./plugins/nil-playground-plugin"), {}],
     [
       "nil-docusaurus-plugin-typedoc",
@@ -153,7 +153,7 @@ const config = {
           {
             label: "Migration guides",
             position: "left",
-            to: "nil/migration-guides/february-0302-2025-release",
+            to: "nil/migration-guides/march-1803-2025-release",
           },
           {
             label: "Videos",
@@ -175,7 +175,7 @@ const config = {
               },
               {
                 label: "=nil; CLI",
-                href: "https://github.com/NilFoundation/nil_cli/tree/master",
+                href: "https://github.com/NilFoundation/nil/tree/main/nil/cmd/nil",
               },
               {
                 label: "Client library",

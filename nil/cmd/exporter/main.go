@@ -71,7 +71,12 @@ You could config it via config file or flags or environment variables.`,
 	}
 	cobrax.ExitOnHelp(rootCmd)
 
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $CWD/exporter.cobra.yaml)")
+	rootCmd.PersistentFlags().StringVarP(
+		&cfgFile,
+		"config",
+		"c",
+		"",
+		"config file (default is $CWD/exporter.cobra.yaml)")
 	rootCmd.Flags().StringP("api-endpoint", "a", "http://127.0.0.1:8529", "API endpoint")
 	rootCmd.Flags().StringP("clickhouse-endpoint", "e", "127.0.0.1:9000", "Clickhouse endpoint")
 	rootCmd.Flags().StringP("clickhouse-login", "l", "", "Clickhouse login")
@@ -92,7 +97,8 @@ You could config it via config file or flags or environment variables.`,
 
 	ctx := context.Background()
 
-	clickhouseExporter, err := clickhouse.NewClickhouseDriver(ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
+	clickhouseExporter, err := clickhouse.NewClickhouseDriver(
+		ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
 	check.PanicIfErr(err)
 
 	check.PanicIfErr(internal.StartExporter(ctx, &internal.Cfg{

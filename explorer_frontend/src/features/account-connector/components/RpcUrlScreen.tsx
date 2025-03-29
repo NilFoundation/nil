@@ -66,7 +66,8 @@ export const RpcUrlScreen = () => {
 
   // Handles connect button press
   const handleConnect = () => {
-    const validation: ValidationResult = validateRpcUrl(inputValue);
+    const trimmedInputValue = inputValue.trim();
+    const validation: ValidationResult = validateRpcUrl(trimmedInputValue);
     if (!validation.isValid) {
       setError(validation.error);
       return;
@@ -75,7 +76,7 @@ export const RpcUrlScreen = () => {
     setError("");
     setIsDisabled(true);
 
-    setRpcUrl(inputValue);
+    setRpcUrl(trimmedInputValue);
     initilizeSmartAccount();
   };
 

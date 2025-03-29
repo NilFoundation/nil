@@ -12,7 +12,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/rs/zerolog"
 )
 
 type ReplayParams struct {
@@ -29,10 +28,11 @@ type ReplayScheduler struct {
 
 	params ReplayParams
 
-	logger zerolog.Logger
+	logger logging.Logger
 }
 
 func NewReplayScheduler(txFabric db.DB, params ReplayParams) *ReplayScheduler {
+	params.ExecutionMode = execution.ModeManualReplay
 	return &ReplayScheduler{
 		txFabric: txFabric,
 		params:   params,
@@ -43,7 +43,8 @@ func NewReplayScheduler(txFabric db.DB, params ReplayParams) *ReplayScheduler {
 }
 
 func (s *ReplayScheduler) Run(ctx context.Context) error {
-	s.logger.Info().Msgf("Starting block replay for blocks [%d - %d]...", s.params.ReplayFirstBlock, s.params.ReplayLastBlock)
+	s.logger.Info().Msgf(
+		"Starting block replay for blocks [%d - %d]...", s.params.ReplayFirstBlock, s.params.ReplayLastBlock)
 
 runloop:
 	for blockId := s.params.ReplayFirstBlock; blockId <= s.params.ReplayLastBlock; blockId++ {
@@ -141,8 +142,8 @@ func (s *ReplayScheduler) buildProposalFromPrevBlock(
 		return nil, nil, err
 	}
 
-	proposal.MainChainHash = prevBlock.MainChainHash
-	s.logger.Trace().Msgf("Last block is %s, last MC block is %s", proposal.PrevBlockHash, proposal.MainChainHash)
+	proposal.MainShardHash = prevBlock.MainShardHash
+	s.logger.Trace().Msgf("Last block is %s, last MC block is %s", proposal.PrevBlockHash, proposal.MainShardHash)
 
 	// we could also consider option with fairly collecting these transactions
 	// from neighbor shards and running proposer

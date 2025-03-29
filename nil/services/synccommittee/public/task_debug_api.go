@@ -119,7 +119,8 @@ func NewTaskDebugRequest(
 
 func (r *TaskDebugRequest) Validate() error {
 	if r.Limit < TaskDebugMinLimit || r.Limit > TaskDebugMaxLimit {
-		return fmt.Errorf("limit must be between %d and %d, actual is %d", TaskDebugMinLimit, TaskDebugMaxLimit, r.Limit)
+		return fmt.Errorf(
+			"limit must be between %d and %d, actual is %d", TaskDebugMinLimit, TaskDebugMaxLimit, r.Limit)
 	}
 
 	return nil

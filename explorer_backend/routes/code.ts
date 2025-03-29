@@ -27,7 +27,7 @@ export const codeRouter = router({
       }),
     )
     .mutation(async (opts) => {
-      const hash = setCode(opts.input);
+      const hash = await setCode(opts.input);
       return {
         hash,
       };

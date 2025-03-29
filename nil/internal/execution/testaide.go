@@ -58,10 +58,10 @@ func GenerateZeroState(t *testing.T, shardId types.ShardId, txFabric db.DB) *typ
 
 func GenerateBlockFromTransactions(t *testing.T, ctx context.Context,
 	shardId types.ShardId, blockId types.BlockNumber, prevBlock common.Hash,
-	txFabric db.DB, childChainBlocks map[types.ShardId]common.Hash, txns ...*types.Transaction,
+	txFabric db.DB, childShardBlocks map[types.ShardId]common.Hash, txns ...*types.Transaction,
 ) common.Hash {
 	t.Helper()
-	return generateBlockFromTransactions(t, ctx, true, shardId, blockId, prevBlock, txFabric, childChainBlocks, txns...)
+	return generateBlockFromTransactions(t, ctx, true, shardId, blockId, prevBlock, txFabric, childShardBlocks, txns...)
 }
 
 func GenerateBlockFromTransactionsWithoutExecution(t *testing.T, ctx context.Context,
@@ -74,7 +74,7 @@ func GenerateBlockFromTransactionsWithoutExecution(t *testing.T, ctx context.Con
 
 func generateBlockFromTransactions(t *testing.T, ctx context.Context, execute bool,
 	shardId types.ShardId, blockId types.BlockNumber, prevBlockHash common.Hash,
-	txFabric db.DB, childChainBlocks map[types.ShardId]common.Hash, txns ...*types.Transaction,
+	txFabric db.DB, childShardBlocks map[types.ShardId]common.Hash, txns ...*types.Transaction,
 ) common.Hash {
 	t.Helper()
 
@@ -116,12 +116,12 @@ func generateBlockFromTransactions(t *testing.T, ctx context.Context, execute bo
 		es.AddReceipt(execResult)
 	}
 
-	es.ChildChainBlocks = childChainBlocks
+	es.ChildShardBlocks = childShardBlocks
 
 	blockRes, err := es.Commit(blockId, nil)
 	require.NoError(t, err)
 
-	err = PostprocessBlock(tx, shardId, blockRes)
+	err = PostprocessBlock(tx, shardId, blockRes, ModeVerify)
 	require.NoError(t, err)
 	require.NotNil(t, blockRes.Block)
 
@@ -180,10 +180,16 @@ func Deploy(t *testing.T, ctx context.Context, es *ExecutionState,
 	t.Helper()
 
 	txn := NewDeployTransaction(payload, shardId, from, seqno, types.Value{})
-	es.AddInTransaction(txn)
-	execResult := es.HandleTransaction(ctx, txn, dummyPayer{})
+	execResult := es.AddAndHandleTransaction(ctx, txn, dummyPayer{})
 	require.False(t, execResult.Failed())
 	es.AddReceipt(execResult)
 
 	return txn.To
+}
+
+func (es *ExecutionState) AddAndHandleTransaction(
+	ctx context.Context, txn *types.Transaction, payer Payer,
+) *ExecutionResult {
+	es.AddInTransaction(txn)
+	return es.HandleTransaction(ctx, txn, payer)
 }

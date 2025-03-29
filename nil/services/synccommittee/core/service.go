@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	nilrpc "github.com/NilFoundation/nil/nil/client/rpc"
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
@@ -16,6 +15,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
+	"github.com/jonboulle/clockwork"
 )
 
 type SyncCommittee struct {
@@ -37,11 +37,13 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)
 	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
 
-	timer := common.NewTimer()
-	blockStorage := storage.NewBlockStorage(database, storage.DefaultBlockStorageConfig(), timer, metricsHandler, logger)
-	taskStorage := storage.NewTaskStorage(database, timer, metricsHandler, logger)
+	clock := clockwork.NewRealClock()
+	blockStorage := storage.NewBlockStorage(
+		database, storage.DefaultBlockStorageConfig(), clock, metricsHandler, logger)
+	taskStorage := storage.NewTaskStorage(database, clock, metricsHandler, logger)
 
-	// todo: add reset logic to TaskStorage (implement StateResetter interface) and pass it here in https://github.com/NilFoundation/nil/pull/419
+	// todo: add reset logic to TaskStorage (implement StateResetter interface)
+	//  and pass it here in https://github.com/NilFoundation/nil/pull/419
 	stateResetter := reset.NewStateResetter(logger, blockStorage)
 
 	agg := NewAggregator(
@@ -49,7 +51,7 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 		blockStorage,
 		taskStorage,
 		stateResetter,
-		timer,
+		clock,
 		logger,
 		metricsHandler,
 		cfg.AggregatorConfig,
@@ -62,6 +64,7 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 		cfg.ProposerParams,
 		blockStorage,
 		ethClient,
+		client,
 		metricsHandler,
 		logger,
 	)

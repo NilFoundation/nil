@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/fabelx/go-solc-select/pkg/config"
@@ -33,7 +34,8 @@ type ContractData struct {
 	// SourceCode holds source code content for each file: {name -> content}
 	SourceCode map[string]string `json:"sourceCode,omitempty"`
 
-	// SourceMap holds mappings between bytecode and source code. See https://docs.soliditylang.org/en/latest/internals/source_mappings.html
+	// SourceMap holds mappings between bytecode and source code.
+	// See https://docs.soliditylang.org/en/latest/internals/source_mappings.html
 	SourceMap string `json:"sourceMap,omitempty"`
 
 	// Metadata holds metadata in JSON format, directly copied from the compiler output.
@@ -86,17 +88,21 @@ func Compile(input *CompilerTask) (*ContractData, error) {
 		return nil, fmt.Errorf("failed to find compiler: %w", err)
 	}
 
-	compilerInput, err := input.ToCompilerJsonInput()
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert input to compiler input: %w", err)
+	compilerInput := input.SolcStandardJson
+	if input.SolcStandardJson == nil {
+		compilerInput, err = input.ToCompilerJsonInput()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert input to compiler input: %w", err)
+		}
 	}
-	compilerInputStr, err := json.MarshalIndent(compilerInput, "", "  ")
+
+	compilerInputData, err := json.MarshalIndent(compilerInput, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal compiler input: %w", err)
 	}
 
 	inputFile := dir + "/input.json"
-	if err = os.WriteFile(inputFile, compilerInputStr, 0o600); err != nil {
+	if err = os.WriteFile(inputFile, compilerInputData, 0o600); err != nil {
 		return nil, fmt.Errorf("failed to write input file: %w", err)
 	}
 
@@ -126,7 +132,7 @@ func Compile(input *CompilerTask) (*ContractData, error) {
 		}
 	}
 
-	contractData, err := CreateContractData(compilerInput, &outputJson)
+	contractData, err := CreateContractData(input.ContractName, compilerInput, &outputJson)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load contract info: %w", err)
 	}
@@ -135,23 +141,42 @@ func Compile(input *CompilerTask) (*ContractData, error) {
 	return contractData, nil
 }
 
-func CreateContractData(input *CompilerJsonInput, outputJson *CompilerJsonOutput) (*ContractData, error) {
+func CreateContractData(
+	contractFullName string,
+	input *CompilerJsonInput,
+	outputJson *CompilerJsonOutput,
+) (*ContractData, error) {
 	contractData := &ContractData{}
+
+	parts := strings.Split(contractFullName, ":")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid contract name: %s, required format: <file>:<contract>", contractFullName)
+	}
+	fileName := parts[0]
+	contractName := parts[1]
 
 	numContracts := len(input.Sources)
 
 	var contractDescr *CompilerOutputContract
-	for _, v := range outputJson.Contracts {
-		if len(v) != 1 {
-			return nil, errors.New("expected exactly one contract in compilation output")
+	for file, v := range outputJson.Contracts {
+		if file != fileName {
+			continue
 		}
-		for _, c := range v {
-			contractDescr = &c
+		for c, contract := range v {
+			if c == contractName {
+				contractDescr = &contract
+				break
+			}
+		}
+		if contractDescr != nil {
 			break
 		}
 	}
 	if contractDescr == nil {
 		return nil, errors.New("contract not found in compilation output")
+	}
+	if err := contractDescr.Validate(); err != nil {
+		return nil, fmt.Errorf("compilation output validation failed: %w", err)
 	}
 
 	generatedSourcesExist := false
@@ -186,7 +211,8 @@ func CreateContractData(input *CompilerJsonInput, outputJson *CompilerJsonOutput
 			return nil, errors.New("last id must be empty")
 		}
 		contractData.SourceFilesList[len(contractData.SourceFilesList)-1] = GeneratedSourceFileName
-		contractData.SourceCode[GeneratedSourceFileName] = contractDescr.Evm.DeployedBytecode.GeneratedSources[0].Contents
+		contractData.SourceCode[GeneratedSourceFileName] = //
+			contractDescr.Evm.DeployedBytecode.GeneratedSources[0].Contents
 	}
 
 	contractData.SourceMap = contractDescr.Evm.DeployedBytecode.SourceMap

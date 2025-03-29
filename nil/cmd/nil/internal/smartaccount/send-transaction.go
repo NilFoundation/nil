@@ -85,7 +85,8 @@ func runSend(cmd *cobra.Command, args []string, cfg *common.Config) error {
 		return err
 	}
 
-	txnHash, err := service.RunContract(cfg.Address, calldata, types.NewFeePackFromFeeCredit(params.Fee.FeeCredit), params.amount, tokens, address)
+	txnHash, err := service.RunContract(
+		cfg.Address, calldata, types.NewFeePackFromFeeCredit(params.Fee.FeeCredit), params.amount, tokens, address)
 	if err != nil {
 		return err
 	}

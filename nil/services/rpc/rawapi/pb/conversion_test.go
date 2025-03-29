@@ -113,7 +113,8 @@ func TestStateOverrides_PackUnpack(t *testing.T) {
 }
 
 func getBlockRef() rawapitypes.BlockReferenceOrHashWithChildren {
-	return rawapitypes.BlockReferenceAsBlockReferenceOrHashWithChildren(rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
+	return rawapitypes.BlockReferenceAsBlockReferenceOrHashWithChildren(
+		rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
 }
 
 func getBlockHashWithChildren() rawapitypes.BlockReferenceOrHashWithChildren {

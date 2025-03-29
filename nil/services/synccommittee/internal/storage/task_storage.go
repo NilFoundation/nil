@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"iter"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -14,6 +15,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
+	"github.com/jonboulle/clockwork"
 	"github.com/rs/zerolog"
 )
 
@@ -27,8 +29,9 @@ const (
 )
 
 type TaskStorageMetrics interface {
+	SetStatsProvider(provider types.TaskStatsProvider)
+
 	RecordTaskAdded(ctx context.Context, task *types.TaskEntry)
-	RecordTaskStarted(ctx context.Context, taskEntry *types.TaskEntry)
 	RecordTaskTerminated(ctx context.Context, taskEntry *types.TaskEntry, taskResult *types.TaskResult)
 	RecordTaskRescheduled(ctx context.Context, taskType types.TaskType, previousExecutor types.TaskExecutorId)
 }
@@ -36,25 +39,47 @@ type TaskStorageMetrics interface {
 // TaskStorage defines a type for managing tasks and their lifecycle operations.
 type TaskStorage struct {
 	commonStorage
-	timer   common.Timer
+	clock   clockwork.Clock
 	metrics TaskStorageMetrics
 }
 
 func NewTaskStorage(
 	db db.DB,
-	timer common.Timer,
+	clock clockwork.Clock,
 	metrics TaskStorageMetrics,
-	logger zerolog.Logger,
+	logger logging.Logger,
 ) *TaskStorage {
-	return &TaskStorage{
+	taskStorage := &TaskStorage{
 		commonStorage: makeCommonStorage(
 			db,
 			logger,
 			common.DoNotRetryIf(types.ErrTaskWrongExecutor, types.ErrTaskInvalidStatus, ErrTaskAlreadyExists),
 		),
-		timer:   timer,
+		clock:   clock,
 		metrics: metrics,
 	}
+
+	metrics.SetStatsProvider(taskStorage)
+	return taskStorage
+}
+
+func (st *TaskStorage) GetTaskStats(ctx context.Context) (*types.TaskStats, error) {
+	tx, err := st.database.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	stats := types.NewEmptyTaskStats()
+
+	for entry, err := range st.getStoredTasksSeq(tx) {
+		if err != nil {
+			return nil, err
+		}
+		stats.Add(entry)
+	}
+
+	return stats, nil
 }
 
 // Helper to get and decode task entry from DB
@@ -148,24 +173,27 @@ func (st *TaskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*t
 }
 
 // GetTaskViews Retrieve tasks that match the given predicate function and pushes them to the destination container.
-func (st *TaskStorage) GetTaskViews(ctx context.Context, destination interface{ Add(task *public.TaskView) }, predicate func(*public.TaskView) bool) error {
+func (st *TaskStorage) GetTaskViews(
+	ctx context.Context,
+	destination interface{ Add(task *public.TaskView) },
+	predicate func(*public.TaskView) bool,
+) error {
 	tx, err := st.database.CreateRoTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	currentTime := st.timer.NowTime()
+	currentTime := st.clock.Now()
 
-	err = st.iterateOverTaskEntries(tx, func(entry *types.TaskEntry) (bool, error) {
+	for entry, err := range st.getStoredTasksSeq(tx) {
+		if err != nil {
+			return err
+		}
 		taskView := public.NewTaskView(entry, currentTime)
 		if predicate(taskView) {
 			destination.Add(taskView)
 		}
-		return true, nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to retrieve tasks based on predicate: %w", err)
 	}
 
 	return nil
@@ -179,7 +207,7 @@ func (st *TaskStorage) GetTaskTreeView(ctx context.Context, rootTaskId types.Tas
 	}
 	defer tx.Rollback()
 
-	currentTime := st.timer.NowTime()
+	currentTime := st.clock.Now()
 
 	// track seen tasks to not extract them with dependencies more than once from the storage
 	seen := make(map[types.TaskId]*public.TaskTreeView)
@@ -230,19 +258,21 @@ func (st *TaskStorage) GetTaskTreeView(ctx context.Context, rootTaskId types.Tas
 func (st *TaskStorage) findTopPriorityTask(tx db.RoTx) (*types.TaskEntry, error) {
 	var topPriorityTask *types.TaskEntry = nil
 
-	err := st.iterateOverTaskEntries(tx, func(entry *types.TaskEntry) (bool, error) {
+	for entry, err := range st.getStoredTasksSeq(tx) {
+		if err != nil {
+			return nil, err
+		}
+
 		if entry.Status != types.WaitingForExecutor {
-			return true, nil
+			continue
 		}
 
 		if entry.HasHigherPriorityThan(topPriorityTask) {
 			topPriorityTask = entry
 		}
+	}
 
-		return true, nil
-	})
-
-	return topPriorityTask, err
+	return topPriorityTask, nil
 }
 
 // RequestTaskToExecute Find task with no dependencies and higher priority and assign it to the executor
@@ -261,11 +291,13 @@ func (st *TaskStorage) RequestTaskToExecute(ctx context.Context, executor types.
 		return nil, nil
 	}
 
-	st.metrics.RecordTaskStarted(ctx, taskEntry)
 	return &taskEntry.Task, nil
 }
 
-func (st *TaskStorage) requestTaskToExecuteImpl(ctx context.Context, executor types.TaskExecutorId) (*types.TaskEntry, error) {
+func (st *TaskStorage) requestTaskToExecuteImpl(
+	ctx context.Context,
+	executor types.TaskExecutorId,
+) (*types.TaskEntry, error) {
 	tx, err := st.database.CreateRwTx(ctx)
 	if err != nil {
 		return nil, err
@@ -281,7 +313,7 @@ func (st *TaskStorage) requestTaskToExecuteImpl(ctx context.Context, executor ty
 		return nil, nil
 	}
 
-	currentTime := st.timer.NowTime()
+	currentTime := st.clock.Now()
 	if err := taskEntry.Start(executor, currentTime); err != nil {
 		return nil, fmt.Errorf("failed to start task: %w", err)
 	}
@@ -350,7 +382,7 @@ func (st *TaskStorage) processTaskResultImpl(ctx context.Context, res *types.Tas
 }
 
 func (st *TaskStorage) terminateTaskTx(tx db.RwTx, entry *types.TaskEntry, res *types.TaskResult) error {
-	currentTime := st.timer.NowTime()
+	currentTime := st.clock.Now()
 
 	if err := entry.Terminate(res, currentTime); err != nil {
 		return err
@@ -433,30 +465,32 @@ func (st *TaskStorage) rescheduleHangingTasksImpl(
 	}
 	defer tx.Rollback()
 
-	currentTime := st.timer.NowTime()
+	currentTime := st.clock.Now()
 
-	err = st.iterateOverTaskEntries(tx, func(entry *types.TaskEntry) (bool, error) {
-		if entry.Status != types.Running {
-			return true, nil
+loop:
+	for entry, err := range st.getStoredTasksSeq(tx) {
+		switch {
+		case err != nil:
+			return nil, err
+
+		case len(rescheduled) == rescheduledTasksPerTxLimit:
+			break loop
+
+		case entry.Status != types.Running:
+			continue
+
+		case *entry.ExecutionTime(currentTime) <= taskExecutionTimeout:
+			continue
+
+		default:
+			previousExecutor := entry.Owner
+			timeoutErr := types.NewTaskErrTimeout(*entry.ExecutionTime(currentTime), taskExecutionTimeout)
+			if err := st.rescheduleTaskTx(tx, entry, timeoutErr); err != nil {
+				return nil, err
+			}
+
+			rescheduled = append(rescheduled, rescheduledTask{entry.Task.TaskType, previousExecutor})
 		}
-
-		executionTime := currentTime.Sub(*entry.Started)
-		if executionTime <= taskExecutionTimeout {
-			return true, nil
-		}
-
-		previousExecutor := entry.Owner
-		timeoutErr := types.NewTaskErrTimeout(executionTime, taskExecutionTimeout)
-		if err := st.rescheduleTaskTx(tx, entry, timeoutErr); err != nil {
-			return false, err
-		}
-
-		rescheduled = append(rescheduled, rescheduledTask{entry.Task.TaskType, previousExecutor})
-		shouldContinue := len(rescheduled) < rescheduledTasksPerTxLimit
-		return shouldContinue, nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	if err := st.commit(tx); err != nil {
@@ -488,35 +522,33 @@ func (st *TaskStorage) rescheduleTaskTx(
 	return nil
 }
 
-func (*TaskStorage) iterateOverTaskEntries(
-	tx db.RoTx,
-	action func(entry *types.TaskEntry) (shouldContinue bool, err error),
-) error {
-	iter, err := tx.Range(taskEntriesTable, nil, nil)
-	if err != nil {
-		return err
-	}
-	defer iter.Close()
-
-	for iter.HasNext() {
-		key, val, err := iter.Next()
+func (*TaskStorage) getStoredTasksSeq(tx db.RoTx) iter.Seq2[*types.TaskEntry, error] {
+	return func(yield func(*types.TaskEntry, error) bool) {
+		txIter, err := tx.Range(taskEntriesTable, nil, nil)
 		if err != nil {
-			return err
+			yield(nil, err)
+			return
 		}
-		entry := &types.TaskEntry{}
-		if err = gob.NewDecoder(bytes.NewBuffer(val)).Decode(&entry); err != nil {
-			return fmt.Errorf("%w: failed to decode task with id %v: %w", ErrSerializationFailed, string(key), err)
-		}
-		shouldContinue, err := action(entry)
-		if err != nil {
-			return err
-		}
-		if !shouldContinue {
-			return nil
+		defer txIter.Close()
+
+		for txIter.HasNext() {
+			key, val, err := txIter.Next()
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+			entry := &types.TaskEntry{}
+			if err = gob.NewDecoder(bytes.NewBuffer(val)).Decode(&entry); err != nil {
+				err = fmt.Errorf("%w: failed to decode task with id %v: %w", ErrSerializationFailed, string(key), err)
+				yield(nil, err)
+				return
+			}
+
+			if !yield(entry, nil) {
+				return
+			}
 		}
 	}
-
-	return nil
 }
 
 func (*TaskStorage) makeTaskKey(entry *types.TaskEntry) []byte {

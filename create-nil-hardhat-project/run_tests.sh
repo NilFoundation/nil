@@ -41,7 +41,7 @@ echo "Smart account addr: $SMART_ACCOUNT_ADDR"
 cd $(dirname "$0")
 
 set +e
-if CI=true npx hardhat test --network nil test/*.ts; then
+if CI=true pnpm exec hardhat test --network nil test/*.ts; then
     exit 0
 else
     STATUS=$?

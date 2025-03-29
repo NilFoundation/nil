@@ -52,19 +52,34 @@ func (s *SuiteEthCall) SetupSuite() {
 
 	mainBlock := execution.GenerateZeroState(s.T(), types.MainShardId, s.db)
 
-	m1 := execution.NewDeployTransaction(types.BuildDeployPayload(hexutil.FromHex(s.contracts["Caller"].Code), common.EmptyHash),
-		shardId, types.GenerateRandomAddress(shardId), 0, types.GasToValue(100_000_000))
+	m1 := execution.NewDeployTransaction(
+		types.BuildDeployPayload(hexutil.FromHex(s.contracts["Caller"].Code), common.EmptyHash),
+		shardId,
+		types.GenerateRandomAddress(shardId),
+		0,
+		types.GasToValue(100_000_000))
 
 	s.from = m1.To
 
-	m2 := execution.NewDeployTransaction(types.BuildDeployPayload(hexutil.FromHex(s.contracts["SimpleContract"].Code), common.EmptyHash),
-		shardId, s.from, 0, types.Value{})
+	m2 := execution.NewDeployTransaction(
+		types.BuildDeployPayload(hexutil.FromHex(s.contracts["SimpleContract"].Code), common.EmptyHash),
+		shardId,
+		s.from,
+		0,
+		types.Value{})
 
 	s.simple = m2.To
 
-	s.lastBlockHash = execution.GenerateBlockFromTransactions(s.T(), ctx, shardId, 0, s.lastBlockHash, s.db, nil, m1, m2)
+	s.lastBlockHash = execution.GenerateBlockFromTransactions(
+		s.T(), ctx, shardId, 0, s.lastBlockHash, s.db, nil, m1, m2)
 
-	execution.GenerateBlockFromTransactions(s.T(), ctx, types.MainShardId, 0, mainBlock.Hash(types.MainShardId), s.db,
+	execution.GenerateBlockFromTransactions(
+		s.T(),
+		ctx,
+		types.MainShardId,
+		0,
+		mainBlock.Hash(types.MainShardId),
+		s.db,
 		map[types.ShardId]common.Hash{shardId: s.lastBlockHash})
 
 	s.api = NewTestEthAPI(s.T(), ctx, s.db, 2)

@@ -38,8 +38,19 @@ func (s *SuiteConsensus) SetupTest() {
 	s.Require().NoError(err)
 	zeroState := &execution.ZeroStateConfig{
 		Contracts: []*execution.ContractDescr{
-			{Name: "MainSmartAccount", Contract: "SmartAccount", Address: s.smartAccountAddress, Value: smartAccountValue, CtorArgs: []any{execution.MainPublicKey}},
-			{Name: "Test", Contract: "tests/Test", Address: s.testAddress, Value: smartAccountValue},
+			{
+				Name:     "MainSmartAccount",
+				Contract: "SmartAccount",
+				Address:  s.smartAccountAddress,
+				Value:    smartAccountValue,
+				CtorArgs: []any{execution.MainPublicKey},
+			},
+			{
+				Name:     "Test",
+				Contract: "tests/Test",
+				Address:  s.testAddress,
+				Value:    smartAccountValue,
+			},
 		},
 	}
 

@@ -11,7 +11,7 @@ import { blockDetailsRoute, blockRoute } from "../routes/blockRoute";
 import { explorerRoute } from "../routes/explorerRoute";
 import { playgroundRoute, playgroundWithHashRoute } from "../routes/playgroundRoute";
 import { transactionRoute } from "../routes/transactionRoute";
-import { tutorialWithStageRoute } from "../routes/tutorialRoute";
+import { tutorialWithUrlStringRoute } from "../routes/tutorialRoute";
 
 export const RoutesView = createRoutesView({
   routes: [
@@ -36,7 +36,7 @@ export const RoutesView = createRoutesView({
       view: PlaygroundPage,
     },
     {
-      route: tutorialWithStageRoute,
+      route: tutorialWithUrlStringRoute,
       view: TutorialPage,
     },
   ],

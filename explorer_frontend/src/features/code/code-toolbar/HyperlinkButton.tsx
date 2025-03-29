@@ -7,10 +7,10 @@ import {
   LabelMedium,
   Spinner,
 } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { FC } from "react";
-import { useStyletron } from "styletron-react";
 import { playgroundWithHashRoute } from "../../routing";
 import { HyperlinkIcon, Link, OverflowEllipsis, StatefulPopover, useMobile } from "../../shared";
 import {
@@ -26,7 +26,7 @@ type HyperlinkButtonProps = {
 
 export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
   const [isMobile] = useMobile();
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
   const [shareCodeSnippetPending, codeHash, shareCodeError] = useUnit([
     setCodeSnippetFx.pending,
     $codeSnippetHash,
@@ -40,7 +40,6 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
       content={
         <div
           className={css({
-            backgroundColor: COLORS.gray800,
             height: "48px",
             width: isMobile ? "300px" : "400px",
             display: "flex",
@@ -49,6 +48,7 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
             gap: "16px",
             paddingLeft: "24px",
             paddingRight: "24px",
+            backgroundColor: `${theme.colors.inputButtonAndDropdownOverrideBackgroundColor} !important`,
             ...expandProperty("borderRadius", "8px"),
           })}
         >
@@ -110,6 +110,10 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
           width: isMobile ? "32px" : "48px",
           height: isMobile ? "32px" : "48px",
           flexShrink: 0,
+          backgroundColor: `${theme.colors.inputButtonAndDropdownOverrideBackgroundColor} !important`,
+          ":hover": {
+            backgroundColor: `${theme.colors.inputButtonAndDropdownOverrideBackgroundHoverColor} !important`,
+          },
         })}
         icon={<HyperlinkIcon />}
         kind={BUTTON_KIND.secondary}

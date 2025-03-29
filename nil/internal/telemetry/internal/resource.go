@@ -10,7 +10,7 @@ func NewResource(config *Config) (*resource.Resource, error) {
 		resource.Default(),
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName(config.ServiceName),
+			semconv.ServiceName(config.GetServiceName()),
 		),
 	)
 }

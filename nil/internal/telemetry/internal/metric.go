@@ -13,12 +13,11 @@ import (
 const metricExportInterval = 10 * time.Second
 
 func InitMetrics(ctx context.Context, config *Config) error {
-	if config == nil || !config.ExportMetrics {
-		// no metrics
+	if !config.ExportMetrics {
 		return nil
 	}
 
-	exporter, err := newMetricGrpcExporter(ctx)
+	exporter, err := newMetricGrpcExporter(ctx, config)
 	if err != nil {
 		return fmt.Errorf("failed to initialize exporter: %w", err)
 	}
@@ -42,8 +41,12 @@ func ShutdownMetrics(ctx context.Context) {
 	_ = mp.Shutdown(context.WithoutCancel(ctx))
 }
 
-func newMetricGrpcExporter(ctx context.Context) (sdkmetric.Exporter, error) {
-	return otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithInsecure())
+func newMetricGrpcExporter(ctx context.Context, config *Config) (sdkmetric.Exporter, error) {
+	opts := []otlpmetricgrpc.Option{otlpmetricgrpc.WithInsecure()}
+	if config.GrpcEndpoint != "" {
+		opts = append(opts, otlpmetricgrpc.WithEndpoint(config.GrpcEndpoint))
+	}
+	return otlpmetricgrpc.New(ctx, opts...)
 }
 
 func newMeterProvider(exporter sdkmetric.Exporter, config *Config) (*sdkmetric.MeterProvider, error) {

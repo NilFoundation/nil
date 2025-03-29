@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/client"
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
@@ -15,7 +14,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
-	"github.com/rs/zerolog"
+	"github.com/jonboulle/clockwork"
 )
 
 type Config struct {
@@ -56,7 +55,7 @@ func New(config Config, database db.DB) (*Prover, error) {
 
 	handler := newTaskHandler(
 		taskResultStorage,
-		common.NewTimer(),
+		clockwork.NewRealClock(),
 		logger,
 		newTaskHandlerConfig(config.NilRpcEndpoint),
 	)
@@ -80,6 +79,6 @@ func New(config Config, database db.DB) (*Prover, error) {
 	}, nil
 }
 
-func NewRPCClient(endpoint string, logger zerolog.Logger) client.Client {
+func NewRPCClient(endpoint string, logger logging.Logger) client.Client {
 	return rpc.NewRetryClient(endpoint, logger)
 }

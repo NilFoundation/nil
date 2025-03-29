@@ -1,8 +1,12 @@
 import { sample } from "effector";
-import { $smartAccount } from "../account-connector/model";
+import { setTutorialChecksState } from "../../pages/tutorials/model";
+import { $rpcUrl, $smartAccount } from "../account-connector/model";
 import { loadedTutorialPage } from "../code/model";
-import { deploySmartContractFx } from "../contracts/models/base";
-import { tutorialWithStageRoute } from "../routing/routes/tutorialRoute";
+import { $contracts, deploySmartContractFx } from "../contracts/models/base";
+import { notFoundRoute } from "../routing/routes/routes";
+import { tutorialWithUrlStringRoute } from "../routing/routes/tutorialRoute";
+import { setCompletedTutorial } from "../tutorial/model";
+import type { CheckProps } from "./CheckProps";
 import {
   $tutorialCheck,
   deployTutorialContract,
@@ -10,6 +14,8 @@ import {
   fetchTutorialCheckFx,
   runTutorialCheck,
   runTutorialCheckFx,
+  tutorialContractStepFailedEvent,
+  tutorialContractStepPassedEvent,
 } from "./model";
 
 $tutorialCheck.on(fetchTutorialCheckFx.doneData, (_, tutorialCheck) => tutorialCheck);
@@ -17,13 +23,26 @@ $tutorialCheck.on(fetchTutorialCheckFx.doneData, (_, tutorialCheck) => tutorialC
 sample({
   clock: runTutorialCheck,
   source: $tutorialCheck,
+  fn: (tutorialCheck) => {
+    const props: CheckProps = {
+      rpcUrl: $rpcUrl.getState(),
+      deploymentEffect: deploySmartContractFx,
+      setTutorialChecksEvent: setTutorialChecksState,
+      tutorialContractStepFailed: tutorialContractStepFailedEvent,
+      tutorialContractStepPassed: tutorialContractStepPassedEvent,
+      contracts: $contracts.getState(),
+      setCompletedTutorialEvent: setCompletedTutorial,
+    };
+
+    return { tutorialCheck, props };
+  },
   target: runTutorialCheckFx,
 });
 
 sample({
-  clock: loadedTutorialPage,
-  source: tutorialWithStageRoute.$params,
-  fn: (params) => Number(params.stage),
+  clock: [loadedTutorialPage, tutorialWithUrlStringRoute.$params],
+  source: tutorialWithUrlStringRoute.$params,
+  fn: (params) => params.urlSlug,
   filter: (stage) => stage !== undefined,
   target: fetchTutorialCheckFx,
 });
@@ -31,7 +50,7 @@ sample({
 sample({
   clock: fetchTutorialCheckEvent,
   source: fetchTutorialCheckEvent,
-  fn: (tutorialCheck) => tutorialCheck.stage,
+  fn: (tutorialCheck) => tutorialCheck.urlSlug,
   target: fetchTutorialCheckFx,
 });
 
@@ -46,4 +65,9 @@ sample({
     smartAccount: smartAccount!,
   }),
   target: deploySmartContractFx,
+});
+
+sample({
+  clock: fetchTutorialCheckFx.failData,
+  fn: () => notFoundRoute.open(),
 });

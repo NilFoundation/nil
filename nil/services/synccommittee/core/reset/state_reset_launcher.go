@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/rs/zerolog"
+	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
 const (
@@ -27,16 +26,16 @@ type Service interface {
 
 type stateResetLauncher struct {
 	blockFetcher BlockFetcher
-	resetter     StateResetter
+	resetter     *StateResetter
 	service      Service
-	logger       zerolog.Logger
+	logger       logging.Logger
 }
 
 func NewResetLauncher(
 	blockFetcher BlockFetcher,
-	resetter StateResetter,
+	resetter *StateResetter,
 	service Service,
-	logger zerolog.Logger,
+	logger logging.Logger,
 ) *stateResetLauncher {
 	return &stateResetLauncher{
 		blockFetcher: blockFetcher,
@@ -46,44 +45,47 @@ func NewResetLauncher(
 	}
 }
 
-func (l *stateResetLauncher) LaunchPartialResetWithSuspension(ctx context.Context, firstMainHashToPurge common.Hash) error {
+func (l *stateResetLauncher) LaunchPartialResetWithSuspension(
+	ctx context.Context,
+	failedBatchId scTypes.BatchId,
+) error {
 	l.logger.Info().
-		Stringer(logging.FieldBlockMainChainHash, firstMainHashToPurge).
+		Stringer(logging.FieldBatchId, failedBatchId).
 		Msg("Launching state reset process")
 
 	if err := l.blockFetcher.Pause(ctx); err != nil {
 		return fmt.Errorf("failed to pause block fetching: %w", err)
 	}
 
-	if err := l.resetter.ResetProgressPartial(ctx, firstMainHashToPurge); err != nil {
-		l.onResetError(ctx, err, firstMainHashToPurge)
+	if err := l.resetter.ResetProgressPartial(ctx, failedBatchId); err != nil {
+		l.onResetError(ctx, err, failedBatchId)
 		return nil
 	}
 
 	l.logger.Info().
-		Stringer(logging.FieldBlockMainChainHash, firstMainHashToPurge).
+		Stringer(logging.FieldBatchId, failedBatchId).
 		Msgf("State reset completed, block fetching will be resumed after %s", fetchResumeDelay)
 
-	detachedCtx := context.WithoutCancel(ctx)
 	time.AfterFunc(fetchResumeDelay, func() {
-		l.resumeBlockFetching(detachedCtx)
+		l.resumeBlockFetching(ctx)
 	})
 	return nil
 }
 
 func (l *stateResetLauncher) onResetError(
-	ctx context.Context, resetErr error, failedMainBlockHash common.Hash,
+	ctx context.Context, resetErr error, failedBatchId scTypes.BatchId,
 ) {
-	l.logger.Error().Err(resetErr).Stringer(logging.FieldBlockMainChainHash, failedMainBlockHash).Send()
+	l.logger.Error().Err(resetErr).Stringer(logging.FieldBatchId, failedBatchId).Msg("Failed to reset progress")
 	l.resumeBlockFetching(ctx)
 }
 
 func (l *stateResetLauncher) resumeBlockFetching(ctx context.Context) {
-	ctx, cancel := context.WithTimeout(ctx, fetchResumeTimeout)
+	detachedCtx := context.WithoutCancel(ctx)
+	timeoutCtx, cancel := context.WithTimeout(detachedCtx, fetchResumeTimeout)
 	defer cancel()
 
 	l.logger.Info().Msg("Resuming block fetching")
-	err := l.blockFetcher.Resume(ctx)
+	err := l.blockFetcher.Resume(timeoutCtx)
 
 	if err == nil {
 		l.logger.Info().Msg("Block fetching successfully resumed")

@@ -68,19 +68,19 @@ func execute() error {
 			if err != nil {
 				return err
 			}
-			traceConfig.ShardID, err = types.ParseShardIdFromString(args[1])
-			if err != nil {
-				return err
-			}
-			traceConfig.BlockIDs = make([]transport.BlockReference, len(args)-2)
+			traceConfig.BlockIDs = make([]tracer.BlockId, len(args)-2)
 			for i, blockArg := range args[2:] {
-				traceConfig.BlockIDs[i], err = transport.AsBlockReference(blockArg)
+				traceConfig.BlockIDs[i].ShardId, err = types.ParseShardIdFromString(args[1])
+				if err != nil {
+					return err
+				}
+				traceConfig.BlockIDs[i].Id, err = transport.AsBlockReference(blockArg)
 				if err != nil {
 					return err
 				}
 			}
 			client := prover.NewRPCClient(commonCfg.NilRpcEndpoint, logging.NewLogger("client"))
-			return tracer.GenerateTrace(context.Background(), client, &traceConfig)
+			return tracer.CollectTracesToFile(context.Background(), client, &traceConfig)
 		},
 	}
 	addCommonFlags(generateTraceCmd, commonCfg)
@@ -105,7 +105,11 @@ func execute() error {
 }
 
 func addCommonFlags(cmd *cobra.Command, cfg *CommonConfig) {
-	cmd.Flags().StringVar(&cfg.ProofProviderRpcEndpoint, "proof-provider-endpoint", cfg.ProofProviderRpcEndpoint, "proof provider rpc endpoint")
+	cmd.Flags().StringVar(
+		&cfg.ProofProviderRpcEndpoint,
+		"proof-provider-endpoint",
+		cfg.ProofProviderRpcEndpoint,
+		"proof provider rpc endpoint")
 	cmd.Flags().StringVar(&cfg.NilRpcEndpoint, "nil-endpoint", cfg.NilRpcEndpoint, "nil rpc endpoint")
 	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 
@@ -115,7 +119,11 @@ func addCommonFlags(cmd *cobra.Command, cfg *CommonConfig) {
 }
 
 func addMarshalModeFlag(cmd *cobra.Command, placeholder *string) {
-	cmd.Flags().StringVar(placeholder, "marshal-mode", tracer.MarshalModeBinary.String(), "marshal modes (bin,json) for trace files separated by ','")
+	cmd.Flags().StringVar(
+		placeholder,
+		"marshal-mode",
+		tracer.MarshalModeBinary.String(),
+		"marshal modes (bin,json) for trace files separated by ','")
 }
 
 func run(cfg *RunConfig) error {

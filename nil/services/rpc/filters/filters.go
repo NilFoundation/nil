@@ -177,7 +177,8 @@ func (m *FiltersManager) PollBlocks(delay time.Duration) {
 					continue
 				}
 				for _, ch := range m.blockSubs {
-					// Don't send if the channel is full. Probably subscriber just disconnected, and it shouldn't block us.
+					// Don't send if the channel is full.
+					// Probably subscriber just disconnected, and it shouldn't block us.
 					if len(ch) < cap(ch) {
 						ch <- block
 					}

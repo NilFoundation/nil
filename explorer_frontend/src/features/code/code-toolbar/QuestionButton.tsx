@@ -2,26 +2,24 @@ import {
   BUTTON_KIND,
   BUTTON_SIZE,
   ButtonIcon,
-  COLORS,
   type Items,
   MENU_SIZE,
   Menu,
 } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import type { MenuOverrides } from "baseui/menu";
-import { useStyletron } from "styletron-react";
 import { getRuntimeConfigOrThrow } from "../../runtime-config";
 import { ArrowUpRightIcon, QuestionIcon, StatefulPopover, useMobile } from "../../shared";
 
-const menuOverrides: MenuOverrides = {
-  List: {
-    style: {
-      backgroundColor: COLORS.gray800,
-    },
-  },
-};
-
 export const QuestionButton = () => {
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
+  const menuOverrides: MenuOverrides = {
+    List: {
+      style: {
+        backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundColor,
+      },
+    },
+  };
   const [isMobile] = useMobile();
   const { PLAYGROUND_FEEDBACK_URL, PLAYGROUND_SUPPORT_URL, PLAYGROUND_DOCS_URL } =
     getRuntimeConfigOrThrow();
@@ -68,6 +66,16 @@ export const QuestionButton = () => {
         icon={<QuestionIcon />}
         kind={BUTTON_KIND.secondary}
         size={isMobile ? BUTTON_SIZE.compact : BUTTON_SIZE.large}
+        overrides={{
+          Root: {
+            style: {
+              backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundColor,
+              ":hover": {
+                backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundHoverColor,
+              },
+            },
+          },
+        }}
       />
     </StatefulPopover>
   );

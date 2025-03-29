@@ -12,7 +12,12 @@ func topicPendingTransactions(shardId types.ShardId) string {
 	return fmt.Sprintf("/shard/%s/pending-transactions", shardId)
 }
 
-func PublishPendingTransaction(ctx context.Context, networkManager *network.Manager, shardId types.ShardId, txn *metaTxn) error {
+func PublishPendingTransaction(
+	ctx context.Context,
+	networkManager *network.Manager,
+	shardId types.ShardId,
+	txn *metaTxn,
+) error {
 	if networkManager == nil {
 		// we don't always want to run the network (e.g., in tests)
 		return nil

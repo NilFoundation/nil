@@ -3,6 +3,7 @@ package main
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/abi"
@@ -59,7 +60,13 @@ func (s *SuiteAsyncAwait) SetupSuite() {
 	s.Require().NoError(err)
 	zeroState := &execution.ZeroStateConfig{
 		Contracts: []*execution.ContractDescr{
-			{Name: "MainSmartAccount", Contract: "SmartAccount", Address: types.MainSmartAccountAddress, Value: smartAccountValue, CtorArgs: []any{execution.MainPublicKey}},
+			{
+				Name:     "MainSmartAccount",
+				Contract: "SmartAccount",
+				Address:  types.MainSmartAccountAddress,
+				Value:    smartAccountValue,
+				CtorArgs: []any{execution.MainPublicKey},
+			},
 			{Name: "Test0", Contract: "tests/RequestResponseTest", Address: s.testAddress0, Value: smartAccountValue},
 			{Name: "Test1", Contract: "tests/RequestResponseTest", Address: s.testAddress1, Value: types.Value0},
 			{Name: "Counter0", Contract: "tests/Counter", Address: s.counterAddress0, Value: smartAccountValue},
@@ -307,7 +314,16 @@ func (s *SuiteAsyncAwait) TestTwoRequests() {
 	s.Require().True(receipt.AllSuccess())
 
 	data = s.AbiPack(s.abiTest, "makeTwoRequests", s.counterAddress0, s.counterAddress1)
-	receipt = s.SendExternalTransactionNoCheck(data, s.testAddress0)
+	hash, err := s.DefaultClient.SendExternalTransaction(s.T().Context(), data, s.testAddress0, nil, types.FeePack{})
+	s.Require().NoError(err)
+
+	s.Eventually(func() bool {
+		debugContract, err := s.DefaultClient.GetDebugContract(s.Context, s.testAddress0, "latest")
+		s.Require().NoError(err)
+		return len(debugContract.AsyncContext) > 0
+	}, tests.BlockWaitTimeout, time.Duration(s.Instances[0].Config.CollatorTickPeriodMs/5)*time.Millisecond)
+
+	receipt = s.WaitIncludedInMain(hash)
 	s.Require().True(receipt.AllSuccess())
 
 	data = s.AbiPack(s.abiTest, "value")
@@ -393,9 +409,12 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		receipt := s.SendExternalTransactionNoCheck(data, s.testAddress0)
 		s.Require().True(receipt.AllSuccess())
 
-		tests.CheckContractValueEqual(s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "counterValue", int32(123))
-		tests.CheckContractValueEqual(s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "intValue", intContext)
-		tests.CheckContractValueEqual(s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "strValue", "Hello World")
+		tests.CheckContractValueEqual(
+			s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "counterValue", int32(123))
+		tests.CheckContractValueEqual(
+			s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "intValue", intContext)
+		tests.CheckContractValueEqual(
+			s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "strValue", "Hello World")
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
 
@@ -408,7 +427,8 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		receipt := s.SendExternalTransactionNoCheck(data, s.testAddress0)
 		s.Require().True(receipt.AllSuccess())
 
-		tests.CheckContractValueEqual(s.T(), s.Context, s.DefaultClient, s.abiCounter, s.counterAddress0, "get", int32(223))
+		tests.CheckContractValueEqual(
+			s.T(), s.Context, s.DefaultClient, s.abiCounter, s.counterAddress0, "get", int32(223))
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
 		initialBalance = s.CheckBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)

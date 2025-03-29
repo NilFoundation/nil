@@ -42,8 +42,19 @@ func (s *SuiteModifiersRpc) SetupSuite() {
 
 	zeroState := &execution.ZeroStateConfig{
 		Contracts: []*execution.ContractDescr{
-			{Name: "SmartAccount", Contract: "SmartAccount", Address: s.smartAccountAddr, Value: types.NewValueFromUint64(100000000000000000), CtorArgs: []interface{}{hexutil.Encode(s.smartAccountPublicKey)}},
-			{Name: "TransactionCheck", Contract: "tests/TransactionCheck", Address: s.testAddr, Value: types.NewValueFromUint64(100000000000000000)},
+			{
+				Name:     "SmartAccount",
+				Contract: "SmartAccount",
+				Address:  s.smartAccountAddr,
+				Value:    types.NewValueFromUint64(100000000000000000),
+				CtorArgs: []interface{}{hexutil.Encode(s.smartAccountPublicKey)},
+			},
+			{
+				Name:     "TransactionCheck",
+				Contract: "tests/TransactionCheck",
+				Address:  s.testAddr,
+				Value:    types.NewValueFromUint64(100000000000000000),
+			},
 		},
 	}
 
@@ -85,7 +96,8 @@ func (s *SuiteModifiersRpc) TestInternalCorrect() {
 	internalFuncCalldata, err := s.abi.Pack("internalFunc")
 	s.Require().NoError(err)
 
-	receipt := s.SendTransactionViaSmartAccount(s.smartAccountAddr, s.testAddr, s.smartAccountPrivateKey, internalFuncCalldata)
+	receipt := s.SendTransactionViaSmartAccount(
+		s.smartAccountAddr, s.testAddr, s.smartAccountPrivateKey, internalFuncCalldata)
 	s.Require().True(receipt.OutReceipts[0].Success)
 }
 
@@ -115,7 +127,8 @@ func (s *SuiteModifiersRpc) TestExternalIncorrect() {
 	internalFuncCalldata, err := s.abi.Pack("externalFunc")
 	s.Require().NoError(err)
 
-	receipt := s.SendTransactionViaSmartAccount(s.smartAccountAddr, s.testAddr, s.smartAccountPrivateKey, internalFuncCalldata)
+	receipt := s.SendTransactionViaSmartAccount(
+		s.smartAccountAddr, s.testAddr, s.smartAccountPrivateKey, internalFuncCalldata)
 	s.Require().False(receipt.OutReceipts[0].Success)
 }
 

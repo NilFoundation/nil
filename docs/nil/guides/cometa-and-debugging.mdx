@@ -25,10 +25,10 @@ To use the Cometa service with =nil; developer tools, it is necessary to to set 
 cometa_endpoint: COMETA_ENDPOINT
 ```
 
-* For `Nil.js`, the endpoint should be set when creating an instance of `CometaService`:
+* For `Nil.js`, the endpoint should be set when creating an instance of `CometaClient`:
 
 ```ts showLineNumbers
-const service = new CometaService({
+const service = new CometaClient({
   transport: new HttpTransport({
     endpoint: COMETA_ENDPOINT,
   }),

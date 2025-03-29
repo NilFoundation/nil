@@ -102,7 +102,12 @@ func (tx *RoTx) GetFromShard(shardId types.ShardId, tableName db.ShardedTableNam
 	return tx.Get(db.ShardTableName(tableName, shardId), key)
 }
 
-func (tx *RoTx) RangeByShard(shardId types.ShardId, tableName db.ShardedTableName, from []byte, to []byte) (db.Iter, error) {
+func (tx *RoTx) RangeByShard(
+	shardId types.ShardId,
+	tableName db.ShardedTableName,
+	from []byte,
+	to []byte,
+) (db.Iter, error) {
 	// TODO: Implement this when we will actually need ranges
 	panic("implement me")
 }
@@ -156,6 +161,10 @@ func (db *ReadThroughDb) Fetch(ctx context.Context, reader io.Reader) error {
 	panic("Not supported")
 }
 
+func (db *ReadThroughDb) GetSequence(ctx context.Context, key []byte, bandwidth uint64) (db.Sequence, error) {
+	panic("Not supported")
+}
+
 func (db *ReadThroughDb) DropAll() error {
 	return db.db.DropAll()
 }
@@ -196,7 +205,12 @@ func NewReadThroughDb(client client.DbClient, baseDb db.DB) (db.DB, error) {
 	return db, nil
 }
 
-func NewReadThroughDbWithMainShard(ctx context.Context, client client.Client, cacheDb db.DB, masterBlockNumber transport.BlockNumber) (db.DB, error) {
+func NewReadThroughDbWithMainShard(
+	ctx context.Context,
+	client client.Client,
+	cacheDb db.DB,
+	masterBlockNumber transport.BlockNumber,
+) (db.DB, error) {
 	block, err := client.GetBlock(ctx, types.MainShardId, masterBlockNumber, false)
 	if err != nil {
 		return nil, err
@@ -204,7 +218,8 @@ func NewReadThroughDbWithMainShard(ctx context.Context, client client.Client, ca
 	if masterBlockNumber.IsSpecial() {
 		check.PanicIfNotf(block != nil, "failed to fetch block %v from MC", masterBlockNumber)
 	} else {
-		check.PanicIfNotf(block != nil && block.Number == masterBlockNumber.BlockNumber(), "failed to fetch block %v from MC", masterBlockNumber)
+		check.PanicIfNotf(block != nil && block.Number == masterBlockNumber.BlockNumber(),
+			"failed to fetch block %v from MC", masterBlockNumber)
 	}
 
 	tx, err := cacheDb.CreateRwTx(ctx)
@@ -236,7 +251,8 @@ func NewReadThroughDbWithMainShard(ctx context.Context, client client.Client, ca
 	// values on the server: `badgerOpts.WithNumBersionToKeep(1)`, we just need to rewrite the last block hash value.
 	// Maybe we should enable all versions saving on the server with `badgerOpts.WithNumBersionToKeep(0)`
 	// and get last block hash by block.dbTimestamp.
-	// This solution would be more general, it would withstand other updatable values, but it will consume more memory on server.
+	// This solution would be more general, it would withstand other updatable values,
+	// but it will consume more memory on server.
 	if err := db.WriteLastBlockHash(tx, types.MainShardId, block.Hash); err != nil {
 		return nil, err
 	}
@@ -255,7 +271,12 @@ func NewReadThroughDbWithMainShard(ctx context.Context, client client.Client, ca
 }
 
 // Construct from endpoint string and db.DB
-func NewReadThroughWithEndpoint(ctx context.Context, endpoint string, cacheDb db.DB, masterBlockNumber transport.BlockNumber) (db.DB, error) {
+func NewReadThroughWithEndpoint(
+	ctx context.Context,
+	endpoint string,
+	cacheDb db.DB,
+	masterBlockNumber transport.BlockNumber,
+) (db.DB, error) {
 	client := rpc.NewClient(endpoint, logging.NewLogger("db_client"))
 	return NewReadThroughDbWithMainShard(ctx, client, cacheDb, masterBlockNumber)
 }

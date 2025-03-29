@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
@@ -14,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
+	"github.com/jonboulle/clockwork"
 )
 
 type Config struct {
@@ -50,18 +50,18 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 		return nil, fmt.Errorf("error initializing metrics: %w", err)
 	}
 
-	timer := common.NewTimer()
+	clock := clockwork.NewRealClock()
 
 	taskRpcClient := rpc.NewTaskRequestRpcClient(config.SyncCommitteeRpcEndpoint, logger)
 	taskResultStorage := storage.NewTaskResultStorage(database, logger)
 	taskResultSender := scheduler.NewTaskResultSender(taskRpcClient, taskResultStorage, logger)
 
-	taskStorage := storage.NewTaskStorage(database, timer, metricsHandler, logger)
+	taskStorage := storage.NewTaskStorage(database, clock, metricsHandler, logger)
 
 	taskExecutor, err := executor.New(
 		executor.DefaultConfig(),
 		taskRpcClient,
-		newTaskHandler(taskStorage, taskResultStorage, config.SkipRate, timer, logger),
+		newTaskHandler(taskStorage, taskResultStorage, config.SkipRate, clock, logger),
 		metricsHandler,
 		logger,
 	)

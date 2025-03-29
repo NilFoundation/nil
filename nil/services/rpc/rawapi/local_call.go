@@ -150,7 +150,10 @@ func (api *LocalShardApi) Call(
 	var mainBlockHash common.Hash
 	var childBlocks []common.Hash
 	if mainBlockReferenceOrHashWithChildren.IsReference() {
-		mainBlockData, err := api.nodeApi.GetFullBlockData(ctx, types.MainShardId, mainBlockReferenceOrHashWithChildren.Reference())
+		mainBlockData, err := api.nodeApi.GetFullBlockData(
+			ctx,
+			types.MainShardId,
+			mainBlockReferenceOrHashWithChildren.Reference())
 		if err != nil {
 			return nil, err
 		}
@@ -188,11 +191,12 @@ func (api *LocalShardApi) Call(
 	es, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
 		Block:          block,
 		ConfigAccessor: configAccessor,
+		Mode:           execution.ModeReadOnly,
 	})
 	if err != nil {
 		return nil, err
 	}
-	es.MainChainHash = mainBlockHash
+	es.MainShardHash = mainBlockHash
 
 	if overrides != nil {
 		if err := overrides.Override(es); err != nil {
@@ -243,6 +247,7 @@ func (api *LocalShardApi) Call(
 	esOld, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
 		Block:          block,
 		ConfigAccessor: config.GetStubAccessor(),
+		Mode:           execution.ModeReadOnly,
 	})
 	if err != nil {
 		return nil, err

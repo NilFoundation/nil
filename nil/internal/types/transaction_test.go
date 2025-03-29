@@ -52,7 +52,8 @@ func TestTransactionFlagsJson(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &m2))
 	require.Equal(t, m, m2)
 
-	m = NewTransactionFlags(TransactionFlagInternal, TransactionFlagRefund, TransactionFlagDeploy, TransactionFlagBounce)
+	m = NewTransactionFlags(
+		TransactionFlagInternal, TransactionFlagRefund, TransactionFlagDeploy, TransactionFlagBounce)
 	data, err = json.Marshal(m)
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(data, &m2))

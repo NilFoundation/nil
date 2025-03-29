@@ -49,8 +49,8 @@ Here is a non-exhaustive list of 'helper' classes and functions provided by `Nil
 | `SmartAccountV1.sendMessage()` | Sends a message to a smart contract via previously deployed smart account. |
 | `FaucetClient` | Provides an instance of a client interacting with the faucet service. |
 | `FaucetClient.topUpAndWaitUntilCompletion()` | Tops up a smart contract from the specified faucet. |
-| `CometaService` | Allows for interacting with the Cometa service. |
-| `CometaService.registerContractData()` | Registers a smart contract inside the Cometa service. |
+| `CometaClient` | Allows for interacting with the Cometa service. |
+| `CometaClient.registerContractData()` | Registers a smart contract inside the Cometa service. |
 
 To see all members exposed by `Nil.js`, proceed to [**the 'References' section**](../reference/client/index.mdx).
 
@@ -58,7 +58,7 @@ To see all members exposed by `Nil.js`, proceed to [**the 'References' section**
 
 The testnet RPC endpoint provides access to the cluster and all related services including the faucet service and the Cometa service.
 
-When running the cluster, the faucet service and the Cometa service locally, their endpoints will be different. This will require providing different endpoints when creating instances of `PublicClient`, `FaucetClient` and `CometaService`.
+When running the cluster, the faucet service and the Cometa service locally, their endpoints will be different. This will require providing different endpoints when creating instances of `PublicClient`, `FaucetClient` and `CometaClient`.
 
 :::
 

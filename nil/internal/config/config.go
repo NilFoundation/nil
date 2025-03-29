@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
@@ -108,14 +107,6 @@ func (c *ConfigAccessorStub) Commit(tx db.RwTx, root common.Hash) (common.Hash, 
 
 func GetStubAccessor() ConfigAccessor {
 	return &ConfigAccessorStub{}
-}
-
-func NewConfigAccessorByNumberTx(ctx context.Context, tx db.RoTx, mainShardBlockNumber types.BlockNumber) (ConfigAccessor, error) {
-	mainShardHash, err := db.ReadBlockHashByNumber(tx, types.MainShardId, mainShardBlockNumber)
-	if err != nil {
-		return nil, err
-	}
-	return NewConfigAccessorTx(tx, &mainShardHash)
 }
 
 // NewConfigAccessorTx creates a new configAccessorImpl reading the whole trie from the MPT.
@@ -278,7 +269,8 @@ func GetConfigTrie(tx db.RoTx, mainShardHash *common.Hash) (*mpt.Reader, error) 
 			return nil, err
 		}
 	} else {
-		if mainChainBlock, err = db.ReadBlock(tx, types.MainShardId, *mainShardHash); err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		mainChainBlock, err = db.ReadBlock(tx, types.MainShardId, *mainShardHash)
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return nil, err
 		}
 	}

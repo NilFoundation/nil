@@ -118,7 +118,12 @@ export const getTransactionsByBlockHash = async (hash: string): Promise<Transact
     query: `SELECT
         ${fieldsElem}
         FROM transactions WHERE block_hash = {hash: String}
-        order by transaction_index asc
+        ORDER BY
+          timestamp DESC,
+          block_id DESC,
+          transaction_index ASC,
+          seqno DESC,
+          outgoing ASC,
         `,
     query_params: {
       hash,
@@ -132,7 +137,6 @@ export const getTransactionsByBlockHash = async (hash: string): Promise<Transact
     await query.close();
   }
 };
-
 export const getTransactionsByBlock = async (
   shard: number,
   id: number,
@@ -141,7 +145,12 @@ export const getTransactionsByBlock = async (
     query: `SELECT
         ${fieldsElem}
         FROM transactions WHERE block_id = {id: Int32} AND shard_id = {shard: Int32}
-        order by outgoing, transaction_index asc
+        ORDER BY
+          timestamp DESC,
+          block_id DESC,
+          transaction_index ASC,
+          seqno DESC,
+          outgoing ASC,
         `,
     query_params: {
       shard,
@@ -173,7 +182,13 @@ export const getTransactionsByAddress = async (address: string, offset: number, 
     query: `SELECT
         ${fieldsElem}
         FROM transactions
-        WHERE from = {address: String} OR to = {address: String} ORDER BY timestamp DESC LIMIT {limit: Int32} OFFSET {offset: Int32}
+        WHERE from = {address: String} OR to = {address: String}
+        ORDER BY
+          timestamp DESC,
+          block_id DESC,
+          seqno DESC,
+          outgoing ASC
+        LIMIT {limit: Int32} OFFSET {offset: Int32}
         `,
     query_params: {
       address: address.slice(2).toUpperCase(),

@@ -23,6 +23,9 @@
       {
         "name": "next"
       }
+    ],
+    "types": [
+      "@hapi/shot"
     ]
   },
   "include": [

@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
@@ -18,6 +18,7 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,9 +30,10 @@ type ProposerTestSuite struct {
 
 	params           ProposerParams
 	db               db.DB
-	timer            common.Timer
+	clock            clockwork.Clock
 	storage          *storage.BlockStorage
 	ethClient        *rollupcontract.EthClientMock
+	rpcClientMock    *client.ClientMock
 	proposer         *proposer
 	testData         *types.ProposalData
 	callContractMock *callContractMock
@@ -57,7 +59,11 @@ func (c *callContractMock) AddExpectedCall(methodName string, returnValues ...in
 	c.methodsReturnValue[methodName] = append(c.methodsReturnValue[methodName], returnValues)
 }
 
-func (c *callContractMock) CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
+func (c *callContractMock) CallContract(
+	ctx context.Context,
+	call ethereum.CallMsg,
+	blockNumber *big.Int,
+) ([]byte, error) {
 	abi, err := rollupcontract.RollupcontractMetaData.GetAbi()
 	if err != nil {
 		return nil, err
@@ -113,10 +119,10 @@ func (s *ProposerTestSuite) SetupSuite() {
 	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
 
-	s.timer = testaide.NewTestTimer()
-	s.storage = storage.NewBlockStorage(s.db, storage.DefaultBlockStorageConfig(), s.timer, metricsHandler, logger)
+	s.clock = testaide.NewTestClock()
+	s.storage = storage.NewBlockStorage(s.db, storage.DefaultBlockStorageConfig(), s.clock, metricsHandler, logger)
 	s.params = NewDefaultProposerParams()
-	s.testData = testaide.NewProposalData(3, s.timer.NowTime())
+	s.testData = testaide.NewProposalData(3, s.clock.Now())
 	s.callContractMock = newCallContractMock()
 	s.ethClient = &rollupcontract.EthClientMock{
 		CallContractFunc:    s.callContractMock.CallContract,
@@ -126,7 +132,9 @@ func (s *ProposerTestSuite) SetupSuite() {
 			excessBlobGas := uint64(123)
 			return &ethtypes.Header{BaseFee: big.NewInt(123), ExcessBlobGas: &excessBlobGas}, nil
 		},
-		PendingCodeAtFunc:    func(ctx context.Context, account ethcommon.Address) ([]byte, error) { return []byte{123}, nil },
+		PendingCodeAtFunc: func(ctx context.Context, account ethcommon.Address) ([]byte, error) {
+			return []byte{123}, nil
+		},
 		PendingNonceAtFunc:   func(ctx context.Context, account ethcommon.Address) (uint64, error) { return 123, nil },
 		ChainIDFunc:          func(ctx context.Context) (*big.Int, error) { return big.NewInt(0), nil },
 		SuggestGasTipCapFunc: func(ctx context.Context) (*big.Int, error) { return big.NewInt(123), nil },
@@ -137,7 +145,8 @@ func (s *ProposerTestSuite) SetupSuite() {
 			return &ethtypes.Receipt{Status: ethtypes.ReceiptStatusSuccessful}, nil
 		},
 	}
-	s.proposer, err = NewProposer(s.ctx, s.params, s.storage, s.ethClient, metricsHandler, logger)
+	s.rpcClientMock = &client.ClientMock{}
+	s.proposer, err = NewProposer(s.ctx, s.params, s.storage, s.ethClient, s.rpcClientMock, metricsHandler, logger)
 	s.Require().NoError(err)
 }
 

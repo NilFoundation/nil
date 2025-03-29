@@ -60,7 +60,7 @@ func (cmd *combinedQCmd) MakeCommandDefinition(task *types.Task) (*CommandDefini
 	}
 	startingPowerArg := []string{"--combined-Q-starting-power", strconv.Itoa(startingPower)}
 	outFile := filepath.Join(cmd.outDir,
-		fmt.Sprintf("combined_Q.%v.%v.%v", circuitIdx(task.CircuitType), task.ShardId, task.BlockHash.String()))
+		fmt.Sprintf("combined_Q.%v.%v", circuitIdx(task.CircuitType), task.BatchId))
 	outArg := []string{"--combined-Q-polynomial-file", outFile}
 
 	allArgs := slices.Concat(stage, commitmentState, aggregateChallenges, startingPowerArg, outArg)

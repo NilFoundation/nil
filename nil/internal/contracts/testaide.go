@@ -22,6 +22,7 @@ const (
 	NameRequestResponseTest        = "tests/RequestResponseTest"
 	NamePrecompilesTest            = "tests/PrecompilesTest"
 	NameConfigTest                 = "tests/ConfigTest"
+	NameStresser                   = "tests/Stresser"
 )
 
 func GetDeployPayload(t *testing.T, name string) types.DeployPayload {

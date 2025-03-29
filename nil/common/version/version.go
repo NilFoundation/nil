@@ -77,7 +77,7 @@ func HasGitInfo() bool {
 	return GetVersionInfo().GitCommit != unknownVersion
 }
 
-func BuildVersionString(appTitle string) string {
+func buildVersionString(tmpl, appTitle string) string {
 	ver := GetVersionInfo().GitTag
 	if ver == "" {
 		ver = unknownVersion
@@ -93,7 +93,7 @@ func BuildVersionString(appTitle string) string {
 		ver = parts[1]
 	}
 
-	return FormatVersion(versionTmpl, map[string]any{
+	return FormatVersion(tmpl, map[string]any{
 		"Title":    appTitle,
 		"Version":  ver,
 		"OS":       runtime.GOOS,
@@ -101,6 +101,14 @@ func BuildVersionString(appTitle string) string {
 		"Commit":   GetVersionInfo().GitCommit,
 		"Revision": GetGitRevCount(),
 	})
+}
+
+func BuildVersionString(appTitle string) string {
+	return buildVersionString(versionTmpl, appTitle)
+}
+
+func BuildClientVersion(appTitle string) string {
+	return buildVersionString(clientVersionTmpl, appTitle)
 }
 
 func GetGitRevCount() string {
@@ -124,3 +132,5 @@ var versionTmpl = `{{ .Title }}
  OS/Arch:	{{ .OS }}/{{ .Arch }}
  Git commit:	{{ .Commit }}
  Revision:	{{ .Revision }}`
+
+var clientVersionTmpl = "{{ .Title }}/{{ .Version }}/{{ .OS }}-{{ .Arch }}/{{ .Commit }}/{{ .Revision }}"

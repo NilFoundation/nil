@@ -1,9 +1,9 @@
 import type { Hex } from "@nilfoundation/niljs";
 import { Button, COLORS, FormControl, Input, LabelSmall, SPACE } from "@nilfoundation/ui-kit";
 import { INPUT_KIND, INPUT_SIZE } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import type { InputOverrides } from "baseui/input";
 import { useUnit } from "effector-react";
-import { useStyletron } from "styletron-react";
 import { $smartAccount } from "../../../account-connector/model";
 import {
   $activeAppWithState,
@@ -27,7 +27,18 @@ export const ImportContractTab = () => {
     ],
   );
 
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
+
+  const inputOverrides: InputOverrides = {
+    Root: {
+      style: () => ({
+        backgroundColor: theme.colors.backgroundSecondary,
+        ":hover": {
+          backgroundColor: theme.colors.backgroundTertiary,
+        },
+      }),
+    },
+  };
 
   return (
     <>
@@ -82,15 +93,4 @@ export const ImportContractTab = () => {
       </div>
     </>
   );
-};
-
-const inputOverrides: InputOverrides = {
-  Root: {
-    style: () => ({
-      background: COLORS.gray700,
-      ":hover": {
-        background: COLORS.gray600,
-      },
-    }),
-  },
 };

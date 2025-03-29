@@ -1,10 +1,8 @@
 import { createDomain } from "effector";
 import { fetchCodeSnippet, setCodeSnippet } from "../../api/code";
-import type { App } from "../../types";
-import { tutorialWithStageRoute } from "../routing/routes/tutorialRoute";
+import type { App } from "./types";
 
 export const codeDomain = createDomain("code");
-export const isTutorialPage = tutorialWithStageRoute.$isOpened;
 
 export const $code = codeDomain.createStore<string>("");
 export const changeCode = codeDomain.createEvent<string>();
@@ -56,8 +54,6 @@ export const fetchCodeSnippetEvent = codeDomain.createEvent<string>();
 export const setCodeSnippetFx = codeDomain.createEffect<string, string>();
 export const fetchCodeSnippetFx = codeDomain.createEffect<string, string>();
 
-export const changeIsTutorial = codeDomain.createEvent<boolean>();
-
 setCodeSnippetFx.use((code) => {
   return setCodeSnippet(code);
 });
@@ -70,11 +66,11 @@ export const loadedPlaygroundPage = codeDomain.createEvent();
 
 export const loadedTutorialPage = codeDomain.createEvent();
 
-export const сlickOnLogButton = codeDomain.createEvent();
+export const clickOnLogButton = codeDomain.createEvent();
 
-export const сlickOnContractsButton = codeDomain.createEvent();
+export const clickOnContractsButton = codeDomain.createEvent();
 
-export const сlickOnBackButton = codeDomain.createEvent();
+export const clickOnBackButton = codeDomain.createEvent();
 
 export const $recentProjects = codeDomain.createStore<Record<string, string>>({});
 

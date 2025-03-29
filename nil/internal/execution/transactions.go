@@ -68,7 +68,10 @@ func (m transactionPayer) AddBalance(delta types.Value) error {
 		To:    m.transaction.RefundTo,
 		Value: delta,
 	}); err != nil {
-		sharedLogger.Error().Err(err).Stringer(logging.FieldTransactionHash, m.transaction.Hash()).Msg("failed to add refund transaction")
+		sharedLogger.Error().
+			Err(err).
+			Stringer(logging.FieldTransactionHash, m.transaction.Hash()).
+			Msg("failed to add refund transaction")
 	}
 	return nil
 }
@@ -112,7 +115,9 @@ func (a accountPayer) String() string {
 
 func buyGas(payer Payer, transaction *types.Transaction) error {
 	if !payer.CanPay(transaction.FeeCredit) {
-		return types.NewWrapError(types.ErrorInsufficientFunds, fmt.Errorf("%s can't pay %s", payer, transaction.FeeCredit))
+		return types.NewWrapError(
+			types.ErrorInsufficientFunds,
+			fmt.Errorf("%s can't pay %s", payer, transaction.FeeCredit))
 	}
 	payer.SubBalance(transaction.FeeCredit)
 	return nil
@@ -191,7 +196,7 @@ func ValidateExternalTransaction(es *ExecutionState, transaction *types.Transact
 	}
 
 	if transaction.MaxFeePerGas.IsZero() {
-		logger.Error().Msg("MaxFeePerGas is zero")
+		es.logger.Error().Msg("MaxFeePerGas is zero")
 		return NewExecutionResult().SetError(types.NewError(types.ErrorMaxFeePerGasIsZero))
 	}
 
@@ -205,7 +210,8 @@ func ValidateExternalTransaction(es *ExecutionState, transaction *types.Transact
 	case transaction.IsDeploy():
 		return validateExternalDeployTransaction(es, transaction)
 	case transaction.IsRefund():
-		return NewExecutionResult().SetError(types.NewError(types.ErrorRefundTransactionIsNotAllowedInExternalTransactions))
+		return NewExecutionResult().SetError(types.NewError(
+			types.ErrorRefundTransactionIsNotAllowedInExternalTransactions))
 	default:
 		return validateExternalExecutionTransaction(es, transaction)
 	}

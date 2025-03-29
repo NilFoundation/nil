@@ -81,7 +81,12 @@ func (m *Manager) SetStreamHandler(ctx context.Context, protocolId ProtocolID, h
 	})
 }
 
-func (m *Manager) SendRequestAndGetResponse(ctx context.Context, peerId PeerID, protocolId ProtocolID, request []byte) ([]byte, error) {
+func (m *Manager) SendRequestAndGetResponse(
+	ctx context.Context,
+	peerId PeerID,
+	protocolId ProtocolID,
+	request []byte,
+) ([]byte, error) {
 	stream, err := m.NewStream(ctx, peerId, protocolId)
 	if err != nil {
 		return nil, err

@@ -97,7 +97,8 @@ func parseCallArgument(arg string, tp abi.Type) (any, error) {
 func parseCallArguments(args []string, inputs abi.Arguments) ([]any, error) {
 	parsedArgs := make([]any, 0, len(args))
 	if len(args) != len(inputs) {
-		return nil, fmt.Errorf("invalid amount of arguments is provided: expected %d but got %d", len(inputs), len(args))
+		return nil, fmt.Errorf(
+			"invalid amount of arguments is provided: expected %d but got %d", len(inputs), len(args))
 	}
 
 	for ind, arg := range args {

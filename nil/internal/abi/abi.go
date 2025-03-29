@@ -166,10 +166,26 @@ func (abi *ABI) UnmarshalJSON(data []byte) error {
 	for _, field := range fields {
 		switch field.Type {
 		case "constructor":
-			abi.Constructor = NewMethod("", "", Constructor, field.StateMutability, field.Constant, field.Payable, field.Inputs, nil)
+			abi.Constructor = NewMethod(
+				"",
+				"",
+				Constructor,
+				field.StateMutability,
+				field.Constant,
+				field.Payable,
+				field.Inputs,
+				nil)
 		case "function":
 			name := abi.overloadedMethodName(field.Name)
-			abi.Methods[name] = NewMethod(name, field.Name, Function, field.StateMutability, field.Constant, field.Payable, field.Inputs, field.Outputs)
+			abi.Methods[name] = NewMethod(
+				name,
+				field.Name,
+				Function,
+				field.StateMutability,
+				field.Constant,
+				field.Payable,
+				field.Inputs,
+				field.Outputs)
 		case "fallback":
 			// New introduced function type in v0.6.0, check more detail
 			// here https://solidity.readthedocs.io/en/v0.6.0/contracts.html#fallback-function

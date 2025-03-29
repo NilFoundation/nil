@@ -18,8 +18,9 @@ import (
 	"github.com/holiman/uint256"
 )
 
-// CommitBatch creates blob transaction for `CommitBatch` contract method and sends it on chain. If such `batchIndex` is already
-// submitted, returns `signedTx, ErrBatchAlreadyCommitted`, so `signedTx` could be used later for accessing prepared blobs fields.
+// CommitBatch creates blob transaction for `CommitBatch` contract method and sends it on chain.
+// If such `batchIndex` is already submitted, returns `signedTx, ErrBatchAlreadyCommitted`,
+// so `signedTx` could be used later for accessing prepared blobs fields.
 func (r *Wrapper) CommitBatch(
 	ctx context.Context,
 	blobs []kzg4844.Blob,
@@ -145,7 +146,12 @@ func (r *Wrapper) computeTxParams(ctx context.Context, from ethcommon.Address, b
 }
 
 // createBlobTx creates a new blob transaction using the computed blob data and transaction parameters
-func (r *Wrapper) createBlobTx(ctx context.Context, blobs []kzg4844.Blob, from ethcommon.Address, batchIndex string) (*ethtypes.Transaction, error) {
+func (r *Wrapper) createBlobTx(
+	ctx context.Context,
+	blobs []kzg4844.Blob,
+	from ethcommon.Address,
+	batchIndex string,
+) (*ethtypes.Transaction, error) {
 	startTime := time.Now()
 	sidecar, err := computeSidecar(blobs)
 	if err != nil {

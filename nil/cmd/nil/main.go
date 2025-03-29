@@ -89,8 +89,18 @@ func main() {
 		},
 	}
 
-	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.cfgFile, "config", "c", config.DefaultConfigPath, "The path to the config file")
-	rootCmd.baseCmd.PersistentFlags().StringVarP(&rootCmd.logLevel, "log-level", "l", "info", "Log level: trace|debug|info|warn|error|fatal|panic")
+	rootCmd.baseCmd.PersistentFlags().StringVarP(
+		&rootCmd.cfgFile,
+		"config",
+		"c",
+		config.DefaultConfigPath,
+		"The path to the config file")
+	rootCmd.baseCmd.PersistentFlags().StringVarP(
+		&rootCmd.logLevel,
+		"log-level",
+		"l",
+		"info",
+		"Log level: trace|debug|info|warn|error|fatal|panic")
 	rootCmd.baseCmd.PersistentFlags().BoolVarP(
 		&common.Quiet,
 		"quiet",

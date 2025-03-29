@@ -1,6 +1,6 @@
-import { COLORS, FormControl, Input, Select } from "@nilfoundation/ui-kit";
+import { FormControl, Input, Select } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import type { FC } from "react";
-import { useStyletron } from "styletron-react";
 import type { Token } from "./Token";
 
 type TokenInputProps = {
@@ -22,7 +22,7 @@ const TokenInput: FC<TokenInputProps> = ({
   disabled = false,
   caption,
 }) => {
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
 
   return (
     <div className={`${css({})} ${className}`}>
@@ -46,9 +46,9 @@ const TokenInput: FC<TokenInputProps> = ({
             },
             Root: {
               style: {
-                backgroundColor: COLORS.gray700,
+                backgroundColor: theme.colors.tokenInputBackgroundColor,
                 ":hover": {
-                  backgroundColor: COLORS.gray600,
+                  backgroundColor: theme.colors.tokenInputBackgroundHoverColor,
                 },
               },
             },

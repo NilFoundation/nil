@@ -41,11 +41,17 @@ func setFlags(cmd *cobra.Command) {
 func runCommand(cmd *cobra.Command, args []string) error {
 	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), nil, nil)
 
-	blockData, err := service.FetchDebugBlock(params.shardId, args[0], params.jsonOutput, params.fullOutput, params.noColor)
+	blockData, err := service.FetchDebugBlock(
+		params.shardId, args[0], params.jsonOutput, params.fullOutput, params.noColor)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to fetch the block by number")
 		return err
 	}
-	fmt.Println(string(blockData))
+	if blockData != nil {
+		fmt.Println(string(blockData))
+	} else {
+		fmt.Println("null")
+	}
+
 	return nil
 }

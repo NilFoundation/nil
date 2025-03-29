@@ -78,10 +78,10 @@ var jsonEventMixedCase = []byte(`{
 var transferData1 = "00000000000000000000000000000000000000000000000000000000000f4240"
 
 // "0x00Ce0d46d924CC8437c806721496599FC3FFA268", 2218516807680, "usd"
-var pledgeData1 = "00000000000000000000000000ce0d46d924cc8437c806721496599fc3ffa2680000000000000000000000000000000000000000000000000000020489e800007573640000000000000000000000000000000000000000000000000000000000"
+var pledgeData1 = "00000000000000000000000000ce0d46d924cc8437c806721496599fc3ffa2680000000000000000000000000000000000000000000000000000020489e800007573640000000000000000000000000000000000000000000000000000000000" //nolint: lll
 
 // 1000000,2218516807680,1000001
-var mixedCaseData1 = "00000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000020489e8000000000000000000000000000000000000000000000000000000000000000f4241"
+var mixedCaseData1 = "00000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000020489e8000000000000000000000000000000000000000000000000000000000000000f4241" //nolint: lll
 
 func TestEventId(t *testing.T) {
 	t.Parallel()
@@ -93,7 +93,12 @@ func TestEventId(t *testing.T) {
 		{
 			definition: `[
 			{ "type" : "event", "name" : "Balance", "inputs": [{ "name" : "in", "type": "uint256" }] },
-			{ "type" : "event", "name" : "Check", "inputs": [{ "name" : "t", "type": "address" }, { "name": "b", "type": "uint256" }] }
+			{
+				"type" : "event",
+				"name" : "Check",
+				"inputs": [
+					{ "name" : "t", "type": "address" },
+					{ "name": "b", "type": "uint256" }] }
 			]`,
 			expectations: map[string]common.Hash{
 				"Balance": common.Keccak256Hash([]byte("Balance(uint256)")),
@@ -126,8 +131,21 @@ func TestEventString(t *testing.T) {
 		{
 			definition: `[
 			{ "type" : "event", "name" : "Balance", "inputs": [{ "name" : "in", "type": "uint256" }] },
-			{ "type" : "event", "name" : "Check", "inputs": [{ "name" : "t", "type": "address" }, { "name": "b", "type": "uint256" }] },
-			{ "type" : "event", "name" : "Transfer", "inputs": [{ "name": "from", "type": "address", "indexed": true }, { "name": "to", "type": "address", "indexed": true }, { "name": "value", "type": "uint256" }] }
+			{
+				"type" : "event",
+				"name" : "Check",
+				"inputs": [
+					{ "name" : "t", "type": "address" },
+					{ "name": "b", "type": "uint256" }
+				] },
+			{
+				"type" : "event",
+				"name" : "Transfer",
+				"inputs": [
+					{ "name": "from", "type": "address", "indexed": true },
+					{ "name": "to", "type": "address", "indexed": true },
+					{ "name": "value", "type": "uint256" }
+				] }
 			]`,
 			expectations: map[string]string{
 				"Balance":  "event Balance(uint256 in)",
@@ -155,7 +173,14 @@ func TestEventString(t *testing.T) {
 func TestEventMultiValueWithArrayUnpack(t *testing.T) {
 	t.Parallel()
 
-	definition := `[{"name": "test", "type": "event", "inputs": [{"indexed": false, "name":"value1", "type":"uint8[2]"},{"indexed": false, "name":"value2", "type":"uint8"}]}]`
+	definition := `[{
+		"name": "test",
+		"type": "event",
+		"inputs": [
+			{"indexed": false, "name":"value1", "type":"uint8[2]"},
+			{"indexed": false, "name":"value2", "type":"uint8"}
+		]
+	}]`
 	abi, err := JSON(strings.NewReader(definition))
 	require.NoError(t, err)
 	var b bytes.Buffer
@@ -372,7 +397,14 @@ https://github.com/erigontech/erigon/pull/15568
 func TestEventUnpackIndexed(t *testing.T) {
 	t.Parallel()
 
-	definition := `[{"name": "test", "type": "event", "inputs": [{"indexed": true, "name":"value1", "type":"uint8"},{"indexed": false, "name":"value2", "type":"uint8"}]}]`
+	definition := `[{
+		"name": "test",
+		"type": "event",
+		"inputs": [
+			{"indexed": true, "name":"value1", "type":"uint8"},
+			{"indexed": false, "name":"value2", "type":"uint8"}
+		]
+	}]`
 	type testStruct struct {
 		Value1 uint8 // indexed
 		Value2 uint8
@@ -391,7 +423,14 @@ func TestEventUnpackIndexed(t *testing.T) {
 func TestEventIndexedWithArrayUnpack(t *testing.T) {
 	t.Parallel()
 
-	definition := `[{"name": "test", "type": "event", "inputs": [{"indexed": true, "name":"value1", "type":"uint8[2]"},{"indexed": false, "name":"value2", "type":"string"}]}]`
+	definition := `[{
+		"name": "test",
+		"type": "event",
+		"inputs": [
+			{"indexed": true, "name":"value1", "type":"uint8[2]"},
+			{"indexed": false, "name":"value2", "type":"string"}
+		]
+	}]`
 	type testStruct struct {
 		Value1 [2]uint8 // indexed
 		Value2 string

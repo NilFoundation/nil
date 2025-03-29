@@ -34,7 +34,7 @@ import (
 type typeWithoutStringer Type
 
 // Tests that all allowed types get recognized by the type parser.
-func TestTypeRegexp(t *testing.T) {
+func TestTypeRegexp(t *testing.T) { //nolint:maintidx
 	t.Parallel()
 
 	tests := []struct {
@@ -45,55 +45,470 @@ func TestTypeRegexp(t *testing.T) {
 		{"bool", nil, Type{T: BoolTy, stringKind: "bool"}},
 		{"bool[]", nil, Type{T: SliceTy, Elem: &Type{T: BoolTy, stringKind: "bool"}, stringKind: "bool[]"}},
 		{"bool[2]", nil, Type{Size: 2, T: ArrayTy, Elem: &Type{T: BoolTy, stringKind: "bool"}, stringKind: "bool[2]"}},
-		{"bool[2][]", nil, Type{T: SliceTy, Elem: &Type{T: ArrayTy, Size: 2, Elem: &Type{T: BoolTy, stringKind: "bool"}, stringKind: "bool[2]"}, stringKind: "bool[2][]"}},
-		{"bool[][]", nil, Type{T: SliceTy, Elem: &Type{T: SliceTy, Elem: &Type{T: BoolTy, stringKind: "bool"}, stringKind: "bool[]"}, stringKind: "bool[][]"}},
-		{"bool[][2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{T: SliceTy, Elem: &Type{T: BoolTy, stringKind: "bool"}, stringKind: "bool[]"}, stringKind: "bool[][2]"}},
-		{"bool[2][2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{T: ArrayTy, Size: 2, Elem: &Type{T: BoolTy, stringKind: "bool"}, stringKind: "bool[2]"}, stringKind: "bool[2][2]"}},
-		{"bool[2][][2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{T: SliceTy, Elem: &Type{T: ArrayTy, Size: 2, Elem: &Type{T: BoolTy, stringKind: "bool"}, stringKind: "bool[2]"}, stringKind: "bool[2][]"}, stringKind: "bool[2][][2]"}},
-		{"bool[2][2][2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{T: ArrayTy, Size: 2, Elem: &Type{T: ArrayTy, Size: 2, Elem: &Type{T: BoolTy, stringKind: "bool"}, stringKind: "bool[2]"}, stringKind: "bool[2][2]"}, stringKind: "bool[2][2][2]"}},
-		{"bool[][][]", nil, Type{T: SliceTy, Elem: &Type{T: SliceTy, Elem: &Type{T: SliceTy, Elem: &Type{T: BoolTy, stringKind: "bool"}, stringKind: "bool[]"}, stringKind: "bool[][]"}, stringKind: "bool[][][]"}},
-		{"bool[][2][]", nil, Type{T: SliceTy, Elem: &Type{T: ArrayTy, Size: 2, Elem: &Type{T: SliceTy, Elem: &Type{T: BoolTy, stringKind: "bool"}, stringKind: "bool[]"}, stringKind: "bool[][2]"}, stringKind: "bool[][2][]"}},
+		{
+			"bool[2][]",
+			nil,
+			Type{
+				T: SliceTy,
+				Elem: &Type{
+					T:    ArrayTy,
+					Size: 2,
+					Elem: &Type{
+						T:          BoolTy,
+						stringKind: "bool",
+					},
+					stringKind: "bool[2]",
+				}, stringKind: "bool[2][]",
+			},
+		},
+		{
+			"bool[][]",
+			nil,
+			Type{
+				T: SliceTy,
+				Elem: &Type{
+					T: SliceTy,
+					Elem: &Type{
+						T:          BoolTy,
+						stringKind: "bool",
+					},
+					stringKind: "bool[]",
+				},
+				stringKind: "bool[][]",
+			},
+		},
+		{
+			"bool[][2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					T: SliceTy,
+					Elem: &Type{
+						T:          BoolTy,
+						stringKind: "bool",
+					},
+					stringKind: "bool[]",
+				},
+				stringKind: "bool[][2]",
+			},
+		},
+		{
+			"bool[2][2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					T:    ArrayTy,
+					Size: 2,
+					Elem: &Type{
+						T:          BoolTy,
+						stringKind: "bool",
+					},
+					stringKind: "bool[2]",
+				},
+				stringKind: "bool[2][2]",
+			},
+		},
+		{
+			"bool[2][][2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					T: SliceTy,
+					Elem: &Type{
+						T:    ArrayTy,
+						Size: 2,
+						Elem: &Type{
+							T:          BoolTy,
+							stringKind: "bool",
+						},
+						stringKind: "bool[2]",
+					},
+					stringKind: "bool[2][]",
+				},
+				stringKind: "bool[2][][2]",
+			},
+		},
+		{
+			"bool[2][2][2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					T:    ArrayTy,
+					Size: 2,
+					Elem: &Type{
+						T:    ArrayTy,
+						Size: 2,
+						Elem: &Type{
+							T:          BoolTy,
+							stringKind: "bool",
+						},
+						stringKind: "bool[2]",
+					},
+					stringKind: "bool[2][2]",
+				},
+				stringKind: "bool[2][2][2]",
+			},
+		},
+		{
+			"bool[][][]",
+			nil,
+			Type{
+				T: SliceTy,
+				Elem: &Type{
+					T: SliceTy,
+					Elem: &Type{
+						T: SliceTy,
+						Elem: &Type{
+							T:          BoolTy,
+							stringKind: "bool",
+						},
+						stringKind: "bool[]",
+					},
+					stringKind: "bool[][]",
+				},
+				stringKind: "bool[][][]",
+			},
+		},
+		{
+			"bool[][2][]",
+			nil,
+			Type{
+				T: SliceTy,
+				Elem: &Type{
+					T:    ArrayTy,
+					Size: 2,
+					Elem: &Type{
+						T: SliceTy,
+						Elem: &Type{
+							T:          BoolTy,
+							stringKind: "bool",
+						},
+						stringKind: "bool[]",
+					},
+					stringKind: "bool[][2]",
+				},
+				stringKind: "bool[][2][]",
+			},
+		},
 		{"int8", nil, Type{Size: 8, T: IntTy, stringKind: "int8"}},
 		{"int16", nil, Type{Size: 16, T: IntTy, stringKind: "int16"}},
 		{"int32", nil, Type{Size: 32, T: IntTy, stringKind: "int32"}},
 		{"int64", nil, Type{Size: 64, T: IntTy, stringKind: "int64"}},
 		{"int256", nil, Type{Size: 256, T: IntTy, stringKind: "int256"}},
 		{"int8[]", nil, Type{T: SliceTy, Elem: &Type{Size: 8, T: IntTy, stringKind: "int8"}, stringKind: "int8[]"}},
-		{"int8[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 8, T: IntTy, stringKind: "int8"}, stringKind: "int8[2]"}},
+		{
+			"int8[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					Size:       8,
+					T:          IntTy,
+					stringKind: "int8",
+				},
+				stringKind: "int8[2]",
+			},
+		},
 		{"int16[]", nil, Type{T: SliceTy, Elem: &Type{Size: 16, T: IntTy, stringKind: "int16"}, stringKind: "int16[]"}},
-		{"int16[2]", nil, Type{Size: 2, T: ArrayTy, Elem: &Type{Size: 16, T: IntTy, stringKind: "int16"}, stringKind: "int16[2]"}},
+		{
+			"int16[2]",
+			nil,
+			Type{
+				Size: 2,
+				T:    ArrayTy,
+				Elem: &Type{
+					Size:       16,
+					T:          IntTy,
+					stringKind: "int16",
+				},
+				stringKind: "int16[2]",
+			},
+		},
 		{"int32[]", nil, Type{T: SliceTy, Elem: &Type{Size: 32, T: IntTy, stringKind: "int32"}, stringKind: "int32[]"}},
-		{"int32[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 32, T: IntTy, stringKind: "int32"}, stringKind: "int32[2]"}},
+		{
+			"int32[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					Size:       32,
+					T:          IntTy,
+					stringKind: "int32",
+				},
+				stringKind: "int32[2]",
+			},
+		},
 		{"int64[]", nil, Type{T: SliceTy, Elem: &Type{Size: 64, T: IntTy, stringKind: "int64"}, stringKind: "int64[]"}},
-		{"int64[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 64, T: IntTy, stringKind: "int64"}, stringKind: "int64[2]"}},
-		{"int256[]", nil, Type{T: SliceTy, Elem: &Type{Size: 256, T: IntTy, stringKind: "int256"}, stringKind: "int256[]"}},
-		{"int256[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 256, T: IntTy, stringKind: "int256"}, stringKind: "int256[2]"}},
+		{
+			"int64[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					Size:       64,
+					T:          IntTy,
+					stringKind: "int64",
+				},
+				stringKind: "int64[2]",
+			},
+		},
+		{
+			"int256[]",
+			nil,
+			Type{
+				T: SliceTy,
+				Elem: &Type{
+					Size:       256,
+					T:          IntTy,
+					stringKind: "int256",
+				},
+				stringKind: "int256[]",
+			},
+		},
+		{
+			"int256[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					Size:       256,
+					T:          IntTy,
+					stringKind: "int256",
+				},
+				stringKind: "int256[2]",
+			},
+		},
 		{"uint8", nil, Type{Size: 8, T: UintTy, stringKind: "uint8"}},
 		{"uint16", nil, Type{Size: 16, T: UintTy, stringKind: "uint16"}},
 		{"uint32", nil, Type{Size: 32, T: UintTy, stringKind: "uint32"}},
 		{"uint64", nil, Type{Size: 64, T: UintTy, stringKind: "uint64"}},
 		{"uint256", nil, Type{Size: 256, T: UintTy, stringKind: "uint256"}},
 		{"uint8[]", nil, Type{T: SliceTy, Elem: &Type{Size: 8, T: UintTy, stringKind: "uint8"}, stringKind: "uint8[]"}},
-		{"uint8[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 8, T: UintTy, stringKind: "uint8"}, stringKind: "uint8[2]"}},
-		{"uint16[]", nil, Type{T: SliceTy, Elem: &Type{Size: 16, T: UintTy, stringKind: "uint16"}, stringKind: "uint16[]"}},
-		{"uint16[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 16, T: UintTy, stringKind: "uint16"}, stringKind: "uint16[2]"}},
-		{"uint32[]", nil, Type{T: SliceTy, Elem: &Type{Size: 32, T: UintTy, stringKind: "uint32"}, stringKind: "uint32[]"}},
-		{"uint32[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 32, T: UintTy, stringKind: "uint32"}, stringKind: "uint32[2]"}},
-		{"uint64[]", nil, Type{T: SliceTy, Elem: &Type{Size: 64, T: UintTy, stringKind: "uint64"}, stringKind: "uint64[]"}},
-		{"uint64[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 64, T: UintTy, stringKind: "uint64"}, stringKind: "uint64[2]"}},
-		{"uint256[]", nil, Type{T: SliceTy, Elem: &Type{Size: 256, T: UintTy, stringKind: "uint256"}, stringKind: "uint256[]"}},
-		{"uint256[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 256, T: UintTy, stringKind: "uint256"}, stringKind: "uint256[2]"}},
+		{
+			"uint8[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					Size:       8,
+					T:          UintTy,
+					stringKind: "uint8",
+				},
+				stringKind: "uint8[2]",
+			},
+		},
+		{
+			"uint16[]",
+			nil,
+			Type{
+				T: SliceTy,
+				Elem: &Type{
+					Size:       16,
+					T:          UintTy,
+					stringKind: "uint16",
+				},
+				stringKind: "uint16[]",
+			},
+		},
+		{
+			"uint16[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					Size:       16,
+					T:          UintTy,
+					stringKind: "uint16",
+				},
+				stringKind: "uint16[2]",
+			},
+		},
+		{
+			"uint32[]",
+			nil,
+			Type{
+				T: SliceTy,
+				Elem: &Type{
+					Size:       32,
+					T:          UintTy,
+					stringKind: "uint32",
+				},
+				stringKind: "uint32[]",
+			},
+		},
+		{
+			"uint32[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					Size:       32,
+					T:          UintTy,
+					stringKind: "uint32",
+				},
+				stringKind: "uint32[2]",
+			},
+		},
+		{
+			"uint64[]",
+			nil,
+			Type{
+				T: SliceTy,
+				Elem: &Type{
+					Size:       64,
+					T:          UintTy,
+					stringKind: "uint64",
+				},
+				stringKind: "uint64[]",
+			},
+		},
+		{
+			"uint64[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					Size:       64,
+					T:          UintTy,
+					stringKind: "uint64",
+				},
+				stringKind: "uint64[2]",
+			},
+		},
+		{
+			"uint256[]",
+			nil,
+			Type{
+				T: SliceTy,
+				Elem: &Type{
+					Size:       256,
+					T:          UintTy,
+					stringKind: "uint256",
+				},
+				stringKind: "uint256[]",
+			},
+		},
+		{
+			"uint256[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					Size:       256,
+					T:          UintTy,
+					stringKind: "uint256",
+				},
+				stringKind: "uint256[2]",
+			},
+		},
 		{"bytes32", nil, Type{T: FixedBytesTy, Size: 32, stringKind: "bytes32"}},
 		{"bytes[]", nil, Type{T: SliceTy, Elem: &Type{T: BytesTy, stringKind: "bytes"}, stringKind: "bytes[]"}},
-		{"bytes[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{T: BytesTy, stringKind: "bytes"}, stringKind: "bytes[2]"}},
-		{"bytes32[]", nil, Type{T: SliceTy, Elem: &Type{T: FixedBytesTy, Size: 32, stringKind: "bytes32"}, stringKind: "bytes32[]"}},
-		{"bytes32[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{T: FixedBytesTy, Size: 32, stringKind: "bytes32"}, stringKind: "bytes32[2]"}},
+		{
+			"bytes[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					T:          BytesTy,
+					stringKind: "bytes",
+				},
+				stringKind: "bytes[2]",
+			},
+		},
+		{
+			"bytes32[]",
+			nil,
+			Type{
+				T: SliceTy,
+				Elem: &Type{
+					T:          FixedBytesTy,
+					Size:       32,
+					stringKind: "bytes32",
+				},
+				stringKind: "bytes32[]",
+			},
+		},
+		{
+			"bytes32[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					T:          FixedBytesTy,
+					Size:       32,
+					stringKind: "bytes32",
+				},
+				stringKind: "bytes32[2]",
+			},
+		},
 		{"string", nil, Type{T: StringTy, stringKind: "string"}},
 		{"string[]", nil, Type{T: SliceTy, Elem: &Type{T: StringTy, stringKind: "string"}, stringKind: "string[]"}},
-		{"string[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{T: StringTy, stringKind: "string"}, stringKind: "string[2]"}},
-		{"address", nil, Type{Size: 20, T: AddressTy, stringKind: "address"}},
-		{"address[]", nil, Type{T: SliceTy, Elem: &Type{Size: 20, T: AddressTy, stringKind: "address"}, stringKind: "address[]"}},
-		{"address[2]", nil, Type{T: ArrayTy, Size: 2, Elem: &Type{Size: 20, T: AddressTy, stringKind: "address"}, stringKind: "address[2]"}},
+		{
+			"string[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					T:          StringTy,
+					stringKind: "string",
+				},
+				stringKind: "string[2]",
+			},
+		},
+		{
+			"address",
+			nil,
+			Type{
+				Size: 20, T: AddressTy, stringKind: "address",
+			},
+		},
+		{
+			"address[]",
+			nil,
+			Type{
+				T: SliceTy,
+				Elem: &Type{
+					Size:       20,
+					T:          AddressTy,
+					stringKind: "address",
+				},
+				stringKind: "address[]",
+			},
+		},
+		{
+			"address[2]",
+			nil,
+			Type{
+				T:    ArrayTy,
+				Size: 2,
+				Elem: &Type{
+					Size:       20,
+					T:          AddressTy,
+					stringKind: "address",
+				},
+				stringKind: "address[2]",
+			},
+		},
 		// TODO when fixed types are implemented properly
 		// {"fixed", nil, Type{}},
 		// {"fixed128x128", nil, Type{}},
@@ -105,14 +520,34 @@ func TestTypeRegexp(t *testing.T) {
 			T: TupleTy, TupleType: reflect.TypeOf(struct {
 				A int64 `json:"a"`
 			}{}), stringKind: "(int64)",
-			TupleElems: []*Type{{T: IntTy, Size: 64, stringKind: "int64"}}, TupleRawNames: []string{"a"},
+			TupleElems: []*Type{
+				{
+					T:          IntTy,
+					Size:       64,
+					stringKind: "int64",
+				},
+			},
+			TupleRawNames: []string{"a"},
 		}},
-		{"tuple with long name", []ArgumentMarshaling{{Name: "aTypicalParamName", Type: "int64"}}, Type{
-			T: TupleTy, TupleType: reflect.TypeOf(struct {
-				ATypicalParamName int64 `json:"aTypicalParamName"`
-			}{}), stringKind: "(int64)",
-			TupleElems: []*Type{{T: IntTy, Size: 64, stringKind: "int64"}}, TupleRawNames: []string{"aTypicalParamName"},
-		}},
+		{
+			"tuple with long name",
+			[]ArgumentMarshaling{{Name: "aTypicalParamName", Type: "int64"}},
+			Type{
+				T: TupleTy,
+				TupleType: reflect.TypeOf(struct {
+					ATypicalParamName int64 `json:"aTypicalParamName"`
+				}{}),
+				stringKind: "(int64)",
+				TupleElems: []*Type{
+					{
+						T:          IntTy,
+						Size:       64,
+						stringKind: "int64",
+					},
+				},
+				TupleRawNames: []string{"aTypicalParamName"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -121,7 +556,8 @@ func TestTypeRegexp(t *testing.T) {
 			t.Errorf("type %q: failed to parse type string: %v", tt.blob, err)
 		}
 		if !reflect.DeepEqual(typ, tt.kind) {
-			t.Errorf("type %q: parsed type mismatch:\nGOT %s\nWANT %s ", tt.blob, spew.Sdump(typeWithoutStringer(typ)), spew.Sdump(typeWithoutStringer(tt.kind)))
+			t.Errorf("type %q: parsed type mismatch:\nGOT %s\nWANT %s ", tt.blob,
+				spew.Sdump(typeWithoutStringer(typ)), spew.Sdump(typeWithoutStringer(tt.kind)))
 		}
 	}
 }
@@ -341,7 +777,9 @@ func TestInternalType(t *testing.T) {
 		t.Errorf("type %q: failed to parse type string: %v", blob, err)
 	}
 	if !reflect.DeepEqual(typ, kind) {
-		t.Errorf("type %q: parsed type mismatch:\nGOT %s\nWANT %s ", blob, spew.Sdump(typeWithoutStringer(typ)), spew.Sdump(typeWithoutStringer(kind)))
+		t.Errorf(
+			"type %q: parsed type mismatch:\nGOT %s\nWANT %s ",
+			blob, spew.Sdump(typeWithoutStringer(typ)), spew.Sdump(typeWithoutStringer(kind)))
 	}
 }
 
@@ -366,8 +804,16 @@ func TestGetTypeSize(t *testing.T) {
 		// tuple array
 		{"tuple", []ArgumentMarshaling{{Name: "x", Type: "bytes32[2]"}}, 32 * 2},
 		// tuple tuple
-		{"tuple", []ArgumentMarshaling{{Name: "x", Type: "tuple", Components: []ArgumentMarshaling{{Name: "x", Type: "bytes32"}}}}, 32},
-		{"tuple", []ArgumentMarshaling{{Name: "x", Type: "tuple", Components: []ArgumentMarshaling{{Name: "x", Type: "bytes32[2]"}, {Name: "y", Type: "uint256"}}}}, 32 * (2 + 1)},
+		{"tuple", []ArgumentMarshaling{{
+			Name:       "x",
+			Type:       "tuple",
+			Components: []ArgumentMarshaling{{Name: "x", Type: "bytes32"}},
+		}}, 32},
+		{"tuple", []ArgumentMarshaling{{
+			Name:       "x",
+			Type:       "tuple",
+			Components: []ArgumentMarshaling{{Name: "x", Type: "bytes32[2]"}, {Name: "y", Type: "uint256"}},
+		}}, 32 * (2 + 1)},
 	}
 
 	for i, data := range testCases {

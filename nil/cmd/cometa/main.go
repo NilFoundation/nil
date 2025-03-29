@@ -11,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/version"
 	"github.com/NilFoundation/nil/nil/internal/cobrax"
 	"github.com/NilFoundation/nil/nil/services/cometa"
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
@@ -53,7 +52,7 @@ func main() {
 func processRun(cfg *config) error {
 	client := rpc.NewClientWithDefaultHeaders(
 		cfg.cometaCfg.NodeEndpoint,
-		zerolog.Nop(),
+		logging.Nop(),
 		map[string]string{
 			"User-Agent": "cometa/" + version.GetGitRevCount(),
 		},
@@ -100,13 +99,18 @@ func parseArgs() *config {
 
 	cobrax.AddConfigFlag(rootCmd.PersistentFlags())
 	rootCmd.PersistentFlags().BoolVar(&cfg.cometaCfg.UseBadger, "use-badger", cfg.cometaCfg.UseBadger, "use badger db")
-	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.OwnEndpoint, "own-endpoint", cfg.cometaCfg.OwnEndpoint, "cometa's rpc server endpoint")
-	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.NodeEndpoint, "node-endpoint", cfg.cometaCfg.NodeEndpoint, "nil node endpoint")
-	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.DbEndpoint, "db-endpoint", cfg.cometaCfg.DbEndpoint, "database endpoint")
-	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.DbPath, "db-path", cfg.cometaCfg.DbPath, "path where to store database")
+	rootCmd.PersistentFlags().StringVar(
+		&cfg.cometaCfg.OwnEndpoint, "own-endpoint", cfg.cometaCfg.OwnEndpoint, "cometa's rpc server endpoint")
+	rootCmd.PersistentFlags().StringVar(
+		&cfg.cometaCfg.NodeEndpoint, "node-endpoint", cfg.cometaCfg.NodeEndpoint, "nil node endpoint")
+	rootCmd.PersistentFlags().StringVar(
+		&cfg.cometaCfg.DbEndpoint, "db-endpoint", cfg.cometaCfg.DbEndpoint, "database endpoint")
+	rootCmd.PersistentFlags().StringVar(
+		&cfg.cometaCfg.DbPath, "db-path", cfg.cometaCfg.DbPath, "path where to store database")
 	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.DbName, "db-name", cfg.cometaCfg.DbName, "database name")
 	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.DbUser, "db-user", cfg.cometaCfg.DbUser, "database user")
-	rootCmd.PersistentFlags().StringVar(&cfg.cometaCfg.DbPassword, "db-password", cfg.cometaCfg.DbPassword, "database password")
+	rootCmd.PersistentFlags().StringVar(
+		&cfg.cometaCfg.DbPassword, "db-password", cfg.cometaCfg.DbPassword, "database password")
 
 	if err := viper.BindPFlags(rootCmd.Flags()); err != nil {
 		fmt.Printf("failed to bind flags: %s\n", err.Error())
@@ -120,7 +124,6 @@ func parseArgs() *config {
 			cfg.command = CommandRun
 		},
 	}
-	rootCmd.AddCommand(runCmd)
 
 	createConfigCmd := &cobra.Command{
 		Use:   "create-config",
@@ -130,10 +133,10 @@ func parseArgs() *config {
 			cfg.command = CommandCreateConfig
 		},
 	}
-	rootCmd.AddCommand(createConfigCmd)
+	rootCmd.AddCommand(createConfigCmd, runCmd)
 
 	var logLevel string
-	cobrax.AddLogLevelFlag(rootCmd.Flags(), &logLevel)
+	cobrax.AddLogLevelFlag(rootCmd.PersistentFlags(), &logLevel)
 
 	check.PanicIfErr(rootCmd.Execute())
 

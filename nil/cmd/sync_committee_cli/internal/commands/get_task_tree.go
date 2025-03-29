@@ -80,9 +80,11 @@ func buildTreeOutput(tree *public.TaskTreeView) (CmdOutput, error) {
 			return nil
 		}
 
-		deps := slices.SortedFunc(maps.Values(node.Dependencies), func(l *public.TaskTreeView, r *public.TaskTreeView) int {
-			return strings.Compare(l.Id.String(), r.Id.String())
-		})
+		deps := slices.SortedFunc(
+			maps.Values(node.Dependencies),
+			func(l *public.TaskTreeView, r *public.TaskTreeView) int {
+				return strings.Compare(l.Id.String(), r.Id.String())
+			})
 
 		for i, dependency := range deps {
 			isLastDep := i == len(node.Dependencies)-1

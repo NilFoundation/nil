@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
-	"github.com/rs/zerolog"
 )
 
 type DHT = dht.IpfsDHT
@@ -24,7 +25,7 @@ const (
 	discoveryPid                = "/kad"
 )
 
-func NewDHT(ctx context.Context, h host.Host, conf *Config, logger zerolog.Logger) (*DHT, error) {
+func NewDHT(ctx context.Context, h host.Host, conf *Config, database db.DB, logger logging.Logger) (*DHT, error) {
 	if !conf.DHTEnabled {
 		return nil, nil
 	}
@@ -36,13 +37,22 @@ func NewDHT(ctx context.Context, h host.Host, conf *Config, logger zerolog.Logge
 	}
 
 	protocol := ProtocolID(conf.Prefix + discoveryPid)
+
+	dhtOpts := []dht.Option{
+		dht.Mode(conf.DHTMode),
+		dht.BootstrapPeers(ToLibP2pAddrInfoSlice(conf.DHTBootstrapPeers)...),
+		dht.RoutingTableRefreshPeriod(1 * time.Minute),
+		dht.V1ProtocolOverride(protocol),
+	}
+
+	if datastore := db.NewDatastoreFromDB(database, db.DHTTable, nil); datastore != nil {
+		dhtOpts = append(dhtOpts, dht.Datastore(datastore))
+	}
+
 	res, err := dht.New(
 		ctx,
 		h,
-		dht.Mode(conf.DHTMode),
-		dht.BootstrapPeers(ToLibP2pAddrInfoSlice(conf.DHTBootstrapPeers)...),
-		dht.RoutingTableRefreshPeriod(1*time.Minute),
-		dht.V1ProtocolOverride(protocol),
+		dhtOpts...,
 	)
 	if err != nil {
 		return nil, err
@@ -59,7 +69,13 @@ func NewDHT(ctx context.Context, h host.Host, conf *Config, logger zerolog.Logge
 
 // Almost all discovery/advertisement logic is taken from Polkadot:
 // https://github.com/ChainSafe/gossamer/blob/ff33dc50f902b71bb7940a66269ac2bf194a59c7/dot/network/discovery.go
-func discoverAndAdvertise(ctx context.Context, dht *DHT, h host.Host, protocol ProtocolID, logger zerolog.Logger) error {
+func discoverAndAdvertise(
+	ctx context.Context,
+	dht *DHT,
+	h host.Host,
+	protocol ProtocolID,
+	logger logging.Logger,
+) error {
 	rd := routing.NewRoutingDiscovery(dht)
 
 	err := dht.Bootstrap(ctx)
@@ -76,7 +92,13 @@ func discoverAndAdvertise(ctx context.Context, dht *DHT, h host.Host, protocol P
 	return nil
 }
 
-func advertise(ctx context.Context, rd *routing.RoutingDiscovery, dht *DHT, protocol ProtocolID, logger zerolog.Logger) {
+func advertise(
+	ctx context.Context,
+	rd *routing.RoutingDiscovery,
+	dht *DHT,
+	protocol ProtocolID,
+	logger logging.Logger,
+) {
 	ttl := initialAdvertisementTimeout
 
 	for {
@@ -103,7 +125,13 @@ func advertise(ctx context.Context, rd *routing.RoutingDiscovery, dht *DHT, prot
 	}
 }
 
-func checkPeerCount(ctx context.Context, rd *routing.RoutingDiscovery, h host.Host, protocol ProtocolID, logger zerolog.Logger) {
+func checkPeerCount(
+	ctx context.Context,
+	rd *routing.RoutingDiscovery,
+	h host.Host,
+	protocol ProtocolID,
+	logger logging.Logger,
+) {
 	ticker := time.NewTicker(connectToPeersTimeout)
 	maxPeers := defaultMaxPeers
 	defer ticker.Stop()
@@ -122,23 +150,34 @@ func checkPeerCount(ctx context.Context, rd *routing.RoutingDiscovery, h host.Ho
 	}
 }
 
-func findPeers(ctx context.Context, rd *routing.RoutingDiscovery, h host.Host, protocol ProtocolID, logger zerolog.Logger) {
+func findPeers(
+	ctx context.Context,
+	rd *routing.RoutingDiscovery,
+	h host.Host,
+	protocol ProtocolID,
+	logger logging.Logger,
+) {
 	logger.Debug().Msg("attempting to find DHT peers...")
 
 	ctx, cancel := context.WithTimeout(ctx, findPeersTimeout)
 	defer cancel()
 	peerCh, err := rd.FindPeers(ctx, string(protocol))
 	if err != nil {
-		logger.Warn().Err(err).Msgf("failed to begin finding peers via DHT")
+		logger.Warn().Err(err).Msg("failed to begin finding peers via DHT")
 		return
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Debug().Msgf("findPeers: timer expired")
+			logger.Debug().Msg("findPeers: timer expired")
 			return
-		case peer := <-peerCh:
+		case peer, ok := <-peerCh:
+			if !ok {
+				logger.Trace().Msg("findPeers: peer channel closed")
+				return
+			}
+
 			logger.Trace().Msgf("findPeers: received peer %s", peer.ID)
 			if peer.ID == h.ID() || peer.ID == "" {
 				continue
@@ -146,7 +185,8 @@ func findPeers(ctx context.Context, rd *routing.RoutingDiscovery, h host.Host, p
 
 			logger.Debug().Msgf("found new peer %s via DHT", peer.ID)
 			h.Peerstore().AddAddrs(peer.ID, peer.Addrs, peerstore.PermanentAddrTTL)
-			// TODO: add peerset (https://github.com/ChainSafe/gossamer/tree/ff33dc50f902b71bb7940a66269ac2bf194a59c7/dot/peerset)
+			// TODO: add [peerset](
+			//  https://github.com/ChainSafe/gossamer/tree/ff33dc50f902b71bb7940a66269ac2bf194a59c7/dot/peerset)
 		}
 	}
 }

@@ -8,6 +8,7 @@ import {
   Tabs,
 } from "@nilfoundation/ui-kit";
 import {} from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import type { TabsOverrides } from "baseui/tabs";
 import { useUnit } from "effector-react";
 import type { FC } from "react";
@@ -24,6 +25,7 @@ type DeployContractModalProps = {
 };
 
 export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isOpen, name }) => {
+  const [css, theme] = useStyletron();
   const [activeComponent, deployPending, importExistingPending] = useUnit([
     $activeComponent,
     deploySmartContractFx.pending,
@@ -42,6 +44,7 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
           style: {
             paddingBottom: 0,
             height: "557px",
+            backgroundColor: theme.colors.backgroundPrimary,
           },
         },
       }}

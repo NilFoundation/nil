@@ -28,7 +28,8 @@ func DefaultExecutorParams() *ExecutorParams {
 
 func (p *ExecutorParams) Validate() error {
 	if p.AutoRefresh && p.RefreshInterval < MinRefreshInterval {
-		return fmt.Errorf("refresh interval cannot be less than %s, actual is %s", MinRefreshInterval, p.RefreshInterval)
+		return fmt.Errorf(
+			"refresh interval cannot be less than %s, actual is %s", MinRefreshInterval, p.RefreshInterval)
 	}
 	return nil
 }

@@ -160,7 +160,7 @@ task(
     {
       smartAccountAddress: account1.address,
       faucetAddress: process.env.USDT as `0x${string}`,
-      amount: BigInt(5000),
+      amount: BigInt(30),
     },
     client,
   );
@@ -176,7 +176,7 @@ task(
 
   console.log(`Account 1 topped up with 1 NIL at tx hash ${topUpAccount1}`);
   console.log(
-    `Account 1 topped up with 5000 USDT at tx hash ${topUpAccount1WithUSDT}`,
+    `Account 1 topped up with 30 USDT at tx hash ${topUpAccount1WithUSDT}`,
   );
   console.log(
     `Account 1 topped up with 10 ETH at tx hash ${topUpAccount1WithETH}`,
@@ -214,7 +214,7 @@ task(
   const setETHPrice = encodeFunctionData({
     abi: Oracle.abi as Abi,
     functionName: "setPrice",
-    args: [process.env.ETH, 3000n],
+    args: [process.env.ETH, 2n],
   });
 
   // Set the price for USDT
@@ -280,7 +280,7 @@ task(
   // Perform a deposit of USDT by account1 into the LendingPool
   const depositUSDT = {
     id: process.env.USDT as `0x${string}`,
-    amount: 3600n,
+    amount: 12n,
   };
 
   const depositUSDTResponse = await account1.sendTransaction({
@@ -292,14 +292,12 @@ task(
   });
 
   await waitTillCompleted(client, depositUSDTResponse);
-  console.log(
-    `Account 1 deposited 3600 USDT at tx hash ${depositUSDTResponse}`,
-  );
+  console.log(`Account 1 deposited 12 USDT at tx hash ${depositUSDTResponse}`);
 
   // Perform a deposit of ETH by account2 into the LendingPool
   const depositETH = {
     id: process.env.ETH as `0x${string}`,
-    amount: 1n,
+    amount: 5n,
   };
 
   const depositETHResponse = await account2.sendTransaction({
@@ -336,7 +334,7 @@ task(
   const borrowETH = encodeFunctionData({
     abi: LendingPool.abi as Abi,
     functionName: "borrow",
-    args: [1, process.env.ETH],
+    args: [5, process.env.ETH],
   });
 
   const account1BalanceBeforeBorrow = await client.getTokens(
@@ -352,7 +350,7 @@ task(
   });
 
   await waitTillCompleted(client, borrowETHResponse);
-  console.log(`Account 1 borrowed 1 ETH at tx hash ${borrowETHResponse}`);
+  console.log(`Account 1 borrowed 5 ETH at tx hash ${borrowETHResponse}`);
 
   const account1BalanceAfterBorrow = await client.getTokens(
     account1.address,
@@ -382,7 +380,7 @@ task(
   const repayETH = [
     {
       id: process.env.ETH as `0x${string}`,
-      amount: BigInt(2),
+      amount: BigInt(6),
     },
   ];
 

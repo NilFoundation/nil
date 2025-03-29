@@ -1,7 +1,7 @@
 import { FormControl, Input, LabelMedium } from "@nilfoundation/ui-kit";
 import type { AbiInternalType, AbiParameter } from "abitype";
+import { useStyletron } from "baseui";
 import type { FC } from "react";
-import { useStyletron } from "styletron-react";
 
 type MethodInputProps = {
   input: AbiParameter;
@@ -30,7 +30,7 @@ const MethodInput: FC<MethodInputProps> = ({
   paramName,
 }: MethodInputProps) => {
   const { type, name } = input;
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
 
   return (
     <div>
@@ -54,6 +54,18 @@ const MethodInput: FC<MethodInputProps> = ({
                 <div key={i}>
                   <FormControl label={name} caption={type}>
                     <Input
+                      overrides={{
+                        Root: {
+                          style: {
+                            backgroundColor:
+                              theme.colors.inputButtonAndDropdownOverrideBackgroundColor,
+                            ":hover": {
+                              backgroundColor:
+                                theme.colors.inputButtonAndDropdownOverrideBackgroundHoverColor,
+                            },
+                          },
+                        },
+                      }}
                       value={inputValue}
                       onChange={(e) => {
                         const value = e.target.value;
@@ -71,6 +83,17 @@ const MethodInput: FC<MethodInputProps> = ({
       ) : (
         <FormControl label={name} caption={type}>
           <Input
+            overrides={{
+              Root: {
+                style: {
+                  backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundColor,
+                  ":hover": {
+                    backgroundColor:
+                      theme.colors.inputButtonAndDropdownOverrideBackgroundHoverColor,
+                  },
+                },
+              },
+            }}
             value={params?.[paramName] ? String(params[paramName]) : ""}
             onChange={(e) => {
               const value = e.target.value;

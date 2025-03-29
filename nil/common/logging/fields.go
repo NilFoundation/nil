@@ -34,9 +34,10 @@ const (
 	FieldAccountSeqno   = "accountSeqno"
 
 	FieldBlockHash          = "blockHash"
-	FieldBlockMainChainHash = "blockMainChainHash"
+	FieldBlockMainShardHash = "blockMainShardHash"
 	FieldBlockNumber        = "blockNumber"
 	FieldBatchId            = "batchId"
+	FieldStateRoot          = "stateRoot"
 
 	FieldTaskId         = "taskId"
 	FieldTaskParentId   = "taskParentId"
@@ -55,4 +56,9 @@ const (
 	FieldClientType    = "clientType"
 	FieldClientVersion = "clientVersion"
 	FieldUid           = "uid"
+
+	FieldStoreToClickhouse = "storeToClickhouse"
+
+	FieldHostName    = "_HOSTNAME"
+	FieldSystemdUnit = "_SYSTEMD_UNIT"
 )
