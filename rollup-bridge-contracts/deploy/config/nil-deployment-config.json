@@ -1,41 +1,58 @@
 {
   "networks": {
-    "anvil": {
-      "nilRollupImplementation": "",
-      "nilRollupProxy": "",
-      "nilVerifier": "",
-      "proxyAdminAddress": "",
-      "nilRollupOwnerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-      "defaultAdminAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-      "proposerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-      "l2ChainId": 0,
-      "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
-    },
-    "geth": {
-      "nilRollupImplementation": "0x36b58F5C1969B7b6591D752ea6F5486D069010AB",
-      "nilRollupProxy": "0x8198f5d8F8CfFE8f9C413d98a0A55aEB8ab9FbB7",
-      "nilVerifier": "0x0355B7B8cb128fA5692729Ab3AAa199C1753f726",
-      "proxyAdminAddress": "0x5971B98C0066517Bae7D44021f42e50B77cfe1F9",
-      "nilRollupOwnerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-      "defaultAdminAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-      "proposerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-      "l2ChainId": 0,
-      "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000",
-      "maxProcessingTimeInEpochSeconds": 1000,
-      "l1BridgeMessengerProxy": "0xDC11f7E700A4c898AE5CAddB1082cFfa76512aDD",
-      "l1BridgeMessengerImplementation": "0xD8a5a9b31c3C0232E196d518E89Fd8bF83AcAd43"
-    },
-    "sepolia": {
-      "nilRollupImplementation": "0x6AfE0EddC0Ab62a4b6E0F5c49D4478d4ee337b0F",
-      "nilRollupProxy": "0xd353336c43f19f905a8dc84Ac58C1b014b48f742",
-      "nilVerifier": "0xA17D169a2B1F59AE3886BEa89F208Cbb6CeB2489",
-      "proxyAdminAddress": "0x901db1c178EBe345b8E298cD1fE366c5Ef373442",
-      "nilRollupOwnerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-      "defaultAdminAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-      "proposerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-      "l2ChainId": 0,
-      "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000",
-      "maxProcessingTimeInEpochSeconds": 1000
+    "local": {
+      "l2Common": {
+        "owner": "",
+        "admin": "",
+        "enshrined_tokens": [
+          {
+            "name": "USD Coin",
+            "symbol": "USDC",
+            "decimals": 6,
+            "address": ""
+          },
+          {
+            "name": "USD Tether",
+            "symbol": "USDT",
+            "decimals": 6,
+            "address": ""
+          },
+          {
+            "name": "DAI",
+            "symbol": "DAI",
+            "decimals": 18,
+            "address": ""
+          }
+        ]
+      },
+      "l2BridgeRouterConfig": {
+        "owner": "",
+        "admin": "",
+        "proxyAdmin": "",
+        "l2BridgeRouterProxy": "",
+        "l2BridgeRouterImplementation": ""
+      },
+      "l2BridgeMessengerConfig": {
+        "owner": "",
+        "admin": "",
+        "proxyAdmin": "",
+        "l2BridgeMessengerProxy": "",
+        "l2BridgeMessengerImplementation": ""
+      },
+      "l2EnshrinedTokenBridge": {
+        "owner": "",
+        "admin": "",
+        "proxyAdmin": "",
+        "l2EnshrinedTokenBridgeProxy": "",
+        "l1EnshrinedTokenBridgeImplementation": ""
+      },
+      "l2ETHBridgeConfig": {
+        "owner": "",
+        "admin": "",
+        "proxyAdmin": "",
+        "l2ETHBridgeProxy": "",
+        "l2ETHBridgeImplementation": ""
+      }
     }
   }
 }

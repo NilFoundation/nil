@@ -2,11 +2,11 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, network, upgrades } from 'hardhat';
 import {
-    archiveConfig,
+    archiveL1NetworkConfig,
     isValidAddress,
-    loadConfig,
-    NetworkConfig,
-    saveConfig,
+    L1NetworkConfig,
+    loadL1NetworkConfig,
+    saveL1NetworkConfig,
 } from './config/config-helper';
 
 // npx hardhat deploy --network sepolia --tags UpgradeNilRollup
@@ -19,18 +19,18 @@ const upgradeNilRollup: DeployFunction = async function (
     const { deployer } = await getNamedAccounts();
 
     const networkName = network.name;
-    const config: NetworkConfig = loadConfig(networkName);
+    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Check if NilRollup is already deployed
-    if (!config.nilRollupProxy || !isValidAddress(config.nilRollupProxy)) {
+    if (!config.nilRollupConfig.nilRollupProxy || !isValidAddress(config.nilRollupConfig.nilRollupProxy)) {
         throw new Error(
             `NilRollup is not deployed yet on chain: ${networkName}`,
         );
     }
 
-    archiveConfig(networkName, config);
+    archiveL1NetworkConfig(networkName, config);
 
-    const nilRollupProxyAddress: string = config.nilRollupProxy;
+    const nilRollupProxyAddress: string = config.nilRollupConfig.nilRollupProxy;
 
     console.log('Checking current implementation address...');
     const currentImplementationAddress =
@@ -66,10 +66,10 @@ const upgradeNilRollup: DeployFunction = async function (
     }
 
     console.log('All checks passed: Upgrade is successful');
-    config.nilRollupImplementation = newImplementationAddress;
+    config.nilRollupConfig.nilRollupImplementation = newImplementationAddress;
 
     // save updated config
-    saveConfig(networkName, config);
+    saveL1NetworkConfig(networkName, config);
 };
 
 export default upgradeNilRollup;

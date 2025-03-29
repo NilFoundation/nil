@@ -108,7 +108,7 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge {
 
   /// @inheritdoc IL2EnshrinedTokenBridge
   function setTokenMapping(address l2EnshrinedTokenAddress, address l1TokenAddress) external override onlyOwnerOrAdmin {
-    if (l2EnshrinedTokenAddress == address(0) || l1TokenAddress == address(0)) {
+    if (!l2EnshrinedTokenAddress.isContract() || !l1TokenAddress.isContract()) {
       revert ErrorInvalidTokenAddress();
     }
 
