@@ -2,18 +2,10 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, network, upgrades, run } from 'hardhat';
 import {
-    archiveL1NetworkConfig,
-    isValidAddress,
-    isValidBytes32,
     L1NetworkConfig,
-    L2NetworkConfig,
     loadL1NetworkConfig,
-    loadNilNetworkConfig,
     saveL1NetworkConfig,
-    saveNilNetworkConfig,
-    ZeroAddress,
 } from '../../config/config-helper';
-import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../common/proxy-contract-utils';
 
 // npx hardhat deploy --network geth --tags MockL2Bridge
 const deployMockL2Bridge: DeployFunction = async function (
@@ -33,7 +25,7 @@ const deployMockL2Bridge: DeployFunction = async function (
 
         console.log(`MockL2Bridge deployed to: ${mockL2Bridge.address}`);
 
-        config.l1Common.mockL2Bridge = mockL2Bridge.address;
+        config.l1MockContracts.mockL2Bridge = mockL2Bridge.address;
 
     } catch (error) {
         console.error('Error during deployment:', error);

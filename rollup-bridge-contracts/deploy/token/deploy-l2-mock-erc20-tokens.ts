@@ -11,10 +11,8 @@ import {
 } from '../config/config-helper';
 import { verifyContractWithRetry } from '../common/proxy-contract-utils';
 
-// npx hardhat deploy --network sepolia --tags ERC20TokensDeploy
-// npx hardhat deploy --network anvil --tags ERC20TokensDeploy
-// npx hardhat deploy --network geth --tags ERC20TokensDeploy
-const deployERC20Tokens: DeployFunction = async function (
+// npx hardhat deploy --network geth --tags MockL2ERC20TokensDeploy
+const deployMockL2ERC20Tokens: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
 ) {
     const { deployments, getNamedAccounts, ethers, network } = hre;
@@ -25,7 +23,7 @@ const deployERC20Tokens: DeployFunction = async function (
 
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
-    const erc20Tokens: ERC20Token[] = config.l1MockContracts.tokens;
+    const erc20Tokens: ERC20Token[] = config.l1MockContracts.mockL2Tokens;
 
     for (const erc20Token of erc20Tokens) {
         const testERC20 = await deploy('TestERC20Token', {
@@ -63,5 +61,5 @@ const deployERC20Tokens: DeployFunction = async function (
     saveL1NetworkConfig(networkName, config);
 };
 
-export default deployERC20Tokens;
-deployERC20Tokens.tags = ['ERC20TokensDeploy'];
+export default deployMockL2ERC20Tokens;
+deployMockL2ERC20Tokens.tags = ['MockL2ERC20TokensDeploy'];

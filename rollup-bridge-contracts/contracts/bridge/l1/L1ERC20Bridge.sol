@@ -195,6 +195,20 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
   }
 
   /*//////////////////////////////////////////////////////////////////////////
+                         RESTRICTED FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////*/
+
+  /// @inheritdoc IL1ERC20Bridge
+  function setTokenMapping(address l1TokenAddress, address l2EnshrinedTokenAddress) external override onlyOwnerOrAdmin {
+    if (!l2EnshrinedTokenAddress.isContract() || !l1TokenAddress.isContract()) {
+      revert ErrorInvalidTokenAddress();
+    }
+    address oldL2EnshrinedTokenAddress = tokenMapping[l1TokenAddress];
+    tokenMapping[l1TokenAddress] = l2EnshrinedTokenAddress;
+    emit UpdatedTokenMapping(l1TokenAddress, oldL2EnshrinedTokenAddress, l2EnshrinedTokenAddress);
+  }
+
+  /*//////////////////////////////////////////////////////////////////////////
                              INTERNAL-FUNCTIONS   
     //////////////////////////////////////////////////////////////////////////*/
 

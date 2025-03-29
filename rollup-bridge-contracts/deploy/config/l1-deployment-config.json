@@ -6,7 +6,6 @@
         "nilRollupImplementation": "",
         "nilRollupProxy": "",
         "nilVerifier": "",
-        "proxyAdminAddress": "",
         "proposerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
         "l2ChainId": 0,
         "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
@@ -14,7 +13,9 @@
       "l1Common": {
         "owner": "",
         "admin": "",
-        "weth": "",
+        "weth": ""
+      },
+      "l1MockContracts": {
         "tokens": [
           {
             "name": "USD Coin",
@@ -34,7 +35,28 @@
             "decimals": 18,
             "address": ""
           }
-        ]
+        ],
+        "mockL2Tokens": [
+          {
+            "name": "USD Coin",
+            "symbol": "USDC",
+            "decimals": 6,
+            "address": ""
+          },
+          {
+            "name": "USD Tether",
+            "symbol": "USDT",
+            "decimals": 6,
+            "address": ""
+          },
+          {
+            "name": "DAI",
+            "symbol": "DAI",
+            "decimals": 18,
+            "address": ""
+          }
+        ],
+        "mockL2Bridge": ""
       },
       "l1BridgeRouterConfig": {
         "proxyAdmin": "",
@@ -79,7 +101,9 @@
       "l1Common": {
         "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
         "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-        "weth": "0x720472c8ce72c2A2D711333e064ABD3E6BbEAdd3",
+        "weth": "0x720472c8ce72c2A2D711333e064ABD3E6BbEAdd3"
+      },
+      "l1MockContracts": {
         "tokens": [
           {
             "name": "USD Coin",
@@ -100,7 +124,27 @@
             "address": "0x5c74c94173F05dA1720953407cbb920F3DF9f887"
           }
         ],
-        "mockL2Bridge": "0x5067457698Fd6Fa1C6964e416b3f42713513B3dD"
+        "mockL2Tokens": [
+          {
+            "name": "USD Coin",
+            "symbol": "USDC",
+            "decimals": 6,
+            "address": "0xD5ac451B0c50B9476107823Af206eD814a2e2580"
+          },
+          {
+            "name": "USD Tether",
+            "symbol": "USDT",
+            "decimals": 6,
+            "address": "0xF8e31cb472bc70500f08Cd84917E5A1912Ec8397"
+          },
+          {
+            "name": "DAI",
+            "symbol": "DAI",
+            "decimals": 18,
+            "address": "0xc0F115A19107322cFBf1cDBC7ea011C19EbDB4F8"
+          }
+        ],
+        "mockL2Bridge": "0xc96304e3c037f81dA488ed9dEa1D8F2a48278a75"
       },
       "l1BridgeRouterConfig": {
         "proxyAdmin": "",
@@ -138,7 +182,6 @@
         "nilRollupImplementation": "0x8b0C41706c0E370d4DE10a3F63599443B794182d",
         "nilRollupProxy": "0xBa79C93859394a5DEd3c1132a87f706Cca2582aA",
         "nilVerifier": "0xf5eC02Fbc57C9Ac1c85558C7358Ed5421E24Ea99",
-        "proxyAdminAddress": "0x64be32238d24566a51671E8F82020f453B78b0c8",
         "proposerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
         "l2ChainId": 0,
         "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
@@ -146,7 +189,9 @@
       "l1Common": {
         "owner": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
         "admin": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-        "weth": "",
+        "weth": ""
+      },
+      "l1MockContracts": {
         "tokens": [
           {
             "name": "USD Coin",
@@ -166,7 +211,9 @@
             "decimals": 18,
             "address": ""
           }
-        ]
+        ],
+        "mockL2Tokens": [],
+        "mockL2Bridge": ""
       },
       "l1BridgeRouterConfig": {
         "proxyAdmin": "",

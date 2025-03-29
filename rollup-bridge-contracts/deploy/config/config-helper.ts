@@ -16,6 +16,7 @@ export interface L1Config {
 export interface L1NetworkConfig {
     nilRollupConfig: NilRollupConfig;
     l1Common: L1CommonConfig;
+    l1MockContracts: L1MockContracts;
     l1BridgeRouterConfig: L1BridgeRouterConfig;
     l1BridgeMessengerConfig: L1BridgeMessengerConfig;
     l1ERC20Bridge: L1ERC20BridgeConfig;
@@ -36,7 +37,11 @@ export interface L1CommonConfig {
     owner: string;
     admin: string;
     weth: string;
+}
+
+export interface L1MockContracts {
     tokens: ERC20Token[];
+    mockL2Tokens: ERC20Token[];
     mockL2Bridge: string;
 }
 
