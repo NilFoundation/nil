@@ -27,8 +27,8 @@
   "description": "",
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
-    "fs-extra": "^11.3.0",
-    "hardhat": "^2.22.19"
+    "@nomicfoundation/hardhat-ignition": "^0.15.10",
+    "fs-extra": "^11.3.0"
   },
   "optionalDependencies": {
     "@biomejs/cli-linux-x64": "1.9.4",
@@ -43,5 +43,9 @@
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
+  },
+  "dependencies": {
+    "@axelar-network/axelar-gmp-sdk-solidity": "^6.0.6",
+    "@layerzerolabs/solidity-examples": "^1.1.0"
   }
 }
