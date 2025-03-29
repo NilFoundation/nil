@@ -27,70 +27,6 @@
     },
     {
       "inputs": [],
-      "name": "BridgeAlreadyAuthorized",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "BridgeNotAuthorized",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "messageHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "DepositMessageAlreadyCancelled",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "DepositMessageAlreadyClaimed",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "messageHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "DepositMessageAlreadyExist",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "messageHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "DepositMessageDoesNotExist",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "messageHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "DepositMessageNotExpired",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "DepositMessageStillInQueue",
-      "type": "error"
-    },
-    {
-      "inputs": [],
       "name": "EnforcedPause",
       "type": "error"
     },
@@ -152,11 +88,6 @@
     },
     {
       "inputs": [],
-      "name": "ErrorInvalidClaimProof",
-      "type": "error"
-    },
-    {
-      "inputs": [],
       "name": "ErrorInvalidCounterpartBridgeMessenger",
       "type": "error"
     },
@@ -182,7 +113,17 @@
     },
     {
       "inputs": [],
+      "name": "ErrorInvalidMessageType",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "ErrorInvalidOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ErrorInvalidRelayer",
       "type": "error"
     },
     {
@@ -202,48 +143,7 @@
     },
     {
       "inputs": [],
-      "name": "InvalidBridgeInterface",
-      "type": "error"
-    },
-    {
-      "inputs": [],
       "name": "InvalidInitialization",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "InvalidMaxMessageProcessingTime",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "InvalidMessageCancelDeltaTime",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "messageHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "MessageHashNotInQueue",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "NotAuthorizedToPopMessages",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "NotEnoughMessagesInQueue",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "NotEnoughMessagesInQueue",
       "type": "error"
     },
     {
@@ -274,16 +174,6 @@
       "type": "error"
     },
     {
-      "inputs": [],
-      "name": "QueueIsEmpty",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "ReentrancyGuardReentrantCall",
-      "type": "error"
-    },
-    {
       "anonymous": false,
       "inputs": [
         {
@@ -307,19 +197,6 @@
       "inputs": [
         {
           "indexed": false,
-          "internalType": "bytes32",
-          "name": "messageHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "DepositMessageCancelled",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
           "internalType": "uint64",
           "name": "version",
           "type": "uint64"
@@ -334,93 +211,43 @@
         {
           "indexed": true,
           "internalType": "address",
-          "name": "messageSender",
+          "name": "bridgeRouter",
           "type": "address"
         },
         {
           "indexed": true,
           "internalType": "address",
-          "name": "messageTarget",
+          "name": "newBridgeRouter",
           "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "messageValue",
-          "type": "uint256"
-        },
+        }
+      ],
+      "name": "L2BridgeRouterSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
         {
           "indexed": true,
-          "internalType": "uint256",
-          "name": "messageNonce",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "message",
-          "type": "bytes"
-        },
-        {
-          "indexed": false,
           "internalType": "bytes32",
           "name": "messageHash",
           "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "enum NilConstants.MessageType",
-          "name": "messageType",
-          "type": "uint8"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "messageCreatedAt",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "messageExpiryTime",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "address",
-          "name": "l2FeeRefundAddress",
-          "type": "address"
-        },
-        {
-          "components": [
-            {
-              "internalType": "uint256",
-              "name": "nilGasLimit",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "maxFeePerGas",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "maxPriorityFeePerGas",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "feeCredit",
-              "type": "uint256"
-            }
-          ],
-          "indexed": false,
-          "internalType": "struct INilGasPriceOracle.FeeCreditData",
-          "name": "feeCreditData",
-          "type": "tuple"
         }
       ],
-      "name": "MessageSent",
+      "name": "MessageRelayFailed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "messageHash",
+          "type": "bytes32"
+        }
+      ],
+      "name": "MessageRelaySuccessful",
       "type": "event"
     },
     {
@@ -453,6 +280,25 @@
         }
       ],
       "name": "Paused",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "relayer",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "relayerAddress",
+          "type": "address"
+        }
+      ],
+      "name": "RelayerSet",
       "type": "event"
     },
     {
@@ -577,7 +423,7 @@
           "type": "address"
         }
       ],
-      "name": "authorizeBridge",
+      "name": "authoriseBridge",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -590,38 +436,7 @@
           "type": "address[]"
         }
       ],
-      "name": "authorizeBridges",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "messageHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "cancelDeposit",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "messageHash",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "bytes32[]",
-          "name": "claimProof",
-          "type": "bytes32[]"
-        }
-      ],
-      "name": "claimFailedDeposit",
+      "name": "authoriseBridges",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -630,27 +445,27 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "messageSender",
+          "name": "_messageSender",
           "type": "address"
         },
         {
           "internalType": "address",
-          "name": "messageTarget",
+          "name": "_messageTarget",
           "type": "address"
         },
         {
           "internalType": "uint256",
-          "name": "value",
+          "name": "_value",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "messageNonce",
+          "name": "_messageNonce",
           "type": "uint256"
         },
         {
           "internalType": "bytes",
-          "name": "message",
+          "name": "_message",
           "type": "bytes"
         }
       ],
@@ -697,110 +512,6 @@
       "type": "function"
     },
     {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "name": "depositMessages",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "sender",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "target",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "value",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "nonce",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "expiryTime",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "isCancelled",
-          "type": "bool"
-        },
-        {
-          "internalType": "bool",
-          "name": "isClaimed",
-          "type": "bool"
-        },
-        {
-          "internalType": "address",
-          "name": "l1DepositRefundAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "enum NilConstants.MessageType",
-          "name": "messageType",
-          "type": "uint8"
-        },
-        {
-          "internalType": "bytes",
-          "name": "message",
-          "type": "bytes"
-        },
-        {
-          "components": [
-            {
-              "internalType": "uint256",
-              "name": "nilGasLimit",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "maxFeePerGas",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "maxPriorityFeePerGas",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "feeCredit",
-              "type": "uint256"
-            }
-          ],
-          "internalType": "struct INilGasPriceOracle.FeeCreditData",
-          "name": "feeCreditData",
-          "type": "tuple"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "depositNonce",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "inputs": [],
       "name": "getAllAdmins",
       "outputs": [
@@ -828,142 +539,12 @@
     },
     {
       "inputs": [],
-      "name": "getAuthorizedBridges",
+      "name": "getAuthorisedBridges",
       "outputs": [
         {
           "internalType": "address[]",
           "name": "",
           "type": "address[]"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "msgHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "getDepositMessage",
-      "outputs": [
-        {
-          "components": [
-            {
-              "internalType": "address",
-              "name": "sender",
-              "type": "address"
-            },
-            {
-              "internalType": "address",
-              "name": "target",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256",
-              "name": "value",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "nonce",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "expiryTime",
-              "type": "uint256"
-            },
-            {
-              "internalType": "bool",
-              "name": "isCancelled",
-              "type": "bool"
-            },
-            {
-              "internalType": "bool",
-              "name": "isClaimed",
-              "type": "bool"
-            },
-            {
-              "internalType": "address",
-              "name": "l1DepositRefundAddress",
-              "type": "address"
-            },
-            {
-              "internalType": "enum NilConstants.MessageType",
-              "name": "messageType",
-              "type": "uint8"
-            },
-            {
-              "internalType": "bytes",
-              "name": "message",
-              "type": "bytes"
-            },
-            {
-              "components": [
-                {
-                  "internalType": "uint256",
-                  "name": "nilGasLimit",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "maxFeePerGas",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "maxPriorityFeePerGas",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "feeCredit",
-                  "type": "uint256"
-                }
-              ],
-              "internalType": "struct INilGasPriceOracle.FeeCreditData",
-              "name": "feeCreditData",
-              "type": "tuple"
-            }
-          ],
-          "internalType": "struct IL1BridgeMessenger.DepositMessage",
-          "name": "depositMessage",
-          "type": "tuple"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "msgHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "getMessageType",
-      "outputs": [
-        {
-          "internalType": "enum NilConstants.MessageType",
-          "name": "messageType",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "getNextDepositNonce",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -1163,13 +744,8 @@
         },
         {
           "internalType": "address",
-          "name": "l1NilRollupAddress",
+          "name": "relayerAddress",
           "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "maxProcessingTimeValue",
-          "type": "uint256"
         }
       ],
       "name": "initialize",
@@ -1235,13 +811,77 @@
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "bridgeAddress",
+          "type": "address"
+        }
+      ],
+      "name": "isAuthorisedBridge",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [],
-      "name": "maxProcessingTime",
+      "name": "isFullyInitialised",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l1MessageHash",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "l2MessageSentTimestamp",
       "outputs": [
         {
           "internalType": "uint256",
           "name": "",
           "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "l2Tol1Root",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
         }
       ],
       "stateMutability": "view",
@@ -1276,19 +916,38 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "messageCount",
-          "type": "uint256"
-        }
-      ],
-      "name": "popMessages",
-      "outputs": [
+          "internalType": "address",
+          "name": "messageSender",
+          "type": "address"
+        },
         {
-          "internalType": "bytes32[]",
-          "name": "",
-          "type": "bytes32[]"
+          "internalType": "address",
+          "name": "messageTarget",
+          "type": "address"
+        },
+        {
+          "internalType": "enum NilConstants.MessageType",
+          "name": "messageType",
+          "type": "uint8"
+        },
+        {
+          "internalType": "uint256",
+          "name": "value",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "messagNonce",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes",
+          "name": "message",
+          "type": "bytes"
         }
       ],
+      "name": "relayMessage",
+      "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
     },
@@ -1369,7 +1028,7 @@
           "type": "address"
         }
       ],
-      "name": "revokeBridgeAuthorization",
+      "name": "revokeBridgeAuthorisation",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -1421,11 +1080,6 @@
     {
       "inputs": [
         {
-          "internalType": "enum NilConstants.MessageType",
-          "name": "messageType",
-          "type": "uint8"
-        },
-        {
           "internalType": "address",
           "name": "messageTarget",
           "type": "address"
@@ -1441,101 +1095,14 @@
           "type": "bytes"
         },
         {
-          "internalType": "address",
-          "name": "l1DepositRefundAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "l2FeeRefundAddress",
-          "type": "address"
-        },
-        {
-          "components": [
-            {
-              "internalType": "uint256",
-              "name": "nilGasLimit",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "maxFeePerGas",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "maxPriorityFeePerGas",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "feeCredit",
-              "type": "uint256"
-            }
-          ],
-          "internalType": "struct INilGasPriceOracle.FeeCreditData",
-          "name": "feeCreditData",
-          "type": "tuple"
-        }
-      ],
-      "name": "sendMessage",
-      "outputs": [],
-      "stateMutability": "payable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "enum NilConstants.MessageType",
-          "name": "messageType",
-          "type": "uint8"
-        },
-        {
-          "internalType": "address",
-          "name": "messageTarget",
-          "type": "address"
-        },
-        {
           "internalType": "uint256",
-          "name": "value",
+          "name": "gasLimit",
           "type": "uint256"
         },
         {
-          "internalType": "bytes",
-          "name": "message",
-          "type": "bytes"
-        },
-        {
           "internalType": "address",
-          "name": "l2FeeRefundAddress",
+          "name": "refundRecipient",
           "type": "address"
-        },
-        {
-          "components": [
-            {
-              "internalType": "uint256",
-              "name": "nilGasLimit",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "maxFeePerGas",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "maxPriorityFeePerGas",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "feeCredit",
-              "type": "uint256"
-            }
-          ],
-          "internalType": "struct INilGasPriceOracle.FeeCreditData",
-          "name": "feeCreditData",
-          "type": "tuple"
         }
       ],
       "name": "sendMessage",

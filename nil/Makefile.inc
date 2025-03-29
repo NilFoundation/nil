@@ -13,7 +13,8 @@ generate_mocks: \
 	$(root_db)/rwtx_generated_mock.go \
 	$(root_db)/db_generated_mock.go \
 	$(root_rollup)/l1_fetcher_generated_mock.go \
-	$(root_relayer)/gen_l1_mocks
+	$(root_relayer)/gen_l1_mocks \
+	$(root_relayer)/gen_l2_mocks
 
 $(root_client)/client_generated_mock.go: $(root_client)/client.go ssz_types
 	cd $(root_client) && go generate
@@ -32,3 +33,6 @@ $(root_rollup)/l1_fetcher_generated_mock.go: $(root_rollup)/l1_fetcher.go
 
 $(root_relayer)/gen_l1_mocks: $(root_relayer)/internal/l1/generate.go
 	cd $(root_relayer)/internal/l1 && go generate generate.go
+
+$(root_relayer)/gen_l2_mocks: $(root_relayer)/internal/l2/generate.go
+	cd $(root_relayer)/internal/l2 && go generate generate.go
