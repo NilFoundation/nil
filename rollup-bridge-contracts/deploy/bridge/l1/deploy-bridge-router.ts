@@ -24,10 +24,10 @@ const deployL1BridgeRouter: DeployFunction = async function (
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
-    if (!isValidAddress(config.l1BridgeRouterConfig.owner)) {
+    if (!isValidAddress(config.l1Common.owner)) {
         throw new Error('Invalid owner in config');
     }
-    if (!isValidAddress(config.l1BridgeRouterConfig.admin)) {
+    if (!isValidAddress(config.l1Common.admin)) {
         throw new Error('Invalid admin in config');
     }
     if (!isValidAddress(config.l1ERC20Bridge.l1ERC20BridgeProxy)) {
@@ -62,8 +62,8 @@ const deployL1BridgeRouter: DeployFunction = async function (
         const l1BridgeRouterProxy = await upgrades.deployProxy(
             L1BridgeRouter,
             [
-                config.l1BridgeRouterConfig.owner, // _owner
-                config.l1BridgeRouterConfig.admin, // _defaultAdmin
+                config.l1Common.owner, // _owner
+                config.l1Common.admin, // _defaultAdmin
                 config.l1ERC20Bridge.l1ERC20BridgeProxy,
                 config.l1ETHBridgeConfig.l1ETHBridgeProxy,
                 config.l1BridgeMessengerConfig.l1BridgeMessengerProxy,

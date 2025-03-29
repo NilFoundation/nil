@@ -26,10 +26,10 @@ const deployNilRollup: DeployFunction = async function (
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
-    if (!isValidAddress(config.nilRollupConfig.owner)) {
+    if (!isValidAddress(config.l1Common.owner)) {
         throw new Error('Invalid nilRollupOwnerAddress in config');
     }
-    if (!isValidAddress(config.nilRollupConfig.admin)) {
+    if (!isValidAddress(config.l1Common.admin)) {
         throw new Error('Invalid defaultAdminAddress in config');
     }
     if (!isValidAddress(config.nilRollupConfig.proposerAddress)) {
@@ -65,8 +65,8 @@ const deployNilRollup: DeployFunction = async function (
             NilRollup,
             [
                 l2ChainId,
-                config.nilRollupConfig.owner, // _owner
-                config.nilRollupConfig.admin, // _defaultAdmin
+                config.l1Common.owner, // _owner
+                config.l1Common.admin, // _defaultAdmin
                 config.nilRollupConfig.nilVerifier, // nilVerifier contract address
                 config.nilRollupConfig.proposerAddress, // proposer address
                 config.nilRollupConfig.genesisStateRoot,
@@ -122,13 +122,13 @@ const deployNilRollup: DeployFunction = async function (
         }
         if (
             storedOwnerAddress.toLowerCase() !==
-            config.nilRollupConfig.owner.toLowerCase()
+            config.l1Common.owner.toLowerCase()
         ) {
             throw new Error('ownerAddress mismatch');
         }
         if (
             storedAdminAddress.toLowerCase() !==
-            config.nilRollupConfig.admin.toLowerCase()
+            config.l1Common.admin.toLowerCase()
         ) {
             throw new Error('adminAddress mismatch');
         }

@@ -24,10 +24,10 @@ const deployL1BridgeMessenger: DeployFunction = async function (
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
-    if (!isValidAddress(config.nilRollupConfig.owner)) {
+    if (!isValidAddress(config.l1Common.owner)) {
         throw new Error('Invalid nilRollupOwnerAddress in config');
     }
-    if (!isValidAddress(config.nilRollupConfig.admin)) {
+    if (!isValidAddress(config.l1Common.admin)) {
         throw new Error('Invalid defaultAdminAddress in config');
     }
 
@@ -50,8 +50,8 @@ const deployL1BridgeMessenger: DeployFunction = async function (
         const l1BridgeMessengerProxy = await upgrades.deployProxy(
             L1BridgeMessenger,
             [
-                config.l1BridgeMessengerConfig.owner, // _owner
-                config.l1BridgeMessengerConfig.admin, // _defaultAdmin
+                config.l1Common.owner, // _owner
+                config.l1Common.admin, // _defaultAdmin
                 config.nilRollupConfig.nilRollupProxy,
                 config.l1BridgeMessengerConfig.maxProcessingTimeInEpochSeconds
             ],

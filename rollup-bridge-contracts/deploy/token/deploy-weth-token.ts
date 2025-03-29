@@ -6,12 +6,13 @@ import {
     isValidBytes32,
     L1NetworkConfig,
     loadL1NetworkConfig,
+    saveL1NetworkConfig,
 } from '../config/config-helper';
 import { verifyContractWithRetry } from '../common/proxy-contract-utils';
 
-// npx hardhat deploy --network sepolia --tags ERC20TokensDeploy
-// npx hardhat deploy --network anvil --tags ERC20TokensDeploy
-// npx hardhat deploy --network geth --tags ERC20TokensDeploy
+// npx hardhat deploy --network sepolia --tags WETHTokenDeploy
+// npx hardhat deploy --network anvil --tags WETHTokenDeploy
+// npx hardhat deploy --network geth --tags WETHTokenDeploy
 const deployWETHToken: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
 ) {
@@ -31,8 +32,7 @@ const deployWETHToken: DeployFunction = async function (
 
     console.log('WETHToken deployed to:', testWETH.address);
 
-    // Save the updated config
-    //saveConfig(networkName, config);
+    config.l1Common.weth = testWETH.address;
 
     // Skip verification if the network is local or anvil
     if (
@@ -49,6 +49,8 @@ const deployWETHToken: DeployFunction = async function (
     } else {
         console.log('Skipping verification on local or anvil network');
     }
+
+    saveL1NetworkConfig(networkName, config);
 };
 
 export default deployWETHToken;

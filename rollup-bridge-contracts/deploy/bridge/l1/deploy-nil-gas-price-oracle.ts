@@ -24,10 +24,10 @@ const deployNilGasPriceOracle: DeployFunction = async function (
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
-    if (!isValidAddress(config.nilGasPriceOracleConfig.owner)) {
+    if (!isValidAddress(config.l1Common.owner)) {
         throw new Error('Invalid nilRollupOwnerAddress in config');
     }
-    if (!isValidAddress(config.nilGasPriceOracleConfig.admin)) {
+    if (!isValidAddress(config.l1Common.admin)) {
         throw new Error('Invalid defaultAdminAddress in config');
     }
 
@@ -50,8 +50,8 @@ const deployNilGasPriceOracle: DeployFunction = async function (
         const nilGasPriceOracleProxy = await upgrades.deployProxy(
             NilGasPriceOracle,
             [
-                config.nilGasPriceOracleConfig.owner, // _owner
-                config.nilGasPriceOracleConfig.admin, // _defaultAdmin
+                config.l1Common.owner, // _owner
+                config.l1Common.admin, // _defaultAdmin
                 config.nilGasPriceOracleConfig.nilGasPriceSetterAddress,
                 config.nilGasPriceOracleConfig.nilGasPriceOracleMaxFeePerGas,
                 config.nilGasPriceOracleConfig.nilGasPriceOracleMaxPriorityFeePerGas

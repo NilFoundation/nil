@@ -25,10 +25,10 @@ const deployL1ERC20Bridge: DeployFunction = async function (
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
-    if (!isValidAddress(config.l1ERC20Bridge.owner)) {
+    if (!isValidAddress(config.l1Common.owner)) {
         throw new Error('Invalid owner in config');
     }
-    if (!isValidAddress(config.l1ERC20Bridge.admin)) {
+    if (!isValidAddress(config.l1Common.admin)) {
         throw new Error('Invalid admin in config');
     }
 
@@ -51,8 +51,8 @@ const deployL1ERC20Bridge: DeployFunction = async function (
         const l1ERC20BridgeProxy = await upgrades.deployProxy(
             L1ERC20Bridge,
             [
-                config.l1ERC20Bridge.owner, // _owner
-                config.l1ERC20Bridge.admin, // _defaultAdmin
+                config.l1Common.owner, // _owner
+                config.l1Common.admin, // _defaultAdmin
                 config.l1Common.weth,
                 config.l1BridgeMessengerConfig.l1BridgeMessengerProxy,
                 config.nilGasPriceOracleConfig.nilGasPriceOracleProxy

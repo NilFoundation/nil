@@ -24,10 +24,10 @@ const deployL1ETHBridge: DeployFunction = async function (
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
-    if (!isValidAddress(config.l1ETHBridgeConfig.owner)) {
+    if (!isValidAddress(config.l1Common.owner)) {
         throw new Error('Invalid owner in config');
     }
-    if (!isValidAddress(config.l1ETHBridgeConfig.admin)) {
+    if (!isValidAddress(config.l1Common.admin)) {
         throw new Error('Invalid admin in config');
     }
 
@@ -50,8 +50,8 @@ const deployL1ETHBridge: DeployFunction = async function (
         const l1ETHBridgeProxy = await upgrades.deployProxy(
             L1ETHBridge,
             [
-                config.l1ETHBridgeConfig.owner, // _owner
-                config.l1ETHBridgeConfig.admin, // _defaultAdmin
+                config.l1Common.owner, // _owner
+                config.l1Common.admin, // _defaultAdmin
                 config.l1BridgeMessengerConfig.l1BridgeMessengerProxy,
                 config.nilGasPriceOracleConfig.nilGasPriceOracleProxy
             ],

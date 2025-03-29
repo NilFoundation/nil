@@ -38,10 +38,10 @@ const deployNilRollupContracts: DeployFunction = async function (
     }
 
     // Validate configuration parameters
-    if (!isValidAddress(config.nilRollupConfig.owner)) {
+    if (!isValidAddress(config.l1Common.owner)) {
         throw new Error('Invalid nilRollupOwnerAddress in config');
     }
-    if (!isValidAddress(config.nilRollupConfig.admin)) {
+    if (!isValidAddress(config.l1Common.admin)) {
         throw new Error('Invalid defaultAdminAddress in config');
     }
     if (!isValidAddress(config.nilRollupConfig.proposerAddress)) {
@@ -75,8 +75,8 @@ const deployNilRollupContracts: DeployFunction = async function (
     const nilVerifierAddress = config.nilRollupConfig.nilVerifier;
     const l2ChainId = config.nilRollupConfig.l2ChainId;
     const proposerAddress = config.nilRollupConfig.proposerAddress;
-    const ownerAddress = config.nilRollupConfig.owner;
-    const adminAddress = config.nilRollupConfig.admin;
+    const ownerAddress = config.l1Common.owner;
+    const adminAddress = config.l1Common.admin;
 
     try {
         // Deploy NilRollup implementation

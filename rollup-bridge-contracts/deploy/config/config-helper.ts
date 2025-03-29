@@ -24,8 +24,6 @@ export interface L1NetworkConfig {
 }
 
 export interface NilGasPriceOracleConfig {
-    owner: string;
-    admin: string;
     proxyAdmin: string;
     nilGasPriceOracleProxy: string;
     nilGasPriceOracleImplementation: string;
@@ -38,7 +36,8 @@ export interface L1CommonConfig {
     owner: string;
     admin: string;
     weth: string;
-    tokens: ERC20Token[]
+    tokens: ERC20Token[];
+    mockL2Bridge: string;
 }
 
 export interface ERC20Token {
@@ -49,8 +48,6 @@ export interface ERC20Token {
 }
 
 export interface NilRollupConfig {
-    owner: string;
-    admin: string;
     proxyAdmin: string;
     nilRollupImplementation: string;
     nilRollupProxy: string;
@@ -61,24 +58,18 @@ export interface NilRollupConfig {
 }
 
 export interface L1ERC20BridgeConfig {
-    owner: string;
-    admin: string;
     proxyAdmin: string;
     l1ERC20BridgeProxy: string;
     l1ERC20BridgeImplementation: string;
 }
 
 export interface L1ETHBridgeConfig {
-    owner: string;
-    admin: string;
     proxyAdmin: string;
     l1ETHBridgeProxy: string;
     l1ETHBridgeImplementation: string;
 }
 
 export interface L1BridgeMessengerConfig {
-    owner: string;
-    admin: string;
     proxyAdmin: string;
     l1BridgeMessengerProxy: string;
     l1BridgeMessengerImplementation: string;
@@ -86,8 +77,6 @@ export interface L1BridgeMessengerConfig {
 }
 
 export interface L1BridgeRouterConfig {
-    owner: string;
-    admin: string;
     proxyAdmin: string;
     l1BridgeRouterProxy: string;
     l1BridgeRouterImplementation: string;
@@ -169,7 +158,8 @@ export interface L2Config {
 export interface L2CommonConfig {
     owner: string;
     admin: string;
-    tokens: EnshrinedToken[]
+    tokens: EnshrinedToken[];
+    mockL1Bridge: string;
 }
 
 export interface EnshrinedToken {
@@ -188,32 +178,24 @@ export interface L2NetworkConfig {
 }
 
 export interface L2EnshrinedTokenBridgeConfig {
-    owner: string;
-    admin: string;
     proxyAdmin: string;
     l2EnshrinedTokenBridgeProxy: string;
     l2EnsrhinedTokenBridgeImplementation: string;
 }
 
 export interface L2ETHBridgeConfig {
-    owner: string;
-    admin: string;
     proxyAdmin: string;
     l2ETHBridgeProxy: string;
     l2ETHBridgeImplementation: string;
 }
 
 export interface L2BridgeMessengerConfig {
-    owner: string;
-    admin: string;
     proxyAdmin: string;
     l2BridgeMessengerProxy: string;
     l2ridgeMessengerImplementation: string;
 }
 
 export interface L2BridgeRouterConfig {
-    owner: string;
-    admin: string;
     proxyAdmin: string;
     l2BridgeRouterProxy: string;
     l2BridgeRouterImplementation: string;
