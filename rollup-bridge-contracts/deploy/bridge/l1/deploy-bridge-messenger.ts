@@ -13,7 +13,6 @@ import {
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../common/proxy-contract-utils';
 
 // npx hardhat deploy --network sepolia --tags L1BridgeMessenger
-// npx hardhat deploy --network anvil --tags L1BridgeMessenger
 // npx hardhat deploy --network geth --tags L1BridgeMessenger
 const deployL1BridgeMessenger: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
@@ -29,6 +28,14 @@ const deployL1BridgeMessenger: DeployFunction = async function (
     }
     if (!isValidAddress(config.l1Common.admin)) {
         throw new Error('Invalid defaultAdminAddress in config');
+    }
+
+    if (!isValidAddress(config.nilRollupConfig.nilRollupProxy)) {
+        throw new Error('Invalid nilRollupProxy in config');
+    }
+
+    if (!config.l1BridgeMessengerConfig.maxProcessingTimeInEpochSeconds || config.l1BridgeMessengerConfig.maxProcessingTimeInEpochSeconds == 0) {
+        throw new Error('Invalid maxProcessingTimeInEpochSeconds in l1BridgeMessengerConfig');
     }
 
     // Check if L1BridgeMessenger is already deployed

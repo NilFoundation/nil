@@ -19,7 +19,7 @@ export interface L1NetworkConfig {
     l1MockContracts: L1MockContracts;
     l1BridgeRouterConfig: L1BridgeRouterConfig;
     l1BridgeMessengerConfig: L1BridgeMessengerConfig;
-    l1ERC20Bridge: L1ERC20BridgeConfig;
+    l1ERC20BridgeConfig: L1ERC20BridgeConfig;
     l1ETHBridgeConfig: L1ETHBridgeConfig;
     nilGasPriceOracleConfig: NilGasPriceOracleConfig;
 }
@@ -144,7 +144,7 @@ export const archiveL1NetworkConfig = (
     const timestamp = new Date().toISOString();
     archive.networks[network].push({ ...networkConfig, timestamp });
 
-    console.log(`archiving the file with content: ${JSON.stringify(archive, null, 2)} to archive-path: ${l1NetworkConfigArchiveFilePath}`)
+    console.log(`archiving the file with content to archive-path: ${l1NetworkConfigArchiveFilePath}`)
 
     fs.writeFileSync(l1NetworkConfigArchiveFilePath, JSON.stringify(archive, null, 2), 'utf8');
 };

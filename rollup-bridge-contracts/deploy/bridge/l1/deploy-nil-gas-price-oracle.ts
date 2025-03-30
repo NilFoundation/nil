@@ -12,9 +12,8 @@ import {
 } from '../../config/config-helper';
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../common/proxy-contract-utils';
 
-// npx hardhat deploy --network sepolia --tags L1BridgeMessenger
-// npx hardhat deploy --network anvil --tags L1BridgeMessenger
-// npx hardhat deploy --network geth --tags L1BridgeMessenger
+// npx hardhat deploy --network sepolia --tags NilGasPriceOracle
+// npx hardhat deploy --network geth --tags NilGasPriceOracle
 const deployNilGasPriceOracle: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
 ) {
@@ -30,12 +29,21 @@ const deployNilGasPriceOracle: DeployFunction = async function (
     if (!isValidAddress(config.l1Common.admin)) {
         throw new Error('Invalid defaultAdminAddress in config');
     }
+    if (!isValidAddress(config.nilGasPriceOracleConfig.nilGasPriceSetterAddress)) {
+        throw new Error('Invalid nilGasPriceSetterAddress in config');
+    }
+    if (!config.nilGasPriceOracleConfig.nilGasPriceOracleMaxFeePerGas || config.nilGasPriceOracleConfig.nilGasPriceOracleMaxFeePerGas == 0) {
+        throw new Error('Invalid nilGasPriceOracleMaxFeePerGas in config');
+    }
+    if (!config.nilGasPriceOracleConfig.nilGasPriceOracleMaxPriorityFeePerGas || config.nilGasPriceOracleConfig.nilGasPriceOracleMaxPriorityFeePerGas == 0) {
+        throw new Error('Invalid nilGasPriceOracleMaxPriorityFeePerGas in config');
+    }
 
     // Check if NilGasPriceOracle is already deployed
-    if (config.nilGasPriceOracleConfig.nilGasPriceOracleProxy && isValidAddress(config.nilGasPriceOracleConfig.nilGasPriceOracleProxy)) {
-        console.log(`NilGasPriceOracle already deployed at: ${config.nilGasPriceOracleConfig.nilGasPriceOracleProxy}`);
-        archiveL1NetworkConfig(networkName, config);
-    }
+    // if (config.nilGasPriceOracleConfig.nilGasPriceOracleProxy && isValidAddress(config.nilGasPriceOracleConfig.nilGasPriceOracleProxy)) {
+    //     console.log(`NilGasPriceOracle already deployed at: ${config.nilGasPriceOracleConfig.nilGasPriceOracleProxy}`);
+    //     archiveL1NetworkConfig(networkName, config);
+    // }
 
     try {
         // Deploy NilGasPriceOracle implementation

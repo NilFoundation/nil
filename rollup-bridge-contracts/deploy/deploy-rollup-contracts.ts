@@ -13,7 +13,6 @@ import {
 import { BatchInfo, proposerRoleHash } from './config/nil-types';
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from './common/proxy-contract-utils';
 
-// npx hardhat deploy --network anvil --tags NilRollupContracts
 // npx hardhat deploy --network geth --tags NilRollupContracts
 // npx hardhat deploy --network sepolia --tags NilRollupContracts
 const deployNilRollupContracts: DeployFunction = async function (

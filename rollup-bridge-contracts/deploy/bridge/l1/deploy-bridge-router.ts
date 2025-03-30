@@ -13,7 +13,6 @@ import {
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../common/proxy-contract-utils';
 
 // npx hardhat deploy --network sepolia --tags L1BridgeRouter
-// npx hardhat deploy --network anvil --tags L1BridgeRouter
 // npx hardhat deploy --network geth --tags L1BridgeRouter
 const deployL1BridgeRouter: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
@@ -30,7 +29,7 @@ const deployL1BridgeRouter: DeployFunction = async function (
     if (!isValidAddress(config.l1Common.admin)) {
         throw new Error('Invalid admin in config');
     }
-    if (!isValidAddress(config.l1ERC20Bridge.l1ERC20BridgeProxy)) {
+    if (!isValidAddress(config.l1ERC20BridgeConfig.l1ERC20BridgeProxy)) {
         throw new Error('Invalid L1ERC20BridgeProxy in config');
     }
     if (!isValidAddress(config.l1ETHBridgeConfig.l1ETHBridgeProxy)) {
@@ -64,7 +63,7 @@ const deployL1BridgeRouter: DeployFunction = async function (
             [
                 config.l1Common.owner, // _owner
                 config.l1Common.admin, // _defaultAdmin
-                config.l1ERC20Bridge.l1ERC20BridgeProxy,
+                config.l1ERC20BridgeConfig.l1ERC20BridgeProxy,
                 config.l1ETHBridgeConfig.l1ETHBridgeProxy,
                 config.l1BridgeMessengerConfig.l1BridgeMessengerProxy,
                 config.l1Common.weth

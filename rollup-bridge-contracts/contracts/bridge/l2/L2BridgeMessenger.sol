@@ -15,9 +15,11 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 import { IL2BridgeMessenger } from "./interfaces/IL2BridgeMessenger.sol";
 import { IBridgeMessenger } from "../interfaces/IBridgeMessenger.sol";
 import { IL2Bridge } from "./interfaces/IL2Bridge.sol";
+import { IBridge } from "../interfaces/IBridge.sol";
 import { NilMerkleTree } from "./libraries/NilMerkleTree.sol";
 import { ErrorInvalidMessageType } from "../../common/NilErrorConstants.sol";
 import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
+import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 
 /// @title L2BridgeMessenger
 /// @notice The `L2BridgeMessenger` contract can:
@@ -28,6 +30,7 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
   using EnumerableSet for EnumerableSet.AddressSet;
   using EnumerableSet for EnumerableSet.Bytes32Set;
   using AddressChecker for address;
+  using StorageUtils for bytes32;
 
   /*//////////////////////////////////////////////////////////////////////////
                                   STATE VARIABLES
@@ -287,7 +290,7 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
   }
 
   function _authoriseBridge(address bridge) internal {
-    if (!IERC165(bridge).supportsInterface(type(IL2Bridge).interfaceId)) {
+    if (!IERC165(IBridge(bridge).getImplementation()).supportsInterface(type(IL2Bridge).interfaceId)) {
       revert ErrorInvalidBridgeInterface();
     }
     if (authorisedBridges.contains(bridge)) {
@@ -318,6 +321,13 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
     _revokeRole(NilConstants.OWNER_ROLE, owner());
     super.transferOwnership(newOwner);
     _grantRole(NilConstants.OWNER_ROLE, newOwner);
+  }
+
+  /**
+   * @dev Returns the current implementation address.
+   */
+  function getImplementation() public view override returns (address) {
+    return StorageUtils.getImplementationAddress(NilConstants.IMPLEMENTATION_SLOT);
   }
 
   /// @inheritdoc IERC165

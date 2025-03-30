@@ -10,6 +10,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
 import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
+import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 import { Queue } from "../libraries/Queue.sol";
 import { IBridgeMessenger } from "../interfaces/IBridgeMessenger.sol";
 import { IL1BridgeMessenger } from "./interfaces/IL1BridgeMessenger.sol";
@@ -30,6 +31,7 @@ contract L1BridgeMessenger is
   using Queue for Queue.QueueData;
   using EnumerableSet for EnumerableSet.AddressSet;
   using AddressChecker for address;
+  using StorageUtils for bytes32;
 
   /*//////////////////////////////////////////////////////////////////////////
                              ERRORS   
@@ -213,7 +215,9 @@ contract L1BridgeMessenger is
   function _setCounterpartyBridgeMessenger(address counterpartyBridgeMessengerAddress) internal {
     if (
       !counterpartyBridgeMessengerAddress.isContract() ||
-      !IERC165(counterpartyBridgeMessengerAddress).supportsInterface(type(IL2BridgeMessenger).interfaceId)
+      !IERC165(IBridgeMessenger(counterpartyBridgeMessengerAddress).getImplementation()).supportsInterface(
+        type(IL2BridgeMessenger).interfaceId
+      )
     ) {
       revert ErrorInvalidBridgeMessenger();
     }
@@ -236,13 +240,23 @@ contract L1BridgeMessenger is
   }
 
   function _authorizeBridge(address bridge) internal {
-    if (!IERC165(bridge).supportsInterface(type(IL1Bridge).interfaceId)) {
+    if (
+      !bridge.isContract() ||
+      !IERC165(IL1Bridge(bridge).getImplementation()).supportsInterface(type(IL1Bridge).interfaceId)
+    ) {
       revert InvalidBridgeInterface();
     }
     if (authorizedBridges.contains(bridge)) {
       revert BridgeAlreadyAuthorized();
     }
     authorizedBridges.add(bridge);
+  }
+
+  /**
+   * @dev Returns the current implementation address.
+   */
+  function getImplementation() public view override returns (address) {
+    return StorageUtils.getImplementationAddress(NilConstants.IMPLEMENTATION_SLOT);
   }
 
   /// @inheritdoc IL1BridgeMessenger

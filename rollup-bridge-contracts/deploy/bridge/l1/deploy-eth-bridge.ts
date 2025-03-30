@@ -13,7 +13,6 @@ import {
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../common/proxy-contract-utils';
 
 // npx hardhat deploy --network sepolia --tags L1ETHBridge
-// npx hardhat deploy --network anvil --tags L1ETHBridge
 // npx hardhat deploy --network geth --tags L1ETHBridge
 const deployL1ETHBridge: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,

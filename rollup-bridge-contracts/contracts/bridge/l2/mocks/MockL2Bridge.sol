@@ -35,6 +35,10 @@ contract MockL2Bridge is IL2Bridge, IERC165 {
 
   function transferOwnershipRole(address newOwner) external {}
 
+  function getImplementation() external view returns (address) {
+    return address(this);
+  }
+
   /// @inheritdoc IERC165
   function supportsInterface(bytes4 interfaceId) public view override(IERC165) returns (bool) {
     return interfaceId == type(IL2Bridge).interfaceId;

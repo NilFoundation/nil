@@ -1,99 +1,11 @@
 {
   "networks": {
-    "anvil": {
-      "nilRollupConfig": {
-        "proxyAdmin": "",
-        "nilRollupImplementation": "",
-        "nilRollupProxy": "",
-        "nilVerifier": "",
-        "proposerAddress": "0x658805a93Af995ccf5C2ab3B9B06302653289E68",
-        "l2ChainId": 0,
-        "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
-      },
-      "l1Common": {
-        "owner": "",
-        "admin": "",
-        "weth": ""
-      },
-      "l1MockContracts": {
-        "tokens": [
-          {
-            "name": "USD Coin",
-            "symbol": "USDC",
-            "decimals": 6,
-            "address": ""
-          },
-          {
-            "name": "USD Tether",
-            "symbol": "USDT",
-            "decimals": 6,
-            "address": ""
-          },
-          {
-            "name": "DAI",
-            "symbol": "DAI",
-            "decimals": 18,
-            "address": ""
-          }
-        ],
-        "mockL2Tokens": [
-          {
-            "name": "USD Coin",
-            "symbol": "USDC",
-            "decimals": 6,
-            "address": ""
-          },
-          {
-            "name": "USD Tether",
-            "symbol": "USDT",
-            "decimals": 6,
-            "address": ""
-          },
-          {
-            "name": "DAI",
-            "symbol": "DAI",
-            "decimals": 18,
-            "address": ""
-          }
-        ],
-        "mockL2Bridge": ""
-      },
-      "l1BridgeRouterConfig": {
-        "proxyAdmin": "",
-        "l1BridgeRouterProxy": "",
-        "l1BridgeRouterImplementation": ""
-      },
-      "l1BridgeMessengerConfig": {
-        "proxyAdmin": "",
-        "l1BridgeMessengerProxy": "",
-        "l1BridgeMessengerImplementation": "",
-        "maxProcessingTimeInEpochSeconds": 0
-      },
-      "l1ERC20Bridge": {
-        "proxyAdmin": "",
-        "l1ERC20BridgeProxy": "",
-        "l1ERC20BridgeImplementation": ""
-      },
-      "l1ETHBridgeConfig": {
-        "proxyAdmin": "",
-        "l1ETHBridgeProxy": "",
-        "l1ETHBridgeImplementation": ""
-      },
-      "nilGasPriceOracleConfig": {
-        "proxyAdmin": "",
-        "nilGasPriceOracleProxy": "",
-        "nilGasPriceOracleImplementation": "",
-        "nilGasPriceSetterAddress": "",
-        "nilGasPriceOracleMaxFeePerGas": 0,
-        "nilGasPriceOracleMaxPriorityFeePerGas": 0
-      }
-    },
     "geth": {
       "nilRollupConfig": {
-        "proxyAdmin": "0x9c87F296aafe0Ef694FFa1F051b4B8b16a9b2AD6",
-        "nilRollupImplementation": "0x86A2EE8FAf9A840F7a2c64CA3d51209F9A02081D",
-        "nilRollupProxy": "0xA4899D35897033b927acFCf422bc745916139776",
-        "nilVerifier": "0x4631BCAbD6dF18D94796344963cB60d44a4136b6",
+        "proxyAdmin": "0x4f4588Ed715A88420222a08c74e8D8c0f432Df96",
+        "nilRollupImplementation": "0x457cCf29090fe5A24c19c1bc95F492168C0EaFdb",
+        "nilRollupProxy": "0x525C7063E7C20997BaaE9bDa922159152D0e8417",
+        "nilVerifier": "0x1f10F3Ba7ACB61b2F50B9d6DdCf91a6f787C0E82",
         "proposerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
         "l2ChainId": 0,
         "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
@@ -144,36 +56,36 @@
             "address": "0xc0F115A19107322cFBf1cDBC7ea011C19EbDB4F8"
           }
         ],
-        "mockL2Bridge": "0xc96304e3c037f81dA488ed9dEa1D8F2a48278a75"
+        "mockL2Bridge": "0x5FeaeBfB4439F3516c74939A9D04e95AFE82C4ae"
       },
       "l1BridgeRouterConfig": {
-        "proxyAdmin": "",
-        "l1BridgeRouterProxy": "",
-        "l1BridgeRouterImplementation": ""
+        "proxyAdmin": "0x25141BdAc698910858129c81cfd9C32a8B3b3f87",
+        "l1BridgeRouterProxy": "0x6F6f570F45833E249e27022648a26F4076F48f78",
+        "l1BridgeRouterImplementation": "0x99dBE4AEa58E518C50a1c04aE9b48C9F6354612f"
       },
       "l1BridgeMessengerConfig": {
-        "proxyAdmin": "",
-        "l1BridgeMessengerProxy": "0xDC11f7E700A4c898AE5CAddB1082cFfa76512aDD",
-        "l1BridgeMessengerImplementation": "0xD8a5a9b31c3C0232E196d518E89Fd8bF83AcAd43",
-        "maxProcessingTimeInEpochSeconds": 1000
+        "proxyAdmin": "0x4C2924aa1130bdDBc21b0EAA02E1B8d18FadB7aC",
+        "l1BridgeMessengerProxy": "0x5fc748f1FEb28d7b76fa1c6B07D8ba2d5535177c",
+        "l1BridgeMessengerImplementation": "0x38a024C0b412B9d1db8BC398140D00F5Af3093D4",
+        "maxProcessingTimeInEpochSeconds": 10000
       },
-      "l1ERC20Bridge": {
-        "proxyAdmin": "",
-        "l1ERC20BridgeProxy": "",
-        "l1ERC20BridgeImplementation": ""
+      "l1ERC20BridgeConfig": {
+        "proxyAdmin": "0x950973FF0e239740B4570bea36e92d61A4642799",
+        "l1ERC20BridgeProxy": "0x8A93d247134d91e0de6f96547cB0204e5BE8e5D8",
+        "l1ERC20BridgeImplementation": "0xb9bEECD1A582768711dE1EE7B0A1d582D9d72a6C"
       },
       "l1ETHBridgeConfig": {
-        "proxyAdmin": "",
-        "l1ETHBridgeProxy": "",
-        "l1ETHBridgeImplementation": ""
+        "proxyAdmin": "0x870a882f72Bff80B7dd407C2545b40478D273361",
+        "l1ETHBridgeProxy": "0xF32D39ff9f6Aa7a7A64d7a4F00a54826Ef791a55",
+        "l1ETHBridgeImplementation": "0x40918Ba7f132E0aCba2CE4de4c4baF9BD2D7D849"
       },
       "nilGasPriceOracleConfig": {
-        "proxyAdmin": "",
-        "nilGasPriceOracleProxy": "",
-        "nilGasPriceOracleImplementation": "",
-        "nilGasPriceSetterAddress": "",
-        "nilGasPriceOracleMaxFeePerGas": 0,
-        "nilGasPriceOracleMaxPriorityFeePerGas": 0
+        "proxyAdmin": "0xF8ADc47E258b9a56a8E0A717572dB3F1Cb1b4cc4",
+        "nilGasPriceOracleProxy": "0x2a810409872AfC346F9B5b26571Fd6eC42EA4849",
+        "nilGasPriceOracleImplementation": "0xB82008565FdC7e44609fA118A4a681E92581e680",
+        "nilGasPriceSetterAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "nilGasPriceOracleMaxFeePerGas": 1000,
+        "nilGasPriceOracleMaxPriorityFeePerGas": 1000
       }
     },
     "sepolia": {
@@ -226,7 +138,7 @@
         "l1BridgeMessengerImplementation": "0x932a9043ebc0605dC135bb2C158f24201E3AD654",
         "maxProcessingTimeInEpochSeconds": 1000
       },
-      "l1ERC20Bridge": {
+      "l1ERC20BridgeConfig": {
         "proxyAdmin": "",
         "l1ERC20BridgeProxy": "",
         "l1ERC20BridgeImplementation": ""

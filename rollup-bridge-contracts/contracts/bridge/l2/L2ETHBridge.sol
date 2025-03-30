@@ -104,7 +104,9 @@ contract L2ETHBridge is L2BaseBridge, IL2ETHBridge {
   function _setL2ETHBridgeVault(address l2ETHBridgeVaultAddress) internal {
     if (
       !l2ETHBridgeVaultAddress.isContract() ||
-      !IERC165(l2ETHBridgeVaultAddress).supportsInterface(type(IL2ETHBridgeVault).interfaceId)
+      !IERC165(IL2ETHBridgeVault(l2ETHBridgeVaultAddress).getImplementation()).supportsInterface(
+        type(IL2ETHBridgeVault).interfaceId
+      )
     ) {
       revert ErrorInvalidEthBridgeVault();
     }

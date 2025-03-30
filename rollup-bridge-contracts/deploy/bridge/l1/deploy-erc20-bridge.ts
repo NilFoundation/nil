@@ -14,7 +14,6 @@ import { BatchInfo } from '../../config/nil-types';
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../common/proxy-contract-utils';
 
 // npx hardhat deploy --network sepolia --tags L1ERC20Bridge
-// npx hardhat deploy --network anvil --tags L1ERC20Bridge
 // npx hardhat deploy --network geth --tags L1ERC20Bridge
 const deployL1ERC20Bridge: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
@@ -26,15 +25,24 @@ const deployL1ERC20Bridge: DeployFunction = async function (
 
     // Validate configuration parameters
     if (!isValidAddress(config.l1Common.owner)) {
-        throw new Error('Invalid owner in config');
+        throw new Error('Invalid owner in l1Common-config');
     }
     if (!isValidAddress(config.l1Common.admin)) {
-        throw new Error('Invalid admin in config');
+        throw new Error('Invalid admin in l1Common-config');
+    }
+    if (!isValidAddress(config.l1Common.weth)) {
+        throw new Error('Invalid weth in l1Common-config');
+    }
+    if (!isValidAddress(config.l1BridgeMessengerConfig.l1BridgeMessengerProxy)) {
+        throw new Error('Invalid l1BridgeMessengerProxy in l1Common-config');
+    }
+    if (!isValidAddress(config.nilGasPriceOracleConfig.nilGasPriceOracleProxy)) {
+        throw new Error('Invalid nilGasPriceOracleProxy in l1Common-config');
     }
 
     // Check if L1ERC20Bridge is already deployed
-    if (config.l1ERC20Bridge.l1ERC20BridgeProxy && isValidAddress(config.l1ERC20Bridge.l1ERC20BridgeProxy)) {
-        console.log(`L1ERC20Bridge already deployed at: ${config.l1ERC20Bridge.l1ERC20BridgeProxy}`);
+    if (config.l1ERC20BridgeConfig.l1ERC20BridgeProxy && isValidAddress(config.l1ERC20BridgeConfig.l1ERC20BridgeProxy)) {
+        console.log(`L1ERC20Bridge already deployed at: ${config.l1ERC20BridgeConfig.l1ERC20BridgeProxy}`);
         archiveL1NetworkConfig(networkName, config);
     }
 
@@ -42,12 +50,10 @@ const deployL1ERC20Bridge: DeployFunction = async function (
         // Deploy L1ERC20Bridge implementation
         const L1ERC20Bridge = await ethers.getContractFactory('L1ERC20Bridge');
 
-        // proxy admin contract
         // deploys implementation contract (L1BridgeMessenger)
         // deploys ProxyContract
         // sets implementation contract address in the ProxyContract storage
-        // initialize the contract
-        // entire storage is owned by proxy contract
+        // initialize the contract-entire storage is owned by proxy contract
         const l1ERC20BridgeProxy = await upgrades.deployProxy(
             L1ERC20Bridge,
             [
@@ -63,13 +69,13 @@ const deployL1ERC20Bridge: DeployFunction = async function (
         console.log(`l1ERC20BridgeProxy deployed to: ${l1ERC20BridgeProxy.target}`);
 
         const l1ERC20BridgeProxyAddress = l1ERC20BridgeProxy.target;
-        config.l1ERC20Bridge.l1ERC20BridgeProxy = l1ERC20BridgeProxyAddress;
+        config.l1ERC20BridgeConfig.l1ERC20BridgeProxy = l1ERC20BridgeProxyAddress;
 
         // query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
             l1ERC20BridgeProxyAddress,
         );
-        config.l1ERC20Bridge.proxyAdmin = proxyAdminAddress;
+        config.l1ERC20BridgeConfig.proxyAdmin = proxyAdminAddress;
 
         if (proxyAdminAddress === ZeroAddress) {
             throw new Error('Invalid proxy admin address');
@@ -79,7 +85,7 @@ const deployL1ERC20Bridge: DeployFunction = async function (
             await upgrades.erc1967.getImplementationAddress(
                 l1ERC20BridgeProxyAddress,
             );
-        config.l1ERC20Bridge.l1ERC20BridgeImplementation = implementationAddress;
+        config.l1ERC20BridgeConfig.l1ERC20BridgeImplementation = implementationAddress;
 
         if (implementationAddress === ZeroAddress) {
             throw new Error('Invalid implementation address');

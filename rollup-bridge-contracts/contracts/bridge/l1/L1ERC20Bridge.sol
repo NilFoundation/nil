@@ -44,6 +44,7 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
                              CONSTRUCTOR   
     //////////////////////////////////////////////////////////////////////////*/
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   /// @notice Constructor for `L1ERC20Bridge` implementation contract.
   constructor() {
     _disableInitializers();
@@ -62,7 +63,7 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
     address messengerAddress,
     address nilGasPriceOracleAddress
   ) public initializer {
-    if (wethTokenAddress.isContract()) {
+    if (!wethTokenAddress.isContract()) {
       revert ErrorInvalidWethToken();
     }
 

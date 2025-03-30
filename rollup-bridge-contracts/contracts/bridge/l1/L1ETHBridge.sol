@@ -53,6 +53,7 @@ contract L1ETHBridge is L1BaseBridge, IL1ETHBridge {
                              CONSTRUCTOR   
     //////////////////////////////////////////////////////////////////////////*/
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   /// @notice Constructor for `L1ETHBridge` implementation contract.
   constructor() {
     _disableInitializers();
@@ -247,7 +248,7 @@ contract L1ETHBridge is L1BaseBridge, IL1ETHBridge {
       counterpartyBridge,
       _depositAmount,
       _message,
-      _depositorAddress,
+      _l2FeeRefundRecipient,
       feeCreditData
     );
 

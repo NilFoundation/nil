@@ -7,11 +7,14 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
+import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 import { INilGasPriceOracle } from "./interfaces/INilGasPriceOracle.sol";
 import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
 
 // solhint-disable reason-string
 contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccessControlUpgradeable, INilGasPriceOracle {
+  using StorageUtils for bytes32;
+
   /*//////////////////////////////////////////////////////////////////////////
                              EVENTS   
     //////////////////////////////////////////////////////////////////////////*/
@@ -50,6 +53,7 @@ contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccess
                              CONSTRUCTOR   
     //////////////////////////////////////////////////////////////////////////*/
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
@@ -175,5 +179,12 @@ contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccess
     bytes4 interfaceId
   ) public view override(AccessControlEnumerableUpgradeable, IERC165) returns (bool) {
     return interfaceId == type(INilGasPriceOracle).interfaceId || super.supportsInterface(interfaceId);
+  }
+
+  /**
+   * @dev Returns the current implementation address.
+   */
+  function getImplementation() public view override returns (address) {
+    return StorageUtils.getImplementationAddress(NilConstants.IMPLEMENTATION_SLOT);
   }
 }
