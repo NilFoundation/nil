@@ -14,7 +14,7 @@
 * [Usage](#-usage)
 * [Contributing](#-contributing)
 * [Work in progress](#-work-in-progress)
-* [License](#license)
+* [Licence](#licence)
 
 ## 🚀 Overview
 
@@ -110,4 +110,4 @@ This project is currently under active development. Not all features are fully i
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENCE)
