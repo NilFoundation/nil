@@ -181,7 +181,7 @@ func (s *ProposerTestSuite) TestSendProof() {
 }
 
 // Only UpdateState tx should be created
-func (s *ProposerTestSuite) TestSendProofCommitedBatch() {
+func (s *ProposerTestSuite) TestSendProofCommittedBatch() {
 	// Calls inside CommitBatch
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
 	// Calls inside UpdateState
