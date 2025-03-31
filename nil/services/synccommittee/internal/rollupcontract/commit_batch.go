@@ -28,7 +28,7 @@ func (r *Wrapper) CommitBatch(
 ) (*ethtypes.Transaction, error) {
 	callOpts, cancel := r.getEthCallOpts(ctx)
 	defer cancel()
-	isCommited, err := r.rollupContract.IsBatchCommitted(callOpts, batchIndex)
+	isCommitted, err := r.rollupContract.IsBatchCommitted(callOpts, batchIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (r *Wrapper) CommitBatch(
 		return nil, err
 	}
 
-	if isCommited {
+	if isCommitted {
 		return signedTx, ErrBatchAlreadyCommitted
 	}
 
