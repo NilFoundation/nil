@@ -12,7 +12,7 @@
 * [Installation](#installation)
 * [Usage](#usage)
 * [Tests](#tests)
-* [License](#license)
+* [Licence](#licence)
 
 ## Overview
 
@@ -74,4 +74,4 @@ npm run test path/to/test
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENCE)
