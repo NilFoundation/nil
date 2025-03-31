@@ -1,4 +1,4 @@
-{ lib, stdenv, callPackage, pnpm_10, nodejs }:
+{ lib, stdenv, callPackage, pnpm_10, nodejs, rsync }:
 
 stdenv.mkDerivation rec {
   name = "aibackend";
@@ -16,7 +16,7 @@ stdenv.mkDerivation rec {
 
   NODE_PATH = "$npmDeps";
 
-  nativeBuildInputs = [ nodejs nodejs.python pnpm_10 pnpm_10.configHook ];
+  nativeBuildInputs = [ nodejs nodejs.python pnpm_10 pnpm_10.configHook rsync ];
 
   preUnpack = ''
     echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
@@ -33,8 +33,9 @@ stdenv.mkDerivation rec {
 
   installPhase = ''
     mkdir -p $out
-    mv smart-contracts $out/smart-contracts
-    mv node_modules $out/node_modules
-    mv docs_ai_backend/ $out/docs_ai_backend
+    # replace pnpm synlinks in node_modules with real files
+    rsync -aL node_modules/ $out/node_modules/
+    rsync -aL docs_ai_backend/ $out/docs_ai_backend/
+    rsync -aL smart-contracts/ $out/smart-contracts/
   '';
 }
