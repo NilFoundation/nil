@@ -12,7 +12,7 @@
 - [Overview](#overview)
 - [Installation](#installation)
 - [Usage](#usage)
-- [License](#license)
+- [Licence](#licence)
 
 ## Overview
 
@@ -52,6 +52,6 @@ import "@nilfoundation/smart-contracts/contracts/SmartAccount.sol";
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENCE)
 
 
