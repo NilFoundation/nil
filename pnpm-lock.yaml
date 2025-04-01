@@ -28126,7 +28126,7 @@ snapshots:
 
   date-fns@2.30.0:
     dependencies:
-      '@babel/runtime': 7.27.0
+      '@babel/runtime': 7.26.10
 
   dateformat@4.6.3: {}
 
@@ -34975,7 +34975,7 @@ snapshots:
 
   polished@3.7.2:
     dependencies:
-      '@babel/runtime': 7.27.0
+      '@babel/runtime': 7.26.10
 
   polished@4.3.1:
     dependencies:
@@ -36020,7 +36020,7 @@ snapshots:
 
   react-focus-lock@2.13.6(@types/react@18.3.1)(react@18.3.1):
     dependencies:
-      '@babel/runtime': 7.27.0
+      '@babel/runtime': 7.26.10
       focus-lock: 1.3.6
       prop-types: 15.8.1
       react: 18.3.1
@@ -36175,7 +36175,7 @@ snapshots:
 
   react-multi-ref@1.0.2:
     dependencies:
-      '@babel/runtime': 7.27.0
+      '@babel/runtime': 7.26.10
 
   react-overflow-list@0.5.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
@@ -36349,7 +36349,7 @@ snapshots:
 
   react-virtualized@9.22.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
-      '@babel/runtime': 7.27.0
+      '@babel/runtime': 7.26.10
       clsx: 1.2.1
       dom-helpers: 5.2.1
       loose-envify: 1.4.0
@@ -36360,7 +36360,7 @@ snapshots:
 
   react-window@1.8.11(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
-      '@babel/runtime': 7.27.0
+      '@babel/runtime': 7.26.10
       memoize-one: 5.2.1
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
@@ -36514,7 +36514,7 @@ snapshots:
 
   regenerator-transform@0.15.2:
     dependencies:
-      '@babel/runtime': 7.27.0
+      '@babel/runtime': 7.26.10
 
   regex-not@1.0.2:
     dependencies:
