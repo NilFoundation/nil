@@ -42,20 +42,6 @@ contract L1BridgeMessenger is
   error ErrorInvalidClaimProof();
 
   /*//////////////////////////////////////////////////////////////////////////
-                             STRUCTS   
-    //////////////////////////////////////////////////////////////////////////*/
-
-  struct SendMessageParams {
-    NilConstants.MessageType messageType;
-    address messageTarget;
-    uint256 value;
-    bytes message;
-    address l1DepositRefundAddress;
-    address l2FeeRefundAddress;
-    INilGasPriceOracle.FeeCreditData feeCreditData;
-  }
-
-  /*//////////////////////////////////////////////////////////////////////////
                              STATE-VARIABLES   
     //////////////////////////////////////////////////////////////////////////*/
 
@@ -293,28 +279,6 @@ contract L1BridgeMessenger is
   /*//////////////////////////////////////////////////////////////////////////
                              PUBLIC MUTATING FUNCTIONS   
     //////////////////////////////////////////////////////////////////////////*/
-
-  /// @inheritdoc IL1BridgeMessenger
-  function sendMessage(
-    NilConstants.MessageType messageType,
-    address messageTarget,
-    uint256 value,
-    bytes memory message,
-    address l2FeeRefundAddress,
-    INilGasPriceOracle.FeeCreditData memory feeCreditData
-  ) external payable override whenNotPaused onlyAuthorizedL1Bridge {
-    _sendMessage(
-      SendMessageParams({
-        messageType: messageType,
-        messageTarget: messageTarget,
-        value: value,
-        message: message,
-        l1DepositRefundAddress: _msgSender(),
-        l2FeeRefundAddress: l2FeeRefundAddress,
-        feeCreditData: feeCreditData
-      })
-    );
-  }
 
   /// @inheritdoc IL1BridgeMessenger
   function sendMessage(

@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { IL1Bridge } from "./IL1Bridge.sol";
+import { INilGasPriceOracle } from "./INilGasPriceOracle.sol";
 
 interface IL1ETHBridge is IL1Bridge {
   struct ETHDecodedDepositMessage {
@@ -11,6 +12,15 @@ interface IL1ETHBridge is IL1Bridge {
     address l2FeeRefundRecipient;
     /// @notice The amount of tokens to deposit
     uint256 depositAmount;
+  }
+
+  // Group related variables into a struct to reduce stack usage
+  struct DepositETHMessageData {
+    address depositorAddress;
+    address payable l2DepositRecipient;
+    address l2FeeRefundRecipient;
+    uint256 depositAmount;
+    INilGasPriceOracle.FeeCreditData feeCreditData;
   }
 
   /*//////////////////////////////////////////////////////////////////////////

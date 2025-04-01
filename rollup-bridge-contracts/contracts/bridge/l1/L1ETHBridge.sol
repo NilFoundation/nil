@@ -236,23 +236,41 @@ contract L1ETHBridge is L1BaseBridge, IL1ETHBridge {
 
     feeCreditData.nilGasLimit = _nilGasLimit;
 
-    // Generate message passed to L2ERC20Bridge
+    DepositETHMessageData memory depositETHMessageData = DepositETHMessageData({
+      depositorAddress: _depositorAddress,
+      l2DepositRecipient: payable(_l2DepositRecipient),
+      l2FeeRefundRecipient: _l2FeeRefundRecipient,
+      depositAmount: _depositAmount,
+      feeCreditData: feeCreditData
+    });
+
+    // Generate message passed to L2ETHBridge
     bytes memory _message = abi.encodeCall(
       IL2ETHBridge.finaliseETHDeposit,
-      (_depositorAddress, payable(_l2DepositRecipient), _l2FeeRefundRecipient, _depositAmount)
+      (
+        depositETHMessageData.depositorAddress,
+        depositETHMessageData.l2DepositRecipient,
+        depositETHMessageData.l2FeeRefundRecipient,
+        depositETHMessageData.depositAmount
+      )
     );
 
     // Send message to L1BridgeMessenger.
     IL1BridgeMessenger(messenger).sendMessage{ value: msg.value }(
       NilConstants.MessageType.DEPOSIT_ETH,
       counterpartyBridge,
-      _depositAmount,
+      depositETHMessageData.depositAmount,
       _message,
-      _l2FeeRefundRecipient,
-      feeCreditData
+      depositETHMessageData.depositorAddress,
+      depositETHMessageData.l2FeeRefundRecipient,
+      depositETHMessageData.feeCreditData
     );
 
-    emit DepositETH(_depositorAddress, _l2DepositRecipient, _depositAmount);
+    emit DepositETH(
+      depositETHMessageData.depositorAddress,
+      depositETHMessageData.l2DepositRecipient,
+      depositETHMessageData.depositAmount
+    );
   }
 
   /// @inheritdoc IL1ETHBridge

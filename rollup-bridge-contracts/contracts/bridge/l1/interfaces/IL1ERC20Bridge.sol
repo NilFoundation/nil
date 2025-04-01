@@ -3,12 +3,25 @@ pragma solidity 0.8.28;
 
 import { IL1Bridge } from "./IL1Bridge.sol";
 import { IL2EnshrinedTokenBridge } from "../../l2/interfaces/IL2EnshrinedTokenBridge.sol";
+import { INilGasPriceOracle } from "./INilGasPriceOracle.sol";
 
 /// @title IL1ERC20Bridge
 /// @author Nil
 /// @notice Interface for the L1ERC20Bridge to facilitate ERC20-Token deposits from L1 and L2
 /// @notice Interface for the L1ERC20Bridge to finalize the ERC20-Token withdrawals from L2 and L1
 interface IL1ERC20Bridge is IL1Bridge {
+  // struct to group related variables for sendMessage
+  struct DepositERC20MessageData {
+    address l1Token;
+    address l2Token;
+    address depositorAddress;
+    address l2DepositRecipient;
+    address l2FeeRefundRecipient;
+    uint256 depositAmount;
+    bytes data;
+    INilGasPriceOracle.FeeCreditData feeCreditData;
+  }
+
   /*//////////////////////////////////////////////////////////////////////////
                              ERRORS   
     //////////////////////////////////////////////////////////////////////////*/

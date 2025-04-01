@@ -10,8 +10,22 @@ import { NilConstants } from "../../../common/libraries/NilConstants.sol";
 /// @dev This interface defines the functions and events for managing deposit messages, sending messages, and canceling
 /// deposits.
 interface IL1BridgeMessenger is IBridgeMessenger {
+  /*//////////////////////////////////////////////////////////////////////////
+                             STRUCTS   
+    //////////////////////////////////////////////////////////////////////////*/
+
   struct AddressSlot {
     address value;
+  }
+
+  struct SendMessageParams {
+    NilConstants.MessageType messageType;
+    address messageTarget;
+    uint256 value;
+    bytes message;
+    address l1DepositRefundAddress;
+    address l2FeeRefundAddress;
+    INilGasPriceOracle.FeeCreditData feeCreditData;
   }
 
   /*//////////////////////////////////////////////////////////////////////////
@@ -176,24 +190,6 @@ interface IL1BridgeMessenger is IBridgeMessenger {
     bytes calldata message,
     address l1DepositRefundAddress,
     address l2FeeRefundAddress,
-    INilGasPriceOracle.FeeCreditData calldata feeCreditData
-  ) external payable;
-
-  /// @notice Send cross chain message from L1 to L2 or L2 to L1.
-  /// @param messageType The messageType enum value
-  /// @param messageTarget The address of account who receive the message.
-  /// @param value The amount of ether passed when call target contract.
-  /// @param message The content of the message.
-  /// @param refundAddress The address of account who will receive the refunded fee, funds are credited during
-  /// finalize-withdrawal, cancel-deposit, claim-failed-deposit
-  /// @param feeCreditData feeCreditData struct which holds the l2FeeRefundAddress, nilGasLimit, gasFee data from
-  /// nilGasPriceOracle
-  function sendMessage(
-    NilConstants.MessageType messageType,
-    address messageTarget,
-    uint256 value,
-    bytes calldata message,
-    address refundAddress,
     INilGasPriceOracle.FeeCreditData calldata feeCreditData
   ) external payable;
 

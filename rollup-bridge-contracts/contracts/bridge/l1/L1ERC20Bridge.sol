@@ -320,23 +320,43 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
     // TODO encoded token-metadata is needed only for the token which doesn't exist in the mapping
     bytes memory _data;
 
+    // Prepare data for sendMessage
+    DepositERC20MessageData memory depositERC20MessageData = DepositERC20MessageData({
+      l1Token: _l1Token,
+      l2Token: _l2Token,
+      depositorAddress: _depositorAddress,
+      l2DepositRecipient: _l2DepositRecipient,
+      l2FeeRefundRecipient: _l2FeeRefundRecipient,
+      depositAmount: _depositAmount,
+      data: _data,
+      feeCreditData: feeCreditData
+    });
+
     // Generate message passed to L2ERC20Bridge
     bytes memory _message = abi.encodeCall(
       IL2EnshrinedTokenBridge.finalizeERC20Deposit,
       (_l1Token, _l2Token, _depositorAddress, _l2DepositRecipient, _l2FeeRefundRecipient, _depositAmount, _data)
     );
 
-    // Send message to L1BridgeMessenger.
+    // Send message to L1BridgeMessenger
     IL1BridgeMessenger(messenger).sendMessage{ value: msg.value }(
       NilConstants.MessageType.DEPOSIT_ETH,
       counterpartyBridge,
       0,
       _message,
-      _depositorAddress,
-      feeCreditData
+      depositERC20MessageData.depositorAddress,
+      depositERC20MessageData.l2FeeRefundRecipient,
+      depositERC20MessageData.feeCreditData
     );
 
-    emit DepositERC20(_l1Token, _l2Token, _depositorAddress, _l2DepositRecipient, _depositAmount, _data);
+    emit DepositERC20(
+      depositERC20MessageData.l1Token,
+      depositERC20MessageData.l2Token,
+      depositERC20MessageData.depositorAddress,
+      depositERC20MessageData.l2DepositRecipient,
+      depositERC20MessageData.depositAmount,
+      depositERC20MessageData.data
+    );
   }
 
   /// @inheritdoc IL1ERC20Bridge
