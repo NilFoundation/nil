@@ -10,7 +10,7 @@ import { getAllProposers } from './get-all-proposers';
 
 const abiPath = path.join(
     __dirname,
-    '../../../artifacts/contracts/interfaces/INilAccessControl.sol/INilAccessControl.json',
+    '../../../artifacts/contracts/interfaces/INilAccessControlUpgradeable.sol/INilAccessControlUpgradeable.json',
 );
 const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
@@ -20,14 +20,14 @@ export async function grantProposerAccess(proposerAddress: string) {
     const networkName = network.name;
     const config = loadConfig(networkName);
 
-    if (!isValidAddress(config.nilRollupProxy)) {
+    if (!isValidAddress(config.nilRollupConfig.nilRollupProxy)) {
         throw new Error('Invalid nilRollupProxy address in config');
     }
 
     const [signer] = await ethers.getSigners();
 
     const nilRollupInstance = new ethers.Contract(
-        config.nilRollupProxy,
+        config.nilRollupConfig.nilRollupProxy,
         abi,
         signer,
     ) as Contract;
@@ -40,7 +40,7 @@ export async function grantProposerAccess(proposerAddress: string) {
 
 // Main function to call the grantProposerAccess function
 async function main() {
-    const proposerAddress = '';
+    const proposerAddress = '0x7A2f4530b5901AD1547AE892Bafe54c5201D1206';
     await grantProposerAccess(proposerAddress);
 }
 

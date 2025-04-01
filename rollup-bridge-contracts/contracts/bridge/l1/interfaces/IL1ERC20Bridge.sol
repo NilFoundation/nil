@@ -45,7 +45,7 @@ interface IL1ERC20Bridge is IL1Bridge {
   /// @param l1Token The address of ERC20 token in layer-1.
   /// @param oldL2Token The address of the old ERC20Token-Address in nil-chain.
   /// @param newL2Token The address of the new ERC20Token-Address in nil-chain.
-  event UpdateTokenMapping(address indexed l1Token, address indexed oldL2Token, address indexed newL2Token);
+  event UpdatedTokenMapping(address indexed l1Token, address indexed oldL2Token, address indexed newL2Token);
 
   /// @notice Emitted upon deposit of ERC20Token from layer-1 to nil-chain.
   /// @param l1Token The address of the token in layer-1.
@@ -138,4 +138,6 @@ interface IL1ERC20Bridge is IL1Bridge {
     uint256 userFeePerGas,
     uint256 userMaxPriorityFeePerGas
   ) external payable;
+
+  function setTokenMapping(address l1TokenAddress, address l2EnshrinedTokenAddress) external;
 }

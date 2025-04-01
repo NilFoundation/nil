@@ -7,6 +7,7 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
 import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
+import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 import { IL1Bridge } from "./interfaces/IL1Bridge.sol";
 import { IL2Bridge } from "../l2/interfaces/IL2Bridge.sol";
 import { IBridge } from "../interfaces/IBridge.sol";
@@ -23,6 +24,7 @@ abstract contract L1BaseBridge is
   IL1Bridge
 {
   using AddressChecker for address;
+  using StorageUtils for bytes32;
 
   /*//////////////////////////////////////////////////////////////////////////
                              ERRORS   
@@ -135,6 +137,13 @@ abstract contract L1BaseBridge is
     _;
   }
 
+  /**
+   * @dev Returns the current implementation address.
+   */
+  function getImplementation() public view override returns (address) {
+    return StorageUtils.getImplementationAddress(NilConstants.IMPLEMENTATION_SLOT);
+  }
+
   /*//////////////////////////////////////////////////////////////////////////
                              RESTRICTED FUNCTIONS  
     //////////////////////////////////////////////////////////////////////////*/
@@ -145,9 +154,13 @@ abstract contract L1BaseBridge is
   }
 
   function _setRouter(address routerAddress) internal {
-    if (routerAddress.isContract() || !IERC165(routerAddress).supportsInterface(type(IL1BridgeRouter).interfaceId)) {
+    if (
+      !routerAddress.isContract() ||
+      !IERC165(IL1BridgeRouter(routerAddress).getImplementation()).supportsInterface(type(IL1BridgeRouter).interfaceId)
+    ) {
       revert ErrorInvalidRouter();
     }
+
     emit BridgeRouterSet(router, routerAddress);
     router = routerAddress;
   }
@@ -160,7 +173,9 @@ abstract contract L1BaseBridge is
   function _setMessenger(address messengerAddress) internal {
     if (
       !messengerAddress.isContract() ||
-      !IERC165(messengerAddress).supportsInterface(type(IL1BridgeMessenger).interfaceId)
+      !IERC165(IL1BridgeMessenger(messengerAddress).getImplementation()).supportsInterface(
+        type(IL1BridgeMessenger).interfaceId
+      )
     ) {
       revert ErrorInvalidMessenger();
     }
@@ -176,7 +191,7 @@ abstract contract L1BaseBridge is
   function _setCounterpartyBridge(address counterpartyBridgeAddress) internal {
     if (
       !counterpartyBridgeAddress.isContract() ||
-      !IERC165(counterpartyBridgeAddress).supportsInterface(type(IL2Bridge).interfaceId)
+      !IERC165(IL2Bridge(counterpartyBridgeAddress).getImplementation()).supportsInterface(type(IL2Bridge).interfaceId)
     ) {
       revert ErrorInvalidNilGasPriceOracle();
     }
@@ -196,7 +211,9 @@ abstract contract L1BaseBridge is
   function _setNilGasPriceOracle(address nilGasPriceOracleAddress) internal {
     if (
       !nilGasPriceOracleAddress.isContract() ||
-      !IERC165(nilGasPriceOracleAddress).supportsInterface(type(INilGasPriceOracle).interfaceId)
+      !IERC165(INilGasPriceOracle(nilGasPriceOracleAddress).getImplementation()).supportsInterface(
+        type(INilGasPriceOracle).interfaceId
+      )
     ) {
       revert ErrorInvalidNilGasPriceOracle();
     }

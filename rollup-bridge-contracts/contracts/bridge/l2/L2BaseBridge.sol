@@ -10,9 +10,11 @@ import { IL2Bridge } from "./interfaces/IL2Bridge.sol";
 import { IBridge } from "../interfaces/IBridge.sol";
 import { IL2BridgeMessenger } from "./interfaces/IL2BridgeMessenger.sol";
 import { IL2BridgeRouter } from "./interfaces/IL2BridgeRouter.sol";
+import { IBridgeMessenger } from "../interfaces/IBridgeMessenger.sol";
 import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
 import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
+import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 
 abstract contract L2BaseBridge is
   OwnableUpgradeable,
@@ -22,10 +24,7 @@ abstract contract L2BaseBridge is
   IL2Bridge
 {
   using AddressChecker for address;
-
-  /*//////////////////////////////////////////////////////////////////////////
-                             ERRORS   
-    //////////////////////////////////////////////////////////////////////////*/
+  using StorageUtils for bytes32;
 
   /*//////////////////////////////////////////////////////////////////////////
                              STATE-VARIABLES   
@@ -118,7 +117,10 @@ abstract contract L2BaseBridge is
   }
 
   function _setRouter(address routerAddress) internal {
-    if (routerAddress.isContract() || !IERC165(routerAddress).supportsInterface(type(IL2BridgeRouter).interfaceId)) {
+    if (
+      routerAddress.isContract() ||
+      !IERC165(IL2BridgeRouter(routerAddress).getImplementation()).supportsInterface(type(IL2BridgeRouter).interfaceId)
+    ) {
       revert ErrorInvalidRouter();
     }
     emit BridgeRouterSet(router, routerAddress);
@@ -133,7 +135,9 @@ abstract contract L2BaseBridge is
   function _setMessenger(address messengerAddress) internal {
     if (
       !messengerAddress.isContract() ||
-      !IERC165(messengerAddress).supportsInterface(type(IL2BridgeMessenger).interfaceId)
+      !IERC165(IBridgeMessenger(messengerAddress).getImplementation()).supportsInterface(
+        type(IL2BridgeMessenger).interfaceId
+      )
     ) {
       revert ErrorInvalidMessenger();
     }
@@ -149,7 +153,7 @@ abstract contract L2BaseBridge is
   function _setCounterpartyBridge(address counterpartyBridgeAddress) internal {
     if (
       !counterpartyBridgeAddress.isContract() ||
-      !IERC165(counterpartyBridgeAddress).supportsInterface(type(IL1Bridge).interfaceId)
+      !IERC165(IBridge(counterpartyBridgeAddress).getImplementation()).supportsInterface(type(IL1Bridge).interfaceId)
     ) {
       revert ErrorInvalidCounterpartyBridge();
     }
@@ -176,5 +180,12 @@ abstract contract L2BaseBridge is
     _revokeRole(NilConstants.OWNER_ROLE, owner());
     super.transferOwnership(newOwner);
     _grantRole(NilConstants.OWNER_ROLE, newOwner);
+  }
+
+  /**
+   * @dev Returns the current implementation address.
+   */
+  function getImplementation() public view override returns (address) {
+    return StorageUtils.getImplementationAddress(NilConstants.IMPLEMENTATION_SLOT);
   }
 }

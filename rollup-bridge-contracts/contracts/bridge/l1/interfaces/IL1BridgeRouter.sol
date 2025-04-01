@@ -91,6 +91,8 @@ interface IL1BridgeRouter {
    */
   function wethAddress() external view returns (address);
 
+  function getImplementation() external view returns (address);
+
   /**
    * @notice Sets the address of the L1ERC20Bridge contract.
    * @param newERC20Bridge The new address of the L1ERC20Bridge contract.

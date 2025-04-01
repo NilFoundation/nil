@@ -10,8 +10,11 @@ import { AccessControlEnumerableUpgradeable } from "@openzeppelin/contracts-upgr
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
+import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
+
 import { IL2ETHBridgeVault } from "./interfaces/IL2ETHBridgeVault.sol";
 import { IL2ETHBridge } from "./interfaces/IL2ETHBridge.sol";
+import { IBridge } from "../interfaces/IBridge.sol";
 
 contract L2ETHBridgeVault is
   OwnableUpgradeable,
@@ -21,6 +24,7 @@ contract L2ETHBridgeVault is
   IL2ETHBridgeVault
 {
   using AddressChecker for address;
+  using StorageUtils for address;
 
   /*//////////////////////////////////////////////////////////////////////////
                              STATE-VARIABLES   
@@ -99,7 +103,8 @@ contract L2ETHBridgeVault is
   /// @inheritdoc IL2ETHBridgeVault
   function setL2ETHBridge(address l2ETHBridgeAddress) external override onlyOwnerOrAdmin {
     if (
-      !l2ETHBridgeAddress.isContract() || !IERC165(l2ETHBridgeAddress).supportsInterface(type(IL2ETHBridge).interfaceId)
+      !l2ETHBridgeAddress.isContract() ||
+      !IERC165(IBridge(l2ETHBridgeAddress).getImplementation()).supportsInterface(type(IL2ETHBridge).interfaceId)
     ) {
       revert ErrorInvalidL2ETHBridge();
     }
@@ -141,5 +146,12 @@ contract L2ETHBridgeVault is
     bytes4 interfaceId
   ) public view override(AccessControlEnumerableUpgradeable, IERC165) returns (bool) {
     return interfaceId == type(IL2ETHBridgeVault).interfaceId || super.supportsInterface(interfaceId);
+  }
+
+  /**
+   * @dev Returns the current implementation address.
+   */
+  function getImplementation() public view override returns (address) {
+    return StorageUtils.getImplementationAddress(NilConstants.IMPLEMENTATION_SLOT);
   }
 }

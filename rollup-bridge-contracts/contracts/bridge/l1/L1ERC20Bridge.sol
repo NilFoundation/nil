@@ -44,6 +44,7 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
                              CONSTRUCTOR   
     //////////////////////////////////////////////////////////////////////////*/
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   /// @notice Constructor for `L1ERC20Bridge` implementation contract.
   constructor() {
     _disableInitializers();
@@ -62,7 +63,7 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
     address messengerAddress,
     address nilGasPriceOracleAddress
   ) public initializer {
-    if (wethTokenAddress.isContract()) {
+    if (!wethTokenAddress.isContract()) {
       revert ErrorInvalidWethToken();
     }
 
@@ -192,6 +193,20 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
       depositMessage.l1DepositRefundAddress,
       erc20DepositMessage.depositAmount
     );
+  }
+
+  /*//////////////////////////////////////////////////////////////////////////
+                         RESTRICTED FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////*/
+
+  /// @inheritdoc IL1ERC20Bridge
+  function setTokenMapping(address l1TokenAddress, address l2EnshrinedTokenAddress) external override onlyOwnerOrAdmin {
+    if (!l2EnshrinedTokenAddress.isContract() || !l1TokenAddress.isContract()) {
+      revert ErrorInvalidTokenAddress();
+    }
+    address oldL2EnshrinedTokenAddress = tokenMapping[l1TokenAddress];
+    tokenMapping[l1TokenAddress] = l2EnshrinedTokenAddress;
+    emit UpdatedTokenMapping(l1TokenAddress, oldL2EnshrinedTokenAddress, l2EnshrinedTokenAddress);
   }
 
   /*//////////////////////////////////////////////////////////////////////////

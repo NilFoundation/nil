@@ -2,18 +2,17 @@ import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { ethers, upgrades, run } from 'hardhat';
 import {
-    loadConfig,
-    saveConfig,
-    archiveConfig,
+    archiveL1NetworkConfig,
     isValidAddress,
     isValidBytes32,
-    NetworkConfig,
+    L1NetworkConfig,
+    loadL1NetworkConfig,
+    saveL1NetworkConfig,
     ZeroAddress,
 } from './config/config-helper';
 import { BatchInfo, proposerRoleHash } from './config/nil-types';
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from './common/proxy-contract-utils';
 
-// npx hardhat deploy --network anvil --tags NilRollupContracts
 // npx hardhat deploy --network geth --tags NilRollupContracts
 // npx hardhat deploy --network sepolia --tags NilRollupContracts
 const deployNilRollupContracts: DeployFunction = async function (
@@ -28,7 +27,7 @@ const deployNilRollupContracts: DeployFunction = async function (
     // dummy state root place holder, this will be replaced by a real value provided by team
     // all values can be set in via cli arguments or from a json file
     const genesisStateRootConst = ethers.encodeBytes32String('dummyStateRoot');
-    const config: NetworkConfig = loadConfig(networkName);
+    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     console.log(`NetworkConfig for ${networkName} is: ${JSON.stringify(config)}`);
 
@@ -38,23 +37,23 @@ const deployNilRollupContracts: DeployFunction = async function (
     }
 
     // Validate configuration parameters
-    if (!isValidAddress(config.nilRollupOwnerAddress)) {
+    if (!isValidAddress(config.l1Common.owner)) {
         throw new Error('Invalid nilRollupOwnerAddress in config');
     }
-    if (!isValidAddress(config.defaultAdminAddress)) {
+    if (!isValidAddress(config.l1Common.admin)) {
         throw new Error('Invalid defaultAdminAddress in config');
     }
-    if (!isValidAddress(config.proposerAddress)) {
+    if (!isValidAddress(config.nilRollupConfig.proposerAddress)) {
         throw new Error('Invalid proposerAddress in config');
     }
-    if (!isValidBytes32(config.genesisStateRoot)) {
+    if (!isValidBytes32(config.nilRollupConfig.genesisStateRoot)) {
         throw new Error('Invalid genesisStateRoot in config');
     }
 
     // Check if NilVerifier is already deployed
-    if (config.nilVerifier && isValidAddress(config.nilVerifier)) {
-        console.log(`NilVerifier already deployed at: ${config.nilVerifier}`);
-        archiveConfig(networkName, config);
+    if (config.nilRollupConfig.nilVerifier && isValidAddress(config.nilRollupConfig.nilVerifier)) {
+        console.log(`NilVerifier already deployed at: ${config.nilRollupConfig.nilVerifier}`);
+        archiveL1NetworkConfig(networkName, config);
     }
 
     console.log(`deploying nilVerifier`);
@@ -66,17 +65,17 @@ const deployNilRollupContracts: DeployFunction = async function (
     });
 
     console.log('NilVerifier deployed to:', nilVerifier.address);
-    config.nilVerifier = nilVerifier.address;
+    config.nilRollupConfig.nilVerifier = nilVerifier.address;
 
-    if (!isValidAddress(config.nilVerifier)) {
+    if (!isValidAddress(config.nilRollupConfig.nilVerifier)) {
         throw new Error('Invalid nilVerifier address in config');
     }
 
-    const nilVerifierAddress = config.nilVerifier;
-    const l2ChainId = config.l2ChainId;
-    const proposerAddress = config.proposerAddress;
-    const ownerAddress = config.nilRollupOwnerAddress;
-    const adminAddress = config.defaultAdminAddress;
+    const nilVerifierAddress = config.nilRollupConfig.nilVerifier;
+    const l2ChainId = config.nilRollupConfig.l2ChainId;
+    const proposerAddress = config.nilRollupConfig.proposerAddress;
+    const ownerAddress = config.l1Common.owner;
+    const adminAddress = config.l1Common.admin;
 
     try {
         // Deploy NilRollup implementation
@@ -90,7 +89,7 @@ const deployNilRollupContracts: DeployFunction = async function (
                 adminAddress, // _defaultAdmin
                 nilVerifierAddress, // nilVerifier contract address
                 proposerAddress, // proposer address
-                config.genesisStateRoot,
+                config.nilRollupConfig.genesisStateRoot,
             ],
             { initializer: 'initialize' },
         );
@@ -98,7 +97,7 @@ const deployNilRollupContracts: DeployFunction = async function (
         console.log(`NilRollup proxy deployed to: ${nilRollupProxy.target}`);
 
         const nilRollupProxyAddress = nilRollupProxy.target;
-        config.nilRollupProxy = nilRollupProxyAddress;
+        config.nilRollupConfig.nilRollupProxy = nilRollupProxyAddress;
 
         // query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
@@ -107,7 +106,7 @@ const deployNilRollupContracts: DeployFunction = async function (
         console.log(
             `ProxyAdmin for proxy: ${nilRollupProxyAddress} is: ${proxyAdminAddress}`,
         );
-        config.proxyAdminAddress = proxyAdminAddress;
+        config.nilRollupConfig.proxyAdmin = proxyAdminAddress;
 
         if (proxyAdminAddress === ZeroAddress) {
             throw new Error('Invalid proxy admin address');
@@ -120,7 +119,7 @@ const deployNilRollupContracts: DeployFunction = async function (
         console.log(
             `Implementation address for proxy: ${nilRollupProxyAddress} is: ${implementationAddress}`,
         );
-        config.nilRollupImplementation = implementationAddress;
+        config.nilRollupConfig.nilRollupImplementation = implementationAddress;
 
         if (implementationAddress === ZeroAddress) {
             throw new Error('Invalid implementation address');
@@ -168,13 +167,13 @@ const deployNilRollupContracts: DeployFunction = async function (
         }
         if (
             storedGenesisStateRoot.toLowerCase() !==
-            config.genesisStateRoot.toLowerCase()
+            config.nilRollupConfig.genesisStateRoot.toLowerCase()
         ) {
             throw new Error('genesisStateRoot mismatch');
         }
 
         // Save the updated config
-        saveConfig(networkName, config);
+        saveL1NetworkConfig(networkName, config);
 
         // check network and verify if its not geth or anvil
         // Skip verification if the network is local or anvil

@@ -15,9 +15,11 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 import { IL2BridgeMessenger } from "./interfaces/IL2BridgeMessenger.sol";
 import { IBridgeMessenger } from "../interfaces/IBridgeMessenger.sol";
 import { IL2Bridge } from "./interfaces/IL2Bridge.sol";
+import { IBridge } from "../interfaces/IBridge.sol";
 import { NilMerkleTree } from "./libraries/NilMerkleTree.sol";
 import { ErrorInvalidMessageType } from "../../common/NilErrorConstants.sol";
 import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
+import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 
 /// @title L2BridgeMessenger
 /// @notice The `L2BridgeMessenger` contract can:
@@ -28,6 +30,7 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
   using EnumerableSet for EnumerableSet.AddressSet;
   using EnumerableSet for EnumerableSet.Bytes32Set;
   using AddressChecker for address;
+  using StorageUtils for bytes32;
 
   /*//////////////////////////////////////////////////////////////////////////
                                   STATE VARIABLES
@@ -47,6 +50,10 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
 
   /// @notice EnumerableSet for messageHash of relayed-messages which failed execution in Nil-Shard
   EnumerableSet.Bytes32Set private failedMessageHashStore;
+
+  /// @notice the nonce of the depositMessage which is last processed by the L2BridgeMessenger
+  /// @dev depositNonce is to be updated irrespective of the successful or failed completion of deposit execution.
+  uint256 public lastProcessedDepositNonce;
 
   /// @notice the aggregated hash for all message-hash values received by the l2BridgeMessenger
   /// @dev initialize with the genesis state Hash during the contract initialisation
@@ -178,14 +185,14 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
     address messageTarget,
     NilConstants.MessageType messageType,
     uint256 value,
-    uint256 messagNonce,
+    uint256 messageNonce,
     bytes memory message
   ) external override onlyRelayer whenNotPaused {
     if (messageType != NilConstants.MessageType.DEPOSIT_ERC20 && messageType != NilConstants.MessageType.DEPOSIT_ETH) {
       revert ErrorInvalidMessageType();
     }
 
-    bytes32 _l1MessageHash = computeMessageHash(messageSender, messageTarget, value, messagNonce, message);
+    bytes32 _l1MessageHash = computeMessageHash(messageSender, messageTarget, value, messageNonce, message);
 
     if (relayedMessageHashStore.contains(_l1MessageHash)) {
       revert ErrorDuplicateMessageRelayed(_l1MessageHash);
@@ -198,6 +205,8 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
     } else {
       l1MessageHash = keccak256(abi.encode(_l1MessageHash, l1MessageHash));
     }
+
+    lastProcessedDepositNonce = messageNonce;
 
     bool isExecutionSuccessful = _executeMessage(messageSender, messageTarget, value, message);
 
@@ -281,7 +290,7 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
   }
 
   function _authoriseBridge(address bridge) internal {
-    if (!IERC165(bridge).supportsInterface(type(IL2Bridge).interfaceId)) {
+    if (!IERC165(IBridge(bridge).getImplementation()).supportsInterface(type(IL2Bridge).interfaceId)) {
       revert ErrorInvalidBridgeInterface();
     }
     if (authorisedBridges.contains(bridge)) {
@@ -312,6 +321,13 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
     _revokeRole(NilConstants.OWNER_ROLE, owner());
     super.transferOwnership(newOwner);
     _grantRole(NilConstants.OWNER_ROLE, newOwner);
+  }
+
+  /**
+   * @dev Returns the current implementation address.
+   */
+  function getImplementation() public view override returns (address) {
+    return StorageUtils.getImplementationAddress(NilConstants.IMPLEMENTATION_SLOT);
   }
 
   /// @inheritdoc IERC165

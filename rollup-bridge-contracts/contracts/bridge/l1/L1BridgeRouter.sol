@@ -10,8 +10,11 @@ import { NilConstants } from "../../common/libraries/NilConstants.sol";
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
 import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
+import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 import { IL1ERC20Bridge } from "./interfaces/IL1ERC20Bridge.sol";
 import { IL1ETHBridge } from "./interfaces/IL1ETHBridge.sol";
+import { IBridgeMessenger } from "../interfaces/IBridgeMessenger.sol";
+import { IBridge } from "../interfaces/IBridge.sol";
 import { IL1BridgeRouter } from "./interfaces/IL1BridgeRouter.sol";
 import { IL1BridgeMessenger } from "./interfaces/IL1BridgeMessenger.sol";
 
@@ -28,6 +31,7 @@ contract L1BridgeRouter is
 {
     using SafeTransferLib for ERC20;
     using AddressChecker for address;
+    using StorageUtils for bytes32;
 
     /*//////////////////////////////////////////////////////////////////////////
                              STATE-VARIABLES   
@@ -66,6 +70,7 @@ contract L1BridgeRouter is
                              CONSTRUCTOR   
     //////////////////////////////////////////////////////////////////////////*/
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
@@ -141,6 +146,13 @@ contract L1BridgeRouter is
     /// @inheritdoc IL1BridgeRouter
     function getL2TokenAddress(address _l1TokenAddress) external view override returns (address) {
         return IL1ERC20Bridge(erc20Bridge).getL2TokenAddress(_l1TokenAddress);
+    }
+
+    /**
+    * @dev Returns the current implementation address.
+    */
+    function getImplementation() public view override returns (address) {
+        return StorageUtils.getImplementationAddress(NilConstants.IMPLEMENTATION_SLOT);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -326,7 +338,7 @@ contract L1BridgeRouter is
 
         if (
             !_erc20BridgeAddress.isContract()
-                || !IERC165(_erc20BridgeAddress).supportsInterface(type(IL1ERC20Bridge).interfaceId)
+                || !IERC165(IBridge(_erc20BridgeAddress).getImplementation()).supportsInterface(type(IL1ERC20Bridge).interfaceId)
         ) {
             revert ErrorInvalidERC20Bridge();
         }
@@ -344,7 +356,7 @@ contract L1BridgeRouter is
 
         if (
             !_ethBridgeAddress.isContract()
-                || !IERC165(_ethBridgeAddress).supportsInterface(type(IL1ETHBridge).interfaceId)
+                || !IERC165(IBridge(_ethBridgeAddress).getImplementation()).supportsInterface(type(IL1ETHBridge).interfaceId)
         ) {
             revert ErrorInvalidL1ETHBridgeAddress();
         }
@@ -377,7 +389,7 @@ contract L1BridgeRouter is
     function _setMessenger(address _messengerAddress) internal {
         if (
             !_messengerAddress.isContract()
-                || !IERC165(_messengerAddress).supportsInterface(type(IL1BridgeMessenger).interfaceId)
+                || !IERC165(IBridgeMessenger(_messengerAddress).getImplementation()).supportsInterface(type(IL1BridgeMessenger).interfaceId)
         ) {
             revert ErrorInvalidMessenger();
         }
