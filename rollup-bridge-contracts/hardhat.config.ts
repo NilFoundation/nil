@@ -6,7 +6,20 @@ import "hardhat-deploy";
 require('@openzeppelin/hardhat-upgrades');
 import { resolve } from "path";
 import fs from "fs";
+
 dotenv.config();
+
+function getRemappings() {
+  const remappingsTxt = fs.readFileSync("remappings.txt", "utf8");
+  return remappingsTxt
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    .map((line) => line.trim().split("="));
+}
+
+const remappings = getRemappings();
+
+console.log("Remappings:", remappings);
 
 
 const config: HardhatUserConfig = {
@@ -30,6 +43,20 @@ const config: HardhatUserConfig = {
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts",
+  },
+  preprocess: {
+    eachLine: (hre) => ({
+      transform: (line: string) => {
+        if (line.match(/^\s*import /i)) {
+          getRemappings().forEach(([find, replace]) => {
+            if (line.includes(find)) {
+              line = line.replace(find, replace);
+            }
+          });
+        }
+        return line;
+      },
+    }),
   },
   etherscan: {
     apiKey: {
