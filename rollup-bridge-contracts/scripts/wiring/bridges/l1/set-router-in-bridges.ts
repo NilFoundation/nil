@@ -20,8 +20,7 @@ const l1ERC20BridgeABIPath = path.join(
 const l1ERC20BridgeABI = JSON.parse(fs.readFileSync(l1ERC20BridgeABIPath, 'utf8')).abi;
 
 // npx hardhat run scripts/wiring/bridges/l1/set-router-in-bridges.ts --network geth
-export async function setRouterInBridge() {
-    const networkName = network.name;
+export async function setRouterInBridge(networkName: string) {
     const config = loadL1NetworkConfig(networkName);
 
     if (!isValidAddress(config.l1ERC20BridgeConfig.l1ERC20BridgeProxy)) {
@@ -62,12 +61,3 @@ export async function setRouterInBridge() {
     const router_in_eth_bridge = await l1ETHBridgeInstance.router();
     console.log(`router set in eth_bridge is: ${router_in_eth_bridge}`);
 }
-
-async function main() {
-    await setRouterInBridge();
-}
-
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});

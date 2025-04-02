@@ -5,20 +5,15 @@ import * as path from 'path';
 import {
     loadL1NetworkConfig,
     isValidAddress,
-} from '../../../../deploy/config/config-helper';
+} from '../../deploy/config/config-helper';
 
 const l1EthBridgeABIPath = path.join(
     __dirname,
-    '../../../../artifacts/contracts/bridge/l1/interfaces/IL1ETHBridge.sol/IL1ETHBridge.json',
+    '../../artifacts/contracts/bridge/l1/interfaces/IL1ETHBridge.sol/IL1ETHBridge.json',
 );
 const l1EthBridgeABI = JSON.parse(fs.readFileSync(l1EthBridgeABIPath, 'utf8')).abi;
 
-const l1ERC20BridgeABIPath = path.join(
-    __dirname,
-    '../../../../artifacts/contracts/bridge/l1/interfaces/IL1ERC20Bridge.sol/IL1ERC20Bridge.json',
-);
-
-// npx hardhat run scripts/wiring/bridges/l1/bridge-eth.ts --network geth
+// npx hardhat run scripts/bridge-test/bridge-eth.ts --network geth
 export async function bridgeETH() {
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);

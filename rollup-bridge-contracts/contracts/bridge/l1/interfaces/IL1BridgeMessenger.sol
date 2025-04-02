@@ -133,6 +133,7 @@ interface IL1BridgeMessenger is IBridgeMessenger {
     address target; // The target address on the destination chain
     uint256 value; // The value of the deposit
     uint256 nonce; // The nonce for the deposit
+    uint256 creationTime; // The creation-time in epochSeconds
     uint256 expiryTime; // The expiry time for the deposit
     bool isCancelled; // Indicates if the deposit is cancelled
     bool isClaimed; // Indicates if the failed deposit is claimed

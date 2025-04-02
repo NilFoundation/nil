@@ -12,9 +12,7 @@ const abiPath = path.join(
 );
 const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
-// npx hardhat run scripts/wiring/bridges/l1/authorise-bridges-for-messenger.ts --network geth
-export async function authoriseBridges() {
-    const networkName = network.name;
+export async function authoriseBridges(networkName: string) {
     const config = loadL1NetworkConfig(networkName);
 
     if (!isValidAddress(config.l1ERC20BridgeConfig.l1ERC20BridgeProxy)) {
@@ -43,12 +41,3 @@ export async function authoriseBridges() {
 
     await tx.wait();
 }
-
-async function main() {
-    await authoriseBridges();
-}
-
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});

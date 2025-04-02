@@ -423,6 +423,7 @@ contract L1BridgeMessenger is
         target: params.messageTarget,
         value: params.value,
         nonce: depositNonce++,
+        creationTime: block.timestamp,
         expiryTime: block.timestamp + maxProcessingTime,
         isCancelled: false,
         isClaimed: false,

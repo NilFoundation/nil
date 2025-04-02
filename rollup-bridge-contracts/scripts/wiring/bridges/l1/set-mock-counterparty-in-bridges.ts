@@ -20,8 +20,7 @@ const l1ERC20BridgeABIPath = path.join(
 const l1ERC20BridgeABI = JSON.parse(fs.readFileSync(l1ERC20BridgeABIPath, 'utf8')).abi;
 
 // npx hardhat run scripts/wiring/bridges/l1/set-mock-counterparty-in-bridges.ts --network geth
-export async function setMockCounterpartyInBridges() {
-    const networkName = network.name;
+export async function setMockCounterpartyInBridges(networkName: string) {
     const config = loadL1NetworkConfig(networkName);
 
     if (!isValidAddress(config.l1ERC20BridgeConfig.l1ERC20BridgeProxy)) {
@@ -62,12 +61,3 @@ export async function setMockCounterpartyInBridges() {
     const counterparty_in_eth_bridge = await l1ETHBridgeInstance.counterpartyBridge();
     console.log(`counterparty set in eth_bridge is: ${counterparty_in_eth_bridge}`);
 }
-
-async function main() {
-    await setMockCounterpartyInBridges();
-}
-
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});

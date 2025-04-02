@@ -13,7 +13,6 @@ const abiPath = path.join(
 );
 const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
-// npx hardhat run scripts/wiring/bridges/l1/set-token-mappings.ts --network geth
 export async function setL1TokenMappings(l1TokenAddress: string, l2EnshrinedTokenAddress: string) {
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
@@ -36,9 +35,8 @@ export async function setL1TokenMappings(l1TokenAddress: string, l2EnshrinedToke
     console.log(`tokenMapping set for ${l1TokenAddress} -> ${l2EnshrinedTokenAddress}`);
 }
 
-async function setTokenMappings() {
+export async function setTokenMappings(networkName: string) {
     // Get all tokens in l1Common in config
-    const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 
     const l1Tokens: ERC20Token[] = config.l1MockContracts.tokens;
@@ -64,12 +62,3 @@ async function setTokenMappings() {
         }
     }
 }
-
-async function main() {
-    await setTokenMappings();
-}
-
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});

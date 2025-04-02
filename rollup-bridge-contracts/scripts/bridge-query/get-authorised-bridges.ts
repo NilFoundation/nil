@@ -13,7 +13,7 @@ const abiPath = path.join(
 const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
 // npx hardhat run scripts/wiring/bridges/l1/get-authorised-bridges.ts --network geth
-export async function authoriseBridges() {
+export async function getAuthoriseBridges() {
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 
@@ -42,7 +42,7 @@ export async function authoriseBridges() {
 }
 
 async function main() {
-    await authoriseBridges();
+    await getAuthoriseBridges();
 }
 
 main().catch((error) => {

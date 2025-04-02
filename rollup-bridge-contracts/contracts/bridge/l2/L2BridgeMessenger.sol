@@ -39,6 +39,8 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
   /// @notice address of the bridgeMessenger from counterpart (L1) chain
   address public counterpartyBridgeMessenger;
 
+  uint256 public messageExpiryDelta;
+
   /// @notice Mapping from L2 message hash to the timestamp when the message is sent.
   mapping(bytes32 => uint256) public l2MessageSentTimestamp;
 
@@ -79,7 +81,12 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
                                     INITIALIZER
     //////////////////////////////////////////////////////////////////////////*/
 
-  function initialize(address ownerAddress, address adminAddress, address relayerAddress) public initializer {
+  function initialize(
+    address ownerAddress,
+    address adminAddress,
+    address relayerAddress,
+    uint256 messageExpiryDeltaValue
+  ) public initializer {
     // Validate input parameters
     if (ownerAddress == address(0)) {
       revert ErrorInvalidOwner();
@@ -121,6 +128,8 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
     if (relayerAddress.isContract()) {
       _grantRole(NilConstants.RELAYER_ROLE, relayerAddress);
     }
+
+    messageExpiryDelta = messageExpiryDeltaValue;
   }
 
   // make sure only owner can send ether to messenger to avoid possible user fund loss.
@@ -186,7 +195,8 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
     NilConstants.MessageType messageType,
     uint256 value,
     uint256 messageNonce,
-    bytes memory message
+    bytes memory message,
+    uint256 messageExpiryTime
   ) external override onlyRelayer whenNotPaused {
     if (messageType != NilConstants.MessageType.DEPOSIT_ERC20 && messageType != NilConstants.MessageType.DEPOSIT_ETH) {
       revert ErrorInvalidMessageType();
@@ -208,23 +218,32 @@ contract L2BridgeMessenger is OwnableUpgradeable, PausableUpgradeable, NilAccess
 
     lastProcessedDepositNonce = messageNonce;
 
-    bool isExecutionSuccessful = _executeMessage(messageSender, messageTarget, value, message);
-
-    if (!isExecutionSuccessful) {
-      // add messageHash as leaf to the merkleTree represented by l2Tol1Root
+    if (messageExpiryTime < block.timestamp + messageExpiryDelta) {
       failedMessageHashStore.add(_l1MessageHash);
 
       // re-generate the merkle-tree
       bytes32 merkleRoot = NilMerkleTree.computeMerkleRoot(failedMessageHashStore.values());
 
-      // merkleRoot must change from the existing root in messenger-contract storage
-      if (l2Tol1Root == merkleRoot || merkleRoot == bytes32(0)) {
-        revert ErrorInvalidMerkleRoot();
-      }
-
-      emit MessageRelayFailed(_l1MessageHash);
+      emit MessageExecutionFailed(_l1MessageHash);
     } else {
-      emit MessageRelaySuccessful(_l1MessageHash);
+      bool isExecutionSuccessful = _executeMessage(messageSender, messageTarget, value, message);
+
+      if (!isExecutionSuccessful) {
+        // add messageHash as leaf to the merkleTree represented by l2Tol1Root
+        failedMessageHashStore.add(_l1MessageHash);
+
+        // re-generate the merkle-tree
+        bytes32 merkleRoot = NilMerkleTree.computeMerkleRoot(failedMessageHashStore.values());
+
+        // merkleRoot must change from the existing root in messenger-contract storage
+        if (l2Tol1Root == merkleRoot || merkleRoot == bytes32(0)) {
+          revert ErrorInvalidMerkleRoot();
+        }
+
+        emit MessageExecutionFailed(_l1MessageHash);
+      } else {
+        emit MessageExecutionSuccessful(_l1MessageHash);
+      }
     }
   }
 

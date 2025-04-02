@@ -13,9 +13,7 @@ const nilGasPriceOracleABIPath = path.join(
 );
 const nilGasPriceOracleABI = JSON.parse(fs.readFileSync(nilGasPriceOracleABIPath, 'utf8')).abi;
 
-// npx hardhat run scripts/wiring/bridges/l1/set-user-gas-fee-in-oracle.ts --network geth
-export async function setUserGasFeeInOracle() {
-    const networkName = network.name;
+export async function setUserGasFeeInOracle(networkName: string) {
     const config = loadL1NetworkConfig(networkName);
 
     // setMaxFeePerGas
@@ -33,18 +31,17 @@ export async function setUserGasFeeInOracle() {
         signer,
     ) as Contract;
 
+    console.log(`setting user-gas-gee in nilGasPriceOracle`);
+
     const tx = await nilGasPriceOracleInstance.setMaxFeePerGas(config.nilGasPriceOracleConfig.nilGasPriceOracleMaxFeePerGas);
     await tx.wait();
 
+    console.log(`nilGasPriceOracleMaxFeePerGas set in nilGasPriceOracle with transaction: ${JSON.stringify(tx)}`);
+
     const tx2 = await nilGasPriceOracleInstance.setMaxPriorityFeePerGas(config.nilGasPriceOracleConfig.nilGasPriceOracleMaxPriorityFeePerGas);
     await tx2.wait();
-}
 
-async function main() {
-    await setUserGasFeeInOracle();
-}
+    console.log(`nilGasPriceOracleMaxPriorityFeePerGas set in nilGasPriceOracle with transaction: ${JSON.stringify(tx2)}`);
 
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});
+    console.log(`completed setting user-gas-fees in nilGasPriceOracle`);
+}

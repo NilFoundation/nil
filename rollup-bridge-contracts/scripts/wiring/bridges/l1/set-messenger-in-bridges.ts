@@ -20,8 +20,7 @@ const l1ERC20BridgeABIPath = path.join(
 const l1ERC20BridgeABI = JSON.parse(fs.readFileSync(l1ERC20BridgeABIPath, 'utf8')).abi;
 
 // npx hardhat run scripts/wiring/bridges/l1/set-messenger-in-bridges.ts --network geth
-export async function setMessengerInBridges() {
-    const networkName = network.name;
+export async function setMessengerInBridges(networkName: string) {
     const config = loadL1NetworkConfig(networkName);
 
     if (!isValidAddress(config.l1BridgeMessengerConfig.l1BridgeMessengerProxy)) {
@@ -62,12 +61,3 @@ export async function setMessengerInBridges() {
     const messenger_in_eth_bridge = await l1ETHBridgeInstance.messenger();
     console.log(`messenger set in eth_bridge is: ${messenger_in_eth_bridge}`);
 }
-
-async function main() {
-    await setMessengerInBridges();
-}
-
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});

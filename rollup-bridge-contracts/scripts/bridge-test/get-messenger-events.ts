@@ -1,7 +1,7 @@
 import { ethers, network } from 'hardhat';
 import { Contract } from 'ethers';
 
-const messageSentEventABI = {
+export const messageSentEventABI = {
     anonymous: false,
     inputs: [
         { indexed: true, internalType: "address", name: "messageSender", type: "address" },
@@ -31,7 +31,7 @@ const messageSentEventABI = {
     type: "event",
 };
 
-type MessageSentEvent = {
+export type MessageSentEvent = {
     messageSender: string;
     messageTarget: string;
     messageValue: string;
@@ -50,7 +50,7 @@ type MessageSentEvent = {
     };
 };
 
-const depositERC20EventABI = {
+export const depositERC20EventABI = {
     anonymous: false,
     inputs: [
         {
@@ -96,7 +96,7 @@ const depositERC20EventABI = {
 
 // 0x31cd3b976e4d654022bf95c68a2ce53f1d5d94afabe0454d2832208eeb40af25
 
-type DepositERC20Event = {
+export type DepositERC20Event = {
     l1Token: string;
     l2Token: string;
     depositor: string;
@@ -105,7 +105,7 @@ type DepositERC20Event = {
     data: string;
 };
 
-async function extractAndParseDepositERC20Event(transactionHash: string): Promise<DepositERC20Event | null> {
+export async function extractAndParseDepositERC20Event(transactionHash: string): Promise<DepositERC20Event | null> {
     const topic = "0x31cd3b976e4d654022bf95c68a2ce53f1d5d94afabe0454d2832208eeb40af25";
     const transactionReceipt = await ethers.provider.getTransactionReceipt(transactionHash);
 
@@ -132,7 +132,7 @@ async function extractAndParseDepositERC20Event(transactionHash: string): Promis
     return depositERC20EventDetails;
 }
 
-async function extractAndParseMessageSentEventLog(transactionHash: string): Promise<MessageSentEvent | undefined> {
+export async function extractAndParseMessageSentEventLog(transactionHash: string): Promise<MessageSentEvent | undefined> {
     const topic = "0x29820d80f4b3b15e5871bf7c904640ab18dff6fe6b7839e60303fe6f8539ec7c";
     const transactionReceipt = await ethers.provider.getTransactionReceipt(transactionHash);
 
@@ -178,9 +178,9 @@ async function extractAndParseMessageSentEventLog(transactionHash: string): Prom
     return eventDetails;
 }
 
-// npx hardhat run scripts/wiring/bridges/l1/get-messenger-events.ts --network geth
+// npx hardhat run scripts/bridge-test/get-messenger-events.ts --network geth
 async function main() {
-    const transactionHash = "0xc47133eb402ec70254c0e4936ca98cc5b298e241347bb56340d1acd5c93c06cc";
+    const transactionHash = "0xf83722ed8464f5a0e5492a89de0a4b869a82288d694ff17443c9749059797754";
     const messageSentEventLogData = await extractAndParseMessageSentEventLog(transactionHash);
 
     if (messageSentEventLogData) {
@@ -192,7 +192,7 @@ async function main() {
     console.log(`depositERC20EventLogData is: ${JSON.stringify(depositERC20EventLogData, bigIntReplacer, 2)}`);
 }
 
-function bigIntReplacer(unusedKey: string, value: unknown): unknown {
+export function bigIntReplacer(unusedKey: string, value: unknown): unknown {
     return typeof value === "bigint" ? value.toString() : value;
 }
 
