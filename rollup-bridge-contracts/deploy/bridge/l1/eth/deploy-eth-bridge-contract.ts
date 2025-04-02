@@ -9,43 +9,16 @@ import {
     loadL1NetworkConfig,
     saveL1NetworkConfig,
     ZeroAddress,
-} from '../../config/config-helper';
-import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../common/proxy-contract-utils';
+} from '../../../config/config-helper';
+import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../../common/proxy-contract-utils';
 
-// npx hardhat deploy --network sepolia --tags L1ETHBridge
-// npx hardhat deploy --network geth --tags L1ETHBridge
-const deployL1ETHBridge: DeployFunction = async function (
-    hre: HardhatRuntimeEnvironment,
-) {
-    const { getNamedAccounts } = hre;
-    const { deployer } = await getNamedAccounts();
-    const networkName = network.name;
+export async function deployL1ETHBridgeContract(networkName: string): Promise<boolean> {
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
-
-    // Validate configuration parameters
-    if (!isValidAddress(config.l1Common.owner)) {
-        throw new Error('Invalid owner in config');
-    }
-    if (!isValidAddress(config.l1Common.admin)) {
-        throw new Error('Invalid admin in config');
-    }
-
-    // Check if L1ETHBridge is already deployed
-    if (config.l1ETHBridgeConfig.l1ETHBridgeProxy && isValidAddress(config.l1ETHBridgeConfig.l1ETHBridgeProxy)) {
-        console.log(`L1ETHBridge already deployed at: ${config.l1ETHBridgeConfig.l1ETHBridgeProxy}`);
-        archiveL1NetworkConfig(networkName, config);
-    }
-
     try {
         // Deploy L1ETHBridge implementation
         const L1ETHBridge = await ethers.getContractFactory('L1ETHBridge');
 
-        // proxy admin contract
-        // deploys implementation contract (L1ETHBridge)
-        // deploys ProxyContract
-        // sets implementation contract address in the ProxyContract storage
-        // initialize the contract
-        // entire storage is owned by proxy contract
+        // Deploy proxy admin contract and initialize the proxy
         const l1ETHBridgeProxy = await upgrades.deployProxy(
             L1ETHBridge,
             [
@@ -62,7 +35,7 @@ const deployL1ETHBridge: DeployFunction = async function (
         const l1ETHBridgeProxyAddress = l1ETHBridgeProxy.target;
         config.l1ETHBridgeConfig.l1ETHBridgeProxy = l1ETHBridgeProxyAddress;
 
-        // query proxyAdmin address and implementation address
+        // Query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
             l1ETHBridgeProxyAddress,
         );
@@ -83,17 +56,16 @@ const deployL1ETHBridge: DeployFunction = async function (
         }
 
         // Query the proxy storage and assert if the input arguments are correctly set in the contract storage
-        const nilRollup = L1ETHBridge.attach(l1ETHBridgeProxyAddress);
+        //const nilRollup = L1ETHBridge.attach(l1ETHBridgeProxyAddress);
 
         // Save the updated config
         saveL1NetworkConfig(networkName, config);
 
-        // check network and verify if its not geth or anvil
-        // Skip verification if the network is local or anvil
+        // Check network and verify if it's not geth or anvil
         if (
-            network.name !== 'local' &&
-            network.name !== 'anvil' &&
-            network.name !== 'geth'
+            networkName !== 'local' &&
+            networkName !== 'anvil' &&
+            networkName !== 'geth'
         ) {
             try {
                 await verifyContractWithRetry(l1ETHBridgeProxyAddress, []);
@@ -105,11 +77,12 @@ const deployL1ETHBridge: DeployFunction = async function (
             }
         } else {
             console.log('Skipping verification on local or anvil network');
+            return true;
         }
     } catch (error) {
         console.error('Error during deployment:', error);
+        throw new Error(`Error while deploying L1ETHBridge on network: ${networkName} - ${error}`);
     }
-};
 
-export default deployL1ETHBridge;
-deployL1ETHBridge.tags = ['L1ETHBridge'];
+    return true;
+}

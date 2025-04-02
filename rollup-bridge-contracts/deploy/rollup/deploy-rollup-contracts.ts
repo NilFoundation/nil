@@ -9,29 +9,14 @@ import {
     loadL1NetworkConfig,
     saveL1NetworkConfig,
     ZeroAddress,
-} from './config/config-helper';
-import { BatchInfo, proposerRoleHash } from './config/nil-types';
-import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from './common/proxy-contract-utils';
+} from '../config/config-helper';
+import { BatchInfo, proposerRoleHash } from '../config/nil-types';
+import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../common/proxy-contract-utils';
 
-// npx hardhat deploy --network geth --tags NilRollupContracts
-// npx hardhat deploy --network sepolia --tags NilRollupContracts
-const deployNilRollupContracts: DeployFunction = async function (
-    hre: HardhatRuntimeEnvironment,
-) {
-    const { deployments, getNamedAccounts, network } = hre;
-    const { deploy } = deployments;
-    const networkName = network.name;
-
-    const { deployer } = await getNamedAccounts();
-
-    // dummy state root place holder, this will be replaced by a real value provided by team
-    // all values can be set in via cli arguments or from a json file
-    const genesisStateRootConst = ethers.encodeBytes32String('dummyStateRoot');
+export async function deployRollupContracts(networkName: string, deployer: any, deploy: any): Promise<void> {
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
-    console.log(`NetworkConfig for ${networkName} is: ${JSON.stringify(config)}`);
-
-    //verify if the config object is not null and valid NetworkConfig
+    // Verify if the config object is not null and valid
     if (!config) {
         throw new Error(`Invalid NetworkConfig for network: ${networkName}`);
     }
@@ -56,7 +41,7 @@ const deployNilRollupContracts: DeployFunction = async function (
         archiveL1NetworkConfig(networkName, config);
     }
 
-    console.log(`deploying nilVerifier`);
+    console.log(`Deploying NilVerifier`);
 
     const nilVerifier = await deploy('NilVerifier', {
         from: deployer,
@@ -99,26 +84,17 @@ const deployNilRollupContracts: DeployFunction = async function (
         const nilRollupProxyAddress = nilRollupProxy.target;
         config.nilRollupConfig.nilRollupProxy = nilRollupProxyAddress;
 
-        // query proxyAdmin address and implementation address
-        const proxyAdminAddress = await getProxyAdminAddressWithRetry(
-            nilRollupProxyAddress,
-        );
-        console.log(
-            `ProxyAdmin for proxy: ${nilRollupProxyAddress} is: ${proxyAdminAddress}`,
-        );
+        // Query proxyAdmin address and implementation address
+        const proxyAdminAddress = await getProxyAdminAddressWithRetry(nilRollupProxyAddress);
+        console.log(`ProxyAdmin for proxy: ${nilRollupProxyAddress} is: ${proxyAdminAddress}`);
         config.nilRollupConfig.proxyAdmin = proxyAdminAddress;
 
         if (proxyAdminAddress === ZeroAddress) {
             throw new Error('Invalid proxy admin address');
         }
 
-        const implementationAddress =
-            await upgrades.erc1967.getImplementationAddress(
-                nilRollupProxyAddress,
-            );
-        console.log(
-            `Implementation address for proxy: ${nilRollupProxyAddress} is: ${implementationAddress}`,
-        );
+        const implementationAddress = await upgrades.erc1967.getImplementationAddress(nilRollupProxyAddress);
+        console.log(`Implementation address for proxy: ${nilRollupProxyAddress} is: ${implementationAddress}`);
         config.nilRollupConfig.nilRollupImplementation = implementationAddress;
 
         if (implementationAddress === ZeroAddress) {
@@ -130,16 +106,9 @@ const deployNilRollupContracts: DeployFunction = async function (
 
         const storedL2ChainId = await nilRollup.l2ChainId();
         const storedOwnerAddress = await nilRollup.owner();
-        const storedAdminAddress = await nilRollup.getRoleMember(
-            await nilRollup.DEFAULT_ADMIN_ROLE(),
-            0,
-        );
-
+        const storedAdminAddress = await nilRollup.getRoleMember(await nilRollup.DEFAULT_ADMIN_ROLE(), 0);
         const storedNilVerifierAddress = await nilRollup.nilVerifierAddress();
-        const storedProposerAddress = await nilRollup.getRoleMember(
-            proposerRoleHash,
-            0,
-        );
+        const storedProposerAddress = await nilRollup.getRoleMember(proposerRoleHash, 0);
         const storedGenesisStateRoot = await nilRollup
             .batchInfoRecords('GENESIS_BATCH_INDEX')
             .then((info: BatchInfo) => info.newStateRoot);
@@ -153,51 +122,31 @@ const deployNilRollupContracts: DeployFunction = async function (
         if (storedAdminAddress.toLowerCase() !== adminAddress.toLowerCase()) {
             throw new Error('adminAddress mismatch');
         }
-        if (
-            storedNilVerifierAddress.toLowerCase() !==
-            nilVerifierAddress.toLowerCase()
-        ) {
+        if (storedNilVerifierAddress.toLowerCase() !== nilVerifierAddress.toLowerCase()) {
             throw new Error('nilVerifierAddress mismatch');
         }
-        if (
-            storedProposerAddress.toLowerCase() !==
-            proposerAddress.toLowerCase()
-        ) {
+        if (storedProposerAddress.toLowerCase() !== proposerAddress.toLowerCase()) {
             throw new Error('proposerAddress mismatch');
         }
-        if (
-            storedGenesisStateRoot.toLowerCase() !==
-            config.nilRollupConfig.genesisStateRoot.toLowerCase()
-        ) {
+        if (storedGenesisStateRoot.toLowerCase() !== config.nilRollupConfig.genesisStateRoot.toLowerCase()) {
             throw new Error('genesisStateRoot mismatch');
         }
 
         // Save the updated config
         saveL1NetworkConfig(networkName, config);
 
-        // check network and verify if its not geth or anvil
-        // Skip verification if the network is local or anvil
-        if (
-            network.name !== 'local' &&
-            network.name !== 'anvil' &&
-            network.name !== 'geth'
-        ) {
+        // Check network and verify if it's not geth or anvil
+        if (networkName !== 'local' && networkName !== 'anvil' && networkName !== 'geth') {
             try {
                 await verifyContractWithRetry(nilVerifier.address, []);
             } catch (error) {
-                console.error(
-                    'NilVerifier Verification failed after retries:',
-                    error,
-                );
+                console.error('NilVerifier Verification failed after retries:', error);
             }
 
             try {
                 await verifyContractWithRetry(nilRollupProxyAddress, []);
             } catch (error) {
-                console.error(
-                    'NilRollup Verification failed after retries:',
-                    error,
-                );
+                console.error('NilRollup Verification failed after retries:', error);
             }
         } else {
             console.log('Skipping verification on local or anvil network');
@@ -206,7 +155,4 @@ const deployNilRollupContracts: DeployFunction = async function (
         console.error('Error during deployment:', error);
         process.exit(1);
     }
-};
-
-export default deployNilRollupContracts;
-deployNilRollupContracts.tags = ['NilRollupContracts'];
+}

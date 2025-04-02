@@ -9,19 +9,11 @@ import {
     loadL1NetworkConfig,
     saveL1NetworkConfig,
     ZeroAddress,
-} from '../../config/config-helper';
-import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../common/proxy-contract-utils';
+} from '../../../config/config-helper';
+import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../../common/proxy-contract-utils';
 
-// npx hardhat deploy --network sepolia --tags L1BridgeMessenger
-// npx hardhat deploy --network geth --tags L1BridgeMessenger
-const deployL1BridgeMessenger: DeployFunction = async function (
-    hre: HardhatRuntimeEnvironment,
-) {
-    const { getNamedAccounts } = hre;
-    const { deployer } = await getNamedAccounts();
-    const networkName = network.name;
+export async function deployL1BridgeMessengerContract(networkName: string): Promise<void> {
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
-
     // Validate configuration parameters
     if (!isValidAddress(config.l1Common.owner)) {
         throw new Error('Invalid nilRollupOwnerAddress in config');
@@ -38,22 +30,11 @@ const deployL1BridgeMessenger: DeployFunction = async function (
         throw new Error('Invalid maxProcessingTimeInEpochSeconds in l1BridgeMessengerConfig');
     }
 
-    // Check if L1BridgeMessenger is already deployed
-    if (config.l1BridgeMessengerConfig.l1BridgeMessengerProxy && isValidAddress(config.l1BridgeMessengerConfig.l1BridgeMessengerProxy)) {
-        console.log(`l1BridgeMessenger already deployed at: ${config.l1BridgeMessengerConfig.l1BridgeMessengerProxy}`);
-        archiveL1NetworkConfig(networkName, config);
-    }
-
     try {
         // Deploy L1BridgeMessenger implementation
         const L1BridgeMessenger = await ethers.getContractFactory('L1BridgeMessenger');
 
-        // proxy admin contract
-        // deploys implementation contract (L1BridgeMessenger)
-        // deploys ProxyContract
-        // sets implementation contract address in the ProxyContract storage
-        // initialize the contract
-        // entire storage is owned by proxy contract
+        // Deploy proxy admin contract and initialize the proxy
         const l1BridgeMessengerProxy = await upgrades.deployProxy(
             L1BridgeMessenger,
             [
@@ -70,7 +51,7 @@ const deployL1BridgeMessenger: DeployFunction = async function (
         const l1BridgeMessengerProxyAddress = l1BridgeMessengerProxy.target;
         config.l1BridgeMessengerConfig.l1BridgeMessengerProxy = l1BridgeMessengerProxyAddress;
 
-        // query proxyAdmin address and implementation address
+        // Query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
             l1BridgeMessengerProxyAddress,
         );
@@ -90,18 +71,14 @@ const deployL1BridgeMessenger: DeployFunction = async function (
             throw new Error('Invalid implementation address');
         }
 
-        // Query the proxy storage and assert if the input arguments are correctly set in the contract storage
-        const nilRollup = L1BridgeMessenger.attach(l1BridgeMessengerProxyAddress);
-
         // Save the updated config
         saveL1NetworkConfig(networkName, config);
 
-        // check network and verify if its not geth or anvil
-        // Skip verification if the network is local or anvil
+        // Check network and verify if it's not geth or anvil
         if (
-            network.name !== 'local' &&
-            network.name !== 'anvil' &&
-            network.name !== 'geth'
+            networkName !== 'local' &&
+            networkName !== 'anvil' &&
+            networkName !== 'geth'
         ) {
             try {
                 await verifyContractWithRetry(l1BridgeMessengerProxyAddress, []);
@@ -116,8 +93,6 @@ const deployL1BridgeMessenger: DeployFunction = async function (
         }
     } catch (error) {
         console.error('Error during deployment:', error);
+        throw new Error(`Error while deploying L1BridgeMessenger on network: ${networkName} - ${error}`);
     }
-};
-
-export default deployL1BridgeMessenger;
-deployL1BridgeMessenger.tags = ['L1BridgeMessenger'];
+}

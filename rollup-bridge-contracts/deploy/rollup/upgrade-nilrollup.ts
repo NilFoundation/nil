@@ -7,7 +7,7 @@ import {
     L1NetworkConfig,
     loadL1NetworkConfig,
     saveL1NetworkConfig,
-} from './config/config-helper';
+} from '../config/config-helper';
 
 // npx hardhat deploy --network sepolia --tags UpgradeNilRollup
 // npx hardhat deploy --network anvil --tags UpgradeNilRollup

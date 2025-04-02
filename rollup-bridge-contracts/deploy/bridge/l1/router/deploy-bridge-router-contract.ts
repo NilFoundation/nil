@@ -9,19 +9,11 @@ import {
     loadL1NetworkConfig,
     saveL1NetworkConfig,
     ZeroAddress,
-} from '../../config/config-helper';
-import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../common/proxy-contract-utils';
+} from '../../../config/config-helper';
+import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../../common/proxy-contract-utils';
 
-// npx hardhat deploy --network sepolia --tags L1BridgeRouter
-// npx hardhat deploy --network geth --tags L1BridgeRouter
-const deployL1BridgeRouter: DeployFunction = async function (
-    hre: HardhatRuntimeEnvironment,
-) {
-    const { getNamedAccounts } = hre;
-    const { deployer } = await getNamedAccounts();
-    const networkName = network.name;
+export async function deployL1BridgeRouterContract(networkName: string): Promise<void> {
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
-
     // Validate configuration parameters
     if (!isValidAddress(config.l1Common.owner)) {
         throw new Error('Invalid owner in config');
@@ -42,22 +34,11 @@ const deployL1BridgeRouter: DeployFunction = async function (
         throw new Error('Invalid WETH in config');
     }
 
-    // Check if L1BridgeRouter is already deployed
-    if (config.l1BridgeRouterConfig.l1BridgeRouterProxy && isValidAddress(config.l1BridgeRouterConfig.l1BridgeRouterProxy)) {
-        console.log(`L1BridgeRouter already deployed at: ${config.l1BridgeRouterConfig.l1BridgeRouterProxy}`);
-        archiveL1NetworkConfig(networkName, config);
-    }
-
     try {
         // Deploy L1BridgeRouter implementation
         const L1BridgeRouter = await ethers.getContractFactory('L1BridgeRouter');
 
-        // proxy admin contract
-        // deploys implementation contract (L1BridgeRouter)
-        // deploys ProxyContract
-        // sets implementation contract address in the ProxyContract storage
-        // initialize the contract
-        // entire storage is owned by proxy contract
+        // Deploy proxy admin contract and initialize the proxy
         const l1BridgeRouterProxy = await upgrades.deployProxy(
             L1BridgeRouter,
             [
@@ -76,7 +57,7 @@ const deployL1BridgeRouter: DeployFunction = async function (
         const l1BridgeRouterProxyAddress = l1BridgeRouterProxy.target;
         config.l1BridgeRouterConfig.l1BridgeRouterProxy = l1BridgeRouterProxyAddress;
 
-        // query proxyAdmin address and implementation address
+        // Query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
             l1BridgeRouterProxyAddress,
         );
@@ -97,17 +78,16 @@ const deployL1BridgeRouter: DeployFunction = async function (
         }
 
         // Query the proxy storage and assert if the input arguments are correctly set in the contract storage
-        const nilRollup = L1BridgeRouter.attach(l1BridgeRouterProxyAddress);
+        const l1BridgeRouterContractInstance = L1BridgeRouter.attach(l1BridgeRouterProxyAddress);
 
         // Save the updated config
         saveL1NetworkConfig(networkName, config);
 
-        // check network and verify if its not geth or anvil
-        // Skip verification if the network is local or anvil
+        // Check network and verify if it's not geth or anvil
         if (
-            network.name !== 'local' &&
-            network.name !== 'anvil' &&
-            network.name !== 'geth'
+            networkName !== 'local' &&
+            networkName !== 'anvil' &&
+            networkName !== 'geth'
         ) {
             try {
                 await verifyContractWithRetry(l1BridgeRouterProxyAddress, []);
@@ -122,8 +102,6 @@ const deployL1BridgeRouter: DeployFunction = async function (
         }
     } catch (error) {
         console.error('Error during deployment:', error);
+        throw new Error(`Error while deploying L1BridgeRouter on network: ${networkName} - ${error}`);
     }
-};
-
-export default deployL1BridgeRouter;
-deployL1BridgeRouter.tags = ['L1BridgeRouter'];
+}

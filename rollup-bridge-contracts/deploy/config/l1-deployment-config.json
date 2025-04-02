@@ -2,10 +2,10 @@
   "networks": {
     "geth": {
       "nilRollupConfig": {
-        "proxyAdmin": "0x4f4588Ed715A88420222a08c74e8D8c0f432Df96",
-        "nilRollupImplementation": "0x457cCf29090fe5A24c19c1bc95F492168C0EaFdb",
-        "nilRollupProxy": "0x525C7063E7C20997BaaE9bDa922159152D0e8417",
-        "nilVerifier": "0x1f10F3Ba7ACB61b2F50B9d6DdCf91a6f787C0E82",
+        "proxyAdmin": "0x17186d7936B57A24cce0dE7ADD9223c59ae17ec6",
+        "nilRollupImplementation": "0xc7cDb7A2E5dDa1B7A0E792Fe1ef08ED20A6F56D4",
+        "nilRollupProxy": "0x967AB65ef14c58bD4DcfFeaAA1ADb40a022140E5",
+        "nilVerifier": "0xa722bdA6968F50778B973Ae2701e90200C564B49",
         "proposerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
         "l2ChainId": 0,
         "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
@@ -13,7 +13,7 @@
       "l1Common": {
         "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
         "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-        "weth": "0x720472c8ce72c2A2D711333e064ABD3E6BbEAdd3"
+        "weth": "0x114e375B6FCC6d6fCb68c7A1d407E652C54F25FB"
       },
       "l1MockContracts": {
         "tokens": [
@@ -21,19 +21,19 @@
             "name": "USD Coin",
             "symbol": "USDC",
             "decimals": 6,
-            "address": "0xf953b3A269d80e3eB0F2947630Da976B896A8C5b"
+            "address": "0xcD0048A5628B37B8f743cC2FeA18817A29e97270"
           },
           {
             "name": "USD Tether",
             "symbol": "USDT",
             "decimals": 6,
-            "address": "0xAA292E8611aDF267e563f334Ee42320aC96D0463"
+            "address": "0x976C214741b4657bd99DFD38a5c0E3ac5C99D903"
           },
           {
             "name": "DAI",
             "symbol": "DAI",
             "decimals": 18,
-            "address": "0x5c74c94173F05dA1720953407cbb920F3DF9f887"
+            "address": "0x8bEe2037448F096900Fd9affc427d38aE6CC0350"
           }
         ],
         "mockL2Tokens": [
@@ -41,48 +41,48 @@
             "name": "USD Coin",
             "symbol": "USDC",
             "decimals": 6,
-            "address": "0xD5ac451B0c50B9476107823Af206eD814a2e2580"
+            "address": "0x942ED2fa862887Dc698682cc6a86355324F0f01e"
           },
           {
             "name": "USD Tether",
             "symbol": "USDT",
             "decimals": 6,
-            "address": "0xF8e31cb472bc70500f08Cd84917E5A1912Ec8397"
+            "address": "0x8D81A3DCd17030cD5F23Ac7370e4Efb10D2b3cA4"
           },
           {
             "name": "DAI",
             "symbol": "DAI",
             "decimals": 18,
-            "address": "0xc0F115A19107322cFBf1cDBC7ea011C19EbDB4F8"
+            "address": "0xcC4c41415fc68B2fBf70102742A83cDe435e0Ca7"
           }
         ],
-        "mockL2Bridge": "0x5FeaeBfB4439F3516c74939A9D04e95AFE82C4ae"
+        "mockL2Bridge": "0x6A59CC73e334b018C9922793d96Df84B538E6fD5"
       },
       "l1BridgeRouterConfig": {
-        "proxyAdmin": "0x25141BdAc698910858129c81cfd9C32a8B3b3f87",
-        "l1BridgeRouterProxy": "0x6F6f570F45833E249e27022648a26F4076F48f78",
-        "l1BridgeRouterImplementation": "0x99dBE4AEa58E518C50a1c04aE9b48C9F6354612f"
+        "proxyAdmin": "0x6c61a594DaFD426ae350202a71796885164d8eDE",
+        "l1BridgeRouterProxy": "0xb185E9f6531BA9877741022C92CE858cDCc5760E",
+        "l1BridgeRouterImplementation": "0x71a0b8A2245A9770A4D887cE1E4eCc6C1d4FF28c"
       },
       "l1BridgeMessengerConfig": {
-        "proxyAdmin": "0x4C2924aa1130bdDBc21b0EAA02E1B8d18FadB7aC",
-        "l1BridgeMessengerProxy": "0x5fc748f1FEb28d7b76fa1c6B07D8ba2d5535177c",
-        "l1BridgeMessengerImplementation": "0x38a024C0b412B9d1db8BC398140D00F5Af3093D4",
+        "proxyAdmin": "0xe48949F272a47D8cFB90B9b6e1298CF65A504964",
+        "l1BridgeMessengerProxy": "0x871ACbEabBaf8Bed65c22ba7132beCFaBf8c27B5",
+        "l1BridgeMessengerImplementation": "0x8e264821AFa98DD104eEcfcfa7FD9f8D8B320adA",
         "maxProcessingTimeInEpochSeconds": 10000
       },
       "l1ERC20BridgeConfig": {
-        "proxyAdmin": "0x950973FF0e239740B4570bea36e92d61A4642799",
-        "l1ERC20BridgeProxy": "0x8A93d247134d91e0de6f96547cB0204e5BE8e5D8",
-        "l1ERC20BridgeImplementation": "0xb9bEECD1A582768711dE1EE7B0A1d582D9d72a6C"
+        "proxyAdmin": "0xaB061eD7A15A948e10b9373AC9626C8fC64b8B89",
+        "l1ERC20BridgeProxy": "0x0fe4223AD99dF788A6Dcad148eB4086E6389cEB6",
+        "l1ERC20BridgeImplementation": "0x1c9fD50dF7a4f066884b58A05D91e4b55005876A"
       },
       "l1ETHBridgeConfig": {
-        "proxyAdmin": "0x870a882f72Bff80B7dd407C2545b40478D273361",
-        "l1ETHBridgeProxy": "0xF32D39ff9f6Aa7a7A64d7a4F00a54826Ef791a55",
-        "l1ETHBridgeImplementation": "0x40918Ba7f132E0aCba2CE4de4c4baF9BD2D7D849"
+        "proxyAdmin": "0xd212B22Ed6581F9B239ed3a6aF25084EdAf582e9",
+        "l1ETHBridgeProxy": "0x683d9CDD3239E0e01E8dC6315fA50AD92aB71D2d",
+        "l1ETHBridgeImplementation": "0xC1e0A9DB9eA830c52603798481045688c8AE99C2"
       },
       "nilGasPriceOracleConfig": {
-        "proxyAdmin": "0xF8ADc47E258b9a56a8E0A717572dB3F1Cb1b4cc4",
-        "nilGasPriceOracleProxy": "0x2a810409872AfC346F9B5b26571Fd6eC42EA4849",
-        "nilGasPriceOracleImplementation": "0xB82008565FdC7e44609fA118A4a681E92581e680",
+        "proxyAdmin": "0xEC0291F346db42B49A3cC8739295c4273Da28fa9",
+        "nilGasPriceOracleProxy": "0x0aec7c174554AF8aEc3680BB58431F6618311510",
+        "nilGasPriceOracleImplementation": "0xe1708FA6bb2844D5384613ef0846F9Bc1e8eC55E",
         "nilGasPriceSetterAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
         "nilGasPriceOracleMaxFeePerGas": 1000,
         "nilGasPriceOracleMaxPriorityFeePerGas": 1000

@@ -9,10 +9,10 @@ import {
     loadL1NetworkConfig,
     saveL1NetworkConfig,
     ZeroAddress,
-} from './config/config-helper';
-import { BatchInfo } from './config/nil-types';
-import { sleepInMilliSeconds } from './common/helper-utils';
-import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from './common/proxy-contract-utils';
+} from '../config/config-helper';
+import { BatchInfo } from '../config/nil-types';
+import { sleepInMilliSeconds } from '../common/helper-utils';
+import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../common/proxy-contract-utils';
 
 // npx hardhat deploy --network sepolia --tags NilRollup
 // npx hardhat deploy --network anvil --tags NilRollup

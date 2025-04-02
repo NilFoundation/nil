@@ -10,18 +10,7 @@ import {
 } from '../config/config-helper';
 import { verifyContractWithRetry } from '../common/proxy-contract-utils';
 
-// npx hardhat deploy --network sepolia --tags WETHTokenDeploy
-// npx hardhat deploy --network anvil --tags WETHTokenDeploy
-// npx hardhat deploy --network geth --tags WETHTokenDeploy
-const deployWETHToken: DeployFunction = async function (
-    hre: HardhatRuntimeEnvironment,
-) {
-    const { deployments, getNamedAccounts, ethers, network } = hre;
-    const { deploy } = deployments;
-    const networkName = network.name;
-
-    const { deployer } = await getNamedAccounts();
-
+export async function deployWETHTokenContract(networkName: string, deployer: any, deploy: any): Promise<void> {
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     const testWETH = await deploy('WETH', {
@@ -36,9 +25,9 @@ const deployWETHToken: DeployFunction = async function (
 
     // Skip verification if the network is local or anvil
     if (
-        network.name !== 'local' &&
-        network.name !== 'anvil' &&
-        network.name !== 'geth'
+        networkName !== 'local' &&
+        networkName !== 'anvil' &&
+        networkName !== 'geth'
     ) {
         try {
             await verifyContractWithRetry(testWETH.address, [], 6);
@@ -51,7 +40,4 @@ const deployWETHToken: DeployFunction = async function (
     }
 
     saveL1NetworkConfig(networkName, config);
-};
-
-export default deployWETHToken;
-deployWETHToken.tags = ['WETHTokenDeploy'];
+}

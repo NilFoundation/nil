@@ -8,8 +8,8 @@ import {
     L1NetworkConfig,
     loadL1NetworkConfig,
     saveL1NetworkConfig,
-} from './config/config-helper';
-import { verifyContractWithRetry } from './common/proxy-contract-utils';
+} from '../config/config-helper';
+import { verifyContractWithRetry } from '../common/proxy-contract-utils';
 
 // npx hardhat deploy --network sepolia --tags NilVerifier
 // npx hardhat deploy --network anvil --tags NilVerifier
