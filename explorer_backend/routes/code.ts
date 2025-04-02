@@ -8,26 +8,36 @@ export const codeRouter = router({
     .output(
       z.object({
         code: z.string(),
+        script: z.string().optional(),
       }),
     )
     .query(async (opts) => {
-      const code = await getCode(opts.input as string);
+      const { code, script } = await getCode(opts.input as string);
       if (code === null) {
         throw new Error("Code not found");
       }
       return {
         code,
+        script,
       };
     }),
   set: publicProcedure
-    .input(z.string())
+    .input(
+      z.object({
+        code: z.string(),
+        script: z.string().optional(),
+      }),
+    )
     .output(
       z.object({
         hash: z.string(),
       }),
     )
     .mutation(async (opts) => {
-      const hash = await setCode(opts.input);
+      const { code, script } = opts.input;
+
+      const hash = await setCode({ code, script: script ?? null });
+
       return {
         hash,
       };

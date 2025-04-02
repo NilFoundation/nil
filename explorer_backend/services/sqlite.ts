@@ -10,26 +10,34 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS code (
     created_at TIMESTAMP,
     hash TEXT PRIMARY KEY,
-    code TEXT
+    code TEXT,
+    script TEXT,
 );
 `);
 
-const getStmt = db.prepare("SELECT code FROM code WHERE hash = ?");
+const getStmt = db.prepare("SELECT code, script FROM code WHERE hash = ?");
 
-export const getCode = (hash: string): string | null => {
-  const result = getStmt.get(hash) as { code: string } | undefined;
-  return result?.code || null;
+export const getCode = (hash: string): { code: string | null; script: string | null } => {
+  const result = getStmt.get(hash) as { code: string, script: string } | undefined;
+  return {
+    code: result?.code || null,
+    script: result?.script || null,
+  };
 };
 
-export const setCode = async (code: string): Promise<string> => {
-  const hash = createHash("sha256").update(code).digest("hex");
+export const setCode = async (
+  { code, script }: { code: string; script: string | null }
+): Promise<string> => {
+  const project = [code, script].join("\r\n");
+  const hash = createHash("sha256").update(project).digest("hex");
   const res = await getCode(hash);
   if (res) {
     return hash;
   }
-  db.prepare("INSERT INTO code (hash, code, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)").run([
+  db.prepare("INSERT INTO code (hash, code, script, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)").run([
     hash,
     code,
+    script,
   ]);
   return hash;
 };
