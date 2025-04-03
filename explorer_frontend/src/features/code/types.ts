@@ -6,3 +6,9 @@ export type App = {
   sourcecode: string;
   abi: Abi;
 };
+
+export type Project = {
+  code: string;
+  script: string | null;
+};
+

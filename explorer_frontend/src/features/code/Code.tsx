@@ -2,14 +2,14 @@ import { BUTTON_KIND, BUTTON_SIZE, Button, Card, Spinner } from "@nilfoundation/
 import { useUnit } from "effector-react";
 import {
   $code,
-  $error,
-  $warnings,
+  $codeError,
+  $codeWarnings,
   changeCode,
   clickOnContractsButton,
   clickOnLogButton,
-  compile,
+  compileCode,
   compileCodeFx,
-  fetchCodeSnippetFx,
+  fetchProjectFx,
 } from "./model";
 import "./init";
 import { type Diagnostic, linter } from "@codemirror/lint";
@@ -21,26 +21,27 @@ import { type ReactNode, memo, useMemo } from "react";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
-import { SolidityCodeField } from "../shared/components/SolidityCodeField";
+import { CodeField } from "../shared/components/CodeField";
 import { CodeToolbar } from "./code-toolbar/CodeToolbar";
 import { useCompileButton } from "./hooks/useCompileButton";
 
 interface CodeProps {
   extraMobileButton?: ReactNode;
   extraToolbarButton?: ReactNode;
+  isSolidity?: boolean;
 }
 
 const MemoizedCodeToolbar = memo(CodeToolbar);
 
-export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
+export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: CodeProps) => {
   const [isMobile] = useMobile();
   const [code, isDownloading, errors, fetchingCodeSnippet, compiling, warnings] = useUnit([
     $code,
     fetchSolidityCompiler.pending,
-    $error,
-    fetchCodeSnippetFx.pending,
+    $codeError,
+    fetchProjectFx.pending,
     compileCodeFx.pending,
-    $warnings,
+    $codeWarnings,
   ]);
   const [css, theme] = useStyletron();
   const btnTextContent = useCompileButton();
@@ -59,7 +60,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
   );
 
   const codemirrorExtensions = useMemo(() => {
-    const solidityLinter = (view: EditorView) => {
+    const codeLinter = (view: EditorView) => {
       const displayErrors: Diagnostic[] = errors.map((error) => {
         return {
           from: view.state.doc.line(error.line).from,
@@ -81,7 +82,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
       return [...displayErrors, ...displayWarnings];
     };
 
-    return [preventNewlineOnCmdEnter, linter(solidityLinter)];
+    return [preventNewlineOnCmdEnter, linter(codeLinter)];
   }, [errors, warnings, preventNewlineOnCmdEnter]);
 
   const noCode = code.trim().length === 0;
@@ -147,7 +148,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
               kind={BUTTON_KIND.primary}
               isLoading={isDownloading || compiling}
               size={BUTTON_SIZE.default}
-              onClick={() => compile()}
+              onClick={() => compileCode()}
               disabled={noCode}
               overrides={{
                 Root: {
@@ -191,7 +192,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
               borderBottomRightRadius: "12px",
             })}
           >
-            <SolidityCodeField
+            <CodeField
               extensions={codemirrorExtensions}
               editable
               readOnly={false}
@@ -207,6 +208,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
                 backgroundColor: `${theme.colors.backgroundPrimary} !important`,
               })}
               data-testid="code-field"
+              isSolidity={isSolidity}
             />
           </div>
         )}
@@ -223,7 +225,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
             <Button
               kind={BUTTON_KIND.primary}
               isLoading={isDownloading || compiling}
-              onClick={() => compile()}
+              onClick={() => compileCode()}
               disabled={noCode}
               overrides={{
                 Root: {

@@ -1,12 +1,5 @@
 import { EditorView } from "@codemirror/view";
-import {
-  CodeField,
-  HeadingXLarge,
-  ParagraphSmall,
-  SPACE,
-  Skeleton,
-  Spinner,
-} from "@nilfoundation/ui-kit";
+import { HeadingXLarge, ParagraphSmall, SPACE, Skeleton, Spinner } from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { useEffect } from "react";
@@ -15,7 +8,7 @@ import { addressRoute } from "../../routing";
 import { Divider } from "../../shared";
 import { Info } from "../../shared/components/Info";
 import { InfoBlock } from "../../shared/components/InfoBlock";
-import { SolidityCodeField } from "../../shared/components/SolidityCodeField";
+import { CodeField } from "../../shared/components/CodeField";
 import { TokenDisplay } from "../../shared/components/Token";
 import { measure } from "../../shared/utils/measure";
 import {
@@ -68,7 +61,7 @@ export const AccountInfo = () => {
             label="Source code"
             value={
               sourceCode?.length > 0 ? (
-                <SolidityCodeField
+                <CodeField
                   code={sourceCode}
                   className={css({ marginTop: "1ch" })}
                   codeMirrorClassName={css({

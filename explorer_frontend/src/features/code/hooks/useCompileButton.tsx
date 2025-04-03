@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { type StyleObject, useStyletron } from "styletron-react";
-import { compile } from "../model";
+import { compileCode } from "../model";
 
 const getOsName = () => {
   const userAgent = window.navigator.userAgent;
@@ -70,7 +70,7 @@ export const useCompileButton = () => {
 
   useHotkeys(
     hotKey,
-    () => compile(),
+    () => compileCode(),
     {
       preventDefault: true,
       enableOnContentEditable: true,

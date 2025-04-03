@@ -1,8 +1,8 @@
-import { PROGRESS_BAR_SIZE, ProgressBar } from "@nilfoundation/ui-kit";
+import { PROGRESS_BAR_SIZE, ProgressBar, Tab, Tabs } from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { AccountPane } from "../../features/account-connector";
 import { Code } from "../../features/code/Code";
@@ -21,6 +21,8 @@ export const PlaygroundPage = () => {
   const [isDownloading, isRPCHealthy] = useUnit([fetchSolidityCompiler.pending, $rpcIsHealthy]);
   const [css] = useStyletron();
   const [isMobile] = useMobile();
+
+  const [activeKey, setActiveKey] = useState("0");
 
   useEffect(() => {
     loadedPlaygroundPage();
@@ -62,7 +64,19 @@ export const PlaygroundPage = () => {
                       minSize={10}
                       order={1}
                     >
-                      <Code extraMobileButton={null} />
+                      <Tabs
+                        onChange={({ activeKey }) => {
+                          setActiveKey(activeKey);
+                        }}
+                        activeKey={activeKey}
+                      >
+                        <Tab title="Solidity code">
+                          <Code extraMobileButton={null} />
+                        </Tab>
+                        <Tab title="JS/TS scripts">
+                          <Code extraMobileButton={null} />
+                        </Tab>
+                      </Tabs>
                     </Panel>
                     <PanelResizeHandle
                       className={css({

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS code (
     created_at TIMESTAMP,
     hash TEXT PRIMARY KEY,
     code TEXT,
-    script TEXT,
+    script TEXT
 );
 `);
 
