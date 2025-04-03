@@ -20,7 +20,6 @@ nil/tests/multitoken
 nil/tests/nil_load_generator_service
 nil/tests/opcodes
 nil/tests/read_through
-nil/tests/regression
 nil/tests/rpc_node
 nil/tests/rpc_service
 nil/tests/smart-account

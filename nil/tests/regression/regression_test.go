@@ -49,11 +49,10 @@ func (s *SuiteRegression) SetupSuite() {
 	}
 
 	s.Start(&nilservice.Config{
-		NShards:          s.ShardsNum,
-		HttpUrl:          rpc.GetSockPath(s.T()),
-		RunMode:          nilservice.CollatorsOnlyRunMode,
-		ZeroState:        zeroState,
-		DisableConsensus: true,
+		NShards:   s.ShardsNum,
+		HttpUrl:   rpc.GetSockPath(s.T()),
+		RunMode:   nilservice.CollatorsOnlyRunMode,
+		ZeroState: zeroState,
 	})
 	tests.WaitShardTick(s.T(), s.Context, s.Client, types.MainShardId)
 	tests.WaitShardTick(s.T(), s.Context, s.Client, types.BaseShardId)

@@ -1,3 +1,4 @@
 nil/go-ibft/core
 nil/go-ibft/messages
 nil/services/txnpool
+nil/tests/regression
