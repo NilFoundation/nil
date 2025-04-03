@@ -63,7 +63,7 @@ To run the [faucet service](https://docs.nil.foundation/nil/getting-started/esse
 To run the [Cometa service](https://docs.nil.foundation/nil/guides/cometa-and-debugging):
 
 ```bash
-./build/bin/cometa run
+./build/bin/nil-cometa run
 ```
 
 To run the load generator:
