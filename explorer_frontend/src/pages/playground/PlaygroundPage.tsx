@@ -69,12 +69,34 @@ export const PlaygroundPage = () => {
                           setActiveKey(activeKey);
                         }}
                         activeKey={activeKey}
+                        overrides={{
+                          Root: {
+                            style: {
+                              height: "100%",
+                              display: "flex",
+                              flexDirection: "column",
+                            },
+                          },
+                          TabContent: {
+                            style: {
+                              height: "100%",
+                              flex: "1 1 auto",
+                              paddingLeft: "0px",
+                              paddingRight: "0px",
+                            },
+                          },
+                          TabBar: {
+                            style: {
+                              display: "flex",
+                            },
+                          },
+                        }}
                       >
                         <Tab title="Solidity code">
-                          <Code extraMobileButton={null} />
+                          <Code extraMobileButton={null} isSolidity={true} />
                         </Tab>
                         <Tab title="JS/TS scripts">
-                          <Code extraMobileButton={null} />
+                          <Code extraMobileButton={null} isSolidity={false} />
                         </Tab>
                       </Tabs>
                     </Panel>

@@ -476,7 +476,7 @@ importers:
         specifier: 6.5.0
         version: 6.5.0
       '@codemirror/view':
-        specifier: ^6.34.1
+        specifier: 6.36.5
         version: 6.36.5
       '@loadable/component':
         specifier: ^5.15.3
@@ -11923,7 +11923,6 @@ packages:
 
   libsql@0.4.7:
     resolution: {integrity: sha512-T9eIRCs6b0J1SHKYIvD8+KCJMcWZ900iZyxdnSCdqxN12Z1ijzT+jY5nrk72Jw4B0HGzms2NgpryArlJqvc3Lw==}
-    cpu: [x64, arm64, wasm32]
     os: [darwin, linux, win32]
 
   lie@3.3.0:
@@ -19677,7 +19676,7 @@ snapshots:
       '@codemirror/language': 6.11.0
       '@codemirror/lint': 6.8.4
       '@codemirror/state': 6.5.0
-      '@codemirror/view': 6.36.4
+      '@codemirror/view': 6.36.5
       '@lezer/common': 1.2.3
       '@lezer/javascript': 1.4.21
 
@@ -21934,9 +21933,9 @@ snapshots:
 
   '@json-schema-spec/json-pointer@0.1.2': {}
 
-  '@json-schema-tools/dereferencer@1.5.5(encoding@0.1.13)':
+  '@json-schema-tools/dereferencer@1.5.5':
     dependencies:
-      '@json-schema-tools/reference-resolver': 1.2.4(encoding@0.1.13)
+      '@json-schema-tools/reference-resolver': 1.2.4
       '@json-schema-tools/traverse': 1.10.4
       fast-safe-stringify: 2.1.1
     transitivePeerDependencies:
@@ -21944,7 +21943,7 @@ snapshots:
 
   '@json-schema-tools/meta-schema@1.6.19': {}
 
-  '@json-schema-tools/reference-resolver@1.2.4(encoding@0.1.13)':
+  '@json-schema-tools/reference-resolver@1.2.4':
     dependencies:
       '@json-schema-spec/json-pointer': 0.1.2
       isomorphic-fetch: 3.0.0(encoding@0.1.13)
@@ -22873,11 +22872,11 @@ snapshots:
 
   '@open-rpc/meta-schema@1.14.2': {}
 
-  '@open-rpc/schema-utils-js@1.16.2(encoding@0.1.13)':
+  '@open-rpc/schema-utils-js@1.16.2':
     dependencies:
-      '@json-schema-tools/dereferencer': 1.5.5(encoding@0.1.13)
+      '@json-schema-tools/dereferencer': 1.5.5
       '@json-schema-tools/meta-schema': 1.6.19
-      '@json-schema-tools/reference-resolver': 1.2.4(encoding@0.1.13)
+      '@json-schema-tools/reference-resolver': 1.2.4
       '@open-rpc/meta-schema': 1.14.2
       ajv: 6.12.6
       detect-node: 2.1.0

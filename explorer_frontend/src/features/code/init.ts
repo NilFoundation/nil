@@ -32,11 +32,13 @@ import {
 import type { App } from "./types";
 
 $code.on(changeCode, (_, x) => {
+  console.log("Code changed", x);
   return x;
 });
 
 $script.on(changeScript, (_, x) => {
-  return x;
+  console.log("Script changed", x);
+  return x ?? "";
 });
 
 persist({

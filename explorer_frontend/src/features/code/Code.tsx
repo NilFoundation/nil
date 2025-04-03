@@ -4,7 +4,9 @@ import {
   $code,
   $codeError,
   $codeWarnings,
+  $script,
   changeCode,
+  changeScript,
   clickOnContractsButton,
   clickOnLogButton,
   compileCode,
@@ -21,10 +23,12 @@ import { type ReactNode, memo, useMemo } from "react";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
-import { CodeField } from "../shared/components/CodeField";
 import { CodeToolbar } from "./code-toolbar/CodeToolbar";
 import { useCompileButton } from "./hooks/useCompileButton";
-
+import { basicSetup } from "@uiw/react-codemirror";
+import { solidity } from "@replit/codemirror-lang-solidity";
+import { javascriptLanguage } from "@codemirror/lang-javascript";
+import { CustomCodeField } from "../shared/components/CustomCodeField";
 interface CodeProps {
   extraMobileButton?: ReactNode;
   extraToolbarButton?: ReactNode;
@@ -35,8 +39,9 @@ const MemoizedCodeToolbar = memo(CodeToolbar);
 
 export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: CodeProps) => {
   const [isMobile] = useMobile();
-  const [code, isDownloading, errors, fetchingCodeSnippet, compiling, warnings] = useUnit([
+  const [code, script, isDownloading, errors, fetchingCodeSnippet, compiling, warnings] = useUnit([
     $code,
+    $script,
     fetchSolidityCompiler.pending,
     $codeError,
     fetchProjectFx.pending,
@@ -45,6 +50,8 @@ export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: Code
   ]);
   const [css, theme] = useStyletron();
   const btnTextContent = useCompileButton();
+
+  const changeEvent = isSolidity ? changeCode : changeScript;
 
   const preventNewlineOnCmdEnter = useMemo(
     () =>
@@ -82,10 +89,22 @@ export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: Code
       return [...displayErrors, ...displayWarnings];
     };
 
-    return [preventNewlineOnCmdEnter, linter(codeLinter)];
-  }, [errors, warnings, preventNewlineOnCmdEnter]);
+    const lang = isSolidity
+      ? solidity
+      : javascriptLanguage.configure({ dialect: "ts" }, "typescript");
+
+    return [
+      preventNewlineOnCmdEnter,
+      lang,
+      ...basicSetup({
+        lineNumbers: !isMobile,
+      }),
+      linter(codeLinter),
+    ];
+  }, [errors, warnings, preventNewlineOnCmdEnter, isMobile, isSolidity]);
 
   const noCode = code.trim().length === 0;
+  const resCode = isSolidity ? code : script;
   return (
     <Card
       overrides={{
@@ -142,7 +161,11 @@ export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: Code
             height: "auto",
           })}
         >
-          <MemoizedCodeToolbar disabled={isDownloading} extraToolbarButton={extraToolbarButton} />
+          <MemoizedCodeToolbar
+            disabled={isDownloading}
+            extraToolbarButton={extraToolbarButton}
+            isSolidity={isSolidity}
+          />
           {!isMobile && (
             <Button
               kind={BUTTON_KIND.primary}
@@ -190,15 +213,14 @@ export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: Code
               borderTopRightRadius: "12px",
               borderBottomLeftRadius: "12px",
               borderBottomRightRadius: "12px",
+              overflow: "auto !important",
             })}
           >
-            <CodeField
+            <CustomCodeField
               extensions={codemirrorExtensions}
-              editable
-              readOnly={false}
-              code={code}
+              code={resCode}
               onChange={(text) => {
-                changeCode(`${text}`);
+                changeEvent(`${text}`);
               }}
               className={css({
                 paddingBottom: "0!important",
@@ -208,7 +230,6 @@ export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: Code
                 backgroundColor: `${theme.colors.backgroundPrimary} !important`,
               })}
               data-testid="code-field"
-              isSolidity={isSolidity}
             />
           </div>
         )}

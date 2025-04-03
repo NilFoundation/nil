@@ -8,7 +8,7 @@ import { addressRoute } from "../../routing";
 import { Divider } from "../../shared";
 import { Info } from "../../shared/components/Info";
 import { InfoBlock } from "../../shared/components/InfoBlock";
-import { CodeField } from "../../shared/components/CodeField";
+import { CustomCodeField } from "../../shared/components/CustomCodeField";
 import { TokenDisplay } from "../../shared/components/Token";
 import { measure } from "../../shared/utils/measure";
 import {
@@ -61,7 +61,7 @@ export const AccountInfo = () => {
             label="Source code"
             value={
               sourceCode?.length > 0 ? (
-                <CodeField
+                <CustomCodeField
                   code={sourceCode}
                   className={css({ marginTop: "1ch" })}
                   codeMirrorClassName={css({
@@ -90,7 +90,7 @@ export const AccountInfo = () => {
             label="Bytecode"
             value={
               account.code && account.code.length > 0 ? (
-                <CodeField
+                <CustomCodeField
                   extensions={[EditorView.lineWrapping]}
                   code={account.code}
                   className={css({ marginTop: "1ch" })}
