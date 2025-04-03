@@ -24,7 +24,6 @@ import { deployL1ERC20BridgeContract } from './bridge/l1/erc20/deploy-erc20-brid
 import { deployL1BridgeRouterContract } from './bridge/l1/router/deploy-bridge-router-contract';
 
 // npx hardhat deploy --network geth --tags DeployMaster
-// npx hardhat deploy --network sepolia --tags DeployMaster
 const deployMaster: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
 ) {
@@ -32,13 +31,15 @@ const deployMaster: DeployFunction = async function (
     const { deploy } = deployments;
     const networkName = network.name;
     const { deployer } = await getNamedAccounts();
+
     await deployWETHTokenContract(networkName, deployer, deploy);
     await deployERC20TokenContracts(networkName, deployer, deploy);
     await deployL2MockERC20TokenContracts(networkName, deployer, deploy);
+    await deployMockL2BridgeContract(networkName, deployer, deploy);
+
     await deployRollupContracts(networkName, deployer, deploy);
     await deployNilGasPriceOracleContract(networkName);
     await deployL1BridgeMessengerContract(networkName);
-    await deployMockL2BridgeContract(networkName, deployer, deploy);
     await deployL1ETHBridgeContract(networkName);
     await deployL1ERC20BridgeContract(networkName);
     await deployL1BridgeRouterContract(networkName);

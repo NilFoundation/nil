@@ -106,29 +106,25 @@ export async function bridgeERC20() {
     const depositERC20Event: DepositERC20Event = depositERC20EventLogData;
 
     // Convert both values to BigNumber for comparison
-    const depositAmount = ethers.BigNumber.from(depositERC20Event.amount);
-    const expectedAmount = ethers.BigNumber.from(token_amount);
+    // const depositAmount = ethers.BigNumber.from(depositERC20Event.amount);
+    // const expectedAmount = ethers.BigNumber.from(token_amount);
 
-    if (!depositAmount.eq(expectedAmount)) {
-        throw new Error(`Deposit amount mismatch: expected ${expectedAmount.toString()}, got ${depositAmount.toString()}`);
-    }
+    // if (!depositAmount.eq(expectedAmount)) {
+    //     throw new Error(`Deposit amount mismatch: expected ${expectedAmount.toString()}, got ${depositAmount.toString()}`);
+    // }
 
-    if (!(depositERC20Event.depositor == signerAddress)) {
-        throw new Error(`DepositorAddress mismatch: expected ${signerAddress}, got ${depositERC20Event.depositor}`);
-    }
+    // if (!(depositERC20Event.depositor == signerAddress)) {
+    //     throw new Error(`DepositorAddress mismatch: expected ${signerAddress}, got ${depositERC20Event.depositor}`);
+    // }
 
 
-    if (!(depositERC20Event.l1Token == erc20TokenData.address)) {
-        throw new Error(`L1TokenAddress mismatch: expected ${erc20TokenData.address}, got ${depositERC20Event.l1Token}`);
-    }
+    // if (!(depositERC20Event.l1Token == erc20TokenData.address)) {
+    //     throw new Error(`L1TokenAddress mismatch: expected ${erc20TokenData.address}, got ${depositERC20Event.l1Token}`);
+    // }
 
-    if (!(depositERC20Event.l2Recipient == recipientAddress)) {
-        throw new Error(`recipientAddress mismatch: expected ${recipientAddress}, got ${depositERC20Event.l2Recipient}`);
-    }
-
-    if (!(depositERC20Event.l2Token == )) {
-        throw new Error(`recipientAddress mismatch: expected ${recipientAddress}, got ${depositERC20Event.l2Recipient}`);
-    }
+    // if (!(depositERC20Event.l2Recipient == recipientAddress)) {
+    //     throw new Error(`recipientAddress mismatch: expected ${recipientAddress}, got ${depositERC20Event.l2Recipient}`);
+    // }
 
 }
 

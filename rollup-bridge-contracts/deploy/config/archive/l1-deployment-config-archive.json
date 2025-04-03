@@ -1706,6 +1706,95 @@
           "nilGasPriceOracleMaxPriorityFeePerGas": 1000
         },
         "timestamp": "2025-04-02T05:42:31.042Z"
+      },
+      {
+        "nilRollupConfig": {
+          "proxyAdmin": "0x8c62914017D16ce28778F8A087D7Bdee346f0828",
+          "nilRollupImplementation": "0x7580708993de7CA120E957A62f26A5dDD4b3D8aC",
+          "nilRollupProxy": "0x75c68e69775fA3E9DD38eA32E554f6BF259C1135",
+          "nilVerifier": "0x2c8ED11fd7A058096F2e5828799c68BE88744E2F",
+          "proposerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+          "l2ChainId": 0,
+          "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
+        },
+        "l1Common": {
+          "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+          "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+          "weth": "0x975Ab64F4901Af5f0C96636deA0b9de3419D0c2F"
+        },
+        "l1MockContracts": {
+          "tokens": [
+            {
+              "name": "USD Coin",
+              "symbol": "USDC",
+              "decimals": 6,
+              "address": "0x4593ed9CbE6003e687e5e77368534bb04b162503"
+            },
+            {
+              "name": "USD Tether",
+              "symbol": "USDT",
+              "decimals": 6,
+              "address": "0xCd7c00Ac6dc51e8dCc773971Ac9221cC582F3b1b"
+            },
+            {
+              "name": "DAI",
+              "symbol": "DAI",
+              "decimals": 18,
+              "address": "0x8ac87219a0F5639BC01b470F87BA2b26356CB2B9"
+            }
+          ],
+          "mockL2Tokens": [
+            {
+              "name": "USD Coin",
+              "symbol": "USDC",
+              "decimals": 6,
+              "address": "0x94fFA1C7330845646CE9128450F8e6c3B5e44F86"
+            },
+            {
+              "name": "USD Tether",
+              "symbol": "USDT",
+              "decimals": 6,
+              "address": "0xCa1D199b6F53Af7387ac543Af8e8a34455BBe5E0"
+            },
+            {
+              "name": "DAI",
+              "symbol": "DAI",
+              "decimals": 18,
+              "address": "0xdF46e54aAadC1d55198A4a8b4674D7a4c927097A"
+            }
+          ],
+          "mockL2Bridge": ""
+        },
+        "l1BridgeRouterConfig": {
+          "proxyAdmin": "",
+          "l1BridgeRouterProxy": "",
+          "l1BridgeRouterImplementation": ""
+        },
+        "l1BridgeMessengerConfig": {
+          "proxyAdmin": "",
+          "l1BridgeMessengerProxy": "",
+          "l1BridgeMessengerImplementation": "",
+          "maxProcessingTimeInEpochSeconds": 10000
+        },
+        "l1ERC20BridgeConfig": {
+          "proxyAdmin": "",
+          "l1ERC20BridgeProxy": "",
+          "l1ERC20BridgeImplementation": ""
+        },
+        "l1ETHBridgeConfig": {
+          "proxyAdmin": "",
+          "l1ETHBridgeProxy": "",
+          "l1ETHBridgeImplementation": ""
+        },
+        "nilGasPriceOracleConfig": {
+          "proxyAdmin": "",
+          "nilGasPriceOracleProxy": "",
+          "nilGasPriceOracleImplementation": "",
+          "nilGasPriceSetterAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+          "nilGasPriceOracleMaxFeePerGas": 1000,
+          "nilGasPriceOracleMaxPriorityFeePerGas": 1000
+        },
+        "timestamp": "2025-04-02T16:57:48.331Z"
       }
     ]
   }
