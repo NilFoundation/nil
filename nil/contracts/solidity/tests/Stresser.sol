@@ -14,6 +14,7 @@ contract Stresser {
         return value;
     }
 
+    // Consumes gas by using hot SSTORE(~529 gas per iteration)
     function gasConsumer(uint256 v) public returns(uint256) {
         for (uint256 i = 1; i < v; i++) {
             value *= 2;

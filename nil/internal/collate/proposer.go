@@ -327,11 +327,11 @@ func (p *proposer) handleTransactionsFromPool() error {
 		if ok, err := handle(txn); err != nil {
 			return err
 		} else if ok {
+			p.proposal.ExternalTxns = append(p.proposal.ExternalTxns, txn.Transaction)
 			if p.executionState.GasUsed > p.params.MaxGasInBlock {
+				unverified = append(unverified, txn.Hash())
 				break
 			}
-
-			p.proposal.ExternalTxns = append(p.proposal.ExternalTxns, txn.Transaction)
 		}
 	}
 

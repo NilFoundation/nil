@@ -71,21 +71,29 @@ func GetAbiData(name string) (string, error) {
 	return string(data), nil
 }
 
-func CalculateAddress(name string, shardId types.ShardId, salt []byte, ctorArgs ...any) (types.Address, error) {
+func CreateDeployPayload(name string, salt []byte, ctorArgs ...any) (types.DeployPayload, error) {
 	code, err := GetCode(name)
 	if err != nil {
-		return types.Address{}, err
+		return types.DeployPayload{}, err
 	}
 
 	if len(ctorArgs) != 0 {
 		argsPacked, err := NewCallData(name, "", ctorArgs...)
 		if err != nil {
-			return types.Address{}, err
+			return types.DeployPayload{}, err
 		}
 		code = append(code, argsPacked...)
 	}
 	payload := types.BuildDeployPayload(code, common.BytesToHash(salt))
 
+	return payload, nil
+}
+
+func CalculateAddress(name string, shardId types.ShardId, salt []byte, ctorArgs ...any) (types.Address, error) {
+	payload, err := CreateDeployPayload(name, salt, ctorArgs...)
+	if err != nil {
+		return types.Address{}, err
+	}
 	return types.CreateAddress(shardId, payload), nil
 }
 

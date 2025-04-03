@@ -277,4 +277,15 @@ contract Test is NilBase {
     }
 }
 
+contract HeavyConstructor {
+    uint256 public value;
+
+    // Consumes gas by using hot SSTORE(~529 gas per iteration)
+    constructor(uint256 n) payable {
+        for (uint256 i = 1; i < n; i++) {
+            value *= 2;
+        }
+    }
+}
+
 contract Empty {}

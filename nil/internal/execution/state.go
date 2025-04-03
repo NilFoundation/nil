@@ -81,6 +81,7 @@ type ExecutionState struct {
 	ChildShardBlocks   map[types.ShardId]common.Hash
 	GasPrice           types.Value // Current gas price including priority fee
 	BaseFee            types.Value
+	GasLimit           types.Gas
 
 	// Those fields are just copied from the proposal into the block
 	// and are not used in the state
@@ -277,6 +278,7 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 		Random:      &common.EmptyHash,
 		BaseFee:     big.NewInt(10),
 		BlobBaseFee: big.NewInt(10),
+		GasLimit:    es.GasLimit.Uint64(),
 		Time:        time,
 
 		RollbackCounter: rollbackCounter,
@@ -288,6 +290,7 @@ type StateParams struct {
 	ConfigAccessor config.ConfigAccessor
 	FeeCalculator  FeeCalculator
 	Mode           string
+	GasLimit       types.Gas
 }
 
 func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*ExecutionState, error) {
@@ -327,6 +330,9 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		}
 		prevBlockHash = params.Block.Hash(shardId)
 	}
+	if params.GasLimit == 0 {
+		params.GasLimit = types.DefaultMaxGasInBlock
+	}
 
 	res := &ExecutionState{
 		tx:               resTx,
@@ -347,6 +353,7 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 
 		BaseFee:  baseFeePerGas,
 		GasPrice: types.NewZeroValue(),
+		GasLimit: params.GasLimit,
 
 		isReadOnly: isReadOnly,
 
@@ -635,7 +642,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, transaction *types.Tr
 	defer es.resetVm()
 
 	_, deployAddr, _, err := es.evm.Deploy(
-		addr, vm.AccountRef{}, transaction.Data, uint64(100_000_000) /* gas */, uint256.NewInt(0))
+		addr, vm.AccountRef{}, transaction.Data, uint64(10_000_000) /* gas */, uint256.NewInt(0))
 	if err != nil {
 		return err
 	}
@@ -1236,9 +1243,13 @@ func (es *ExecutionState) handleDeployTransaction(_ context.Context, transaction
 	es.preTxHookCall(transaction)
 	defer func() { es.postTxHookCall(transaction, result) }()
 
-	gas := transaction.FeeCredit.ToGas(es.GasPrice)
+	gas, exceedBlockLimit := es.calcGasLimit(es.txnFeeCredit.ToGas(es.GasPrice))
 	ret, addr, leftOver, err := es.evm.Deploy(
 		addr, (vm.AccountRef)(transaction.From), deployTxn.Code(), gas.Uint64(), transaction.Value.Int())
+
+	if exceedBlockLimit && types.IsOutOfGasError(err) {
+		err = types.NewError(types.ErrorTransactionExceedsBlockGasLimit)
+	}
 
 	event := es.logger.Debug().Stringer(logging.FieldTransactionTo, addr)
 	if err != nil {
@@ -1347,14 +1358,25 @@ func (es *ExecutionState) handleExecutionTransaction(
 
 	es.revertId = es.Snapshot()
 
+	gas, exceedBlockLimit := es.calcGasLimit(es.txnFeeCredit.ToGas(es.GasPrice))
 	es.evm.SetTokenTransfer(transaction.Token)
-	gas := es.txnFeeCredit.ToGas(es.GasPrice)
 	ret, leftOver, err := es.evm.Call(caller, addr, callData, gas.Uint64(), transaction.Value.Int())
+
+	if exceedBlockLimit && types.IsOutOfGasError(err) {
+		err = types.NewError(types.ErrorTransactionExceedsBlockGasLimit)
+	}
 
 	return NewExecutionResult().
 		SetTxnErrorOrFatal(err).
 		SetUsed(gas-types.Gas(leftOver), es.GasPrice).
 		SetReturnData(ret).SetDebugInfo(es.evm.DebugInfo)
+}
+
+func (es *ExecutionState) calcGasLimit(gas types.Gas) (types.Gas, bool) {
+	if gas > es.GasLimit {
+		return es.GasLimit, true
+	}
+	return gas, false
 }
 
 // decodeRevertTransaction decodes the revert transaction from the EVM revert data

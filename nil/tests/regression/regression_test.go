@@ -3,6 +3,7 @@ package main
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
@@ -48,10 +49,11 @@ func (s *SuiteRegression) SetupSuite() {
 	}
 
 	s.Start(&nilservice.Config{
-		NShards:   s.ShardsNum,
-		HttpUrl:   rpc.GetSockPath(s.T()),
-		RunMode:   nilservice.CollatorsOnlyRunMode,
-		ZeroState: zeroState,
+		NShards:          s.ShardsNum,
+		HttpUrl:          rpc.GetSockPath(s.T()),
+		RunMode:          nilservice.CollatorsOnlyRunMode,
+		ZeroState:        zeroState,
+		DisableConsensus: true,
 	})
 	tests.WaitShardTick(s.T(), s.Context, s.Client, types.MainShardId)
 	tests.WaitShardTick(s.T(), s.Context, s.Client, types.BaseShardId)
@@ -142,7 +144,7 @@ func (s *SuiteRegression) TestProposerOutOfGas() {
 	s.Require().True(receipt.Success)
 	s.Require().Equal("Success", receipt.Status)
 	s.Require().Len(receipt.OutReceipts, 1)
-	s.Require().Equal("OutOfGasDynamic", receipt.OutReceipts[0].Status)
+	s.Require().Equal("TransactionExceedsBlockGasLimit", receipt.OutReceipts[0].Status)
 }
 
 func (s *SuiteRegression) TestInsufficientFundsIncExtSeqno() {
@@ -363,6 +365,89 @@ func (s *SuiteRegression) TestNonRevertedErrDecoding() {
 	receipt = s.SendExternalTransactionNoCheck(calldata, contractAddr)
 	s.Require().False(receipt.Success)
 	s.Require().Equal("ExecutionReverted: Revert is true", receipt.ErrorMessage)
+}
+
+func (s *SuiteRegression) TestBigTransactions() {
+	abi, err := contracts.GetAbi(contracts.NameStresser)
+	s.Require().NoError(err)
+
+	stresserCode, err := contracts.GetCode(contracts.NameStresser)
+	s.Require().NoError(err)
+
+	addr, receipt := s.DeployContractViaMainSmartAccount(3,
+		types.BuildDeployPayload(stresserCode, common.EmptyHash), types.GasToValue(1_000_000_000))
+
+	n := (types.DefaultMaxGasInBlock + 10000) / 529
+	calldata := s.AbiPack(abi, "gasConsumer", big.NewInt(int64(n)))
+
+	s.Run("Internal big transaction", func() {
+		txHash, err := s.Client.SendTransactionViaSmartAccount(
+			s.Context,
+			types.MainSmartAccountAddress,
+			calldata,
+			types.NewFeePackFromGas(50_000_000),
+			types.Value0,
+			nil,
+			addr,
+			execution.MainPrivateKey,
+		)
+		s.Require().NoError(err)
+
+		// Use longer timeout because it can fail in CI tests
+		s.Require().Eventually(func() bool {
+			receipt, err = s.Client.GetInTransactionReceipt(s.Context, txHash)
+			s.Require().NoError(err)
+			return receipt.IsComplete()
+		}, 30*time.Second, 1000*time.Millisecond)
+
+		s.Require().NoError(err)
+
+		s.Require().True(receipt.Success)
+		s.Require().Len(receipt.OutReceipts, 1)
+		s.Require().False(receipt.OutReceipts[0].Success)
+		s.Require().Equal("TransactionExceedsBlockGasLimit", receipt.OutReceipts[0].Status)
+	})
+
+	s.Run("External big transaction", func() {
+		txHash, err := s.Client.SendExternalTransaction(s.Context, calldata, addr, nil,
+			types.NewFeePackFromGas(50_000_000))
+		s.Require().NoError(err)
+
+		// Use longer timeout because it can fail in CI tests
+		s.Require().Eventually(func() bool {
+			receipt, err = s.Client.GetInTransactionReceipt(s.Context, txHash)
+			s.Require().NoError(err)
+			return receipt.IsComplete()
+		}, 30*time.Second, 1000*time.Millisecond)
+
+		s.Require().False(receipt.Success)
+		s.Require().Equal("TransactionExceedsBlockGasLimit", receipt.Status)
+		txpool, err := s.Client.GetTxpoolStatus(s.Context, addr.ShardId())
+		s.Require().NoError(err)
+		s.Require().Zero(txpool.Pending)
+		s.Require().Zero(txpool.Queued)
+	})
+
+	s.Run("Big deploy transaction", func() {
+		payload, err := contracts.CreateDeployPayload("tests/HeavyConstructor", nil,
+			big.NewInt(int64((types.DefaultMaxGasInBlock+10000)/529)))
+		s.Require().NoError(err)
+
+		txHash, _, err := s.Client.DeployContract(
+			s.Context,
+			types.BaseShardId,
+			types.MainSmartAccountAddress,
+			payload,
+			types.Value0,
+			types.NewFeePackFromGas(50_000_000),
+			execution.MainPrivateKey)
+		s.Require().NoError(err)
+		receipt := s.WaitForReceipt(txHash)
+		s.Require().True(receipt.Success)
+		s.Require().Len(receipt.OutReceipts, 1)
+		s.Require().False(receipt.OutReceipts[0].Success)
+		s.Require().Equal("TransactionExceedsBlockGasLimit", receipt.OutReceipts[0].Status)
+	})
 }
 
 func TestRegression(t *testing.T) {
