@@ -69,19 +69,19 @@ type IContractMPTRepository interface {
 	RootHash() common.Hash
 }
 
+type TxCounts map[types.ShardId]types.TransactionIndex
+
 type ExecutionState struct {
-	tx                 db.RwTx
-	ContractTree       IContractMPTRepository
-	InTransactionTree  *TransactionTrie
-	OutTransactionTree *TransactionTrie
-	ReceiptTree        *ReceiptTrie
-	PrevBlock          common.Hash
-	MainShardHash      common.Hash
-	ShardId            types.ShardId
-	ChildShardBlocks   map[types.ShardId]common.Hash
-	GasPrice           types.Value // Current gas price including priority fee
-	BaseFee            types.Value
-	GasLimit           types.Gas
+	tx               db.RwTx
+	ContractTree     IContractMPTRepository
+	ReceiptTree      *ReceiptTrie
+	PrevBlock        common.Hash
+	MainShardHash    common.Hash
+	ShardId          types.ShardId
+	ChildShardBlocks map[types.ShardId]common.Hash
+	GasPrice         types.Value // Current gas price including priority fee
+	BaseFee          types.Value
+	GasLimit         types.Gas
 
 	// Those fields are just copied from the proposal into the block
 	// and are not used in the state
@@ -94,11 +94,13 @@ type ExecutionState struct {
 
 	Accounts            map[types.Address]*AccountState
 	InTransactions      []*types.Transaction
+	InTxCounts          TxCounts
 	InTransactionHashes []common.Hash
 
 	// OutTransactions holds outbound transactions for every transaction in the executed block, where key is hash of
 	// Transaction that sends the transaction
 	OutTransactions map[common.Hash][]*types.OutboundTransaction
+	OutTxCounts     TxCounts
 
 	Receipts []*types.Receipt
 	Errors   map[common.Hash]error
@@ -341,6 +343,8 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		ChildShardBlocks: map[types.ShardId]common.Hash{},
 		Accounts:         map[types.Address]*AccountState{},
 		OutTransactions:  map[common.Hash][]*types.OutboundTransaction{},
+		OutTxCounts:      TxCounts{},
+		InTxCounts:       TxCounts{},
 		Logs:             map[common.Hash][]*types.Log{},
 		DebugLogs:        map[common.Hash][]*types.DebugLog{},
 		Errors:           map[common.Hash]error{},
@@ -395,11 +399,12 @@ func (es *ExecutionState) initTries() error {
 	}
 
 	es.ContractTree = &DbContractAccessor{NewDbContractTrie(es.tx, es.ShardId)}
-	es.InTransactionTree = NewDbTransactionTrie(es.tx, es.ShardId)
-	es.OutTransactionTree = NewDbTransactionTrie(es.tx, es.ShardId)
 	es.ReceiptTree = NewDbReceiptTrie(es.tx, es.ShardId)
 	if err == nil {
-		es.ContractTree.SetRootHash(data.Block().SmartContractsRoot)
+		block := data.Block()
+		es.ContractTree.SetRootHash(block.SmartContractsRoot)
+		es.fetchTxCounts(block.OutTransactionsRoot, es.OutTxCounts, "out")
+		es.fetchTxCounts(block.InTransactionsRoot, es.InTxCounts, "in")
 	}
 
 	return nil
@@ -407,6 +412,20 @@ func (es *ExecutionState) initTries() error {
 
 func (es *ExecutionState) GetConfigAccessor() config.ConfigAccessor {
 	return es.configAccessor
+}
+
+func (es *ExecutionState) fetchTxCounts(root common.Hash, counts TxCounts, inOut string) {
+	reader := NewDbTxCountTrieReader(es.tx, es.ShardId)
+	reader.SetRootHash(root)
+	for shardId, count := range reader.Items() {
+		counts[shardId] = count
+		es.logger.Info().Stringer("root", root).Uint32("shardId", uint32(shardId)).
+			Uint32("myShardId", uint32(es.ShardId)).
+			Uint64("count", uint64(count)).Str("inOut", inOut).
+			Msg("TxCount")
+	}
+	es.logger.Info().Stringer("root", root).Int("len(counts)", len(counts)).
+		Str("inOut", inOut).Msg("TxCounts")
 }
 
 func (es *ExecutionState) GetReceipt(txnIndex types.TransactionIndex) (*types.Receipt, error) {
@@ -940,8 +959,6 @@ func (es *ExecutionState) AddOutTransaction(
 	txn.MaxPriorityFeePerGas = es.GetInTransaction().MaxPriorityFeePerGas
 	txn.MaxFeePerGas = es.GetInTransaction().MaxFeePerGas
 
-	txnHash := txn.Hash()
-
 	// In case of bounce transaction, we don't debit token from account
 	// In case of refund transaction, we don't transfer tokens
 	if !txn.IsBounce() && !txn.IsRefund() {
@@ -963,6 +980,12 @@ func (es *ExecutionState) AddOutTransaction(
 			}
 		}
 	}
+
+	// Use next TxId
+	txn.TxId = es.OutTxCounts[txn.To.ShardId()]
+	es.OutTxCounts[txn.To.ShardId()] = txn.TxId + 1
+
+	txnHash := txn.Hash()
 
 	es.logger.Trace().
 		Stringer(logging.FieldTransactionHash, txnHash).
@@ -1128,6 +1151,14 @@ func (es *ExecutionState) HandleTransaction(
 				check.PanicIfErr(es.SetExtSeqno(txn.To, seqno))
 			}
 		}()
+	}
+
+	if txn.IsInternal() {
+		nextTx := es.InTxCounts[txn.From.ShardId()]
+		if txn.TxId != nextTx {
+			return NewExecutionResult().SetFatal(types.NewError(types.ErrorSeqnoGap))
+		}
+		es.InTxCounts[txn.From.ShardId()] = nextTx + 1
 	}
 
 	es.txnFeeCredit = txn.FeeCredit
@@ -1429,7 +1460,7 @@ func (es *ExecutionState) AddReceipt(execResult *ExecutionResult) {
 	es.Receipts = append(es.Receipts, r)
 }
 
-func GetOutTransactions(es *ExecutionState) ([]*types.Transaction, []common.Hash) {
+func getOutTransactions(es *ExecutionState) ([]*types.Transaction, []common.Hash) {
 	txns := make([]*types.Transaction, 0, len(es.OutTransactions[common.EmptyHash]))
 	hashes := make([]common.Hash, 0, len(es.OutTransactions[common.EmptyHash]))
 
@@ -1448,6 +1479,34 @@ func GetOutTransactions(es *ExecutionState) ([]*types.Transaction, []common.Hash
 	}
 
 	return txns, hashes
+}
+
+func (es *ExecutionState) writeTxCounts(root common.Hash, counts TxCounts, inOut string) common.Hash {
+	logger := es.logger.With().Str("inOut", inOut).Logger()
+	if len(counts) == 0 {
+		logger.Debug().Msg("no tx counts to write")
+		return root
+	}
+	keys := make([]types.ShardId, 0, len(counts))
+	values := make([]*types.TransactionIndex, 0, len(counts))
+	for shard, count := range counts {
+		logger.Debug().
+			Stringer("otherShard", shard).Stringer("myShard", es.ShardId).
+			Int("count", int(count)).Msg("writing tx count")
+		if count > 0 {
+			keys = append(keys, shard)
+			cnt := count
+			values = append(values, &cnt)
+		}
+	}
+	trie := NewDbTxCountTrie(es.tx, es.ShardId)
+	trie.SetRootHash(root)
+	if err := trie.UpdateBatch(keys, values); err != nil {
+		panic(fmt.Errorf("failed to update tx count trie: %w", err))
+	}
+	result := trie.RootHash()
+	logger.Debug().Stringer("root", result).Msg("wrote tx counts")
+	return result
 }
 
 func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGenerationResult, error) {
@@ -1473,18 +1532,23 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 		inTxnValues = append(inTxnValues, txn)
 	}
 
-	outTxnValues, outTxnHashes := GetOutTransactions(es)
+	outTxnValues, outTxnHashes := getOutTransactions(es)
 	outTxnKeys := make([]types.TransactionIndex, 0, len(es.InTransactions))
 	for i := range outTxnValues {
 		outTxnKeys = append(outTxnKeys, types.TransactionIndex(i))
 	}
 
-	if err := es.InTransactionTree.UpdateBatch(inTxnKeys, inTxnValues); err != nil {
+	inTransactionTree := NewDbTransactionTrie(es.tx, es.ShardId)
+	if err := inTransactionTree.UpdateBatch(inTxnKeys, inTxnValues); err != nil {
 		return nil, err
 	}
-	if err := es.OutTransactionTree.UpdateBatch(outTxnKeys, outTxnValues); err != nil {
+	inTxRoot := es.writeTxCounts(inTransactionTree.RootHash(), es.InTxCounts, "in")
+
+	outTransactionTree := NewDbTransactionTrie(es.tx, es.ShardId)
+	if err := outTransactionTree.UpdateBatch(outTxnKeys, outTxnValues); err != nil {
 		return nil, err
 	}
+	outTxRoot := es.writeTxCounts(outTransactionTree.RootHash(), es.OutTxCounts, "out")
 
 	if assert.Enable {
 		// Check that each outbound transaction belongs to some inbound transaction
@@ -1565,8 +1629,8 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 			Id:                  blockId,
 			PrevBlock:           es.PrevBlock,
 			SmartContractsRoot:  es.ContractTree.RootHash(),
-			InTransactionsRoot:  es.InTransactionTree.RootHash(),
-			OutTransactionsRoot: es.OutTransactionTree.RootHash(),
+			InTransactionsRoot:  inTxRoot,
+			OutTransactionsRoot: outTxRoot,
 			ConfigRoot:          configRoot,
 			OutTransactionsNum:  types.TransactionIndex(len(outTxnKeys)),
 			ReceiptsRoot:        es.ReceiptTree.RootHash(),
@@ -1947,37 +2011,33 @@ func (es *ExecutionState) MarshalJSON() ([]byte, error) {
 	}
 
 	data := struct {
-		ContractTreeRoot       common.Hash                                  `json:"contractTreeRoot"`
-		InTransactionTreeRoot  common.Hash                                  `json:"inTransactionTreeRoot"`
-		OutTransactionTreeRoot common.Hash                                  `json:"outTransactionTreeRoot"`
-		ReceiptTreeRoot        common.Hash                                  `json:"receiptTreeRoot"`
-		PrevBlock              *types.Block                                 `json:"prevBlock"`
-		PrevBlockHash          common.Hash                                  `json:"prevBlockHash"`
-		MainShardHash          common.Hash                                  `json:"mainShardHash"`
-		ShardId                types.ShardId                                `json:"shardId"`
-		ChildShardBlocks       map[types.ShardId]common.Hash                `json:"childShardBlocks"`
-		GasPrice               types.Value                                  `json:"gasPrice"`
-		InTransactions         []*types.Transaction                         `json:"inTransactions"`
-		InTransactionHashes    []common.Hash                                `json:"inTransactionHashes"`
-		OutTransactions        map[common.Hash][]*types.OutboundTransaction `json:"outTransactions"`
-		Receipts               []*types.Receipt                             `json:"receipts"`
-		Errors                 map[common.Hash]error                        `json:"errors"`
+		ContractTreeRoot    common.Hash                                  `json:"contractTreeRoot"`
+		ReceiptTreeRoot     common.Hash                                  `json:"receiptTreeRoot"`
+		PrevBlock           *types.Block                                 `json:"prevBlock"`
+		PrevBlockHash       common.Hash                                  `json:"prevBlockHash"`
+		MainShardHash       common.Hash                                  `json:"mainShardHash"`
+		ShardId             types.ShardId                                `json:"shardId"`
+		ChildShardBlocks    map[types.ShardId]common.Hash                `json:"childShardBlocks"`
+		GasPrice            types.Value                                  `json:"gasPrice"`
+		InTransactions      []*types.Transaction                         `json:"inTransactions"`
+		InTransactionHashes []common.Hash                                `json:"inTransactionHashes"`
+		OutTransactions     map[common.Hash][]*types.OutboundTransaction `json:"outTransactions"`
+		Receipts            []*types.Receipt                             `json:"receipts"`
+		Errors              map[common.Hash]error                        `json:"errors"`
 	}{
-		ContractTreeRoot:       es.ContractTree.RootHash(),
-		InTransactionTreeRoot:  es.InTransactionTree.RootHash(),
-		OutTransactionTreeRoot: es.OutTransactionTree.RootHash(),
-		ReceiptTreeRoot:        es.ReceiptTree.RootHash(),
-		PrevBlock:              prevBlock,
-		PrevBlockHash:          es.PrevBlock,
-		MainShardHash:          es.MainShardHash,
-		ShardId:                es.ShardId,
-		ChildShardBlocks:       es.ChildShardBlocks,
-		GasPrice:               es.GasPrice,
-		InTransactions:         es.InTransactions,
-		InTransactionHashes:    es.InTransactionHashes,
-		OutTransactions:        es.OutTransactions,
-		Receipts:               es.Receipts,
-		Errors:                 es.Errors,
+		ContractTreeRoot:    es.ContractTree.RootHash(),
+		ReceiptTreeRoot:     es.ReceiptTree.RootHash(),
+		PrevBlock:           prevBlock,
+		PrevBlockHash:       es.PrevBlock,
+		MainShardHash:       es.MainShardHash,
+		ShardId:             es.ShardId,
+		ChildShardBlocks:    es.ChildShardBlocks,
+		GasPrice:            es.GasPrice,
+		InTransactions:      es.InTransactions,
+		InTransactionHashes: es.InTransactionHashes,
+		OutTransactions:     es.OutTransactions,
+		Receipts:            es.Receipts,
+		Errors:              es.Errors,
 	}
 
 	return json.Marshal(data)
@@ -2016,6 +2076,10 @@ func (es *ExecutionState) DeleteOutTransaction(index int, txnHash common.Hash) {
 	// And catch opposite case with this assert.
 	check.PanicIfNot(index == len(outTransactions)-1)
 
+	txn := outTransactions[index]
+	toShard := txn.To.ShardId()
+	check.PanicIfNot(es.OutTxCounts[toShard] == txn.TxId+1)
+	es.OutTxCounts[toShard]--
 	es.OutTransactions[txnHash] = outTransactions[:index]
 }
 

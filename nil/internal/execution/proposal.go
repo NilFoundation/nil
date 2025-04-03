@@ -42,6 +42,14 @@ type Proposal struct {
 	InternalTxns []*types.Transaction `json:"internalTxns"`
 	ExternalTxns []*types.Transaction `json:"externalTxns"`
 	ForwardTxns  []*types.Transaction `json:"forwardTxns"`
+
+	InTxCounts  TxCounts `json:"inTxCounts"`
+	OutTxCounts TxCounts `json:"outTxCounts"`
+}
+
+type TxCountSSZ struct {
+	ShardId types.ShardId
+	Count   types.TransactionIndex
 }
 
 type ProposalSSZ struct {
@@ -65,6 +73,9 @@ type ProposalSSZ struct {
 
 	// SpecialTxns are internal transactions produced by the collator. They appear only on the main shard.
 	SpecialTxns []*types.Transaction `ssz-max:"4096"`
+
+	InTxCounts  []TxCountSSZ `ssz-max:"65536"`
+	OutTxCounts []TxCountSSZ `ssz-max:"65536"`
 }
 
 func NewParentBlock(shardId types.ShardId, block *types.Block) *ParentBlock {
@@ -130,7 +141,7 @@ func SplitOutTransactions(
 	})
 }
 
-func ConvertTxnRefs(refs []*InternalTxnReference, parentBlocks []*ParentBlock) ([]*types.Transaction, error) {
+func convertTxnRefs(refs []*InternalTxnReference, parentBlocks []*ParentBlock) ([]*types.Transaction, error) {
 	res := make([]*types.Transaction, len(refs))
 	for i, ref := range refs {
 		if ref.ParentBlockIndex >= uint32(len(parentBlocks)) {
@@ -148,6 +159,32 @@ func ConvertTxnRefs(refs []*InternalTxnReference, parentBlocks []*ParentBlock) (
 	return res, nil
 }
 
+func FlattenTxCounts(counts TxCounts) []TxCountSSZ {
+	keys := make([]types.ShardId, 0, len(counts))
+	for shard, count := range counts {
+		if count > 0 {
+			keys = append(keys, shard)
+		}
+	}
+	slices.Sort(keys)
+	res := make([]TxCountSSZ, 0, len(keys))
+	for _, key := range keys {
+		res = append(res, TxCountSSZ{
+			ShardId: key,
+			Count:   counts[key],
+		})
+	}
+	return res
+}
+
+func convertTxCounts(counts []TxCountSSZ) TxCounts {
+	res := make(TxCounts)
+	for _, count := range counts {
+		res[count.ShardId] = count.Count
+	}
+	return res
+}
+
 func ConvertProposal(proposal *ProposalSSZ) (*Proposal, error) {
 	parentBlocks := make([]*ParentBlock, len(proposal.ParentBlocks))
 	for i, pb := range proposal.ParentBlocks {
@@ -158,11 +195,11 @@ func ConvertProposal(proposal *ProposalSSZ) (*Proposal, error) {
 		parentBlocks[i] = converted
 	}
 
-	internalTxns, err := ConvertTxnRefs(proposal.InternalTxnRefs, parentBlocks)
+	internalTxns, err := convertTxnRefs(proposal.InternalTxnRefs, parentBlocks)
 	if err != nil {
 		return nil, fmt.Errorf("invalid internal transactions: %w", err)
 	}
-	forwardTxns, err := ConvertTxnRefs(proposal.ForwardTxnRefs, parentBlocks)
+	forwardTxns, err := convertTxnRefs(proposal.ForwardTxnRefs, parentBlocks)
 	if err != nil {
 		return nil, fmt.Errorf("invalid forward transactions: %w", err)
 	}
@@ -180,5 +217,8 @@ func ConvertProposal(proposal *ProposalSSZ) (*Proposal, error) {
 		InternalTxns: append(proposal.SpecialTxns, internalTxns...),
 		ExternalTxns: proposal.ExternalTxns,
 		ForwardTxns:  forwardTxns,
+
+		InTxCounts:  convertTxCounts(proposal.InTxCounts),
+		OutTxCounts: convertTxCounts(proposal.OutTxCounts),
 	}, nil
 }

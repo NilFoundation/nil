@@ -125,6 +125,9 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		p.proposal.RollbackCounter = rollback.Counter + 1
 	}
 
+	p.proposal.InTxCounts = execution.FlattenTxCounts(p.executionState.InTxCounts)
+	p.proposal.OutTxCounts = execution.FlattenTxCounts(p.executionState.OutTxCounts)
+
 	if len(
 		p.proposal.InternalTxnRefs) == 0 && len(p.proposal.ExternalTxns) == 0 && len(p.proposal.ForwardTxnRefs) == 0 {
 		p.logger.Trace().Msg("No transactions collected")
@@ -381,6 +384,10 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 			state.Neighbors = append(state.Neighbors, types.Neighbor{ShardId: neighborId})
 		}
 		neighbor := &state.Neighbors[position]
+		nextTx := p.executionState.InTxCounts[neighborId]
+		p.logger.Debug().Uint64("nextTx", uint64(nextTx)).
+			Uint32("neighborId", uint32(neighborId)).
+			Msg("Start handling transactions from neighbor")
 
 		var lastBlockNumber types.BlockNumber
 		lastBlock, _, err := db.ReadLastBlock(tx, neighborId)
@@ -438,6 +445,15 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 				}
 
 				if txn.To.ShardId() == p.params.ShardId {
+					if txn.TxId < nextTx {
+						// Already processed transaction
+						p.logger.Debug().
+							Uint64("txId", uint64(txn.TxId)).Uint64("nextTx", uint64(nextTx)).
+							Msg("Already processed transaction")
+						continue
+					}
+					nextTx++
+
 					txnHash := txn.Hash()
 					// TODO: Temporary workaround to prevent transaction duplication
 					isProcessed, err := p.isTxProcessed(tx, txnHash)
