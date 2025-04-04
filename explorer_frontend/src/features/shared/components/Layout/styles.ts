@@ -57,13 +57,6 @@ const navigation = {
   justifyContent: "flex-end",
 };
 
-const tutorialText = {
-  marginTop: "4px",
-  fontSize: "12px",
-  color: COLORS.blue400,
-  fontFamily: "Inter, sans-serif",
-};
-
 const navItem = {
   display: "flex",
   alignItems: "center",
@@ -87,7 +80,6 @@ export const styles = {
   navItem,
   content,
   navLink,
-  tutorialText,
 };
 
 export const mobileContainerStyle: StyleObject = {

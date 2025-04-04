@@ -2,14 +2,14 @@ import type { ReactNode } from "react";
 import { useStyletron } from "styletron-react";
 import { Search } from "../../../search";
 import { useMobile } from "../../hooks/useMobile";
-import { Logo } from "./Logo";
 import { styles } from "./styles";
 
 type NavbarProps = {
   children?: ReactNode;
+  logo?: ReactNode;
 };
 
-export const Navbar = ({ children }: NavbarProps) => {
+export const Navbar = ({ children, logo = null }: NavbarProps) => {
   const [isMobile] = useMobile();
   const [css] = useStyletron();
   return (
@@ -20,7 +20,7 @@ export const Navbar = ({ children }: NavbarProps) => {
           display: "flex",
         })}
       >
-        <Logo />
+        {logo}
         {!isMobile && <Search />}
       </div>
       <div
