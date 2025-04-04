@@ -18,7 +18,7 @@ const l1ERC20BridgeABI = JSON.parse(fs.readFileSync(l1ERC20BridgeABIPath, 'utf8'
 
 const erc20ABIPath = path.join(
     __dirname,
-    '../../artifacts/contracts/common/TestERC20.sol/TestERC20Token.json',
+    '../../artifacts/contracts/common/tokens/TestERC20.sol/TestERC20Token.json',
 );
 const erc20ABI = JSON.parse(fs.readFileSync(erc20ABIPath, 'utf8')).abi;
 
@@ -35,8 +35,6 @@ export async function bridgeERC20() {
     const signer = signers[0]; // The main signer
 
     const signerAddress = signer.address;
-    console.log(`signerAddress is: ${signerAddress}`);
-
     const l1ERC20BridgeInstance = new ethers.Contract(
         config.l1ERC20Bridge.l1ERC20BridgeProxy,
         l1ERC20BridgeABI,
@@ -72,15 +70,10 @@ export async function bridgeERC20() {
     await mintTx.wait();
 
     const tokenBalance = await erc20TokenInstance.balanceOf(signerAddress);
-
-    console.log(`tokenbalance is: ${tokenBalance}`);
-
     const approveTxn = await erc20TokenInstance.approve(config.l1ERC20Bridge.l1ERC20BridgeProxy, tokenBalance);
     await approveTxn.wait();
 
-    const spending_allowance = await erc20TokenInstance.allowance(signer.address, config.l1ERC20Bridge.l1ERC20BridgeProxy);
-
-    console.log(`spending_allowance is: ${spending_allowance}`);
+    await erc20TokenInstance.allowance(signer.address, config.l1ERC20Bridge.l1ERC20BridgeProxy);
 
     console.log(`bridging ${token_amount} (WEI) - ${erc20TokenData.erc20TokenInitConfig.symbol} to recipient: ${recipientAddress} and with l2FeeRefundRecipientAddress: ${l2FeeRefundRecipientAddress}`);
 
@@ -89,6 +82,8 @@ export async function bridgeERC20() {
 
     if (!transactionReceipt || transactionReceipt.status == 0) {
         throw new Error(`ERC20 Bridge transaction failed`);
+    } else {
+        console.log(`Successful ERC20Deposit transaction on L1ERC20Bridge`);
     }
 
     const transactionHash = tx.hash;

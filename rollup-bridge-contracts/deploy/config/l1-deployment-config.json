@@ -2,21 +2,21 @@
   "networks": {
     "geth": {
       "l1DeployerConfig": {
-        "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-        "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+        "owner": "",
+        "admin": ""
       },
       "l1CommonContracts": {
-        "weth": "0x9eb52339B52e71B1EFD5537947e75D23b3a7719B"
+        "weth": ""
       },
       "nilRollup": {
         "nilRollupContracts": {
-          "proxyAdmin": "0x4Ee8d4dD6fDa9fB598C3CFDC055911861C44E7b0",
-          "nilRollupImplementation": "0xa68E430060f74F9821D2dC9A9E2CE3aF7d842EBe",
-          "nilRollupProxy": "0x8B64968F69E669faCc86FA3484FD946f1bBE7c91",
-          "nilVerifier": "0xB2ff9d5e60d68A52cea3cd041b32f1390A880365"
+          "proxyAdmin": "",
+          "nilRollupImplementation": "",
+          "nilRollupProxy": "",
+          "nilVerifier": ""
         },
         "nilRollupDeployerConfig": {
-          "proposerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+          "proposerAddress": ""
         },
         "nilRollupInitConfig": {
           "l2ChainId": 0,
@@ -24,38 +24,38 @@
         }
       },
       "l1BridgeRouter": {
-        "proxyAdmin": "0xC5d71919e74bbB3620f2C7BA475369535Ae26856",
-        "l1BridgeRouterProxy": "0x3818eAb6Ca8Bf427222bfACFA706c514145F4104",
-        "l1BridgeRouterImplementation": "0x7c02b58029beeA7c1FcC872803dC9818f57A0E61"
+        "proxyAdmin": "",
+        "l1BridgeRouterProxy": "",
+        "l1BridgeRouterImplementation": ""
       },
       "l1BridgeMessenger": {
         "l1BridgeMessengerContracts": {
-          "proxyAdmin": "0xDBa2117684B8F1f9B8971Bf182fe355663C4771a",
-          "l1BridgeMessengerProxy": "0x1c1521cf734CD13B02e8150951c3bF2B438be780",
-          "l1BridgeMessengerImplementation": "0xFf658343244c0475b9305859F1b7CDAB9784762f"
+          "proxyAdmin": "",
+          "l1BridgeMessengerProxy": "",
+          "l1BridgeMessengerImplementation": ""
         },
         "l1BridgeMessengerDeployerConfig": {
           "maxProcessingTimeInEpochSeconds": 10000
         }
       },
       "l1ERC20Bridge": {
-        "proxyAdmin": "0x51B68713d3802Ca06332fF52017A46aE6d36BFae",
-        "l1ERC20BridgeProxy": "0xA4aE77554847958aC0854f06601267c9F9C75dfD",
-        "l1ERC20BridgeImplementation": "0x18eb8AF587dcd7E4F575040F6D800a6B5Cef6CAf"
+        "proxyAdmin": "",
+        "l1ERC20BridgeProxy": "",
+        "l1ERC20BridgeImplementation": ""
       },
       "l1ETHBridge": {
-        "proxyAdmin": "0x5434e8FC67e9285d0DA256f81359610faF34Bc02",
-        "l1ETHBridgeProxy": "0x0B1a87021ec75fBaE919b1e86b2B1335FFC8F4d3",
-        "l1ETHBridgeImplementation": "0x4432a6DcfAEAB227673B43C30c6fEf40eaBD5D30"
+        "proxyAdmin": "",
+        "l1ETHBridgeProxy": "",
+        "l1ETHBridgeImplementation": ""
       },
       "nilGasPriceOracle": {
         "nilGasPriceOracleContracts": {
-          "proxyAdmin": "0x74E042F7aC8989CAe69bAb800448f485AD175C9D",
-          "nilGasPriceOracleProxy": "0xC0340c0831Aa40A0791cF8C3Ab4287EB0a9705d8",
-          "nilGasPriceOracleImplementation": "0x9A86494Ba45eE1f9EEed9cFC0894f6C5d13a1F0b"
+          "proxyAdmin": "",
+          "nilGasPriceOracleProxy": "",
+          "nilGasPriceOracleImplementation": ""
         },
         "nilGasPriceOracleDeployerConfig": {
-          "nilGasPriceSetterAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+          "nilGasPriceSetterAddress": "",
           "nilGasPriceOracleMaxFeePerGas": 1000,
           "nilGasPriceOracleMaxPriorityFeePerGas": 1000
         }

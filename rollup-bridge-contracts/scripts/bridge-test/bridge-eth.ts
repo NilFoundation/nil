@@ -1,5 +1,5 @@
 import { ethers, network } from 'hardhat';
-import { Contract } from 'ethers';
+import { Contract, TransactionReceipt } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
@@ -27,8 +27,6 @@ export async function bridgeETH() {
     const signer = signers[0]; // The main signer
 
     const signerAddress = signer.address;
-    console.log(`signerAddress is: ${signerAddress}`);
-
     const l1ETHBridgeInstance = new ethers.Contract(
         config.l1ETHBridge.l1ETHBridgeProxy,
         l1EthBridgeABI,
@@ -46,17 +44,16 @@ export async function bridgeETH() {
     console.log(`bridging ${eth_amount} (WEI) to recipient: ${recipientAddress} and with l2FeeRefundRecipientAddress: ${l2FeeRefundRecipientAddress}`);
 
     const tx = await l1ETHBridgeInstance.depositETH(recipientAddress, eth_amount, l2FeeRefundRecipientAddress, gasLimit, userFeePerGas, userMaxPriorityFeePerGas, { value: total_native_amount });
-    const transactionReceipt = await tx.wait();
-
-    console.log(`transactionReceipt is: ${JSON.stringify(transactionReceipt)}`);
+    await tx.wait();
 
     const transactionHash = tx.hash;
+    const transactionDetails: TransactionReceipt = await ethers.provider.getTransactionReceipt(transactionHash);
+    if (!transactionDetails || transactionDetails.status == 0) {
+        throw new Error(`DepositETH L1Bridge transaction failed`);
+    } else {
+        console.log(`Successful DepositETH transaction on L1ETHBridge`);
+    }
 
-    console.log(`About to get transactionDetails for transactionHash: ${transactionHash}`);
-
-    const transactionDetails = await ethers.provider.getTransactionReceipt(transactionHash);
-
-    console.log(`transactionDetails for hash: ${transactionHash} is: ${JSON.stringify(transactionDetails)}`);
 }
 
 async function main() {

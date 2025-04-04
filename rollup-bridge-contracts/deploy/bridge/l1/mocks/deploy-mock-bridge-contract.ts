@@ -7,6 +7,7 @@ import {
     L1NetworkConfig,
     loadL1MockConfig,
     loadL1NetworkConfig,
+    saveL1MockConfig,
     saveL1NetworkConfig,
 } from '../../../config/config-helper';
 
@@ -24,6 +25,7 @@ export async function deployMockL2BridgeContract(networkName: string, deployer: 
         const l1MockContracts: L1MockContracts = loadL1MockConfig(networkName);
 
         l1MockContracts.mockL2Bridge = mockL2Bridge.address;
+        saveL1MockConfig(networkName, l1MockContracts);
     } catch (error) {
         console.error('Error during deployment:', error);
     }
