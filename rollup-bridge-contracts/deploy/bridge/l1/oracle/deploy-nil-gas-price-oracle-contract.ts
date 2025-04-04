@@ -18,7 +18,7 @@ export async function deployNilGasPriceOracleContract(networkName: string): Prom
             [
                 config.l1DeployerConfig.owner, // _owner
                 config.l1DeployerConfig.admin, // _defaultAdmin
-                config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceSetterAddress,
+                config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.proposerAddress,
                 config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceOracleMaxFeePerGas,
                 config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceOracleMaxPriorityFeePerGas
             ],

@@ -136,8 +136,6 @@ export async function extractAndParseMessageSentEventLog(transactionHash: string
     const topic = "0x29820d80f4b3b15e5871bf7c904640ab18dff6fe6b7839e60303fe6f8539ec7c";
     const transactionReceipt = await ethers.provider.getTransactionReceipt(transactionHash);
 
-    console.log(`extractAndParseMessageSentEventLog -> transactionReceipt: ${JSON.stringify(transactionReceipt)}`);
-
     // Filter logs by the specific topic
     const filteredLogs = transactionReceipt.logs.filter((log: any) =>
         log.topics.includes(topic)

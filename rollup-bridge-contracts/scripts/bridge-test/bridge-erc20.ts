@@ -95,6 +95,8 @@ export async function bridgeERC20() {
 
     const messageSentEvent: MessageSentEvent = messageSentEventLogData;
 
+    console.log(`ERC20Bridging transaction has emitted MessageSentEvent: ${JSON.stringify(messageSentEvent, bigIntReplacer, 2)}`);
+
     const depositERC20EventLogData = await extractAndParseDepositERC20Event(transactionHash);
 
     if (!depositERC20EventLogData) {
@@ -103,27 +105,7 @@ export async function bridgeERC20() {
 
     const depositERC20Event: DepositERC20Event = depositERC20EventLogData;
 
-    // Convert both values to BigNumber for comparison
-    // const depositAmount = ethers.BigNumber.from(depositERC20Event.amount);
-    // const expectedAmount = ethers.BigNumber.from(token_amount);
-
-    // if (!depositAmount.eq(expectedAmount)) {
-    //     throw new Error(`Deposit amount mismatch: expected ${expectedAmount.toString()}, got ${depositAmount.toString()}`);
-    // }
-
-    // if (!(depositERC20Event.depositor == signerAddress)) {
-    //     throw new Error(`DepositorAddress mismatch: expected ${signerAddress}, got ${depositERC20Event.depositor}`);
-    // }
-
-
-    // if (!(depositERC20Event.l1Token == erc20TokenData.address)) {
-    //     throw new Error(`L1TokenAddress mismatch: expected ${erc20TokenData.address}, got ${depositERC20Event.l1Token}`);
-    // }
-
-    // if (!(depositERC20Event.l2Recipient == recipientAddress)) {
-    //     throw new Error(`recipientAddress mismatch: expected ${recipientAddress}, got ${depositERC20Event.l2Recipient}`);
-    // }
-
+    console.log(`ERC20Bridging transaction has emitted DepositERC20Event: ${JSON.stringify(depositERC20Event, bigIntReplacer, 2)}`);
 }
 
 function getERC20TokenBySymbol(tokens: ERC20TokenContract[], symbol: string): ERC20TokenContract | null {

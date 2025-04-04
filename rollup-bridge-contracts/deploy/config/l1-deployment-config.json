@@ -55,9 +55,10 @@
           "nilGasPriceOracleImplementation": ""
         },
         "nilGasPriceOracleDeployerConfig": {
-          "nilGasPriceSetterAddress": "",
+          "proposerAddress": "",
           "nilGasPriceOracleMaxFeePerGas": 1000,
-          "nilGasPriceOracleMaxPriorityFeePerGas": 1000
+          "nilGasPriceOracleMaxPriorityFeePerGas": 1000,
+          "nilGasPriceSetterAddress": ""
         }
       }
     }

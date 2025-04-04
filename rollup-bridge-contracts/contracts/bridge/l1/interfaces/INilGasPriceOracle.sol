@@ -10,6 +10,8 @@ interface INilGasPriceOracle is IERC165 {
   /// @dev Invalid default admin address.
   error ErrorInvalidDefaultAdmin();
 
+  error ErrorNotAuthorised();
+
   struct FeeCreditData {
     uint256 nilGasLimit;
     uint256 maxFeePerGas;
@@ -19,19 +21,22 @@ interface INilGasPriceOracle is IERC165 {
 
   function getImplementation() external view returns (address);
 
-  /// @notice set the maxFeePerGas for nil-chain
+  /// @notice set the maxFeePerGas & maxPriorityFeePerGas from nil-chain
+  function setFeePerGas(uint256 newMaxFeePerGas, uint256 newMaxPriorityFeePerGas) external;
+
+  /// @notice set the maxFeePerGas from nil-chain
   function setMaxFeePerGas(uint256 maxFeePerGas) external;
 
-  /// @notice Return the latest known maxFeePerGas for nil-chain
+  /// @notice Return the latest known maxFeePerGas from nil-chain
   function maxFeePerGas() external view returns (uint256);
 
-  /// @notice set the maxPriorityFeePerGas for nil-chain
+  /// @notice set the maxPriorityFeePerGas from nil-chain
   function setMaxPriorityFeePerGas(uint256 maxPriorityFeePerGas) external;
 
-  /// @notice Return the latest known maxPriorityFeePerGas for nil-chain
+  /// @notice Return the latest known maxPriorityFeePerGas from nil-chain
   function maxPriorityFeePerGas() external view returns (uint256);
 
-  /// @notice Return the latest known maxFeePerGas, maxPriorityFeePerGas for nil-chain
+  /// @notice Return the latest known maxFeePerGas, maxPriorityFeePerGas from nil-chain
   function getFeeData() external view returns (uint256, uint256);
 
   function computeFeeCredit(

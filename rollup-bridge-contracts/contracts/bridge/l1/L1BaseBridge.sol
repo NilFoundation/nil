@@ -201,10 +201,6 @@ abstract contract L1BaseBridge is
 
   /// @inheritdoc IL1Bridge
   function setNilGasPriceOracle(address nilGasPriceOracleAddress) external override onlyOwnerOrAdmin whenNotPaused {
-    if (!hasRole(NilConstants.GAS_PRICE_SETTER_ROLE, msg.sender)) {
-      revert UnAuthorizedCaller();
-    }
-
     _setNilGasPriceOracle(nilGasPriceOracleAddress);
   }
 

@@ -9,9 +9,6 @@ library NilConstants {
   bytes32 public constant PROPOSER_ROLE = keccak256("PROPOSER_ROLE");
   bytes32 public constant PROPOSER_ROLE_ADMIN = keccak256("PROPOSER_ROLE_ADMIN");
 
-  bytes32 public constant GAS_PRICE_SETTER_ROLE = keccak256("GAS_PRICE_SETTER_ROLE");
-  bytes32 public constant GAS_PRICE_SETTER_ROLE_ADMIN = keccak256("GAS_PRICE_SETTER_ROLE_ADMIN");
-
   bytes32 public constant RELAYER_ROLE_ADMIN = keccak256("RELAYER_ROLE_ADMIN");
   bytes32 public constant RELAYER_ROLE = keccak256("RELAYER_ROLE");
 

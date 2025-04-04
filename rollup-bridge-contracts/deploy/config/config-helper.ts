@@ -101,7 +101,7 @@ export interface NilGasPriceOracleContracts {
 }
 
 export interface NilGasPriceOracleDeployerConfig {
-    nilGasPriceSetterAddress: string;
+    proposerAddress: string;
     nilGasPriceOracleMaxFeePerGas: number;
     nilGasPriceOracleMaxPriorityFeePerGas: number;
 }

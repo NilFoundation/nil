@@ -32,7 +32,7 @@ export async function clearDeployments(networkName: string) {
     config.nilGasPriceOracle.nilGasPriceOracleContracts.nilGasPriceOracleImplementation = "";
     config.nilGasPriceOracle.nilGasPriceOracleContracts.nilGasPriceOracleProxy = "";
     config.nilGasPriceOracle.nilGasPriceOracleContracts.proxyAdmin = "";
-    config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceSetterAddress = "";
+    config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.proposerAddress = "";
 
     config.nilRollup.nilRollupContracts.nilRollupImplementation = "";
     config.nilRollup.nilRollupContracts.nilRollupProxy = "";

@@ -61,7 +61,7 @@ contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccess
   function initialize(
     address _owner,
     address _defaultAdmin,
-    address _gasPriceSetter,
+    address _proposer,
     uint64 _maxFeePerGas,
     uint64 _maxPriorityFeePerGas
   ) public initializer {
@@ -97,18 +97,18 @@ contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccess
     _grantRole(NilConstants.OWNER_ROLE, _owner);
     _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
 
-    _grantRole(NilConstants.GAS_PRICE_SETTER_ROLE_ADMIN, _defaultAdmin);
-    _grantRole(NilConstants.GAS_PRICE_SETTER_ROLE_ADMIN, _owner);
+    _grantRole(NilConstants.PROPOSER_ROLE_ADMIN, _defaultAdmin);
+    _grantRole(NilConstants.PROPOSER_ROLE_ADMIN, _owner);
 
     // Grant proposer to defaultAdmin and owner
-    // The GAS_PRICE_SETTER_ROLE is granted to the default admin and the owner.
+    // The PROPOSER_ROLE is granted to the default admin and the owner.
     // This ensures that both the default admin and the owner have the necessary permissions to perform
     // set GasPrice parameters if needed. This redundancy provides a fallback mechanism
-    _grantRole(NilConstants.GAS_PRICE_SETTER_ROLE, _owner);
-    _grantRole(NilConstants.GAS_PRICE_SETTER_ROLE, _defaultAdmin);
+    _grantRole(NilConstants.PROPOSER_ROLE, _owner);
+    _grantRole(NilConstants.PROPOSER_ROLE, _defaultAdmin);
 
     // grant GasPriceSetter role to gasPriceSetter address
-    _grantRole(NilConstants.GAS_PRICE_SETTER_ROLE, _gasPriceSetter);
+    _grantRole(NilConstants.PROPOSER_ROLE, _proposer);
 
     maxFeePerGas = _maxFeePerGas;
     maxPriorityFeePerGas = _maxPriorityFeePerGas;
@@ -119,19 +119,33 @@ contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccess
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc INilGasPriceOracle
-  function setMaxFeePerGas(uint256 newMaxFeePerGas) external onlyOwner {
-    uint256 oldMaxFeePerGas = maxFeePerGas;
-    maxFeePerGas = newMaxFeePerGas;
-
-    emit MaxFeePerGasUpdated(oldMaxFeePerGas, newMaxFeePerGas);
+  function setFeePerGas(uint256 newMaxFeePerGas, uint256 newMaxPriorityFeePerGas) external onlyProposer {
+    _setMaxFeePerGas(newMaxFeePerGas);
+    _setMaxPriorityFeePerGas(newMaxPriorityFeePerGas);
   }
 
   /// @inheritdoc INilGasPriceOracle
-  function setMaxPriorityFeePerGas(uint256 newMaxPriorityFeePerGas) external onlyOwner {
-    uint256 oldMaxPriorityFeePerGas = maxPriorityFeePerGas;
-    maxPriorityFeePerGas = newMaxPriorityFeePerGas;
+  function setMaxFeePerGas(uint256 newMaxFeePerGas) external onlyProposer {
+    _setMaxFeePerGas(newMaxFeePerGas);
+  }
 
-    emit MaxFeePerGasUpdated(oldMaxPriorityFeePerGas, newMaxPriorityFeePerGas);
+  function _setMaxFeePerGas(uint256 _newMaxFeePerGas) internal {
+    uint256 oldMaxFeePerGas = maxFeePerGas;
+    maxFeePerGas = _newMaxFeePerGas;
+
+    emit MaxFeePerGasUpdated(oldMaxFeePerGas, _newMaxFeePerGas);
+  }
+
+  /// @inheritdoc INilGasPriceOracle
+  function setMaxPriorityFeePerGas(uint256 newMaxPriorityFeePerGas) external onlyProposer {
+    _setMaxPriorityFeePerGas(newMaxPriorityFeePerGas);
+  }
+
+  function _setMaxPriorityFeePerGas(uint256 _newMaxPriorityFeePerGas) internal {
+    uint256 oldMaxPriorityFeePerGas = maxPriorityFeePerGas;
+    maxPriorityFeePerGas = _newMaxPriorityFeePerGas;
+
+    emit MaxPriorityFeePerGasUpdated(oldMaxPriorityFeePerGas, _newMaxPriorityFeePerGas);
   }
 
   /*//////////////////////////////////////////////////////////////////////////
