@@ -25,6 +25,7 @@ import SystemCommand from "./commands/system";
 import ChainId from "./commands/system/chain-id";
 import GasPrice from "./commands/system/gas-price";
 import Shards from "./commands/system/shards";
+import GetTransactionReceipt from "./commands/reciepts/get-transaction-reciept.js";
 
 export const COMMANDS: Record<string, Command.Class> = {
   abi: AbiCommand,
@@ -36,6 +37,8 @@ export const COMMANDS: Record<string, Command.Class> = {
   keygen: Keygen,
   "keygen:new": KeygenNew,
   "keygen:new-p2p": KeygenNewP2p,
+
+  "reciept:get-transaction-reciept": GetTransactionReceipt,
 
   "smart-account": SmartAccount,
   "smart-account:balance": SmartAccountBalance,
