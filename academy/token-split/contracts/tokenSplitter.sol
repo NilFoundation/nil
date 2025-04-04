@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 /**
  * @title TokenSplitter
  * @notice Distributes received =nil; native tokens (identified by TokenId) to multiple recipients across different shards asynchronously.
- * @dev Assumes tokens are transferred to this contract *before* calling splitTokens.
+ * @dev Assumes tokens are transferred to this contract *while* calling splitTokens.
  * @dev Inherits NilTokenBase primarily for convenient access to sendTokenInternal.
  */
 contract TokenSplitter is NilBase, NilTokenBase, Ownable, ReentrancyGuard {
