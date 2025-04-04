@@ -49,7 +49,7 @@ const navbar = {
   width: "100%",
   display: "grid",
   gap: "8px",
-  gridTemplateColumns: "calc(66% + 8px) 33%", // 8px - width of resize handle
+  gridTemplateColumns: "1fr auto",
   gridTemplateRows: "1fr",
   height: "auto",
   ...expandProperty("padding", "16px 0"),
