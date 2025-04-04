@@ -122,7 +122,11 @@ func reflectSchemeToClickhouse(f any) (reflectedScheme, error) {
 		if fieldNameInDb == "-" {
 			continue
 		}
-		if field.Type.Kind() == reflect.Struct {
+		switch {
+		case field.Type.PkgPath() == "time" && field.Type.Name() == "Time":
+			fieldTypes[fieldNameInDb] = "DateTime64"
+			fieldNames[field.Name] = fieldNameInDb
+		case field.Type.Kind() == reflect.Struct:
 			if field.Type.Name() == "Value" {
 				fieldTypes[fieldNameInDb] = "UInt256"
 				fieldNames[field.Name] = fieldNameInDb
@@ -138,7 +142,7 @@ func reflectSchemeToClickhouse(f any) (reflectedScheme, error) {
 				return reflectedScheme{}, err
 			}
 			additionalSchemes = append(additionalSchemes, scheme)
-		} else {
+		default:
 			fieldTypes[fieldNameInDb] = mapTypeToClickhouseType(field.Type)
 			fieldNames[field.Name] = fieldNameInDb
 		}

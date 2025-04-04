@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
 	"math/big"
 	"testing"
@@ -81,6 +83,8 @@ func (s *SuiteEconomy) SetupSuite() {
 		ZeroState:            zeroState,
 		CollatorTickPeriodMs: 200,
 		RunMode:              nilservice.CollatorsOnlyRunMode,
+
+		DisableConsensus: true,
 	})
 	tests.WaitShardTick(s.T(), s.Context, s.Client, types.MainShardId)
 	tests.WaitShardTick(s.T(), s.Context, s.Client, types.BaseShardId)
@@ -90,11 +94,45 @@ func (s *SuiteEconomy) TearDownSuite() {
 	s.Cancel()
 }
 
-func getNumForGas(gas int) int {
-	return gas / 529
+func (s *SuiteEconomy) TestSeqno() {
+
+	//calldata, err := s.abiTest.Pack("deployEntity")
+	//s.Require().NoError(err)
+	//
+	//receipt := s.SendExternalTransaction(calldata, s.testAddress1)
+	//s.Require().True(receipt.AllSuccess())
+	//fmt.Println("AAAAA1", receipt.GasUsed)
+	//
+	//receipt1 := s.SendExternalTransactionNoCheck(calldata, s.testAddress1)
+	//fmt.Println("AAAAA2", receipt1.GasUsed)
+	//s.Require().True(receipt1.AllSuccess())
+
+	calldata, err := s.abiTest.Pack("nonPayable")
+	s.Require().NoError(err)
+	tx := &types.ExternalTransaction{
+		To:           s.testAddress1,
+		Seqno:        0,
+		Kind:         types.ExecutionTransactionKind,
+		FeeCredit:    types.GasToValue(100_000),
+		MaxFeePerGas: types.MaxFeePerGasDefault,
+		Data:         calldata,
+	}
+
+	txHash, err := s.Client.SendTransaction(s.Context, tx)
+	s.Require().NoError(err)
+	receipt := s.WaitForReceipt(txHash)
+	s.Require().True(receipt.Success)
+
+	txHash, err = s.Client.SendTransaction(s.Context, tx)
+	s.Require().NoError(err)
+	receipt = s.WaitForReceipt(txHash)
+	s.Require().True(receipt.Success)
 }
 
 func (s *SuiteEconomy) TestGasConsumer() {
+	getNumForGas := func(gas int) int {
+		return gas / 529
+	}
 	abi, err := contracts.GetAbi(contracts.NameStresser)
 	s.Require().NoError(err)
 
@@ -119,6 +157,61 @@ func (s *SuiteEconomy) TestGasConsumer() {
 	for i := 1_000; i < 5_000; i += 1_000 {
 		run(i)
 	}
+}
+
+func (s *SuiteEconomy) TestGasConsumer2() {
+	const gasPerIteration = 20331
+	getNumForGas := func(gas int) int {
+		return gas / gasPerIteration
+	}
+	abi, err := contracts.GetAbi(contracts.NameStresser)
+	s.Require().NoError(err)
+
+	stresserCode, err := contracts.GetCode(contracts.NameStresser)
+	s.Require().NoError(err)
+
+	addr, receipt := s.DeployContractViaMainSmartAccount(types.BaseShardId,
+		types.BuildDeployPayload(stresserCode, common.EmptyHash), types.GasToValue(500_000_000_000))
+
+	run := func(n int) {
+		calldata := s.AbiPack(abi, "gasConsumerColdSSTORE", big.NewInt(int64(n)))
+		txHash, err := s.Client.SendExternalTransaction(s.Context, calldata, addr, nil,
+			types.NewFeePackFromGas(50_000_000))
+		s.Require().NoError(err)
+		receipt = s.WaitForReceipt(txHash)
+		s.Require().True(receipt.AllSuccess())
+
+		fmt.Println("n=", n, ", gas=", receipt.GasUsed)
+
+		calcN := getNumForGas(int(receipt.GasUsed))
+		s.Require().Less(int(math.Abs(float64(n-calcN))), 10)
+	}
+
+	run(1)
+	run(111)
+	run(555)
+	run(777)
+	run(999)
+	run(1111)
+	run(1333)
+	run((int(types.DefaultMaxGasInBlock) / gasPerIteration) - 1)
+}
+
+func (s *SuiteEconomy) TestStresserFactory() {
+	abi, err := contracts.GetAbi("tests/StresserFactory")
+	s.Require().NoError(err)
+
+	stresserCode, err := contracts.GetCode("tests/StresserFactory")
+	s.Require().NoError(err)
+
+	addr, receipt := s.DeployContractViaMainSmartAccount(types.BaseShardId,
+		types.BuildDeployPayload(stresserCode, common.EmptyHash), types.GasToValue(5_000_000_000))
+
+	calldata := s.AbiPack(abi, "deployContracts", big.NewInt(int64(32)), big.NewInt(int64(1_000_000_000)))
+	receipt = s.SendExternalTransactionNoCheck(calldata, addr)
+	d, _ := json.MarshalIndent(receipt, "", "  ")
+	fmt.Println(string(d))
+	s.Require().True(receipt.AllSuccess())
 }
 
 func (s *SuiteEconomy) TestSeparateGasAndValue() {

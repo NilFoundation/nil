@@ -271,6 +271,13 @@ func (s *Validator) onBlockCommitUnlocked(
 ) {
 	s.setLastBlockUnlocked(res.Block, res.BlockHash)
 
+	//s.logger.Info().
+	//	Int("id", int(res.Block.Id)).
+	//	Int("in_txns", len(res.InTxnHashes)).
+	//	Int("out_txns", len(res.OutTxnHashes)).
+	//	Stringer("baseFee", res.Block.BaseFee).
+	//	Msg("Block committed")
+
 	if !reflect.ValueOf(s.pool).IsNil() {
 		if err := s.pool.OnCommitted(ctx, res.Block.BaseFee, proposal.ExternalTxns); err != nil {
 			s.logger.Warn().Err(err).

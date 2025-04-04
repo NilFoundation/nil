@@ -133,13 +133,13 @@ func (b *BadgerDriver) indexBlockTransactions(
 		}
 
 		baseAction := indexertypes.AddressAction{
-			Hash:      hash,
-			From:      txn.From,
-			To:        txn.To,
-			Amount:    txn.Value,
-			Timestamp: db.Timestamp(block.Timestamp),
-			BlockId:   block.Id,
-			Status:    getTransactionStatus(receipt.decoded),
+			Hash:   hash,
+			From:   txn.From,
+			To:     txn.To,
+			Amount: txn.Value,
+			//Timestamp: db.Timestamp(block.Timestamp),
+			BlockId: block.Id,
+			Status:  getTransactionStatus(receipt.decoded),
 		}
 
 		logger := logging.NewLogger("indexer-badger")
@@ -160,6 +160,10 @@ func (b *BadgerDriver) indexBlockTransactions(
 	}
 
 	return nil
+}
+
+func (d *BadgerDriver) IndexTxPool(ctx context.Context, txPoolStatuses []*driver.TxPoolStatus) error {
+	return errors.New("not implemented")
 }
 
 func getTransactionStatus(receipt *types.Receipt) indexertypes.AddressActionStatus {

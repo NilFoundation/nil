@@ -164,6 +164,39 @@ func (b *BatchRequestImpl) SendTransactionViaSmartContract(
 	return uint64(id), nil
 }
 
+func (b *BatchRequestImpl) SendExternalTransaction(
+	ctx context.Context,
+	calldata types.Code,
+	contractAddress types.Address,
+	pk *ecdsa.PrivateKey,
+	fee types.FeePack,
+) (uint64, error) {
+	id := len(b.requests)
+
+	extTxn, err := client.CreateExternalTransaction(ctx, b.client, calldata, contractAddress, fee, false, 0)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create external transaction: %w", err)
+	}
+
+	if len(extTxn.Data) > types.TransactionMaxDataSize {
+		return 0, ErrTxnDataTooLong
+	}
+	data, err := extTxn.MarshalSSZ()
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal transaction: %w", err)
+	}
+	if pk != nil {
+		if err = extTxn.Sign(pk); err != nil {
+			return 0, fmt.Errorf("failed to sign transaction: %w", err)
+		}
+	}
+
+	request := b.client.newRequest(Eth_sendRawTransaction, hexutil.Bytes(data))
+
+	b.requests = append(b.requests, request)
+	return uint64(id), nil
+}
+
 type CallParam struct {
 	Bytecode []byte
 	Address  types.Address

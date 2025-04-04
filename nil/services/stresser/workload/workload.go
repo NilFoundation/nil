@@ -14,23 +14,21 @@ import (
 
 type Workload interface {
 	Init(ctx context.Context, client *core.Helper, args *WorkloadParams) error
+	GetName() string
 	PreRun(ctx context.Context, args *RunParams)
-	Run(ctx context.Context, args *RunParams) ([]*core.Transaction, error)
+	Run(ctx context.Context, args *RunParams) error
 	TotalTxsNum() int
 	CheckIsReady() bool
 }
 
 type WorkloadBase struct {
-	Interval       time.Duration `yaml:"interval"`
-	WaitTxsTimeout time.Duration `yaml:"waitTxsTimeout"`
+	Interval   time.Duration `yaml:"interval"`
+	Iterations int           `yaml:"iterations"`
+	Name       string        `yaml:"name"`
 
 	params WorkloadParams
 	// Time of the workload last start, used to calculate the interval.
 	lastStartTm time.Time
-	// List of created transactions on each run. We can use local array and return it on each run, but we also need
-	// to take into account that we don't need to add transactions if WaitTxsTimeout!=0. Now it is checked in one place
-	// instead of checking it in each workload.
-	txs []*core.Transaction
 	// Total number of transactions sent by the workload
 	totalTxsNum atomic.Int64
 
@@ -50,10 +48,11 @@ func (w *WorkloadBase) Init(ctx context.Context, client *core.Helper, args *Work
 	w.params = *args
 	w.lastStartTm = time.Now()
 }
-
-func (w *WorkloadBase) PreRun(ctx context.Context, args *RunParams) {
-	w.txs = nil
+func (w *WorkloadBase) GetName() string {
+	return w.Name
 }
+
+func (w *WorkloadBase) PreRun(ctx context.Context, args *RunParams) {}
 
 func (w *WorkloadBase) CheckIsReady() bool {
 	res := time.Since(w.lastStartTm) >= w.Interval
@@ -63,20 +62,16 @@ func (w *WorkloadBase) CheckIsReady() bool {
 	return res
 }
 
-func (w *WorkloadBase) AddTx(tx *core.Transaction) {
-	if w.shouldWaitTx() {
-		tx.Timeout = w.WaitTxsTimeout
-		w.txs = append(w.txs, tx)
-	}
-	w.totalTxsNum.Add(1)
-}
-
 func (w *WorkloadBase) TotalTxsNum() int {
 	return int(w.totalTxsNum.Load())
 }
 
-func (w *WorkloadBase) shouldWaitTx() bool {
-	return w.WaitTxsTimeout > 0
+func (w *WorkloadBase) getContract(idx int) *core.Contract {
+	return w.params.Contracts[idx%len(w.params.Contracts)]
+}
+
+func (w *WorkloadBase) getRandomContract() *core.Contract {
+	return w.params.Contracts[rand.Intn(len(w.params.Contracts)-1)]
 }
 
 func GetWorkload(name string) (Workload, error) {

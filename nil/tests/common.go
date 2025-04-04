@@ -220,7 +220,7 @@ func SendExternalTransactionNoCheck(
 	t.Helper()
 
 	txHash, err := client.SendExternalTransaction(ctx, bytecode, contractAddress, execution.MainPrivateKey,
-		types.NewFeePackFromGas(500_000))
+		types.NewFeePackFromGas(500_000_000))
 	require.NoError(t, err)
 
 	return WaitIncludedInMain(t, ctx, client, txHash)

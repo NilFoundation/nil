@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	poseidon2 "github.com/elliottech/poseidon_crypto/hash/poseidon2_goldilocks"
 	"math/big"
 	"math/rand"
 	"reflect"
@@ -12,7 +13,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/holiman/uint256"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 type Hash [HashSize]byte
@@ -33,10 +33,20 @@ func BytesToHash(b []byte) Hash {
 
 // PoseidonHash returns 32-bytes poseidon hash of b bytes.
 func PoseidonHash(b []byte) Hash {
-	if len(b) == 0 {
-		return EmptyHash
-	}
-	return BytesToHash(poseidon.Sum(b))
+	//if len(b) == 0 {
+	//	return EmptyHash
+	//}
+	//p := poseidon2.NewPoseidon2();
+	//if len(b)%8 != 0 {
+	//	b = append(b, make([]byte, 8-len(b)%8)...)
+	//}
+	//_, err := p.Write(b)
+	//check.PanicIfErr(err)
+	//h := p.Sum(nil)
+	//return BytesToHash(h)
+	_ = poseidon2.NewPoseidon2()
+	return Keccak256Hash(b)
+	//return BytesToHash(poseidon.Sum(b))
 }
 
 func PoseidonSSZ(data ssz.Marshaler) (Hash, error) {

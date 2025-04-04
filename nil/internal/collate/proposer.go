@@ -280,6 +280,8 @@ func (p *proposer) handleTransaction(txn *types.Transaction, txnHash common.Hash
 		p.logger.Debug().Stringer(logging.FieldTransactionHash, txnHash).
 			Err(res.Error).
 			Msg("Transaction execution failed. It doesn't prevent adding it to the block.")
+	} else if res.GasUsed > types.DefaultMaxGasInBlock {
+		return res.FatalError
 	}
 
 	return nil
@@ -297,6 +299,7 @@ func (p *proposer) handleTransactionsFromPool() error {
 
 	var unverified []common.Hash
 	handle := func(mt *types.TxnWithHash) (bool, error) {
+		p.logger.Debug().Int("seqno", int(mt.Seqno)).Msg("Start handling transaction")
 		txnHash := mt.Hash()
 		txn := mt.Transaction
 

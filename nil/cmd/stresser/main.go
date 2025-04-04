@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"os"
 
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -14,6 +15,9 @@ import (
 var logLevel *string
 
 func main() {
+
+	profiling.Start(6010)
+
 	var configFile string
 	rootCmd := &cobra.Command{
 		Use:   "stresser --config <config-file>",

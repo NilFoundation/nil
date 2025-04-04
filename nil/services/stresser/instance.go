@@ -3,14 +3,13 @@ package stresser
 import (
 	"context"
 	"fmt"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
-
-	"github.com/NilFoundation/nil/nil/common/logging"
 )
 
 type NildInstance struct {
@@ -19,7 +18,10 @@ type NildInstance struct {
 	workingDir string
 	cmd        *exec.Cmd
 	logger     logging.Logger
+	profPort   int
 }
+
+var nildIndex = 0
 
 func (n *NildInstance) Init(nildPath string, workingDir string) error {
 	n.logger = logging.NewLogger(n.Name)
@@ -35,7 +37,10 @@ func (n *NildInstance) Init(nildPath string, workingDir string) error {
 	if n.IsRpc {
 		cmd = "rpc"
 	}
-	n.cmd = exec.Command(nildPath, cmd, "--config", cfgFile, "-l", "debug", "--log-filter", "-consensus", "--dev-api")
+	n.profPort = 6000 + nildIndex
+	nildIndex++
+	n.cmd = exec.Command(nildPath, cmd, "--config", cfgFile, "-l", "debug", "--log-filter", "-consensus", "--dev-api",
+		"--pprof-port", strconv.Itoa(n.profPort))
 	n.cmd.Dir = n.workingDir
 
 	return nil
@@ -86,6 +91,19 @@ func (n *NildInstance) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	}
 
 	exitEvent := make(chan struct{})
+
+	//go func() {
+	//	time.Sleep(10 * time.Second)
+	//	profCmd := exec.Command("go", "tool", "pprof", "-svg", "-output", "pprof.svg", fmt.Sprintf("http://localhost:%d/debug/pprof/profile?seconds=60", n.profPort))
+	//	profCmd.Dir = n.workingDir
+	//	profCmd.Env = append(os.Environ(), "PPROF_TMPDIR=./")
+	//	if err := profCmd.Start(); err != nil {
+	//		panic("failed to start pprof")
+	//	}
+	//	n.logger.Info().Str("command", profCmd.String()).Msg("Profiler started")
+	//	profCmd.Wait()
+	//	n.logger.Info().Msgf("Pprof finished!!!")
+	//}()
 
 	go func() {
 		err := n.cmd.Wait()

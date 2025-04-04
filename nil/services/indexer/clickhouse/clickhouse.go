@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/NilFoundation/nil/nil/common"
@@ -23,6 +22,8 @@ type ClickhouseDriver struct {
 	insertConn driver.Conn
 	options    clickhouse.Options
 }
+
+var _ indexerdriver.IndexerDriver = &ClickhouseDriver{}
 
 func (d *ClickhouseDriver) FetchBlock(ctx context.Context, id types.ShardId, number types.BlockNumber) (*types.Block, error) {
 	row := d.conn.QueryRow(ctx, `
@@ -59,9 +60,9 @@ func (d *ClickhouseDriver) FetchLatestProcessedBlockId(ctx context.Context, id t
 	if err != nil {
 		return nil, err
 	}
-	if blockNum == types.InvalidBlockNumber {
-		return nil, nil
-	}
+	//if blockNum == types.InvalidBlockNumber {
+	//	return nil, nil
+	//}
 	return &blockNum, nil
 }
 
@@ -166,7 +167,6 @@ type TransactionWithBinary struct {
 	ShardId           types.ShardId          `ch:"shard_id"`
 	TransactionIndex  types.TransactionIndex `ch:"transaction_index"`
 	Outgoing          bool                   `ch:"outgoing"`
-	Timestamp         uint64                 `ch:"timestamp"`
 	ParentTransaction common.Hash            `ch:"parent_transaction"`
 	ErrorMessage      string                 `ch:"error_message"`
 	FailedPc          uint32                 `ch:"failed_pc"`
@@ -182,6 +182,11 @@ func NewTransactionWithBinary(
 	shardId types.ShardId,
 ) *TransactionWithBinary {
 	hash := transaction.Hash()
+	status := "<pending>"
+	if receipt != nil {
+		status = receipt.Status.String()
+		status += fmt.Sprintf(" flags: %s", transaction.Flags.String())
+	}
 	res := &TransactionWithBinary{
 		Transaction:      *transaction,
 		Binary:           transactionBinary,
@@ -190,8 +195,8 @@ func NewTransactionWithBinary(
 		Hash:             hash,
 		ShardId:          shardId,
 		TransactionIndex: idx,
-		Timestamp:        block.Timestamp,
 		ErrorMessage:     block.Errors[hash],
+		Status:           status,
 	}
 	if receipt != nil {
 		res.Success = receipt.Success
@@ -435,21 +440,21 @@ func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []b
 				return fmt.Errorf("failed to append transaction to batch: %w", err)
 			}
 		}
-		for outTransactionIndex, transaction := range block.decoded.OutTransactions {
-			mb := NewTransactionWithBinary(
-				transaction,
-				block.sszEncoded.OutTransactions[outTransactionIndex],
-				nil,
-				nil,
-				block.decoded.BlockWithExtractedData,
-				types.TransactionIndex(outTransactionIndex),
-				block.decoded.ShardId)
-			mb.Outgoing = true
-			mb.ParentTransaction = parentIndex[outTransactionIndex]
-			if err := transactionBatch.AppendStruct(mb); err != nil {
-				return fmt.Errorf("failed to append transaction to batch: %w", err)
-			}
-		}
+		//for outTransactionIndex, transaction := range block.decoded.OutTransactions {
+		//	mb := NewTransactionWithBinary(
+		//		transaction,
+		//		block.sszEncoded.OutTransactions[outTransactionIndex],
+		//		nil,
+		//		nil,
+		//		block.decoded.BlockWithExtractedData,
+		//		types.TransactionIndex(outTransactionIndex),
+		//		block.decoded.ShardId)
+		//	mb.Outgoing = true
+		//	mb.ParentTransaction = parentIndex[outTransactionIndex]
+		//	if err := transactionBatch.AppendStruct(mb); err != nil {
+		//		return fmt.Errorf("failed to append transaction to batch: %w", err)
+		//	}
+		//}
 	}
 
 	err = transactionBatch.Send()
@@ -478,6 +483,23 @@ func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []b
 
 	if err = logBatch.Send(); err != nil {
 		return fmt.Errorf("failed to send logs batch: %w", err)
+	}
+	return nil
+}
+
+func (d *ClickhouseDriver) IndexTxPool(ctx context.Context, txPoolStatuses []*indexerdriver.TxPoolStatus) error {
+	batch, err := d.insertConn.PrepareBatch(ctx, "INSERT INTO txpool_status")
+	if err != nil {
+		return fmt.Errorf("failed to prepare batch: %w", err)
+	}
+	for _, tx := range txPoolStatuses {
+		logger.Info().Int("pending", int(tx.Pending)).Int("shard", int(tx.ShardId)).Str("tm", tx.Timestamp.Format("15:04:05.000")).Msg("Exporting txpool status")
+		if err := batch.AppendStruct(tx); err != nil {
+			return fmt.Errorf("failed to append txpool status to batch: %w", err)
+		}
+	}
+	if err = batch.Send(); err != nil {
+		return fmt.Errorf("failed to send txpool status batch: %w", err)
 	}
 	return nil
 }

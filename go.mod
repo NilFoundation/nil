@@ -3,6 +3,7 @@ module github.com/NilFoundation/nil
 go 1.24
 
 require (
+	github.com/elliottech/poseidon_crypto v0.0.9
 	github.com/google/btree v1.1.3
 	github.com/gorilla/handlers v1.5.2
 	github.com/holiman/uint256 v1.3.2

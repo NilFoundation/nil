@@ -409,6 +409,8 @@ func (s *Syncer) GenerateZerostateIfShardIsEmpty(ctx context.Context) error {
 	if _, err := gen.GenerateZeroState(s.config.ZeroStateConfig); err != nil {
 		return err
 	}
+	s.logger.Info().Msg("Zero-state generated")
+
 	return nil
 }
 

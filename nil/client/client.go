@@ -30,6 +30,13 @@ type BatchRequest interface {
 		contractAddress types.Address,
 		pk *ecdsa.PrivateKey,
 	) (uint64, error)
+	SendExternalTransaction(
+		ctx context.Context,
+		calldata types.Code,
+		contractAddress types.Address,
+		pk *ecdsa.PrivateKey,
+		fee types.FeePack,
+	) (uint64, error)
 }
 
 // Client defines the interface for a client

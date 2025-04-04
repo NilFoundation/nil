@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/NilFoundation/nil/nil/internal/types"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -14,16 +15,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
-	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/stresser/core"
-	"github.com/NilFoundation/nil/nil/services/stresser/metrics"
 	"github.com/NilFoundation/nil/nil/services/stresser/workload"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
@@ -33,7 +30,7 @@ var logger = logging.NewLogger("stresser")
 
 const (
 	// TODO: should be configurable
-	contractsNum     = 16
+	contractsNum     = 96
 	workloadInterval = 200 * time.Millisecond
 	pollTxInterval   = 4 * time.Second
 	maxPendingTxs    = 10000
@@ -71,16 +68,11 @@ type Config struct {
 }
 
 type Stresser struct {
-	cfg           *Config
-	nodes         []*NildInstance
-	client        *core.Helper
-	failedTxsFile *os.File
-	workload      []*workload.Runner
-	// This channel is used by workloads to send new transactions
-	newTxs chan []*core.Transaction
-
-	// This map contains transactions that are waiting for their receipts
-	pendingTxs      map[common.Hash]*core.Transaction
+	cfg             *Config
+	nodes           []*NildInstance
+	client          *core.Helper
+	failedTxsFile   *os.File
+	workload        []*workload.Runner
 	suspendWorkload atomic.Bool
 }
 
@@ -103,9 +95,7 @@ func NewStresser(configYaml string, configPath string) (*Stresser, error) {
 	}
 
 	s := &Stresser{
-		cfg:        &cfg,
-		newTxs:     make(chan []*core.Transaction),
-		pendingTxs: make(map[common.Hash]*core.Transaction),
+		cfg: &cfg,
 	}
 
 	if cfg.WorkingDir != "" {
@@ -287,7 +277,7 @@ func (s *Stresser) runWorkload(ctx context.Context) error {
 
 	logger.Info().Int("workloads_num", len(s.workload)).Msg("Starting workload")
 
-	logger.Info().Int("num_shards", s.cfg.NumShards).Msg("Waiting for cluster ready...")
+	logger.Info().Int("shards", s.cfg.NumShards).Msg("Waiting for cluster ready...")
 	if err := s.client.WaitClusterReady(s.cfg.NumShards); err != nil {
 		return fmt.Errorf("failed to wait for rpc node: %w", err)
 	}
@@ -337,52 +327,26 @@ func (s *Stresser) updateState(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.checkTransactions(ctx)
-		case txs := <-s.newTxs:
-			for _, tx := range txs {
-				s.pendingTxs[tx.Hash] = tx
-			}
-			if len(s.pendingTxs) > maxPendingTxs {
-				s.suspendWorkload.Store(true)
-			}
+			s.printState(ctx)
 		}
 	}
 }
 
-func (s *Stresser) checkTransactions(ctx context.Context) {
+func (s *Stresser) printState(ctx context.Context) {
 	totalTxsNum := 0
 	for _, w := range s.workload {
 		totalTxsNum += w.Workload.TotalTxsNum()
 	}
 
-	if len(s.pendingTxs) == 0 {
-		return
-	}
-
-	successTxsNum := 0
-	failedTxsNum := 0
-
-	prevPendingTxs := len(s.pendingTxs)
-
-	for _, tx := range s.pendingTxs {
-		if tx.CheckFinished(ctx, s.client) {
-			if tx.Error == nil {
-				successTxsNum++
-			} else {
-				failedTxsNum++
-				_, err := s.failedTxsFile.WriteString(tx.Dump(true))
-				check.PanicIfErr(err)
-			}
-			delete(s.pendingTxs, tx.Hash)
+	txPoolStatuses := ""
+	for i := 1; i < s.cfg.NumShards; i++ {
+		status, err := s.client.Client.GetTxpoolStatus(ctx, types.ShardId(i))
+		if err != nil {
+			logger.Error().Err(err).Int(logging.FieldShardId, i).Msg("failed to get txpool status")
 		}
+		txPoolStatuses += fmt.Sprintf("%d:%d.%d ", i, status.Queued, status.Pending)
 	}
-	logger.Info().Msgf("Transactions: total=%d, pending=%d, success=%d, failed=%d", totalTxsNum,
-		len(s.pendingTxs), successTxsNum, failedTxsNum)
-
-	metrics.PendingTxNum.Add(ctx, int64(len(s.pendingTxs)-prevPendingTxs))
-	metrics.TotalTxNum.Record(ctx, int64(totalTxsNum))
-	metrics.SuccessTxNum.Add(ctx, int64(successTxsNum))
-	metrics.FailedTxNum.Add(ctx, int64(failedTxsNum))
+	logger.Info().Msgf("tx_sent=%d, txpool: %s", totalTxsNum, txPoolStatuses)
 }
 
 func (s *Stresser) readWorkloadYaml(workloadList []any) error {
@@ -406,7 +370,7 @@ func (s *Stresser) readWorkloadYaml(workloadList []any) error {
 		if err = yaml.Unmarshal(data, wd); err != nil {
 			return fmt.Errorf("can't unmarshal %s: %w", name, err)
 		}
-		s.workload = append(s.workload, workload.NewRunner(wd, s.newTxs))
+		s.workload = append(s.workload, workload.NewRunner(wd))
 	}
 	return nil
 }
@@ -455,24 +419,43 @@ func (s *Stresser) killAll() {
 }
 
 func (s *Stresser) deployContracts() ([]*core.Contract, error) {
-	contracts := make([]*core.Contract, contractsNum)
+	contracts := make([]*core.Contract, 0, contractsNum)
+	numShards := (s.cfg.NumShards - 1)
 
 	var g errgroup.Group
 
-	for i := range contractsNum {
-		shardId := i%(s.cfg.NumShards-1) + 1
+	contractsPerShard := contractsNum / numShards
+	contractsChan := make(chan []*core.Contract, numShards)
+	defer close(contractsChan)
+
+	for shardId := 1; shardId < s.cfg.NumShards; shardId++ {
 		g.Go(func() error {
-			contract, err := s.client.DeployContract("tests/Stresser", types.ShardId(shardId))
+			stressers, err := s.client.DeployStressers(types.ShardId(shardId), contractsPerShard)
 			if err != nil {
-				logger.Error().Err(err).Msg("failed to deploy contract")
+				logger.Error().Err(err).Msgf("failed to deploy stressers on shard %d", shardId)
 				return err
 			}
-			contracts[i] = contract
+			contractsChan <- stressers
 			return nil
 		})
 	}
+
 	if err := g.Wait(); err != nil {
 		return nil, fmt.Errorf("failed to deploy contracts: %w", err)
+	}
+	if len(contractsChan) != numShards {
+		return nil, errors.New("not all shards returned deployed contracts")
+	}
+	shardContracts := make([][]*core.Contract, numShards)
+	for i := range numShards {
+		c := <-contractsChan
+		shardContracts[i] = c
+	}
+
+	for i := range contractsPerShard {
+		for _, c := range shardContracts {
+			contracts = append(contracts, c[i])
+		}
 	}
 
 	return contracts, nil

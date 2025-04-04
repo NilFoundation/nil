@@ -5,7 +5,7 @@ import "./Nil.sol";
 import "./SmartAccount.sol";
 
 contract Faucet {
-    uint256 private constant WITHDRAW_PER_TIMEOUT_LIMIT = 10**16;
+    uint256 private constant WITHDRAW_PER_TIMEOUT_LIMIT = 10**24;
     uint256 private constant TIMEOUT = 200; // 200 blocks
 
     struct LimitInfo {

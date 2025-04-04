@@ -20,6 +20,8 @@ const (
 	InitialRoundsAmount = 1000
 
 	maxFetchSize = 500
+
+	timeoutWaitingRpc = 10 * time.Minute
 )
 
 type Indexer struct {
@@ -47,6 +49,10 @@ func StartIndexer(ctx context.Context, cfg *Cfg) error {
 		blocksChan:  make(chan *driver.BlockWithShardId, BlockBufferSize),
 	}
 
+	if err := e.waitForRpc(ctx, timeoutWaitingRpc); err != nil {
+		return fmt.Errorf("failed to wait for rpc node: %w", err)
+	}
+
 	shards, err := e.setup(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to setup indexer: %w", err)
@@ -66,7 +72,24 @@ func StartIndexer(ctx context.Context, cfg *Cfg) error {
 			return e.startDriverIndex(ctx)
 		}))
 
+	workers = append(workers, concurrent.MakeTask("txpool indexer", func(ctx context.Context) error {
+		return e.runTxPoolFetcher(ctx)
+	}))
+
 	return concurrent.Run(ctx, workers...)
+}
+
+func (e *Indexer) waitForRpc(ctx context.Context, timeout time.Duration) error {
+	notFirstTry := false
+	return common.WaitFor(ctx, timeout, 1*time.Second, func(ctx context.Context) bool {
+		version, err := e.client.ClientVersion(ctx)
+		res := version != "" && err == nil
+		if !res && !notFirstTry {
+			logger.Warn().Err(err).Msg("RPC is not ready, waiting...")
+			notFirstTry = true
+		}
+		return res
+	})
 }
 
 func (e *Indexer) setup(ctx context.Context) ([]types.ShardId, error) {
@@ -270,6 +293,58 @@ func (e *Indexer) runBottomFetcher(ctx context.Context, shardId types.ShardId, t
 	}
 
 	logger.Info().Msgf("Bottom fetcher finished fetching blocks up to %d", to)
+	return nil
+}
+
+func (e *Indexer) runTxPoolFetcher(ctx context.Context) error {
+	timeShardsRequest := time.Time{}
+	numShards := uint64(0)
+	txPoolChan := make(chan []*driver.TxPoolStatus, 10000)
+	defer close(txPoolChan)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case txs := <-txPoolChan:
+				if err := e.driver.IndexTxPool(ctx, txs); err != nil {
+					logger.Error().Err(err).Msg("Failed to export tx pool")
+					continue
+				}
+			}
+		}
+	}()
+
+	concurrent.RunTickerLoop(ctx, 1*time.Second, func(ctx context.Context) {
+		if time.Since(timeShardsRequest) > 5*time.Second {
+			newNumShards, err := e.client.GetNumShards(ctx)
+			if err != nil {
+				logger.Error().Err(err).Msg("Failed to get number of shards")
+			}
+			if newNumShards != numShards {
+				numShards = newNumShards
+				logger.Info().Msgf("Number of shards changed to %d", numShards)
+			}
+			timeShardsRequest = time.Now()
+		}
+		statuses := make([]*driver.TxPoolStatus, 0, numShards)
+		for shardId := range numShards {
+			txPool, err := e.client.GetTxpoolStatus(ctx, types.ShardId(shardId))
+			if err != nil {
+				logger.Error().Err(err).Int(logging.FieldShardId, int(shardId)).Msg("Failed to get tx pool status")
+				continue
+			}
+			tx := &driver.TxPoolStatus{
+				TxPoolStatus: txPool,
+				ShardId:      types.ShardId(shardId),
+				Timestamp:    time.Now(),
+			}
+			statuses = append(statuses, tx)
+		}
+		logger.Info().Msgf("Fetched tx pool statuses for %d shards", len(statuses))
+		txPoolChan <- statuses
+	})
 	return nil
 }
 
