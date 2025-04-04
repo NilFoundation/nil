@@ -28,16 +28,18 @@ import {
   setProjectEvent,
   setProjectFx,
   updateRecentProjects,
+  runScript,
 } from "./model";
 import type { App } from "./types";
+import { $contracts } from "../contracts/models/base";
+import { bundle } from "../../services/bundler"
+import { run } from "../../services/runner";
 
 $code.on(changeCode, (_, x) => {
-  console.log("Code changed", x);
   return x;
 });
 
 $script.on(changeScript, (_, x) => {
-  console.log("Script changed", x);
   return x ?? "";
 });
 
@@ -93,6 +95,50 @@ compileCodeFx.use(async ({ version, code }) => {
   });
 
   return { apps: contracts, warnings: refinedWarnings };
+});
+
+sample({
+  clock: compileCodeFx.doneData,
+  source: combine($contracts, $script),
+  fn: ([contracts, script]) => {
+    const cleanedScript = script.replace(
+      /^\s*import\s+(?:[^'"]+from\s+)?['"][^'"]+\.sol['"]\s*;?\s*$/gm,
+      ''
+    );
+
+    let res = cleanedScript;
+
+    for (const app of contracts) {
+      res = `import ${app.name} from "./contracts/${app.name}.sol";\r\n${res}`;
+    }
+
+    return res;
+  },
+  target: changeScript
+});
+
+sample({
+  clock: runScript,
+  source: combine($script, $contracts),
+  fn: ([script, contracts]) => {
+    return {
+      script,
+      contracts,
+    };
+  },
+  target: runScriptFx,
+});
+
+runScriptFx.use(async ({ script, contracts }) => {
+  console.log("Running script:", script);
+  const res = await bundle(script, contracts);
+  console.log("Bundled script:", res);
+  run(res);
+
+  return {
+    script: res,
+    warnings: [],
+  };
 });
 
 $solidityVersion.on(changeSolidityVersion, (_, version) => version);

@@ -61,6 +61,7 @@ export const compileCodeFx = codeDomain.createEffect<
 export const runScriptFx = codeDomain.createEffect<
   {
     script: string;
+    contracts: App[];
   },
   {
     script: string;

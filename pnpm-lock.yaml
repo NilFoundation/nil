@@ -547,6 +547,9 @@ importers:
       effector-storage:
         specifier: ^6.1.1
         version: 6.1.1(effector@22.8.8)
+      esbuild-wasm:
+        specifier: ^0.25.2
+        version: 0.25.2
       ethers:
         specifier: ^6.13.1
         version: 6.13.5
@@ -9205,6 +9208,11 @@ packages:
 
   esast-util-from-js@2.0.1:
     resolution: {integrity: sha512-8Ja+rNJ0Lt56Pcf3TAmpBZjmx8ZcK5Ts4cAzIOjsjevg9oSXJnl6SUQ2EevU8tv3h6ZLWmoKL5H4fgWvdvfETw==}
+
+  esbuild-wasm@0.25.2:
+    resolution: {integrity: sha512-vL9PSK1YFGsvrlYPDxfRxpakIDTe1wCS/JO2D45muxwtd7GR/9+fYRU+K8tKs4ZDXaEy5jr6YqrGgDL/iyufyQ==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   esbuild@0.21.5:
     resolution: {integrity: sha512-mg3OPMV4hXywwpoDxu3Qda5xCKQi+vCTZq8S9J/EpkhB2HzKXq4SNFZE3+NK93JYxc8VMSep+lOUSC/RVKaBqw==}
@@ -19674,7 +19682,7 @@ snapshots:
     dependencies:
       '@codemirror/autocomplete': 6.18.6
       '@codemirror/language': 6.11.0
-      '@codemirror/lint': 6.8.4
+      '@codemirror/lint': 6.8.5
       '@codemirror/state': 6.5.0
       '@codemirror/view': 6.36.5
       '@lezer/common': 1.2.3
@@ -21933,9 +21941,9 @@ snapshots:
 
   '@json-schema-spec/json-pointer@0.1.2': {}
 
-  '@json-schema-tools/dereferencer@1.5.5':
+  '@json-schema-tools/dereferencer@1.5.5(encoding@0.1.13)':
     dependencies:
-      '@json-schema-tools/reference-resolver': 1.2.4
+      '@json-schema-tools/reference-resolver': 1.2.4(encoding@0.1.13)
       '@json-schema-tools/traverse': 1.10.4
       fast-safe-stringify: 2.1.1
     transitivePeerDependencies:
@@ -21943,7 +21951,7 @@ snapshots:
 
   '@json-schema-tools/meta-schema@1.6.19': {}
 
-  '@json-schema-tools/reference-resolver@1.2.4':
+  '@json-schema-tools/reference-resolver@1.2.4(encoding@0.1.13)':
     dependencies:
       '@json-schema-spec/json-pointer': 0.1.2
       isomorphic-fetch: 3.0.0(encoding@0.1.13)
@@ -22872,11 +22880,11 @@ snapshots:
 
   '@open-rpc/meta-schema@1.14.2': {}
 
-  '@open-rpc/schema-utils-js@1.16.2':
+  '@open-rpc/schema-utils-js@1.16.2(encoding@0.1.13)':
     dependencies:
-      '@json-schema-tools/dereferencer': 1.5.5
+      '@json-schema-tools/dereferencer': 1.5.5(encoding@0.1.13)
       '@json-schema-tools/meta-schema': 1.6.19
-      '@json-schema-tools/reference-resolver': 1.2.4
+      '@json-schema-tools/reference-resolver': 1.2.4(encoding@0.1.13)
       '@open-rpc/meta-schema': 1.14.2
       ajv: 6.12.6
       detect-node: 2.1.0
@@ -28684,6 +28692,8 @@ snapshots:
       acorn: 8.14.1
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.2
+
+  esbuild-wasm@0.25.2: {}
 
   esbuild@0.21.5:
     optionalDependencies:

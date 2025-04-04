@@ -12,6 +12,7 @@ import {
   compileCode,
   compileCodeFx,
   fetchProjectFx,
+  runScript,
 } from "./model";
 import "./init";
 import { type Diagnostic, linter } from "@codemirror/lint";
@@ -24,7 +25,7 @@ import { fetchSolidityCompiler } from "../../services/compiler";
 import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
 import { CodeToolbar } from "./code-toolbar/CodeToolbar";
-import { useCompileButton } from "./hooks/useCompileButton";
+import { useCompileButton, useRunScriptButton } from "./hooks/useCompileButton";
 import { basicSetup } from "@uiw/react-codemirror";
 import { solidity } from "@replit/codemirror-lang-solidity";
 import { javascriptLanguage } from "@codemirror/lang-javascript";
@@ -49,9 +50,10 @@ export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: Code
     $codeWarnings,
   ]);
   const [css, theme] = useStyletron();
-  const btnTextContent = useCompileButton();
+  const btnTextContent = isSolidity ? useCompileButton() : useRunScriptButton();
 
   const changeEvent = isSolidity ? changeCode : changeScript;
+  const btnClickEvent = isSolidity ? compileCode : runScript;
 
   const preventNewlineOnCmdEnter = useMemo(
     () =>
@@ -171,7 +173,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: Code
               kind={BUTTON_KIND.primary}
               isLoading={isDownloading || compiling}
               size={BUTTON_SIZE.default}
-              onClick={() => compileCode()}
+              onClick={() => btnClickEvent()}
               disabled={noCode}
               overrides={{
                 Root: {
@@ -182,7 +184,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: Code
                   },
                 },
               }}
-              data-testid="compile-button"
+              data-testid="compile-run-button"
             >
               {btnTextContent}
             </Button>
@@ -246,7 +248,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: Code
             <Button
               kind={BUTTON_KIND.primary}
               isLoading={isDownloading || compiling}
-              onClick={() => compileCode()}
+              onClick={() => btnClickEvent()}
               disabled={noCode}
               overrides={{
                 Root: {
@@ -256,7 +258,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: Code
                   },
                 },
               }}
-              data-testid="compile-button"
+              data-testid="compile-run-button"
             >
               {btnTextContent}
             </Button>

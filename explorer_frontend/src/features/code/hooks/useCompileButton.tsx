@@ -27,7 +27,7 @@ const getOsName = () => {
 
 const os = getOsName();
 
-const getBtnContent = (css: (style: StyleObject) => string) => {
+const getCompileBtnContent = (css: (style: StyleObject) => string) => {
   switch (os) {
     case "mac":
       return (
@@ -62,11 +62,65 @@ const getBtnContent = (css: (style: StyleObject) => string) => {
   }
 };
 
+const getScriptBtnContent = (css: (style: StyleObject) => string) => {
+  switch (os) {
+    case "mac":
+      return (
+        <>
+          Run script ⌘ +{" "}
+          <span
+            className={css({
+              marginLeft: "0.5ch",
+              paddingTop: "2px",
+            })}
+          >
+            ↵
+          </span>
+        </>
+      );
+    case "windows":
+      return (
+        <>
+          Run script Ctrl +{" "}
+          <span
+            className={css({
+              marginLeft: "0.5ch",
+              paddingTop: "2px",
+            })}
+          >
+            ↵
+          </span>
+        </>
+      );
+    default:
+      return "Run script";
+  }
+};
+
 export const useCompileButton = () => {
   const [css] = useStyletron();
 
   const hotKey = os === "mac" ? "Meta+Enter" : "Ctrl+Enter";
-  const btnContent = useMemo(() => getBtnContent(css), [css]);
+  const btnContent = useMemo(() => getCompileBtnContent(css), [css]);
+
+  useHotkeys(
+    hotKey,
+    () => compileCode(),
+    {
+      preventDefault: true,
+      enableOnContentEditable: true,
+    },
+    [],
+  );
+
+  return btnContent;
+};
+
+export const useRunScriptButton = () => {
+  const [css] = useStyletron();
+
+  const hotKey = os === "mac" ? "Meta+Enter" : "Ctrl+Enter";
+  const btnContent = useMemo(() => getScriptBtnContent(css), [css]);
 
   useHotkeys(
     hotKey,
