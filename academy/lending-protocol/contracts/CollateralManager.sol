@@ -4,10 +4,11 @@ pragma solidity ^0.8.28;
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
 
-/// @title GlobalLedger
-/// @dev The GlobalLedger contract is responsible for tracking user deposits and loans in the lending protocol.
-/// It stores the deposit balances for users and keeps track of the loans each user has taken.
-contract GlobalLedger {
+// Contract to handle collateral manager functionality and embedded GlobalLedger
+contract CollateralManager {
+    // Define the role-based access modifier for Factory control
+    address public lendingPoolFactory;
+
     /// @dev Mapping of user addresses to their token deposits (token -> amount).
     mapping(address => mapping(TokenId => uint256)) public deposits;
 
@@ -20,12 +21,30 @@ contract GlobalLedger {
         TokenId token;
     }
 
+    /// @notice Modifier to restrict access to only the lending pool factory
+    modifier onlyLendingPoolFactory() {
+        require(
+            msg.sender == lendingPoolFactory,
+            "Only LendingPoolFactory can call this"
+        );
+        _;
+    }
+
+    // Constructor to set the factory address
+    constructor(address _lendingPoolFactory) {
+        lendingPoolFactory = _lendingPoolFactory;
+    }
+
     /// @notice Records a user's deposit into the ledger.
     /// @dev Increases the deposit balance for the user for the specified token.
     /// @param user The address of the user making the deposit.
     /// @param token The token type being deposited (e.g., USDT, ETH).
     /// @param amount The amount of the token being deposited.
-    function recordDeposit(address user, TokenId token, uint256 amount) public {
+    function recordDeposit(
+        address user,
+        TokenId token,
+        uint256 amount
+    ) public onlyLendingPoolFactory {
         deposits[user][token] += amount;
     }
 
@@ -46,7 +65,11 @@ contract GlobalLedger {
     /// @param user The address of the user taking the loan.
     /// @param token The token type used for the loan (e.g., USDT, ETH).
     /// @param amount The amount of the loan being taken.
-    function recordLoan(address user, TokenId token, uint256 amount) public {
+    function recordLoan(
+        address user,
+        TokenId token,
+        uint256 amount
+    ) public onlyLendingPoolFactory {
         loans[user] = Loan(amount, token);
     }
 
@@ -59,5 +82,13 @@ contract GlobalLedger {
         address user
     ) public view returns (uint256, TokenId) {
         return (loans[user].amount, loans[user].token);
+    }
+
+    /// @notice Allows the lending pool factory to set the factory address if required
+    /// @param newFactory Address of the new lending pool factory
+    function setLendingPoolFactory(
+        address newFactory
+    ) external onlyLendingPoolFactory {
+        lendingPoolFactory = newFactory;
     }
 }

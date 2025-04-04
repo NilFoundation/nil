@@ -62,13 +62,28 @@ contract LendingPoolFactory {
 
         require(poolAddress != address(0), "Deployment failed");
 
+        // Assuming Nil provides an alternative method for cross-shard calls
+        // Using Nil.asyncCall to interact with GlobalLedger
+        (bool success, ) = address(Nil).call(
+            abi.encodeWithSignature(
+                "asyncCall(uint8,address,address,uint256,uint256,uint256,bytes,uint256)",
+                0, // Assuming GlobalLedger is on shard 0
+                address(0), // Refund address (not needed here)
+                globalLedger, // Target: GlobalLedger contract
+                0, // Fee credit
+                0, // Forward kind
+                0, // ETH value to send
+                abi.encodeWithSignature(
+                    "registerLendingPool(address)",
+                    poolAddress
+                ), // Method to call
+                0 // Salt (set to 0)
+            )
+        );
+
+        require(success, "Failed to register LendingPool in GlobalLedger");
+
         emit LendingPoolDeployed(poolAddress, shardCounter, msg.sender);
         shardCounter = (shardCounter + 1) % 4; // Cycle through shards
-
-        // Async call to register LendingPool in GlobalLedger
-        (bool success, ) = globalLedger.call(
-            abi.encodeWithSignature("registerLendingPool(address)", poolAddress)
-        );
-        require(success, "Async call to GlobalLedger failed");
     }
 }

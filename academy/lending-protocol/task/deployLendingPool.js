@@ -1,42 +1,40 @@
 const { task } = require("hardhat/config");
+const { Nil } = require("niljs");
 
-task("deploy-lending-pool", "Deploys a new LendingPool contract and registers it in GlobalLedger")
-  .addParam("factory", "The address of the LendingPoolFactory contract")
-  .addParam("globalLedger", "The address of the GlobalLedger contract")
-  .addParam("interestManager", "The address of the InterestManager contract")
-  .addParam("oracle", "The address of the Oracle contract")
-  .addParam("usdt", "The TokenId for USDT")
-  .addParam("eth", "The TokenId for ETH")
-  .setAction(async (taskArgs) => {
-    const { ethers } = require("hardhat");
+task("deploy-lending-pool", "Deploys a new LendingPool and registers in GlobalLedger")
+  .addParam("factory", "LendingPoolFactory contract address")
+  .addParam("globalledger", "GlobalLedger contract address")
+  .addParam("interestmanager", "InterestManager contract address")
+  .addParam("oracle", "Oracle address")
+  .addParam("usdt", "USDT TokenId")
+  .addParam("eth", "ETH TokenId")
+  .setAction(async (taskArgs, hre) => {
+    const {
+      factory,
+      globalledger,
+      interestmanager,
+      oracle,
+      usdt,
+      eth,
+    } = taskArgs;
 
-    const factoryAddress = taskArgs.factory;
-    const globalLedgerAddress = taskArgs.globalLedger;
-    const interestManagerAddress = taskArgs.interestManager;
-    const oracleAddress = taskArgs.oracle;
-    const usdtTokenId = taskArgs.usdt;
-    const ethTokenId = taskArgs.eth;
+    const nil = new Nil(hre.network.config.nilProviderUrl); // configure `nilProviderUrl` in hardhat.config.ts
 
-    console.log("Deploying LendingPool using the provided factory...");
+    console.log("Deploying LendingPool via asyncDeploy...");
 
-    // Attach to LendingPoolFactory contract
-    const LendingPoolFactory = await ethers.getContractFactory("LendingPoolFactory");
-    const factory = LendingPoolFactory.attach(factoryAddress);
+    const deployTx = await nil.asyncDeploy({
+      to: factory,
+      value: "0", // if needed
+      input: hre.ethers.utils.defaultAbiCoder.encode(
+        ["address", "address", "address", "TokenId", "TokenId", "address"],
+        [globalledger, interestmanager, oracle, usdt, eth, hre.ethers.provider.getSigner().getAddress()]
+      ),
+    });
 
-    // Deploy LendingPool via factory
-    const tx = await factory.deployLendingPool();
-    await tx.wait(); // Wait for the transaction to be mined
-    console.log("LendingPool deployed successfully!");
+    console.log("LendingPool deployment asyncDeploy Tx:", deployTx.hash);
 
-    // Interact with GlobalLedger to check if the LendingPool is registered
-    const GlobalLedger = await ethers.getContractFactory("GlobalLedger");
-    const globalLedger = GlobalLedger.attach(globalLedgerAddress);
+    // You can optionally wait for confirmation
+    await deployTx.wait();
 
-    // Check if LendingPool is registered in GlobalLedger
-    const isRegistered = await globalLedger.authorizedLendingPools(factoryAddress);
-    console.log("Is LendingPool registered in GlobalLedger?", isRegistered);
-
-    // You can also test other functionality like registering a deposit, loan, etc.
+    console.log("LendingPool deployed and asyncCall to GlobalLedger initiated.");
   });
-
-module.exports = {};

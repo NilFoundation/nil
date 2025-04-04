@@ -3,7 +3,11 @@
   "description": "This is an example repository to showcase how a lending protocol can be built on top of =nil;",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
-    "hardhat": "^2.22.19"
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.14.0",
+    "hardhat": "^2.22.19",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
   },
   "scripts": {
     "compile": "npx hardhat compile",
@@ -15,6 +19,7 @@
     "@nilfoundation/create-nil-hardhat-project": "^1.0.1",
     "@nilfoundation/niljs": "0.24.0",
     "@nilfoundation/smart-contracts": "^0.5.0",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/contracts-upgradeable": "^5.2.0",
     "viem": "^2.23.4"

@@ -28,8 +28,15 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@nomicfoundation/hardhat-ignition": "^0.15.10",
+    "@nomiclabs/hardhat-waffle": "^2.0.6",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.14.0",
+    "chai": "^5.2.0",
+    "ethers": "^5.8.0",
     "fs-extra": "^11.3.0",
-    "hardhat": "^2.22.19"
+    "hardhat": "^2.22.19",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
   },
   "optionalDependencies": {
     "@biomejs/cli-linux-x64": "1.9.4",
@@ -47,6 +54,7 @@
   },
   "dependencies": {
     "@axelar-network/axelar-gmp-sdk-solidity": "^6.0.6",
-    "@layerzerolabs/solidity-examples": "^1.1.0"
+    "@layerzerolabs/solidity-examples": "^1.1.0",
+    "@nilfoundation/niljs": "^0.24.0"
   }
 }
