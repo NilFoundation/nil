@@ -273,8 +273,8 @@ type AsyncResponsePayload struct {
 	ReturnData []byte `ssz-max:"10000000"`
 }
 
-// AsyncContext contains context of the request. For await requests it contains VM state, which will be restored upon
-// the response. For callback requests it contains captured variables(not implemented yet).
+// AsyncContext contains the context of the request. For await requests, it contains the VM state, which will be
+// restored upon receiving the response. For callback requests, it contains captured variables (not yet implemented).
 type AsyncContext struct {
 	IsAwait               bool   `json:"isAwait"`
 	Data                  []byte `ssz-max:"10000000" json:"data"`
