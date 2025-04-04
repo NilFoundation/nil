@@ -54,9 +54,6 @@ export const Transaction = () => {
         flexDirection: "column",
         flexWrap: "nowrap",
         width: "100%",
-        position: "absolute",
-        left: "0",
-        right: "0",
         ...getMobileStyles({
           paddingLeft: "16px",
           paddingRight: "16px",
@@ -64,6 +61,7 @@ export const Transaction = () => {
         ...getTabletStyles({
           paddingLeft: "48px",
           paddingRight: "48px",
+          margin: "0 auto",
         }),
         ...getDesktopStyles({
           paddingLeft: "48px",
