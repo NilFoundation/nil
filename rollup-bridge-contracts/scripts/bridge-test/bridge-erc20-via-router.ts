@@ -10,11 +10,11 @@ import {
 } from '../../deploy/config/config-helper';
 import { bigIntReplacer, DepositERC20Event, extractAndParseDepositERC20Event, extractAndParseMessageSentEventLog, MessageSentEvent } from './get-messenger-events';
 
-const l1ERC20BridgeABIPath = path.join(
+const l1BridgeRouterABIPath = path.join(
     __dirname,
-    '../../artifacts/contracts/bridge/l1/interfaces/IL1ERC20Bridge.sol/IL1ERC20Bridge.json',
+    '../../artifacts/contracts/bridge/l1/interfaces/IL1BridgeRouter.sol/IL1BridgeRouter.json',
 );
-const l1ERC20BridgeABI = JSON.parse(fs.readFileSync(l1ERC20BridgeABIPath, 'utf8')).abi;
+const l1BridgeRouterABI = JSON.parse(fs.readFileSync(l1BridgeRouterABIPath, 'utf8')).abi;
 
 const erc20ABIPath = path.join(
     __dirname,
@@ -22,8 +22,8 @@ const erc20ABIPath = path.join(
 );
 const erc20ABI = JSON.parse(fs.readFileSync(erc20ABIPath, 'utf8')).abi;
 
-// npx hardhat run scripts/bridge-test/bridge-erc20.ts --network geth
-export async function bridgeERC20() {
+// npx hardhat run scripts/bridge-test/bridge-erc20-via-router.ts --network geth
+export async function bridgeERC20ViaRouter() {
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 
@@ -35,9 +35,9 @@ export async function bridgeERC20() {
     const signer = signers[0]; // The main signer
 
     const signerAddress = signer.address;
-    const l1ERC20BridgeInstance = new ethers.Contract(
-        config.l1ERC20Bridge.l1ERC20BridgeProxy,
-        l1ERC20BridgeABI,
+    const l1BridgeRouterInstance = new ethers.Contract(
+        config.l1BridgeRouter.l1BridgeRouterProxy,
+        l1BridgeRouterABI,
         signer,
     ) as Contract;
 
@@ -70,23 +70,23 @@ export async function bridgeERC20() {
     await mintTx.wait();
 
     const tokenBalance = await erc20TokenInstance.balanceOf(signerAddress);
-    const approveTxn = await erc20TokenInstance.approve(config.l1ERC20Bridge.l1ERC20BridgeProxy, tokenBalance);
+    const approveTxn = await erc20TokenInstance.approve(config.l1BridgeRouter.l1BridgeRouterProxy, tokenBalance);
     await approveTxn.wait();
 
     await erc20TokenInstance.allowance(signer.address, config.l1ERC20Bridge.l1ERC20BridgeProxy);
 
     console.log(`bridging ${token_amount} (WEI) - ${erc20TokenData.erc20TokenInitConfig.symbol} to recipient: ${recipientAddress} and with l2FeeRefundRecipientAddress: ${l2FeeRefundRecipientAddress}`);
 
-    const tx = await l1ERC20BridgeInstance.depositERC20(erc20TokenData.address, recipientAddress, token_amount, l2FeeRefundRecipientAddress, gasLimit, userFeePerGas, userMaxPriorityFeePerGas, { value: total_native_amount });
+    const tx = await l1BridgeRouterInstance.depositERC20(erc20TokenData.address, recipientAddress, token_amount, l2FeeRefundRecipientAddress, gasLimit, userFeePerGas, userMaxPriorityFeePerGas, { value: total_native_amount });
     const transactionReceipt: TransactionReceipt = await tx.wait();
 
     if (!transactionReceipt || transactionReceipt.status == 0) {
         throw new Error(`ERC20 Bridge transaction failed`);
     } else {
-        console.log(`Successful ERC20Deposit transaction on L1ERC20Bridge`);
+        console.log(`Successful ERC20Deposit transaction on L1BridgeRouter`);
     }
 
-    console.log(`DepositERC20 via L1ERC20Bridge costed -> cumlativeGasUsed : ${transactionReceipt.cumulativeGasUsed} - gasUsed: ${transactionReceipt.gasUsed}`);
+    console.log(`DepositERC20 via L1BridgeRouter costed -> cumlativeGasUsed : ${transactionReceipt.cumulativeGasUsed} - gasUsed: ${transactionReceipt.gasUsed}`);
 
     const transactionHash = tx.hash;
     const messageSentEventLogData = await extractAndParseMessageSentEventLog(transactionHash);
@@ -121,7 +121,7 @@ function getERC20TokenBySymbol(tokens: ERC20TokenContract[], symbol: string): ER
 }
 
 async function main() {
-    await bridgeERC20();
+    await bridgeERC20ViaRouter();
 }
 
 main().catch((error) => {
