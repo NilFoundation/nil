@@ -58,7 +58,7 @@ func (s *ProposerTestSuite) SetupSuite() {
 	s.clock = testaide.NewTestClock()
 	s.storage = storage.NewBlockStorage(s.db, storage.DefaultBlockStorageConfig(), s.clock, metricsHandler, logger)
 	s.params = NewDefaultProposerConfig()
-	s.testData = testaide.NewProposalData(3, s.clock.Now())
+	s.testData = testaide.NewProposalData(s.clock.Now())
 
 	abi, err := rollupcontract.RollupcontractMetaData.GetAbi()
 	s.Require().NoError(err)
