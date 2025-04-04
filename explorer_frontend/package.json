@@ -44,6 +44,7 @@
     "effector": "^22.8.6",
     "effector-react": "^22.5.3",
     "effector-storage": "^6.1.1",
+    "esbuild-wasm": "^0.25.2",
     "ethers": "^6.13.1",
     "eventemitter3": "^5.0.1",
     "history": "^5.3.0",
