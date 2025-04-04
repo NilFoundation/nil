@@ -2,14 +2,17 @@ import { BUTTON_KIND, BUTTON_SIZE, Button, Card, Spinner } from "@nilfoundation/
 import { useUnit } from "effector-react";
 import {
   $code,
-  $error,
-  $warnings,
+  $codeError,
+  $codeWarnings,
+  $script,
   changeCode,
+  changeScript,
   clickOnContractsButton,
   clickOnLogButton,
-  compile,
+  compileCode,
   compileCodeFx,
-  fetchCodeSnippetFx,
+  fetchProjectFx,
+  runScript,
 } from "./model";
 import "./init";
 import { type Diagnostic, linter } from "@codemirror/lint";
@@ -21,29 +24,36 @@ import { type ReactNode, memo, useMemo } from "react";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
-import { SolidityCodeField } from "../shared/components/SolidityCodeField";
 import { CodeToolbar } from "./code-toolbar/CodeToolbar";
-import { useCompileButton } from "./hooks/useCompileButton";
-
+import { useCompileButton, useRunScriptButton } from "./hooks/useCompileButton";
+import { basicSetup } from "@uiw/react-codemirror";
+import { solidity } from "@replit/codemirror-lang-solidity";
+import { javascriptLanguage } from "@codemirror/lang-javascript";
+import { CustomCodeField } from "../shared/components/CustomCodeField";
 interface CodeProps {
   extraMobileButton?: ReactNode;
   extraToolbarButton?: ReactNode;
+  isSolidity?: boolean;
 }
 
 const MemoizedCodeToolbar = memo(CodeToolbar);
 
-export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
+export const Code = ({ extraMobileButton, extraToolbarButton, isSolidity }: CodeProps) => {
   const [isMobile] = useMobile();
-  const [code, isDownloading, errors, fetchingCodeSnippet, compiling, warnings] = useUnit([
+  const [code, script, isDownloading, errors, fetchingCodeSnippet, compiling, warnings] = useUnit([
     $code,
+    $script,
     fetchSolidityCompiler.pending,
-    $error,
-    fetchCodeSnippetFx.pending,
+    $codeError,
+    fetchProjectFx.pending,
     compileCodeFx.pending,
-    $warnings,
+    $codeWarnings,
   ]);
   const [css, theme] = useStyletron();
-  const btnTextContent = useCompileButton();
+  const btnTextContent = isSolidity ? useCompileButton() : useRunScriptButton();
+
+  const changeEvent = isSolidity ? changeCode : changeScript;
+  const btnClickEvent = isSolidity ? compileCode : runScript;
 
   const preventNewlineOnCmdEnter = useMemo(
     () =>
@@ -59,7 +69,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
   );
 
   const codemirrorExtensions = useMemo(() => {
-    const solidityLinter = (view: EditorView) => {
+    const codeLinter = (view: EditorView) => {
       const displayErrors: Diagnostic[] = errors.map((error) => {
         return {
           from: view.state.doc.line(error.line).from,
@@ -81,10 +91,22 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
       return [...displayErrors, ...displayWarnings];
     };
 
-    return [preventNewlineOnCmdEnter, linter(solidityLinter)];
-  }, [errors, warnings, preventNewlineOnCmdEnter]);
+    const lang = isSolidity
+      ? solidity
+      : javascriptLanguage.configure({ dialect: "ts" }, "typescript");
+
+    return [
+      preventNewlineOnCmdEnter,
+      lang,
+      ...basicSetup({
+        lineNumbers: !isMobile,
+      }),
+      linter(codeLinter),
+    ];
+  }, [errors, warnings, preventNewlineOnCmdEnter, isMobile, isSolidity]);
 
   const noCode = code.trim().length === 0;
+  const resCode = isSolidity ? code : script;
   return (
     <Card
       overrides={{
@@ -141,13 +163,17 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
             height: "auto",
           })}
         >
-          <MemoizedCodeToolbar disabled={isDownloading} extraToolbarButton={extraToolbarButton} />
+          <MemoizedCodeToolbar
+            disabled={isDownloading}
+            extraToolbarButton={extraToolbarButton}
+            isSolidity={isSolidity}
+          />
           {!isMobile && (
             <Button
               kind={BUTTON_KIND.primary}
               isLoading={isDownloading || compiling}
               size={BUTTON_SIZE.default}
-              onClick={() => compile()}
+              onClick={() => btnClickEvent()}
               disabled={noCode}
               overrides={{
                 Root: {
@@ -158,7 +184,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
                   },
                 },
               }}
-              data-testid="compile-button"
+              data-testid="compile-run-button"
             >
               {btnTextContent}
             </Button>
@@ -189,15 +215,14 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
               borderTopRightRadius: "12px",
               borderBottomLeftRadius: "12px",
               borderBottomRightRadius: "12px",
+              overflow: "auto !important",
             })}
           >
-            <SolidityCodeField
+            <CustomCodeField
               extensions={codemirrorExtensions}
-              editable
-              readOnly={false}
-              code={code}
+              code={resCode}
               onChange={(text) => {
-                changeCode(`${text}`);
+                changeEvent(`${text}`);
               }}
               className={css({
                 paddingBottom: "0!important",
@@ -223,7 +248,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
             <Button
               kind={BUTTON_KIND.primary}
               isLoading={isDownloading || compiling}
-              onClick={() => compile()}
+              onClick={() => btnClickEvent()}
               disabled={noCode}
               overrides={{
                 Root: {
@@ -233,7 +258,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
                   },
                 },
               }}
-              data-testid="compile-button"
+              data-testid="compile-run-button"
             >
               {btnTextContent}
             </Button>
