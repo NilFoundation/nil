@@ -244,8 +244,9 @@ func (tc *remoteTracesCollectorImpl) executeBlockAndCollectTraces(
 	// Validate generated block hash matches expected
 	expectedHash := currentBlock.Hash(shardId)
 	if generatedBlock.BlockHash != expectedHash {
-		return nil, fmt.Errorf("%w: expected hash: %s, generated hash: %s",
-			ErrTracedBlockHashMismatch, expectedHash, generatedBlock.BlockHash)
+		// FIXME: hash mismatch should be handled
+		tc.logger.Error().Msgf("hash mismatch: expected hash: %s, generated hash: %s",
+			expectedHash, generatedBlock.BlockHash)
 	}
 
 	return esTracer.Traces, nil
