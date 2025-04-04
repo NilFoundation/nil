@@ -56,35 +56,48 @@ type BlockBatch struct {
 	DataProofs DataProofs `json:"dataProofs"`
 }
 
-func NewBlockBatch(parentId *BatchId, subgraphs ...Subgraph) (*BlockBatch, error) {
-	if err := validateBatch(subgraphs); err != nil {
-		return nil, err
-	}
-
+func NewBlockBatch(parentId *BatchId) *BlockBatch {
 	return &BlockBatch{
 		Id:        NewBatchId(),
 		ParentId:  parentId,
-		Subgraphs: subgraphs,
-	}, nil
+		Subgraphs: make([]Subgraph, 0),
+	}
 }
 
-func validateBatch(subgraphs []Subgraph) error {
-	if len(subgraphs) == 0 {
-		return errors.New("subgraphs cannot be empty")
+func (b BlockBatch) WithAddedSubgraph(subgraph Subgraph) (*BlockBatch, error) {
+	if err := b.validateSequencing(subgraph); err != nil {
+		return nil, err
 	}
 
-	for i, subgraph := range subgraphs {
-		if i == 0 {
+	b.Subgraphs = append(b.Subgraphs, subgraph)
+	return &b, nil
+}
+
+func (b *BlockBatch) validateSequencing(newSubgraph Subgraph) error {
+	if len(b.Subgraphs) == 0 {
+		return nil
+	}
+
+	currentLatestBlocks := b.Subgraphs[len(b.Subgraphs)-1].LatestBlocks()
+	subgraphEarliestBlocks := newSubgraph.EarliestBlocks()
+
+	for shardId, currentBlock := range currentLatestBlocks {
+		newBlock, ok := subgraphEarliestBlocks[shardId]
+		if !ok {
 			continue
 		}
-
-		parentMainRef := BlockToRef(subgraphs[i-1].Main)
-		if err := parentMainRef.ValidateNext(subgraph.Main); err != nil {
-			return fmt.Errorf("parent-child subgraph mismatch at index %d: %w", i, err)
+		currentRef := BlockToRef(currentBlock)
+		if err := currentRef.ValidateNext(newBlock); err != nil {
+			return fmt.Errorf("%w: parent-child subgraph mismatch in shard %s: %w", ErrBlockMismatch, shardId, err)
 		}
 	}
 
 	return nil
+}
+
+func (b BlockBatch) WithDataProofs(dataProofs DataProofs) *BlockBatch {
+	b.DataProofs = dataProofs
+	return &b
 }
 
 func (b *BlockBatch) BlocksCount() uint32 {
@@ -152,21 +165,14 @@ func (b *BlockBatch) ParentRefs() map[types.ShardId]*BlockRef {
 
 // EarliestRefs returns refs to the earliest blocks for each shard in the batch
 func (b *BlockBatch) EarliestRefs() BlockRefs {
-	return b.getEdgeRefs(false)
+	earliestBlocks := b.getEdgeBlocks(false)
+	return BlocksToRefs(earliestBlocks)
 }
 
 // LatestRefs returns refs to the latest blocks for each shard in the batch
 func (b *BlockBatch) LatestRefs() BlockRefs {
-	return b.getEdgeRefs(true)
-}
-
-func (b *BlockBatch) getEdgeRefs(latest bool) BlockRefs {
-	latestBlocks := b.getEdgeBlocks(latest)
-	refs := make(BlockRefs)
-	for shardId, block := range latestBlocks {
-		refs[shardId] = BlockToRef(block)
-	}
-	return refs
+	latestBlocks := b.getEdgeBlocks(true)
+	return BlocksToRefs(latestBlocks)
 }
 
 // getEdgeBlocks identifies and returns either the first or last blocks
@@ -182,19 +188,12 @@ func (b *BlockBatch) getEdgeBlocks(latest bool) map[types.ShardId]*Block {
 	}
 
 	for _, subgraph := range subgraphsIter {
-		if _, ok := blocks[subgraph.Main.ShardId]; !ok {
-			blocks[subgraph.Main.ShardId] = subgraph.Main
-		}
-		for shardId, segment := range subgraph.Children {
+		subgraphEdgeBlocks := subgraph.getEdgeBlocks(latest)
+		for shardId, block := range subgraphEdgeBlocks {
 			if _, ok := blocks[shardId]; ok {
 				continue
 			}
-
-			if latest {
-				blocks[shardId] = segment.Latest()
-			} else {
-				blocks[shardId] = segment.Earliest()
-			}
+			blocks[shardId] = block
 		}
 	}
 
@@ -216,10 +215,6 @@ func (b *BlockBatch) sortedExecShards() []types.ShardId {
 func (b *BlockBatch) CreateProofTask(currentTime time.Time) (*TaskEntry, error) {
 	blockIds := b.BlockIds()
 	return NewBatchProofTaskEntry(b.Id, blockIds, currentTime)
-}
-
-func (b *BlockBatch) SetDataProofs(dataProofs DataProofs) {
-	b.DataProofs = dataProofs
 }
 
 type PrunedBatch struct {

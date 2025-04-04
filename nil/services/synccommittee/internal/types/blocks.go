@@ -41,6 +41,14 @@ func (br *BlockRef) String() string {
 // BlockRefs represents per-shard block references
 type BlockRefs map[types.ShardId]BlockRef
 
+func BlocksToRefs(blocks map[types.ShardId]*Block) BlockRefs {
+	refs := make(BlockRefs)
+	for shardId, block := range blocks {
+		refs[shardId] = BlockToRef(block)
+	}
+	return refs
+}
+
 func (r BlockRefs) TryGet(shard types.ShardId) *BlockRef {
 	if ref, ok := r[shard]; ok {
 		return &ref
@@ -133,6 +141,10 @@ func (br *BlockRef) ValidateDescendant(descendant BlockRef) error {
 
 // ValidateNext ensures that the given child block is a valid subsequent block of the current BlockRef.
 func (br *BlockRef) ValidateNext(child *Block) error {
+	if child == nil {
+		return errors.New("child block cannot be nil")
+	}
+
 	childRef := BlockToRef(child)
 	if err := br.ValidateDescendant(childRef); err != nil {
 		return err

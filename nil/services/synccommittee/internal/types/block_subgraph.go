@@ -95,3 +95,30 @@ func validateSegment(segment ShardChainSegment) error {
 
 	return nil
 }
+
+// EarliestBlocks returns earliest blocks for each shard in the subgraph
+func (s *Subgraph) EarliestBlocks() map[types.ShardId]*Block {
+	return s.getEdgeBlocks(false)
+}
+
+// LatestBlocks returns latest blocks for each shard in the subgraph
+func (s *Subgraph) LatestBlocks() map[types.ShardId]*Block {
+	return s.getEdgeBlocks(true)
+}
+
+// getEdgeBlocks identifies and returns either the first or last blocks
+// for each shard in the subgraph based on the `latest` parameter.
+func (s *Subgraph) getEdgeBlocks(latest bool) map[types.ShardId]*Block {
+	blocks := make(map[types.ShardId]*Block)
+	blocks[s.Main.ShardId] = s.Main
+
+	for shardId, segment := range s.Children {
+		if latest {
+			blocks[shardId] = segment.Latest()
+		} else {
+			blocks[shardId] = segment.Earliest()
+		}
+	}
+
+	return blocks
+}
