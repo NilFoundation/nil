@@ -125,9 +125,6 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		p.proposal.RollbackCounter = rollback.Counter + 1
 	}
 
-	p.proposal.InTxCounts = execution.FlattenTxCounts(p.executionState.InTxCounts)
-	p.proposal.OutTxCounts = execution.FlattenTxCounts(p.executionState.OutTxCounts)
-
 	if len(
 		p.proposal.InternalTxnRefs) == 0 && len(p.proposal.ExternalTxns) == 0 && len(p.proposal.ForwardTxnRefs) == 0 {
 		p.logger.Trace().Msg("No transactions collected")

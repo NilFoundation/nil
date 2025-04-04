@@ -95,11 +95,18 @@ type RPCBlock struct {
 	GasUsed             types.Gas           `json:"gasUsed,omitempty"`
 }
 
+type ShardCount struct {
+	ShardId types.ShardId          `json:"shardId"`
+	Count   types.TransactionIndex `json:"count"`
+}
+
 type DebugRPCBlock struct {
 	Content         hexutil.Bytes          `json:"content"`
 	ChildBlocks     []common.Hash          `json:"childBlocks"`
 	InTransactions  []hexutil.Bytes        `json:"inTransactions"`
+	InTxCounts      []hexutil.Bytes        `json:"inTxCounts"`
 	OutTransactions []hexutil.Bytes        `json:"outTransactions"`
+	OutTxCounts     []hexutil.Bytes        `json:"outTxCounts"`
 	Receipts        []hexutil.Bytes        `json:"receipts"`
 	Errors          map[common.Hash]string `json:"errors"`
 	Config          *ChainConfig           `json:"config"`
@@ -165,7 +172,9 @@ func (b *DebugRPCBlock) Encode(block *types.RawBlockWithExtractedData) error {
 	b.Content = block.Block
 	b.ChildBlocks = block.ChildBlocks
 	b.InTransactions = hexutil.FromBytesSlice(block.InTransactions)
+	b.InTxCounts = hexutil.FromBytesSlice(block.InTxCounts)
 	b.OutTransactions = hexutil.FromBytesSlice(block.OutTransactions)
+	b.OutTxCounts = hexutil.FromBytesSlice(block.OutTxCounts)
 	b.Receipts = hexutil.FromBytesSlice(block.Receipts)
 	b.Errors = block.Errors
 
@@ -185,7 +194,9 @@ func (b *DebugRPCBlock) Decode() (*types.RawBlockWithExtractedData, error) {
 		Block:           b.Content,
 		ChildBlocks:     b.ChildBlocks,
 		InTransactions:  hexutil.ToBytesSlice(b.InTransactions),
+		InTxCounts:      hexutil.ToBytesSlice(b.InTxCounts),
 		OutTransactions: hexutil.ToBytesSlice(b.OutTransactions),
+		OutTxCounts:     hexutil.ToBytesSlice(b.OutTxCounts),
 		Receipts:        hexutil.ToBytesSlice(b.Receipts),
 		Errors:          b.Errors,
 	}
@@ -203,7 +214,7 @@ func (b *DebugRPCBlock) Decode() (*types.RawBlockWithExtractedData, error) {
 func (b *DebugRPCBlock) DecodeSSZ() (*types.BlockWithExtractedData, error) {
 	block, err := b.Decode()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("DebugRPCBlock.Decode failed: %w", err)
 	}
 	return block.DecodeSSZ()
 }

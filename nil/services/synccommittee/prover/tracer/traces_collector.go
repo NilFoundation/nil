@@ -163,6 +163,14 @@ func (tc *remoteTracesCollectorImpl) fetchAndDecodeBlock(
 	return dbgBlock, decodedBlock, nil
 }
 
+func decodeTxCounts(counts []*types.TxCountSSZ) execution.TxCounts {
+	txCounts := make(execution.TxCounts, len(counts))
+	for _, count := range counts {
+		txCounts[types.ShardId(count.ShardId)] = count.Count
+	}
+	return txCounts
+}
+
 // executeBlockAndCollectTraces executes the block and collects traces
 func (tc *remoteTracesCollectorImpl) executeBlockAndCollectTraces(
 	ctx context.Context,
@@ -185,6 +193,8 @@ func (tc *remoteTracesCollectorImpl) executeBlockAndCollectTraces(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create execution state: %w", err)
 	}
+	es.InTxCounts = decodeTxCounts(prevBlock.InTxCounts)
+	es.OutTxCounts = decodeTxCounts(prevBlock.OutTxCounts)
 
 	esTracer := NewEVMTracer(es)
 

@@ -650,7 +650,10 @@ func (k TxTrieKey) LessThan(key TxTrieKey) bool {
 		(k.ToShard == key.ToShard && k.FromShard == key.FromShard && k.Index < key.Index)
 }
 
-const TxTrieKeySize = 12
+const (
+	TxCountsKeySize = 2
+	TxTrieKeySize   = 12
+)
 
 func (k TxTrieKey) Bytes() []byte {
 	result := make([]byte, 0, TxTrieKeySize)
