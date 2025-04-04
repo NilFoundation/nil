@@ -66,6 +66,12 @@ contract NilRollup is
     /// @dev The dataProof size doesn't match with the blob count of the committed batch
     error ErrorIncorrectDataProofSize();
 
+    /// @dev State root being used for state reset is invalid.
+    error ErrorInvalidResetStateRoot();
+
+    /// @dev State root being used for state reset was not found in state roots storage.
+    error ErrorResetStateRootNotFound();
+
     /// @dev New state root was already finalized.
     error ErrorNewStateRootAlreadyFinalized(
         string batchIndex,
@@ -129,14 +135,15 @@ contract NilRollup is
     /// The latest finalized batch index.
     string public lastFinalizedBatchIndex;
 
-    /// The latest committed batch index.
-    string public lastCommittedBatchIndex;
-
     /// @dev Finalized state id.
     mapping(bytes32 => string) public stateRootIndex;
 
     /// @dev mapping of batchIndex to BatchInformation
     mapping(string => BatchInfo) public batchInfoRecords;
+
+    /// @dev All state roots ever set in sequential order. In case of reset action
+    /// the history is cleaned.
+    bytes32[] public stateRootHistory;
 
     /// @dev The storage slots for future usage.
     uint256[50] private __gap;
@@ -240,7 +247,6 @@ contract NilRollup is
         // The dummy string "GENESIS_BATCH_INDEX" is used as the initial batch index, and the GENESIS_STATE_ROOT
         // is used as the initial state root. This ensures that the contract has a valid initial state
         // and can correctly handle the first batch update.
-        lastCommittedBatchIndex = GENESIS_BATCH_INDEX;
         lastFinalizedBatchIndex = GENESIS_BATCH_INDEX;
 
         batchInfoRecords[lastFinalizedBatchIndex] = BatchInfo({
@@ -262,6 +268,8 @@ contract NilRollup is
         // Initialize the stateRootIndex mapping for the _genesisStateRoot to GENESIS_BATCH_INDEX
         stateRootIndex[_genesisStateRoot] = GENESIS_BATCH_INDEX;
 
+        stateRootHistory.push(_genesisStateRoot);
+
         nilVerifierAddress = _nilVerifierAddress;
     }
 
@@ -277,16 +285,6 @@ contract NilRollup is
         returns (string memory)
     {
         return lastFinalizedBatchIndex;
-    }
-
-    /// @inheritdoc INilRollup
-    function getLastCommittedBatchIndex()
-        external
-        view
-        override
-        returns (string memory)
-    {
-        return lastCommittedBatchIndex;
     }
 
     /// @inheritdoc INilRollup
@@ -358,7 +356,7 @@ contract NilRollup is
             revert ErrorBatchAlreadyCommitted(batchIndex);
         }
 
-        // get the versionedHashes using the opcode blobhash for eachd blob index
+        // get the versionedHashes using the opcode blobhash for each blob index
         bytes32[] memory versionedHashes = new bytes32[](blobCount);
         for (uint256 i = 0; i < blobCount; ++i) {
             bytes32 versionedHash = getBlobHash(i);
@@ -374,7 +372,6 @@ contract NilRollup is
         batchInfoRecords[batchIndex].isCommitted = true;
         batchInfoRecords[batchIndex].versionedHashes = versionedHashes;
         batchInfoRecords[batchIndex].blobCount = blobCount;
-        lastCommittedBatchIndex = batchIndex;
 
         // emit an event for the committed batch
         emit BatchCommitted(batchIndex);
@@ -494,6 +491,8 @@ contract NilRollup is
         // update state root index
         stateRootIndex[newStateRoot] = batchIndex;
 
+        stateRootHistory.push(newStateRoot);
+
         lastFinalizedBatchIndex = batchIndex;
 
         // emit an event for the updated state root
@@ -556,5 +555,54 @@ contract NilRollup is
         }
 
         nilVerifierAddress = nilVerifier;
+    }
+
+    /**
+     * @notice Resets the contract state to the specified state root and removes associated committed batches.
+     * @dev Removes all state roots and their corresponding committed batches from the mappings and history,
+     *      starting from the given `targetStateRoot`. This function handles only the batches that are directly
+     *      linked to valid state roots, while ignoring any unrelated or dangling batch entries.
+     * @param targetStateRoot The state root to which the state will be reset. If this state root does not exist
+     *        in the stateRootIndex, an error is thrown.
+     */
+    function resetState(bytes32 targetStateRoot) external onlyAdmin {
+        // Check if targetStateRoot is a valid value
+        if (targetStateRoot == bytes32(0)) {
+            revert ErrorInvalidResetStateRoot();
+        }
+
+        // Check if the targetStateRoot exists in the mapping
+        string memory batchIndex = stateRootIndex[targetStateRoot];
+        if (bytes(batchIndex).length == 0) {
+            revert ErrorResetStateRootNotFound();
+        }
+
+        // Find the index of the targetStateRoot in the stateRootHistory
+        int256 targetIndex = -1;
+        for (uint256 i = 0; i < stateRootHistory.length; i++) {
+            if (stateRootHistory[i] == targetStateRoot) {
+                targetIndex = int256(i);
+                break;
+            }
+        }
+
+        // If not found, revert the transaction
+        if (targetIndex == -1) {
+            revert ErrorResetStateRootNotFound();
+        }
+
+        // Remove all state roots and corresponding batches after the target index
+        while (stateRootHistory.length > uint256(targetIndex + 1)) {
+            bytes32 toDelete = stateRootHistory[stateRootHistory.length - 1];
+            string memory toDeleteBatchIndex = stateRootIndex[toDelete];
+
+            // Deleting the batch information
+            delete batchInfoRecords[toDeleteBatchIndex];
+            delete stateRootIndex[toDelete];
+            stateRootHistory.pop();
+        }
+
+        // Update the last finalized batch index to the reset point
+        lastFinalizedBatchIndex = batchIndex;
     }
 }
