@@ -6,6 +6,7 @@ import {
     loadL1NetworkConfig,
     isValidAddress,
 } from '../../deploy/config/config-helper';
+import { bigIntReplacer, extractAndParseMessageSentEventLog, MessageSentEvent } from './get-messenger-events';
 
 const l1EthBridgeABIPath = path.join(
     __dirname,
@@ -47,6 +48,9 @@ export async function bridgeETH() {
     await tx.wait();
 
     const transactionHash = tx.hash;
+
+    console.log(`transactionHash for ETHDeposit is: ${transactionHash}`);
+
     const transactionDetails: TransactionReceipt = await ethers.provider.getTransactionReceipt(transactionHash);
     if (!transactionDetails || transactionDetails.status == 0) {
         throw new Error(`DepositETH L1Bridge transaction failed`);
@@ -54,6 +58,15 @@ export async function bridgeETH() {
         console.log(`Successful DepositETH transaction on L1ETHBridge`);
     }
 
+    const messageSentEventLogData = await extractAndParseMessageSentEventLog(transactionHash);
+
+    if (!messageSentEventLogData) {
+        throw new Error(`Failed to parse MessageSent event Log emitted by L1BridgeMessenger contract`);
+    }
+
+    const messageSentEvent: MessageSentEvent = messageSentEventLogData;
+
+    console.log(`messageSentEvent for depositETH is: ${JSON.stringify(messageSentEvent, bigIntReplacer, 2)}`);
 }
 
 async function main() {

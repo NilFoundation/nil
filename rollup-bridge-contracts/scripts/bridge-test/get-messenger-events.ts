@@ -132,9 +132,11 @@ export async function extractAndParseDepositERC20Event(transactionHash: string):
     return depositERC20EventDetails;
 }
 
-export async function extractAndParseMessageSentEventLog(transactionHash: string): Promise<MessageSentEvent | undefined> {
+export async function extractAndParseMessageSentEventLog(transactionHash: string,): Promise<MessageSentEvent | undefined> {
     const topic = "0x29820d80f4b3b15e5871bf7c904640ab18dff6fe6b7839e60303fe6f8539ec7c";
     const transactionReceipt = await ethers.provider.getTransactionReceipt(transactionHash);
+
+    console.log(`extractAndParseMessageSentEventLog -> transactionReceipt: ${JSON.stringify(transactionReceipt)}`);
 
     // Filter logs by the specific topic
     const filteredLogs = transactionReceipt.logs.filter((log: any) =>
@@ -176,25 +178,6 @@ export async function extractAndParseMessageSentEventLog(transactionHash: string
     return eventDetails;
 }
 
-// npx hardhat run scripts/bridge-test/get-messenger-events.ts --network geth
-async function main() {
-    const transactionHash = "0xf83722ed8464f5a0e5492a89de0a4b869a82288d694ff17443c9749059797754";
-    const messageSentEventLogData = await extractAndParseMessageSentEventLog(transactionHash);
-
-    if (messageSentEventLogData) {
-        const messageSentEvent: MessageSentEvent = messageSentEventLogData;
-        console.log(`MessageSentEvent is: ${JSON.stringify(messageSentEvent, bigIntReplacer, 2)}`);
-    }
-
-    const depositERC20EventLogData = await extractAndParseDepositERC20Event(transactionHash);
-    console.log(`depositERC20EventLogData is: ${JSON.stringify(depositERC20EventLogData, bigIntReplacer, 2)}`);
-}
-
 export function bigIntReplacer(unusedKey: string, value: unknown): unknown {
     return typeof value === "bigint" ? value.toString() : value;
 }
-
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});
