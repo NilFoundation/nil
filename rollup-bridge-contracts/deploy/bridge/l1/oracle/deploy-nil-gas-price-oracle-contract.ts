@@ -16,11 +16,11 @@ export async function deployNilGasPriceOracleContract(networkName: string): Prom
         const nilGasPriceOracleProxy = await upgrades.deployProxy(
             NilGasPriceOracle,
             [
-                config.l1Common.owner, // _owner
-                config.l1Common.admin, // _defaultAdmin
-                config.nilGasPriceOracleConfig.nilGasPriceSetterAddress,
-                config.nilGasPriceOracleConfig.nilGasPriceOracleMaxFeePerGas,
-                config.nilGasPriceOracleConfig.nilGasPriceOracleMaxPriorityFeePerGas
+                config.l1DeployerConfig.owner, // _owner
+                config.l1DeployerConfig.admin, // _defaultAdmin
+                config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceSetterAddress,
+                config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceOracleMaxFeePerGas,
+                config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceOracleMaxPriorityFeePerGas
             ],
             { initializer: 'initialize' },
         );
@@ -28,13 +28,13 @@ export async function deployNilGasPriceOracleContract(networkName: string): Prom
         console.log(`nilGasPriceOracleProxy deployed to: ${nilGasPriceOracleProxy.target}`);
 
         const nilGasPriceOracleProxyAddress = nilGasPriceOracleProxy.target;
-        config.nilGasPriceOracleConfig.nilGasPriceOracleProxy = nilGasPriceOracleProxyAddress;
+        config.nilGasPriceOracle.nilGasPriceOracleContracts.nilGasPriceOracleProxy = nilGasPriceOracleProxyAddress;
 
         // Query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
             nilGasPriceOracleProxyAddress,
         );
-        config.nilGasPriceOracleConfig.proxyAdmin = proxyAdminAddress;
+        config.nilGasPriceOracle.nilGasPriceOracleContracts.proxyAdmin = proxyAdminAddress;
 
         if (proxyAdminAddress === ZeroAddress) {
             throw new Error('Invalid proxy admin address');
@@ -44,7 +44,7 @@ export async function deployNilGasPriceOracleContract(networkName: string): Prom
             await upgrades.erc1967.getImplementationAddress(
                 nilGasPriceOracleProxyAddress,
             );
-        config.nilGasPriceOracleConfig.nilGasPriceOracleImplementation = implementationAddress;
+        config.nilGasPriceOracle.nilGasPriceOracleContracts.nilGasPriceOracleImplementation = implementationAddress;
 
         if (implementationAddress === ZeroAddress) {
             throw new Error('Invalid implementation address');

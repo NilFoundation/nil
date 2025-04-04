@@ -1,10 +1,5 @@
-import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, network, upgrades, run } from 'hardhat';
 import {
-    archiveL1NetworkConfig,
-    isValidAddress,
-    isValidBytes32,
     L1NetworkConfig,
     loadL1NetworkConfig,
     saveL1NetworkConfig,
@@ -22,10 +17,10 @@ export async function deployL1ETHBridgeContract(networkName: string): Promise<bo
         const l1ETHBridgeProxy = await upgrades.deployProxy(
             L1ETHBridge,
             [
-                config.l1Common.owner, // _owner
-                config.l1Common.admin, // _defaultAdmin
-                config.l1BridgeMessengerConfig.l1BridgeMessengerProxy,
-                config.nilGasPriceOracleConfig.nilGasPriceOracleProxy
+                config.l1DeployerConfig.owner, // _owner
+                config.l1DeployerConfig.admin, // _defaultAdmin
+                config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy,
+                config.nilGasPriceOracle.nilGasPriceOracleContracts.nilGasPriceOracleProxy
             ],
             { initializer: 'initialize' },
         );
@@ -33,13 +28,13 @@ export async function deployL1ETHBridgeContract(networkName: string): Promise<bo
         console.log(`l1ETHBridgeProxy deployed to: ${l1ETHBridgeProxy.target}`);
 
         const l1ETHBridgeProxyAddress = l1ETHBridgeProxy.target;
-        config.l1ETHBridgeConfig.l1ETHBridgeProxy = l1ETHBridgeProxyAddress;
+        config.l1ETHBridge.l1ETHBridgeProxy = l1ETHBridgeProxyAddress;
 
         // Query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
             l1ETHBridgeProxyAddress,
         );
-        config.l1ETHBridgeConfig.proxyAdmin = proxyAdminAddress;
+        config.l1ETHBridge.proxyAdmin = proxyAdminAddress;
 
         if (proxyAdminAddress === ZeroAddress) {
             throw new Error('Invalid proxy admin address');
@@ -49,7 +44,7 @@ export async function deployL1ETHBridgeContract(networkName: string): Promise<bo
             await upgrades.erc1967.getImplementationAddress(
                 l1ETHBridgeProxyAddress,
             );
-        config.l1ETHBridgeConfig.l1ETHBridgeImplementation = implementationAddress;
+        config.l1ETHBridge.l1ETHBridgeImplementation = implementationAddress;
 
         if (implementationAddress === ZeroAddress) {
             throw new Error('Invalid implementation address');

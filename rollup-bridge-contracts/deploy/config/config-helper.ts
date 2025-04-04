@@ -14,79 +14,97 @@ export interface L1Config {
 }
 
 export interface L1NetworkConfig {
-    nilRollupConfig: NilRollupConfig;
-    l1Common: L1CommonConfig;
-    l1MockContracts: L1MockContracts;
-    l1BridgeRouterConfig: L1BridgeRouterConfig;
-    l1BridgeMessengerConfig: L1BridgeMessengerConfig;
-    l1ERC20BridgeConfig: L1ERC20BridgeConfig;
-    l1ETHBridgeConfig: L1ETHBridgeConfig;
-    nilGasPriceOracleConfig: NilGasPriceOracleConfig;
+    l1DeployerConfig: L1DeployerConfig;
+    l1CommonContracts: L1CommonContracts;
+    nilRollup: NilRollup;
+    l1BridgeRouter: L1BridgeRouter;
+    l1BridgeMessenger: L1BridgeMessenger;
+    l1ERC20Bridge: L1ERC20Bridge;
+    l1ETHBridge: L1ETHBridge;
+    nilGasPriceOracle: NilGasPriceOracle;
 }
 
-export interface NilGasPriceOracleConfig {
-    proxyAdmin: string;
-    nilGasPriceOracleProxy: string;
-    nilGasPriceOracleImplementation: string;
-    nilGasPriceSetterAddress: string;
-    nilGasPriceOracleMaxFeePerGas: number;
-    nilGasPriceOracleMaxPriorityFeePerGas: number;
-}
-
-export interface L1CommonConfig {
+export interface L1DeployerConfig {
     owner: string;
     admin: string;
+}
+
+export interface L1CommonContracts {
     weth: string;
 }
 
-export interface L1MockContracts {
-    tokens: ERC20Token[];
-    mockL2Tokens: ERC20Token[];
-    mockL2Bridge: string;
+export interface NilRollup {
+    nilRollupContracts: NilRollupContracts;
+    nilRollupDeployerConfig: NilRollupDeployerConfig;
+    nilRollupInitConfig: NilRollupInitConfig;
 }
 
-export interface ERC20Token {
-    name: string;
-    symbol: string;
-    decimals: number;
-    address: string;
-}
-
-export interface NilRollupConfig {
+export interface NilRollupContracts {
     proxyAdmin: string;
     nilRollupImplementation: string;
     nilRollupProxy: string;
     nilVerifier: string;
+}
+
+export interface NilRollupDeployerConfig {
     proposerAddress: string;
+}
+
+export interface NilRollupInitConfig {
     l2ChainId: number;
     genesisStateRoot: string;
 }
 
-export interface L1ERC20BridgeConfig {
+export interface L1ERC20Bridge {
     proxyAdmin: string;
     l1ERC20BridgeProxy: string;
     l1ERC20BridgeImplementation: string;
 }
 
-export interface L1ETHBridgeConfig {
+export interface L1ETHBridge {
     proxyAdmin: string;
     l1ETHBridgeProxy: string;
     l1ETHBridgeImplementation: string;
 }
 
-export interface L1BridgeMessengerConfig {
+export interface L1BridgeMessenger {
+    l1BridgeMessengerContracts: L1BridgeMessengerContracts;
+    l1BridgeMessengerDeployerConfig: L1BridgeMessengerDeployerConfig;
+}
+
+export interface L1BridgeMessengerContracts {
     proxyAdmin: string;
     l1BridgeMessengerProxy: string;
     l1BridgeMessengerImplementation: string;
+}
+
+export interface L1BridgeMessengerDeployerConfig {
     maxProcessingTimeInEpochSeconds: number;
 }
 
-export interface L1BridgeRouterConfig {
+export interface L1BridgeRouter {
     proxyAdmin: string;
     l1BridgeRouterProxy: string;
     l1BridgeRouterImplementation: string;
 }
 
+export interface NilGasPriceOracle {
+    nilGasPriceOracleContracts: NilGasPriceOracleContracts;
+    nilGasPriceOracleDeployerConfig: NilGasPriceOracleDeployerConfig;
+}
+
+export interface NilGasPriceOracleContracts {
+    proxyAdmin: string;
+    nilGasPriceOracleProxy: string;
+    nilGasPriceOracleImplementation: string;
+
+}
+
+export interface NilGasPriceOracleDeployerConfig {
+    nilGasPriceSetterAddress: string;
+    nilGasPriceOracleMaxFeePerGas: number;
+    nilGasPriceOracleMaxPriorityFeePerGas: number;
+}
 
 
 const l1NetworkConfigFilePath = path.join(__dirname, 'l1-deployment-config.json');
@@ -147,6 +165,94 @@ export const archiveL1NetworkConfig = (
     console.log(`archiving the file with content to archive-path: ${l1NetworkConfigArchiveFilePath}`)
 
     fs.writeFileSync(l1NetworkConfigArchiveFilePath, JSON.stringify(archive, null, 2), 'utf8');
+};
+
+/**
+ * L1 MOCK CONFIG SCHEMA
+ */
+
+export interface L1MockConfig {
+    networks: {
+        [network: string]: L1MockContracts;
+    };
+}
+
+export interface L1MockContracts {
+    tokens: ERC20TokenContract[];
+    mockL2Tokens: ERC20TokenContract[];
+    mockL2Bridge: string;
+}
+
+export interface ERC20TokenContract {
+    address: string;
+    erc20TokenInitConfig: ERC20TokenInitConfig;
+}
+
+export interface ERC20TokenInitConfig {
+    name: string;
+    symbol: string;
+    decimals: number;
+}
+
+
+const l1MockConfigFilePath = path.join(__dirname, 'l1-mock-config.json');
+const l1MockConfigArchiveFilePath = path.join(
+    __dirname,
+    'archive',
+    'l1-mock-config-archive.json',
+);
+
+// Load configuration for a specific network
+export const loadL1MockConfig = (network: string): L1MockContracts => {
+    const config: L1MockConfig = JSON.parse(fs.readFileSync(l1MockConfigFilePath, 'utf8'));
+    return config.networks[network];
+};
+
+// Save configuration for a specific network
+export const saveL1MockConfig = (
+    network: string,
+    l1MockContracts: L1MockContracts,
+): void => {
+    const config: L1MockConfig = JSON.parse(fs.readFileSync(l1MockConfigFilePath, 'utf8'));
+    config.networks[network] = l1MockContracts;
+    fs.writeFileSync(l1MockConfigFilePath, JSON.stringify(config, null, 2), 'utf8');
+};
+
+// Archive old configuration
+export const archiveL1MockConfig = (
+    network: string,
+    l1MockConfig: L1MockConfig,
+): void => {
+    const archiveDir = path.dirname(l1MockConfigArchiveFilePath);
+
+    console.log(`archiving L1MockConfig to path: ${archiveDir}`);
+
+    // Ensure the directory exists
+    if (!fs.existsSync(archiveDir)) {
+        fs.mkdirSync(archiveDir, { recursive: true });
+    }
+
+    let archive: {
+        networks: {
+            [network: string]: (L1MockConfig & { timestamp: string })[];
+        };
+    };
+    try {
+        archive = JSON.parse(fs.readFileSync(l1MockConfigArchiveFilePath, 'utf8'));
+    } catch (error) {
+        archive = { networks: {} };
+    }
+
+    if (!archive.networks[network]) {
+        archive.networks[network] = [];
+    }
+
+    const timestamp = new Date().toISOString();
+    archive.networks[network].push({ ...l1MockConfig, timestamp });
+
+    console.log(`archiving the file with content to archive-path: ${l1MockConfigArchiveFilePath}`)
+
+    fs.writeFileSync(l1MockConfigArchiveFilePath, JSON.stringify(archive, null, 2), 'utf8');
 };
 
 

@@ -2,7 +2,10 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, network, upgrades, run } from 'hardhat';
 import {
+    L1MockConfig,
+    L1MockContracts,
     L1NetworkConfig,
+    loadL1MockConfig,
     loadL1NetworkConfig,
     saveL1NetworkConfig,
 } from '../../../config/config-helper';
@@ -18,7 +21,9 @@ export async function deployMockL2BridgeContract(networkName: string, deployer: 
 
         console.log(`MockL2Bridge deployed to: ${mockL2Bridge.address}`);
 
-        config.l1MockContracts.mockL2Bridge = mockL2Bridge.address;
+        const l1MockContracts: L1MockContracts = loadL1MockConfig(networkName);
+
+        l1MockContracts.mockL2Bridge = mockL2Bridge.address;
     } catch (error) {
         console.error('Error during deployment:', error);
     }

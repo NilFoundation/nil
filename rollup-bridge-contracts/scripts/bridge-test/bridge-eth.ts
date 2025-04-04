@@ -18,7 +18,7 @@ export async function bridgeETH() {
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 
-    if (!isValidAddress(config.l1ETHBridgeConfig.l1ETHBridgeProxy)) {
+    if (!isValidAddress(config.l1ETHBridge.l1ETHBridgeProxy)) {
         throw new Error('Invalid l1ETHBridgeProxy address in config');
     }
 
@@ -30,7 +30,7 @@ export async function bridgeETH() {
     console.log(`signerAddress is: ${signerAddress}`);
 
     const l1ETHBridgeInstance = new ethers.Contract(
-        config.l1ETHBridgeConfig.l1ETHBridgeProxy,
+        config.l1ETHBridge.l1ETHBridgeProxy,
         l1EthBridgeABI,
         signer,
     ) as Contract;

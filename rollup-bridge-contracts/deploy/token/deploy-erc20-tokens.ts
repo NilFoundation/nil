@@ -2,40 +2,35 @@ import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { run } from 'hardhat';
 import {
-    ERC20Token,
+    ERC20TokenContract,
     isValidAddress,
     isValidBytes32,
+    L1MockConfig,
+    L1MockContracts,
     L1NetworkConfig,
+    loadL1MockConfig,
     loadL1NetworkConfig,
+    saveL1MockConfig,
     saveL1NetworkConfig,
 } from '../config/config-helper';
 import { verifyContractWithRetry } from '../common/proxy-contract-utils';
 
-// npx hardhat deploy --network sepolia --tags ERC20TokensDeploy
-// npx hardhat deploy --network anvil --tags ERC20TokensDeploy
-// npx hardhat deploy --network geth --tags ERC20TokensDeploy
-const deployERC20Tokens: DeployFunction = async function (
-    hre: HardhatRuntimeEnvironment,
-) {
-    const { deployments, getNamedAccounts, ethers, network } = hre;
-    const { deploy } = deployments;
-    const networkName = network.name;
-    const { deployer } = await getNamedAccounts();
-    await deployERC20TokenContracts(networkName, deployer, deploy);
-};
-
 export async function deployERC20TokenContracts(networkName: string, deployer: any, deploy: any): Promise<void> {
-    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
-    const erc20Tokens: ERC20Token[] = config.l1MockContracts.tokens;
+    const l1MockContracts: L1MockContracts = loadL1MockConfig(networkName);
+    const erc20Tokens: ERC20TokenContract[] = l1MockContracts.tokens;
+
+    console.log(`l1MockContracts are: ${JSON.stringify(l1MockContracts)}`);
+    console.log(`l1MockContracts properties are: ${Object.keys(l1MockContracts)}`);
+    console.log(`erc20Tokens are: ${JSON.stringify(erc20Tokens)} - ${erc20Tokens.length}`);
 
     for (const erc20Token of erc20Tokens) {
         const testERC20 = await deploy('TestERC20Token', {
             from: deployer,
-            args: [erc20Token.name, erc20Token.symbol, erc20Token.decimals],
+            args: [erc20Token.erc20TokenInitConfig.name, erc20Token.erc20TokenInitConfig.symbol, erc20Token.erc20TokenInitConfig.decimals],
             log: true,
         });
 
-        console.log(`ERC20Token [ name: ${erc20Token.name} - symbol: ${erc20Token.symbol} - decimal: ${erc20Token.decimals} ] deployed with address: ${testERC20.address}`);
+        console.log(`ERC20Token [ name: ${erc20Token.erc20TokenInitConfig.name} - symbol: ${erc20Token.erc20TokenInitConfig.symbol} - decimal: ${erc20Token.erc20TokenInitConfig.decimals} ] deployed with address: ${testERC20.address}`);
 
         // Update the token's address in the config
         erc20Token.address = testERC20.address;
@@ -47,7 +42,7 @@ export async function deployERC20TokenContracts(networkName: string, deployer: a
             networkName !== 'geth'
         ) {
             try {
-                await verifyContractWithRetry(testERC20.address, [erc20Token.name, erc20Token.symbol, erc20Token.decimals], 6);
+                await verifyContractWithRetry(testERC20.address, [erc20Token.erc20TokenInitConfig.name, erc20Token.erc20TokenInitConfig.symbol, erc20Token.erc20TokenInitConfig.decimals], 6);
                 console.log('ERC20Token verified successfully');
             } catch (error) {
                 console.error('ERC20Token Verification failed:', error);
@@ -58,8 +53,5 @@ export async function deployERC20TokenContracts(networkName: string, deployer: a
     }
 
     // Save the updated config
-    saveL1NetworkConfig(networkName, config);
+    saveL1MockConfig(networkName, l1MockContracts);
 }
-
-export default deployERC20Tokens;
-deployERC20Tokens.tags = ['ERC20TokensDeploy'];

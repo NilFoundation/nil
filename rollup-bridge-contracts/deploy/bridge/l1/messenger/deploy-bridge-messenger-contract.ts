@@ -15,18 +15,19 @@ import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../..
 export async function deployL1BridgeMessengerContract(networkName: string): Promise<void> {
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
     // Validate configuration parameters
-    if (!isValidAddress(config.l1Common.owner)) {
+    if (!isValidAddress(config.l1DeployerConfig.owner)) {
         throw new Error('Invalid nilRollupOwnerAddress in config');
     }
-    if (!isValidAddress(config.l1Common.admin)) {
+    if (!isValidAddress(config.l1DeployerConfig.admin)) {
         throw new Error('Invalid defaultAdminAddress in config');
     }
 
-    if (!isValidAddress(config.nilRollupConfig.nilRollupProxy)) {
+    if (!isValidAddress(config.nilRollup.nilRollupContracts.nilRollupProxy)) {
         throw new Error('Invalid nilRollupProxy in config');
     }
 
-    if (!config.l1BridgeMessengerConfig.maxProcessingTimeInEpochSeconds || config.l1BridgeMessengerConfig.maxProcessingTimeInEpochSeconds == 0) {
+    if (!config.l1BridgeMessenger.l1BridgeMessengerDeployerConfig.maxProcessingTimeInEpochSeconds ||
+        config.l1BridgeMessenger.l1BridgeMessengerDeployerConfig.maxProcessingTimeInEpochSeconds == 0) {
         throw new Error('Invalid maxProcessingTimeInEpochSeconds in l1BridgeMessengerConfig');
     }
 
@@ -38,10 +39,10 @@ export async function deployL1BridgeMessengerContract(networkName: string): Prom
         const l1BridgeMessengerProxy = await upgrades.deployProxy(
             L1BridgeMessenger,
             [
-                config.l1Common.owner, // _owner
-                config.l1Common.admin, // _defaultAdmin
-                config.nilRollupConfig.nilRollupProxy,
-                config.l1BridgeMessengerConfig.maxProcessingTimeInEpochSeconds
+                config.l1DeployerConfig.owner, // _owner
+                config.l1DeployerConfig.admin, // _defaultAdmin
+                config.nilRollup.nilRollupContracts.nilRollupProxy,
+                config.l1BridgeMessenger.l1BridgeMessengerDeployerConfig.maxProcessingTimeInEpochSeconds
             ],
             { initializer: 'initialize' },
         );
@@ -49,13 +50,13 @@ export async function deployL1BridgeMessengerContract(networkName: string): Prom
         console.log(`l1BridgeMessenger-Proxy deployed to: ${l1BridgeMessengerProxy.target}`);
 
         const l1BridgeMessengerProxyAddress = l1BridgeMessengerProxy.target;
-        config.l1BridgeMessengerConfig.l1BridgeMessengerProxy = l1BridgeMessengerProxyAddress;
+        config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy = l1BridgeMessengerProxyAddress;
 
         // Query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
             l1BridgeMessengerProxyAddress,
         );
-        config.l1BridgeMessengerConfig.proxyAdmin = proxyAdminAddress;
+        config.l1BridgeMessenger.l1BridgeMessengerContracts.proxyAdmin = proxyAdminAddress;
 
         if (proxyAdminAddress === ZeroAddress) {
             throw new Error('Invalid proxy admin address');
@@ -65,7 +66,7 @@ export async function deployL1BridgeMessengerContract(networkName: string): Prom
             await upgrades.erc1967.getImplementationAddress(
                 l1BridgeMessengerProxyAddress,
             );
-        config.l1BridgeMessengerConfig.l1BridgeMessengerImplementation = implementationAddress;
+        config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerImplementation = implementationAddress;
 
         if (implementationAddress === ZeroAddress) {
             throw new Error('Invalid implementation address');

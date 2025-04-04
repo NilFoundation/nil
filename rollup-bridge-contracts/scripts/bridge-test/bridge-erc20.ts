@@ -5,7 +5,8 @@ import * as path from 'path';
 import {
     loadL1NetworkConfig,
     isValidAddress,
-    ERC20Token,
+    ERC20TokenContract,
+    loadL1MockConfig,
 } from '../../deploy/config/config-helper';
 import { bigIntReplacer, DepositERC20Event, extractAndParseDepositERC20Event, extractAndParseMessageSentEventLog, MessageSentEvent } from './get-messenger-events';
 
@@ -26,7 +27,7 @@ export async function bridgeERC20() {
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 
-    if (!isValidAddress(config.l1ERC20BridgeConfig.l1ERC20BridgeProxy)) {
+    if (!isValidAddress(config.l1ERC20Bridge.l1ERC20BridgeProxy)) {
         throw new Error('Invalid l1ERC20BridgeProxy address in config');
     }
     const signers = await ethers.getSigners();
@@ -37,7 +38,7 @@ export async function bridgeERC20() {
     console.log(`signerAddress is: ${signerAddress}`);
 
     const l1ERC20BridgeInstance = new ethers.Contract(
-        config.l1ERC20BridgeConfig.l1ERC20BridgeProxy,
+        config.l1ERC20Bridge.l1ERC20BridgeProxy,
         l1ERC20BridgeABI,
         signer,
     ) as Contract;
@@ -50,7 +51,9 @@ export async function bridgeERC20() {
     const userFeePerGas = 0;
     const userMaxPriorityFeePerGas = 0;
     const symbol = "USDC";
-    const erc20TokenData = getERC20TokenBySymbol(config.l1MockContracts.tokens, symbol);
+
+    const l1MockConfig = loadL1MockConfig(networkName);
+    const erc20TokenData = getERC20TokenBySymbol(l1MockConfig.tokens, symbol);
     //const mockL2TokenData = get
 
     if (erc20TokenData == null || !erc20TokenData) {
@@ -72,14 +75,14 @@ export async function bridgeERC20() {
 
     console.log(`tokenbalance is: ${tokenBalance}`);
 
-    const approveTxn = await erc20TokenInstance.approve(config.l1ERC20BridgeConfig.l1ERC20BridgeProxy, tokenBalance);
+    const approveTxn = await erc20TokenInstance.approve(config.l1ERC20Bridge.l1ERC20BridgeProxy, tokenBalance);
     await approveTxn.wait();
 
-    const spending_allowance = await erc20TokenInstance.allowance(signer.address, config.l1ERC20BridgeConfig.l1ERC20BridgeProxy);
+    const spending_allowance = await erc20TokenInstance.allowance(signer.address, config.l1ERC20Bridge.l1ERC20BridgeProxy);
 
     console.log(`spending_allowance is: ${spending_allowance}`);
 
-    console.log(`bridging ${token_amount} (WEI) - ${erc20TokenData.symbol} to recipient: ${recipientAddress} and with l2FeeRefundRecipientAddress: ${l2FeeRefundRecipientAddress}`);
+    console.log(`bridging ${token_amount} (WEI) - ${erc20TokenData.erc20TokenInitConfig.symbol} to recipient: ${recipientAddress} and with l2FeeRefundRecipientAddress: ${l2FeeRefundRecipientAddress}`);
 
     const tx = await l1ERC20BridgeInstance.depositERC20(erc20TokenData.address, recipientAddress, token_amount, l2FeeRefundRecipientAddress, gasLimit, userFeePerGas, userMaxPriorityFeePerGas, { value: total_native_amount });
     const transactionReceipt: TransactionReceipt = await tx.wait();
@@ -128,9 +131,9 @@ export async function bridgeERC20() {
 
 }
 
-function getERC20TokenBySymbol(tokens: ERC20Token[], symbol: string): ERC20Token | null {
+function getERC20TokenBySymbol(tokens: ERC20TokenContract[], symbol: string): ERC20TokenContract | null {
     for (const token of tokens) {
-        if (token.symbol === symbol) {
+        if (token.erc20TokenInitConfig.symbol === symbol) {
             return token;
         }
     }

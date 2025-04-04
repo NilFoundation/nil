@@ -15,22 +15,22 @@ import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../..
 export async function deployL1BridgeRouterContract(networkName: string): Promise<void> {
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
     // Validate configuration parameters
-    if (!isValidAddress(config.l1Common.owner)) {
+    if (!isValidAddress(config.l1DeployerConfig.owner)) {
         throw new Error('Invalid owner in config');
     }
-    if (!isValidAddress(config.l1Common.admin)) {
+    if (!isValidAddress(config.l1DeployerConfig.admin)) {
         throw new Error('Invalid admin in config');
     }
-    if (!isValidAddress(config.l1ERC20BridgeConfig.l1ERC20BridgeProxy)) {
+    if (!isValidAddress(config.l1ERC20Bridge.l1ERC20BridgeProxy)) {
         throw new Error('Invalid L1ERC20BridgeProxy in config');
     }
-    if (!isValidAddress(config.l1ETHBridgeConfig.l1ETHBridgeProxy)) {
+    if (!isValidAddress(config.l1ETHBridge.l1ETHBridgeProxy)) {
         throw new Error('Invalid L1ETHBridgeProxy in config');
     }
-    if (!isValidAddress(config.l1BridgeMessengerConfig.l1BridgeMessengerProxy)) {
+    if (!isValidAddress(config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy)) {
         throw new Error('Invalid L1BridgeMessengerProxy in config');
     }
-    if (!isValidAddress(config.l1Common.weth)) {
+    if (!isValidAddress(config.l1CommonContracts.weth)) {
         throw new Error('Invalid WETH in config');
     }
 
@@ -42,12 +42,12 @@ export async function deployL1BridgeRouterContract(networkName: string): Promise
         const l1BridgeRouterProxy = await upgrades.deployProxy(
             L1BridgeRouter,
             [
-                config.l1Common.owner, // _owner
-                config.l1Common.admin, // _defaultAdmin
-                config.l1ERC20BridgeConfig.l1ERC20BridgeProxy,
-                config.l1ETHBridgeConfig.l1ETHBridgeProxy,
-                config.l1BridgeMessengerConfig.l1BridgeMessengerProxy,
-                config.l1Common.weth
+                config.l1DeployerConfig.owner, // _owner
+                config.l1DeployerConfig.admin, // _defaultAdmin
+                config.l1ERC20Bridge.l1ERC20BridgeProxy,
+                config.l1ETHBridge.l1ETHBridgeProxy,
+                config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy,
+                config.l1CommonContracts.weth
             ],
             { initializer: 'initialize' },
         );
@@ -55,13 +55,13 @@ export async function deployL1BridgeRouterContract(networkName: string): Promise
         console.log(`l1BridgeRouterProxy-Proxy deployed to: ${l1BridgeRouterProxy.target}`);
 
         const l1BridgeRouterProxyAddress = l1BridgeRouterProxy.target;
-        config.l1BridgeRouterConfig.l1BridgeRouterProxy = l1BridgeRouterProxyAddress;
+        config.l1BridgeRouter.l1BridgeRouterProxy = l1BridgeRouterProxyAddress;
 
         // Query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
             l1BridgeRouterProxyAddress,
         );
-        config.l1BridgeRouterConfig.proxyAdmin = proxyAdminAddress;
+        config.l1BridgeRouter.proxyAdmin = proxyAdminAddress;
 
         if (proxyAdminAddress === ZeroAddress) {
             throw new Error('Invalid proxy admin address');
@@ -71,7 +71,7 @@ export async function deployL1BridgeRouterContract(networkName: string): Promise
             await upgrades.erc1967.getImplementationAddress(
                 l1BridgeRouterProxyAddress,
             );
-        config.l1BridgeRouterConfig.l1BridgeRouterImplementation = implementationAddress;
+        config.l1BridgeRouter.l1BridgeRouterImplementation = implementationAddress;
 
         if (implementationAddress === ZeroAddress) {
             throw new Error('Invalid implementation address');

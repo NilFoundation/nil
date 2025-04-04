@@ -2,15 +2,11 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, network, upgrades, run } from 'hardhat';
 import {
-    archiveL1NetworkConfig,
-    isValidAddress,
-    isValidBytes32,
     L1NetworkConfig,
     loadL1NetworkConfig,
     saveL1NetworkConfig,
     ZeroAddress,
 } from '../../../config/config-helper';
-import { BatchInfo } from '../../../config/nil-types';
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../../common/proxy-contract-utils';
 
 export async function deployL1ERC20BridgeContract(networkName: string): Promise<boolean> {
@@ -24,11 +20,11 @@ export async function deployL1ERC20BridgeContract(networkName: string): Promise<
         const l1ERC20BridgeProxy = await upgrades.deployProxy(
             L1ERC20Bridge,
             [
-                config.l1Common.owner, // _owner
-                config.l1Common.admin, // _defaultAdmin
-                config.l1Common.weth,
-                config.l1BridgeMessengerConfig.l1BridgeMessengerProxy,
-                config.nilGasPriceOracleConfig.nilGasPriceOracleProxy
+                config.l1DeployerConfig.owner, // _owner
+                config.l1DeployerConfig.admin, // _defaultAdmin
+                config.l1CommonContracts.weth,
+                config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy,
+                config.nilGasPriceOracle.nilGasPriceOracleContracts.nilGasPriceOracleProxy
             ],
             { initializer: 'initialize' },
         );
@@ -36,13 +32,13 @@ export async function deployL1ERC20BridgeContract(networkName: string): Promise<
         console.log(`l1ERC20BridgeProxy deployed to: ${l1ERC20BridgeProxy.target}`);
 
         const l1ERC20BridgeProxyAddress = l1ERC20BridgeProxy.target;
-        config.l1ERC20BridgeConfig.l1ERC20BridgeProxy = l1ERC20BridgeProxyAddress;
+        config.l1ERC20Bridge.l1ERC20BridgeProxy = l1ERC20BridgeProxyAddress;
 
         // Query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
             l1ERC20BridgeProxyAddress,
         );
-        config.l1ERC20BridgeConfig.proxyAdmin = proxyAdminAddress;
+        config.l1ERC20Bridge.proxyAdmin = proxyAdminAddress;
 
         if (proxyAdminAddress === ZeroAddress) {
             throw new Error('Invalid proxy admin address');
@@ -52,7 +48,7 @@ export async function deployL1ERC20BridgeContract(networkName: string): Promise<
             await upgrades.erc1967.getImplementationAddress(
                 l1ERC20BridgeProxyAddress,
             );
-        config.l1ERC20BridgeConfig.l1ERC20BridgeImplementation = implementationAddress;
+        config.l1ERC20Bridge.l1ERC20BridgeImplementation = implementationAddress;
 
         if (implementationAddress === ZeroAddress) {
             throw new Error('Invalid implementation address');

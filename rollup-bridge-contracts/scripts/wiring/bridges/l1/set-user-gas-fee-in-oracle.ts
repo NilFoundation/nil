@@ -19,26 +19,26 @@ export async function setUserGasFeeInOracle(networkName: string) {
     // setMaxFeePerGas
     // setMaxPriorityFeePerGas
 
-    if (!isValidAddress(config.nilGasPriceOracleConfig.nilGasPriceOracleProxy)) {
+    if (!isValidAddress(config.nilGasPriceOracle.nilGasPriceOracleContracts.nilGasPriceOracleProxy)) {
         throw new Error('Invalid nilGasPriceOracleProxy address in config');
     }
 
     const [signer] = await ethers.getSigners();
 
     const nilGasPriceOracleInstance = new ethers.Contract(
-        config.nilGasPriceOracleConfig.nilGasPriceOracleProxy,
+        config.nilGasPriceOracle.nilGasPriceOracleContracts.nilGasPriceOracleProxy,
         nilGasPriceOracleABI,
         signer,
     ) as Contract;
 
     console.log(`setting user-gas-gee in nilGasPriceOracle`);
 
-    const tx = await nilGasPriceOracleInstance.setMaxFeePerGas(config.nilGasPriceOracleConfig.nilGasPriceOracleMaxFeePerGas);
+    const tx = await nilGasPriceOracleInstance.setMaxFeePerGas(config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceOracleMaxFeePerGas);
     await tx.wait();
 
     console.log(`nilGasPriceOracleMaxFeePerGas set in nilGasPriceOracle with transaction: ${JSON.stringify(tx)}`);
 
-    const tx2 = await nilGasPriceOracleInstance.setMaxPriorityFeePerGas(config.nilGasPriceOracleConfig.nilGasPriceOracleMaxPriorityFeePerGas);
+    const tx2 = await nilGasPriceOracleInstance.setMaxPriorityFeePerGas(config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceOracleMaxPriorityFeePerGas);
     await tx2.wait();
 
     console.log(`nilGasPriceOracleMaxPriorityFeePerGas set in nilGasPriceOracle with transaction: ${JSON.stringify(tx2)}`);

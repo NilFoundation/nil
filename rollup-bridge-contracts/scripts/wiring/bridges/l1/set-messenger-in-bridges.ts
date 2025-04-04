@@ -23,39 +23,39 @@ const l1ERC20BridgeABI = JSON.parse(fs.readFileSync(l1ERC20BridgeABIPath, 'utf8'
 export async function setMessengerInBridges(networkName: string) {
     const config = loadL1NetworkConfig(networkName);
 
-    if (!isValidAddress(config.l1BridgeMessengerConfig.l1BridgeMessengerProxy)) {
+    if (!isValidAddress(config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy)) {
         throw new Error('Invalid l1BridgeMessengerProxy address in config');
     }
 
-    if (!isValidAddress(config.l1ETHBridgeConfig.l1ETHBridgeProxy)) {
+    if (!isValidAddress(config.l1ETHBridge.l1ETHBridgeProxy)) {
         throw new Error('Invalid l1ETHBridgeProxy address in config');
     }
 
-    if (!isValidAddress(config.l1BridgeRouterConfig.l1BridgeRouterProxy)) {
+    if (!isValidAddress(config.l1BridgeRouter.l1BridgeRouterProxy)) {
         throw new Error('Invalid l1BridgeRouterProxy address in config');
     }
 
     const [signer] = await ethers.getSigners();
 
     const l1ERC20BridgeInstance = new ethers.Contract(
-        config.l1ERC20BridgeConfig.l1ERC20BridgeProxy,
+        config.l1ERC20Bridge.l1ERC20BridgeProxy,
         l1ERC20BridgeABI,
         signer,
     ) as Contract;
 
-    const tx = await l1ERC20BridgeInstance.setMessenger(config.l1BridgeMessengerConfig.l1BridgeMessengerProxy);
+    const tx = await l1ERC20BridgeInstance.setMessenger(config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy);
     await tx.wait();
 
     const messenger_in_erc20_bridge = await l1ERC20BridgeInstance.messenger();
     console.log(`messenger set in erc20_bridge is: ${messenger_in_erc20_bridge}`);
 
     const l1ETHBridgeInstance = new ethers.Contract(
-        config.l1ETHBridgeConfig.l1ETHBridgeProxy,
+        config.l1ETHBridge.l1ETHBridgeProxy,
         l1EthBridgeABI,
         signer,
     ) as Contract;
 
-    const tx2 = await l1ETHBridgeInstance.setMessenger(config.l1BridgeMessengerConfig.l1BridgeMessengerProxy);
+    const tx2 = await l1ETHBridgeInstance.setMessenger(config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy);
     await tx2.wait();
 
     const messenger_in_eth_bridge = await l1ETHBridgeInstance.messenger();

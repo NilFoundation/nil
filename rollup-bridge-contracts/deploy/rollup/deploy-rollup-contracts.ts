@@ -22,22 +22,22 @@ export async function deployRollupContracts(networkName: string, deployer: any, 
     }
 
     // Validate configuration parameters
-    if (!isValidAddress(config.l1Common.owner)) {
+    if (!isValidAddress(config.l1DeployerConfig.owner)) {
         throw new Error('Invalid nilRollupOwnerAddress in config');
     }
-    if (!isValidAddress(config.l1Common.admin)) {
+    if (!isValidAddress(config.l1DeployerConfig.admin)) {
         throw new Error('Invalid defaultAdminAddress in config');
     }
-    if (!isValidAddress(config.nilRollupConfig.proposerAddress)) {
+    if (!isValidAddress(config.nilRollup.nilRollupDeployerConfig.proposerAddress)) {
         throw new Error('Invalid proposerAddress in config');
     }
-    if (!isValidBytes32(config.nilRollupConfig.genesisStateRoot)) {
+    if (!isValidBytes32(config.nilRollup.nilRollupInitConfig.genesisStateRoot)) {
         throw new Error('Invalid genesisStateRoot in config');
     }
 
     // Check if NilVerifier is already deployed
-    if (config.nilRollupConfig.nilVerifier && isValidAddress(config.nilRollupConfig.nilVerifier)) {
-        console.log(`NilVerifier already deployed at: ${config.nilRollupConfig.nilVerifier}`);
+    if (config.nilRollup.nilRollupContracts.nilVerifier && isValidAddress(config.nilRollup.nilRollupContracts.nilVerifier)) {
+        console.log(`NilVerifier already deployed at: ${config.nilRollup.nilRollupContracts.nilVerifier}`);
         archiveL1NetworkConfig(networkName, config);
     }
 
@@ -50,17 +50,17 @@ export async function deployRollupContracts(networkName: string, deployer: any, 
     });
 
     console.log('NilVerifier deployed to:', nilVerifier.address);
-    config.nilRollupConfig.nilVerifier = nilVerifier.address;
+    config.nilRollup.nilRollupContracts.nilVerifier = nilVerifier.address;
 
-    if (!isValidAddress(config.nilRollupConfig.nilVerifier)) {
+    if (!isValidAddress(config.nilRollup.nilRollupContracts.nilVerifier)) {
         throw new Error('Invalid nilVerifier address in config');
     }
 
-    const nilVerifierAddress = config.nilRollupConfig.nilVerifier;
-    const l2ChainId = config.nilRollupConfig.l2ChainId;
-    const proposerAddress = config.nilRollupConfig.proposerAddress;
-    const ownerAddress = config.l1Common.owner;
-    const adminAddress = config.l1Common.admin;
+    const nilVerifierAddress = config.nilRollup.nilRollupContracts.nilVerifier;
+    const l2ChainId = config.nilRollup.nilRollupInitConfig.l2ChainId;
+    const proposerAddress = config.nilRollup.nilRollupDeployerConfig.proposerAddress;
+    const ownerAddress = config.l1DeployerConfig.owner;
+    const adminAddress = config.l1DeployerConfig.admin;
 
     try {
         // Deploy NilRollup implementation
@@ -74,7 +74,7 @@ export async function deployRollupContracts(networkName: string, deployer: any, 
                 adminAddress, // _defaultAdmin
                 nilVerifierAddress, // nilVerifier contract address
                 proposerAddress, // proposer address
-                config.nilRollupConfig.genesisStateRoot,
+                config.nilRollup.nilRollupInitConfig.genesisStateRoot,
             ],
             { initializer: 'initialize' },
         );
@@ -82,12 +82,12 @@ export async function deployRollupContracts(networkName: string, deployer: any, 
         console.log(`NilRollup proxy deployed to: ${nilRollupProxy.target}`);
 
         const nilRollupProxyAddress = nilRollupProxy.target;
-        config.nilRollupConfig.nilRollupProxy = nilRollupProxyAddress;
+        config.nilRollup.nilRollupContracts.nilRollupProxy = nilRollupProxyAddress;
 
         // Query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(nilRollupProxyAddress);
         console.log(`ProxyAdmin for proxy: ${nilRollupProxyAddress} is: ${proxyAdminAddress}`);
-        config.nilRollupConfig.proxyAdmin = proxyAdminAddress;
+        config.nilRollup.nilRollupContracts.proxyAdmin = proxyAdminAddress;
 
         if (proxyAdminAddress === ZeroAddress) {
             throw new Error('Invalid proxy admin address');
@@ -95,7 +95,7 @@ export async function deployRollupContracts(networkName: string, deployer: any, 
 
         const implementationAddress = await upgrades.erc1967.getImplementationAddress(nilRollupProxyAddress);
         console.log(`Implementation address for proxy: ${nilRollupProxyAddress} is: ${implementationAddress}`);
-        config.nilRollupConfig.nilRollupImplementation = implementationAddress;
+        config.nilRollup.nilRollupContracts.nilRollupImplementation = implementationAddress;
 
         if (implementationAddress === ZeroAddress) {
             throw new Error('Invalid implementation address');
@@ -128,7 +128,7 @@ export async function deployRollupContracts(networkName: string, deployer: any, 
         if (storedProposerAddress.toLowerCase() !== proposerAddress.toLowerCase()) {
             throw new Error('proposerAddress mismatch');
         }
-        if (storedGenesisStateRoot.toLowerCase() !== config.nilRollupConfig.genesisStateRoot.toLowerCase()) {
+        if (storedGenesisStateRoot.toLowerCase() !== config.nilRollup.nilRollupInitConfig.genesisStateRoot.toLowerCase()) {
             throw new Error('genesisStateRoot mismatch');
         }
 

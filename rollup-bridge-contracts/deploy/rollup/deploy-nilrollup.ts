@@ -26,30 +26,30 @@ const deployNilRollup: DeployFunction = async function (
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
-    if (!isValidAddress(config.l1Common.owner)) {
+    if (!isValidAddress(config.l1DeployerConfig.owner)) {
         throw new Error('Invalid nilRollupOwnerAddress in config');
     }
-    if (!isValidAddress(config.l1Common.admin)) {
+    if (!isValidAddress(config.l1DeployerConfig.admin)) {
         throw new Error('Invalid defaultAdminAddress in config');
     }
-    if (!isValidAddress(config.nilRollupConfig.proposerAddress)) {
+    if (!isValidAddress(config.nilRollup.nilRollupDeployerConfig.proposerAddress)) {
         throw new Error('Invalid proposerAddress in config');
     }
-    if (!isValidBytes32(config.nilRollupConfig.genesisStateRoot)) {
+    if (!isValidBytes32(config.nilRollup.nilRollupInitConfig.genesisStateRoot)) {
         throw new Error('Invalid genesisStateRoot in config');
     }
 
-    if (!isValidAddress(config.nilRollupConfig.nilVerifier)) {
+    if (!isValidAddress(config.nilRollup.nilRollupContracts.nilVerifier)) {
         throw new Error('Invalid nilVerifier address in config');
     }
 
     // Check if NilRollup is already deployed
-    if (config.nilRollupConfig.nilRollupProxy && isValidAddress(config.nilRollupConfig.nilRollupProxy)) {
-        console.log(`NilRollup already deployed at: ${config.nilRollupConfig.nilRollupProxy}`);
+    if (config.nilRollup.nilRollupContracts.nilRollupProxy && isValidAddress(config.nilRollup.nilRollupContracts.nilRollupProxy)) {
+        console.log(`NilRollup already deployed at: ${config.nilRollup.nilRollupContracts.nilRollupProxy}`);
         archiveL1NetworkConfig(networkName, config);
     }
 
-    const l2ChainId = config.nilRollupConfig.l2ChainId;
+    const l2ChainId = config.nilRollup.nilRollupInitConfig.l2ChainId;
 
     try {
         // Deploy NilRollup implementation
@@ -65,11 +65,11 @@ const deployNilRollup: DeployFunction = async function (
             NilRollup,
             [
                 l2ChainId,
-                config.l1Common.owner, // _owner
-                config.l1Common.admin, // _defaultAdmin
-                config.nilRollupConfig.nilVerifier, // nilVerifier contract address
-                config.nilRollupConfig.proposerAddress, // proposer address
-                config.nilRollupConfig.genesisStateRoot,
+                config.l1DeployerConfig.owner, // _owner
+                config.l1DeployerConfig.admin, // _defaultAdmin
+                config.nilRollup.nilRollupContracts.nilVerifier, // nilVerifier contract address
+                config.nilRollup.nilRollupDeployerConfig.proposerAddress, // proposer address
+                config.nilRollup.nilRollupInitConfig.genesisStateRoot,
             ],
             { initializer: 'initialize' },
         );
@@ -77,13 +77,13 @@ const deployNilRollup: DeployFunction = async function (
         console.log(`NilRollup proxy deployed to: ${nilRollupProxy.target}`);
 
         const nilRollupProxyAddress = nilRollupProxy.target;
-        config.nilRollupConfig.nilRollupProxy = nilRollupProxyAddress;
+        config.nilRollup.nilRollupContracts.nilRollupProxy = nilRollupProxyAddress;
 
         // query proxyAdmin address and implementation address
         const proxyAdminAddress = await getProxyAdminAddressWithRetry(
             nilRollupProxyAddress,
         );
-        config.nilRollupConfig.proxyAdmin = proxyAdminAddress;
+        config.nilRollup.nilRollupContracts.proxyAdmin = proxyAdminAddress;
 
         if (proxyAdminAddress === ZeroAddress) {
             throw new Error('Invalid proxy admin address');
@@ -93,7 +93,7 @@ const deployNilRollup: DeployFunction = async function (
             await upgrades.erc1967.getImplementationAddress(
                 nilRollupProxyAddress,
             );
-        config.nilRollupConfig.nilRollupImplementation = implementationAddress;
+        config.nilRollup.nilRollupContracts.nilRollupImplementation = implementationAddress;
 
         if (implementationAddress === ZeroAddress) {
             throw new Error('Invalid implementation address');
@@ -122,31 +122,31 @@ const deployNilRollup: DeployFunction = async function (
         }
         if (
             storedOwnerAddress.toLowerCase() !==
-            config.l1Common.owner.toLowerCase()
+            config.l1DeployerConfig.owner.toLowerCase()
         ) {
             throw new Error('ownerAddress mismatch');
         }
         if (
             storedAdminAddress.toLowerCase() !==
-            config.l1Common.admin.toLowerCase()
+            config.l1DeployerConfig.admin.toLowerCase()
         ) {
             throw new Error('adminAddress mismatch');
         }
         if (
             storedNilVerifierAddress.toLowerCase() !==
-            config.nilRollupConfig.nilVerifier.toLowerCase()
+            config.nilRollup.nilRollupContracts.nilVerifier.toLowerCase()
         ) {
             throw new Error('nilVerifierAddress mismatch');
         }
         if (
             storedProposerAddress.toLowerCase() !==
-            config.nilRollupConfig.proposerAddress.toLowerCase()
+            config.nilRollup.nilRollupDeployerConfig.proposerAddress.toLowerCase()
         ) {
             throw new Error('proposerAddress mismatch');
         }
         if (
             storedGenesisStateRoot.toLowerCase() !==
-            config.nilRollupConfig.genesisStateRoot.toLowerCase()
+            config.nilRollup.nilRollupInitConfig.genesisStateRoot.toLowerCase()
         ) {
             throw new Error('genesisStateRoot mismatch');
         }
