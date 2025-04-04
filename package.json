@@ -28,7 +28,8 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@nomicfoundation/hardhat-ignition": "^0.15.10",
-    "fs-extra": "^11.3.0"
+    "fs-extra": "^11.3.0",
+    "hardhat": "^2.22.19"
   },
   "optionalDependencies": {
     "@biomejs/cli-linux-x64": "1.9.4",

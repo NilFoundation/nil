@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import "@nilfoundation/smart-contracts/contracts/Nil.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-// @title GlobalLedger
-// @dev Tracks deposits, loans, and repayments across LendingPool contracts
-contract GlobalLedger {
+/// @title GlobalLedger
+/// @dev Tracks deposits, loans, and repayments across LendingPool contracts
+contract GlobalLedger is Ownable {
     struct Deposit {
         uint256 amount;
         bool exists;
@@ -18,13 +18,38 @@ contract GlobalLedger {
 
     mapping(address => mapping(TokenId => Deposit)) public deposits;
     mapping(address => mapping(TokenId => Loan)) public loans;
+    mapping(address => bool) public authorizedLendingPools;
 
     event DepositRecorded(address indexed user, TokenId token, uint256 amount);
     event LoanRecorded(address indexed user, TokenId token, uint256 amount);
     event LoanRepaid(address indexed user, TokenId token, uint256 amount);
+    event LendingPoolRegistered(address indexed lendingPool);
 
-    /// @notice Record a deposit from LendingPool
-    function recordDeposit(address user, TokenId token, uint256 amount) external payable {
+    /// @notice Modifier to restrict access to only authorized lending pools
+    modifier onlyLendingPool() {
+        require(
+            authorizedLendingPools[msg.sender],
+            "Not an authorized lending pool"
+        );
+        _;
+    }
+
+    /// @notice Register a new lending pool (only callable by factory or internal async call)
+    function registerLendingPool(address lendingPool) external {
+        require(
+            msg.sender == owner() || msg.sender == address(this),
+            "Unauthorized"
+        );
+        authorizedLendingPools[lendingPool] = true;
+        emit LendingPoolRegistered(lendingPool);
+    }
+
+    /// @notice Record a deposit from an authorized LendingPool
+    function recordDeposit(
+        address user,
+        TokenId token,
+        uint256 amount
+    ) external payable onlyLendingPool {
         require(amount > 0, "Invalid deposit amount");
 
         if (!deposits[user][token].exists) {
@@ -36,13 +61,12 @@ contract GlobalLedger {
         emit DepositRecorded(user, token, amount);
     }
 
-    /// @notice Get user's deposit for a specific token
-    function getDeposit(address user, TokenId token) external view returns (uint256) {
-        return deposits[user][token].amount;
-    }
-
-    /// @notice Record a loan taken from a LendingPool
-    function recordLoan(address user, TokenId token, uint256 amount) external payable {
+    /// @notice Record a loan taken from an authorized LendingPool
+    function recordLoan(
+        address user,
+        TokenId token,
+        uint256 amount
+    ) external payable onlyLendingPool {
         require(amount > 0, "Invalid loan amount");
 
         if (!loans[user][token].exists) {
@@ -54,13 +78,12 @@ contract GlobalLedger {
         emit LoanRecorded(user, token, amount);
     }
 
-    /// @notice Get user's outstanding loan for a specific token
-    function getLoan(address user, TokenId token) external view returns (uint256) {
-        return loans[user][token].amount;
-    }
-
     /// @notice Record loan repayment and reduce outstanding balance
-    function repayLoan(address user, TokenId token, uint256 amount) external payable {
+    function repayLoan(
+        address user,
+        TokenId token,
+        uint256 amount
+    ) external payable onlyLendingPool {
         require(amount > 0, "Invalid repayment amount");
         require(loans[user][token].exists, "No active loan");
 
