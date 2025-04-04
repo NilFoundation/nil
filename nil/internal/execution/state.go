@@ -1058,30 +1058,26 @@ func (es *ExecutionState) SendResponseTransaction(txn *types.Transaction, res *E
 		Data:        data,
 	}
 
+	requestChain := txn.RequestChain
+	if txn.IsRequest() {
+		responsePayload.To = txn.From
+		responsePayload.RequestId = txn.RequestId
+	} else {
+		// We are processing a response transaction with requests chain. So get pending request from the chain and send
+		// response to it.
+		check.PanicIfNotf(txn.IsResponse(), "Transaction should be a response")
+		responsePayload.To = txn.RequestChain[len(txn.RequestChain)-1].Caller
+		responsePayload.RequestId = txn.RequestChain[len(txn.RequestChain)-1].Id
+		requestChain = txn.RequestChain[:len(txn.RequestChain)-1]
+	}
+
 	// TODO: need to pay for response here
 	// we pay for mem during VM execution, so likely big response isn't a problem
 	responseTxn, err := es.AddOutTransaction(txn.To, responsePayload)
 	if err != nil {
 		return err
 	}
-
-	// Send back value in case of failed transaction, thereby we don't need in a separate bounce transaction.
-	if res.Failed() {
-		responseTxn.Value = txn.Value
-	}
-
-	if txn.IsRequest() {
-		responseTxn.To = txn.From
-		responseTxn.RequestId = txn.RequestId
-		responseTxn.RequestChain = txn.RequestChain
-	} else {
-		// We are processing a response transaction with requests chain. So get pending request from the chain and send
-		// response to it.
-		check.PanicIfNotf(txn.IsResponse(), "Transaction should be a response")
-		responseTxn.To = txn.RequestChain[len(txn.RequestChain)-1].Caller
-		responseTxn.RequestId = txn.RequestChain[len(txn.RequestChain)-1].Id
-		responseTxn.RequestChain = txn.RequestChain[:len(txn.RequestChain)-1]
-	}
+	responseTxn.RequestChain = requestChain
 	return nil
 }
 
