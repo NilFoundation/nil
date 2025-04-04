@@ -17,9 +17,10 @@
     "deploy": "npx hardhat deploy --network geth --tags NilContracts",
     "format:solidity": "prettier --write 'contracts/**/*.sol'",
     "format:typescript": "prettier --write 'scripts/**/*.ts' 'deploy/**/*.ts'",
-    "lint": "npm run lint:sol && npm run prettier:check",
-    "lint:fix": "npm run lint:sol:fix",
-    "lint:sol:fix": "npm run solhint \"{benchmark,script,src,contracts,tests}/**/*.sol\" --fix --noPrompt",
+    "lint": "pnpm run prettier:check",
+    "prettier:check": "prettier --check .",
+    "lint:fix": "pnpm run lint:sol:fix",
+    "lint:sol:fix": "pnpm run solhint \"{benchmark,script,src,contracts,tests}/**/*.sol\" --fix --noPrompt",
     "solhint": "solhint"
   },
   "main": "artifacts/index.cjs.js",
@@ -66,7 +67,6 @@
     "solc": "^0.8.28",
     "solhint": "^5.0.5",
     "solidity-coverage": "^0.8.5",
-    "solmate": "^6.8.0",
     "ts-node": "^10.9.1",
     "typechain": "^8.3.1",
     "typescript": "^5.2.2"
@@ -79,7 +79,6 @@
     "ethers": "^6.13.4",
     "hardhat-deploy": "0.14.0",
     "path-exists": "^5.0.0",
-    "solmate": "^6.8.0",
     "yargs": "^17.7.2"
   }
 }

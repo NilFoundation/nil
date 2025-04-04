@@ -7,8 +7,8 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
-import { ERC20 } from "solmate/tokens/ERC20.sol";
-import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
+import { ERC20 } from "../../common/tokens/ERC20.sol";
+import { SafeTransferLib } from "../../common/libraries/SafeTransferLib.sol";
 import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
 import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 import { IL1ERC20Bridge } from "./interfaces/IL1ERC20Bridge.sol";
