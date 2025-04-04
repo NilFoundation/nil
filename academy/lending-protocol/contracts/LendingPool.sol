@@ -8,11 +8,42 @@ import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
 /// @dev The LendingPool contract facilitates lending and borrowing of tokens and handles collateral management.
 /// It interacts with other contracts such as GlobalLedger, InterestManager, and Oracle for tracking deposits, calculating interest, and fetching token prices.
 contract LendingPool is NilBase, NilTokenBase {
+    address public deployer;
+
     address public globalLedger;
     address public interestManager;
     address public oracle;
     TokenId public usdt;
     TokenId public eth;
+
+    //Errors
+    error OnlyDeployer();
+    error InvalidToken();
+    error InvalidCaller();
+    error InvalidShardId();
+    error ExcessTransfer();
+    error InvalidPoolAddress();
+    error PoolAlreadyRegistered();
+    error InvalidTransferAmount();
+    error InsufficientCollateral();
+    error NoLendingPoolsRegistered();
+    error FailedToRetrieveCollateral();
+    error InsufficientFunds(string message);
+    error CrossShardCallFailed(string message);
+
+    /// @dev Mapping to track lending pools on different shards
+    mapping(uint256 => address) public lendingPoolsByShard;
+    address[] public lendingPools;
+    uint256 public lendingPoolCount;
+
+    /// @dev Mapping to track active borrow requests to prevent multiple handling
+    mapping(bytes32 => bool) public activeBorrowRequests;
+
+    /// @dev Modifier to ensure only the deployer can call certain functions
+    modifier onlyDeployer() {
+        if (msg.sender != deployer) revert OnlyDeployer();
+        _;
+    }
 
     /// @notice Constructor to initialize the LendingPool contract with addresses for dependencies.
     /// @dev Sets the contract addresses for GlobalLedger, InterestManager, Oracle, USDT, and ETH tokens.
@@ -33,6 +64,64 @@ contract LendingPool is NilBase, NilTokenBase {
         oracle = _oracle;
         usdt = _usdt;
         eth = _eth;
+
+        deployer = msg.sender;
+
+        /// @notice Register the current contract as a lending pool
+        /// @dev This ensures that the current contract is recognized as a valid lending pool
+        registerLendingPool(address(this));
+    }
+
+    /// @notice Register a new lending pool on a different shard
+    /// @dev Allows registration of other lending pools for cross-shard borrowing
+    /// @param poolAddress The address of the lending pool to register
+    function registerLendingPool(address poolAddress) public onlyDeployer {
+        if (poolAddress == address(0)) revert InvalidPoolAddress();
+
+        uint256 shardId = Nil.getShardId(poolAddress);
+        if (lendingPoolsByShard[shardId] != address(0))
+            revert PoolAlreadyRegistered();
+
+        lendingPoolsByShard[shardId] = poolAddress;
+        lendingPools.push(poolAddress);
+        lendingPoolCount++;
+    }
+
+    /// @notice Transfer liquidity to another shard
+    /// @dev Called by other shards to request liquidity,
+    /// @dev loan are to be sent directly to the borrower therefore we need to record the loan first
+    function transferCrossShardLiquidity(
+        address recipient,
+        TokenId token,
+        uint256 amount
+    ) public {
+        // Verify we have enough liquidity
+        if (Nil.tokenBalance(address(this), token) < amount) {
+            revert InsufficientFunds("Insufficient liquidity");
+        }
+
+        /// @notice Record the loan in GlobalLedger
+        /// @dev The loan details are recorded in the GlobalLedger contract.
+        bytes memory recordLoanCallData = abi.encodeWithSignature(
+            "recordLoan(address,address,uint256)",
+            recipient,
+            token,
+            amount
+        );
+
+        // First record the loan
+        Nil.asyncCall(globalLedger, address(this), 0, recordLoanCallData);
+
+        //then Transfer the tokens to the requesting pool
+        sendTokenInternal(recipient, token, amount);
+    }
+
+    /// @notice Get the balance of a specific token in the lending pool
+    /// @dev Used by other lending pools to check available liquidity
+    /// @param token The token to check balance for
+    /// @return uint256 The balance of the token
+    function getTokenBalance(TokenId token) public view returns (uint256) {
+        return Nil.tokenBalance(address(this), token);
     }
 
     /// @notice Deposit function to deposit tokens into the lending pool.
@@ -63,14 +152,7 @@ contract LendingPool is NilBase, NilTokenBase {
     function borrow(uint256 amount, TokenId borrowToken) public payable {
         /// @notice Ensure the token being borrowed is either USDT or ETH
         /// @dev Prevents invalid token types from being borrowed.
-        require(borrowToken == usdt || borrowToken == eth, "Invalid token");
-
-        /// @notice Ensure that the LendingPool has enough liquidity of the requested borrow token
-        /// @dev Checks the LendingPool's balance to confirm it has enough tokens to fulfill the borrow request.
-        require(
-            Nil.tokenBalance(address(this), borrowToken) >= amount,
-            "Insufficient funds"
-        );
+        if (borrowToken != usdt && borrowToken != eth) revert InvalidToken();
 
         /// @notice Determine which collateral token will be used (opposite of the borrow token)
         /// @dev Identifies the collateral token by comparing the borrow token.
@@ -84,19 +166,37 @@ contract LendingPool is NilBase, NilTokenBase {
             borrowToken
         );
 
-        /// @notice Encoding the context to process the loan after the price is fetched
-        /// @dev The context contains the borrower’s details, loan amount, borrow token, and collateral token.
-        bytes memory context = abi.encodeWithSelector(
-            this.processLoan.selector,
-            msg.sender,
-            amount,
-            borrowToken,
-            collateralToken
-        );
+        /// @notice Check if there are any lending pools registered
+        /// @dev If there are no registered lending pools, revert with an error message
+        if (lendingPoolCount == 0) revert NoLendingPoolsRegistered();
 
-        /// @notice Send a request to the Oracle to get the price of the borrow token.
-        /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
-        Nil.sendRequest(oracle, 0, 9_000_000, context, callData);
+        /// @notice Iterate through all registered lending pools
+        /// @dev Check if any lending pool has sufficient balance of the borrow token
+        /// @notice we expect that the first lending pool has this contract in the array thereby checking local liquidity first
+        for (uint256 i = 0; i < lendingPools.length; i++) {
+            uint256 shardBalnce = Nil.tokenBalance(
+                lendingPools[i],
+                borrowToken
+            );
+
+            if (shardBalnce >= amount) {
+                bytes memory context = abi.encodeWithSelector(
+                    this.processLoan.selector,
+                    msg.sender,
+                    amount,
+                    borrowToken,
+                    collateralToken,
+                    lendingPools[i]
+                );
+
+                /// @notice Send a request to the Oracle to get the price of the borrow token.
+                /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
+                Nil.sendRequest(oracle, 0, 9_000_000, context, callData);
+
+                /// @notice Break out of the loop after finding a sufficient balance
+                break;
+            }
+        }
     }
 
     /// @notice Callback function to process the loan after the price data is retrieved from Oracle.
@@ -111,7 +211,7 @@ contract LendingPool is NilBase, NilTokenBase {
     ) public payable {
         /// @notice Ensure the Oracle call was successful
         /// @dev Verifies that the price data was successfully retrieved from the Oracle.
-        require(success, "Oracle call failed");
+        if (!success) revert CrossShardCallFailed("Oracle call failed");
 
         /// @notice Decode the context to extract borrower details, loan amount, and collateral token
         /// @dev Decodes the context passed from the borrow function to retrieve necessary data.
@@ -119,8 +219,9 @@ contract LendingPool is NilBase, NilTokenBase {
             address borrower,
             uint256 amount,
             TokenId borrowToken,
-            TokenId collateralToken
-        ) = abi.decode(context, (address, uint256, TokenId, TokenId));
+            TokenId collateralToken,
+            address sourcePool
+        ) = abi.decode(context, (address, uint256, TokenId, TokenId, address));
 
         /// @notice Decode the price data returned from the Oracle
         /// @dev The returned price data is used to calculate the loan value in USD.
@@ -147,7 +248,8 @@ contract LendingPool is NilBase, NilTokenBase {
             borrower,
             amount,
             borrowToken,
-            requiredCollateral
+            requiredCollateral,
+            sourcePool
         );
 
         /// @notice Send request to GlobalLedger to get the user's collateral
@@ -173,7 +275,7 @@ contract LendingPool is NilBase, NilTokenBase {
     ) public payable {
         /// @notice Ensure the collateral check was successful
         /// @dev Verifies the collateral validation result from GlobalLedger.
-        require(success, "Ledger call failed");
+        if (!success) revert CrossShardCallFailed("Collateral check failed");
 
         /// @notice Decode the context to extract loan details
         /// @dev Decodes the context passed from the processLoan function to retrieve loan data.
@@ -181,8 +283,9 @@ contract LendingPool is NilBase, NilTokenBase {
             address borrower,
             uint256 amount,
             TokenId borrowToken,
-            uint256 requiredCollateral
-        ) = abi.decode(context, (address, uint256, TokenId, uint256));
+            uint256 requiredCollateral,
+            address sourcePool
+        ) = abi.decode(context, (address, uint256, TokenId, uint256, address));
 
         /// @notice Decode the user's collateral balance from GlobalLedger
         /// @dev Retrieves the user's collateral balance from the GlobalLedger to compare it with the required collateral.
@@ -190,24 +293,23 @@ contract LendingPool is NilBase, NilTokenBase {
 
         /// @notice Check if the user has enough collateral to cover the loan
         /// @dev Ensures the borrower has sufficient collateral before proceeding with the loan.
-        require(
-            userCollateral >= requiredCollateral,
-            "Insufficient collateral"
-        );
+        if (userCollateral < requiredCollateral)
+            revert InsufficientFunds("Insufficient collateral");
 
-        /// @notice Record the loan in GlobalLedger
-        /// @dev The loan details are recorded in the GlobalLedger contract.
-        bytes memory recordLoanCallData = abi.encodeWithSignature(
-            "recordLoan(address,address,uint256)",
-            borrower,
-            borrowToken,
-            amount
-        );
-        Nil.asyncCall(globalLedger, address(this), 0, recordLoanCallData);
+        if (sourcePool != address(this)) {
+            /// @notice Request the transfer from the source pool to the borrower
+            // Then request the transfer from source pool to borrower
+            bytes memory transferCallData = abi.encodeWithSignature(
+                "transferCrossShardLiquidity(address,address,uint256)",
+                borrower,
+                borrowToken,
+                amount
+            );
 
-        /// @notice Send the borrowed tokens to the borrower
-        /// @dev Transfers the loan amount to the borrower's address after finalizing the loan.
-        sendTokenInternal(borrower, borrowToken, amount);
+            Nil.asyncCall(sourcePool, address(this), 0, transferCallData);
+        } else {
+            transferCrossShardLiquidity(borrower, borrowToken, amount);
+        }
     }
 
     /// @notice Repay loan function called by the borrower to repay their loan.
@@ -233,7 +335,7 @@ contract LendingPool is NilBase, NilTokenBase {
         );
 
         /// @notice Send request to GlobalLedger to fetch loan details
-        /// @dev Retrieves the borrower’s loan details before proceeding with the repayment.
+        /// @dev Retrieves the borrower's loan details before proceeding with the repayment.
         Nil.sendRequest(globalLedger, 0, 11_000_000, context, callData);
     }
 
@@ -249,7 +351,7 @@ contract LendingPool is NilBase, NilTokenBase {
     ) public payable {
         /// @notice Ensure the GlobalLedger call was successful
         /// @dev Verifies that the loan details were successfully retrieved from the GlobalLedger.
-        require(success, "Ledger call failed");
+        if (!success) revert CrossShardCallFailed("Ledger call failed");
 
         /// @notice Decode context and loan details
         /// @dev Decodes the context and the return data to retrieve the borrower's loan details.
@@ -264,7 +366,7 @@ contract LendingPool is NilBase, NilTokenBase {
 
         /// @notice Ensure the borrower has an active loan
         /// @dev Ensures the borrower has an outstanding loan before proceeding with repayment.
-        require(amount > 0, "No active loan");
+        if (amount <= 0) revert InsufficientFunds("No active loan");
 
         /// @notice Request the interest rate from the InterestManager
         /// @dev Fetches the current interest rate for the loan from the InterestManager contract.
@@ -302,7 +404,7 @@ contract LendingPool is NilBase, NilTokenBase {
     ) public payable {
         /// @notice Ensure the interest rate call was successful
         /// @dev Verifies that the interest rate retrieval was successful.
-        require(success, "Interest rate call failed");
+        if (!success) revert CrossShardCallFailed("Interest rate call failed");
 
         /// @notice Decode the repayment details and the interest rate
         /// @dev Decodes the repayment context and retrieves the interest rate for loan repayment.
@@ -322,7 +424,8 @@ contract LendingPool is NilBase, NilTokenBase {
 
         /// @notice Ensure the borrower has sent sufficient funds for the repayment
         /// @dev Verifies that the borrower has provided enough funds to repay the loan in full.
-        require(sentAmount >= totalRepayment, "Insufficient funds");
+        if (sentAmount < totalRepayment)
+            revert InsufficientFunds("Insufficient repayment amount");
 
         /// @notice Clear the loan and release collateral
         /// @dev Marks the loan as repaid and releases any associated collateral back to the borrower.
@@ -361,7 +464,7 @@ contract LendingPool is NilBase, NilTokenBase {
     ) public payable {
         /// @notice Ensure the loan clearing was successful
         /// @dev Verifies the result of clearing the loan in the GlobalLedger.
-        require(success, "Loan clearing failed");
+        if (!success) revert CrossShardCallFailed("Loan clearing failed");
 
         /// @notice Silence unused variable warning
         /// @dev A placeholder for unused variables to avoid compiler warnings.
@@ -417,7 +520,8 @@ contract LendingPool is NilBase, NilTokenBase {
     ) public payable {
         /// @notice Ensure the collateral retrieval was successful
         /// @dev Verifies that the request to retrieve the collateral was successful.
-        require(success, "Failed to retrieve collateral");
+        if (!success)
+            revert CrossShardCallFailed("Collateral retrieval failed");
 
         /// @notice Decode the collateral details
         /// @dev Decodes the context passed from the releaseCollateral function to retrieve collateral details.
@@ -429,15 +533,12 @@ contract LendingPool is NilBase, NilTokenBase {
 
         /// @notice Ensure there's collateral to release
         /// @dev Verifies that there is enough collateral to be released.
-        require(collateralAmount > 0, "No collateral to release");
+        if (collateralAmount <= 0) revert FailedToRetrieveCollateral();
 
         /// @notice Ensure sufficient balance in the LendingPool to send collateral
         /// @dev Verifies that the LendingPool has enough collateral to send to the borrower.
-        require(
-            Nil.tokenBalance(address(this), collateralToken) >=
-                collateralAmount,
-            "Insufficient funds"
-        );
+        if (Nil.tokenBalance(address(this), collateralToken) < collateralAmount)
+            revert InsufficientFunds("Insufficient collateral balance");
 
         /// @notice Send the collateral tokens to the borrower
         /// @dev Executes the transfer of collateral tokens back to the borrower.
