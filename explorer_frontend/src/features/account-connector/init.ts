@@ -43,6 +43,8 @@ import {
   initilizeSmartAccount,
   regenrateAccountEvent,
   resetTopUpError,
+  sendTransaction,
+  sendTransactionFx,
   setActiveComponent,
   setInitializingSmartAccountState,
   setPrivateKey,
@@ -392,3 +394,25 @@ $topupInput.on(topupPanelOpen, ({ token }) => {
 });
 
 $latestActivity.on(clearLatestActivity, () => null);
+
+sample({
+  clock: sendTransaction,
+  source: combine($smartAccount, $rpcUrl, (smartAccount, rpcUrl) => ({
+    smartAccount,
+    rpcUrl,
+  })),
+  filter: $smartAccount.map((smartAccount) => !!smartAccount),
+  fn: ({ smartAccount, rpcUrl }, params) => {
+    const client = new PublicClient({
+      transport: new HttpTransport({
+        endpoint: rpcUrl,
+      }),
+    });
+    return {
+      params,
+      smartAccount: smartAccount!,
+      client,
+    };
+  },
+  target: sendTransactionFx,
+});

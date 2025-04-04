@@ -5,7 +5,7 @@ import { fetchSolidityCompiler } from "../../../../services/compiler";
 import { getMobileStyles } from "../../../../styleHelpers";
 import { CodeToolbar } from "../../../code/code-toolbar/CodeToolbar";
 import { useCompileButton } from "../../../code/hooks/useCompileButton";
-import { compile, compileCodeFx } from "../../../code/model";
+import { compileCode, compileCodeFx } from "../../../code/model";
 import { tutorialWithUrlStringRoute } from "../../../routing/routes/tutorialRoute";
 import { useMobile } from "../../hooks/useMobile";
 import { Logo } from "./Logo";
@@ -62,8 +62,9 @@ export const Navbar = ({ children, showCodeInteractionButtons }: NavbarProps) =>
           <MemoizedCodeToolbar
             disabled={isDownloading}
             isLoading={isDownloading || compiling}
-            onCompileButtonClick={cb}
+            onCompileButtonClick={() => compileCode()}
             compileButtonContent={btnTextContent}
+            isSolidity={true}
           />
         )}
       </div>
