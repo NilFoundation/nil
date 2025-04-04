@@ -2,13 +2,14 @@ import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { run } from 'hardhat';
 import {
-    archiveConfig,
     isValidAddress,
     isValidBytes32,
-    loadConfig,
-    NetworkConfig,
-    saveConfig,
-} from './config/config-helper';
+    archiveL1NetworkConfig,
+    L1NetworkConfig,
+    loadL1NetworkConfig,
+    saveL1NetworkConfig,
+} from '../config/config-helper';
+import { verifyContractWithRetry } from '../common/proxy-contract-utils';
 
 // npx hardhat deploy --network sepolia --tags NilVerifier
 // npx hardhat deploy --network anvil --tags NilVerifier
@@ -22,12 +23,12 @@ const deployNilVerifier: DeployFunction = async function (
 
     const { deployer } = await getNamedAccounts();
 
-    const config: NetworkConfig = loadConfig(networkName);
+    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     // Check if NilVerifier is already deployed
-    if (config.nilVerifier && isValidAddress(config.nilVerifier)) {
-        console.log(`NilVerifier already deployed at: ${config.nilVerifier}`);
-        archiveConfig(networkName, config);
+    if (config.nilRollup.nilRollupContracts.nilVerifier && isValidAddress(config.nilRollup.nilRollupContracts.nilVerifier)) {
+        console.log(`NilVerifier already deployed at: ${config.nilRollup.nilRollupContracts.nilVerifier}`);
+        archiveL1NetworkConfig(networkName, config);
     }
 
     const nilVerifier = await deploy('NilVerifier', {
@@ -37,10 +38,10 @@ const deployNilVerifier: DeployFunction = async function (
     });
 
     console.log('NilVerifier deployed to:', nilVerifier.address);
-    config.nilVerifier = nilVerifier.address;
+    config.nilRollup.nilRollupContracts.nilVerifier = nilVerifier.address;
 
     // Save the updated config
-    saveConfig(networkName, config);
+    saveL1NetworkConfig(networkName, config);
 
     // Skip verification if the network is local or anvil
     if (
@@ -49,10 +50,7 @@ const deployNilVerifier: DeployFunction = async function (
         network.name !== 'geth'
     ) {
         try {
-            await run('verify:verify', {
-                address: nilVerifier.address,
-                constructorArguments: [],
-            });
+            await verifyContractWithRetry(nilVerifier.address, [], 6);
             console.log('NilVerifier verified successfully');
         } catch (error) {
             console.error('NilVerifier Verification failed:', error);
