@@ -4,7 +4,7 @@ import {
   clickOnContractsButton,
   clickOnLogButton,
 } from "../../features/code/model";
-import { $activeComponent, LayoutComponent } from "./model";
+import { $activeComponent, $activeTab, LayoutComponent, setActiveTab } from "./model";
 
 $activeComponent.on(clickOnLogButton, () => LayoutComponent.Logs);
 $activeComponent.on(clickOnContractsButton, () => LayoutComponent.Contracts);
@@ -14,3 +14,10 @@ persist({
   store: $activeComponent,
   key: "activeComponentPlayground",
 });
+
+persist({
+  store: $activeTab,
+  key: "activeTab",
+});
+
+$activeTab.on(setActiveTab, (_, tab) => tab);

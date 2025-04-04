@@ -17,12 +17,7 @@ import { Link } from "../../shared/components/Link";
 import { OverflowEllipsis } from "../../shared/components/OverflowEllipsis";
 import { StatefulPopover } from "../../shared/components/Popover";
 import { useMobile } from "../../shared/hooks/useMobile";
-import {
-  $codeSnippetHash,
-  $shareCodeSnippetError,
-  setCodeSnippetEvent,
-  setCodeSnippetFx,
-} from "../model";
+import { $projectHash, $shareProjectError, setProjectEvent, setProjectFx } from "../model";
 
 type HyperlinkButtonProps = {
   disabled?: boolean;
@@ -32,9 +27,9 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
   const [isMobile] = useMobile();
   const [css, theme] = useStyletron();
   const [shareCodeSnippetPending, codeHash, shareCodeError] = useUnit([
-    setCodeSnippetFx.pending,
-    $codeSnippetHash,
-    $shareCodeSnippetError,
+    setProjectFx.pending,
+    $projectHash,
+    $shareProjectError,
   ]);
   const link = !codeHash ? null : `${window.location.origin}/playground/${codeHash}`;
 
@@ -43,7 +38,6 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
       popoverMargin={8}
       placement={isMobile ? "bottomRight" : "bottom"}
       autoFocus
-      onOpen={() => setCodeSnippetEvent()}
       content={
         <div
           className={css({
@@ -107,6 +101,7 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
           )}
         </div>
       }
+      onOpen={() => setProjectEvent()}
     >
       <ButtonIcon
         disabled={disabled}

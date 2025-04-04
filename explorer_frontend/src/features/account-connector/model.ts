@@ -1,4 +1,10 @@
-import type { Hex, SmartAccountV1 } from "@nilfoundation/niljs";
+import type {
+  Hex,
+  SendTransactionParams,
+  SmartAccountInterface,
+  SmartAccountV1,
+  Transaction,
+} from "@nilfoundation/niljs";
 import { combine, createDomain } from "effector";
 import { Token } from "../tokens";
 import { ActiveComponent } from "./ActiveComponent";
@@ -106,3 +112,17 @@ export const addActivity = createEvent<{
 }>();
 
 export const clearLatestActivity = createEvent();
+
+export const sendTransaction = createEvent<SendTransactionParams>();
+export const sendTransactionFx = accountConnectorDomain.createEffect<
+  {
+    params: SendTransactionParams;
+    smartAccount: SmartAccountInterface;
+  },
+  Transaction
+>();
+
+sendTransactionFx.use(async ({ params, smartAccount }) => {
+  const transaction = await smartAccount.sendTransaction(params);
+  return transaction;
+});

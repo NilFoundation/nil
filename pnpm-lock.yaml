@@ -218,7 +218,7 @@ importers:
         version: 3.7.0(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@khannanov-nil/openrpc-docusaurus':
         specifier: 0.7.1
-        version: 0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)
+        version: 0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(encoding@0.1.13)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)
       '@mdx-js/react':
         specifier: ^3.0.0
         version: 3.1.0(@types/react@17.0.85)(react@18.3.1)
@@ -510,11 +510,14 @@ importers:
 
   explorer_frontend:
     dependencies:
+      '@codemirror/lang-javascript':
+        specifier: 6.2.3
+        version: 6.2.3
       '@codemirror/state':
         specifier: 6.5.0
         version: 6.5.0
       '@codemirror/view':
-        specifier: ^6.34.1
+        specifier: 6.36.5
         version: 6.36.5
       '@loadable/component':
         specifier: ^5.15.3
@@ -585,6 +588,9 @@ importers:
       effector-storage:
         specifier: ^6.1.1
         version: 6.1.1(effector@22.8.8)
+      esbuild-wasm:
+        specifier: ^0.25.2
+        version: 0.25.2
       ethers:
         specifier: ^6.13.1
         version: 6.13.5
@@ -612,6 +618,9 @@ importers:
       patronum:
         specifier: ^1.18.0
         version: 1.20.0(effector@22.8.8)
+      pretty-format:
+        specifier: 29.7.0
+        version: 29.7.0
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -2287,6 +2296,9 @@ packages:
 
   '@codemirror/commands@6.8.1':
     resolution: {integrity: sha512-KlGVYufHMQzxbdQONiLyGQDUW0itrLZwq3CcY7xpv9ZLRHqzkBSoteocBHtMCoY7/Ci4xhzSrToIeLg7FxHuaw==}
+
+  '@codemirror/lang-javascript@6.2.3':
+    resolution: {integrity: sha512-8PR3vIWg7pSu7ur8A07pGiYHgy3hHj+mRYRCSG8q+mPIrl0F02rgpGv+DsQTHRTc30rydOsf5PZ7yjKFg2Ackw==}
 
   '@codemirror/language@6.11.0':
     resolution: {integrity: sha512-A7+f++LodNNc1wGgoRDTt78cOwWm9KVezApgjOMp1W4hM0898nsqBXwF+sbePE7ZRcjN7Sa1Z5m2oN27XkmEjQ==}
@@ -4261,6 +4273,9 @@ packages:
 
   '@lezer/highlight@1.2.1':
     resolution: {integrity: sha512-Z5duk4RN/3zuVO7Jq0pGLJ3qynpxUVsh7IbUbGj88+uV2ApSAn6kWg2au3iJb+0Zi7kKtqffIESgNcRXWZWmSA==}
+
+  '@lezer/javascript@1.4.21':
+    resolution: {integrity: sha512-lL+1fcuxWYPURMM/oFZLEDm0XuLN128QPV+VuGtKpeaOGdcl9F2LYC3nh1S9LkPqx9M0mndZFdXCipNAZpzIkQ==}
 
   '@lezer/lr@1.4.2':
     resolution: {integrity: sha512-pu0K1jCIdnQ12aWNaAVU5bzi7Bd1w54J3ECgANPmYLtQKP0HBj2cE/5coBD66MT10xbtIuUr7tg0Shbsvk0mDA==}
@@ -9432,6 +9447,11 @@ packages:
 
   esast-util-from-js@2.0.1:
     resolution: {integrity: sha512-8Ja+rNJ0Lt56Pcf3TAmpBZjmx8ZcK5Ts4cAzIOjsjevg9oSXJnl6SUQ2EevU8tv3h6ZLWmoKL5H4fgWvdvfETw==}
+
+  esbuild-wasm@0.25.2:
+    resolution: {integrity: sha512-vL9PSK1YFGsvrlYPDxfRxpakIDTe1wCS/JO2D45muxwtd7GR/9+fYRU+K8tKs4ZDXaEy5jr6YqrGgDL/iyufyQ==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   esbuild@0.21.5:
     resolution: {integrity: sha512-mg3OPMV4hXywwpoDxu3Qda5xCKQi+vCTZq8S9J/EpkhB2HzKXq4SNFZE3+NK93JYxc8VMSep+lOUSC/RVKaBqw==}
@@ -20044,6 +20064,16 @@ snapshots:
       '@codemirror/view': 6.36.5
       '@lezer/common': 1.2.3
 
+  '@codemirror/lang-javascript@6.2.3':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.6
+      '@codemirror/language': 6.11.0
+      '@codemirror/lint': 6.8.5
+      '@codemirror/state': 6.5.0
+      '@codemirror/view': 6.36.5
+      '@lezer/common': 1.2.3
+      '@lezer/javascript': 1.4.21
+
   '@codemirror/language@6.11.0':
     dependencies:
       '@codemirror/state': 6.5.0
@@ -22299,9 +22329,9 @@ snapshots:
 
   '@json-schema-spec/json-pointer@0.1.2': {}
 
-  '@json-schema-tools/dereferencer@1.5.5':
+  '@json-schema-tools/dereferencer@1.5.5(encoding@0.1.13)':
     dependencies:
-      '@json-schema-tools/reference-resolver': 1.2.4
+      '@json-schema-tools/reference-resolver': 1.2.4(encoding@0.1.13)
       '@json-schema-tools/traverse': 1.10.4
       fast-safe-stringify: 2.1.1
     transitivePeerDependencies:
@@ -22309,7 +22339,7 @@ snapshots:
 
   '@json-schema-tools/meta-schema@1.6.19': {}
 
-  '@json-schema-tools/reference-resolver@1.2.4':
+  '@json-schema-tools/reference-resolver@1.2.4(encoding@0.1.13)':
     dependencies:
       '@json-schema-spec/json-pointer': 0.1.2
       isomorphic-fetch: 3.0.0(encoding@0.1.13)
@@ -22320,7 +22350,7 @@ snapshots:
 
   '@juggle/resize-observer@3.4.0': {}
 
-  '@khannanov-nil/nil-open-rpc-docs-react@0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@khannanov-nil/nil-open-rpc-docs-react@0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@json-schema-tools/traverse': 1.10.4
       '@open-rpc/client-js': 1.8.1
@@ -22360,7 +22390,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@khannanov-nil/openrpc-docusaurus@0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)':
+  '@khannanov-nil/openrpc-docusaurus@0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(encoding@0.1.13)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)':
     dependencies:
       '@docusaurus/core': 3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2)
       '@docusaurus/plugin-content-blog': 3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2)
@@ -22375,8 +22405,8 @@ snapshots:
       '@docusaurus/theme-common': 3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@docusaurus/theme-search-algolia': 3.7.0(@algolia/client-search@5.23.0)(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)
       '@docusaurus/types': 3.7.0(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@khannanov-nil/nil-open-rpc-docs-react': 0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@open-rpc/schema-utils-js': 1.16.2
+      '@khannanov-nil/nil-open-rpc-docs-react': 0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@open-rpc/schema-utils-js': 1.16.2(encoding@0.1.13)
       node-polyfill-webpack-plugin: 2.0.1(webpack@5.98.0)
       process: 0.11.10
       react: 18.3.1
@@ -22521,6 +22551,12 @@ snapshots:
   '@lezer/highlight@1.2.1':
     dependencies:
       '@lezer/common': 1.2.3
+
+  '@lezer/javascript@1.4.21':
+    dependencies:
+      '@lezer/common': 1.2.3
+      '@lezer/highlight': 1.2.1
+      '@lezer/lr': 1.4.2
 
   '@lezer/lr@1.4.2':
     dependencies:
@@ -23262,11 +23298,11 @@ snapshots:
 
   '@open-rpc/meta-schema@1.14.2': {}
 
-  '@open-rpc/schema-utils-js@1.16.2':
+  '@open-rpc/schema-utils-js@1.16.2(encoding@0.1.13)':
     dependencies:
-      '@json-schema-tools/dereferencer': 1.5.5
+      '@json-schema-tools/dereferencer': 1.5.5(encoding@0.1.13)
       '@json-schema-tools/meta-schema': 1.6.19
-      '@json-schema-tools/reference-resolver': 1.2.4
+      '@json-schema-tools/reference-resolver': 1.2.4(encoding@0.1.13)
       '@open-rpc/meta-schema': 1.14.2
       ajv: 6.12.6
       detect-node: 2.1.0
@@ -29172,6 +29208,8 @@ snapshots:
       acorn: 8.14.1
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.2
+
+  esbuild-wasm@0.25.2: {}
 
   esbuild@0.21.5:
     optionalDependencies:

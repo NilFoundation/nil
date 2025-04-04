@@ -133,7 +133,7 @@ export const TutorialPage = () => {
                       minSize={10}
                       order={1}
                     >
-                      <Code />
+                      <Code isSolidity />
                     </Panel>
                     <PanelResizeHandle
                       className={css({

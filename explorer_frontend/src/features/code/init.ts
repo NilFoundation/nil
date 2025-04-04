@@ -2,26 +2,38 @@ import { redirect } from "atomic-router";
 import dayjs from "dayjs";
 import { combine, sample } from "effector";
 import { persist } from "effector-storage/local";
+import { bundle } from "../../services/bundler";
 import { fetchSolidityCompiler } from "../../services/compiler";
+import { run } from "../../services/runner";
+import { $rpcUrl } from "../account-connector/model";
+import { $contracts } from "../contracts/models/base";
 import { playgroundRoute, playgroundWithHashRoute } from "../routing/routes/playgroundRoute";
 import { getRuntimeConfigOrThrow } from "../runtime-config";
 import {
   $code,
-  $codeSnippetHash,
-  $error,
+  $codeError,
+  $codeWarnings,
+  $projectHash,
+  $projectTab,
   $recentProjects,
-  $shareCodeSnippetError,
+  $script,
+  $scriptErrors,
+  $scriptWarnings,
+  $shareProjectError,
   $solidityVersion,
-  $warnings,
   changeCode,
+  changeScript,
   changeSolidityVersion,
-  compile,
+  compileCode,
   compileCodeFx,
-  fetchCodeSnippetEvent,
-  fetchCodeSnippetFx,
+  fetchProjectEvent,
+  fetchProjectFx,
   loadedPlaygroundPage,
-  setCodeSnippetEvent,
-  setCodeSnippetFx,
+  runScript,
+  runScriptFx,
+  setProjectEvent,
+  setProjectFx,
+  setProjectTab,
   updateRecentProjects,
 } from "./model";
 import type { App } from "./types";
@@ -30,9 +42,18 @@ $code.on(changeCode, (_, x) => {
   return x;
 });
 
+$script.on(changeScript, (_, x) => {
+  return x ?? "";
+});
+
 persist({
   key: "code",
   store: $code,
+});
+
+persist({
+  key: "script",
+  store: $script,
 });
 
 compileCodeFx.use(async ({ version, code }) => {
@@ -79,6 +100,32 @@ compileCodeFx.use(async ({ version, code }) => {
   return { apps: contracts, warnings: refinedWarnings };
 });
 
+sample({
+  clock: runScript,
+  source: combine({
+    script: $script,
+    contracts: $contracts,
+    rpcUrl: $rpcUrl,
+  }),
+  target: runScriptFx,
+});
+
+runScriptFx.use(async ({ script, contracts, rpcUrl }) => {
+  console.log("Running script:", script);
+  const res = await bundle(script, contracts, rpcUrl);
+  console.log("Bundled script:", res);
+  await run(res);
+
+  return {
+    script: res,
+    warnings: [],
+  };
+});
+
+runScriptFx.fail.watch((error) => {
+  console.error("Error running script:", error);
+});
+
 $solidityVersion.on(changeSolidityVersion, (_, version) => version);
 
 persist({
@@ -91,7 +138,7 @@ sample({
     code,
     version,
   })),
-  clock: compile,
+  clock: compileCode,
   target: compileCodeFx,
 });
 
@@ -104,8 +151,16 @@ sample({
   target: compileCodeFx,
 });
 
-$error.reset(changeCode);
-$warnings.reset(changeCode);
+$codeError.reset(changeCode);
+$codeWarnings.reset(changeCode);
+
+$scriptErrors.reset(changeScript);
+$scriptErrors.on(runScriptFx.failData, (_, error) => {
+  if (typeof error === "object" && "location" in error && Array.isArray(error.location)) {
+  }
+  return [];
+});
+$scriptWarnings.reset(changeScript);
 
 interface SolidityError {
   type: string; // 'error' or 'warning'
@@ -113,7 +168,7 @@ interface SolidityError {
   message: string; // error message
 }
 
-$error.on(compileCodeFx.failData, (_, error) => {
+$codeError.on(compileCodeFx.failData, (_, error) => {
   function parseSolidityError(errorString: string): SolidityError[] {
     const errors: SolidityError[] = [];
     const errorLines = errorString.split("\n");
@@ -155,56 +210,69 @@ $error.on(compileCodeFx.failData, (_, error) => {
   });
 });
 
-$warnings.on(compileCodeFx.doneData, (_, { warnings }) => warnings);
+$codeWarnings.on(compileCodeFx.doneData, (_, { warnings }) => warnings);
+
+$scriptWarnings.on(runScriptFx.doneData, (_, { warnings }) => warnings);
 
 sample({
-  clock: setCodeSnippetEvent,
-  source: $code,
-  target: setCodeSnippetFx,
+  clock: setProjectEvent,
+  source: combine($code, $script),
+  fn: ([code, script]) => ({
+    code,
+    script,
+  }),
+  target: setProjectFx,
 });
 
 sample({
-  clock: setCodeSnippetEvent,
-  source: $code,
-  target: $shareCodeSnippetError,
+  clock: setProjectEvent,
+  source: combine($code, $script),
+  target: $shareProjectError,
   fn: () => false,
 });
 
-$codeSnippetHash.on(setCodeSnippetEvent, () => null);
+$projectHash.on(setProjectEvent, () => null);
 
 sample({
-  target: $codeSnippetHash,
-  source: setCodeSnippetFx.doneData,
+  target: $projectHash,
+  source: setProjectFx.doneData,
 });
 
-$shareCodeSnippetError.on(setCodeSnippetFx.fail, () => true);
-$shareCodeSnippetError.reset(setCodeSnippetFx.doneData);
+$shareProjectError.on(setProjectFx.fail, () => true);
+$shareProjectError.reset(setProjectFx.doneData);
 
 sample({
   clock: playgroundWithHashRoute.navigated,
   source: playgroundWithHashRoute.$params,
   fn: (params) => params.snippetHash,
   filter: (hash) => !!hash,
-  target: fetchCodeSnippetFx,
+  target: fetchProjectFx,
 });
 
 sample({
-  clock: fetchCodeSnippetFx.doneData,
+  clock: fetchProjectFx.doneData,
+  fn: ({ code }) => code,
   target: changeCode,
 });
 
-$codeSnippetHash.on(fetchCodeSnippetFx.doneData, () => null);
+sample({
+  clock: fetchProjectFx.doneData,
+  fn: ({ script }) => script,
+  target: changeScript,
+});
+
+$projectHash.on(fetchProjectFx.doneData, () => null);
 
 redirect({
-  clock: fetchCodeSnippetFx.doneData,
+  clock: fetchProjectFx.doneData,
   route: playgroundRoute,
   params: {},
 });
 
 sample({
-  clock: fetchCodeSnippetEvent,
-  source: fetchCodeSnippetEvent,
-  target: fetchCodeSnippetFx,
+  clock: fetchProjectEvent,
+  source: fetchProjectEvent,
+  target: fetchProjectFx,
 });
 
 persist({
@@ -212,18 +280,25 @@ persist({
   store: $recentProjects,
 });
 
+persist({
+  key: "projectTab",
+  store: $projectTab,
+});
+
 sample({
   clock: updateRecentProjects,
-  source: combine($code, $recentProjects, (code, projects) => ({
+  source: combine($code, $script, $recentProjects, (code, script, projects) => ({
     code,
+    script,
     projects,
   })),
   filter: ({ code }) => code.trim().length > 0,
   target: $recentProjects,
-  fn: ({ code, projects }) => {
+  fn: ({ code, script, projects }) => {
     const limit = Number(getRuntimeConfigOrThrow().RECENT_PROJECTS_STORAGE_LIMIT) || 5;
     const key = dayjs().format("YYYY-MM-DD HH:mm:ss");
-    const project = { [key]: code };
+    const value = [code, script].join("\r\n");
+    const project = { [key]: value };
 
     if (Object.keys(projects).length >= limit) {
       const newProjects = { ...projects };
@@ -241,4 +316,6 @@ sample({
   },
 });
 
-$error.reset(compileCodeFx.doneData);
+$codeError.reset(compileCodeFx.doneData);
+
+$projectTab.on(setProjectTab, (_, tab) => tab);
