@@ -63,9 +63,6 @@ interface INilRollup is INilAccessControl {
     /// @return The latest finalized batch index.
     function getLastFinalizedBatchIndex() external view returns (string memory);
 
-    /// @return The last committed batch index.
-    function getLastCommittedBatchIndex() external view returns (string memory);
-
     /// @param batchIndex The index of the batch.
     /// @return The state root of a finalized batch.
     function finalizedStateRoots(

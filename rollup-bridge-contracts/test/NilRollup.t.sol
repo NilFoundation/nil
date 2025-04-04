@@ -116,9 +116,21 @@ contract NilRollupTest is BaseTest {
     updateStateWithTestData(_proposer, batchData);
   }
 
-  function generateBatchData() public view returns (BatchData memory) {
+  function generateBatchData() public pure returns (BatchData memory) {
+    return
+      generateBatchData(
+        "batch_1",
+        hex"8de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91",
+        hex"9de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91"
+      );
+  }
+
+  function generateBatchData(
+    string memory batchId,
+    bytes32 oldStateRoot,
+    bytes32 newStateRoot
+  ) public pure returns (BatchData memory) {
     // Sample data for BatchDataItem
-    string memory sampleBatchId = "batch_1";
     uint256 sampleBlobCount = 3;
     bytes[] memory sampleDataProofs = new bytes[](sampleBlobCount);
     sampleDataProofs[
@@ -130,8 +142,7 @@ contract NilRollupTest is BaseTest {
     sampleDataProofs[
       2
     ] = hex"1406153c5ae3f657c510f98f48ac88680fe9b756939cb31ace0a395758de5112325f12d0d874002f402a5377bd49c8cad264d3c2fe285b9330dcddd010b8c9ccb3015da0dd4bb3e45007d4ada808d43bc5102edce6d9559966edbbedfc4503b3beb9e5224d28e7d04e56f845421f5b91ab0be4b0566041038e74b27e05499011c0b02f064cb0763dab7da3285731bbd1ae0c007c45028b4fd289fc1af6a62cce";
-    bytes32 sampleNewStateRoot = hex"9de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91";
-    bytes32 sampleOldStateRoot = hex"8de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91";
+
     bytes
       memory sampleValidityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
     bytes32[] memory sampleVersionedHashes = new bytes32[](sampleBlobCount);
@@ -141,11 +152,11 @@ contract NilRollupTest is BaseTest {
 
     // Create BatchDataItem with sample data
     BatchDataItem memory batchDataItem = BatchDataItem({
-      batchId: sampleBatchId,
+      batchId: batchId,
       blobCount: sampleBlobCount,
       dataProofs: sampleDataProofs,
-      newStateRoot: sampleNewStateRoot,
-      oldStateRoot: sampleOldStateRoot,
+      newStateRoot: newStateRoot,
+      oldStateRoot: oldStateRoot,
       validityProof: sampleValidityProof,
       versionedHashes: sampleVersionedHashes
     });
@@ -272,10 +283,6 @@ contract NilRollupTest is BaseTest {
     // Verify the committed state of the first batch
     assertTrue(rollup.isBatchCommitted(batchIndex));
     assertFalse(rollup.isBatchFinalized(batchIndex));
-
-    // Verify the last committed batch index
-    string memory lastCommittedBatchIndex = rollup.getLastCommittedBatchIndex();
-    assertEq(lastCommittedBatchIndex, batchIndex);
 
     // Expect a revert due to the batch already being committed
     vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorBatchAlreadyCommitted.selector, "BATCH_1"));
@@ -1087,6 +1094,93 @@ contract NilRollupTest is BaseTest {
     assertTrue(rollup.isBatchFinalized(batchIndex));
 
     // Stop the prank
+    vm.stopPrank();
+  }
+
+  // Helper function to simplify batch processing and state updating.
+  function setupAndProcessBatch(string memory batchID, bytes32 stateRoot, bytes32 newStateRoot) internal {
+    BatchData memory batchData = this.generateBatchData(batchID, stateRoot, newStateRoot);
+    commitBatchWithTestData(_proposer, batchData);
+    updateStateWithTestData(_proposer, batchData);
+  }
+
+  /**
+   * @notice Tests the `resetState` function to ensure it correctly resets the state root and removes subsequent entries.
+   *
+   * @dev This test follows these steps:
+   * 1. Commit several batches with corresponding state roots with proposer role.
+   * 2. Start a prank as the admin.
+   * 3. Call resetState to a specific earlier state root.
+   * 4. Verify that the history has been trimmed up to the specified state root.
+   */
+  function test_resetState_SuccessfullyResetsToSpecifiedStateRoot() external {
+    // Define common state roots and batch IDs
+    bytes32 initialRoot = hex"8de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91";
+    bytes32 root1 = hex"0000000000000000000000000000000000000000000000000000000000000001";
+    bytes32 root2 = hex"0000000000000000000000000000000000000000000000000000000000000002";
+    bytes32 root3 = hex"0000000000000000000000000000000000000000000000000000000000000003";
+
+    string memory batch1 = "BATCH_1";
+    string memory batch2 = "BATCH_2";
+    string memory batch3 = "BATCH_3";
+
+    // Setup initial batches and update state
+    setupAndProcessBatch(batch1, initialRoot, root1);
+    setupAndProcessBatch(batch2, root1, root2);
+    setupAndProcessBatch(batch3, root2, root3);
+
+    // Start a prank as the admin, call reset function
+    vm.startPrank(_defaultAdmin);
+    rollup.resetState(hex"0000000000000000000000000000000000000000000000000000000000000001");
+
+    // Assertions to check the outcomes of resetState
+    assertEq(rollup.stateRootHistory(1), root1);
+    assertEq(rollup.getLastFinalizedBatchIndex(), batch1);
+    assertEq(rollup.isBatchFinalized(batch1), true);
+    assertEq(rollup.isRootFinalized(root1), true);
+
+    // Check that subsequent batches and roots are not finalized
+    assertEq(rollup.isBatchFinalized(batch2), false);
+    assertEq(rollup.isBatchCommitted(batch2), false);
+    assertEq(rollup.isRootFinalized(root2), false);
+    assertEq(rollup.isBatchFinalized(batch3), false);
+    assertEq(rollup.isBatchCommitted(batch3), false);
+    assertEq(rollup.isRootFinalized(root3), false);
+
+    vm.stopPrank();
+  }
+
+  /**
+   * @notice Tests the `resetState` function to ensure it reverts when attempting to reset to a non-existent state root.
+   *
+   * @dev This test follows these steps:
+   * 1. Start a prank as the admin.
+   * 2. Attempt to reset state to a non-existent state root, expecting a revert.
+   */
+  function test_resetState_toRevert_with_ResetStateRootNotFound() external {
+    vm.startPrank(_defaultAdmin);
+
+    // Attempt to reset state to a non-existent state root
+    vm.expectRevert(NilRollup.ErrorResetStateRootNotFound.selector);
+    rollup.resetState(hex"04");
+
+    vm.stopPrank();
+  }
+
+  /**
+   * @notice Tests the `resetState` function to ensure it reverts when attempting to reset to an invalid state root.
+   *
+   * @dev This test follows these steps:
+   * 1. Start a prank as the admin.
+   * 2. Attempt to reset state to a invalid state root, expecting a revert.
+   */
+  function test_resetState_toRevert_with_ResetStateInvalid() external {
+    vm.startPrank(_defaultAdmin);
+
+    // Attempt to reset state to a non-existent state root
+    vm.expectRevert(NilRollup.ErrorInvalidResetStateRoot.selector);
+    rollup.resetState(hex"");
+
     vm.stopPrank();
   }
 }

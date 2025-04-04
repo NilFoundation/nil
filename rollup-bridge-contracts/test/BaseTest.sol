@@ -221,9 +221,6 @@ contract BaseTest is Test {
 
       vm.stopPrank();
 
-      string memory lastCommittedBatchIndex = rollup.getLastCommittedBatchIndex();
-      assertEq(lastCommittedBatchIndex, batchIndex);
-
       assertTrue(rollup.isBatchCommitted(batchIndex));
       assertFalse(rollup.isBatchFinalized(batchIndex));
 
