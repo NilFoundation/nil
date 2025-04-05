@@ -293,12 +293,10 @@ func (d *ClickhouseDriver) SetupScheme(ctx context.Context, params indexerdriver
 		logger.Info().Msgf("Version mismatch: blockchain %x, indexer %x. Dropping database...", params.Version, version)
 	}
 
-	if err := d.conn.Exec(ctx, "DROP DATABASE IF EXISTS "+d.options.Auth.Database); err != nil {
-		return fmt.Errorf("failed to drop database: %w", err)
-	}
-
-	if err := d.conn.Exec(ctx, "CREATE DATABASE "+d.options.Auth.Database); err != nil {
-		return fmt.Errorf("failed to create database: %w", err)
+	for table := range getTableScheme() {
+		if err := d.conn.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", d.options.Auth.Database, table)); err != nil {
+			return fmt.Errorf("failed to drop table %s: %w", table, err)
+		}
 	}
 
 	return setupSchemes(ctx, d.conn)
