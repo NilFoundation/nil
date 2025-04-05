@@ -48,42 +48,38 @@ contract LendingPoolFactory {
             constructorArgs
         );
 
-        // Call asyncDeploy with correct parameters
+        // Deploy LendingPool asynchronously to selected shard
         address poolAddress = Nil.asyncDeploy(
-            shardCounter, // Shard ID
-            msg.sender, // Refund to the sender
-            address(0), // Bounce to (set to 0 for now)
-            0, // Fee credit (set to 0 unless required)
-            0, // Forward kind (set to 0 unless forwarding behavior is needed)
-            0, // Value (set to 0 unless ETH needs to be sent)
-            bytecode, // Contract creation code + constructor args
-            0 // Salt (set to 0; can be changed for deterministic addresses)
+            shardCounter,
+            msg.sender,
+            address(0),
+            0,
+            0,
+            0,
+            bytecode,
+            0
         );
 
         require(poolAddress != address(0), "Deployment failed");
 
-        // Assuming Nil provides an alternative method for cross-shard calls
-        // Using Nil.asyncCall to interact with GlobalLedger
-        (bool success, ) = address(Nil).call(
+        // Cross-shard async call to GlobalLedger to register the new LendingPool
+        Nil.asyncCall(
+            0, // Shard ID for GlobalLedger
+            address(0), // Refund address (not needed here)
+            globalLedger, // Target: GlobalLedger contract
+            0, // Fee credit
+            0, // Forward kind
+            0, // ETH value to send
             abi.encodeWithSignature(
-                "asyncCall(uint8,address,address,uint256,uint256,uint256,bytes,uint256)",
-                0, // Assuming GlobalLedger is on shard 0
-                address(0), // Refund address (not needed here)
-                globalLedger, // Target: GlobalLedger contract
-                0, // Fee credit
-                0, // Forward kind
-                0, // ETH value to send
-                abi.encodeWithSignature(
-                    "registerLendingPool(address)",
-                    poolAddress
-                ), // Method to call
-                0 // Salt (set to 0)
-            )
+                "registerLendingPool(address)",
+                poolAddress
+            ),
+            0 // Salt
         );
 
-        require(success, "Failed to register LendingPool in GlobalLedger");
-
         emit LendingPoolDeployed(poolAddress, shardCounter, msg.sender);
-        shardCounter = (shardCounter + 1) % 4; // Cycle through shards
+
+        // Cycle through shards
+        shardCounter = (shardCounter + 1) % 4;
     }
 }

@@ -4,7 +4,6 @@ import "@nomicfoundation/hardhat-ethers";
 import "@typechain/hardhat";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-ethers";
-import '@nomiclabs/hardhat-waffle';
 
 
 import * as dotenv from "dotenv";
