@@ -19,7 +19,6 @@ import {
   fetchTransactionListFx,
   showList,
 } from "../model";
-
 export const TransactionList = ({ type, identifier, view }: TransactionListProps) => {
   const [isMobile] = useMobile();
   const [css] = useStyletron();

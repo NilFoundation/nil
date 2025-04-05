@@ -1,7 +1,7 @@
 import { COLORS, SPACE } from "@nilfoundation/ui-kit";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { StyleObject } from "styletron-react";
-import { getTabletStyles } from "../../../../styleHelpers";
+import { getDesktopStyles, getTabletStyles } from "../../../../styleHelpers";
 
 const linkOutlineStyles = {
   borderRadius: "4px",
@@ -21,12 +21,25 @@ const container: StyleObject = {
   justifyContent: "start",
   backgroundColor: "transparent",
   ...expandProperty("padding", "0 16px 16px 16px"),
+  ...getTabletStyles({
+    ...expandProperty("padding", "0 48px 16px 48px"),
+    margin: "0 auto",
+    overflowX: "auto",
+  }),
+  ...getDesktopStyles({
+    ...expandProperty("padding", "0 48px 16px 48px"),
+    maxWidth: "1440px",
+    margin: "0 auto",
+  }),
 };
 
 const content = {
   display: "grid",
   gridTemplateColumns: "180px 9fr 1fr",
-  ...getTabletStyles({ gridTemplateColumns: "1fr 6fr" }),
+  ...getTabletStyles({
+    gridTemplateColumns: "1fr 6fr",
+    width: "100%",
+  }),
   paddingTop: SPACE[48],
   gap: SPACE[32],
   width: "100%",
@@ -94,8 +107,10 @@ export const mobileContainerStyle: StyleObject = {
   padding: "16px",
   display: "flex",
   flexDirection: "column",
+  overflowX: "auto",
 };
 
 export const mobileContentStyle = {
   paddingTop: "16px",
+  Overflow: "auto",
 };
