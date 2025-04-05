@@ -12,11 +12,12 @@
     "lint:fix": "biome check --write ."
   },
   "dependencies": {
-    "create-nil-hardhat-project": "workspace:*",
     "@nilfoundation/niljs": "0.25.0",
     "@nilfoundation/smart-contracts": "0.7.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "5.2.0",
     "@openzeppelin/contracts-upgradeable": "^5.2.0",
+    "create-nil-hardhat-project": "workspace:*",
     "viem": "^2.23.4"
   }
 }

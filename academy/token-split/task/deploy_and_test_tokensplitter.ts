@@ -111,43 +111,13 @@ task(
     const { address: tokenSplitterAddress, hash: deployHash } = await deployerWallet.deployContract({
         shardId: deployerShard,
         abi: TokenSplitter.abi as Abi,
+        args: [],
         bytecode: TokenSplitter.bytecode as `0x${string}`,
         salt: BigInt(Math.floor(Math.random() * 100000)),
         feeCredit: feeCredit,
     });
     await waitTillCompleted(client, deployHash);
     console.log(`✅ TokenSplitter deployed at: ${tokenSplitterAddress} (Tx: ${deployHash})`);
-
-    // --- Transfer Tokens to TokenSplitter ---
-    console.log(`💸 Transferring ${totalAmountToSplit} ${tokenToSplitId} from Deployer to TokenSplitter (${tokenSplitterAddress})...`);
-    const transferTokens: Token[] = [
-        {
-            id: tokenToSplitId,
-            amount: totalAmountToSplit,
-        },
-    ];
-    const transferTxData = {
-        to: tokenSplitterAddress,
-        tokens: transferTokens,
-        feeCredit: feeCredit,
-        // No data needed for a simple token transfer via Nil.sendTransaction
-    };
-
-    const transferHash = await deployerWallet.sendTransaction(transferTxData);
-    await waitTillCompleted(client, transferHash);
-    console.log(`✅ Tokens transferred to TokenSplitter (Tx: ${transferHash})`);
-
-    // --- Verify TokenSplitter Balance (Optional but Recommended) ---
-    await new Promise(res => setTimeout(res, 5000)); // Wait a bit for state sync
-    console.log(`🔍 Verifying TokenSplitter balance...`);
-    const splitterTokenRecord: Record<string, bigint> = await client.getTokens(tokenSplitterAddress, 'latest');
-    const splitterBalance: bigint = splitterTokenRecord[tokenToSplitId] ?? 0n;
-    console.log(`TokenSplitter ${tokenToSplitId} balance: ${splitterBalance}`);
-    if (splitterBalance < totalAmountToSplit) {
-        console.warn(`⚠️ TokenSplitter balance (${splitterBalance}) is less than expected (${totalAmountToSplit}). Continuing, but splitting might fail.`);
-    } else {
-        console.log("✅ TokenSplitter balance verified.");
-    }
 
     // --- Get Initial Recipient Balances ---
     console.log("🔍 Getting initial recipient balances...");
@@ -171,9 +141,18 @@ task(
         args: splitArgs,
     });
 
+    // Add the tokens directly to the splitTokens transaction
+    const tokensToSendWithSplit: Token[] = [
+        {
+            id: tokenToSplitId,
+            amount: totalAmountToSplit,
+        },
+    ];
+
     const splitHash = await deployerWallet.sendTransaction({
         to: tokenSplitterAddress,
         data: splitTxData,
+        tokens: tokensToSendWithSplit,
         feeCredit: feeCredit,
     });
     await waitTillCompleted(client, splitHash);
