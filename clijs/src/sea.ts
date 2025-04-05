@@ -10,6 +10,11 @@ import AbiCommand from "./commands/abi";
 import AbiDecode from "./commands/abi/decode";
 import AbiEncode from "./commands/abi/encode";
 import BlockCommand from "./commands/block";
+import Config from "./commands/config";
+import ConfigGet from "./commands/config/get";
+import ConfigInit from "./commands/config/init";
+import ConfigSet from "./commands/config/set";
+import ConfigShow from "./commands/config/show";
 import SmartAccountBalance from "./commands/smart-account/balance.js";
 import SmartAccountCallReadOnly from "./commands/smart-account/call-readonly";
 import SmartAccountDeploy from "./commands/smart-account/deploy.js";
@@ -32,6 +37,12 @@ export const COMMANDS: Record<string, Command.Class> = {
   "abi:encode": AbiEncode,
 
   block: BlockCommand,
+
+  config: Config,
+  "config:get": ConfigGet,
+  "config:set": ConfigSet,
+  "config:init": ConfigInit,
+  "config:show": ConfigShow,
 
   keygen: Keygen,
   "keygen:new": KeygenNew,
