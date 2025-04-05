@@ -13,7 +13,7 @@ export type TransactionFetchProps = {
 };
 
 export type TransactionListProps = TransactionFetchProps & {
-  view: "incoming" | "outgoing";
+  view: "incoming" | "outgoing" | "all";
 };
 
 const createStore = transactionListDomain.createStore.bind(transactionListDomain);
