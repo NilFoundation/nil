@@ -59,20 +59,20 @@ func NewBlockGenerator(
 	ctx context.Context,
 	params BlockGeneratorParams,
 	txFabric db.DB,
-	block *types.Block,
+	prevBlock *types.Block,
 ) (*BlockGenerator, error) {
 	rwTx, err := txFabric.CreateRwTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	configAccessor, err := config.NewConfigAccessorFromBlock(ctx, txFabric, block, params.ShardId)
+	configAccessor, err := config.NewConfigAccessorFromBlock(ctx, txFabric, prevBlock, params.ShardId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create config accessor: %w", err)
 	}
 
 	executionState, err := NewExecutionState(rwTx, params.ShardId, StateParams{
-		Block:          block,
+		Block:          prevBlock,
 		ConfigAccessor: configAccessor,
 		FeeCalculator:  params.FeeCalculator,
 		Mode:           params.ExecutionMode,

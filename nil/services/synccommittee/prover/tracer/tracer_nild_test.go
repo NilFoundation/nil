@@ -296,6 +296,7 @@ func (s *TracerNildTestSuite) checkBlocksRangeTracesSerialization(from []types.B
 				if errors.Is(err, ErrCantProofGenesisBlock) {
 					continue
 				}
+				s.Require().NoError(err)
 				mptTraces, err := tracer.GetMPTTraces()
 				s.Require().NoError(err)
 				traces.SetMptTraces(&mptTraces)

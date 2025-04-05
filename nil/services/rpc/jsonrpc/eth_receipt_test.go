@@ -42,11 +42,11 @@ func (s *SuiteEthReceipt) SetupSuite() {
 		s.outTransactions,
 		&types.Transaction{
 			TransactionDigest: types.TransactionDigest{Data: []byte{12}},
-		})
-	s.outTransactions = append(
-		s.outTransactions,
+			TxId:              0,
+		},
 		&types.Transaction{
 			TransactionDigest: types.TransactionDigest{Data: []byte{34}},
+			TxId:              1,
 		})
 
 	blockRes := writeTestBlock(s.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Transaction{s.transaction},

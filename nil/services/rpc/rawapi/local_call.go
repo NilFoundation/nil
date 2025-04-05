@@ -229,6 +229,7 @@ func (api *LocalShardApi) Call(
 		payer = execution.NewAccountPayer(toAs, txn)
 	}
 
+	txn.TxId = es.InTxCounts[txn.From.ShardId()]
 	txnHash := es.AddInTransaction(txn)
 	res := es.HandleTransaction(ctx, txn, payer)
 
