@@ -1,6 +1,5 @@
 import { Flags } from "@oclif/core";
 import { BaseCommand } from "../../base.js";
-import { logger } from "../../logger.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 

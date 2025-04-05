@@ -25,6 +25,12 @@ import SystemCommand from "./commands/system";
 import ChainId from "./commands/system/chain-id";
 import GasPrice from "./commands/system/gas-price";
 import Shards from "./commands/system/shards";
+import Config from "./commands/config";
+import ConfigGet from "./commands/config/get";
+import ConfigSet from "./commands/config/set";
+import ConfigShow from "./commands/config/show";
+import ConfigInit from "./commands/config/init";
+
 
 export const COMMANDS: Record<string, Command.Class> = {
   abi: AbiCommand,
@@ -53,6 +59,12 @@ export const COMMANDS: Record<string, Command.Class> = {
   "system:chain-id": ChainId,
   "system:gas-price": GasPrice,
   "system:shards": Shards,
+
+  config: Config,
+  "config:get": ConfigGet,
+  "config:set": ConfigSet,
+  "config:show": ConfigShow,
+  "config:init": ConfigInit,
 };
 
 export async function run() {

@@ -1,7 +1,6 @@
 import { Args } from "@oclif/core";
 import { BaseCommand } from "../../base.js";
 import { ConfigKeys } from "../../common/config.js";
-import { logger } from "../../logger.js";
 
 // Supported options in the config file
 const supportedOptions = new Set([
