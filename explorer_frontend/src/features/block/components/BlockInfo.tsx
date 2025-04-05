@@ -1,16 +1,20 @@
-import { HeadingXLarge, ParagraphMedium, SPACE, Skeleton } from "@nilfoundation/ui-kit";
+import {
+  COLORS,
+  CopyButton,
+  HeadingXLarge,
+  ParagraphMedium,
+  ParagraphSmall,
+  SPACE,
+  Skeleton,
+} from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
-import { Divider } from "../../shared";
 import { Info } from "../../shared/components/Info";
 import { InfoBlock } from "../../shared/components/InfoBlock";
 import { $block, loadBlockFx } from "../models/model";
+import { BlockNavigation } from "./BlockNavigation";
 
-export const BlockInfo = ({
-  className,
-}: {
-  className?: string;
-}) => {
+export const BlockInfo = ({ className }: { className?: string }) => {
   const [blockInfo, isPending] = useUnit([$block, loadBlockFx.pending]);
   const [css] = useStyletron();
 
@@ -27,12 +31,9 @@ export const BlockInfo = ({
     return (
       <div className={className}>
         <InfoBlock>
-          <Info label="Shard id" value={blockInfo.shard_id.toString()} />
-          <Info label="Height" value={blockInfo.id} />
-          <Info label="Hash" value={`0x${blockInfo.hash.toLowerCase()}`} />
-          <Divider />
-          <Info label="Incoming transactions" value={blockInfo.in_txn_num} />
-          <Info label="Outgoing transactions" value={blockInfo.out_txn_num} />
+          <Info label="Shard ID" value={blockInfo.shard_id.toString()} />
+          <Info label="Height" value={<BlockNavigation blockInfo={blockInfo} />} />
+          <Info label="Hash:" value={<HashCopy hash={`0x${blockInfo.hash.toLowerCase()}`} />} />
         </InfoBlock>
       </div>
     );
@@ -44,6 +45,31 @@ export const BlockInfo = ({
       <InfoBlock>
         <ParagraphMedium>Block not found</ParagraphMedium>
       </InfoBlock>
+    </div>
+  );
+};
+
+const HashCopy = ({ hash }: { hash: string }) => {
+  const [css] = useStyletron();
+
+  return (
+    <div
+      className={css({
+        display: "flex",
+        alignItems: "start",
+        gap: SPACE[8],
+      })}
+    >
+      <ParagraphSmall
+        color={COLORS.gray100}
+        className={css({
+          display: "inline-block",
+          wordBreak: "break-all",
+        })}
+      >
+        {hash}
+      </ParagraphSmall>
+      <CopyButton textToCopy={hash} disabled={hash === ""} color={COLORS.gray100} />
     </div>
   );
 };
