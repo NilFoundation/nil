@@ -140,7 +140,7 @@ export const registerContractInCometaFx = createEffect<
   },
   void
 >(async ({ name, app, address, cometaClient, solidityVersion }) => {
-  const result = createCompileInput(app.sourcecode);
+  const result = await createCompileInput(app.sourcecode);
 
   const refinedSolidityVersion = solidityVersion.match(/\d+\.\d+\.\d+/)?.[0] || "";
 
