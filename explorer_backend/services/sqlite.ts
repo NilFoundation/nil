@@ -15,6 +15,13 @@ CREATE TABLE IF NOT EXISTS code (
 );
 `);
 
+db.exec(`
+  UPDATE code 
+  SET content = json_object("Code.sol", code) 
+  WHERE content IS NULL;
+  `
+);
+
 const getStmt = db.prepare(`
   SELECT json_each.key AS path, json_each.value AS content
   FROM code, json_each(content) 
