@@ -7,7 +7,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
-	uniswap "github.com/NilFoundation/nil/nil/services/nil_load_generator/contracts"
 )
 
 type NilLoadGeneratorAPI interface {
@@ -19,7 +18,7 @@ type NilLoadGeneratorAPI interface {
 		amountSwap types.Uint256,
 		expectedAmount types.Uint256,
 	) (common.Hash, error)
-	CallQuote(pairs []*uniswap.Pair, tokenName1, tokenName2 string, swapAmount types.Uint256) (types.Uint256, error)
+	CallQuote(tokenName1, tokenName2 string, swapAmount types.Uint256) (types.Uint256, error)
 	CallInfo(hash common.Hash) (UniswapTransactionInfo, error)
 }
 
@@ -125,7 +124,6 @@ func (c NilLoadGeneratorAPIImpl) CallSwap(
 }
 
 func (c NilLoadGeneratorAPIImpl) CallQuote(
-	pairs []*uniswap.Pair,
 	tokenName1 string,
 	tokenName2 string,
 	swapAmount types.Uint256,
@@ -141,7 +139,7 @@ func (c NilLoadGeneratorAPIImpl) CallQuote(
 	if err != nil {
 		return types.Uint256{0}, err
 	}
-	reserve0, reserve1, err := pairs[res.ShardId-1].GetReserves(uniswapSmartAccount)
+	reserve0, reserve1, err := c.service.pairs[res.ShardId-1].GetReserves(uniswapSmartAccount)
 	if err != nil {
 		return types.Uint256{0}, err
 	}
