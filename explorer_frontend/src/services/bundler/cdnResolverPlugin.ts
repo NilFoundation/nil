@@ -1,10 +1,15 @@
 import type * as esbuild from 'esbuild';
 const cdnUrl = 'https://esm.sh/';
+const solidityCdnUrl = 'https://cdn.jsdelivr.net/npm/';
 
 export function cdnResolverPlugin(): esbuild.Plugin {
   return {
     name: 'cdn-resolver',
     setup(build: esbuild.PluginBuild) {
+      build.onResolve({ filter: /\.sol/ }, args => {
+        const resolved = new URL(`${solidityCdnUrl}${args.path}`);
+        return { path: resolved.href, namespace: 'extContract' };
+      });
       // Handle bare imports (npm package names)
 
       build.onResolve({ filter: /^[^./]|^\.[^./]|^\.\.[^/]/ }, async (args) => {
@@ -14,61 +19,61 @@ export function cdnResolverPlugin(): esbuild.Plugin {
         }
 
         if (args.path.startsWith('/-/')) {
-            const resolved = new URL(args.path.replace('/-/', `${cdnUrl}pin/`), cdnUrl);
-            console.log('Resolved URL:', resolved);
-            return { path: resolved, namespace: 'unpkg' };
+          const resolved = new URL(args.path.replace('/-/', `${cdnUrl}pin/`), cdnUrl);
+          console.log('Resolved URL:', resolved);
+          return { path: resolved, namespace: 'unpkg' };
         }
-        
+
         // Handle package paths
         let url: string;
         if (args.path.includes('/')) {
-            console.log('Args:', args);
-            
+          console.log('Args:', args);
+
           // This is an import like 'lodash/get' or '@material-ui/core/Button'
           url = `${cdnUrl}${args.path}`;
         } else {
           // This is a bare import like 'lodash' or 'react'
           url = `${cdnUrl}${args.path}`;
         }
-        
+
         return { path: url, namespace: 'unpkg' };
       });
 
       build.onResolve({ filter: /^\// }, async (args) => {
         // Handle package paths
         const url = `${cdnUrl}${args.path.slice(1)}`;
-        
+
         return { path: url, namespace: 'unpkg' };
       });
-      
+
       // Handle relative imports within packages
       build.onResolve({ filter: /^\./, namespace: 'unpkg' }, (args) => {
         // Skip data: URIs
         if (args.path.startsWith('data:')) {
           return { external: true };
         }
-        
+
         // Handle https:// URLs directly
         if (args.path.startsWith('https://')) {
           return { path: args.path, namespace: 'unpkg' };
         }
-        
+
         // Handle relative imports
         if (args.path.startsWith('./') || args.path.startsWith('../')) {
-            console.log('Args:', args);
+          console.log('Args:', args);
           // Get the directory of the importer
           const importerUrl = new URL(args.importer);
-          const baseUrl = importerUrl.href.endsWith('.js')? importerUrl.href.substring(0, importerUrl.href.lastIndexOf('/') + 1) : importerUrl.href;
+          const baseUrl = importerUrl.href.endsWith('.js') ? importerUrl.href.substring(0, importerUrl.href.lastIndexOf('/') + 1) : importerUrl.href;
 
           console.log('Base URL:', baseUrl);
-            console.log('Importer URL:', importerUrl.href);
-          
+          console.log('Importer URL:', importerUrl.href);
+
           // Resolve the relative path
           const resolved = new URL(args.path, baseUrl).href;
-            console.log('Resolved URL:', resolved);
+          console.log('Resolved URL:', resolved);
           return { path: resolved, namespace: 'unpkg' };
         }
-        
+
         // Handle absolute paths within the package
         if (args.path.startsWith('/')) {
           const importerUrl = new URL(args.importer);
@@ -76,27 +81,53 @@ export function cdnResolverPlugin(): esbuild.Plugin {
           const resolved = new URL(args.path, packageRoot).href;
           return { path: resolved, namespace: 'unpkg' };
         }
-        
+
         // For any other import pattern, assume it's a new package
         return { path: `${cdnUrl}${args.path}`, namespace: 'unpkg' };
       });
-      
+
+      build.onLoad({ filter: /.*/, namespace: 'extContract' }, async (args) => {
+        try {
+          const response = await fetch(args.path);
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${args.path}: ${response.status} ${response.statusText}`);
+          }
+
+          const contents = await response.text();
+
+          return {
+            contents,
+            loader: 'text',
+          };
+        } catch (error) {
+          return {
+            errors: [
+              {
+                text: `Error loading ${args.path}: ${error.message}`,
+                location: { file: args.path },
+              },
+            ],
+          };
+        }
+      });
+
       // Load files from unpkg
       build.onLoad({ filter: /.*/, namespace: 'unpkg' }, async (args) => {
         try {
           const response = await fetch(args.path);
-          
+
           if (!response.ok) {
             throw new Error(`Failed to fetch ${args.path}: ${response.status} ${response.statusText}`);
           }
-          
+
           const contents = await response.text();
-          
+
           // Determine the loader based on file extension
           const url = new URL(args.path);
           const path = url.pathname;
           let loader = 'js';
-          
+
           if (path.endsWith('.json')) {
             loader = 'json';
           } else if (path.endsWith('.css')) {
@@ -105,8 +136,10 @@ export function cdnResolverPlugin(): esbuild.Plugin {
             loader = 'jsx';
           } else if (path.endsWith('.ts')) {
             loader = 'ts';
+          } else if (path.endsWith('.sol')) {
+            loader = 'sol';
           }
-          
+
           return {
             contents,
             loader,

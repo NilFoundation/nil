@@ -6,11 +6,11 @@ export function contractResolverPlugin(contracts: App[]): esbuild.Plugin {
   return {
     name: 'contract-injector',
     setup(build: esbuild.PluginBuild) {
-      build.onResolve({ filter: /\.sol$/ }, args => {
-        return { path: args.path, namespace: 'solidity' };
+      build.onResolve({ filter: /\.contract$/ }, args => {
+        return { path: args.path, namespace: 'userContract' };
       });
 
-      build.onLoad({ filter: /.*/, namespace: 'solidity' }, async (args) => {
+      build.onLoad({ filter: /.*/, namespace: 'userContract' }, async (args) => {
         try {
           const contractName = args.path.split('/').pop()?.slice(0, -4) || "";
           const app = contracts.find((app) => app.name === contractName);

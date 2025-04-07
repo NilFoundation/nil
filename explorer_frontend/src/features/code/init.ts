@@ -102,14 +102,14 @@ sample({
   source: combine($contracts, $script),
   fn: ([contracts, script]) => {
     const cleanedScript = script.replace(
-      /^\s*import\s+(?:[^'"]+from\s+)?['"][^'"]+\.sol['"]\s*;?\s*$/gm,
+      /^\s*import\s+(?:[^'"]+from\s+)?['"][^'"]+\.contract['"]\s*;?\s*$/gm,
       ''
     );
 
     let res = cleanedScript;
 
     for (const app of contracts) {
-      res = `import ${app.name} from "./contracts/${app.name}.sol";\r\n${res}`;
+      res = `import ${app.name} from "./contracts/${app.name}.contract";\r\n${res}`;
     }
 
     return res;
