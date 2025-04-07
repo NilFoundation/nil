@@ -2,7 +2,7 @@ import * as esbuild from 'esbuild-wasm';
 import { cdnResolverPlugin, } from './cdnResolverPlugin';
 import { contractResolverPlugin } from '../contractResolver/contractResolverPlugin';
 import type { App } from '../../features/code/types';
-const initilized = false;
+let initilized = false;
 const esbuildVersion = '0.25.2';
 
 const virualEntryFileName = 'index.ts';
@@ -31,9 +31,11 @@ export const bundle = async (
   injections: esbuild.Plugin[] = [],
 ): Promise<string> => {
   if (!initilized) {
+    initilized = true;
     await esbuild.initialize({
       wasmURL: `https://unpkg.com/esbuild-wasm@${esbuildVersion}/esbuild.wasm`,
     });
+    
     console.log('esbuild initialized');
   }
 
