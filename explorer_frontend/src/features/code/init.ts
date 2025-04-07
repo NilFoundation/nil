@@ -35,6 +35,9 @@ import { $contracts } from "../contracts/models/base";
 import { bundle } from "../../services/bundler"
 import { run } from "../../services/runner";
 
+const consoleLogRegex = /console\.log\s*\(\s*(?:"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)\s*\)/g;
+const consoleWarnRegex = /console\.warn\s*\(\s*(?:"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)\s*\)/g;
+
 $code.on(changeCode, (_, x) => {
   return x;
 });
@@ -117,6 +120,8 @@ sample({
   target: changeScript
 });
 
+
+
 sample({
   clock: runScript,
   source: combine($script, $contracts),
@@ -133,6 +138,8 @@ runScriptFx.use(async ({ script, contracts }) => {
   console.log("Running script:", script);
   const res = await bundle(script, contracts);
   console.log("Bundled script:", res);
+  const consoleLogs = [...script.matchAll(consoleLogRegex)].map(match => match[1] || match[2]);
+  const consoleWarns = [...script.matchAll(consoleWarnRegex)].map(match => match[1] || match[2]);
   run(res);
 
   return {

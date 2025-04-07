@@ -1,16 +1,13 @@
-import { client } from "./client";
+import { client } from './client';
 
-export const setProject = async ({ code, script }: { code: string, script: string | null }) => {
-  const { hash } = await client.code.set.mutate({ code, script: script ?? undefined });
+export const setProject = async (project: { [fileName: string]: string }) => {
+  const { hash } = await client.code.set.mutate(project);
 
   return hash;
 };
 
 export const fetchProject = async (hash: string) => {
   const res = await client.code.get.query(hash);
+  return res;
 
-  return {
-    code: res.code,
-    script: res.script ?? null,
-  };
 };

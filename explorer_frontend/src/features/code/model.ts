@@ -78,15 +78,27 @@ export const $shareProjectError = codeDomain.createStore<boolean>(false);
 export const setProjectEvent = codeDomain.createEvent();
 export const fetchProjectEvent = codeDomain.createEvent<string>();
 
+export const triggerCustomConsoleLogEvent = codeDomain.createEvent<string>();
+export const triggerCustomConsoleWarnEvent = codeDomain.createEvent<string>();
+
 export const setProjectFx = codeDomain.createEffect<Project, string>();
 export const fetchProjectFx = codeDomain.createEffect<string, Project>();
 
 setProjectFx.use(({ code, script }) => {
-  return setProject({ code, script });
+  return setProject(
+    {
+      "Code.sol": code,
+      "Script.ts": script || "",
+    }
+  );
 });
 
-fetchProjectFx.use((hash) => {
-  return fetchProject(hash);
+fetchProjectFx.use(async (hash) => {
+  const res = await fetchProject(hash);
+  return {
+    code: res.find((file) => file.path === "Code.sol")?.content || "",
+    script: res.find((file) => file.path === "Script.ts")?.content || "",
+  }
 });
 
 export const loadedPlaygroundPage = codeDomain.createEvent();

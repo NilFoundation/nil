@@ -6,27 +6,23 @@ export const codeRouter = router({
   get: publicProcedure
     .input(z.string())
     .output(
-      z.object({
-        code: z.string(),
-        script: z.string().optional(),
-      }),
+      z.array(
+        z.object({
+          path: z.string(),
+          content: z.string().nullable(),
+        })
+      )
     )
     .query(async (opts) => {
-      const { code, script } = await getCode(opts.input as string);
-      if (code === null) {
-        throw new Error("Code not found");
+      const res = await getCode(opts.input as string);
+      if (res === null) {
+        throw new Error("Project not found");
       }
-      return {
-        code,
-        script,
-      };
+      return res;
     }),
   set: publicProcedure
     .input(
-      z.object({
-        code: z.string(),
-        script: z.string().optional(),
-      }),
+      z.object({})
     )
     .output(
       z.object({
@@ -34,9 +30,9 @@ export const codeRouter = router({
       }),
     )
     .mutation(async (opts) => {
-      const { code, script } = opts.input;
+      const project = opts.input;
 
-      const hash = await setCode({ code, script: script ?? null });
+      const hash = await setCode(project);
 
       return {
         hash,
