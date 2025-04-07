@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/client"
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -169,18 +168,12 @@ func (s *ProposerTestSuite) TestStorageProposalDataRemoved() {
 	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", "testingFinalizedBatchIndex")
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", s.testData.OldProvedStateRoot)
 
-	subgraph, err := scTypes.NewSubgraph(
-		&scTypes.Block{
-			ShardId:    types.MainShardId,
-			Number:     123,
-			Hash:       common.HexToHash("123"),
-			ParentHash: s.testData.OldProvedStateRoot,
-		}, nil)
-	s.Require().NoError(err)
-	s.Require().NoError(s.storage.SetBlockBatch(
-		s.ctx,
-		&scTypes.BlockBatch{Id: s.testData.BatchId, Subgraphs: []scTypes.Subgraph{*subgraph}},
-	))
+	batch := testaide.NewBlockBatch(testaide.ShardsCount)
+	batch.Id = s.testData.BatchId
+	mainBlock := batch.Blocks[types.MainShardId].Latest()
+	mainBlock.ParentHash = s.testData.OldProvedStateRoot
+
+	s.Require().NoError(s.storage.SetBlockBatch(s.ctx, batch))
 	s.Require().NoError(s.storage.SetBatchAsProved(s.ctx, s.testData.BatchId))
 	s.Require().NoError(s.storage.SetProvedStateRoot(s.ctx, s.testData.OldProvedStateRoot))
 

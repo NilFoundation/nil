@@ -28,20 +28,26 @@ func (f *subgraphFetcher) FetchSubgraph(
 	ctx context.Context,
 	mainShardBlock *types.Block,
 	latestFetched types.BlockRefs,
-) (*types.Subgraph, error) {
+) (types.ChainSegments, error) {
 	segments, err := f.fetchShardChainSegments(ctx, mainShardBlock, latestFetched)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch shard chain segments: %w", err)
 	}
 
-	return types.NewSubgraph(mainShardBlock, segments)
+	mainSegment, err := types.NewChainSegment(mainShardBlock)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create main segment: %w", err)
+	}
+	segments[coreTypes.MainShardId] = mainSegment
+
+	return segments, nil
 }
 
 func (f *subgraphFetcher) fetchShardChainSegments(
 	ctx context.Context,
 	mainShardBlock *types.Block,
 	latestFetched types.BlockRefs,
-) (map[coreTypes.ShardId]types.ShardChainSegment, error) {
+) (types.ChainSegments, error) {
 	childIds, err := types.ChildBlockIds(mainShardBlock)
 	if err != nil {
 		return nil, err
@@ -107,7 +113,12 @@ func (f *subgraphFetcher) fetchShardChainSegment(
 	}
 
 	blocks = append(blocks, latestSubBlock)
-	return blocks, nil
+	segment, err := types.NewChainSegment(blocks...)
+	if err != nil {
+		return nil, fmt.Errorf("error creating chain segment: %w", err)
+	}
+
+	return segment, nil
 }
 
 func (f *subgraphFetcher) getBlockById(ctx context.Context, id types.BlockId) (*types.Block, error) {

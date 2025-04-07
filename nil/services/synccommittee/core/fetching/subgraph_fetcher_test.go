@@ -82,8 +82,7 @@ func (s *SubgraphFetcherTestSuite) Test_Fetch_No_Latest_Refs() {
 	s.Require().NoError(err)
 	s.Require().NotNil(subgraph)
 
-	expectedSubgraph := targetBatch.Subgraphs[len(targetBatch.Subgraphs)-1]
-	s.Require().Equal(expectedSubgraph, *subgraph)
+	s.Require().Equal(targetBatch.Blocks, subgraph)
 }
 
 func (s *SubgraphFetcherTestSuite) Test_No_Progress_In_Exec_Shard() {
@@ -95,20 +94,19 @@ func (s *SubgraphFetcherTestSuite) Test_No_Progress_In_Exec_Shard() {
 	noProgressShardId := coreTypes.ShardId(1)
 	shardRef := batch.LatestRefs().TryGet(noProgressShardId)
 	latestFetched := make(types.BlockRefs)
-	latestFetched[1] = *shardRef
+	latestFetched[noProgressShardId] = *shardRef
 
 	subgraph, err := s.fetcher.FetchSubgraph(s.ctx, batch.LatestMainBlock(), latestFetched)
 	s.Require().NoError(err)
 
-	batchSubgraph := batch.Subgraphs[len(batch.Subgraphs)-1]
-	s.Len(subgraph.Children, len(batchSubgraph.Children)-1)
-	s.Equal(batchSubgraph.Main, subgraph.Main)
+	// Fetched everything except blocks from the first shard (nothing to fetch)
+	s.Len(subgraph, len(batch.Blocks)-1)
 
-	for shardId, expectedSegment := range batchSubgraph.Children {
+	for shardId, expectedSegment := range batch.Blocks {
 		if shardId == noProgressShardId {
 			continue
 		}
-		actualSegment, ok := subgraph.Children[shardId]
+		actualSegment, ok := subgraph[shardId]
 		s.True(ok, "shard %d not found in subgraph", shardId)
 		s.Equal(expectedSegment, actualSegment, "shard %d segment mismatch", shardId)
 	}

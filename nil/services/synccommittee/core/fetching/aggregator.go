@@ -346,7 +346,7 @@ func (agg *aggregator) createBlockBatch(
 		return nil, err
 	}
 
-	return types.NewBlockBatch(latestBatchId).WithAddedSubgraph(*subgraph)
+	return types.NewBlockBatch(latestBatchId).WithAddedBlocks(subgraph)
 }
 
 // handleBlockBatch checks the validity of a block and stores it if valid.
@@ -357,7 +357,7 @@ func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 	}
 
 	mainRef := latestFetched.TryGetMain()
-	if err := mainRef.ValidateNext(batch.FirstMainBlock()); err != nil {
+	if err := mainRef.ValidateNext(batch.EarliestMainBlock()); err != nil {
 		return err
 	}
 

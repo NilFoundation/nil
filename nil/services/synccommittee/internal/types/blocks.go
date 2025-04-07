@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
@@ -31,6 +32,7 @@ func NewBlockRef(shardId types.ShardId, hash common.Hash, number types.BlockNumb
 }
 
 func BlockToRef(block *Block) BlockRef {
+	check.PanicIff(block == nil, "block cannot be nil")
 	return NewBlockRef(block.ShardId, block.Hash, block.Number)
 }
 
