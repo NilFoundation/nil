@@ -71,7 +71,7 @@ func (s *BlockTasksIntegrationTestSuite) SetupTest() {
 func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_Result() {
 	batch := testaide.NewBlockBatch(1)
 
-	err := s.blockStorage.SetProvedStateRoot(s.ctx, batch.FirstMainBlock().ParentHash)
+	err := s.blockStorage.SetProvedStateRoot(s.ctx, batch.EarliestMainBlock().ParentHash)
 	s.Require().NoError(err)
 
 	err = s.blockStorage.SetBlockBatch(s.ctx, batch)
@@ -111,7 +111,7 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_R
 func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_Result() {
 	batch := testaide.NewBlockBatch(1)
 
-	err := s.blockStorage.SetProvedStateRoot(s.ctx, batch.FirstMainBlock().ParentHash)
+	err := s.blockStorage.SetProvedStateRoot(s.ctx, batch.EarliestMainBlock().ParentHash)
 	s.Require().NoError(err)
 
 	err = s.blockStorage.SetBlockBatch(s.ctx, batch)

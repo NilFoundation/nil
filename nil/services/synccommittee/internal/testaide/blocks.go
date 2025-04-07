@@ -75,13 +75,13 @@ func NewBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
 
 	batches := make([]*scTypes.BlockBatch, 0, batchesCount)
 
-	for _, subgraph := range NewSubgraphSequence(batchesCount) {
+	for _, subgraph := range NewSegmentsSequence(batchesCount) {
 		var parentId *scTypes.BatchId
 		if len(batches) > 0 {
 			parentId = &batches[len(batches)-1].Id
 		}
 
-		batch, err := scTypes.NewBlockBatch(parentId).WithAddedSubgraph(subgraph)
+		batch, err := scTypes.NewBlockBatch(parentId).WithAddedBlocks(subgraph)
 		check.PanicIfErr(err)
 		batches = append(batches, batch)
 	}
@@ -89,61 +89,59 @@ func NewBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
 	return batches
 }
 
-func NewSubgraphSequence(subgraphsCount int) []scTypes.Subgraph {
-	if subgraphsCount <= 0 {
-		log.Panicf("subgraphsCount must be positive, got=%d", subgraphsCount)
+func NewSegmentsSequence(count int) []scTypes.ChainSegments {
+	if count <= 0 {
+		log.Panicf("count must be positive, got=%d", count)
 	}
 
-	firstSubgraph := NewSubgraph(ShardsCount)
-	firstSubgraph.Main.Number = 1
-	for _, segment := range firstSubgraph.Children {
+	firstSegments := NewChainSegments(ShardsCount)
+
+	for _, segment := range firstSegments {
 		segment[0].Number = 1
 		segment[0].ParentHash = GenesisBlockHash
 	}
 
-	subgraphs := make([]scTypes.Subgraph, 1, subgraphsCount)
-	subgraphs[0] = firstSubgraph
+	segments := make([]scTypes.ChainSegments, 1, count)
+	segments[0] = firstSegments
 
-	for range subgraphsCount - 1 {
-		nextSubgraph := NewSubgraph(ShardsCount)
-		prevSubgraph := subgraphs[len(subgraphs)-1]
+	for range count - 1 {
+		nextSegments := NewChainSegments(ShardsCount)
+		prevSegments := segments[len(segments)-1]
 
-		nextSubgraph.Main.ParentHash = prevSubgraph.Main.Hash
-		nextSubgraph.Main.Number = prevSubgraph.Main.Number + 1
-
-		for shard, segment := range nextSubgraph.Children {
-			prevSegmentTail := prevSubgraph.Children[shard].Latest()
+		for shard, segment := range nextSegments {
+			prevSegmentTail := prevSegments[shard].Latest()
 			segment[0].ParentHash = prevSegmentTail.Hash
 			segment[0].Number = prevSegmentTail.Number + 1
 		}
 
-		subgraphs = append(subgraphs, nextSubgraph)
+		segments = append(segments, nextSegments)
 	}
-	return subgraphs
+	return segments
 }
 
 func NewBlockBatch(shardCount int) *scTypes.BlockBatch {
-	subgraph := NewSubgraph(shardCount)
-	batch, err := scTypes.NewBlockBatch(nil).WithAddedSubgraph(subgraph)
+	segments := NewChainSegments(shardCount)
+	batch, err := scTypes.NewBlockBatch(nil).WithAddedBlocks(segments)
 	check.PanicIfErr(err)
 	return batch
 }
 
-func NewSubgraph(shardCount int) scTypes.Subgraph {
+func NewChainSegments(shardCount int) scTypes.ChainSegments {
 	mainBlock := NewMainShardBlock()
 	mainBlock.ChildBlocks = nil
 
-	children := make(map[types.ShardId]scTypes.ShardChainSegment)
+	blocks := make(map[types.ShardId][]*scTypes.Block, shardCount)
+
 	for i := range shardCount {
 		block := NewExecutionShardBlock()
 		block.ShardId = types.ShardId(i + 1)
 		mainBlock.ChildBlocks = append(mainBlock.ChildBlocks, block.Hash)
-		children[block.ShardId] = []*scTypes.Block{block}
+		blocks[block.ShardId] = []*scTypes.Block{block}
 	}
 
-	subgraph, err := scTypes.NewSubgraph(mainBlock, children)
+	segments, err := scTypes.NewChainSegments(blocks)
 	check.PanicIfErr(err)
-	return *subgraph
+	return segments
 }
 
 func NewMainShardBlock() *scTypes.Block {
