@@ -72,6 +72,8 @@ type Service struct {
 	smartAccounts        []uniswap.SmartAccount
 	uniswapSmartAccounts []uniswap.SmartAccount
 
+	pairs []*uniswap.Pair
+
 	client *rpc_client.Client
 }
 
@@ -140,7 +142,12 @@ func (s *Service) init(ctx context.Context, cfg *Config, shardIdList []types.Sha
 		}
 	}
 
-	return nil
+	s.pairs = make([]*uniswap.Pair, len(s.shardIdList))
+	return s.parallelizeAcrossShards(func(i int) error {
+		var e error
+		s.pairs[i], e = s.deployPair(ctx, i)
+		return e
+	})
 }
 
 func compileContracts(contractNames []string) (map[string]uniswap.Contract, error) {
@@ -215,7 +222,7 @@ func (s *Service) selectPairAndAccount() ([]types.ShardId, []types.ShardId, erro
 	return pairsToCall, smartAccountsToCall, nil
 }
 
-func (s *Service) mint(ctx context.Context, pairs []*uniswap.Pair, i int) error {
+func (s *Service) mint(ctx context.Context, i int) error {
 	token2 := types.EthFaucetAddress
 	smartAccount := s.smartAccounts[i]
 	s.logger.Info().Msgf(
@@ -225,7 +232,7 @@ func (s *Service) mint(ctx context.Context, pairs []*uniswap.Pair, i int) error 
 	if i%2 == 0 {
 		token1 = types.UsdcFaucetAddress
 	}
-	return pairs[i].Mint(
+	return s.pairs[i].Mint(
 		ctx,
 		s.smartAccounts[i],
 		[]types.TokenBalance{
@@ -237,7 +244,6 @@ func (s *Service) mint(ctx context.Context, pairs []*uniswap.Pair, i int) error 
 
 func (s *Service) swap(
 	ctx context.Context,
-	pairs []*uniswap.Pair,
 	whoWantSwap types.ShardId,
 	whatPairHeWant types.ShardId,
 ) error {
@@ -247,7 +253,7 @@ func (s *Service) swap(
 		token1 = types.UsdcFaucetAddress
 	}
 	smartAccount := s.smartAccounts[whoWantSwap]
-	reserve0, reserve1, err := pairs[whatPairHeWant].GetReserves(smartAccount)
+	reserve0, reserve1, err := s.pairs[whatPairHeWant].GetReserves(smartAccount)
 	if err != nil {
 		return err
 	}
@@ -256,7 +262,7 @@ func (s *Service) swap(
 		"User: %v, Pair: %v, AmountSend: %s,  AmountGet: %s, TokenFrom: %s, TokenTo %s",
 		whoWantSwap, whatPairHeWant, s.config.SwapAmount, expectedOutputAmount, token1, token2)
 
-	if _, err = pairs[whatPairHeWant].Swap(
+	if _, err = s.pairs[whatPairHeWant].Swap(
 		ctx,
 		smartAccount,
 		big.NewInt(0),
@@ -268,20 +274,20 @@ func (s *Service) swap(
 	return nil
 }
 
-func (s *Service) burn(ctx context.Context, pairs []*uniswap.Pair, i int) error {
+func (s *Service) burn(ctx context.Context, i int) error {
 	smartAccount := s.smartAccounts[i]
 	s.logger.Info().Msgf(
 		"Burn liquidity for user smart account %s on shard %v",
 		smartAccount.Addr, s.shardIdList[i])
-	userLpBalance, err := pairs[i].GetTokenBalanceOf(smartAccount)
+	userLpBalance, err := s.pairs[i].GetTokenBalanceOf(smartAccount)
 	if err != nil {
 		return err
 	}
 	if userLpBalance.Uint64() > 0 {
-		return pairs[i].Burn(
+		return s.pairs[i].Burn(
 			ctx,
 			smartAccount,
-			types.TokenId(pairs[i].Addr),
+			types.TokenId(s.pairs[i].Addr),
 			types.NewValueFromUint64(userLpBalance.Uint64()),
 		)
 	}
@@ -399,24 +405,13 @@ func Run(ctx context.Context, cfg *Config, logger logging.Logger) error {
 			handler.RecordError(ctx)
 			return err
 		}
-
 		logger.Info().Msg("Creating smart accounts...")
 		if err = service.init(ctx, cfg, shardIdList); err != nil {
 			handler.RecordError(ctx)
+			logger.Error().Err(err).Msg("Deployment and initialization error")
 			return err
 		}
 		logger.Info().Msg("Smart accounts created successfully.")
-	}
-
-	pairs := make([]*uniswap.Pair, len(service.shardIdList))
-	if err := service.parallelizeAcrossShards(func(i int) error {
-		var e error
-		pairs[i], e = service.deployPair(ctx, i)
-		return e
-	}); err != nil {
-		handler.RecordError(ctx)
-		logger.Error().Err(err).Msg("Deployment and initialization error")
-		return err
 	}
 	service.isInitialized.Store(true)
 	logger.Info().Msg("Starting main loop.")
@@ -439,7 +434,7 @@ func Run(ctx context.Context, cfg *Config, logger logging.Logger) error {
 			}
 			checkBalanceCounterDownInt--
 			if err := service.parallelizeAcrossShards(func(i int) error {
-				return service.mint(ctx, pairs, i)
+				return service.mint(ctx, i)
 			}); err != nil {
 				handler.RecordError(ctx)
 				logger.Error().Err(err).Msg("Minting error")
@@ -454,7 +449,7 @@ func Run(ctx context.Context, cfg *Config, logger logging.Logger) error {
 				}
 				if err := parallelizeAcrossN(len(pairsToCall), func(i int) error {
 					handler.RecordFromToCall(ctx, int64(smartAccountsToCall[i]-1), int64(pairsToCall[i]-1))
-					return service.swap(ctx, pairs, smartAccountsToCall[i]-1, pairsToCall[i]-1)
+					return service.swap(ctx, smartAccountsToCall[i]-1, pairsToCall[i]-1)
 				}); err != nil {
 					handler.RecordError(ctx)
 					logger.Error().Err(err).Msg("Swap error")
@@ -463,7 +458,7 @@ func Run(ctx context.Context, cfg *Config, logger logging.Logger) error {
 			}
 
 			if err := service.parallelizeAcrossShards(func(i int) error {
-				return service.burn(ctx, pairs, i)
+				return service.burn(ctx, i)
 			}); err != nil {
 				handler.RecordError(ctx)
 				logger.Error().Err(err).Msg("Burn error")

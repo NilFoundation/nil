@@ -14,8 +14,8 @@ type NilLoadGeneratorAPI interface {
 	HealthCheck() bool
 	SmartAccountsAddr() []types.Address
 	CallSwap(
-		pairs []*uniswap.Pair,
-		tokenName1 string, tokenName2 string,
+		tokenName1 string,
+		tokenName2 string,
 		amountSwap types.Uint256,
 		expectedAmount types.Uint256,
 	) (common.Hash, error)
@@ -77,7 +77,6 @@ func (c NilLoadGeneratorAPIImpl) SmartAccountsAddr() []types.Address {
 }
 
 func (c NilLoadGeneratorAPIImpl) CallSwap(
-	pairs []*uniswap.Pair,
 	tokenName1 string,
 	tokenName2 string,
 	amountSwap types.Uint256,
@@ -103,7 +102,7 @@ func (c NilLoadGeneratorAPIImpl) CallSwap(
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	calldata, err := pairs[res.ShardId-1].Abi.Pack(
+	calldata, err := c.service.pairs[res.ShardId-1].Abi.Pack(
 		"swap", amount1, amount2, uniswapSmartAccount.Addr)
 	if err != nil {
 		return common.EmptyHash, err
@@ -120,7 +119,7 @@ func (c NilLoadGeneratorAPIImpl) CallSwap(
 				Balance: types.Value{Uint256: &amountSwap},
 			},
 		},
-		pairs[res.ShardId-1].Addr,
+		c.service.pairs[res.ShardId-1].Addr,
 		uniswapSmartAccount.PrivateKey,
 	)
 }
