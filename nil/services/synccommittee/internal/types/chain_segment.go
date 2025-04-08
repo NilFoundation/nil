@@ -26,16 +26,12 @@ func validateSegment(blocks []*Block) error {
 
 	shardId := blocks[0].ShardId
 
-	for i, block := range blocks {
+	for i, block := range blocks[1:] {
 		if block.ShardId != shardId {
 			return fmt.Errorf("shardId mismatch at index %d: %d != %d", i, block.ShardId, shardId)
 		}
 
-		if i == 0 {
-			continue
-		}
-
-		parentRef := BlockToRef(blocks[i-1])
+		parentRef := BlockToRef(blocks[i])
 		if err := parentRef.ValidateNext(block); err != nil {
 			return fmt.Errorf("parent-child mismatch at index %d: %w", i, err)
 		}
@@ -106,7 +102,12 @@ func (s ChainSegments) Concat(other ChainSegments) (ChainSegments, error) {
 	concatenated := make(ChainSegments, len(s))
 
 	for shardId, segment := range s {
-		otherSegment := other[shardId]
+		otherSegment, ok := other[shardId]
+		if !ok {
+			concatenated[shardId] = segment
+			continue
+		}
+
 		joinedSegment, err := segment.Concat(otherSegment)
 		if err != nil {
 			return nil, fmt.Errorf("failed to join segments for shard %s: %w", shardId, err)
@@ -124,10 +125,10 @@ func (s ChainSegments) Concat(other ChainSegments) (ChainSegments, error) {
 	return concatenated, nil
 }
 
-func (s ChainSegments) BlocksCount() uint32 {
-	sum := uint32(0)
+func (s ChainSegments) BlocksCount() int {
+	sum := 0
 	for _, segment := range s {
-		sum += uint32(len(segment))
+		sum += len(segment)
 	}
 	return sum
 }

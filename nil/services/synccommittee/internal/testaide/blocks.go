@@ -10,6 +10,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -58,12 +59,17 @@ func RandomShardId() types.ShardId {
 func NewRpcInTransaction() *jsonrpc.RPCInTransaction {
 	return &jsonrpc.RPCInTransaction{
 		Transaction: jsonrpc.Transaction{
-			Flags: types.NewTransactionFlags(types.TransactionFlagInternal, types.TransactionFlagRefund),
-			Seqno: 10,
-			From:  types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e71"),
-			To:    types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e72"),
-			Value: types.NewValue(uint256.NewInt(1000)),
-			Data:  []byte{10, 20, 30, 40},
+			Flags:                types.NewTransactionFlags(types.TransactionFlagInternal, types.TransactionFlagRefund),
+			Seqno:                10,
+			From:                 types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e71"),
+			To:                   types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e72"),
+			Value:                types.NewValue(uint256.NewInt(1000)),
+			Data:                 []byte{10, 20, 30, 40},
+			FeeCredit:            types.NewValue(uint256.NewInt(100)),
+			MaxPriorityFeePerGas: types.NewValue(uint256.NewInt(10)),
+			MaxFeePerGas:         types.NewValue(uint256.NewInt(20)),
+			ChainID:              1234,
+			Signature:            hexutil.Bytes{10, 20, 30, 40},
 		},
 	}
 }
@@ -75,15 +81,12 @@ func NewBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
 
 	batches := make([]*scTypes.BlockBatch, 0, batchesCount)
 
-	for _, subgraph := range NewSegmentsSequence(batchesCount) {
-		var parentId *scTypes.BatchId
-		if len(batches) > 0 {
-			parentId = &batches[len(batches)-1].Id
-		}
-
-		batch, err := scTypes.NewBlockBatch(parentId).WithAddedBlocks(subgraph)
+	var parentId *scTypes.BatchId
+	for _, segments := range NewSegmentsSequence(batchesCount) {
+		batch, err := scTypes.NewBlockBatch(parentId).WithAddedBlocks(segments)
 		check.PanicIfErr(err)
 		batches = append(batches, batch)
+		parentId = &batch.Id
 	}
 
 	return batches
@@ -132,6 +135,8 @@ func NewChainSegments(shardCount int) scTypes.ChainSegments {
 
 	blocks := make(map[types.ShardId][]*scTypes.Block, shardCount)
 
+	blocks[types.MainShardId] = []*scTypes.Block{mainBlock}
+
 	for i := range shardCount {
 		block := NewExecutionShardBlock()
 		block.ShardId = types.ShardId(i + 1)
@@ -158,6 +163,7 @@ func NewMainShardBlock() *scTypes.Block {
 		Hash:                RandomHash(),
 		ParentHash:          RandomHash(),
 		Transactions:        newRpcInTransactions(ShardsCount),
+		BaseFee:             types.NewValue(uint256.NewInt(30)),
 	}
 }
 
@@ -169,6 +175,7 @@ func NewExecutionShardBlock() *scTypes.Block {
 		MainShardHash: RandomHash(),
 		ParentHash:    RandomHash(),
 		Transactions:  newRpcInTransactions(ShardsCount),
+		BaseFee:       types.NewValue(uint256.NewInt(30)),
 	}
 }
 

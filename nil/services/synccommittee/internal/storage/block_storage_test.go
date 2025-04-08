@@ -136,21 +136,21 @@ func (s *BlockStorageTestSuite) Test_SetBlockBatch_Free_Capacity_On_SetBatchAsPr
 	s.Require().NoError(err)
 }
 
-func (s *BlockStorageTestSuite) Test_TryGetLatestBatchId() {
+func (s *BlockStorageTestSuite) Test_TryGetLatestBatch() {
 	const batchesCount = 5
 	batches := testaide.NewBatchesSequence(batchesCount)
 
-	latestBatchId, err := s.bs.TryGetLatestBatchId(s.ctx)
+	latestBatch, err := s.bs.TryGetLatestBatch(s.ctx)
 	s.Require().NoError(err)
-	s.Require().Nil(latestBatchId)
+	s.Require().Nil(latestBatch)
 
 	for _, batch := range batches {
 		err := s.bs.SetBlockBatch(s.ctx, batch)
 		s.Require().NoError(err)
 
-		latestBatchId, err := s.bs.TryGetLatestBatchId(s.ctx)
+		latestBatch, err := s.bs.TryGetLatestBatch(s.ctx)
 		s.Require().NoError(err)
-		s.Equal(&batch.Id, latestBatchId)
+		s.Equal(batch, latestBatch)
 	}
 }
 
@@ -174,7 +174,7 @@ func (s *BlockStorageTestSuite) Test_BatchExists_False() {
 	s.Require().False(exists)
 }
 
-func (s *BlockStorageTestSuite) Test_LatestBatchId_Mismatch() {
+func (s *BlockStorageTestSuite) Test_Parent_Batch_Id_Mismatch() {
 	const batchesCount = 2
 	batches := testaide.NewBatchesSequence(batchesCount)
 	invalidParentId := scTypes.NewBatchId()
@@ -474,7 +474,7 @@ func (s *BlockStorageTestSuite) Test_ResetBatchesRange_Block_Does_Not_Exists() {
 
 	latestFetchedBeforeReset, err := s.bs.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
-	latestBatchIdBeforeReset, err := s.bs.TryGetLatestBatchId(s.ctx)
+	latestBatchBeforeReset, err := s.bs.TryGetLatestBatch(s.ctx)
 	s.Require().NoError(err)
 
 	nonExistentBatchId := scTypes.NewBatchId()
@@ -490,9 +490,9 @@ func (s *BlockStorageTestSuite) Test_ResetBatchesRange_Block_Does_Not_Exists() {
 	s.Require().NoError(err)
 	s.Require().Equal(latestFetchedBeforeReset, latestFetchedAfterReset)
 
-	latestBatchIdAfterReset, err := s.bs.TryGetLatestBatchId(s.ctx)
+	latestBatchAfterReset, err := s.bs.TryGetLatestBatch(s.ctx)
 	s.Require().NoError(err)
-	s.Require().Equal(latestBatchIdBeforeReset, latestBatchIdAfterReset)
+	s.Require().Equal(latestBatchBeforeReset, latestBatchAfterReset)
 }
 
 func (s *BlockStorageTestSuite) Test_ResetBatchesRange() {
@@ -549,9 +549,14 @@ func (s *BlockStorageTestSuite) testResetBatchesRange(firstBatchToPurgeIdx int) 
 		s.Require().Equal(expectedNewLatest, actualLatestFetched)
 	}
 
-	actualLatestBatchId, err := s.bs.TryGetLatestBatchId(s.ctx)
+	actualLatestBatch, err := s.bs.TryGetLatestBatch(s.ctx)
 	s.Require().NoError(err)
-	s.Require().Equal(batches[firstBatchToPurgeIdx].ParentId, actualLatestBatchId)
+	var actualParentId *scTypes.BatchId
+	if actualLatestBatch != nil {
+		actualParentId = &actualLatestBatch.Id
+	}
+
+	s.Require().Equal(batches[firstBatchToPurgeIdx].ParentId, actualParentId)
 }
 
 func (s *BlockStorageTestSuite) Test_ResetBatchesNotProved() {
