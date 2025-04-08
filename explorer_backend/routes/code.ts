@@ -6,13 +6,10 @@ export const codeRouter = router({
   get: publicProcedure
     .input(z.string())
     .output(
-      z.array(
-        z.object({
-          path: z.string(),
-          content: z.string().nullable(),
-        })
-      )
-    )
+      z.record(
+        z.string(),
+        z.string().nullable()
+      ))
     .query(async (opts) => {
       const res = await getCode(opts.input as string);
       if (res === null) {
@@ -22,8 +19,10 @@ export const codeRouter = router({
     }),
   set: publicProcedure
     .input(
-      z.object({})
-    )
+      z.record(
+        z.string(),
+        z.string().nullable()
+      ))
     .output(
       z.object({
         hash: z.string(),

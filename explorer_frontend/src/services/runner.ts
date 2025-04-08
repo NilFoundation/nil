@@ -19,7 +19,9 @@ const interceptor = `
 let workingWorker: Worker | null = null;
 
 export const run = (code: string) => {
-  const codeBlob = new Blob([code], { type: "text/javascript" });
+  const codeWithInterceptor = `${interceptor}\n${code}`;
+
+  const codeBlob = new Blob([codeWithInterceptor], { type: "text/javascript" });
   const codeUrl = URL.createObjectURL(codeBlob);
 
   if (workingWorker) {
@@ -35,10 +37,11 @@ export const run = (code: string) => {
 
   workingWorker.addEventListener("message", (event) => {
     const { type, args } = event.data;
+    const parsedArgs = JSON.stringify(args);
     if (type === 'log') {
-      triggerCustomConsoleLogEvent(args);
+      triggerCustomConsoleLogEvent(`Console log: ${parsedArgs.toString()}`);
     } else {
-      triggerCustomConsoleWarnEvent(args);
+      triggerCustomConsoleWarnEvent(`Console warning: ${parsedArgs.toString()}`);
     }
   });
 }

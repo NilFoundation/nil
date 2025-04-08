@@ -96,8 +96,8 @@ setProjectFx.use(({ code, script }) => {
 fetchProjectFx.use(async (hash) => {
   const res = await fetchProject(hash);
   return {
-    code: res.find((file) => file.path === "Code.sol")?.content || "",
-    script: res.find((file) => file.path === "Script.ts")?.content || "",
+    code: res["Code.sol"] || "",
+    script: res["Script.ts"] || "",
   }
 });
 

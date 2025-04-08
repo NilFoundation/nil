@@ -17,24 +17,25 @@ CREATE TABLE IF NOT EXISTS code (
 
 db.exec(`
   UPDATE code 
-  SET content = json_object("Code.sol", code) 
+  SET content = json_object('Code.sol', code) 
   WHERE content IS NULL;
   `
 );
 
 const getStmt = db.prepare(`
-  SELECT json_each.key AS path, json_each.value AS content
-  FROM code, json_each(content) 
+  SELECT content
+  FROM code
   WHERE hash = ?
   `
 );
 
-export const getCode = (hash: string): { path: string | null, content: string | null }[] => {
-  const results = getStmt.all(hash) as { path: string, content: string }[];
-  return results;
+export const getCode = (hash: string): Record<string, string> => {
+  const result = getStmt.get(hash) as { content: string };
+  const jsonResult = JSON.parse(result.content) as Record<string, string>;
+  return jsonResult;
 };
 
-export const setCode = async (project: { [fileName: string]: string }): Promise<string> => {
+export const setCode = async (project: Record<string, string>): Promise<string> => {
   const projectString = JSON.stringify(project);
   const hash = createHash("sha256").update(projectString).digest("hex");
   const res = await getCode(hash);
