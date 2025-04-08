@@ -123,6 +123,22 @@ func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskReques
 	return task, nil
 }
 
+func (s *taskSchedulerImpl) CheckIfTaskExists(ctx context.Context, request *api.TaskCheckRequest) (bool, error) {
+	s.logger.Debug().Stringer(logging.FieldTaskId, request.TaskId).Msg("received new check task request")
+
+	taskEntry, err := s.storage.TryGetTaskEntry(ctx, request.TaskId)
+	if err != nil {
+		s.logger.Error().Stringer(logging.FieldTaskId, request.TaskId).Msg("can't check if task exists")
+		return false, err
+	}
+	if taskEntry == nil {
+		s.logger.Debug().Stringer(logging.FieldTaskId, request.TaskId).Msg("task not exists")
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.TaskResult) error {
 	log.NewTaskResultEvent(s.logger, zerolog.DebugLevel, result).Msgf("received task result update")
 

@@ -522,6 +522,48 @@ func (st *TaskStorage) rescheduleTaskTx(
 	return nil
 }
 
+func (st *TaskStorage) CanlcelDeadTasks(
+	ctx context.Context,
+	callback func(context.Context, types.TaskId) (bool, error),
+) (uint, error) {
+	tx, err := st.database.CreateRwTx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	var count uint
+
+	for entry, err := range st.getStoredTasksSeq(tx) {
+		if err != nil {
+			return 0, err
+		}
+
+		if entry.Task.ParentTaskId != nil {
+			parentTaskIsActive, err := callback(ctx, *entry.Task.ParentTaskId)
+			if err != nil {
+				return 0, err
+			}
+			if !parentTaskIsActive {
+				res := types.NewCancelTaskResult(entry.Task.Id, entry.Owner)
+				log.NewTaskResultEvent(st.logger, zerolog.DebugLevel, res).
+					Msg("Task execution is canceled, removing it from the storage")
+
+				if err := tx.Delete(taskEntriesTable, res.TaskId.Bytes()); err != nil {
+					return 0, err
+				}
+				count++
+			}
+		}
+	}
+
+	if err := st.commit(tx); err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 func (*TaskStorage) getStoredTasksSeq(tx db.RoTx) iter.Seq2[*types.TaskEntry, error] {
 	return func(yield func(*types.TaskEntry, error) bool) {
 		txIter, err := tx.Range(taskEntriesTable, nil, nil)

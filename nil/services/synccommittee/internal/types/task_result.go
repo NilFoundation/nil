@@ -129,6 +129,16 @@ func NewFailureProverTaskResult(
 	}
 }
 
+func NewCancelTaskResult(
+	taskId TaskId,
+	executorId TaskExecutorId,
+) *TaskResult {
+	return &TaskResult{
+		TaskId: taskId,
+		Sender: executorId,
+	}
+}
+
 // TaskResultDetails represents the result of a task, extending TaskResult with additional task-specific metadata.
 type TaskResultDetails struct {
 	TaskResult

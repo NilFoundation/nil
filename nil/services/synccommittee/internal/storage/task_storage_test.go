@@ -505,3 +505,27 @@ func (s *TaskStorageSuite) Test_GetStats() {
 	s.Empty(stats.CountPerType)
 	s.Empty(stats.CountPerExecutor)
 }
+
+func (s *TaskStorageSuite) Test_TaskCancelation() {
+	parentTaskId := types.NewTaskId()
+	task := types.Task{
+		Id:           types.NewTaskId(),
+		ParentTaskId: &parentTaskId,
+	}
+	taskEntry := types.TaskEntry{Task: task}
+
+	err := s.ts.AddTaskEntries(s.ctx,
+		&taskEntry,
+	)
+	s.Require().NoError(err)
+
+	canceledCount, err := s.ts.CanlcelDeadTasks(s.ctx, func(context.Context, types.TaskId) (bool, error) {
+		return false, nil
+	})
+	s.Require().NoError(err)
+	s.Require().Equal(uint(0x1), canceledCount)
+
+	emptyEntry, err := s.ts.TryGetTaskEntry(s.ctx, taskEntry.Task.Id)
+	s.Require().NoError(err)
+	s.Require().Nil(emptyEntry)
+}
