@@ -64,6 +64,20 @@ func NewBlockBatch(parentId *BatchId) *BlockBatch {
 	}
 }
 
+func ExistingBlockBatch(
+	id BatchId,
+	parentId *BatchId,
+	blocks ChainSegments,
+	dataProofs DataProofs,
+) *BlockBatch {
+	return &BlockBatch{
+		Id:         id,
+		ParentId:   parentId,
+		Blocks:     blocks,
+		DataProofs: dataProofs,
+	}
+}
+
 func (b BlockBatch) WithAddedBlocks(segments ChainSegments) (*BlockBatch, error) {
 	newSegments, err := b.Blocks.Concat(segments)
 	if err != nil {

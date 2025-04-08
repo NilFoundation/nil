@@ -102,17 +102,52 @@ func (bs *BlockStorage) SetProvedStateRoot(ctx context.Context, stateRoot common
 	return bs.commit(tx)
 }
 
-// TryGetLatestBatchId retrieves the ID of the latest created batch
+// TryGetLatestBatch retrieves the latest created batch
 // or returns nil if:
 // a) No batches have been created yet, or
 // b) A full storage reset (starting from the first batch) has been triggered.
-func (bs *BlockStorage) TryGetLatestBatchId(ctx context.Context) (*scTypes.BatchId, error) {
+func (bs *BlockStorage) TryGetLatestBatch(ctx context.Context) (*scTypes.BlockBatch, error) {
 	tx, err := bs.database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	return bs.ops.getLatestBatchId(tx)
+
+	batchId, err := bs.ops.getLatestBatchId(tx)
+	if err != nil {
+		return nil, err
+	}
+	if batchId == nil {
+		return nil, nil
+	}
+
+	entry, err := bs.ops.getBatchEntry(tx, *batchId)
+	if err != nil {
+		return nil, err
+	}
+
+	return bs.reconstructBatch(tx, entry)
+}
+
+func (bs *BlockStorage) reconstructBatch(tx db.RoTx, entry *batchEntry) (*scTypes.BlockBatch, error) {
+	blocks := make(map[types.ShardId][]*scTypes.Block)
+	for _, blockId := range entry.BlockIds {
+		bEntry, err := bs.ops.getBlock(tx, blockId, true)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get block with id=%s, batchId=%s: %w", blockId, entry.Id, err)
+		}
+
+		shardBlocks := blocks[blockId.ShardId]
+		blocks[blockId.ShardId] = append(shardBlocks, &bEntry.Block)
+	}
+
+	segments, err := scTypes.NewChainSegments(blocks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to recreate chain segments, batchId=%s: %w", entry.Id, err)
+	}
+
+	batch := scTypes.ExistingBlockBatch(entry.Id, entry.ParentId, segments, entry.DataProofs)
+	return batch, nil
 }
 
 func (bs *BlockStorage) BatchExists(ctx context.Context, batchId scTypes.BatchId) (bool, error) {
@@ -122,7 +157,7 @@ func (bs *BlockStorage) BatchExists(ctx context.Context, batchId scTypes.BatchId
 	}
 	defer tx.Rollback()
 
-	_, err = bs.ops.getBatch(tx, batchId)
+	_, err = bs.ops.getBatchEntry(tx, batchId)
 	switch {
 	case err == nil:
 		return true, nil
@@ -247,7 +282,7 @@ func (bs *BlockStorage) setBatchAsProvedImpl(ctx context.Context, batchId scType
 	}
 	defer tx.Rollback()
 
-	entry, err := bs.ops.getBatch(tx, batchId)
+	entry, err := bs.ops.getBatchEntry(tx, batchId)
 	if err != nil {
 		return false, err
 	}
@@ -342,7 +377,7 @@ func (bs *BlockStorage) setBatchAsProposedImpl(ctx context.Context, id scTypes.B
 	}
 	defer tx.Rollback()
 
-	batch, err := bs.ops.getBatch(tx, id)
+	batch, err := bs.ops.getBatchEntry(tx, id)
 	if err != nil {
 		return err
 	}
@@ -405,7 +440,7 @@ func (bs *BlockStorage) resetBatchesPartialImpl(
 	}
 	defer tx.Rollback()
 
-	if _, err := bs.ops.getBatch(tx, firstBatchToPurge); err != nil {
+	if _, err := bs.ops.getBatchEntry(tx, firstBatchToPurge); err != nil {
 		return nil, err
 	}
 
