@@ -147,11 +147,6 @@ func (s *Syncer) fetchRemoteVersion(ctx context.Context) (NodeVersion, error) {
 }
 
 func (s *Syncer) fetchSnapshot(ctx context.Context) error {
-	if len(s.config.BootstrapPeers) == 0 {
-		s.logger.Warn().Msg("No bootstrap peers to fetch snapshot from")
-		return nil
-	}
-
 	var err error
 	for _, peer := range s.config.BootstrapPeers {
 		err = fetchSnapshot(ctx, s.networkManager, peer, s.db, s.logger)
@@ -167,6 +162,11 @@ func (s *Syncer) Init(ctx context.Context, allowDbDrop bool) error {
 		return nil
 	}
 
+	if len(s.config.BootstrapPeers) == 0 {
+		s.logger.Info().Msg("No bootstrap peers. Skipping initialization")
+		return nil
+	}
+
 	version, err := s.getLocalVersion(ctx)
 	if err != nil {
 		return err
@@ -174,10 +174,14 @@ func (s *Syncer) Init(ctx context.Context, allowDbDrop bool) error {
 
 	remoteVersion, err := s.fetchRemoteVersion(ctx)
 	if err != nil {
-		// todo: when all shards can handle the new protocol, we should return an error here
-		s.logger.Warn().Err(err).Msgf(
-			"Failed to fetch remote version. For now we assume that local version %s is up to date", version)
-		return nil
+		// Nodes with allowDbDrop are supposed to be secondary, so they must sync with some reliable peer.
+		// We need some nodes to start without fetching a remote version
+		// otherwise, the cluster won't ever start from scratch.
+		if !allowDbDrop {
+			s.logger.Warn().Err(err).Msg("Failed to fetch remote version. We'll assume that our version is up to date")
+			return nil
+		}
+		return err
 	}
 
 	if version.ProtocolVersion != remoteVersion.ProtocolVersion {
@@ -214,10 +218,6 @@ func (s *Syncer) SetHandlers(ctx context.Context) error {
 		return nil
 	}
 
-	if err := SetVersionHandler(ctx, s.networkManager, s.db); err != nil {
-		return fmt.Errorf("failed to set version handler: %w", err)
-	}
-
 	SetBootstrapHandler(ctx, s.networkManager, s.db)
 	return nil
 }
@@ -227,6 +227,14 @@ func (s *Syncer) Run(ctx context.Context) error {
 		s.waitForSync.Done()
 		return nil
 	}
+
+	if s.config.ShardId.IsMainShard() {
+		if err := SetVersionHandler(ctx, s.networkManager, s.db); err != nil {
+			return fmt.Errorf("failed to set version handler: %w", err)
+		}
+	}
+
+	SetBlockRequestHandler(ctx, s.networkManager, s.config.ShardId, s.db, s.logger)
 
 	s.logger.Info().Msg("Starting sync...")
 
