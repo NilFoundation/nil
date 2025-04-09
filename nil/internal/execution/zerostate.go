@@ -39,7 +39,7 @@ type ZeroStateConfig struct {
 	Contracts    []*ContractDescr `yaml:"contracts"`
 }
 
-func CreateDefaultZeroStateConfig(mainPublicKey []byte) (*ZeroStateConfig, error) {
+func CreateDefaultZeroStateConfig(mainPublicKey []byte, nShards uint32) (*ZeroStateConfig, error) {
 	smartAccountValue, err := types.NewValueFromDecimal("100000000000000000000000000000000000000000000000000")
 	if err != nil {
 		return nil, err
@@ -78,6 +78,17 @@ func CreateDefaultZeroStateConfig(mainPublicKey []byte) (*ZeroStateConfig, error
 			},
 		},
 	}
+
+	for i := range types.ShardId(nShards) {
+		zeroStateConfig.Contracts = append(zeroStateConfig.Contracts, &ContractDescr{
+			Name:     fmt.Sprintf("Shard%d", i),
+			Contract: "system/MessageQueue",
+			Address:  types.ShardAndHexToAddress(i, "333333333333333333333333333333333333"),
+			Value:    smartAccountValue,
+			CtorArgs: []any{nShards},
+		})
+	}
+
 	return zeroStateConfig, nil
 }
 
