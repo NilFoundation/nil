@@ -8,32 +8,37 @@ import {
   MENU_SIZE,
   Menu,
 } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import { Button } from "baseui/button";
 import type { MenuOverrides } from "baseui/menu";
-import { useUnit } from "effector-react";
 import { type FC, useState } from "react";
-import { useStyletron } from "styletron-react";
-import { StatefulPopover, useMobile } from "../../shared";
-import { $availableSolidityVersions, $solidityVersion, changeSolidityVersion } from "../model";
+import { StatefulPopover } from "../../shared";
+import { $availableSolidityVersions, changeSolidityVersion } from "../model";
 
 type CompilerVersionButtonProps = {
   disabled?: boolean;
+  isMobile?: boolean;
 };
 
-export const CompilerVersionButton: FC<CompilerVersionButtonProps> = ({ disabled }) => {
+export const CompilerVersionButton: FC<CompilerVersionButtonProps> = ({ disabled, isMobile }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [css] = useStyletron();
-  const [isMobile] = useMobile();
+  const [css, theme] = useStyletron();
+  const height = isMobile ? "48px" : "46px";
   const btnOverrides = {
     Root: {
       style: {
         whiteSpace: "nowrap",
-        ...(!isMobile ? { paddingLeft: "24px", paddingRight: "24px" } : {}),
+        borderRadius: "0 8px 8px 0",
+        backgroundColor: theme.colors.primaryButtonBackgroundColor,
+        ":hover": {
+          backgroundColor: theme.colors.primaryButtonBackgroundHoverColor,
+        },
+        paddingLeft: "0px !important",
+        paddingRight: "12px !important",
+        height: height,
       },
     },
   };
-
-  const version = useUnit($solidityVersion);
 
   const versions = $availableSolidityVersions.getState().map((v) => {
     return { label: v };
@@ -71,18 +76,16 @@ export const CompilerVersionButton: FC<CompilerVersionButtonProps> = ({ disabled
       triggerType="click"
     >
       <Button
-        kind={BUTTON_KIND.secondary}
+        kind={BUTTON_KIND.primary}
         size={isMobile ? BUTTON_SIZE.compact : BUTTON_SIZE.large}
         className={css({
-          height: isMobile ? "32px" : "48px",
+          height: isMobile ? "32px" : "46px",
           flexShrink: 0,
         })}
         overrides={btnOverrides}
         endEnhancer={isOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
         disabled={disabled}
-      >
-        Compiler {version.split("+")[0]}
-      </Button>
+      />
     </StatefulPopover>
   );
 };

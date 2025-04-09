@@ -40,7 +40,7 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
       content={
         <div
           className={css({
-            height: "48px",
+            height: "46px",
             width: isMobile ? "300px" : "400px",
             display: "flex",
             alignItems: "center",
@@ -107,8 +107,8 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
       <ButtonIcon
         disabled={disabled}
         className={css({
-          width: isMobile ? "32px" : "48px",
-          height: isMobile ? "32px" : "48px",
+          width: isMobile ? "32px" : "46px",
+          height: isMobile ? "32px" : "46px",
           flexShrink: 0,
           backgroundColor: `${theme.colors.inputButtonAndDropdownOverrideBackgroundColor} !important`,
           ":hover": {

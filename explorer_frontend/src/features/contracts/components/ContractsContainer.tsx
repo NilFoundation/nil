@@ -26,7 +26,7 @@ export const ContractsContainer = () => {
         Root: {
           style: {
             maxWidth: isMobile ? "calc(100vw - 20px)" : "none",
-            width: isMobile ? "100%" : "none",
+            width: isMobile ? "100%" : "100%",
             height: "100%",
             backgroundColor: theme.colors.backgroundPrimary,
             paddingRight: "0",

@@ -14,6 +14,8 @@ export const Logo = () => {
   return (
     <Link className={css(styles.logo)} to={explorerRoute}>
       <img src={logo} alt="logo" />
+      {!isTutorial && <span className={css(styles.playgroundText)}>Playground v1.0</span>}
+
       {isTutorial && <span className={css(styles.tutorialText)}>Tutorials v1.0</span>}
     </Link>
   );

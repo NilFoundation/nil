@@ -1,4 +1,5 @@
 import { BUTTON_KIND, BUTTON_SIZE, COLORS, Tab, Tabs } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import { Button } from "baseui/button";
 import { useUnit } from "effector-react";
 import { useSwipeable } from "react-swipeable";
@@ -16,36 +17,8 @@ import {
   TutorialChecksStatus,
   TutorialLayoutComponent,
   changeActiveTab,
-  openTutorialText,
   setActiveComponentTutorial,
 } from "./model";
-
-const tutorialButton = (
-  <Button
-    overrides={{
-      Root: {
-        style: {
-          gridColumn: "1 / 3",
-          lineHeight: "12px",
-          fontWeight: 100,
-          fontSize: "16px",
-          color: "rgb(189, 189, 189)",
-          backgroundColor: COLORS.blue800,
-          ":hover": {
-            backgroundColor: COLORS.blue700,
-          },
-        },
-      },
-    }}
-    kind={BUTTON_KIND.secondary}
-    size={BUTTON_SIZE.large}
-    onClick={() => {
-      openTutorialText();
-    }}
-  >
-    Tutorial
-  </Button>
-);
 
 const TutorialMobileLayout = () => {
   const [activeComponent, runningChecks, tutorialChecks, tutorials, activeKey] = useUnit([
@@ -55,6 +28,8 @@ const TutorialMobileLayout = () => {
     $tutorials,
     $activeTab,
   ]);
+
+  const [css, theme] = useStyletron();
 
   let checkButtonBckgColor: string;
   switch (tutorialChecks) {
@@ -71,20 +46,20 @@ const TutorialMobileLayout = () => {
       checkButtonBckgColor = COLORS.gray500;
       break;
   }
-  const runCheckButton = (disabled: boolean) => (
+  const runCheckButton = () => (
     <Button
       kind={BUTTON_KIND.secondary}
       isLoading={runningChecks}
       size={BUTTON_SIZE.default}
       onClick={() => runTutorialCheck()}
-      disabled={disabled}
+      disabled={tutorialChecks === TutorialChecksStatus.NotInitialized}
       overrides={{
         BaseButton: {
           style: {
             lineHeight: 1,
             backgroundColor: checkButtonBckgColor,
             color: COLORS.black,
-            gridColumn: "1 / 3",
+            gridColumn: "2 / 3",
           },
         },
       }}
@@ -94,9 +69,7 @@ const TutorialMobileLayout = () => {
     </Button>
   );
   const featureMap = new Map<TutorialLayoutComponent, () => JSX.Element>();
-  featureMap.set(TutorialLayoutComponent.Code, () => (
-    <Code extraMobileButton={tutorialButton} extraToolbarButton={runCheckButton(!tutorialChecks)} />
-  ));
+  featureMap.set(TutorialLayoutComponent.Code, () => <Code extraMobileButton={runCheckButton()} />);
   featureMap.set(TutorialLayoutComponent.Logs, Logs);
   featureMap.set(TutorialLayoutComponent.Contracts, ContractsContainer);
   featureMap.set(TutorialLayoutComponent.TutorialText, TutorialText);
@@ -124,35 +97,39 @@ const TutorialMobileLayout = () => {
           Root: {
             style: {
               height: "100%",
-              display: "flex",
-              flexDirection: "column",
             },
           },
           TabContent: {
             style: {
               height: "100%",
-              flex: "1 1 auto",
+              width: "100vw",
             },
           },
           TabBar: {
             style: {
               display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
+              justifyContent: "start",
+              alignItems: "start",
+              gap: "8px",
+              paddingLeft: "24px",
             },
           },
           Tab: {
             style: {
-              flex: 1,
+              flex: "0 0",
               display: "flex",
               textAlign: "center",
               alignContent: "center",
+              borderRadius: "8px",
               justifyContent: "center",
+              borderBottom: "0px !important",
               fontSize: "16px",
               fontWeight: "400",
-              width: "50vw",
+              width: "100px",
+              backgroundColor: COLORS.blue800,
               ":hover": {
-                backgroundColor: COLORS.blue800,
+                backgroundColor: theme.colors.tabBackgroundColor,
+                color: theme.colors.tabTextHoverColor,
               },
             },
           },

@@ -35,7 +35,15 @@ export const OpenProjectButton: FC<OpenProjectButtonProps> = ({ disabled }) => {
     Root: {
       style: {
         whiteSpace: "nowrap",
-        ...(!isMobile ? { paddingLeft: "24px", paddingRight: "24px" } : {}),
+        ...(!isMobile
+          ? {
+              paddingLeft: "24px",
+              paddingRight: "24px",
+            }
+          : {
+              paddingLeft: "12px",
+              paddingRight: "12px",
+            }),
       },
     },
   };
@@ -123,7 +131,7 @@ export const OpenProjectButton: FC<OpenProjectButtonProps> = ({ disabled }) => {
         kind={BUTTON_KIND.secondary}
         size={isMobile ? BUTTON_SIZE.compact : BUTTON_SIZE.large}
         className={css({
-          height: isMobile ? "32px" : "48px",
+          height: isMobile ? "32px" : "46px",
           flexShrink: 0,
         })}
         disabled={disabled}
