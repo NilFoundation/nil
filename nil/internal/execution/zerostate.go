@@ -83,7 +83,7 @@ func CreateDefaultZeroStateConfig(mainPublicKey []byte, nShards uint32) (*ZeroSt
 		zeroStateConfig.Contracts = append(zeroStateConfig.Contracts, &ContractDescr{
 			Name:     fmt.Sprintf("Shard%d", i),
 			Contract: "system/MessageQueue",
-			Address:  types.ShardAndHexToAddress(i, "333333333333333333333333333333333333"),
+			Address:  types.GetMessageQueueAddress(i),
 			Value:    smartAccountValue,
 			CtorArgs: []any{nShards},
 		})

@@ -23,15 +23,15 @@ contract MessageQueue is IMessageQueue{
         return queues[_shardId];
     }
 
-    function clearQueues() external {
-        require(msg.sender == address(this), "clearQueues: only MessageQueue contract can be caller of this function");
+    function clearQueue() external {
+        require(msg.sender == address(this), "clearQueue: only MessageQueue contract can be caller of this function");
         for (uint i = 0; i < nShards; i++) {
             delete queues[i];
         }
     }
 
     function updateNShards(uint _nShards) external {
-        require(msg.sender == address(this), "clearQueues: only MessageQueue contract can be caller of this function");
+        require(msg.sender == address(this), "updateNShards: only MessageQueue contract can be caller of this function");
         nShards = _nShards;
     }
 

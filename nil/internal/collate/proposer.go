@@ -102,6 +102,10 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		return nil, fmt.Errorf("failed to fetch last block hashes: %w", err)
 	}
 
+	if err := p.handleMessageQueue(); err != nil {
+		return nil, fmt.Errorf("failed to handle message queue: %w", err)
+	}
+
 	if err := p.handleL1Attributes(tx, prevBlockHash); err != nil {
 		// TODO: change to Error severity once Consensus/Proposer increase time intervals
 		p.logger.Trace().Err(err).Msg("Failed to handle L1 attributes")
@@ -162,6 +166,15 @@ func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
 		p.proposal.MainShardHash = lastBlockHash
 	}
 
+	return nil
+}
+
+func (p *proposer) handleMessageQueue() error {
+	txn, err := execution.CreateMQPruneTransaction(p.params.ShardId)
+	if err != nil {
+		return fmt.Errorf("failed to create MQ prune transaction: %w", err)
+	}
+	p.proposal.SpecialTxns = append(p.proposal.SpecialTxns, txn)
 	return nil
 }
 
