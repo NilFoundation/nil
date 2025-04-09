@@ -4,143 +4,140 @@ import {
   FaucetClient,
   generateSmartAccount,
   waitTillCompleted,
-  Contract,
 } from "@nilfoundation/niljs";
-import { task } from "hardhat/config";
-import { config } from "dotenv";
-import fs from "fs";
-import * as path from "path";
-import type { Abi } from "viem";
+import { encodeFunctionData, decodeEventLog } from "viem";
+import * as dotenv from "dotenv";
 
-config();
+dotenv.config();
 
-task("deploy-lending-pool", "Deploy LendingPool with linked contracts and test").setAction(async () => {
-  const LendingPool = require("../artifacts/contracts/LendingPool.sol/LendingPool.json");
-  const GlobalLedger = require("../artifacts/contracts/CollateralManager.sol/GlobalLedger.json");
-  const InterestManager = require("../artifacts/contracts/InterestManager.sol/InterestManager.json");
-  const Oracle = require("../artifacts/contracts/Oracle.sol/Oracle.json");
+const LendingPoolFactory = require("../artifacts/contracts/LendingPoolFactory.sol/LendingPoolFactory.json");
+const GlobalLedger = require("../artifacts/contracts/CollateralManager.sol/GlobalLedger.json");
+const InterestManager = require("../artifacts/contracts/InterestManager.sol/InterestManager.json");
+const Oracle = require("../artifacts/contracts/Oracle.sol/Oracle.json");
 
-  const endpoint = process.env.NIL_RPC_ENDPOINT as string;
+const endpoint = process.env.NIL_RPC_ENDPOINT as string;
+
+const shardFactory = 1;
+const shardLedger = 3;
+const shardInterest = 2;
+const shardOracle = 4;
+
+interface LendingPoolDeployedEvent {
+  eventName: "LendingPoolDeployed";
+  args: {
+    pool: string;
+    shardId: number;
+  };
+}
+
+async function main() {
   const client = new PublicClient({ transport: new HttpTransport({ endpoint }) });
   const faucet = new FaucetClient({ transport: new HttpTransport({ endpoint }) });
 
-  // Step 1: Create deployer smart account
   const deployer = await generateSmartAccount({
-    shardId: 1,
+    shardId: shardFactory,
     rpcEndpoint: endpoint,
     faucetEndpoint: endpoint,
   });
 
-  console.log(` Deployer Smart Account: ${deployer.address}`);
+  console.log("🔑 Smart account:", deployer.address);
 
-  const topUpHash = await faucet.topUpAndWaitUntilCompletion(
+  await faucet.topUpAndWaitUntilCompletion(
     {
       smartAccountAddress: deployer.address,
       faucetAddress: process.env.USDT as `0x${string}`,
-      amount: BigInt(2000),
+      amount: BigInt(5000),
     },
     client
   );
-  console.log(`Deployer funded with 2000 USDT. Tx: ${topUpHash}`);
 
-  // Step 2: Deploy contracts
-  const deployWithSalt = async (shardId: number, bytecode: string, abi: Abi) => {
-    const { address, hash } = await deployer.deployContract({
+  const deployWithSalt = async (shardId: number, bytecode: string, abi: any, args: any[] = []) => {
+    // Ensure the deploy function returns an object with both `address` and `hash` correctly typed
+    const result = await deployer.deployContract({
       shardId,
-      args: [],
+      args,
       bytecode: bytecode as `0x${string}`,
       abi,
-      salt: BigInt(Math.floor(Math.random() * 1000000)),
+      salt: BigInt(Math.floor(Math.random() * 1e6)),
     });
-    await waitTillCompleted(client, hash);
-    return address;
+    
+    // Explicitly return both `address` and `hash`
+    return { address: result.address, hash: result.hash };
   };
 
-  const interestManager = await deployWithSalt(2, InterestManager.bytecode, InterestManager.abi);
-  console.log(`InterestManager deployed: ${interestManager}`);
+  const interestManager = await deployWithSalt(shardInterest, InterestManager.bytecode, InterestManager.abi);
+  const globalLedger = await deployWithSalt(shardLedger, GlobalLedger.bytecode, GlobalLedger.abi);
+  const oracle = await deployWithSalt(shardOracle, Oracle.bytecode, Oracle.abi);
 
-  const globalLedger = await deployWithSalt(3, GlobalLedger.bytecode, GlobalLedger.abi);
-  console.log(`GlobalLedger deployed: ${globalLedger}`);
-
-  const oracle = await deployWithSalt(4, Oracle.bytecode, Oracle.abi);
-  console.log(`Oracle deployed: ${oracle}`);
-
-  // Step 3: Deploy LendingPool with linked contracts
-  const { address: lendingPool, hash: lendingPoolHash } = await deployer.deployContract({
-    shardId: 1,
+  const { address: factoryAddress, hash: factoryTx } = await deployer.deployContract({
+    shardId: shardFactory,
+    bytecode: LendingPoolFactory.bytecode as `0x${string}`,
+    abi: LendingPoolFactory.abi,
     args: [
       globalLedger,
+      shardLedger,
       interestManager,
       oracle,
       process.env.USDT,
       process.env.ETH,
     ],
-    bytecode: LendingPool.bytecode as `0x${string}`,
-    abi: LendingPool.abi as Abi,
-    salt: BigInt(Math.floor(Math.random() * 1000000)),
-  });
-  await waitTillCompleted(client, lendingPoolHash);
-  console.log(`LendingPool deployed: ${lendingPool}`);
-
-  // Step 4: Save deployed addresses to `.env`
-  const envPath = path.resolve(__dirname, "../.env");
-  const envData = fs.readFileSync(envPath, "utf-8");
-
-  const updateEnvVar = (data: string, key: string, value: string) => {
-    const regex = new RegExp(`^${key}=.*$`, "m");
-    const line = `${key}=${value}`;
-    return data.match(regex) ? data.replace(regex, line) : data + `\n${line}`;
-  };
-
-  let updatedEnv = envData;
-  updatedEnv = updateEnvVar(updatedEnv, "LENDING_POOL", lendingPool);
-  updatedEnv = updateEnvVar(updatedEnv, "GLOBAL_LEDGER", globalLedger);
-  updatedEnv = updateEnvVar(updatedEnv, "INTEREST_MANAGER", interestManager);
-  updatedEnv = updateEnvVar(updatedEnv, "ORACLE", oracle);
-
-  fs.writeFileSync(envPath, updatedEnv);
-  console.log(".env updated with deployed contract addresses.");
-
-  // Step 5: (Optional) Create a test user smart account
-  const testUser = await generateSmartAccount({
-    shardId: 1,
-    rpcEndpoint: endpoint,
-    faucetEndpoint: endpoint,
+    salt: BigInt(Date.now()),
   });
 
-  console.log(`Test Smart Account: ${testUser.address}`);
+  await waitTillCompleted(client, factoryTx);
+  console.log("🏭 LendingPoolFactory deployed at:", factoryAddress);
 
-  const testTopUp = await faucet.topUpAndWaitUntilCompletion(
-    {
-      smartAccountAddress: testUser.address,
-      faucetAddress: process.env.USDT as `0x${string}`,
-      amount: BigInt(500),
-    },
-    client
-  );
-
-  console.log(`Test user funded with 500 USDT. Tx: ${testTopUp}`);
-
-  // Step 6: Contract verification test call (read public variable)
-  const lendingPoolContract = new Contract({
-    client,
-    abi: LendingPool.abi,
-    address: lendingPool,
+  const deployCalldata = encodeFunctionData({
+    abi: LendingPoolFactory.abi,
+    functionName: "deployLendingPool",
+    args: [],
   });
 
-  try {
-    const oracleAddr = await lendingPoolContract.read.oracle();
-    console.log(`Verified LendingPool oracle address: ${oracleAddr}`);
-  } catch (err) {
-    console.error("Failed to verify LendingPool setup:", err);
+  const { hash: deployHash } = await deployer.execute({
+    to: factoryAddress,
+    data: deployCalldata,
+    value: 0n,
+  });
+
+  await waitTillCompleted(client, deployHash);
+  console.log("📦 LendingPool deployed via factory. Tx:", deployHash);
+
+  const receipt = await client.getTransactionReceiptByHash(deployHash);
+
+  if (!receipt) {
+    throw new Error("❌ Transaction receipt not found. It may not have been finalized.");
   }
 
-  // Summary
-  console.log("\n Summary:");
-  console.log(`Deployer Smart Account:  ${deployer.address}`);
-  console.log(`Test User Smart Account: ${testUser.address}`);
-  console.log(`LendingPool:             ${lendingPool}`);
-  console.log(`GlobalLedger:            ${globalLedger}`);
-  console.log(`InterestManager:         ${interestManager}`);
-  console.log(`Oracle:                  ${oracle}`);
-});
+  // Decode the logs and assert the event type
+  const log = receipt.logs
+    .map((log) => {
+      try {
+        // Decode the log with the proper ABI
+        const decodedLog = decodeEventLog({
+          abi: LendingPoolFactory.abi,
+          data: log.data as `0x${string}`,
+          topics: log.topics as [`0x${string}`, ...`0x${string}`[]],
+        });
+
+        // Check if the decoded log contains the expected event name
+        if (decodedLog && decodedLog.eventName === "LendingPoolDeployed") {
+          return decodedLog as LendingPoolDeployedEvent; // Explicitly cast to the correct type
+        }
+
+        return null;
+      } catch (e) {
+        return null;
+      }
+    })
+    .find((l) => l !== null); // Find the first non-null log
+
+  if (log) {
+    const pool = log.args.pool;
+    const shard = log.args.shardId;
+    console.log(`✅ LendingPool deployed at: ${pool} on shard ${shard}`);
+  } else {
+    console.warn("⚠️ LendingPoolDeployed event not found");
+  }
+}
+
+main().catch(console.error);
