@@ -764,10 +764,10 @@ importers:
   rollup-bridge-contracts:
     dependencies:
       '@nilfoundation/niljs':
-        specifier: 0.25.0
+        specifier: workspace:*
         version: link:../niljs
       '@nilfoundation/smart-contracts':
-        specifier: 0.7.0
+        specifier: workspace:*
         version: link:../smart-contracts
       '@openzeppelin/contracts':
         specifier: ^5.1.0
