@@ -111,9 +111,8 @@ func (s *Syncer) getLocalVersion(ctx context.Context) (*NodeVersion, error) {
 	if err != nil {
 		if errors.Is(err, db.ErrKeyNotFound) {
 			return &NodeVersion{protocolVersion, common.EmptyHash}, nil
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
 	return &NodeVersion{protocolVersion, res}, err
 }

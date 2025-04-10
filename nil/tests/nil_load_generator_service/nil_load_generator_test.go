@@ -32,7 +32,7 @@ func (s *NilLoadGeneratorRpc) SetupTest() {
 	})
 
 	var faucetEndpoint string
-	s.faucetClient, faucetEndpoint = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.Client)
+	s.faucetClient, faucetEndpoint = tests.StartFaucetService(s.Context, s.T(), &s.Wg, s.Client)
 	time.Sleep(time.Second)
 
 	s.runErrCh = make(chan error, 1)

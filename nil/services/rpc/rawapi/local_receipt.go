@@ -107,8 +107,8 @@ func (api *LocalShardApi) GetInTransactionReceipt(
 		}
 	}
 
-	var outReceipts []*rawapitypes.ReceiptInfo = nil
-	var outTransactions []common.Hash = nil
+	var outReceipts []*rawapitypes.ReceiptInfo
+	var outTransactions []common.Hash
 
 	if receipt.OutTxnNum != 0 {
 		outReceipts = make([]*rawapitypes.ReceiptInfo, 0, receipt.OutTxnNum)

@@ -98,7 +98,7 @@ func (s *SuiteConsensus) TestConsensus() {
 
 	for _, block := range blocks {
 		for _, instance := range s.Instances {
-			instanceBlock := tests.WaitBlock(s.T(), s.Context, instance.Client, block.ShardId, uint64(block.Number))
+			instanceBlock := tests.WaitBlock(s.T(), instance.Client, block.ShardId, uint64(block.Number))
 			s.Equal(block.Hash, instanceBlock.Hash)
 		}
 	}

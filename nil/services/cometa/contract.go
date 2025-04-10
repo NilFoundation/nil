@@ -124,12 +124,12 @@ func (c *Contract) getLocation(pc uint, locRaw *LocationRaw) (*Location, error) 
 			break
 		}
 		if ch == '\n' {
-			loc.Line += 1
+			loc.Line++
 			loc.Column = 1
 		} else {
-			loc.Column += 1
+			loc.Column++
 		}
-		pos += 1
+		pos++
 	}
 
 	funcIndex := sort.Search(len(c.Data.FunctionDebugData), func(i int) bool {
@@ -313,7 +313,7 @@ func (c *Contract) decodeSourceMap() error {
 			c.bytecode2inst[bytecodeIndex+i] = instIndex
 		}
 		bytecodeIndex += length
-		instIndex += 1
+		instIndex++
 	}
 
 	return nil

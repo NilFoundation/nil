@@ -69,7 +69,7 @@ To run the [Cometa service](https://docs.nil.foundation/nil/guides/cometa-and-de
 To run the load generator:
 
 ```bash
-./build/bin/nil_load_generator
+./build/bin/nil-load-generator
 ```
 
 To access the =nil; CLI:
@@ -80,7 +80,7 @@ To access the =nil; CLI:
 
 ### Using Nix
 
-The repository uses Nix for dependency and project management. 
+The repository uses Nix for dependency and project management.
 
 To enter the Nix development environment:
 
@@ -96,7 +96,7 @@ nix build .#DERIVATION_NAME
 
 ### Using PNPM
 
-The repository uses PNPM Workspaces to manage collective dependencies across the JS/TS projects it is hosting. 
+The repository uses PNPM Workspaces to manage collective dependencies across the JS/TS projects it is hosting.
 
 There can only be one top-level `pnpm-lock` file.
 

@@ -17,6 +17,7 @@ import (
 	"github.com/jonboulle/clockwork"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/errgroup"
 )
 
 type eventListenerStub struct {
@@ -102,10 +103,9 @@ func (s *FinalityEnsurerTestSuite) SetupTest() {
 			return &ethtypes.Header{
 				Number: big.NewInt(int64(*s.mockLatestBlock)),
 			}, nil
-		} else {
-			if hdr, ok := s.mockBlockHdrByNum[number.Uint64()]; ok {
-				return &hdr, nil
-			}
+		}
+		if hdr, ok := s.mockBlockHdrByNum[number.Uint64()]; ok {
+			return &hdr, nil
 		}
 		return nil, nil
 	}
@@ -153,7 +153,7 @@ func (s *FinalityEnsurerTestSuite) TearDownTest() {
 	<-s.ensurerStopped
 }
 
-func (s *FinalityEnsurerTestSuite) setFinalizedBlockNumer(n uint64) {
+func (s *FinalityEnsurerTestSuite) setFinalizedBlockNumber(n uint64) {
 	s.mockLatestBlock = &n
 }
 
@@ -164,19 +164,23 @@ func (s *FinalityEnsurerTestSuite) setBlockHeaderOnL1(hdr ethtypes.Header) {
 func (s *FinalityEnsurerTestSuite) advanceFinalizedBlockNumberTo(n uint64) {
 	s.T().Helper()
 
-	s.setFinalizedBlockNumer(n)
+	eg, ctx := errgroup.WithContext(s.ctx)
+	eg.Go(func() error {
+		return common.WaitFor(
+			ctx, time.Second, time.Millisecond,
+			func(_ context.Context) bool {
+				if blk, ok := s.ensurer.getLatestFinalizedBlock(); ok && blk.BlockNumber == n {
+					return true
+				}
+				return false
+			},
+		)
+	})
+
+	s.setFinalizedBlockNumber(n)
 	s.clockMock.Advance(time.Hour)
 
-	err := common.WaitFor(
-		s.ctx, time.Second, time.Millisecond,
-		func(ctx context.Context) bool {
-			if blk, ok := s.ensurer.getLatestFinalizedBlock(); ok && blk.BlockNumber == n {
-				return true
-			}
-			return false
-		},
-	)
-	s.Require().NoError(err, "ensurer fin block fetcher is idle")
+	s.Require().NoError(eg.Wait(), "ensurer fin block fetcher is idle")
 }
 
 func (s *FinalityEnsurerTestSuite) checkL2StorageContent(blockNumbers ...uint64) {

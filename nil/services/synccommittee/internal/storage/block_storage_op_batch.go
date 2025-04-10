@@ -38,7 +38,6 @@ func (batchOp) getBatch(tx db.RoTx, id scTypes.BatchId) (*batchEntry, error) {
 
 	switch {
 	case err == nil:
-		break
 
 	case errors.Is(err, context.Canceled):
 		return nil, err

@@ -2,6 +2,7 @@ packages:
   - 'smart-contracts'
   - 'niljs'
   - "create-nil-hardhat-project"
+  - "hardhat-plugin"
   - "docs"
   - "explorer_frontend"
   - "explorer_backend"
@@ -11,3 +12,4 @@ packages:
   - "docs_ai_backend"
   - "rollup-bridge-contracts"
   - "academy/lending-protocol"
+  - "academy/token-split"

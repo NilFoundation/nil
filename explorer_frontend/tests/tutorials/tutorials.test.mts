@@ -23,7 +23,7 @@ const TEST_PROPS: CheckProps = {
 };
 
 const createContracts = async (code: string) => {
-  const input = createCompileInput(code);
+  const input = await createCompileInput(code);
   const res = JSON.parse(solc.compile(JSON.stringify(input)));
 
   const contracts: App[] = [];

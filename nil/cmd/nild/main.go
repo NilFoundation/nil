@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
+	"github.com/NilFoundation/nil/nil/services/indexer"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/spf13/cobra"
@@ -161,6 +162,7 @@ func parseArgs() *nildconfig.Config {
 	runCmd.Flags().StringVar(
 		&cfg.ValidatorKeysPath, "validator-keys-path", cfg.ValidatorKeysPath, "path to write validator keys")
 	runCmd.Flags().BoolVar(&cfg.EnableDevApi, "dev-api", cfg.EnableDevApi, "enable development API")
+	runCmd.Flags().StringVar(&cfg.IndexerConfig, "indexer-config", "", "path to Indexer config")
 
 	addBasicFlags(runCmd.Flags(), cfg)
 	cmdflags.AddNetwork(runCmd.Flags(), cfg.Network)
@@ -227,6 +229,13 @@ func parseArgs() *nildconfig.Config {
 		cfg.Cometa = &cometa.Config{}
 		cfg.Cometa.ResetToDefault()
 		cfg.Cometa.UseBadger = true
+	}
+
+	if cfg.IndexerConfig != "" {
+		cfg.Indexer = &indexer.Config{}
+		cfg.Indexer.ResetToDefault()
+		ok := cfg.Indexer.InitFromFile(cfg.IndexerConfig)
+		check.PanicIfNotf(ok, "failed to load indexer config from %s", cfg.IndexerConfig)
 	}
 
 	return cfg

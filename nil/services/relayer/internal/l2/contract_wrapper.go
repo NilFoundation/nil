@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
@@ -20,7 +19,6 @@ type ContractConfig struct {
 	SmartAccountAddress string
 	ContractAddress     string
 	PrivateKeyPath      string
-	ContractABIPath     string
 
 	// Testing only
 	DebugMode        bool
@@ -30,9 +28,8 @@ type ContractConfig struct {
 
 func DefaultContractConfig() *ContractConfig {
 	return &ContractConfig{
-		PrivateKeyPath:  "relayer_key.ecdsa",
-		DebugMode:       false,
-		ContractABIPath: "l2_bridge_messenger_abi.json",
+		PrivateKeyPath: "relayer_key.ecdsa",
+		DebugMode:      false,
 	}
 }
 
@@ -49,12 +46,6 @@ func (cfg *ContractConfig) Validate() error {
 	if len(cfg.ContractAddress) == 0 {
 		return errors.New("empty L2BridgeMessenger contract address")
 	}
-	if len(cfg.ContractABIPath) == 0 {
-		return errors.New("empty L2BridgeMessenger contract ABI path")
-	}
-	if cfg.DebugMode && len(cfg.FaucetAddress) == 0 {
-		return errors.New("faucet address is required when generating a new key")
-	}
 	return nil
 }
 
@@ -67,7 +58,7 @@ type l2ContractWrapper struct {
 	privateKey       *ecdsa.PrivateKey
 	smartAccountAddr types.Address
 	contractAddr     types.Address
-	abi              abi.ABI
+	abi              *abi.ABI
 	logger           logging.Logger
 }
 
@@ -104,17 +95,6 @@ func NewL2ContractWrapper(
 			Msg("looks like L2 contract is not deployed")
 	}
 
-	abiFile, err := os.Open(config.ContractABIPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open '%s' L2 ABI file: %w", config.ContractABIPath, err)
-	}
-	defer abiFile.Close()
-
-	contractABI, err := abi.JSON(abiFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode L2 ABI: %w", err)
-	}
-
 	pk, err := crypto.LoadECDSA(config.PrivateKeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load private key: %w", err)
@@ -125,7 +105,7 @@ func NewL2ContractWrapper(
 		privateKey:       pk,
 		smartAccountAddr: smartAccountAddr,
 		contractAddr:     contractAddr,
-		abi:              contractABI,
+		abi:              GetL2BridgeMessengerABI(),
 		logger:           logger,
 	}, nil
 }
@@ -139,9 +119,9 @@ func (w *l2ContractWrapper) RelayMessage(
 		evt.Sender,
 		evt.Target,
 		evt.Type,
-		evt.Value,
 		evt.Nonce,
 		evt.Message,
+		evt.ExpiryTime,
 	)
 	if err != nil {
 		return common.EmptyHash, err

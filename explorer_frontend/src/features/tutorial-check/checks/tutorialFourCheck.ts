@@ -1,9 +1,4 @@
-import {
-  HttpTransport,
-  PublicClient,
-  generateSmartAccount,
-  waitTillCompleted,
-} from "@nilfoundation/niljs";
+import { HttpTransport, PublicClient, generateSmartAccount } from "@nilfoundation/niljs";
 import { TutorialChecksStatus } from "../../../pages/tutorials/model";
 import type { CheckProps } from "../CheckProps";
 
@@ -53,7 +48,7 @@ async function runTutorialCheckFour(props: CheckProps) {
 
   const salt = BigInt(Math.floor(Math.random() * 1000000));
 
-  const hashDeploy = await smartAccount.sendTransaction({
+  const deployTx = await smartAccount.sendTransaction({
     to: resultDeployer.address,
     abi: deployerContract.abi,
     functionName: "deploy",
@@ -61,14 +56,19 @@ async function runTutorialCheckFour(props: CheckProps) {
     feeCredit: gasPrice * 500_000n,
   });
 
-  const resDeploy = await waitTillCompleted(client, hashDeploy);
+  const resDeploy = await deployTx.wait();
 
   const checkDeploy = await resDeploy.some((receipt) => !receipt.success);
 
   if (checkDeploy) {
     props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resDeploy);
-    props.tutorialContractStepFailed("Failed to call Deployer.deploy()!");
+    props.tutorialContractStepFailed(
+      `
+      Calling Deployer.deploy() produced one or more failed receipts!
+      To investigate, debug this transaction using the Cometa service: ${hashDeploy}.
+      `,
+    );
     return false;
   }
 
@@ -76,7 +76,7 @@ async function runTutorialCheckFour(props: CheckProps) {
 
   const counterAddress = resDeploy.at(2)?.contractAddress as `0x${string}`;
 
-  const hashIncrement = await smartAccount.sendTransaction({
+  const incrementTx = await smartAccount.sendTransaction({
     to: counterAddress,
     abi: counterContract.abi,
     functionName: "increment",
@@ -84,14 +84,19 @@ async function runTutorialCheckFour(props: CheckProps) {
     feeCredit: gasPrice * 500_000n,
   });
 
-  const resIncrement = await waitTillCompleted(client, hashIncrement);
+  const resIncrement = await incrementTx.wait();
 
   const checkIncrement = resIncrement.some((receipt) => !receipt.success);
 
   if (checkIncrement) {
     props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resIncrement);
-    props.tutorialContractStepFailed("Failed to call Counter.increment()!");
+    props.tutorialContractStepFailed(
+      `
+      Calling Counter.increment() produced one or more failed receipts!
+      To investigate, debug this transaction using the Cometa service: ${hashDeploy}.
+      `,
+    );
     return false;
   }
 

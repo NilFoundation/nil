@@ -47,6 +47,7 @@ linters:
     - prealloc
     - predeclared
     - reassign
+    - revive
     - rowserrcheck
     - sloglint
     - sqlclosecheck
@@ -63,6 +64,66 @@ linters:
     - whitespace
     - zerologlint
   settings:
+    revive:
+      enable-all-rules: false
+      rules:
+        - name: atomic
+        - name: banned-characters
+        - name: blank-imports
+        - name: call-to-gc
+        - name: comments-density
+        - name: constant-logical-expr
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: datarace
+        - name: defer
+        - name: dot-imports
+        - name: duplicated-imports
+        - name: early-return
+        - name: empty-block
+        - name: empty-lines
+        - name: enforce-map-style
+        - name: enforce-repeated-arg-type-style
+        - name: enforce-slice-style
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: file-header
+        - name: file-length-limit
+        - name: filename-format
+        - name: get-return
+        - name: identical-branches
+        - name: if-return
+        - name: imports-blocklist
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: modifies-parameter
+        - name: modifies-value-receiver
+        - name: optimize-operands-order
+        - name: package-comments
+        - name: range-val-address
+        - name: range-val-in-closure
+        - name: range
+        - name: redefines-builtin-id
+        - name: redundant-build-tag
+        - name: redundant-test-main-exit
+        - name: string-format
+        - name: string-of-int
+        - name: struct-tag
+        - name: superfluous-else
+        - name: time-equal
+        - name: time-naming
+        - name: unchecked-type-assertion
+        - name: unconditional-recursion
+        - name: unhandled-error
+        - name: unnecessary-stmt
+        - name: unreachable-code
+        - name: use-any
+        - name: use-errors-new
+        - name: useless-break
+        - name: var-declaration
+        - name: waitgroup-by-value
     gosec:
       excludes:
         - G115

@@ -1,23 +1,36 @@
-# Nil L1-Contracts
+# Nil Contracts
 
-This smart-contracts module contains contracts required for communication with L1.
-Solidity smart contracts in the repository are used for proof verification and state root updates of L2 on the L1 chain
+Smart contracts for communication between L1 and NilChain, enabling proof verification, state root updates, and token bridging.
 
-1. NilRollup
-2. NilVerifier
+---
 
-## NilRollup
+## Contracts Overview
 
-- NilRollup contract is the entrypoint contract for batch commits and proof verifications initiated by syncCommittee
+### L1 Contracts
 
-- NilRollup contract contains 2 main functions:
-   1. [commitBatch](./contracts/NilRollup.sol#L343)
-   2. [updateState](./contracts/NilRollup.sol#L392)
+Located in `/contracts`, these Solidity contracts facilitate L2 proof verification and token bridging **from L1 to NilChain**.
 
-## NilVerifier
+- **NilRollup**  
+  - Entry point for batch commits and proof verification via `syncCommittee`.
+  - Key functions:
+    - [`commitBatch`](./contracts/NilRollup.sol#L248)
+    - [`updateState`](./contracts/NilRollup.sol#L294)
 
-1. [NilVerifier-Contract](./contracts/verifier/NilVerifier.sol) contains the [verify](./contracts/verifier/NilVerifier.sol#L9) proof logic
-2. NilVerifier contract is non-upgradeable and stateless contract
+- **NilVerifier**  
+  - Stateless and non-upgradeable proof verifier contract.  
+  - Core function: [`verify`](./contracts/verifier/NilVerifier.sol#L9)
+
+- **BridgeContracts (L1)**  
+  - Located in [`/contracts/bridge/l1`](./contracts/bridge/l1/)
+  - Enable token bridging **between L1 and NilChain**.
+
+---
+
+### L2 Contracts
+
+- Located in [`/contracts/bridge/l2`](./contracts/bridge/l2/)
+- Facilitate token bridging **between NilChain and L1**.
+
 
 ## Local Development
 
@@ -35,11 +48,50 @@ copy `.env.example` to `.env`
 
 ```bash
 cd rollup-brige-contracts
-npx hardhat compile
+pnpm clean && npx pnpm compile
 ```
 
-### Deploy contracts to geth instance via nix script:
+### Commands to Deploy Contracts
 
-```bash
-npx hardhat deploy --network geth --tags NilContracts
+1. clear older deployment config
+```sh
+npx hardhat run scripts/wiring/clear-deployments.ts --network geth
+```
+
+2. Set the properties in [l1-deployment-config.json](./deploy/config/l1-deployment-config.json)
+  - chose the nested json object under `geth` and set the properties which start with 
+    1. l1DeployerConfig
+    2. nilRollupDeployerConfig
+    3. nilGasPriceOracleDeployerConfig
+
+```sh
+npx hardhat run scripts/wiring/set-deployer-config.ts --network geth
+```
+
+3. Deploy Mock and Token contracts
+
+```sh
+npx hardhat deploy --network geth --tags DeployL1Mock
+```
+
+4. Deploy Rollup and BridgeContracts
+
+```sh
+npx hardhat deploy --network geth --tags DeployL1Master
+```
+
+### Wire Dependencies
+
+```sh
+npx hardhat run scripts/wiring/wiring-master.ts --network geth
+```
+
+### Test Deposit ERC20 & ETH
+
+```sh
+npx hardhat run scripts/bridge-test/bridge-erc20.ts --network geth
+```
+
+```sh
+npx hardhat run scripts/bridge-test/bridge-eth.ts --network geth
 ```

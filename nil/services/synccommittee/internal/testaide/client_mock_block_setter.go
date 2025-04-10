@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"iter"
 	"log"
+	"maps"
 	"slices"
 
 	"github.com/NilFoundation/nil/nil/client"
@@ -79,5 +80,10 @@ func ClientMockSetBlocks(client *client.ClientMock, blocks iter.Seq[*scTypes.Blo
 			}
 		}
 		return blockRange, nil
+	}
+
+	shardIds := slices.Collect(maps.Keys(shardsToBlocks))
+	client.GetShardIdListFunc = func(ctx context.Context) ([]types.ShardId, error) {
+		return shardIds, nil
 	}
 }

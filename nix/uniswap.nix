@@ -18,6 +18,7 @@ stdenv.mkDerivation rec {
     ".npmrc"
     "^niljs(/.*)?$"
     "^smart-contracts(/.*)?$"
+    "^hardhat-plugin(/.*)?$"
     "^create-nil-hardhat-project(/.*)?$"
     "biome.json"
     "^uniswap(/.*)?$"

@@ -131,11 +131,11 @@ func (s *ReplayScheduler) buildProposalFromPrevBlock(
 	proposal := &execution.Proposal{PrevBlockId: block.Id - 1}
 
 	// NOTE: main shard last block isn't switched now
-	if hash, err := s.switchLastBlock(ctx, proposal.PrevBlockId); err != nil {
+	hash, err := s.switchLastBlock(ctx, proposal.PrevBlockId)
+	if err != nil {
 		return nil, nil, err
-	} else {
-		proposal.PrevBlockHash = hash
 	}
+	proposal.PrevBlockHash = hash
 
 	prevBlock, err := db.ReadBlock(tx, s.params.ShardId, proposal.PrevBlockHash)
 	if err != nil {

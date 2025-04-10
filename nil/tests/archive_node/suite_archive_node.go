@@ -92,6 +92,6 @@ func (s *SuiteArchiveNode) checkBlocksGeneration() {
 	}
 
 	for shardId := range s.GetNShards() {
-		tests.WaitBlock(s.T(), s.Context, s.DefaultClient, types.ShardId(shardId), 1)
+		tests.WaitBlock(s.T(), s.DefaultClient, types.ShardId(shardId), 1)
 	}
 }

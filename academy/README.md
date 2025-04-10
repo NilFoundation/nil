@@ -22,6 +22,12 @@ This repository contains multiple example projects that **demonstrate how to bui
 - Demonstrates cross-shard interactions with different contract modules managing specific tasks across multiple shards.
 - Utilizes asynchronous contract execution and various token functionalities to ensure efficient and scalable DeFi operations.
 
+### 2️⃣ **Sharded Voting Protocol**
+
+- An example application showcasing a decentralized voting system built on the =nil; blockchain, where voting logic is distributed across multiple shards.
+- Demonstrates cross-shard coordination between a central `VoteManager` and individual `VoteShard` contracts for scalable vote casting and tallying.
+- Utilizes asynchronous contract execution (`Nil.asyncCall`, `Nil.sendRequest`) to efficiently collect and aggregate votes from all shards into final results.
+
 > More examples will be added over time!
 
 ---

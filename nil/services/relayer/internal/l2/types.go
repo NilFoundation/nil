@@ -16,7 +16,7 @@ type Event struct {
 	Sender         ethcommon.Address `json:"sender"`
 	Target         ethcommon.Address `json:"target"`
 	Message        []byte            `json:"message"`
-	Value          *big.Int          `json:"value"`
 	Nonce          *big.Int          `json:"nonce"`
 	Type           uint8             `json:"messageType"`
+	ExpiryTime     *big.Int          `json:"expiryTime"`
 }

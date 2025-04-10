@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func NewPools(t *testing.T, ctx context.Context, n int) map[types.ShardId]txnpool.Pool {
+func NewPools(ctx context.Context, t *testing.T, n int) map[types.ShardId]txnpool.Pool {
 	t.Helper()
 
 	pools := make(map[types.ShardId]txnpool.Pool, n)
@@ -25,11 +25,11 @@ func NewPools(t *testing.T, ctx context.Context, n int) map[types.ShardId]txnpoo
 	return pools
 }
 
-func NewTestEthAPI(t *testing.T, ctx context.Context, db db.DB, nShards int) *APIImpl {
+func NewTestEthAPI(ctx context.Context, t *testing.T, db db.DB, nShards int) *APIImpl {
 	t.Helper()
 
 	shardApis := make(map[types.ShardId]rawapi.ShardApi)
-	pools := NewPools(t, ctx, nShards)
+	pools := NewPools(ctx, t, nShards)
 	for shardId := range types.ShardId(nShards) {
 		var err error
 		shardApi := rawapi.NewLocalShardApi(shardId, db, pools[shardId], false)
@@ -49,7 +49,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 	require.NoError(t, err)
 	defer badger.Close()
 
-	api := NewTestEthAPI(t, ctx, badger, 1)
+	api := NewTestEthAPI(ctx, t, badger, 1)
 
 	// Call GetBlockByNumber for transaction which is not in the database
 	_, err = api.GetBlockByNumber(ctx, types.MainShardId, transport.LatestBlockNumber, false)

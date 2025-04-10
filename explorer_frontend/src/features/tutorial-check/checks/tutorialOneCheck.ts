@@ -1,9 +1,4 @@
-import {
-  HttpTransport,
-  PublicClient,
-  generateSmartAccount,
-  waitTillCompleted,
-} from "@nilfoundation/niljs";
+import { HttpTransport, PublicClient, generateSmartAccount } from "@nilfoundation/niljs";
 import { TutorialChecksStatus } from "../../../pages/tutorials/model";
 import type { CheckProps } from "../CheckProps";
 import {} from "../model";
@@ -58,7 +53,7 @@ async function runTutorialCheckOne(props: CheckProps) {
 
   props.tutorialContractStepPassed("Caller and Receiver have been deployed!");
 
-  const hashCaller = await smartAccount.sendTransaction({
+  const callerTx = await smartAccount.sendTransaction({
     to: resultCaller.address,
     abi: callerContract.abi,
     functionName: "sendValue",
@@ -66,23 +61,28 @@ async function runTutorialCheckOne(props: CheckProps) {
     value: 500_000n,
   });
 
-  const resCaller = await waitTillCompleted(client, hashCaller);
+  const resCaller = await callerTx.wait();
 
   const checkCaller = resCaller.some((receipt) => !receipt.success);
 
   if (checkCaller) {
     props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resCaller);
-    props.tutorialContractStepFailed("Failed to call Caller.sendValue()!");
+    props.tutorialContractStepFailed(
+      `
+      Calling Caller.sendValue() produced one or more failed receipts!
+      To investigate, debug this transaction using the Cometa service: ${hashCaller}.
+      `,
+    );
     return false;
   }
-  props.tutorialContractStepPassed("Caller sendValue has been called successfully!");
+  props.tutorialContractStepPassed("Caller.sendValue() has been called successfully!");
 
   const receiverBalance = await client.getBalance(resultReceiver.address);
 
   if (receiverBalance !== 300_000n) {
     props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
-    props.tutorialContractStepFailed("Receiver failed to receive tokens!");
+    props.tutorialContractStepFailed("Receiver did not receive 300_000 tokens!");
     return false;
   }
   props.tutorialContractStepPassed("Receiver got 300_000 tokens!");

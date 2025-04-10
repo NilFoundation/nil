@@ -17,11 +17,11 @@ import (
 )
 
 type Config struct {
-	SyncCommitteeRpcEndpoint string
-	TaskListenerRpcEndpoint  string
-	SkipRate                 int
-	MaxConcurrentBatches     uint32
-	Telemetry                *telemetry.Config
+	SyncCommitteeRpcEndpoint string            `yaml:"syncCommitteeEndpoint,omitempty"`
+	TaskListenerRpcEndpoint  string            `yaml:"ownEndpoint,omitempty"`
+	SkipRate                 int               `yaml:"skipRate,omitempty"`
+	MaxConcurrentBatches     uint32            `yaml:"maxConcurrentBatches,omitempty"`
+	Telemetry                *telemetry.Config `yaml:",inline"`
 }
 
 func NewDefaultConfig() *Config {

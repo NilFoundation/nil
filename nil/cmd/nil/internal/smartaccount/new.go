@@ -14,21 +14,25 @@ import (
 var defaultNewSmartAccountAmount = types.GasToValue(1_000_000_000)
 
 func NewCommand(cfg *common.Config) *cobra.Command {
+	params := &smartAccountParams{
+		Params: &common.Params{},
+	}
+
 	serverCmd := &cobra.Command{
 		Use:   "new",
 		Short: "Create a new smart account with some initial balance on the cluster",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runNew(cmd, args, cfg)
+			return runNew(cmd, args, cfg, params)
 		},
 		SilenceUsage: true,
 	}
 
-	setFlags(serverCmd)
+	setFlags(serverCmd, params)
 
 	return serverCmd
 }
 
-func setFlags(cmd *cobra.Command) {
+func setFlags(cmd *cobra.Command, params *smartAccountParams) {
 	params.salt = *types.NewUint256(0)
 	cmd.Flags().Var(
 		&params.salt,
@@ -55,7 +59,7 @@ func setFlags(cmd *cobra.Command) {
 	)
 }
 
-func runNew(cmd *cobra.Command, _ []string, cfg *common.Config) error {
+func runNew(cmd *cobra.Command, _ []string, cfg *common.Config, params *smartAccountParams) error {
 	amount := params.newSmartAccountAmount
 	if amount.Cmp(defaultNewSmartAccountAmount) > 0 {
 		logger.Warn().Msgf(
@@ -76,7 +80,7 @@ func runNew(cmd *cobra.Command, _ []string, cfg *common.Config) error {
 		return err
 	}
 
-	if err := config.PatchConfig(map[string]interface{}{
+	if err := config.PatchConfig(map[string]any{
 		config.AddressField: smartAccountAddress.Hex(),
 	}, false); err != nil {
 		logger.Error().Err(err).Msg("failed to update the smart account address in the config file")

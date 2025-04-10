@@ -21,7 +21,7 @@ import (
 
 type (
 	doApiRequestFunction func(
-		codec *methodCodec, methodName string, ctx context.Context, args ...any) ([]byte, error)
+		ctx context.Context, codec *methodCodec, methodName string, args ...any) ([]byte, error)
 	nodeApiSetter                            func(NodeApi)
 	setAsP2pRequestHandlersIfAllowedFunction func(
 		ctx context.Context, networkManager *network.Manager, readonly bool, logger logging.Logger) error
@@ -99,7 +99,7 @@ func makeDoNetworkRawApiRequestFunction(
 	shardId types.ShardId,
 	apiName string,
 ) doApiRequestFunction {
-	return func(codec *methodCodec, methodName string, ctx context.Context, args ...any) ([]byte, error) {
+	return func(ctx context.Context, codec *methodCodec, methodName string, args ...any) ([]byte, error) {
 		protocol := network.ProtocolID(fmt.Sprintf("/shard/%d/%s/%s", shardId, apiName, methodName))
 		serverPeerId, err := discoverAppropriatePeer(networkManager, shardId, protocol)
 		if err != nil {
@@ -116,7 +116,7 @@ func makeDoNetworkRawApiRequestFunction(
 }
 
 func makeDoLocalRawApiRequestFunction(rawapi ShardApi) doApiRequestFunction {
-	return func(codec *methodCodec, methodName string, ctx context.Context, args ...any) ([]byte, error) {
+	return func(ctx context.Context, codec *methodCodec, methodName string, args ...any) ([]byte, error) {
 		apiValue := reflect.ValueOf(rawapi)
 		apiMethod := apiValue.MethodByName(methodName)
 		check.PanicIfNot(!apiMethod.IsZero())
@@ -274,7 +274,7 @@ func sendRequestAndGetResponseWithCallerMethodName[ResponseType any](
 		check.PanicIfNotf(
 			callerMethodName == methodName, "Method name mismatch: %s != %s", callerMethodName, methodName)
 	}
-	return sendRequestAndGetResponse[ResponseType](api.doApiRequest, api.codec, methodName, ctx, args...)
+	return sendRequestAndGetResponse[ResponseType](ctx, api.doApiRequest, api.codec, methodName, args...)
 }
 
 func discoverAppropriatePeer(
@@ -290,17 +290,17 @@ func discoverAppropriatePeer(
 }
 
 func sendRequestAndGetResponse[ResponseType any](
+	ctx context.Context,
 	doApiRequest doApiRequestFunction,
 	apiCodec apiCodec,
 	methodName string,
-	ctx context.Context,
 	args ...any,
 ) (ResponseType, error) {
 	codec, ok := apiCodec[methodName]
 	check.PanicIfNotf(ok, "Codec for method %s not found", methodName)
 
 	var response ResponseType
-	responseBody, err := doApiRequest(codec, methodName, ctx, args...)
+	responseBody, err := doApiRequest(ctx, codec, methodName, args...)
 	if err != nil {
 		return response, err
 	}

@@ -256,7 +256,7 @@ func (st *TaskStorage) GetTaskTreeView(ctx context.Context, rootTaskId types.Tas
 
 // Helper to find available task with higher priority
 func (st *TaskStorage) findTopPriorityTask(tx db.RoTx) (*types.TaskEntry, error) {
-	var topPriorityTask *types.TaskEntry = nil
+	var topPriorityTask *types.TaskEntry
 
 	for entry, err := range st.getStoredTasksSeq(tx) {
 		if err != nil {
@@ -400,11 +400,7 @@ func (st *TaskStorage) terminateTaskTx(tx db.RwTx, entry *types.TaskEntry, res *
 		return err
 	}
 
-	if err := st.updateDependentsTx(tx, entry, res, currentTime); err != nil {
-		return err
-	}
-
-	return nil
+	return st.updateDependentsTx(tx, entry, res, currentTime)
 }
 
 func (st *TaskStorage) updateDependentsTx(

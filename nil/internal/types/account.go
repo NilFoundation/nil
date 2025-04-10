@@ -40,7 +40,7 @@ type TokenBalance struct {
 }
 
 func (token TokenBalance) Value() (driver.Value, error) {
-	return []interface{}{token.Token, token.Balance.ToBig()}, nil
+	return []any{token.Token, token.Balance.ToBig()}, nil
 }
 
 func TokenIdForAddress(a Address) *TokenId {

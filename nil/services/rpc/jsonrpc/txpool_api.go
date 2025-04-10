@@ -9,8 +9,8 @@ import (
 )
 
 type TxPoolStatus struct {
-	Pending uint64 `json:"pending"`
-	Queued  uint64 `json:"queued"`
+	Pending uint64 `json:"pending" ch:"pending"`
+	Queued  uint64 `json:"queued" ch:"queued"`
 }
 
 type TxPoolContent struct {

@@ -64,7 +64,7 @@ task(
   );
 
   // Deploy InterestManager contract on shard 2
-  const { address: deployInterestManager, hash: deployInterestManagerHash } =
+  const { address: deployInterestManager, tx: deployInterestManagerTx } =
     await deployerWallet.deployContract({
       shardId: 2,
       args: [],
@@ -73,13 +73,13 @@ task(
       salt: BigInt(Math.floor(Math.random() * 10000)),
     });
 
-  await waitTillCompleted(client, deployInterestManagerHash);
+  await deployInterestManagerTx.wait();
   console.log(
-    `Interest Manager deployed at ${deployInterestManager} with hash ${deployInterestManagerHash} on shard 2`,
+    `Interest Manager deployed at ${deployInterestManager} with hash ${deployInterestManagerTx.hash} on shard 2`,
   );
 
   // Deploy GlobalLedger contract on shard 3
-  const { address: deployGlobalLedger, hash: deployGlobalLedgerHash } =
+  const { address: deployGlobalLedger, tx: deployGlobalLedgerTx } =
     await deployerWallet.deployContract({
       shardId: 3,
       args: [],
@@ -88,13 +88,13 @@ task(
       salt: BigInt(Math.floor(Math.random() * 10000)),
     });
 
-  await waitTillCompleted(client, deployGlobalLedgerHash);
+  await deployGlobalLedgerTx.wait();
   console.log(
-    `Global Ledger deployed at ${deployGlobalLedger} with hash ${deployGlobalLedgerHash} on shard 3`,
+    `Global Ledger deployed at ${deployGlobalLedger} with hash ${deployGlobalLedgerTx.hash} on shard 3`,
   );
 
   // Deploy Oracle contract on shard 4
-  const { address: deployOracle, hash: deployOracleHash } =
+  const { address: deployOracle, tx: deployOracleTx } =
     await deployerWallet.deployContract({
       shardId: 4,
       args: [],
@@ -103,13 +103,13 @@ task(
       salt: BigInt(Math.floor(Math.random() * 10000)),
     });
 
-  await waitTillCompleted(client, deployOracleHash);
+  await deployOracleTx.wait();
   console.log(
-    `Oracle deployed at ${deployOracle} with hash ${deployOracleHash} on shard 4`,
+    `Oracle deployed at ${deployOracle} with hash ${deployOracleTx.hash} on shard 4`,
   );
 
   // Deploy LendingPool contract on shard 1, linking all other contracts
-  const { address: deployLendingPool, hash: deployLendingPoolHash } =
+  const { address: deployLendingPool, tx: deployLendingPoolTx } =
     await deployerWallet.deployContract({
       shardId: 1,
       args: [
@@ -124,9 +124,9 @@ task(
       salt: BigInt(Math.floor(Math.random() * 10000)),
     });
 
-  await waitTillCompleted(client, deployLendingPoolHash);
+  await deployLendingPoolTx.wait();
   console.log(
-    `Lending Pool deployed at ${deployLendingPool} with hash ${deployLendingPoolHash} on shard 1`,
+    `Lending Pool deployed at ${deployLendingPool} with hash ${deployLendingPoolTx.hash} on shard 1`,
   );
 
   // Generate two smart accounts (account1 and account2)
@@ -223,8 +223,10 @@ task(
     data: setUSDTPrice,
   });
 
-  await waitTillCompleted(client, setOraclePriceUSDT);
-  console.log(`Oracle price set for USDT at tx hash ${setOraclePriceUSDT}`);
+  await setOraclePriceUSDT.wait();
+  console.log(
+    `Oracle price set for USDT at tx hash ${setOraclePriceUSDT.hash}`,
+  );
 
   // Set the price for ETH
   const setOraclePriceETH = await deployerWallet.sendTransaction({
@@ -232,8 +234,8 @@ task(
     data: setETHPrice,
   });
 
-  await waitTillCompleted(client, setOraclePriceETH);
-  console.log(`Oracle price set for ETH at tx hash ${setOraclePriceETH}`);
+  await setOraclePriceETH.wait();
+  console.log(`Oracle price set for ETH at tx hash ${setOraclePriceETH.hash}`);
 
   // Retrieve the prices of USDT and ETH from the Oracle contract
   const usdtPriceRequest = await client.call(
@@ -308,8 +310,10 @@ task(
     feeCredit: convertEthToWei(0.001),
   });
 
-  await waitTillCompleted(client, depositETHResponse);
-  console.log(`Account 2 deposited 1 ETH at tx hash ${depositETHResponse}`);
+  await depositETHResponse.wait();
+  console.log(
+    `Account 2 deposited 1 ETH at tx hash ${depositETHResponse.hash}`,
+  );
 
   // Retrieve the deposit balances of account1 and account2 from GlobalLedger
   const globalLedgerContract = getContract({
@@ -349,8 +353,8 @@ task(
     feeCredit: convertEthToWei(0.001),
   });
 
-  await waitTillCompleted(client, borrowETHResponse);
-  console.log(`Account 1 borrowed 5 ETH at tx hash ${borrowETHResponse}`);
+  await borrowETHResponse.wait();
+  console.log(`Account 1 borrowed 5 ETH at tx hash ${borrowETHResponse.hash}`);
 
   const account1BalanceAfterBorrow = await client.getTokens(
     account1.address,
@@ -397,8 +401,8 @@ task(
     feeCredit: convertEthToWei(0.001),
   });
 
-  await waitTillCompleted(client, repayETHResponse);
-  console.log(`Account 1 repaid 1 ETH at tx hash ${repayETHResponse}`);
+  await repayETHResponse.wait();
+  console.log(`Account 1 repaid 1 ETH at tx hash ${repayETHResponse.hash}`);
 
   const account1BalanceAfterRepay = await client.getTokens(
     account1.address,

@@ -9,9 +9,12 @@ import (
 	"github.com/NilFoundation/nil/nil/cmd/sync_committee_cli/internal/flags"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/cobrax"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
 	"github.com/spf13/cobra"
 )
+
+const appTitle = "=nil; Sync Committee CLI"
 
 func main() {
 	check.PanicIfErr(execute())
@@ -35,11 +38,10 @@ func execute() error {
 	if err != nil {
 		return err
 	}
-	rootCmd.AddCommand(getTaskTreeCmd)
 
 	decodeBatchCmd := buildDecodeBatchCmd(executorParams, logger)
-	rootCmd.AddCommand(decodeBatchCmd)
-
+	versionCmd := cobrax.VersionCmd(appTitle)
+	rootCmd.AddCommand(getTaskTreeCmd, decodeBatchCmd, versionCmd)
 	return rootCmd.Execute()
 }
 
@@ -51,7 +53,7 @@ func buildGetTasksCmd(commonParam *commands.ExecutorParams, logger logging.Logge
 	}
 
 	cmd := &cobra.Command{
-		Use:   "get_tasks",
+		Use:   "get-tasks",
 		Short: "Get tasks from the node's storage based on provided filter and ordering parameters",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return commands.NewExecutor(os.Stdout, cmdParams, logger).Run(commands.GetTasks)
@@ -93,7 +95,7 @@ func buildGetTaskTreeCmd(commonParam *commands.ExecutorParams, logger logging.Lo
 	}
 
 	cmd := &cobra.Command{
-		Use:   "get_task_tree",
+		Use:   "get-task-tree",
 		Short: "Retrieve full task tree structure for a specific task",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			eventLoop := commands.NewExecutor(os.Stdout, cmdParams, logger)

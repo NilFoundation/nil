@@ -67,7 +67,7 @@ func (s *SuiteTxnPool) TearDownTest() {
 func (s *SuiteTxnPool) addTransactionsToPoolSuccessfully(pool Pool, txn ...*types.Transaction) {
 	s.T().Helper()
 
-	count := s.getTransactionCount(pool)
+	count := pool.GetSize()
 
 	reasons, err := pool.Add(s.ctx, txn...)
 	s.Require().NoError(err)
@@ -76,7 +76,7 @@ func (s *SuiteTxnPool) addTransactionsToPoolSuccessfully(pool Pool, txn ...*type
 		s.Equal(NotSet, reason)
 	}
 
-	s.Equal(count+len(txn), s.getTransactionCount(pool))
+	s.Equal(count+len(txn), pool.GetSize())
 }
 
 func (s *SuiteTxnPool) addTransactions(txn ...*types.Transaction) []DiscardReason {
@@ -139,7 +139,11 @@ func (s *SuiteTxnPool) TestAdd() {
 	s.Equal(1, s.getTransactionCount(s.pool))
 
 	// Add a transaction with higher seqno to the same receiver
-	s.addTransactionsSuccessfully(newTransaction(defaultAddress, 1, 124))
+	tx := newTransaction(defaultAddress, 1, 124)
+	s.addTransactionsSuccessfully(tx)
+
+	err = s.pool.OnCommitted(s.ctx, defaultBaseFee, []*types.Transaction{tx})
+	s.Require().NoError(err)
 
 	// Add a transaction with lower seqno to the same receiver - SeqnoTooLow
 	s.addTransactionWithDiscardReason(
@@ -207,6 +211,35 @@ func (s *SuiteTxnPool) TestSeqnoFromAddress() {
 
 	_, inPool = s.pool.SeqnoToAddress(types.BytesToAddress([]byte("abcd")))
 	s.Require().False(inPool)
+}
+
+func (s *SuiteTxnPool) TestSeqnoGap() {
+	txn0 := newTransaction(defaultAddress, 0, 123)
+	txn1 := newTransaction(defaultAddress, 1, 123)
+	txn2 := newTransaction(defaultAddress, 2, 123)
+	txn3 := newTransaction(defaultAddress, 3, 123)
+	s.addTransactionsSuccessfully(
+		txn0,
+		txn3)
+
+	txns, err := s.pool.Peek(0)
+	s.Require().NoError(err)
+	s.Len(txns, 1)
+	s.Require().Equal(txn0, txns[0].Transaction)
+
+	err = s.pool.OnCommitted(s.ctx, defaultBaseFee, []*types.Transaction{txn0})
+	s.Require().NoError(err)
+
+	s.addTransactionsSuccessfully(
+		txn2,
+		txn1)
+
+	txns, err = s.pool.Peek(0)
+	s.Require().NoError(err)
+	s.Len(txns, 3)
+	s.Require().Equal(txn1, txns[0].Transaction)
+	s.Require().Equal(txn2, txns[1].Transaction)
+	s.Require().Equal(txn3, txns[2].Transaction)
 }
 
 func (s *SuiteTxnPool) TestPeek() {
@@ -314,7 +347,7 @@ func (s *SuiteTxnPool) TestReplacement() {
 }
 
 func (s *SuiteTxnPool) TestNetwork() {
-	nms := network.NewTestManagers(s.T(), s.ctx, 9100, 2)
+	nms := network.NewTestManagers(s.ctx, s.T(), 9100, 2)
 
 	pool1, err := New(s.ctx, NewConfig(0), nms[0])
 	s.Require().NoError(err)

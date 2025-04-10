@@ -23,10 +23,6 @@ const (
 	priorityFee      = "priority-fee"
 )
 
-var params = &smartAccountParams{
-	Params: &common.Params{},
-}
-
 type smartAccountParams struct {
 	*common.Params
 

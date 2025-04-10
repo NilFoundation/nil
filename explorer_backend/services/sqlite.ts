@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import sqlite3 from "node-sqlite3-wasm";
+import { config } from "../config";
 
-const db = new sqlite3.Database(process.env.EXPLORER_DB || "./database.db");
+const db = new sqlite3.Database(config.EXPLORER_CODE_SNIPPETS_DB_PATH);
 
 export { db };
 

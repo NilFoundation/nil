@@ -13,20 +13,24 @@ import (
 var logger = logging.NewLogger("blockCommand")
 
 func GetCommand(cfg *common.Config) *cobra.Command {
+	params := &blockParams{}
+
 	serverCmd := &cobra.Command{
-		Use:          "block [number|hash|tag]",
-		Short:        "Retrieve a block from the cluster",
-		Args:         cobra.ExactArgs(1),
-		RunE:         runCommand,
+		Use:   "block [number|hash|tag]",
+		Short: "Retrieve a block from the cluster",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCommand(cmd, args, params)
+		},
 		SilenceUsage: true,
 	}
 
-	setFlags(serverCmd)
+	setFlags(serverCmd, params)
 
 	return serverCmd
 }
 
-func setFlags(cmd *cobra.Command) {
+func setFlags(cmd *cobra.Command, params *blockParams) {
 	cmd.Flags().Var(
 		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
@@ -38,7 +42,7 @@ func setFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&params.noColor, noColorFlag, false, "Do not colorize the output")
 }
 
-func runCommand(cmd *cobra.Command, args []string) error {
+func runCommand(cmd *cobra.Command, args []string, params *blockParams) error {
 	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), nil, nil)
 
 	blockData, err := service.FetchDebugBlock(

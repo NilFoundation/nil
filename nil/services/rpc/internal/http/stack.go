@@ -103,9 +103,8 @@ func (h *httpServer) listen() (net.Listener, error) {
 			return nil, fmt.Errorf("failed to remove existing Unix socket: %w", err)
 		}
 		return net.Listen("unix", socketPath)
-	} else {
-		return net.Listen("tcp", h.endpoint)
 	}
+	return net.Listen("tcp", h.endpoint)
 }
 
 // start starts the HTTP server if it is enabled and not already running.

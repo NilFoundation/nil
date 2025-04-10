@@ -6,11 +6,11 @@ import {
   PublicClient,
   SmartAccountV1,
   type Token,
+  type Transaction,
   convertEthToWei,
   hexToBigInt,
   hexToBytes,
   toHex,
-  waitTillCompleted,
 } from "@nilfoundation/niljs";
 import { SmartAccount } from "@nilfoundation/smart-contracts";
 import { encodeFunctionData } from "viem";
@@ -117,7 +117,7 @@ export async function sendToken({
   tokenAddress: string;
   symbol: string;
 }): Promise<void> {
-  let txHash: Hex | null = null;
+  let tx: Transaction | null = null;
   const feeCredit = 100_000_000_000_000n * 10n;
 
   try {
@@ -128,21 +128,21 @@ export async function sendToken({
         : getTokenTransactionParams(to, value, tokenAddress, feeCredit);
 
     // Send transaction
-    txHash = await smartAccount.sendTransaction(transactionParams);
-    console.log(`Transaction sent for ${tokenAddress}, hash: ${txHash}`);
+    tx = await smartAccount.sendTransaction(transactionParams);
+    console.log(`Transaction sent for ${tokenAddress}, hash: ${tx.hash}`);
 
     // Wait for transaction to complete
-    const receipt = await waitTillCompleted(smartAccount.client, txHash);
+    const receipt = await tx.wait();
     if (!receipt[0].success) {
       throw new Error("Transaction failed");
     }
     console.log("Transaction completed:", receipt);
 
     // Log successful transaction
-    logActivity(smartAccount.address, txHash, true, value, symbol);
+    logActivity(smartAccount.address, tx.hash, true, value, symbol);
   } catch (e) {
-    if (txHash) {
-      logActivity(smartAccount.address, txHash, false, value, symbol);
+    if (tx) {
+      logActivity(smartAccount.address, tx.hash, false, value, symbol);
     }
     console.log("Failed to send token:", e);
     throw new Error(`Failed to send ${value} ${tokenAddress} to ${to}`);
@@ -175,9 +175,9 @@ export async function sendTransaction({
       feeCredit,
     };
 
-    const txHash = await smartAccount.sendTransaction(txParams);
+    const tx = await smartAccount.sendTransaction(txParams);
 
-    return txHash;
+    return tx.hash;
   } catch (e) {
     throw new Error("Failed to send transaction");
   }

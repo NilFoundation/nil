@@ -20,7 +20,7 @@ func GetCommand() *cobra.Command {
 			privateKey := keygen.GetPrivateKey()
 			logger.Info().Msgf("Private key: %v", privateKey)
 
-			if err := config.PatchConfig(map[string]interface{}{
+			if err := config.PatchConfig(map[string]any{
 				config.PrivateKeyField: privateKey,
 			}, false); err != nil {
 				logger.Error().Err(err).Msg("failed to update the private key in the config file")

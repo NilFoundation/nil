@@ -80,7 +80,7 @@ func NewTaskExecError(errType TaskErrType, errText string) *TaskExecError {
 	return &TaskExecError{ErrType: errType, ErrText: errText}
 }
 
-func NewTaskExecErrorf(errType TaskErrType, format string, args ...interface{}) *TaskExecError {
+func NewTaskExecErrorf(errType TaskErrType, format string, args ...any) *TaskExecError {
 	return &TaskExecError{ErrType: errType, ErrText: fmt.Sprintf(format, args...)}
 }
 

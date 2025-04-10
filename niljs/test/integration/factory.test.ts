@@ -94,7 +94,7 @@ test("Contract Factory", async ({ expect }) => {
 
   const smartAccount = await generateTestSmartAccount();
 
-  const { hash: deployHash, address: incrementerAddress } = await smartAccount.deployContract({
+  const { tx: deployTx, address: incrementerAddress } = await smartAccount.deployContract({
     abi: abi,
     bytecode: `0x${bin}`,
     args: [100n],
@@ -102,7 +102,7 @@ test("Contract Factory", async ({ expect }) => {
     shardId: 1,
   });
 
-  await waitTillCompleted(client, deployHash);
+  await deployTx.wait();
 
   const incrementer = getContract({
     abi: abi,
@@ -125,11 +125,11 @@ test("Contract Factory", async ({ expect }) => {
   const newValue = await incrementer.read.counter([]);
   expect(newValue).toBe(101n);
 
-  const hash11 = await smartAccount.sendTransaction({
+  const tx11 = await smartAccount.sendTransaction({
     to: incrementerAddress,
     value: 100_000_000_000_000n,
   });
-  const receipts11 = await waitTillCompleted(client, hash11);
+  const receipts11 = await tx11.wait();
   expect(receipts11.some((receipt) => !receipt.success)).toBe(false);
   const hash2 = await incrementer.external.incrementExternal([]);
   const receipts2 = await waitTillCompleted(client, hash2);

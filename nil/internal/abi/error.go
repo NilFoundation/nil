@@ -83,7 +83,7 @@ func (e *Error) String() string {
 	return e.str
 }
 
-func (e *Error) Unpack(data []byte) (interface{}, error) {
+func (e *Error) Unpack(data []byte) (any, error) {
 	if len(data) < 4 {
 		return "", errors.New("invalid data for unpacking")
 	}
@@ -145,16 +145,15 @@ func typeCheck(t Type, value reflect.Value) error {
 	}
 
 	// Check base type validity. Element types will be checked later on.
-	if t.GetType().Kind() != value.Kind() { //nolint:gocritic
+	if t.GetType().Kind() != value.Kind() {
 		return typeErr(t.GetType().Kind(), value.Kind())
 	} else if t.T == FixedBytesTy && t.Size != value.Len() {
 		return typeErr(t.GetType(), value.Type())
-	} else {
-		return nil
 	}
+	return nil
 }
 
 // typeErr returns a formatted type casting error.
-func typeErr(expected, got interface{}) error {
+func typeErr(expected, got any) error {
 	return fmt.Errorf("abi: cannot use %v as type %v as argument", got, expected)
 }

@@ -30,7 +30,7 @@ func (s *SuiteFaucet) SetupSuite() {
 	}, 10225)
 
 	s.DefaultClient, _ = s.StartRPCNode(tests.WithDhtBootstrapByValidators, nil)
-	s.faucetClient, _ = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.DefaultClient)
+	s.faucetClient, _ = tests.StartFaucetService(s.Context, s.T(), &s.Wg, s.DefaultClient)
 }
 
 func (s *SuiteFaucet) TearDownSuite() {

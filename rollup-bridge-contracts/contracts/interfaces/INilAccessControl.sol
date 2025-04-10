@@ -3,9 +3,15 @@ pragma solidity 0.8.28;
 
 /// @title INilAccessControl
 /// @notice An interface that lets admin and owner of the NilRollup contract to perform access management Operations
-/// @dev This is the base interface for nilAccessControl. NilAccessControl inherits OZ-Enumerable-AccessControl
+/// @dev This is the base interface for NilAccessControl. NilAccessControl inherits OZ-Enumerable-AccessControl
 /// contracts from library
 interface INilAccessControl {
+    /*//////////////////////////////////////////////////////////////////////////
+                               ACCESS-CONTROL ERRORS
+    //////////////////////////////////////////////////////////////////////////*/
+
+    error ErrorCallerIsNotAdmin();
+
     /*//////////////////////////////////////////////////////////////////////////
                                NON-CONSTANT FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
@@ -68,51 +74,8 @@ interface INilAccessControl {
     function renounceAccess(bytes32 role) external;
 
     /*//////////////////////////////////////////////////////////////////////////
-                               PROPOSER FUNCTIONS
-    //////////////////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Grants the PROPOSER_ROLE_ADMIN to the specified account.
-     * @dev This function allows an account with the appropriate permissions to grant the PROPOSER_ROLE_ADMIN to another
-     * account.
-     * @param account The address to be granted the PROPOSER_ROLE_ADMIN.
-     */
-    function grantProposerAdminRole(address account) external;
-
-    /**
-     * @notice Revokes the PROPOSER_ROLE_ADMIN from the specified account.
-     * @dev This function allows an account with the appropriate permissions to revoke the PROPOSER_ROLE_ADMIN from
-     * another account.
-     * @param account The address from which the PROPOSER_ROLE_ADMIN will be revoked.
-     */
-    function revokeProposerAdminRole(address account) external;
-
-    /**
-     * @notice Grants the PROPOSER_ROLE to the specified account.
-     * @dev This function allows an account with the appropriate permissions to grant the PROPOSER_ROLE to another
-     * account.
-     * @param account The address to be granted the PROPOSER_ROLE.
-     */
-    function grantProposerAccess(address account) external;
-
-    /**
-     * @notice Revokes the PROPOSER_ROLE from the specified account.
-     * @dev This function allows an account with the appropriate permissions to revoke the PROPOSER_ROLE from another
-     * account.
-     * @param account The address from which the PROPOSER_ROLE will be revoked.
-     */
-    function revokeProposerAccess(address account) external;
-
-    /*//////////////////////////////////////////////////////////////////////////
                                  CONSTANT FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Returns all addresses that have been granted the PROPOSER role.
-     * @dev This function checks for addresses with the PROPOSER role in AccessControlEnumerableUpgradeable.
-     * @return An array of addresses that have the PROPOSER role.
-     */
-    function getAllProposers() external view returns (address[] memory);
 
     /**
      * @notice Returns all addresses that have been granted the ADMIN role.
@@ -136,14 +99,6 @@ interface INilAccessControl {
      * @return A boolean value indicating whether the address is an owner.
      */
     function isAnOwner(address ownerArg) external view returns (bool);
-
-    /**
-     * @notice Checks if the given address is a proposer.
-     * @dev This function verifies if the specified address has the proposer role.
-     * @param proposerArg The address to check for proposer role.
-     * @return A boolean value indicating whether the address is a proposer.
-     */
-    function isAProposer(address proposerArg) external view returns (bool);
 
     /**
      * @notice Checks if the given address is an admin.

@@ -18,9 +18,9 @@ import (
 )
 
 type Config struct {
-	ProofProviderRpcEndpoint string
-	NilRpcEndpoint           string
-	Telemetry                *telemetry.Config
+	ProofProviderRpcEndpoint string            `yaml:"proofProviderEndpoint,omitempty"`
+	NilRpcEndpoint           string            `yaml:"nilEndpoint,omitempty"`
+	Telemetry                *telemetry.Config `yaml:",inline"`
 }
 
 func NewDefaultConfig() *Config {

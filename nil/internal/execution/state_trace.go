@@ -159,7 +159,7 @@ func (bt *BlocksTracer) WithIndent(f func(*BlocksTracer)) {
 	bt.indent = bt.indent[2:]
 }
 
-func (bt *BlocksTracer) Printf(format string, args ...interface{}) {
+func (bt *BlocksTracer) Printf(format string, args ...any) {
 	if _, err := bt.file.WriteString(bt.indent); err != nil {
 		panic(err)
 	}

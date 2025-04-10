@@ -5,7 +5,7 @@ import (
 	"text/template"
 )
 
-func ParseTemplate(input string, data map[string]interface{}) (string, error) {
+func ParseTemplate(input string, data map[string]any) (string, error) {
 	return ParseTemplates(input, data, nil, nil)
 }
 

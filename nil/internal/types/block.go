@@ -47,7 +47,6 @@ type BlockData struct {
 	ChildBlocksRootHash common.Hash      `json:"childBlocksRootHash" ch:"child_blocks_root_hash"`
 	MainShardHash       common.Hash      `json:"mainShardHash" ch:"main_chain_hash"`
 	ConfigRoot          common.Hash      `json:"configRoot" ch:"config_root"`
-	Timestamp           uint64           `json:"timestamp" ch:"timestamp"`
 	BaseFee             Value            `json:"gasPrice" ch:"gas_price"`
 	GasUsed             Gas              `json:"gasUsed" ch:"gas_used"`
 	L1BlockNumber       uint64           `json:"l1BlockNumber" ch:"l1_block_number"`

@@ -3,6 +3,8 @@ package heap
 import (
 	"container/heap"
 	"slices"
+
+	"github.com/NilFoundation/nil/nil/common/check"
 )
 
 type heapAdapter[T any] struct {
@@ -27,8 +29,8 @@ func (h *heapAdapter[T]) Swap(i, j int) {
 
 // Push (heap.Interface) adds an element to the heap.
 func (h *heapAdapter[T]) Push(x any) {
-	//nolint:forcetypeassert
-	t := x.(T)
+	t, ok := x.(T)
+	check.PanicIfNot(ok)
 	h.elements = append(h.elements, t)
 }
 
@@ -76,8 +78,8 @@ func (h *BoundedMaxHeap[T]) Add(element T) {
 func (h *BoundedMaxHeap[T]) PopAllSorted() []T {
 	var result []T
 	for h.adapter.Len() > 0 {
-		//nolint:forcetypeassert
-		t := heap.Pop(&h.adapter).(T)
+		t, ok := heap.Pop(&h.adapter).(T)
+		check.PanicIfNot(ok)
 		result = append(result, t)
 	}
 	slices.Reverse(result)

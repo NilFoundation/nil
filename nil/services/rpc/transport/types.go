@@ -17,10 +17,10 @@ import (
 
 // API describes the set of methods offered over the RPC interface
 type API struct {
-	Namespace string      // namespace under which the rpc methods of Service are exposed
-	Version   string      // api version for DApp's
-	Service   interface{} // receiver instance which holds the methods
-	Public    bool        // indication if the methods must be considered safe for public use
+	Namespace string // namespace under which the rpc methods of Service are exposed
+	Version   string // api version for DApp's
+	Service   any    // receiver instance which holds the methods
+	Public    bool   // indication if the methods must be considered safe for public use
 }
 
 // Error wraps RPC errors, which contain an error code in addition to the message.
@@ -31,8 +31,8 @@ type Error interface {
 
 // A DataError contains some data in addition to the error message.
 type DataError interface {
-	Error() string          // returns the message
-	ErrorData() interface{} // returns the error data
+	Error() string  // returns the message
+	ErrorData() any // returns the error data
 }
 
 // ServerCodec implements reading, parsing and writing RPC messages for the server side of
@@ -47,9 +47,9 @@ type ServerCodec interface {
 // JsonWriter can write JSON messages to its underlying connection.
 // Implementations must be safe for concurrent use.
 type JsonWriter interface {
-	WriteJSON(context.Context, interface{}) error
+	WriteJSON(context.Context, any) error
 	// Closed returns a channel which is closed when the connection is closed.
-	Closed() <-chan interface{}
+	Closed() <-chan any
 	// RemoteAddr returns the peer address of the connection.
 	RemoteAddr() string
 }
@@ -271,17 +271,16 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 			}
 			bnh.BlockHash = &hash
 			return nil
-		} else {
-			if blckNum, err = hexutil.DecodeUint64(input); err != nil {
-				return err
-			}
-			if blckNum > math.MaxInt64 {
-				return errors.New("block number too high")
-			}
-			bn := BlockNumber(blckNum)
-			bnh.BlockNumber = &bn
-			return nil
 		}
+		if blckNum, err = hexutil.DecodeUint64(input); err != nil {
+			return err
+		}
+		if blckNum > math.MaxInt64 {
+			return errors.New("block number too high")
+		}
+		bn := BlockNumber(blckNum)
+		bnh.BlockNumber = &bn
+		return nil
 	}
 }
 

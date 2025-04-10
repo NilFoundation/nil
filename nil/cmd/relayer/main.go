@@ -17,6 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/jonboulle/clockwork"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 type EthRpcConfig struct {
@@ -30,11 +32,26 @@ type Config struct {
 	*relayer.RelayerConfig
 }
 
+var cfgFile string
+
+func initConfig() {
+	if cfgFile == "" {
+		return
+	}
+
+	viper.SetConfigFile(cfgFile)
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("failed to read config file '%s': %v\nonly CLI arguments are going to be applied", cfgFile, err)
+	}
+}
+
 func main() {
 	check.PanicIfErr(execute())
 }
 
 func execute() error {
+	cobra.OnInitialize(initConfig)
+
 	rootCmd := &cobra.Command{
 		Use:   os.Args[0],
 		Short: "Run nil L1<->L2 relayer",
@@ -51,11 +68,31 @@ func execute() error {
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run relayer service",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			cmd.Flags().VisitAll(func(f *pflag.Flag) {
+				if f.Changed || !viper.IsSet(f.Name) {
+					return
+				}
+				check.PanicIfErr(f.Value.Set(viper.GetString(f.Name)))
+			})
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runService(cmd.Context(), &runCfg)
+			if err := runService(cmd.Context(), &runCfg); err != nil {
+				return err
+			}
+			if len(cfgFile) > 0 {
+				if err := viper.SafeWriteConfigAs(cfgFile); err != nil {
+					if _, ok := err.(viper.ConfigFileAlreadyExistsError); !ok { //nolint:errorlint
+						return err
+					}
+				}
+			}
+			return nil
 		},
 	}
-	addRunCommandFlags(runCmd, &runCfg)
+	if err := addRunCommandFlags(runCmd, &runCfg); err != nil {
+		return err
+	}
 
 	rootCmd.AddCommand(runCmd)
 
@@ -65,7 +102,9 @@ func execute() error {
 	return rootCmd.ExecuteContext(ctx)
 }
 
-func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) {
+func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) error {
+	runCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file")
+
 	runCmd.Flags().StringVar(&cfg.DbPath, "db-path", "relayer.db", "path to database")
 
 	runCmd.Flags().StringVar(&cfg.L1ClientConfig.Endpoint,
@@ -109,12 +148,6 @@ func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) {
 		cfg.L2ContractConfig.SmartAccountAddress,
 		"Smart account address for relayer to operate on L2",
 	)
-	runCmd.Flags().StringVar(
-		&cfg.L2ContractConfig.ContractABIPath,
-		"l2-contract-abi-path",
-		cfg.L2ContractConfig.ContractABIPath,
-		"ABI of nil L2BridgeMessenger contract",
-	)
 	runCmd.Flags().DurationVar(
 		&cfg.TransactionSenderConfig.DbPollInterval,
 		"l2-transaction-sender-db-poll-interval",
@@ -140,6 +173,8 @@ func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) {
 		"",
 		"Faucet address for L2 transaction sender (debug-only)",
 	)
+
+	return viper.BindPFlags(runCmd.Flags())
 }
 
 func runService(ctx context.Context, cfg *Config) error {
@@ -164,10 +199,11 @@ func runService(ctx context.Context, cfg *Config) error {
 	}
 
 	err = svc.Run(ctx)
-	if errors.Is(err, context.Canceled) {
-		return nil
+	if err != nil && !errors.Is(err, context.Canceled) {
+		return err
 	}
-	return err
+
+	return nil
 }
 
 func openDB(dbPath string) (db.DB, error) {

@@ -15,6 +15,7 @@ var logLevel *string
 
 func main() {
 	var configFile string
+	var taskName string
 	rootCmd := &cobra.Command{
 		Use:   "stresser --config <config-file>",
 		Short: "Run stresser",
@@ -22,7 +23,7 @@ func main() {
 			level, err := zerolog.ParseLevel(*logLevel)
 			check.PanicIfErr(err)
 			zerolog.SetGlobalLevel(level)
-			st, err := stresser.NewStresserFromFile(configFile)
+			st, err := stresser.NewStresserFromFile(configFile, taskName)
 			if err != nil {
 				return fmt.Errorf("failed to create stresser: %w", err)
 			}
@@ -34,6 +35,7 @@ func main() {
 	}
 
 	rootCmd.Flags().StringVarP(&configFile, "config", "c", "", "config file")
+	rootCmd.Flags().StringVarP(&taskName, "task", "t", "", "task name")
 	logLevel = rootCmd.Flags().StringP(
 		"log-level",
 		"l",

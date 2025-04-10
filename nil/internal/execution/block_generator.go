@@ -32,6 +32,15 @@ func NewBlockGeneratorParams(shardId types.ShardId, nShards uint32) BlockGenerat
 	}
 }
 
+type BlockGeneratorCounters struct {
+	InternalTransactions int64
+	ExternalTransactions int64
+	DeployTransactions   int64
+	ExecTransactions     int64
+	CoinsUsed            types.Value
+	GasPrice             types.Value
+}
+
 type BlockGenerator struct {
 	ctx    context.Context
 	params BlockGeneratorParams
@@ -41,7 +50,6 @@ type BlockGenerator struct {
 	executionState *ExecutionState
 
 	logger   logging.Logger
-	mh       *MetricsHandler
 	counters *BlockGeneratorCounters
 }
 
@@ -53,6 +61,8 @@ type BlockGenerationResult struct {
 	OutTxns      []*types.Transaction
 	OutTxnHashes []common.Hash
 	ConfigParams map[string][]byte
+
+	Counters *BlockGeneratorCounters
 }
 
 func NewBlockGenerator(
@@ -92,12 +102,6 @@ func NewBlockGeneratorWithEs(
 	rwTx db.RwTx,
 	es *ExecutionState,
 ) (*BlockGenerator, error) {
-	const mhName = "github.com/NilFoundation/nil/nil/internal/execution"
-	mh, err := NewMetricsHandler(mhName, params.ShardId)
-	if err != nil {
-		return nil, err
-	}
-
 	return &BlockGenerator{
 		ctx:            ctx,
 		params:         params,
@@ -107,8 +111,7 @@ func NewBlockGeneratorWithEs(
 		logger: logging.NewLogger("block-gen").With().
 			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
-		mh:       mh,
-		counters: NewBlockGeneratorCounters(),
+		counters: &BlockGeneratorCounters{},
 	}, nil
 }
 
@@ -153,7 +156,6 @@ func (p *BlockGenerator) CollectGasPrices(prevBlockId types.BlockNumber) []types
 		block, err := db.ReadBlock(p.rwTx, shardId, shardHash)
 		if err != nil {
 			p.logger.Err(err).
-				Stringer(logging.FieldShardId, shardId).
 				Stringer(logging.FieldBlockHash, shardHash).
 				Msg("Get gas price from shard: failed to read block")
 			shards[shardId] = *types.DefaultGasPrice.Uint256
@@ -262,6 +264,9 @@ func (g *BlockGenerator) prepareExecutionState(proposal *Proposal, gasPrices []t
 	for i, shardHash := range proposal.ShardHashes {
 		g.executionState.ChildShardBlocks[types.ShardId(i+1)] = shardHash
 	}
+
+	g.counters.GasPrice = g.executionState.GasPrice
+
 	return nil
 }
 
@@ -271,6 +276,13 @@ func (g *BlockGenerator) handleTxn(txn *types.Transaction) error {
 	}
 	if txn.IsExecution() {
 		g.counters.ExecTransactions++
+	}
+
+	var err error
+	var seqno types.Seqno
+	if assert.Enable && txn.IsExternal() {
+		seqno, err = g.executionState.GetExtSeqno(txn.To)
+		check.PanicIfErr(err)
 	}
 
 	txnHash := g.executionState.AddInTransaction(txn)
@@ -291,9 +303,21 @@ func (g *BlockGenerator) handleTxn(txn *types.Transaction) error {
 	if res.FatalError != nil {
 		return res.FatalError
 	}
-	g.addReceipt(res)
+	g.handleResult(res)
 	g.counters.CoinsUsed = g.counters.CoinsUsed.Add(res.CoinsUsed())
 
+	if assert.Enable && txn.IsExternal() {
+		newSeqno, err := g.executionState.GetExtSeqno(txn.To)
+		check.PanicIfErr(err)
+		if res.GasUsed == 0 {
+			check.PanicIfNotf(newSeqno == seqno,
+				"seqno changed during execution with GasUsed=0 (old %d, new: %d)", seqno, newSeqno)
+		} else {
+			check.PanicIfNotf(newSeqno == seqno+1,
+				"seqno was not changed correctly during execution (old %d, new: %d). Gas used: %d",
+				seqno, newSeqno, res.GasUsed)
+		}
+	}
 	return nil
 }
 
@@ -308,15 +332,10 @@ func (g *BlockGenerator) GenerateBlock(
 	proposal *Proposal,
 	params *types.ConsensusParams,
 ) (*BlockGenerationResult, error) {
-	g.mh.StartProcessingMeasurement(g.ctx, proposal.PrevBlockId+1)
-	defer func() { g.mh.EndProcessingMeasurement(g.ctx, g.counters) }()
-
 	gasPrices := g.CollectGasPrices(proposal.PrevBlockId)
 	if err := g.prepareExecutionState(proposal, gasPrices); err != nil {
 		return nil, err
 	}
-
-	g.mh.RecordGasPrice(g.ctx, g.executionState.GasPrice)
 
 	if err := db.WriteCollatorState(g.rwTx, g.params.ShardId, proposal.CollatorState); err != nil {
 		return nil, fmt.Errorf("failed to write collator state: %w", err)
@@ -359,7 +378,7 @@ func (g *BlockGenerator) handleExternalTransaction(txn *types.Transaction) *Exec
 	return res
 }
 
-func (g *BlockGenerator) addReceipt(execResult *ExecutionResult) {
+func (g *BlockGenerator) handleResult(execResult *ExecutionResult) {
 	check.PanicIfNot(execResult.FatalError == nil)
 
 	txnHash := g.executionState.InTransactionHash
@@ -399,6 +418,8 @@ func (g *BlockGenerator) finalize(
 	if err != nil {
 		return nil, err
 	}
+
+	blockRes.Counters = g.counters
 
 	return blockRes, g.Finalize(blockRes, params)
 }

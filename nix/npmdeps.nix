@@ -14,6 +14,7 @@ in
       ../clijs/package.json
       ../docs/package.json
       ../niljs/package.json
+      ../hardhat-plugin/package.json
       ../create-nil-hardhat-project/package.json
       ../smart-contracts/package.json
       ../explorer_backend/package.json
@@ -25,5 +26,5 @@ in
     ];
   };
   pname = "nil";
-  hash = "sha256-ymS+nQS8QsTZNMEbaGwiq1NOoqMCkpfWSSUJnxsROxQ=";
+  hash = "sha256-EH1fWnjZwxdmRU7711WxZUacg/fvcXMhT6/7mGNCeVc=";
 })

@@ -89,7 +89,7 @@ func (s *SuiteDeployment) TestDeploy() {
 		res = s.CallGetter(address, s.AbiPack(s.abiDeployee, "deployer"), "latest", nil)
 		s.Require().Equal(s.addressDeployer, types.BytesToAddress(res))
 
-		num := tests.CallGetterT[uint32](s.T(), s.Context, s.Client, s.abiDeployee, address, "num")
+		num := tests.CallGetterT[uint32](s.T(), s.Client, s.abiDeployee, address, "num")
 		s.Require().Equal(uint32(1234), num)
 
 		s.Require().Equal(types.NewValueFromUint64(1111), s.GetBalance(address))
@@ -100,7 +100,8 @@ func (s *SuiteDeployment) TestDeploy() {
 
 		code, err := contracts.GetCode(contracts.NameDeployee)
 		s.Require().NoError(err)
-		deployPayload := s.PrepareDefaultDeployPayload(*s.abiDeployee, code, s.addressDeployer, uint32(987654321))
+		deployPayload := s.PrepareDefaultDeployPayload(
+			*s.abiDeployee, common.EmptyHash, code, s.addressDeployer, uint32(987654321))
 
 		calldata := s.AbiPack(
 			abiSmartAccount, "asyncDeploy", big.NewInt(2), big.NewInt(1111), deployPayload.Bytes(), salt)
@@ -113,7 +114,7 @@ func (s *SuiteDeployment) TestDeploy() {
 		res := s.CallGetter(address, s.AbiPack(s.abiDeployee, "deployer"), "latest", nil)
 		s.Require().Equal(s.addressDeployer, types.BytesToAddress(res))
 
-		num := tests.CallGetterT[uint32](s.T(), s.Context, s.Client, s.abiDeployee, address, "num")
+		num := tests.CallGetterT[uint32](s.T(), s.Client, s.abiDeployee, address, "num")
 		s.Require().Equal(uint32(987654321), num)
 
 		s.Require().Equal(types.NewValueFromUint64(1111), s.GetBalance(address))

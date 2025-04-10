@@ -173,19 +173,19 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 // If b is larger than len(h), b will be cropped from the left.
 func HexToHash(s string) Hash { return BytesToHash(hexutil.FromHex(s)) }
 
-func (hash *Hash) UnmarshalSSZ(buf []byte) error {
-	*hash = BytesToHash(buf)
+func (h *Hash) UnmarshalSSZ(buf []byte) error {
+	*h = BytesToHash(buf)
 	return nil
 }
 
-func (hash *Hash) MarshalSSZ() ([]byte, error) {
-	return ssz.MarshalSSZ(hash)
+func (h *Hash) MarshalSSZ() ([]byte, error) {
+	return ssz.MarshalSSZ(h)
 }
 
-func (hash *Hash) MarshalSSZTo(dest []byte) ([]byte, error) {
-	return append(dest, hash.Bytes()...), nil
+func (h *Hash) MarshalSSZTo(dest []byte) ([]byte, error) {
+	return append(dest, h.Bytes()...), nil
 }
 
-func (hash *Hash) SizeSSZ() int {
+func (h *Hash) SizeSSZ() int {
 	return HashSize
 }

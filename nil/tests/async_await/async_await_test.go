@@ -184,13 +184,13 @@ func (s *SuiteAsyncAwait) TestSendRequestFromCallback() {
 		receipt *jsonrpc.RPCReceipt
 	)
 
-	counterValue := tests.CallGetterT[int32](s.T(), s.Context, s.DefaultClient, s.abiCounter, s.counterAddress0, "get")
+	counterValue := tests.CallGetterT[int32](s.T(), s.DefaultClient, s.abiCounter, s.counterAddress0, "get")
 
 	data = s.AbiPack(s.abiTest, "sendRequestFromCallback", s.counterAddress0)
 	receipt = s.SendExternalTransactionNoCheck(data, s.testAddress0)
 	s.Require().True(receipt.AllSuccess())
 
-	tests.CheckContractValueEqual(s.T(), s.Context, s.DefaultClient, s.abiCounter, s.counterAddress0, "get",
+	tests.CheckContractValueEqual(s.T(), s.DefaultClient, s.abiCounter, s.counterAddress0, "get",
 		counterValue+1+2+3+4+5)
 
 	s.Require().False(receipt.OutReceipts[0].Flags.IsResponse())
@@ -410,11 +410,11 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		s.Require().True(receipt.AllSuccess())
 
 		tests.CheckContractValueEqual(
-			s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "counterValue", int32(123))
+			s.T(), s.DefaultClient, s.abiTest, s.testAddress0, "counterValue", int32(123))
 		tests.CheckContractValueEqual(
-			s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "intValue", intContext)
+			s.T(), s.DefaultClient, s.abiTest, s.testAddress0, "intValue", intContext)
 		tests.CheckContractValueEqual(
-			s.T(), s.Context, s.DefaultClient, s.abiTest, s.testAddress0, "strValue", "Hello World")
+			s.T(), s.DefaultClient, s.abiTest, s.testAddress0, "strValue", "Hello World")
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
 
@@ -428,7 +428,7 @@ func (s *SuiteAsyncAwait) TestRequestResponse() {
 		s.Require().True(receipt.AllSuccess())
 
 		tests.CheckContractValueEqual(
-			s.T(), s.Context, s.DefaultClient, s.abiCounter, s.counterAddress0, "get", int32(223))
+			s.T(), s.DefaultClient, s.abiCounter, s.counterAddress0, "get", int32(223))
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
 		initialBalance = s.CheckBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
@@ -522,8 +522,7 @@ func (s *SuiteAsyncAwait) TestOnlyResponse() {
 func (s *SuiteAsyncAwait) checkAsyncContextEmpty(address types.Address) {
 	s.T().Helper()
 
-	index := tests.InstanceId(address.ShardId()) - 1
-	contract := tests.GetContract(s.T(), s.Context, s.Instances[index].Db, address)
+	contract := tests.GetContract(s.T(), s.DefaultClient, address)
 	s.Require().Equal(common.EmptyHash, contract.AsyncContextRoot)
 }
 

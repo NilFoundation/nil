@@ -29,7 +29,6 @@ func (blockOp) getBlockBytesId(tx db.RoTx, idBytes []byte, required bool) (*bloc
 
 	switch {
 	case err == nil:
-		break
 	case errors.Is(err, db.ErrKeyNotFound) && required:
 		return nil, fmt.Errorf("%w, id=%s", scTypes.ErrBlockNotFound, hex.EncodeToString(idBytes))
 	case errors.Is(err, db.ErrKeyNotFound):

@@ -7,19 +7,18 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
-	uniswap "github.com/NilFoundation/nil/nil/services/nil_load_generator/contracts"
 )
 
 type NilLoadGeneratorAPI interface {
 	HealthCheck() bool
 	SmartAccountsAddr() []types.Address
 	CallSwap(
-		pairs []*uniswap.Pair,
-		tokenName1 string, tokenName2 string,
+		tokenName1 string,
+		tokenName2 string,
 		amountSwap types.Uint256,
 		expectedAmount types.Uint256,
 	) (common.Hash, error)
-	CallQuote(pairs []*uniswap.Pair, tokenName1, tokenName2 string, swapAmount types.Uint256) (types.Uint256, error)
+	CallQuote(tokenName1, tokenName2 string, swapAmount types.Uint256) (types.Uint256, error)
 	CallInfo(hash common.Hash) (UniswapTransactionInfo, error)
 }
 
@@ -77,7 +76,6 @@ func (c NilLoadGeneratorAPIImpl) SmartAccountsAddr() []types.Address {
 }
 
 func (c NilLoadGeneratorAPIImpl) CallSwap(
-	pairs []*uniswap.Pair,
 	tokenName1 string,
 	tokenName2 string,
 	amountSwap types.Uint256,
@@ -103,7 +101,7 @@ func (c NilLoadGeneratorAPIImpl) CallSwap(
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	calldata, err := pairs[res.ShardId-1].Abi.Pack(
+	calldata, err := c.service.pairs[res.ShardId-1].Abi.Pack(
 		"swap", amount1, amount2, uniswapSmartAccount.Addr)
 	if err != nil {
 		return common.EmptyHash, err
@@ -120,13 +118,12 @@ func (c NilLoadGeneratorAPIImpl) CallSwap(
 				Balance: types.Value{Uint256: &amountSwap},
 			},
 		},
-		pairs[res.ShardId-1].Addr,
+		c.service.pairs[res.ShardId-1].Addr,
 		uniswapSmartAccount.PrivateKey,
 	)
 }
 
 func (c NilLoadGeneratorAPIImpl) CallQuote(
-	pairs []*uniswap.Pair,
 	tokenName1 string,
 	tokenName2 string,
 	swapAmount types.Uint256,
@@ -142,7 +139,7 @@ func (c NilLoadGeneratorAPIImpl) CallQuote(
 	if err != nil {
 		return types.Uint256{0}, err
 	}
-	reserve0, reserve1, err := pairs[res.ShardId-1].GetReserves(uniswapSmartAccount)
+	reserve0, reserve1, err := c.service.pairs[res.ShardId-1].GetReserves(uniswapSmartAccount)
 	if err != nil {
 		return types.Uint256{0}, err
 	}

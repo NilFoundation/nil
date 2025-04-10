@@ -26,7 +26,7 @@ func hostAddress(m *Manager) string {
 	return m.host.Addrs()[0].String() + "/p2p/" + m.host.ID().String()
 }
 
-func NewTestManagerWithBaseConfig(t *testing.T, ctx context.Context, conf *Config) *Manager {
+func NewTestManagerWithBaseConfig(ctx context.Context, t *testing.T, conf *Config) *Manager {
 	t.Helper()
 
 	conf = common.CopyPtr(conf)
@@ -44,14 +44,14 @@ func NewTestManagerWithBaseConfig(t *testing.T, ctx context.Context, conf *Confi
 	return m
 }
 
-func NewTestManagers(t *testing.T, ctx context.Context, initialTcpPort int, n int) []*Manager {
+func NewTestManagers(ctx context.Context, t *testing.T, initialTcpPort int, n int) []*Manager {
 	t.Helper()
 
 	managers := make([]*Manager, n)
 	cfg := &Config{}
 	for i := range n {
 		cfg.TcpPort = initialTcpPort + i
-		managers[i] = NewTestManagerWithBaseConfig(t, ctx, cfg)
+		managers[i] = NewTestManagerWithBaseConfig(ctx, t, cfg)
 	}
 	return managers
 }

@@ -15,7 +15,11 @@ GOBUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build $(GO_FLAGS) -tags $(TAGS)
 GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TAGS),debug,assert,test,goexperiment.synctest $(GO_FLAGS) ./... -p 2
 
 SC_COMMANDS = sync_committee sync_committee_cli proof_provider prover nil_block_generator relayer
-COMMANDS += nild nil nil_load_generator exporter cometa faucet journald_forwarder relay stresser $(SC_COMMANDS)
+COMMANDS += nild nil nil-load-generator indexer cometa faucet journald_forwarder relay stresser $(SC_COMMANDS)
+
+BINARY_NAMES := cometa=nil-cometa indexer=nil-indexer
+get_bin_name = $(if $(filter $(1)=%,$(BINARY_NAMES)),$(patsubst $(1)=%,%,$(filter $(1)=%,$(BINARY_NAMES))),$(1))
+
 
 all: $(COMMANDS)
 
@@ -28,14 +32,17 @@ test: generated
 
 %.cmd: generated
 	@# Note: $* is replaced by the command name
+	$(eval BINNAME := $(call get_bin_name,$*))
 	@echo "Building $*"
-	@cd ./nil/cmd/$* && $(GOBUILD) -o $(GOBIN)/$*
-	@echo "Run \"$(GOBIN)/$*\" to launch $*."
+	@cd ./nil/cmd/$* && $(GOBUILD) -o $(GOBIN)/$(BINNAME)
+	@echo "Run \"$(GOBIN)/$(BINNAME)\" to launch $*."
 
 %.runcmd: %.cmd
 	@$(GOBIN)/$* $(CMDARGS)
 
 $(COMMANDS): %: generated %.cmd
+
+$(SC_COMMANDS:%=%.cmd): gen_rollup_contracts_bindings
 
 include nil/common/sszx/Makefile.inc
 include nil/internal/db/Makefile.inc
@@ -69,7 +76,7 @@ $(BIN_FILES): | compile-bins
 
 compile-contracts: $(BIN_FILES)
 
-golangci-lint:
+golangci-lint: gen_rollup_contracts_bindings
 	golangci-lint run
 
 format: generated
@@ -77,7 +84,7 @@ format: generated
 	GOPROXY= go mod vendor
 	golangci-lint fmt
 
-lint: format golangci-lint
+lint: format golangci-lint checklocks
 
 checklocks: generated
 	@export GOFLAGS="$$GOFLAGS -tags=test,goexperiment.synctest"; \
