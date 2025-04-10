@@ -15,6 +15,7 @@ import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 import { IL2ETHBridgeVault } from "./interfaces/IL2ETHBridgeVault.sol";
 import { IL2ETHBridge } from "./interfaces/IL2ETHBridge.sol";
 import { IBridge } from "../interfaces/IBridge.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract L2ETHBridgeVault is
   OwnableUpgradeable,
@@ -123,34 +124,38 @@ contract L2ETHBridgeVault is
 
   /// @inheritdoc IL2ETHBridgeVault
   function transferETHOnDepositFinalisation(
-    address payable recipient,
-    uint256 amount
+    address depositRecipient,
+    address l2RefundRecipient,
+    uint256 depositAmount
   ) public override nonReentrant whenNotPaused {
     if (msg.sender != address(l2ETHBridge)) {
       revert ErrorCallerNotL2ETHBridge();
     }
 
-    if (recipient == address(0)) {
+    if (depositRecipient == address(0)) {
       revert ErrorInvalidRecipientAddress();
     }
 
-    if (amount == 0) {
+    if (depositAmount == 0) {
       revert ErrorInvalidTransferAmount();
     }
 
-    if (address(this).balance < amount) {
+    if (address(this).balance < depositAmount) {
       revert ErrorInsufficientVaultBalance();
     }
 
-    ethAmountTracker = ethAmountTracker + amount;
+    ethAmountTracker = ethAmountTracker + depositAmount;
 
-    uint256 initialBalance = address(this).balance;
-
-    (bool success, ) = recipient.call{ value: amount }("");
-
-    if (!success || initialBalance - address(this).balance != amount) {
-      revert ErrorETHTransferFailed();
-    }
+    /// @notice Send a request to the depositRecipient to send the eth depositAmount.
+    Nil.asyncCall(
+      depositRecipient,
+      l2RefundRecipient,
+      address(this),
+      Nil.ASYNC_REQUEST_MIN_GAS,
+      Nil.FORWARD_REMAINING,
+      depositAmount,
+      "0x"
+    );
   }
 
   function returnETHOnWithdrawal(uint256 amount) external payable override nonReentrant whenNotPaused {
