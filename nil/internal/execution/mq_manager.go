@@ -1,14 +1,21 @@
 package execution
 
 import (
+	"encoding/json"
 	"fmt"
 
+	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
 )
 
-func CreateMQPruneTransaction(shardId types.ShardId) (*types.Transaction, error) {
+type message struct {
+	Data    []byte
+	Address types.Address
+}
+
+func CreateMQPruneTransaction(shardId types.ShardId, bn types.BlockNumber) (*types.Transaction, error) {
 	abi, err := contracts.GetAbi(contracts.NameMessageQueue)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get MessageQueue ABI: %w", err)
@@ -28,14 +35,16 @@ func CreateMQPruneTransaction(shardId types.ShardId) (*types.Transaction, error)
 			MaxFeePerGas:         types.MaxFeePerGasDefault,
 			MaxPriorityFeePerGas: types.Value0,
 			Data:                 calldata,
+			Seqno:                types.Seqno(bn + 1),
 		},
-		From: addr,
+		RefundTo: addr,
+		From:     addr,
 	}
 
 	return txn, nil
 }
 
-func GetMessageQueueContent(es *ExecutionState, nShards uint32) (map[types.ShardId][][]byte, error) {
+func GetMessageQueueContent(es *ExecutionState) ([]message, error) {
 	addr := types.GetMessageQueueAddress(es.ShardId)
 	account, err := es.GetAccount(addr)
 	if err != nil {
@@ -47,31 +56,73 @@ func GetMessageQueueContent(es *ExecutionState, nShards uint32) (map[types.Shard
 		return nil, fmt.Errorf("failed to get MessageQueue ABI: %w", err)
 	}
 
-	result := make(map[types.ShardId][][]byte, nShards)
-	for shardId := range types.ShardId(nShards) {
-		calldata, err := abi.Pack("getMessages", uint(shardId))
-		if err != nil {
-			return nil, fmt.Errorf("failed to pack getMessages calldata: %w", err)
-		}
+	calldata, err := abi.Pack("getMessages")
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack getMessages calldata: %w", err)
+	}
 
-		if err := es.newVm(true, addr, nil); err != nil {
-			return nil, fmt.Errorf("failed to create VM: %w", err)
-		}
-		defer es.resetVm()
+	if err := es.newVm(true, addr, nil); err != nil {
+		return nil, fmt.Errorf("failed to create VM: %w", err)
+	}
+	defer es.resetVm()
 
-		ret, _, err := es.evm.StaticCall(
-			(vm.AccountRef)(account.address), account.address, calldata, types.DefaultMaxGasInBlock.Uint64())
-		if err != nil {
-			return nil, fmt.Errorf("failed to get message queue content: %w", err)
-		}
+	ret, _, err := es.evm.StaticCall(
+		(vm.AccountRef)(account.address), account.address, calldata, types.DefaultMaxGasInBlock.Uint64())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get message queue content: %w", err)
+	}
 
-		var shardRes [][]byte
-		err = abi.UnpackIntoInterface(&shardRes, "getMessages", ret)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unpack getMessages return data: %w", err)
-		}
-		result[shardId] = shardRes
+	var result []message
+	if err := abi.UnpackIntoInterface(&result, "getMessages", ret); err != nil {
+		return nil, fmt.Errorf("failed to unpack getMessages return data: %w", err)
 	}
 
 	return result, nil
+}
+
+func HandleOutMessage(es *ExecutionState, msg *message) error {
+	var payload types.InternalTransactionPayload
+	if err := payload.UnmarshalSSZ(msg.Data); err != nil {
+		return types.NewWrapError(types.ErrorInvalidTransactionInputUnmarshalFailed, err)
+	}
+
+	cfgAccessor := es.GetConfigAccessor()
+	nShards, err := config.GetParamNShards(cfgAccessor)
+	if err != nil {
+		return types.NewVmVerboseError(types.ErrorPrecompileConfigGetParamFailed, err.Error())
+	}
+
+	if uint32(payload.To.ShardId()) >= nShards {
+		return vm.ErrShardIdIsTooBig
+	}
+
+	if payload.To.ShardId().IsMainShard() {
+		return vm.ErrTransactionToMainShard
+	}
+
+	// TODO: withdrawFunds should be implemneted
+	// if err := withdrawFunds(es, msg.Address, payload.Value); err != nil {
+	// 	return nil, fmt.Errorf("withdraw value failed: %w", err)
+	// }
+
+	// if payload.ForwardKind == types.ForwardKindNone {
+	// 	if err := withdrawFunds(es, msg.Address, payload.FeeCredit); err != nil {
+	// 		return nil, fmt.Errorf("withdraw FeeCredit failed: %w", err)
+	// 	}
+	// }
+
+	// TODO: We should consider non-refundable transactions
+	if payload.RefundTo == types.EmptyAddress {
+		payload.RefundTo = msg.Address
+	}
+	if payload.BounceTo == types.EmptyAddress {
+		payload.BounceTo = msg.Address
+	}
+
+	_, err = es.AddOutTransaction(msg.Address, &payload)
+	if err == nil {
+		pJson, _ := json.MarshalIndent(payload, "", "  ")
+		fmt.Println("out transaction added", msg.Address, string(pJson))
+	}
+	return err
 }

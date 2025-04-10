@@ -102,7 +102,7 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		return nil, fmt.Errorf("failed to fetch last block hashes: %w", err)
 	}
 
-	if err := p.handleMessageQueue(); err != nil {
+	if err := p.handleMessageQueue(prevBlock.Id); err != nil {
 		return nil, fmt.Errorf("failed to handle message queue: %w", err)
 	}
 
@@ -169,8 +169,8 @@ func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
 	return nil
 }
 
-func (p *proposer) handleMessageQueue() error {
-	txn, err := execution.CreateMQPruneTransaction(p.params.ShardId)
+func (p *proposer) handleMessageQueue(bn types.BlockNumber) error {
+	txn, err := execution.CreateMQPruneTransaction(p.params.ShardId, bn)
 	if err != nil {
 		return fmt.Errorf("failed to create MQ prune transaction: %w", err)
 	}
@@ -313,7 +313,9 @@ func (p *proposer) handleTransactionsFromPool() error {
 			return false, res.FatalError
 		} else if res.Failed() {
 			p.logger.Info().Stringer(logging.FieldTransactionHash, txnHash).
-				Err(res.Error).Msg("External txn validation failed. Saved failure receipt. Dropping...")
+				Err(res.Error).
+				Stringer(logging.FieldTransactionTo, txn.To).
+				Msg("External txn validation failed. Saved failure receipt. Dropping...")
 
 			execution.AddFailureReceipt(txnHash, txn.To, res)
 			unverified = append(unverified, txnHash)

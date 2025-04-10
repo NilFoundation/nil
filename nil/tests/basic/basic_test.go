@@ -53,8 +53,9 @@ func (s *SuiteRpc) SetupSuite() {
 		return s.dbMock
 	}
 	s.Start(&nilservice.Config{
-		NShards: 5,
-		HttpUrl: rpc.GetSockPath(s.T()),
+		NShards:          5,
+		HttpUrl:          rpc.GetSockPath(s.T()),
+		DisableConsensus: true,
 
 		// NOTE: caching won't work with parallel tests in this module, because global cache will be shared
 		EnableConfigCache: true,

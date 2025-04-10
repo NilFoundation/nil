@@ -260,6 +260,20 @@ func (g *BlockGenerator) prepareExecutionState(proposal *Proposal, gasPrices []t
 		g.executionState.AppendForwardTransaction(txn)
 	}
 
+	messages, err := GetMessageQueueContent(g.executionState)
+	if err != nil {
+		return fmt.Errorf("failed to get message queue content: %w", err)
+	}
+
+	for _, msg := range messages {
+		if err := HandleOutMessage(g.executionState, &msg); err != nil {
+			g.logger.Err(err).Stringer(logging.FieldTransactionFrom, msg.Address).
+				Msg("Failed to handle out message")
+			continue
+		}
+		fmt.Println("====================== out txn added", msg.Address, "======================")
+	}
+
 	g.executionState.ChildShardBlocks = make(map[types.ShardId]common.Hash, len(proposal.ShardHashes))
 	for i, shardHash := range proposal.ShardHashes {
 		g.executionState.ChildShardBlocks[types.ShardId(i+1)] = shardHash

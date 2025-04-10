@@ -85,7 +85,7 @@ func CreateDefaultZeroStateConfig(mainPublicKey []byte, nShards uint32) (*ZeroSt
 			Contract: "system/MessageQueue",
 			Address:  types.GetMessageQueueAddress(i),
 			Value:    smartAccountValue,
-			CtorArgs: []any{nShards},
+			CtorArgs: []any{},
 		})
 	}
 

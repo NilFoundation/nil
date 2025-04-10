@@ -1,40 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import "./IMessageQueue.sol";
+import "../lib/IMessageQueue.sol";
+
+struct Message {
+    bytes data;
+    address sender;
+}
 
 contract MessageQueue is IMessageQueue{
-    constructor(uint _nShards) {
-        nShards = _nShards;
+    function sendRawTransaction(bytes calldata _message) external override {
+        queue.push(Message({
+            data: _message,
+            sender: msg.sender
+        }));
     }
 
-    function sendMessage(
-        uint _shardId,
-        bytes calldata _message
-    ) external override {
-        require(_shardId != 0, "sendMessage: shardId must not be 0");
-        require(_shardId < nShards, "sendMessage: shardId must be less than nShards");
-        queues[_shardId].push(_message);
-    }
-
-    function getMessages(
-        uint _shardId
-    ) external view returns (bytes[] memory) {
-        return queues[_shardId];
+    function getMessages() external view returns (Message[] memory) {
+        return queue;
     }
 
     function clearQueue() external {
         require(msg.sender == address(this), "clearQueue: only MessageQueue contract can be caller of this function");
-        for (uint i = 0; i < nShards; i++) {
-            delete queues[i];
-        }
+        delete queue;
     }
 
-    function updateNShards(uint _nShards) external {
-        require(msg.sender == address(this), "updateNShards: only MessageQueue contract can be caller of this function");
-        nShards = _nShards;
-    }
-
-    mapping(uint => bytes[]) private queues;
-    uint private nShards;
+    Message[] private queue;
 }
