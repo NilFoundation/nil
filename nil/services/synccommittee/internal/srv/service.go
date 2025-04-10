@@ -115,7 +115,7 @@ func (s *Service) runWorker(
 	control = &workerControl{cancel, make(chan struct{}, 1), make(chan error)}
 
 	go func(wCtx context.Context) {
-		s.runWorkerWithControl(wCtx, workerErrors, worker, control)
+		s.runWorkerWithControl(wCtx, workerErrors, worker, control) //nolint:revive
 	}(wCtx)
 
 	logger := WorkerLogger(s.logger, worker)

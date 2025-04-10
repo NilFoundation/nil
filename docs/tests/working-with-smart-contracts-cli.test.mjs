@@ -14,24 +14,17 @@ import {
 const util = require("node:util");
 const exec = util.promisify(require("node:child_process").exec);
 
-const SALT = BigInt(Math.floor(Math.random() * 10000));
-
 const CONFIG_FILE_NAME = "./tests/tempWorkingWithSmartContracts.ini";
 
 const CONFIG_FLAG = `--config ${CONFIG_FILE_NAME}`;
 
-//startRetailerDeploymentCommand
-const RETAILER_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} smart-account deploy ./tests/Retailer/Retailer.bin --abi ./tests/Retailer/Retailer.abi --salt ${SALT} ${CONFIG_FLAG}`;
-//endRetailerDeploymentCommand
-
-let TEST_COMMANDS;
 let MANUFACTURER_ADDRESS;
 let RETAILER_ADDRESS;
 let PUBKEY;
+let testHelper;
 
 beforeAll(async () => {
-  const testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
-  TEST_COMMANDS = testHelper.createCLICommandsMap(SALT);
+  testHelper = new TestHelper({ configFileName: CONFIG_FILE_NAME });
   await testHelper.prepareTestCLI();
 });
 
@@ -48,11 +41,16 @@ describe.sequential("CLI deployment tests", async () => {
   });
 
   test.sequential("internal deployment of Retailer and Manufacturer is successful", async () => {
+    const SALT = BigInt(Math.floor(Math.random() * 10000));
+    //startRetailerDeploymentCommand
+    const RETAILER_DEPLOYMENT_COMMAND = `${NIL_GLOBAL} smart-account deploy ./tests/Retailer/Retailer.bin --abi ./tests/Retailer/Retailer.abi --salt ${SALT} ${CONFIG_FLAG}`;
+    //endRetailerDeploymentCommand
     let { stdout, stderr } = await exec(RETAILER_DEPLOYMENT_COMMAND);
     expect(stdout).toMatch(CONTRACT_ADDRESS_PATTERN);
     const addressMatches = stdout.match(ADDRESS_PATTERN);
     RETAILER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
 
+    const TEST_COMMANDS = testHelper.createCLICommandsMap(SALT);
     ({ stdout, stderr } = await exec(TEST_COMMANDS.SMART_ACCOUNT_INFO_COMMAND));
     PUBKEY = stdout.match(PUBKEY_PATTERN)[1];
 
@@ -97,6 +95,7 @@ describe.sequential("CLI deployment tests", async () => {
   );
 
   test.sequential("external deployment of Retailer and Manufacturer is successful", async () => {
+    const SALT = BigInt(Math.floor(Math.random() * 10000));
     //startExternalRetailerAddressCommand
     const RETAILER_ADDRESS_COMMAND = `${NIL_GLOBAL} contract address ./tests/Retailer/Retailer.bin --shard-id 1 --salt ${SALT} ${CONFIG_FLAG}`;
     //endExternalRetailerAddressCommand

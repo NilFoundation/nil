@@ -36,9 +36,8 @@ func (s *Service) FetchDebugBlock(
 
 	if jsonOutput {
 		return s.debugBlockToJson(shardId, block)
-	} else {
-		return s.debugBlockToText(shardId, block, !noColor, fullOutput)
 	}
+	return s.debugBlockToText(shardId, block, !noColor, fullOutput)
 }
 
 // We cannot make it generic because of

@@ -75,7 +75,7 @@ type AccountState struct {
 
 // FetchRequestId returns unique request id.
 func (as *AccountState) FetchRequestId() uint64 {
-	as.requestId += 1
+	as.requestId++
 	return as.requestId
 }
 

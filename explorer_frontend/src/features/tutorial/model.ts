@@ -39,6 +39,8 @@ export const $tutorials = tutorialDomain.createStore<Tutorial[]>([]);
 
 export const $completedTutorials = tutorialDomain.createStore<number[]>([]);
 
+export const $tutorialUserSolutions = tutorialDomain.createStore<Record<string, string>>({});
+
 export const $compiledTutorialContracts = tutorialDomain.createStore<App[]>([]);
 export const $tutorialContracts = $tutorial.map((tutorial) => (tutorial ? tutorial.contracts : ""));
 
@@ -52,12 +54,15 @@ export const notFoundTutorial = tutorialDomain.createEvent();
 
 export const setCompletedTutorial = tutorialDomain.createEvent<number>();
 
+export const setTutorialUserSolutions = tutorialDomain.createEvent<string>();
+
 fetchTutorialFx.use(async (urlSlug) => {
   const tutorials = await loadTutorials();
   const tutorial = tutorials.find((tutorial) => tutorial.urlSlug === urlSlug);
   if (!tutorial) {
     throw new Error(`Tutorial for URL ${urlSlug} not found`);
   }
+
   return tutorial;
 });
 

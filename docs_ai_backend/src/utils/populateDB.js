@@ -69,7 +69,7 @@ export const populateDB = async () => {
     docs = docs.concat(doc);
   }
   const contractsLoader = new DirectoryLoader(
-    path.resolve("../node_modules/@nilfoundation/smart-contracts/contracts"), {
+    path.resolve("../../../node_modules/@nilfoundation/smart-contracts/contracts"), {
     ".sol": (path) => new TextLoader(path)
   });
   const contractDocs = await contractsLoader.load();

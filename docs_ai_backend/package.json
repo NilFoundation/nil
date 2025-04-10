@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 7000",
     "build": "next build",
-    "start": "next start -p 8092"
+    "start": "PORT=8092 HOSTNAME=localhost node .next/standalone/docs_ai_backend/server.js"
   },
   "keywords": [],
   "author": "khannanov-nil",

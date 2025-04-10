@@ -18,6 +18,7 @@ import {
   refineFunctionHexData,
   refineSalt,
 } from "../../utils/refiners.js";
+import { Transaction } from "../../utils/transaction.js";
 import type { SendTransactionParams, SmartAccountInterface } from "../SmartAccountInterface.js";
 import type {
   DeployParams,
@@ -172,7 +173,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
    * @async
    * @param {boolean} [waitTillConfirmation=true] The flag that determines whether the function waits for deployment confirmation before exiting.
    * @param {bigint} [feeCredit] The fee credit for processing the deployment transaction. If not set, it will be estimated automatically.
-   * @returns {Uint8Array} The hash of the deployment transaction.
+   * @returns {Promise<Transaction>} A Transaction object that can be awaited for completion.
    * @example
    * import {
        Faucet,
@@ -208,7 +209,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
      });
    * await smartAccount.selfDeploy(true);
    */
-  async selfDeploy(waitTillConfirmation = true, feeCredit?: bigint) {
+  async selfDeploy(waitTillConfirmation = true, feeCredit?: bigint): Promise<Transaction> {
     invariant(
       typeof this.salt !== "undefined",
       "Salt is required for external deployment. Please provide salt for walelt",
@@ -262,16 +263,13 @@ export class SmartAccountV1 implements SmartAccountInterface {
       maxFeePerGas: maxFeePerGas,
     });
 
+    const tx = new Transaction(hash, this.client);
+
     if (waitTillConfirmation) {
-      while (true) {
-        const code = await this.client.getCode(this.address, "latest");
-        if (code.length > 0) {
-          break;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
+      await tx.wait();
     }
-    return hash;
+
+    return tx;
   }
 
   /**
@@ -336,7 +334,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
    * @param {SendTransactionParams} param0.feeCredit The transaction fee credit for processing transaction on receiving shard.
    * @param {SendTransactionParams} param0.value The transaction value.
    * @param {SendTransactionParams} param0.chainId The transaction chain id.
-   * @returns {unknown} The transaction hash.
+   * @returns {Promise<Transaction>} A Transaction object that can be awaited for completion.
    * @example
    * const anotherAddress = SmartAccountV1.calculateSmartAccountAddress({
    *     pubKey: pubkey,
@@ -364,7 +362,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
     value,
     tokens,
     chainId,
-  }: SendTransactionParams) {
+  }: SendTransactionParams): Promise<Transaction> {
     const hexTo = refineAddress(to);
     const hexRefundTo = refineAddress(refundTo ?? this.address);
     const hexBounceTo = refineAddress(bounceTo ?? this.address);
@@ -409,7 +407,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
       maxFeePerGas: maxFeePerGas,
     });
 
-    return bytesToHex(hash);
+    return new Transaction(hash, this.client);
   }
 
   /**
@@ -417,12 +415,12 @@ export class SmartAccountV1 implements SmartAccountInterface {
    *
    * @async
    * @param {string} The name of the custom token.
-   * @returns {unknown} The transaction hash.
+   * @returns {Promise<Transaction>} A Transaction object that can be awaited for completion.
    * @example
-   * const hashTransaction = await smartAccount.setTokenName("MY_TOKEN");
-   * await waitTillCompleted(client, hashTransaction);
+   * const tx = await smartAccount.setTokenName("MY_TOKEN");
+   * await tx.wait();
    */
-  async setTokenName(name: string) {
+  async setTokenName(name: string): Promise<Transaction> {
     const callData = encodeFunctionData({
       abi: SmartAccount.abi,
       functionName: "setTokenName",
@@ -434,7 +432,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
       deploy: false,
     });
 
-    return bytesToHex(hash);
+    return new Transaction(hash, this.client);
   }
 
   /**
@@ -443,12 +441,12 @@ export class SmartAccountV1 implements SmartAccountInterface {
    *
    * @async
    * @param {bigint} The amount to mint.
-   * @returns {unknown} The transaction hash.
+   * @returns {Promise<Transaction>} A Transaction object that can be awaited for completion.
    * @example
-   * const hashTransaction = await smartAccount.mintToken(mintCount);
-   * await waitTillCompleted(client, hashTransaction);
+   * const tx = await smartAccount.mintToken(mintCount);
+   * await tx.wait();
    */
-  async mintToken(amount: bigint) {
+  async mintToken(amount: bigint): Promise<Transaction> {
     return await this.changeTokenAmount(amount, true);
   }
 
@@ -457,16 +455,16 @@ export class SmartAccountV1 implements SmartAccountInterface {
    *
    * @async
    * @param {bigint} The amount to burn.
-   * @returns {unknown} The transaction hash.
+   * @returns {Promise<Transaction>} A Transaction object that can be awaited for completion.
    * @example
-   * const hashTransaction = await smartAccount.burnToken(burnToken);
-   * await waitTillCompleted(client, hashTransaction);
+   * const tx = await smartAccount.burnToken(burnToken);
+   * await tx.wait();
    */
-  async burnToken(amount: bigint) {
+  async burnToken(amount: bigint): Promise<Transaction> {
     return await this.changeTokenAmount(amount, false);
   }
 
-  private async changeTokenAmount(amount: bigint, mint: boolean) {
+  private async changeTokenAmount(amount: bigint, mint: boolean): Promise<Transaction> {
     let method: ContractFunctionName<typeof SmartAccount.abi> = "burnToken" as const;
     if (mint) {
       method = "mintToken" as const;
@@ -483,7 +481,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
       deploy: false,
     });
 
-    return bytesToHex(hash);
+    return new Transaction(hash, this.client);
   }
 
   /**
@@ -491,15 +489,15 @@ export class SmartAccountV1 implements SmartAccountInterface {
    *
    * @async
    * @param {Uint8Array} rawTransaction The transaction bytecode.
-   * @returns {unknown} The transaction hash.
+   * @returns {Promise<Transaction>} A Transaction object that can be awaited for completion.
    */
-  async sendRawInternalTransaction(rawTransaction: Uint8Array) {
+  async sendRawInternalTransaction(rawTransaction: Uint8Array): Promise<Transaction> {
     const { hash } = await this.requestToSmartAccount({
       data: rawTransaction,
       deploy: false,
     });
 
-    return bytesToHex(hash);
+    return new Transaction(hash, this.client);
   }
 
   /**
@@ -516,7 +514,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
    * @param {DeployParams} param0.feeCredit The deployment transaction fee credit.
    * @param {DeployParams} param0.seqno The deployment transaction seqno.
    * @param {DeployParams} param0.chainId The deployment transaction chain id.
-   * @returns {unknown} The object containing the deployment transaction hash and the contract address.
+   * @returns {Promise<{ tx: Transaction; address: Hex }>} The object containing the deployment transaction and the contract address.
    */
   async deployContract({
     shardId,
@@ -530,7 +528,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
     maxFeePerGas,
     seqno,
     chainId,
-  }: DeployParams) {
+  }: DeployParams): Promise<{ tx: Transaction; address: Hex }> {
     let deployData: IDeployData;
     if (abi && args) {
       deployData = {
@@ -610,7 +608,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
     });
 
     return {
-      hash: bytesToHex(hash),
+      tx: new Transaction(hash, this.client),
       address: bytesToHex(address),
     };
   }
@@ -628,18 +626,19 @@ export class SmartAccountV1 implements SmartAccountInterface {
    * @param {SendTransactionParams} param0.seqno The transaction sequence number.
    * @param {SendTransactionParams} param0.gas The transaction gas.
    * @param {SendTransactionParams} param0.value The transaction value.
-   * @returns {unknown} The transaction hash.
+   * @returns {Promise<Transaction>} A Transaction object that can be awaited for completion.
    * @example
    * const anotherAddress = SmartAccountV1.calculateSmartAccountAddress({
    *     pubKey: pubkey,
    *     shardId: 1,
    *     salt: 200n,
    *   });
-   * await smartAccount.sendTransaction({
+   * const tx = await smartAccount.syncSendTransaction({
    *     to: anotherAddress,
    *     value: 10n,
    *     gas: 100000n,
    *   });
+   * await tx.wait();
    */
   async syncSendTransaction({
     to,
@@ -652,7 +651,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
     maxPriorityFeePerGas,
     maxFeePerGas,
     value,
-  }: SendSyncTransactionParams) {
+  }: SendSyncTransactionParams): Promise<Transaction> {
     const hexTo = refineAddress(to);
     const hexData = refineFunctionHexData({ data, abi, functionName, args });
 
@@ -670,7 +669,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
       maxFeePerGas: maxFeePerGas,
     });
 
-    return bytesToHex(hash);
+    return new Transaction(hash, this.client);
   }
 
   /**

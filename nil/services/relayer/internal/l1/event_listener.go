@@ -240,7 +240,7 @@ func (el *EventListener) fetchPastEvents(ctx context.Context, eventCh chan<- *L1
 	el.logger.Info().
 		Uint64("latest_block_num", latestBlock).
 		Uint64("latest_processed_block_num", el.state.currentBlockNumber).
-		Msg("connected to Etherium")
+		Msg("connected to Ethereum")
 
 	if el.state.currentBlockNumber >= latestBlock {
 		el.logger.Info().Msg("no need to fetch old events")
@@ -316,6 +316,10 @@ func (el *EventListener) eventProcessor(
 func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSent) error {
 	event := el.convertEvent(ethEvent)
 
+	if err := event.validate(); err != nil {
+		return err
+	}
+
 	// all retryable errors should be handled inside storage, otherwise we should interrupt service work
 	err := el.eventStorage.StoreEvent(ctx, event)
 	if err := ignoreErrors(err, storage.ErrKeyExists); err != nil {
@@ -350,7 +354,7 @@ func (el *EventListener) convertEvent(ethEvent *L1MessageSent) *Event {
 
 		Sender:             ethEvent.MessageSender,
 		Target:             ethEvent.MessageTarget,
-		Value:              ethEvent.MessageValue,
+		Nonce:              ethEvent.MessageNonce,
 		Message:            ethEvent.Message,
 		Type:               ethEvent.MessageType,
 		CreatedAt:          ethEvent.MessageCreatedAt,
@@ -363,6 +367,10 @@ func (el *EventListener) convertEvent(ethEvent *L1MessageSent) *Event {
 			FeeCredit:            ethEvent.FeeCreditData.FeeCredit,
 		},
 	}
+	el.logger.Trace().
+		Stringer("block_hash", ethEvent.Raw.BlockHash).
+		Uint64("block_number", ethEvent.Raw.BlockNumber).
+		Msg("event received")
 	return event
 }
 

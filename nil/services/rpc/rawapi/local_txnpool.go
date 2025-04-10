@@ -27,11 +27,11 @@ func (api *LocalShardApi) SendTransaction(ctx context.Context, encoded []byte) (
 }
 
 func (api *LocalShardApi) GetTxpoolStatus(ctx context.Context) (uint64, error) {
-	return uint64(api.txnpool.GetQueue().Len()), nil
+	return uint64(api.txnpool.GetSize()), nil
 }
 
 func (api *LocalShardApi) GetTxpoolContent(ctx context.Context) ([]*types.Transaction, error) {
-	txns, err := api.txnpool.Peek(api.txnpool.GetQueue().Len())
+	txns, err := api.txnpool.Peek(0)
 	if err != nil {
 		return nil, err
 	}

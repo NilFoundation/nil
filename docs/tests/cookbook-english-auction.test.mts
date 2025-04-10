@@ -6,12 +6,7 @@ import { AUCTION_COMPILATION_COMMAND, NFT_COMPILATION_COMMAND } from "./compilat
 import { FAUCET_GLOBAL, RPC_GLOBAL } from "./globals";
 
 //startImportStatements
-import {
-  HttpTransport,
-  PublicClient,
-  generateSmartAccount,
-  waitTillCompleted,
-} from "@nilfoundation/niljs";
+import { HttpTransport, PublicClient, generateSmartAccount } from "@nilfoundation/niljs";
 import { type Abi, encodeFunctionData } from "viem";
 //endImportStatements
 
@@ -76,9 +71,9 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         faucetEndpoint: FAUCET_ENDPOINT,
       });
 
-      const gasPrice = await client.getGasPrice();
+      const gasPrice = await client.getGasPrice(1);
 
-      const { address: addressNFT, hash: hashNFT } = await smartAccount.deployContract({
+      const { address: addressNFT, tx: txNFT } = await smartAccount.deployContract({
         salt: SALT,
         shardId: 1,
         bytecode: NFT_BYTECODE,
@@ -87,9 +82,9 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         feeCredit: 3_000_000n * gasPrice,
       });
 
-      const receiptsNFT = await waitTillCompleted(client, hashNFT);
+      const receiptsNFT = await txNFT.wait();
 
-      const { address: addressAuction, hash: hashAuction } = await smartAccount.deployContract({
+      const { address: addressAuction, tx: txAuction } = await smartAccount.deployContract({
         salt: SALT,
         shardId: 3,
         bytecode: AUCTION_BYTECODE,
@@ -99,7 +94,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         feeCredit: 5_000_000n * gasPrice,
       });
 
-      const receiptsAuction = await waitTillCompleted(client, hashAuction);
+      const receiptsAuction = await txAuction.wait();
 
       //endInitialDeployments
 
@@ -115,7 +110,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
       expect(codeAuction.length).toBeGreaterThan(10);
 
       //startStartAuction
-      const changeOwnershipHash = await smartAccount.sendTransaction({
+      const changeOwnershipTx = await smartAccount.sendTransaction({
         to: addressNFT,
         feeCredit: 500_000n * gasPrice,
         data: encodeFunctionData({
@@ -125,9 +120,9 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         }),
       });
 
-      const receiptsOwnership = await waitTillCompleted(client, changeOwnershipHash);
+      const receiptsOwnership = await changeOwnershipTx.wait();
 
-      const startAuctionHash = await smartAccount.sendTransaction({
+      const startAuctionTx = await smartAccount.sendTransaction({
         to: addressAuction,
         feeCredit: 1_000_000n * gasPrice,
         data: encodeFunctionData({
@@ -137,7 +132,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         }),
       });
 
-      const receiptsStart = await waitTillCompleted(client, startAuctionHash);
+      const receiptsStart = await startAuctionTx.wait();
 
       //endStartAuction
       expect(receiptsOwnership.some((receipt) => !receipt.success)).toBe(false);
@@ -150,7 +145,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         faucetEndpoint: FAUCET_ENDPOINT,
       });
 
-      const bidHash = await smartAccountTwo.sendTransaction({
+      const bidTx = await smartAccountTwo.sendTransaction({
         to: addressAuction,
         feeCredit: 1_000_000n * gasPrice,
         data: encodeFunctionData({
@@ -161,13 +156,13 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         value: 300_000n,
       });
 
-      const receiptsBid = await waitTillCompleted(client, bidHash);
+      const receiptsBid = await bidTx.wait();
 
       //endBid
       expect(receiptsBid.some((receipt) => !receipt.success)).toBe(false);
       //startEndAuction
 
-      const endHash = await smartAccount.sendTransaction({
+      const endTx = await smartAccount.sendTransaction({
         to: addressAuction,
         feeCredit: 1_000_000n * gasPrice,
         data: encodeFunctionData({
@@ -177,7 +172,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         }),
       });
 
-      const receiptsEnd = await waitTillCompleted(client, endHash);
+      const receiptsEnd = await endTx.wait();
 
       const result = await client.getTokens(smartAccountTwo.address, "latest");
 

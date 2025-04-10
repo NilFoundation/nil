@@ -119,7 +119,21 @@ func (c *DirectClient) GetDebugBlocksRange(
 	fullTx bool,
 	batchSize int,
 ) ([]*jsonrpc.DebugRPCBlock, error) {
-	panic("Not supported")
+	if from >= to {
+		return nil, nil
+	}
+
+	result := make([]*jsonrpc.DebugRPCBlock, 0)
+	for curBlockId := from; curBlockId < to; curBlockId++ {
+		block, err := c.debugApi.GetBlockByNumber(ctx, shardId, transport.BlockNumber(curBlockId), fullTx)
+		if err != nil {
+			return nil, err
+		}
+		if block != nil {
+			result = append(result, block)
+		}
+	}
+	return result, nil
 }
 
 func (c *DirectClient) GetBlocksRange(
@@ -130,7 +144,21 @@ func (c *DirectClient) GetBlocksRange(
 	fullTx bool,
 	batchSize int,
 ) ([]*jsonrpc.RPCBlock, error) {
-	panic("Not supported")
+	if from >= to {
+		return nil, nil
+	}
+
+	result := make([]*jsonrpc.RPCBlock, 0)
+	for curBlockId := from; curBlockId < to; curBlockId++ {
+		block, err := c.ethApi.GetBlockByNumber(ctx, shardId, transport.BlockNumber(curBlockId), fullTx)
+		if err != nil {
+			return nil, err
+		}
+		if block != nil {
+			result = append(result, block)
+		}
+	}
+	return result, nil
 }
 
 func (c *DirectClient) SendTransaction(ctx context.Context, txn *types.ExternalTransaction) (common.Hash, error) {
@@ -388,7 +416,11 @@ func (c *DirectClient) GetDebugContract(
 	contractAddr types.Address,
 	blockId any,
 ) (*jsonrpc.DebugRPCContract, error) {
-	panic("Not supported")
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return nil, err
+	}
+	return c.debugApi.GetContract(ctx, contractAddr, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
 func (c *DirectClient) ClientVersion(ctx context.Context) (string, error) {

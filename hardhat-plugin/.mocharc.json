@@ -1,0 +1,8 @@
+{
+  "require": ["ts-node/register/transpile-only"],
+  "timeout": 25000,
+  "exclude": [
+    "./test/helpers/**/*",
+    "./test/projects/**/*"
+  ]
+}

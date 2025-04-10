@@ -9,6 +9,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
@@ -62,7 +63,7 @@ func newTaskEntries(now time.Time) []*types.TaskEntry {
 
 func (s *TaskSchedulerDebugRpcTestSuite) SetupSuite() {
 	s.context, s.cancellation = context.WithCancel(context.Background())
-	const listenerEndpoint = "tcp://127.0.0.1:8532"
+	listenerEndpoint := rpc.GetSockPath(s.T())
 
 	logger := logging.NewLogger("task_debug_rpc_test")
 

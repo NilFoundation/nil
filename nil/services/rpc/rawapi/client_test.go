@@ -52,7 +52,7 @@ func (api *generatedApiClient) TestMethod(
 	blockReference rawapitypes.BlockReference,
 ) (sszx.SSZEncodedData, error) {
 	return sendRequestAndGetResponse[sszx.SSZEncodedData](
-		api.doApiRequest, api.apiCodec, "TestMethod", ctx, blockReference)
+		ctx, api.doApiRequest, api.apiCodec, "TestMethod", blockReference)
 }
 
 func (s *ApiClientTestSuite) SetupSuite() {
@@ -90,7 +90,7 @@ func (s *ApiClientTestSuite) TestValidResponse() {
 			var blockRequest pb.BlockRequest
 			s.Require().NoError(proto.Unmarshal(request, &blockRequest))
 
-			index += 1
+			index++
 			response := &pb.RawBlockResponse{
 				Result: &pb.RawBlockResponse_Data{
 					Data: &pb.RawBlock{
@@ -98,7 +98,7 @@ func (s *ApiClientTestSuite) TestValidResponse() {
 					},
 				},
 			}
-			index += 1
+			index++
 			resp, err := proto.Marshal(response)
 			return resp, err
 		})

@@ -2,6 +2,7 @@ package cometa
 
 import (
 	"os/exec"
+	"syscall"
 	"testing"
 	"time"
 
@@ -36,15 +37,6 @@ type SuiteCometaClickhouse struct {
 	clickhouse *exec.Cmd
 }
 
-func (s *SuiteCometa) SetupSuite() {
-	s.cometaCfg.DbPath = s.T().TempDir() + "/cometa.db"
-	s.cometaCfg.OwnEndpoint = ""
-	var err error
-
-	s.testAddress, err = contracts.CalculateAddress(contracts.NameTest, 1, []byte{1})
-	s.Require().NoError(err)
-}
-
 func (s *SuiteCometaClickhouse) SetupSuite() {
 	s.cometaCfg.UseBadger = false
 
@@ -68,18 +60,12 @@ func (s *SuiteCometaClickhouse) SetupSuite() {
 		"--mysql_port=",
 		"--path="+dir,
 	)
+	s.clickhouse.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	s.clickhouse.Dir = dir
 	err := s.clickhouse.Start()
 	s.Require().NoError(err)
 
 	time.Sleep(1 * time.Second)
-	createDb := exec.Command( //nolint:gosec
-		"clickhouse-client",
-		"--port=9002",
-		"--query",
-		"CREATE DATABASE IF NOT EXISTS "+s.cometaCfg.DbName)
-	out, err := createDb.CombinedOutput()
-	s.Require().NoErrorf(err, "output: %s", out)
 
 	s.SuiteCometa.SetupSuite()
 
@@ -88,7 +74,12 @@ func (s *SuiteCometaClickhouse) SetupSuite() {
 
 func (s *SuiteCometaClickhouse) TearDownSuite() {
 	if s.clickhouse != nil {
-		err := s.clickhouse.Process.Kill()
+		// https://stackoverflow.com/questions/22470193/why-wont-go-kill-a-child-process-correctly
+		// simple s.clickhouse.Kill() won't work on child process
+		// this leads to errors in sequential test runs
+		pgid, err := syscall.Getpgid(s.clickhouse.Process.Pid)
+		s.Require().NoError(err)
+		err = syscall.Kill(-pgid, syscall.SIGTERM)
 		s.Require().NoError(err)
 	}
 }
@@ -99,7 +90,14 @@ func (s *SuiteCometaBadger) SetupSuite() {
 	s.SuiteCometa.SetupSuite()
 }
 
-func (s *SuiteCometa) SetupTest() {
+func (s *SuiteCometa) SetupSuite() {
+	s.cometaCfg.DbPath = s.T().TempDir() + "/cometa.db"
+	s.cometaCfg.OwnEndpoint = ""
+	var err error
+
+	s.testAddress, err = contracts.CalculateAddress(contracts.NameTest, 1, []byte{1})
+	s.Require().NoError(err)
+
 	mainSmartAccountValue, err := types.NewValueFromDecimal("1000000000000000000000")
 	s.Require().NoError(err)
 	zerostateCfg := &execution.ZeroStateConfig{
@@ -129,8 +127,8 @@ func (s *SuiteCometa) SetupTest() {
 		DisableConsensus:     true,
 	})
 	s.cometaClient = *cometa.NewClient(s.Endpoint)
-	tests.WaitShardTick(s.T(), s.Context, s.Client, types.MainShardId)
-	tests.WaitShardTick(s.T(), s.Context, s.Client, types.BaseShardId)
+	tests.WaitShardTick(s.T(), s.Client, types.MainShardId)
+	tests.WaitShardTick(s.T(), s.Client, types.BaseShardId)
 }
 
 func (s *SuiteCometa) TestTwinContracts() {

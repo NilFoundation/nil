@@ -7,15 +7,19 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/cobrax"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core"
 	"github.com/spf13/cobra"
 )
 
+const appTitle = "=nil; Sync Committee"
+
 type cmdConfig struct {
-	*core.Config
-	DbPath string
+	*core.Config `yaml:",inline"`
+
+	DbPath string `yaml:"dbPath"`
 }
 
 func main() {
@@ -28,8 +32,9 @@ func execute() error {
 		Short: "Run nil sync committee node",
 	}
 
-	cfg := &cmdConfig{
-		Config: core.NewDefaultConfig(),
+	cfg, err := loadConfig()
+	if err != nil {
+		return err
 	}
 
 	runCmd := &cobra.Command{
@@ -39,15 +44,28 @@ func execute() error {
 			return run(cfg)
 		},
 	}
-
 	addFlags(runCmd, cfg)
 
-	rootCmd.AddCommand(runCmd)
-
+	versionCmd := cobrax.VersionCmd(appTitle)
+	rootCmd.AddCommand(runCmd, versionCmd)
 	return rootCmd.Execute()
 }
 
+func loadConfig() (*cmdConfig, error) {
+	cfg := &cmdConfig{
+		Config: core.NewDefaultConfig(),
+		DbPath: "sync_committee.db",
+	}
+
+	if err := cobrax.LoadConfigFromFile(cobrax.GetConfigNameFromArgs(), cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
 func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
+	cobrax.AddConfigFlag(cmd.Flags())
 	cmd.Flags().StringVar(
 		&cfg.RpcEndpoint,
 		"endpoint",
@@ -66,7 +84,7 @@ func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
 	cmd.Flags().StringVar(
 		&cfg.DbPath,
 		"db-path",
-		"sync_committee.db",
+		cfg.DbPath,
 		"path to database")
 	cmd.Flags().StringVar(
 		&cfg.ContractWrapperConfig.Endpoint,

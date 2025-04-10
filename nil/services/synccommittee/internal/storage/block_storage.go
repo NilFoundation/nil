@@ -460,11 +460,7 @@ func (bs *BlockStorage) unsetBlockBatch(tx db.RwTx, batch *batchEntry) error {
 		}
 	}
 
-	if err := bs.ops.putLatestBatchId(tx, batch.ParentId); err != nil {
-		return err
-	}
-
-	return nil
+	return bs.ops.putLatestBatchId(tx, batch.ParentId)
 }
 
 // ResetBatchesNotProved resets the block storage state:

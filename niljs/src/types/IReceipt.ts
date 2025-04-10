@@ -1,6 +1,10 @@
+import type { Transaction } from "../utils/transaction.js";
 import type { Hex } from "./Hex.js";
 import type { ILog } from "./ILog.js";
 import type { Flags } from "./RPCTransaction.js";
+
+export type ReceiptHash = Hex | Transaction;
+export type TransactionOptions = { waitTillMainShard?: boolean; interval?: number };
 
 /**
  * The receipt interface.

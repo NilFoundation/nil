@@ -37,11 +37,11 @@ func BuildProof(tree *Reader, key []byte, op MPTOperation) (Proof, error) {
 	}
 	p := Proof{operation: op, key: key}
 
-	if path, err := getMaxMatchingRoute(tree, key); err != nil {
+	path, err := getMaxMatchingRoute(tree, key)
+	if err != nil {
 		return p, err
-	} else {
-		p.PathToNode = path
 	}
+	p.PathToNode = path
 
 	if len(p.PathToNode) == 0 && tree.root != nil {
 		if rootNode, err := tree.getNode(tree.root); err != nil {

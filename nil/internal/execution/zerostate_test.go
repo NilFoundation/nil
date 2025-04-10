@@ -44,14 +44,13 @@ func (s *SuiteZeroState) SetupSuite() {
 
 	s.faucetABI, err = contracts.GetAbi(contracts.NameFaucet)
 	s.Require().NoError(err)
-}
-
-func (s *SuiteZeroState) SetupTest() {
-	var err error
-	s.state = newState(s.T())
 
 	s.contracts, err = solc.CompileSource("./testdata/call.sol")
 	s.Require().NoError(err)
+}
+
+func (s *SuiteZeroState) SetupTest() {
+	s.state = newState(s.T())
 }
 
 func (s *SuiteZeroState) TearDownTest() {

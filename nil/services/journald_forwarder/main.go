@@ -4,14 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
-	"slices"
 	"strings"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/rs/zerolog"
 	logs "go.opentelemetry.io/proto/otlp/collector/logs/v1"
@@ -20,112 +16,59 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	DefaultDatabase = "nil"
-	DefaultTable    = "events"
-)
+type Record struct {
+	Type  string
+	Value any
+}
 
-type Config struct {
-	ClickhouseAddr string
-	ListenAddr     string
-	DbUser         string
-	DbDatabase     string
-	DbPassword     string
+type Event map[string]Record
+
+func (e Event) GetColumnNames() []string {
+	res := make([]string, 0, len(e))
+	for key := range e {
+		res = append(res, key)
+	}
+	return res
 }
 
 type LogServer struct {
 	logs.UnimplementedLogsServiceServer
-	connect driver.Conn
-	logger  logging.Logger
+	click  *Clickhouse
+	logger logging.Logger
 }
 
-func NewLogServer(connect driver.Conn, logger logging.Logger) *LogServer {
-	return &LogServer{connect: connect, logger: logger}
-}
-
-func insertColumnsInTable(ctx context.Context,
-	connect driver.Conn, database, tableName string,
-	columns, columnsType []string,
-) error {
-	columnClauses := make([]string, len(columns))
-	for i, column := range columns {
-		columnClauses[i] = fmt.Sprintf("ADD COLUMN %s %s", column, columnsType[i])
-	}
-
-	query := fmt.Sprintf(
-		"ALTER TABLE %s.%s %s;",
-		database,
-		tableName,
-		strings.Join(columnClauses, ", "),
-	)
-
-	return connect.Exec(ctx, query)
-}
-
-func insertData(
-	ctx context.Context,
-	connect driver.Conn,
-	database string,
-	tableName string,
-	columns []string,
-	values []any,
-) error {
-	placeholders := make([]string, len(columns))
-	for i := range columns {
-		placeholders[i] = "?"
-	}
-
-	query := fmt.Sprintf(
-		"INSERT INTO %s.%s (%s) VALUES (%s)",
-		database,
-		tableName,
-		strings.Join(columns, ", "),
-		strings.Join(placeholders, ", "),
-	)
-
-	return connect.Exec(ctx, query, values...)
-}
-
-func getTabelColumnNames(ctx context.Context, connect driver.Conn, database, tableName string) ([]string, error) {
-	const columnQuery = "SELECT name FROM system.columns WHERE database = ? AND table = ?"
-
-	rows, err := connect.Query(ctx, columnQuery, database, tableName)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var columns []string
-	for rows.Next() {
-		var columnName string
-		if err := rows.Scan(&columnName); err != nil {
-			return nil, err
-		}
-		columns = append(columns, columnName)
-	}
-	return columns, nil
+func NewLogServer(click *Clickhouse, logger logging.Logger) *LogServer {
+	return &LogServer{click: click, logger: logger}
 }
 
 var fieldStoreClickhouseTyped = logging.FieldStoreToClickhouse + logging.GetAbbreviation("bool")
 
-func extractLogColumns(data map[string]any) ([]string, []string, []any) {
-	columns := make([]string, 0, len(data))
-	columnTypes := make([]string, 0, len(data))
-	values := make([]any, 0, len(data))
+func createUniqueColumnsEvent(events []Event) Event {
+	uniqueColumns := Event{}
+	for _, event := range events {
+		for key, value := range event {
+			if _, exists := uniqueColumns[key]; !exists {
+				uniqueColumns[key] = value
+			}
+		}
+	}
+	return uniqueColumns
+}
 
+func extractLogColumns(data map[string]any) Event {
+	res := Event{}
 	for key, value := range data {
 		baseColumn := key[:len(key)-logging.LogAbbreviationSize]
 		columnType := key[len(key)-logging.LogAbbreviationSize:]
-
-		columns = append(columns, baseColumn)
-		columnTypes = append(columnTypes, columnType)
-		values = append(values, value)
+		res[baseColumn] = Record{
+			Type:  columnType,
+			Value: value,
+		}
 	}
-
-	return columns, columnTypes, values
+	return res
 }
 
-func storeData(ctx context.Context, logger logging.Logger, connect driver.Conn, data map[string]any) error {
+func preProcessData(logger logging.Logger, data map[string]any) (Event, error) {
 	delete(data, fieldStoreClickhouseTyped)
 	for _, field := range []string{
 		zerolog.CallerFieldName,
@@ -146,75 +89,68 @@ func storeData(ctx context.Context, logger logging.Logger, connect driver.Conn, 
 		strValue, ok := value.(string)
 		if !ok {
 			logger.Error().Msgf("timestamp is not a string in log %+v", data)
-			return errors.New("timestamp is not a string")
+			return nil, errors.New("timestamp is not a string")
 		}
 		parsedTime, err := time.Parse(time.RFC3339, strValue)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error parsing timestamp")
-			return err
+			return nil, err
 		}
 		data[zerolog.TimestampFieldName+logging.GetAbbreviation("datetime64")] = parsedTime
 		delete(data, zerolog.TimestampFieldName)
 	}
 
-	columns, columnsDef, values := extractLogColumns(data)
-
-	for {
-		if err := insertData(ctx, connect, DefaultDatabase, DefaultTable, columns, values); err != nil {
-			columNames, err := getTabelColumnNames(ctx, connect, DefaultDatabase, DefaultTable)
-			if err != nil {
-				logger.Error().Err(err).Msg("Error getting table columns")
-				return err
-			}
-			var diff []string
-			var typeDiff []string
-			for i, col1 := range columns {
-				idx := slices.Index(columNames, col1)
-				if idx == -1 {
-					diff = append(diff, col1)
-					chType, err := logging.GetClickhouseByAbbreviation(columnsDef[i])
-					if err != nil {
-						logger.Error().Err(err).
-							Msgf("clickhouse type error: log %+v, column: %s", data, col1)
-						return err
-					}
-					typeDiff = append(typeDiff, chType)
-				}
-			}
-			if len(diff) == 0 {
-				logger.Error().Err(err).Msg("Error inserting data")
-				return err
-			}
-			if err := insertColumnsInTable(ctx, connect, DefaultDatabase, DefaultTable, diff, typeDiff); err != nil {
-				logger.Error().Err(err).Msg("Error inserting columns")
-				return err
-			}
-		} else {
-			break
-		}
-	}
-	return nil
+	return extractLogColumns(data), nil
 }
 
-func (s *LogServer) processResourceLog(ctx context.Context, resourceLog *v12.ResourceLogs) error {
+func storeData(ctx context.Context, click *Clickhouse, data []Event) error {
+	if len(data) == 0 {
+		return nil
+	}
+	uniqueEvent := createUniqueColumnsEvent(data)
+	names := uniqueEvent.GetColumnNames()
+	values := make([][]any, len(data))
+	for i, d := range data {
+		values[i] = make([]any, 0, len(d))
+		for _, name := range names {
+			if value, ok := d[name]; ok {
+				values[i] = append(values[i], value.Value)
+			} else {
+				values[i] = append(values[i], nil)
+			}
+		}
+	}
+
+	return click.InsertData(ctx, DefaultDatabase, DefaultTable, names, values)
+}
+
+func (s *LogServer) processResourceLog(resourceLog *v12.ResourceLogs) ([]Event, error) {
+	var res []Event
 	for _, scopeLog := range resourceLog.ScopeLogs {
-		if err := s.processScopeLog(ctx, scopeLog); err != nil {
-			return err
+		log, err := s.processScopeLog(scopeLog)
+		if err != nil {
+			return nil, err
 		}
+		res = append(res, log...)
 	}
-	return nil
+	return res, nil
 }
 
-func (s *LogServer) processScopeLog(ctx context.Context, scopeLog *v12.ScopeLogs) error {
+func (s *LogServer) processScopeLog(scopeLog *v12.ScopeLogs) ([]Event, error) {
+	var res []Event
 	for _, logRecord := range scopeLog.LogRecords {
-		if err := s.processLogRecord(ctx, logRecord); err != nil {
-			return err
+		log, err := s.processLogRecord(logRecord)
+		if err != nil {
+			return nil, err
+		}
+		if log != nil {
+			res = append(res, log)
 		}
 	}
-	return nil
+	return res, nil
 }
 
-func (s *LogServer) processLogRecord(ctx context.Context, logRecord *v12.LogRecord) error {
+func (s *LogServer) processLogRecord(logRecord *v12.LogRecord) (Event, error) {
 	var jsonData *v1.AnyValue
 	var hostname string
 	var unit string
@@ -227,98 +163,113 @@ func (s *LogServer) processLogRecord(ctx context.Context, logRecord *v12.LogReco
 		case logging.FieldSystemdUnit:
 			unit = kv.GetValue().GetStringValue()
 		}
-		if kv.GetKey() == "JSON" {
-			jsonData = kv.GetValue()
-			break
-		}
 	}
 	if jsonData == nil || jsonData.GetStringValue() == "" {
-		return nil
+		return nil, nil
 	}
 
 	var data map[string]any
 	if err := json.Unmarshal([]byte(jsonData.GetStringValue()), &data); err != nil {
-		s.logger.Error().Err(err).Msg("Error parsing JSON")
-		return nil
+		s.logger.Error().Err(err).Msgf("Error parsing JSON in log %+v", data)
+		return nil, err
 	}
 
-	if data[fieldStoreClickhouseTyped] == true {
-		data[logging.FieldHostName] = hostname
-		data[logging.FieldSystemdUnit] = unit
-		return storeData(ctx, s.logger, s.connect, data)
+	if data[fieldStoreClickhouseTyped] == false {
+		return nil, nil
 	}
-	return nil
+
+	data[logging.FieldHostName] = hostname
+	data[logging.FieldSystemdUnit] = unit
+
+	res, err := preProcessData(s.logger, data)
+	if err != nil {
+		return nil, err
+	}
+	return res, err
 }
 
 func (s *LogServer) Export(
 	ctx context.Context, req *logs.ExportLogsServiceRequest,
 ) (*logs.ExportLogsServiceResponse, error) {
+	var eventsToStore []Event
 	for _, resourceLog := range req.ResourceLogs {
-		if err := s.processResourceLog(ctx, resourceLog); err != nil {
+		log, err := s.processResourceLog(resourceLog)
+		if err != nil {
 			return nil, err
 		}
+		eventsToStore = append(eventsToStore, log...)
 	}
+
+	var insertErr error
+	if insertErr = storeData(ctx, s.click, eventsToStore); insertErr == nil {
+		return &logs.ExportLogsServiceResponse{}, nil
+	}
+
+	existColumns, err := s.click.GetTabelColumnNames(ctx, DefaultDatabase, DefaultTable)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Error getting table columns")
+		return nil, err
+	}
+
+	uniqueEvent := createUniqueColumnsEvent(eventsToStore)
+	for key := range existColumns {
+		delete(uniqueEvent, key)
+	}
+
+	if len(uniqueEvent) == 0 {
+		s.logger.Error().Err(insertErr).Msgf("Error inserting data: %+v", eventsToStore)
+		return nil, err
+	}
+
+	diffNames := make([]string, 0, len(uniqueEvent))
+	diffTypes := make([]string, 0, len(uniqueEvent))
+	for key, value := range uniqueEvent {
+		chType, err := logging.GetClickhouseByAbbreviation(value.Type)
+		if err != nil {
+			s.logger.Error().Err(err).Msgf("Clickhouse type error: log %+v", eventsToStore)
+			return nil, err
+		}
+		diffNames = append(diffNames, key)
+		diffTypes = append(diffTypes, chType)
+	}
+
+	if err := s.click.InsertColumnsInTable(ctx, DefaultDatabase, DefaultTable, diffNames, diffTypes); err != nil {
+		s.logger.Error().Err(err).Msgf("Error inserting columns names: %+v, types: %+v", diffNames, diffTypes)
+		return nil, err
+	}
+
+	if err := storeData(ctx, s.click, eventsToStore); err != nil {
+		s.logger.Error().Err(insertErr).Msgf("Error inserting data: %+v", eventsToStore)
+		return nil, err
+	}
+
 	return &logs.ExportLogsServiceResponse{}, nil
 }
 
-func initializeDatabaseSchema(ctx context.Context, connect driver.Conn, logger logging.Logger) error {
-	operations := []struct {
-		name   string
-		action func(context.Context, driver.Conn) error
-		errMsg string
-	}{
-		{
-			name: "create database",
-			action: func(ctx context.Context, conn driver.Conn) error {
-				return conn.Exec(ctx, fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s;", DefaultDatabase))
-			},
-			errMsg: "Failed to create database",
-		},
-		{
-			name: "create table",
-			action: func(ctx context.Context, conn driver.Conn) error {
-				query := fmt.Sprintf(
-					"CREATE TABLE IF NOT EXISTS %s.%s (time DateTime64 DEFAULT now()) "+
-						"ENGINE = MergeTree() ORDER BY time",
-					DefaultDatabase, DefaultTable)
-				return conn.Exec(ctx, query)
-			},
-			errMsg: "Failed to create table",
-		},
-	}
-
-	for _, op := range operations {
-		if err := op.action(ctx, connect); err != nil {
-			logger.Error().Err(err).Msg(op.errMsg)
-			return fmt.Errorf("%s: %w", op.name, err)
-		}
-	}
-	return nil
-}
-
-func Run(ctx context.Context, cfg Config, logger logging.Logger) error {
-	connect, err := clickhouse.Open(&clickhouse.Options{
-		Addr: []string{cfg.ClickhouseAddr},
-		Auth: clickhouse.Auth{
-			Database: cfg.DbDatabase,
-			Username: cfg.DbUser,
-			Password: cfg.DbPassword,
-		},
-	})
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to connect to ClickHouse")
+func Run(ctx context.Context, cfg ClickhouseConfig, logger logging.Logger) error {
+	click := NewClickhouse(cfg)
+	if err := click.Connect(); err != nil {
+		logger.Error().Err(err).Msg("Failed to connection to ClickHouse")
 		return err
 	}
-	defer connect.Close()
+	defer click.Close()
 
-	if err := initializeDatabaseSchema(ctx, connect, logger); err != nil {
+	if err := click.InitializeDatabaseSchema(ctx, logger); err != nil {
 		return err
 	}
 
 	server := grpc.NewServer()
-	logs.RegisterLogsServiceServer(server, NewLogServer(connect, logger))
+	logs.RegisterLogsServiceServer(server, NewLogServer(click, logger))
 
-	listener, err := net.Listen("tcp", cfg.ListenAddr)
+	var listener net.Listener
+	var err error
+	unixPrefix := "unix://"
+	if strings.HasPrefix(cfg.ListenAddr, unixPrefix) {
+		listener, err = net.Listen("unix", cfg.ListenAddr[len(unixPrefix):])
+	} else {
+		listener, err = net.Listen("tcp", cfg.ListenAddr)
+	}
+
 	if err != nil {
 		logger.Error().Err(err).Msgf("Failed to listen on port %s", cfg.ListenAddr)
 		return err

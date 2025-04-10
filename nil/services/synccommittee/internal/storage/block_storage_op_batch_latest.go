@@ -27,11 +27,7 @@ func (t batchLatestOp) updateLatestBatchId(tx db.RwTx, batch *scTypes.BlockBatch
 		return err
 	}
 
-	if err := t.putLatestBatchId(tx, &batch.Id); err != nil {
-		return err
-	}
-
-	return nil
+	return t.putLatestBatchId(tx, &batch.Id)
 }
 
 func (batchLatestOp) getLatestBatchId(tx db.RoTx) (*scTypes.BatchId, error) {
@@ -39,7 +35,6 @@ func (batchLatestOp) getLatestBatchId(tx db.RoTx) (*scTypes.BatchId, error) {
 
 	switch {
 	case err == nil:
-		break
 	case errors.Is(err, db.ErrKeyNotFound):
 		return nil, nil
 	case errors.Is(err, context.Canceled):

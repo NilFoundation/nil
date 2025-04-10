@@ -17,8 +17,8 @@ func (w *DoPanic) Init(ctx context.Context, client *core.Helper, params *Workloa
 	return nil
 }
 
-func (w *DoPanic) Run(ctx context.Context, args *RunParams) ([]*core.Transaction, error) {
+func (w *DoPanic) Run(ctx context.Context, args *RunParams) error {
 	_, err := w.client.Client.DoPanicOnShard(ctx, w.ShardId)
 	w.logger.Info().Err(err).Msg("do panic")
-	return nil, err
+	return err
 }

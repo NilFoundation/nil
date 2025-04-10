@@ -10,13 +10,17 @@ import (
 )
 
 func GetAddressCommand(cfg *common.Config) *cobra.Command {
+	params := &contractParams{
+		Params: &common.Params{},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "address [path to file] [args...]",
 		Short: "Calculate the address of a smart contract",
 		Long:  "Calculate the address of a smart contract by the specified hex-bytecode from stdin or from a file",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runAddress(cmd, args, cfg)
+			return runAddress(cmd, args, cfg, params)
 		},
 		SilenceUsage: true,
 	}
@@ -44,7 +48,7 @@ func GetAddressCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runAddress(cmd *cobra.Command, cmdArgs []string, cfg *common.Config) error {
+func runAddress(cmd *cobra.Command, cmdArgs []string, cfg *common.Config, params *contractParams) error {
 	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var filename string

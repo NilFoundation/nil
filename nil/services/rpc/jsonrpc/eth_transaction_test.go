@@ -33,7 +33,7 @@ func (s *SuiteEthTransaction) SetupSuite() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
-	s.api = NewTestEthAPI(s.T(), s.ctx, s.db, 2)
+	s.api = NewTestEthAPI(s.ctx, s.T(), s.db, 2)
 
 	tx, err := s.db.CreateRwTx(s.ctx)
 	s.Require().NoError(err)

@@ -15,7 +15,7 @@ func checkIfContractExists(
 ) (bool, error) {
 	accountCode, err := nilClient.GetCode(ctx, addr, "latest")
 	if err != nil {
-		return false, fmt.Errorf("failed to check presence of the relayer L2 smart account(%s): %w", addr, err)
+		return false, fmt.Errorf("failed to check presence of the relayer L2 contract (%s): %w", addr, err)
 	}
 	if len(accountCode) == 0 {
 		return false, nil

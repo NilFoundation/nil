@@ -905,7 +905,7 @@ func opPush1(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]by
 		codeLen = uint64(len(scope.Contract.Code))
 		integer = new(uint256.Int)
 	)
-	*pc += 1
+	*pc++
 	if *pc < codeLen {
 		scope.Stack.push(integer.SetUint64(uint64(scope.Contract.Code[*pc])))
 	} else {

@@ -15,8 +15,8 @@ import (
 )
 
 func StartFaucetService(
-	t *testing.T,
 	ctx context.Context,
+	t *testing.T,
 	wg *sync.WaitGroup,
 	client client.Client,
 ) (*faucet.Client, string) {

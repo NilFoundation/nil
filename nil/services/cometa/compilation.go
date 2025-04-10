@@ -1,7 +1,6 @@
 package cometa
 
 import (
-	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -229,11 +228,10 @@ func CreateContractData(
 	})
 	if len(contractData.FunctionDebugData) > 0 {
 		for i := range contractData.FunctionDebugData {
-			if contractData.FunctionDebugData[i].EntryPoint == 0 {
-				contractData.FunctionDebugData[i].Name = "#function_selector"
-			} else {
+			if contractData.FunctionDebugData[i].EntryPoint != 0 {
 				break
 			}
+			contractData.FunctionDebugData[i].Name = "#function_selector"
 		}
 	}
 	contractData.Metadata = contractDescr.Metadata

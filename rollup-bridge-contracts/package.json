@@ -12,7 +12,7 @@
     "node": ">=14"
   },
   "scripts": {
-    "clean": "npx hardhat clean",
+    "clean": "npx hardhat clean && rm -rf deployments",
     "compile": "npx hardhat compile",
     "deploy": "npx hardhat deploy --network geth --tags NilContracts",
     "format:solidity": "prettier --write 'contracts/**/*.sol'",

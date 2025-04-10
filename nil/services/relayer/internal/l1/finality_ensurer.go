@@ -131,13 +131,18 @@ func (fe *FinalityEnsurer) Run(ctx context.Context, started chan<- struct{}) err
 
 	fe.logger.Info().Msg("initializing component")
 
+	blockFetcherStarted := make(chan struct{})
 	eg.Go(func() error {
-		return fe.blockFetcher(gCtx)
+		return fe.blockFetcher(gCtx, blockFetcherStarted)
 	})
 
+	eventPollerStarted := make(chan struct{})
 	eg.Go(func() error {
-		return fe.pendingEventPoller(gCtx)
+		return fe.pendingEventPoller(gCtx, eventPollerStarted)
 	})
+
+	<-blockFetcherStarted
+	<-eventPollerStarted
 
 	close(started)
 
@@ -146,10 +151,11 @@ func (fe *FinalityEnsurer) Run(ctx context.Context, started chan<- struct{}) err
 	return nil
 }
 
-func (fe *FinalityEnsurer) blockFetcher(ctx context.Context) error {
+func (fe *FinalityEnsurer) blockFetcher(ctx context.Context, started chan struct{}) error {
 	fe.logger.Info().Msg("started finalized block fetcher")
 
 	ticker := fe.clock.NewTicker(fe.config.EthPollInterval)
+	close(started)
 
 	var lastSuccessfulUpdate time.Time
 	for {
@@ -190,6 +196,7 @@ func (fe *FinalityEnsurer) blockFetcher(ctx context.Context) error {
 
 			fe.logger.Info().
 				Uint64("local_finalized_block_number", header.Number.Uint64()).
+				Stringer("block_hash", header.Hash()).
 				Msg("refreshed actual finalized block number")
 			lastSuccessfulUpdate = now
 
@@ -198,10 +205,12 @@ func (fe *FinalityEnsurer) blockFetcher(ctx context.Context) error {
 	}
 }
 
-func (fe *FinalityEnsurer) pendingEventPoller(ctx context.Context) error {
+func (fe *FinalityEnsurer) pendingEventPoller(ctx context.Context, started chan struct{}) error {
 	fe.logger.Info().Msg("started l1 pending event processor")
 
 	ticker := fe.clock.NewTicker(fe.config.DbPollInterval)
+	close(started)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -348,6 +357,8 @@ func (fe *FinalityEnsurer) checkBlocksFinality(
 		if finalizedBlock.BlockHash != blk.BlockHash {
 			fe.logger.Debug().
 				Uint64("orphaned_block_num", blk.BlockNumber).
+				Stringer("actual_hash", blk.BlockHash).
+				Stringer("expected_hash", finalizedBlock.BlockHash).
 				Msg("found orphaned block")
 
 			orphaned = append(orphaned, blk)
@@ -398,12 +409,12 @@ func (fe *FinalityEnsurer) convertEvent(in *Event) (out *l2.Event) {
 			MaxFeePerGas:         types.NewValueFromBigMust(in.FeeCreditData.MaxFeePerGas),
 			MaxPriorityFeePerGas: types.NewValueFromBigMust(in.FeeCreditData.MaxPriorityFeePerGas),
 		},
-		L2Limit: types.NewValueFromBigMust(in.FeeCreditData.NilGasLimit),
-		Sender:  in.Sender,
-		Target:  in.Target,
-		Value:   in.Value,
-		Nonce:   in.Nonce,
-		Type:    in.Type,
-		Message: in.Message,
+		L2Limit:    types.NewValueFromBigMust(in.FeeCreditData.NilGasLimit),
+		Sender:     in.Sender,
+		Target:     in.Target,
+		Nonce:      in.Nonce,
+		Type:       in.Type,
+		Message:    in.Message,
+		ExpiryTime: in.ExpiryTime,
 	}
 }

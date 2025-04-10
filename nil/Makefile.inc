@@ -1,10 +1,18 @@
 include nil/services/synccommittee/Makefile.inc
+include nil/services/relayer/Makefile.inc
 
 root_client = nil/client
 root_vm = nil/internal/vm
 root_db = nil/internal/db
 root_rollup = nil/services/rollup
-root_relayer = nil/services/relayer
+
+.PHONY: gen_rollup_contracts_bindings
+gen_rollup_contracts_bindings: \
+	$(root_relayer)/embed_l1_abi \
+	$(root_relayer)/generate_l1_abi \
+	$(root_relayer)/embed_l2_abi \
+	$(root_relayer)/gen_l1_mocks \
+	$(root_relayer)/gen_l2_mocks
 
 .PHONY: generate_mocks
 generate_mocks: \
@@ -13,8 +21,6 @@ generate_mocks: \
 	$(root_db)/rwtx_generated_mock.go \
 	$(root_db)/db_generated_mock.go \
 	$(root_rollup)/l1_fetcher_generated_mock.go \
-	$(root_relayer)/gen_l1_mocks \
-	$(root_relayer)/gen_l2_mocks
 
 $(root_client)/client_generated_mock.go: $(root_client)/client.go ssz_types
 	cd $(root_client) && go generate
@@ -30,9 +36,3 @@ $(root_db)/db_generated_mock.go: $(root_db)/kv.go ssz_types
 
 $(root_rollup)/l1_fetcher_generated_mock.go: $(root_rollup)/l1_fetcher.go
 	cd $(root_rollup) && go generate l1_fetcher.go
-
-$(root_relayer)/gen_l1_mocks: $(root_relayer)/internal/l1/generate.go
-	cd $(root_relayer)/internal/l1 && go generate generate.go
-
-$(root_relayer)/gen_l2_mocks: $(root_relayer)/internal/l2/generate.go
-	cd $(root_relayer)/internal/l2 && go generate generate.go

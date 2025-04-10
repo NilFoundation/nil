@@ -102,6 +102,7 @@ func TestIterate(t *testing.T) {
 
 	trie := NewInMemMPT()
 	// Check iteration on the empty trie
+	//nolint: revive
 	for range trie.Iterate() {
 	}
 
@@ -116,7 +117,7 @@ func TestIterate(t *testing.T) {
 	for k, v := range trie.Iterate() {
 		require.Equal(t, k, keys[i])
 		require.Equal(t, v, values[i])
-		i += 1
+		i++
 	}
 	require.Len(t, keys, i)
 }

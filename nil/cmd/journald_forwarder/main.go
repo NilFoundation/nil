@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	cfg := &journald_forwarder.Config{}
+	cfg := &journald_forwarder.ClickhouseConfig{}
 	logger := logging.NewLoggerWithStore("journald_forwarder", false)
 	rootCmd := &cobra.Command{
 		Use:   "journald_to_click",

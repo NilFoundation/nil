@@ -5,13 +5,13 @@ package tests
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
-	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rollup"
@@ -25,14 +25,14 @@ import (
 )
 
 func WaitForReceiptCommon(
-	t *testing.T, ctx context.Context, client client.Client, hash common.Hash, check func(*jsonrpc.RPCReceipt) bool,
+	t *testing.T, client client.Client, hash common.Hash, check func(*jsonrpc.RPCReceipt) bool,
 ) *jsonrpc.RPCReceipt {
 	t.Helper()
 
 	var receipt *jsonrpc.RPCReceipt
 	var err error
 	require.Eventually(t, func() bool {
-		receipt, err = client.GetInTransactionReceipt(ctx, hash)
+		receipt, err = client.GetInTransactionReceipt(t.Context(), hash)
 		require.NoError(t, err)
 		return check(receipt)
 	}, BlockWaitTimeout, BlockPollInterval)
@@ -41,18 +41,18 @@ func WaitForReceiptCommon(
 	return receipt
 }
 
-func WaitForReceipt(t *testing.T, ctx context.Context, client client.Client, hash common.Hash) *jsonrpc.RPCReceipt {
+func WaitForReceipt(t *testing.T, client client.Client, hash common.Hash) *jsonrpc.RPCReceipt {
 	t.Helper()
 
-	return WaitForReceiptCommon(t, ctx, client, hash, func(receipt *jsonrpc.RPCReceipt) bool {
+	return WaitForReceiptCommon(t, client, hash, func(receipt *jsonrpc.RPCReceipt) bool {
 		return receipt.IsComplete()
 	})
 }
 
-func WaitIncludedInMain(t *testing.T, ctx context.Context, client client.Client, hash common.Hash) *jsonrpc.RPCReceipt {
+func WaitIncludedInMain(t *testing.T, client client.Client, hash common.Hash) *jsonrpc.RPCReceipt {
 	t.Helper()
 
-	return WaitForReceiptCommon(t, ctx, client, hash, func(receipt *jsonrpc.RPCReceipt) bool {
+	return WaitForReceiptCommon(t, client, hash, func(receipt *jsonrpc.RPCReceipt) bool {
 		// We should not wait for transactions if an external transaction fails. Because it may not be included in the
 		// main chain.
 		if receipt != nil && !receipt.Flags.IsInternal() && !receipt.Success {
@@ -69,7 +69,6 @@ func GasToValue(gas uint64) types.Value {
 // Deploy contract to specific shard
 func DeployContractViaSmartAccount(
 	t *testing.T,
-	ctx context.Context,
 	client client.Client,
 	addrFrom types.Address,
 	key *ecdsa.PrivateKey,
@@ -81,7 +80,7 @@ func DeployContractViaSmartAccount(
 
 	contractAddr := types.CreateAddress(shardId, payload)
 	txHash, err := client.SendTransactionViaSmartAccount(
-		ctx,
+		t.Context(),
 		addrFrom,
 		types.Code{},
 		types.NewFeePackFromGas(10_000_000),
@@ -90,17 +89,17 @@ func DeployContractViaSmartAccount(
 		contractAddr,
 		key)
 	require.NoError(t, err)
-	receipt := WaitForReceipt(t, ctx, client, txHash)
+	receipt := WaitForReceipt(t, client, txHash)
 	require.True(t, receipt.Success)
 	require.Equal(t, "Success", receipt.Status)
 	require.Len(t, receipt.OutReceipts, 1)
 
-	txHash, addr, err := client.DeployContract(ctx, shardId, addrFrom, payload, types.Value{},
+	txHash, addr, err := client.DeployContract(t.Context(), shardId, addrFrom, payload, types.Value{},
 		types.NewFeePackFromGas(10_000_000), key)
 	require.NoError(t, err)
 	require.Equal(t, contractAddr, addr)
 
-	receipt = WaitIncludedInMain(t, ctx, client, txHash)
+	receipt = WaitIncludedInMain(t, client, txHash)
 	require.True(t, receipt.Success)
 	require.Equal(t, "Success", receipt.Status)
 	require.Len(t, receipt.OutReceipts, 1)
@@ -117,18 +116,19 @@ func LoadContract(t *testing.T, path string, name string) (types.Code, abi.ABI) 
 	return code, abi
 }
 
-func PrepareDefaultDeployPayload(t *testing.T, abi abi.ABI, code []byte, args ...any) types.DeployPayload {
+func PrepareDefaultDeployPayload(
+	t *testing.T, abi abi.ABI, salt common.Hash, code []byte, args ...any,
+) types.DeployPayload {
 	t.Helper()
 
 	constructor, err := abi.Pack("", args...)
 	require.NoError(t, err)
 	code = append(code, constructor...)
-	return types.BuildDeployPayload(code, common.EmptyHash)
+	return types.BuildDeployPayload(code, salt)
 }
 
 func WaitBlock(
 	t *testing.T,
-	ctx context.Context,
 	client client.Client,
 	shardId types.ShardId,
 	blockNum uint64,
@@ -138,28 +138,28 @@ func WaitBlock(
 	var block *jsonrpc.RPCBlock
 	var err error
 	require.Eventually(t, func() bool {
-		block, err = client.GetBlock(ctx, shardId, transport.BlockNumber(blockNum), false)
+		block, err = client.GetBlock(t.Context(), shardId, transport.BlockNumber(blockNum), false)
 		return err == nil && block != nil
 	}, BlockWaitTimeout, BlockPollInterval)
 	return block
 }
 
-func WaitZerostate(t *testing.T, ctx context.Context, client client.Client, shardId types.ShardId) {
+func WaitZerostate(t *testing.T, client client.Client, shardId types.ShardId) {
 	t.Helper()
 
-	WaitBlock(t, ctx, client, shardId, 0)
+	WaitBlock(t, client, shardId, 0)
 }
 
-func WaitShardTick(t *testing.T, ctx context.Context, client client.Client, shardId types.ShardId) {
+func WaitShardTick(t *testing.T, client client.Client, shardId types.ShardId) {
 	t.Helper()
 
-	block, err := client.GetBlock(ctx, shardId, "latest", false)
+	block, err := client.GetBlock(t.Context(), shardId, "latest", false)
 	require.NoError(t, err)
 
 	require.Eventuallyf(
 		t,
 		func() bool {
-			block, err := client.GetBlock(ctx, shardId, transport.BlockNumber(block.Number+1), false)
+			block, err := client.GetBlock(t.Context(), shardId, transport.BlockNumber(block.Number+1), false)
 			return err == nil && block != nil
 		},
 		ShardTickWaitTimeout,
@@ -167,9 +167,9 @@ func WaitShardTick(t *testing.T, ctx context.Context, client client.Client, shar
 		"Failed to wait for shard %d tick after block %d", shardId, block.Number)
 }
 
-func GetBalance(t *testing.T, ctx context.Context, client client.Client, address types.Address) types.Value {
+func GetBalance(t *testing.T, client client.Client, address types.Address) types.Value {
 	t.Helper()
-	balance, err := client.GetBalance(ctx, address, "latest")
+	balance, err := client.GetBalance(t.Context(), address, "latest")
 	require.NoError(t, err)
 	return balance
 }
@@ -200,7 +200,7 @@ func SendTransactionViaSmartAccount(
 		[]types.TokenBalance{}, addrTo, key)
 	require.NoError(t, err)
 
-	receipt := WaitIncludedInMain(t, t.Context(), client, txHash)
+	receipt := WaitIncludedInMain(t, client, txHash)
 	require.True(t, receipt.Success)
 	require.Equal(t, "Success", receipt.Status)
 	require.Len(t, receipt.OutReceipts, 1)
@@ -210,38 +210,35 @@ func SendTransactionViaSmartAccount(
 
 func SendExternalTransactionNoCheck(
 	t *testing.T,
-	ctx context.Context,
 	client client.Client,
 	bytecode types.Code,
 	contractAddress types.Address,
 ) *jsonrpc.RPCReceipt {
 	t.Helper()
 
-	txHash, err := client.SendExternalTransaction(ctx, bytecode, contractAddress, execution.MainPrivateKey,
+	txHash, err := client.SendExternalTransaction(t.Context(), bytecode, contractAddress, execution.MainPrivateKey,
 		types.NewFeePackFromGas(500_000))
 	require.NoError(t, err)
 
-	return WaitIncludedInMain(t, ctx, client, txHash)
+	return WaitIncludedInMain(t, client, txHash)
 }
 
 // AnalyzeReceipt analyzes the receipt and returns the receipt info.
 func AnalyzeReceipt(
 	t *testing.T,
-	ctx context.Context,
 	client client.Client,
 	receipt *jsonrpc.RPCReceipt,
 	namesMap map[types.Address]string,
 ) ReceiptInfo {
 	t.Helper()
 	res := make(ReceiptInfo)
-	analyzeReceiptRec(t, ctx, client, receipt, res, namesMap)
+	analyzeReceiptRec(t, client, receipt, res, namesMap)
 	return res
 }
 
 // analyzeReceiptRec is a recursive function that analyzes the receipt and fills the receipt info.
 func analyzeReceiptRec(
 	t *testing.T,
-	ctx context.Context,
 	client client.Client,
 	receipt *jsonrpc.RPCReceipt,
 	valuesMap ReceiptInfo,
@@ -255,11 +252,11 @@ func analyzeReceiptRec(
 	}
 
 	if receipt.Success {
-		value.NumSuccess += 1
+		value.NumSuccess++
 	} else {
-		value.NumFail += 1
+		value.NumFail++
 	}
-	txn, err := client.GetInTransactionByHash(ctx, receipt.TxnHash)
+	txn, err := client.GetInTransactionByHash(t.Context(), receipt.TxnHash)
 	require.NoError(t, err)
 	require.NotNil(t, txn)
 
@@ -301,13 +298,12 @@ func analyzeReceiptRec(
 	}
 
 	for _, outReceipt := range receipt.OutReceipts {
-		analyzeReceiptRec(t, ctx, client, outReceipt, valuesMap, namesMap)
+		analyzeReceiptRec(t, client, outReceipt, valuesMap, namesMap)
 	}
 }
 
 func CheckBalance(
 	t *testing.T,
-	ctx context.Context,
 	client client.Client,
 	infoMap ReceiptInfo,
 	balance types.Value,
@@ -318,7 +314,7 @@ func CheckBalance(
 	newBalance := types.NewZeroValue()
 
 	for _, addr := range accounts {
-		newBalance = newBalance.Add(GetBalance(t, ctx, client, addr))
+		newBalance = newBalance.Add(GetBalance(t, client, addr))
 	}
 
 	newRealBalance := newBalance
@@ -333,7 +329,6 @@ func CheckBalance(
 
 func CallGetter(
 	t *testing.T,
-	ctx context.Context,
 	client client.Client,
 	addr types.Address,
 	calldata []byte,
@@ -342,7 +337,7 @@ func CallGetter(
 ) []byte {
 	t.Helper()
 
-	seqno, err := client.GetTransactionCount(ctx, addr, blockId)
+	seqno, err := client.GetTransactionCount(t.Context(), addr, blockId)
 	require.NoError(t, err)
 
 	log.Debug().Str("contract", addr.String()).Uint64("seqno", uint64(seqno)).Msg("sending external transaction getter")
@@ -353,7 +348,7 @@ func CallGetter(
 		Fee:   types.NewFeePackFromGas(100_000_000),
 		Seqno: seqno,
 	}
-	res, err := client.Call(ctx, callArgs, blockId, overrides)
+	res, err := client.Call(t.Context(), callArgs, blockId, overrides)
 	require.NoError(t, err)
 	require.Empty(t, res.Error)
 	return res.Data
@@ -361,7 +356,6 @@ func CallGetter(
 
 func CheckContractValueEqual[T any](
 	t *testing.T,
-	ctx context.Context,
 	client client.Client,
 	inAbi *abi.ABI,
 	address types.Address,
@@ -371,7 +365,7 @@ func CheckContractValueEqual[T any](
 	t.Helper()
 
 	data := AbiPack(t, inAbi, name)
-	data = CallGetter(t, ctx, client, address, data, "latest", nil)
+	data = CallGetter(t, client, address, data, "latest", nil)
 	nameRes, err := inAbi.Unpack(name, data)
 	require.NoError(t, err)
 	gotValue, ok := nameRes[0].(T)
@@ -381,7 +375,6 @@ func CheckContractValueEqual[T any](
 
 func CallGetterT[T any](
 	t *testing.T,
-	ctx context.Context,
 	client client.Client,
 	inAbi *abi.ABI,
 	address types.Address,
@@ -390,7 +383,7 @@ func CallGetterT[T any](
 	t.Helper()
 
 	data := AbiPack(t, inAbi, name)
-	data = CallGetter(t, ctx, client, address, data, "latest", nil)
+	data = CallGetter(t, client, address, data, "latest", nil)
 	nameRes, err := inAbi.Unpack(name, data)
 	require.NoError(t, err)
 	gotValue, ok := nameRes[0].(T)
@@ -398,22 +391,15 @@ func CallGetterT[T any](
 	return gotValue
 }
 
-func GetContract(t *testing.T, ctx context.Context, database db.DB, address types.Address) *types.SmartContract {
+func GetContract(t *testing.T, client client.Client, address types.Address) *types.SmartContract {
 	t.Helper()
 
-	tx, err := database.CreateRoTx(ctx)
-	require.NoError(t, err)
-	defer tx.Rollback()
-
-	block, _, err := db.ReadLastBlock(tx, address.ShardId())
+	res, err := client.GetDebugContract(t.Context(), address, "latest")
 	require.NoError(t, err)
 
-	contractTree := execution.NewDbContractTrieReader(tx, address.ShardId())
-	contractTree.SetRootHash(block.SmartContractsRoot)
-
-	contract, err := contractTree.Fetch(address.Hash())
-	require.NoError(t, err)
-	return contract
+	var contract types.SmartContract
+	require.NoError(t, contract.UnmarshalSSZ(res.Contract))
+	return &contract
 }
 
 var DummyL1Fetcher = rollup.L1BlockFetcherMock{
@@ -424,4 +410,42 @@ var DummyL1Fetcher = rollup.L1BlockFetcherMock{
 
 func GetDummyL1Fetcher() rollup.L1BlockFetcher {
 	return &DummyL1Fetcher
+}
+
+func SendTransactionViaSmartAccountNoCheck(
+	t *testing.T,
+	client client.Client,
+	addrSmartAccount types.Address,
+	addrTo types.Address,
+	key *ecdsa.PrivateKey,
+	calldata []byte,
+	fee types.FeePack,
+	value types.Value,
+	tokens []types.TokenBalance,
+) *jsonrpc.RPCReceipt {
+	t.Helper()
+
+	// Send the raw transaction
+	txHash, err := client.SendTransactionViaSmartAccount(
+		t.Context(), addrSmartAccount, calldata, fee, value, tokens, addrTo, key)
+	require.NoError(t, err)
+
+	receipt := WaitIncludedInMain(t, client, txHash)
+	// We don't check the receipt for success here, as it can be failed on purpose
+	if receipt.Success {
+		// But if it is successful, we expect exactly one out receipt
+		require.Len(t, receipt.OutReceipts, 1)
+	} else {
+		require.NotEqual(t, "Success", receipt.Status)
+	}
+
+	return receipt
+}
+
+func GetRandomBytes(t *testing.T, size int) []byte {
+	t.Helper()
+	data := make([]byte, size)
+	_, err := rand.Read(data)
+	require.NoError(t, err)
+	return data
 }

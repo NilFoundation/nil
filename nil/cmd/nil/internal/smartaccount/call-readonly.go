@@ -13,13 +13,17 @@ import (
 )
 
 func CallReadonlyCommand(cfg *common.Config) *cobra.Command {
+	params := &smartAccountParams{
+		Params: &common.Params{},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "call-readonly [address] [calldata or method] [args...]",
 		Short: "Perform a read-only call to a smart contract",
 		Long:  "Perform a read-only call to the smart contract with the given address and calldata",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCallReadonly(cmd, args, cfg)
+			return runCallReadonly(cmd, args, cfg, params)
 		},
 		SilenceUsage: true,
 	}
@@ -69,7 +73,7 @@ func CallReadonlyCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runCallReadonly(cmd *cobra.Command, args []string, cfg *common.Config) error {
+func runCallReadonly(cmd *cobra.Command, args []string, cfg *common.Config, params *smartAccountParams) error {
 	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var address types.Address

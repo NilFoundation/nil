@@ -22,7 +22,7 @@ import (
 
 const (
 	MetadataApi             = "rpc"
-	defaultBatchConcurrency = 1 // trnasactions from batch maust be processed in order
+	defaultBatchConcurrency = 2
 	defaultBatchLimit       = 100
 )
 
@@ -89,7 +89,7 @@ func NewServer(
 // RegisterName creates a service for the given receiver type under the given name. When no
 // methods on the given receiver match the criteria to be a RPC method an error is returned.
 // Otherwise, a new service is created and added to the service collection this server provides to clients.
-func (s *Server) RegisterName(name string, receiver interface{}) error {
+func (s *Server) RegisterName(name string, receiver any) error {
 	return s.services.registerName(name, receiver)
 }
 
@@ -183,7 +183,7 @@ func (s *Server) ServeSingleRequest(ctx context.Context, r *http.Request, w http
 func (s *Server) Stop() {
 	if atomic.CompareAndSwapInt32(&s.run, 1, 0) {
 		s.logger.Info().Msg("RPC server shutting down")
-		s.codecs.Each(func(c interface{}) bool {
+		s.codecs.Each(func(c any) bool {
 			if codec, ok := c.(ServerCodec); ok {
 				codec.Close()
 			}

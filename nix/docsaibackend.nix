@@ -32,9 +32,10 @@ stdenv.mkDerivation rec {
   checkPhase = "";
 
   installPhase = ''
-    mkdir -p $out
-    mv smart-contracts $out/smart-contracts
-    mv node_modules $out/node_modules
-    mv docs_ai_backend/ $out/docs_ai_backend
+    mkdir -p $out/docs_ai_backend
+    mkdir -p $out/smart-contracts
+    cp -r docs_ai_backend/.next/static $out/docs_ai_backend
+    cp -r docs_ai_backend/.next/standalone $out/docs_ai_backend
+    mv smart-contracts/contracts $out/smart-contracts
   '';
 }

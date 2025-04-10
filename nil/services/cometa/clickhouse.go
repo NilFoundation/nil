@@ -23,6 +23,10 @@ const SchemaVersion = 1
 var _ Storage = new(StorageClick)
 
 func NewStorageClick(ctx context.Context, cfg *Config) (*StorageClick, error) {
+	if err := common.CreateClickHouseDbIfNotExists(ctx, cfg.DbName, cfg.DbUser, cfg.DbPassword, cfg.DbEndpoint); err != nil {
+		return nil, err
+	}
+
 	connectionOptions := clickhouse.Options{
 		Auth: clickhouse.Auth{
 			Database: cfg.DbName,

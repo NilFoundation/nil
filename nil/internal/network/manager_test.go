@@ -38,7 +38,7 @@ func (s *networkSuite) newManagerWithBaseConfig(conf *Config) *Manager {
 		conf.TcpPort = s.port
 	}
 
-	return NewTestManagerWithBaseConfig(s.T(), s.context, conf)
+	return NewTestManagerWithBaseConfig(s.context, s.T(), conf)
 }
 
 func (s *networkSuite) newManager() *Manager {

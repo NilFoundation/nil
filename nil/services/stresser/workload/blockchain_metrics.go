@@ -10,10 +10,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-const (
-	batchSize = 20
-)
-
 var (
 	meter               = telemetry.NewMeter("stresser")
 	blockTxsNum         = telemetry.Int64Gauge(meter, "block_txs_num")
@@ -46,7 +42,9 @@ func (w *BlockchainMetrics) Init(ctx context.Context, client *core.Helper, args 
 	return nil
 }
 
-func (w *BlockchainMetrics) Run(ctx context.Context, args *RunParams) ([]*core.Transaction, error) {
+func (w *BlockchainMetrics) Run(ctx context.Context, args *RunParams) error {
+	const batchSize = 20
+
 	for shard := range w.params.NumShards {
 		block, err := w.client.Client.GetBlock(ctx, types.ShardId(shard), "latest", true)
 		if err != nil {
@@ -97,5 +95,5 @@ func (w *BlockchainMetrics) Run(ctx context.Context, args *RunParams) ([]*core.T
 		}
 	}
 
-	return nil, nil
+	return nil
 }

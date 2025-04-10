@@ -1,9 +1,4 @@
-import {
-  HttpTransport,
-  PublicClient,
-  generateSmartAccount,
-  waitTillCompleted,
-} from "@nilfoundation/niljs";
+import { HttpTransport, PublicClient, generateSmartAccount } from "@nilfoundation/niljs";
 import { TutorialChecksStatus } from "../../../pages/tutorials/model";
 import type { CheckProps } from "../CheckProps";
 
@@ -66,14 +61,19 @@ async function runTutorialCheckFive(props: CheckProps) {
     feeCredit: gasPrice * 500_000n,
   });
 
-  const resMinting = await waitTillCompleted(client, mintRequest);
+  const resMinting = await mintRequest.wait();
 
   const checkMinting = await resMinting.some((receipt) => !receipt.success);
 
   if (checkMinting) {
     props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resMinting);
-    props.tutorialContractStepFailed("Failed to mint the NFT!");
+    props.tutorialContractStepFailed(
+      `
+      Calling NFT.mintNFT() produced one or more failed receipts!
+      To investigate, debug this transaction using the Cometa service: ${mintRequest}.
+      `,
+    );
     return false;
   }
 
@@ -87,14 +87,19 @@ async function runTutorialCheckFive(props: CheckProps) {
     feeCredit: gasPrice * 500_000n,
   });
 
-  const resSecondMinting = await waitTillCompleted(client, secondMintRequest);
+  const resSecondMinting = await secondMintRequest.wait();
 
   const checkSecondMinting = await resSecondMinting.some((receipt) => !receipt.success);
 
   if (!checkSecondMinting) {
     props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resSecondMinting);
-    props.tutorialContractStepFailed("NFT has been minted twice!");
+    props.tutorialContractStepFailed(
+      `
+      Calling NFT.mintNFT() the second time did not produce any failed receipts!
+      The NFT has been minted twice.
+      `,
+    );
     return false;
   }
 
@@ -107,14 +112,19 @@ async function runTutorialCheckFive(props: CheckProps) {
     args: [resultReceiver.address],
   });
 
-  const resSending = await waitTillCompleted(client, sendRequest);
+  const resSending = await sendRequest.wait();
 
   const checkSending = await resSending.some((receipt) => !receipt.success);
 
   if (checkSending) {
     props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
     console.log(resSending);
-    props.tutorialContractStepFailed("Failed to send the NFT!");
+    props.tutorialContractStepFailed(
+      `
+      Calling NFT.sendNFT() produced one or more failed receipts!
+      To investigate, debug this transaction using the Cometa service: ${sendRequest}.
+      `,
+    );
     return false;
   }
 

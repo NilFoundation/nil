@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"encoding/binary"
 	"errors"
 	"math/big"
 	"sync/atomic"
@@ -517,7 +518,21 @@ func (evm *EVM) Create(
 	gas uint64,
 	value *uint256.Int,
 ) (ret []byte, contractAddr types.Address, leftOverGas uint64, err error) {
-	payload := types.BuildDeployPayload(code, common.EmptyHash)
+	addr := caller.Address()
+	seqno, err := evm.StateDB.GetSeqno(addr)
+	if err != nil {
+		return nil, types.Address{}, gas, err
+	}
+	extSeqno, err := evm.StateDB.GetExtSeqno(addr)
+	if err != nil {
+		return nil, types.Address{}, gas, err
+	}
+
+	var salt common.Hash
+	copy(salt[0:16], addr[4:])
+	binary.BigEndian.PutUint64(salt[16:24], seqno.Uint64())
+	binary.BigEndian.PutUint64(salt[24:32], extSeqno.Uint64())
+	payload := types.BuildDeployPayload(code, salt)
 	contractAddr = types.CreateAddress(caller.Address().ShardId(), payload)
 	return evm.create(caller, code, gas, value, contractAddr)
 }

@@ -301,11 +301,11 @@ func (m *BaseMPT[K, V, VPtr]) UpdateBatch(keys []K, values []VPtr) error {
 		k = append(k, m.keyToBytes(key))
 	}
 	for _, value := range values {
-		if val, err := value.MarshalSSZ(); err != nil {
+		val, err := value.MarshalSSZ()
+		if err != nil {
 			return err
-		} else {
-			v = append(v, val)
 		}
+		v = append(v, val)
 	}
 	return m.rwTrie.SetBatch(k, v)
 }
@@ -323,20 +323,20 @@ func UpdateFromMap[K comparable, MV any, V any, VPtr MPTValue[V]](
 	for k, v := range data {
 		keys = append(keys, m.keyToBytes(k))
 		if extract != nil {
-			if val, err := extract(v).MarshalSSZ(); err != nil {
+			val, err := extract(v).MarshalSSZ()
+			if err != nil {
 				return err
-			} else {
-				values = append(values, val)
 			}
+			values = append(values, val)
 		} else {
 			v, ok := any(v).(VPtr)
 			check.PanicIfNot(ok)
 
-			if val, err := v.MarshalSSZ(); err != nil {
+			val, err := v.MarshalSSZ()
+			if err != nil {
 				return err
-			} else {
-				values = append(values, val)
 			}
+			values = append(values, val)
 		}
 	}
 	return m.rwTrie.SetBatch(keys, values)

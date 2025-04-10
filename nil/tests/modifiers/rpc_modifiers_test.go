@@ -47,7 +47,7 @@ func (s *SuiteModifiersRpc) SetupSuite() {
 				Contract: "SmartAccount",
 				Address:  s.smartAccountAddr,
 				Value:    types.NewValueFromUint64(100000000000000000),
-				CtorArgs: []interface{}{hexutil.Encode(s.smartAccountPublicKey)},
+				CtorArgs: []any{hexutil.Encode(s.smartAccountPublicKey)},
 			},
 			{
 				Name:     "TransactionCheck",

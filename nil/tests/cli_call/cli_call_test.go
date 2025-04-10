@@ -31,9 +31,7 @@ func (s *SuiteCliTestCall) SetupSuite() {
 
 	s.testAddress, err = contracts.CalculateAddress(contracts.NameTest, 1, []byte{1})
 	s.Require().NoError(err)
-}
 
-func (s *SuiteCliTestCall) SetupTest() {
 	zeroState := &execution.ZeroStateConfig{
 		Contracts: []*execution.ContractDescr{{
 			Name:     "Test",
@@ -56,7 +54,7 @@ rpc_endpoint = {{ .HttpUrl }}
 private_key = {{ .PrivateKey }}
 address = {{ .Address }}
 `
-	iniData, err := common.ParseTemplate(iniDataTmpl, map[string]interface{}{
+	iniData, err := common.ParseTemplate(iniDataTmpl, map[string]any{
 		"HttpUrl":    s.endpoint,
 		"PrivateKey": nilcrypto.PrivateKeyToEthereumFormat(execution.MainPrivateKey),
 		"Address":    types.MainSmartAccountAddress.Hex(),
@@ -67,7 +65,7 @@ address = {{ .Address }}
 	s.Require().NoError(err)
 }
 
-func (s *SuiteCliTestCall) TearDownTest() {
+func (s *SuiteCliTestCall) TearDownSuite() {
 	s.Cancel()
 }
 

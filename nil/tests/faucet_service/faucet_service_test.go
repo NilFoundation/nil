@@ -29,7 +29,7 @@ func (s *FaucetRpc) SetupSuite() {
 	if s.builtinFaucet {
 		s.faucetClient = faucet.NewClient(sockPath)
 	} else {
-		s.faucetClient, _ = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.Client)
+		s.faucetClient, _ = tests.StartFaucetService(s.Context, s.T(), &s.Wg, s.Client)
 	}
 	time.Sleep(time.Second)
 }

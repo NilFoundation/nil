@@ -30,7 +30,9 @@ contract NFT is NilTokenBase {
      * It must also be protected against repeated minting.
      * Hint: use totalSupply to eliminate repeated minting.
      */
-    function mintNFT() public payable {}
+    function mintNFT() public payable {
+        // TODO: complete the function
+    }
 
     /**
      * The function for sending the NFT.
@@ -38,5 +40,7 @@ contract NFT is NilTokenBase {
      * @param to The address where the NFT should be sent.
      * Hint: call the deposit() function inside Receiver.
      */
-    function sendNFT(address to) public {}
+    function sendNFT(address to) public {
+        // TODO: complete the function
+    }
 }

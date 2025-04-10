@@ -10,13 +10,13 @@ import (
 
 var logger = logging.NewLogger("configCommand")
 
-var noConfigCmd map[string]struct{} = map[string]struct{}{
+var noConfigCmd = map[string]struct{}{
 	"help": {},
 	"init": {},
 	"set":  {},
 }
 
-var supportedOptions map[string]struct{} = map[string]struct{}{
+var supportedOptions = map[string]struct{}{
 	"rpc_endpoint":    {},
 	"cometa_endpoint": {},
 	"faucet_endpoint": {},
@@ -68,7 +68,7 @@ func GetCommand(configPath *string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			const printFormat = "%-18s: %v\n"
 			fmt.Printf(printFormat, "The config file", viper.ConfigFileUsed())
-			nilSection, ok := viper.AllSettings()["nil"].(map[string]interface{})
+			nilSection, ok := viper.AllSettings()["nil"].(map[string]any)
 			if !ok {
 				return nil
 			}
@@ -107,7 +107,7 @@ func GetCommand(configPath *string) *cobra.Command {
 				return nil
 			}
 
-			if err := PatchConfig(map[string]interface{}{
+			if err := PatchConfig(map[string]any{
 				args[0]: args[1],
 			}, true); err != nil {
 				logger.Error().Err(err).Msg("Failed to set the config value")

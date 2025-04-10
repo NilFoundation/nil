@@ -22,8 +22,7 @@ var defaultMaxFeePerGas = types.MaxFeePerGasDefault
 func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionState, seqno types.Seqno) types.Address {
 	t.Helper()
 
-	return Deploy(t, t.Context(), state,
-		types.BuildDeployPayload(hexutil.FromHex(contract.Code), common.EmptyHash),
+	return Deploy(t, state, types.BuildDeployPayload(hexutil.FromHex(contract.Code), common.EmptyHash),
 		types.BaseShardId, types.Address{}, seqno)
 }
 
@@ -79,17 +78,19 @@ func TestOpcodes(t *testing.T) {
 func TestPrecompiles(t *testing.T) {
 	t.Parallel()
 
+	state := newState(t)
+	defer state.tx.Rollback()
+
 	// Test checks that precompiles are not crashed
 	// if called with an empty input data
 	check := func(i int) {
-		state := newState(t)
-		defer state.tx.Rollback()
 		require.NoError(t, state.newVm(true, types.EmptyAddress, nil))
 
 		callTransaction := types.NewEmptyTransaction()
 		callTransaction.Flags = types.NewTransactionFlags(types.TransactionFlagInternal)
 		callTransaction.FeeCredit = toGasCredit(100_000)
 		callTransaction.MaxFeePerGas = defaultMaxFeePerGas
+		callTransaction.Seqno = types.Seqno(i)
 		state.AddInTransaction(callTransaction)
 
 		addr := fmt.Sprintf("%x", i)

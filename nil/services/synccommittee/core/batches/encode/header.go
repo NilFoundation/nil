@@ -24,10 +24,7 @@ func (bh *BatchHeader) EncodeTo(out io.Writer) error {
 	if err := binary.Write(out, binary.LittleEndian, bh.Magic); err != nil {
 		return err
 	}
-	if err := binary.Write(out, binary.LittleEndian, bh.Version); err != nil {
-		return err
-	}
-	return nil
+	return binary.Write(out, binary.LittleEndian, bh.Version)
 }
 
 func (bh *BatchHeader) ReadFrom(in io.Reader) error {
@@ -37,10 +34,7 @@ func (bh *BatchHeader) ReadFrom(in io.Reader) error {
 	if bh.Magic != BatchMagic {
 		return fmt.Errorf("%w: read value %04X", ErrInvalidMagic, bh.Magic)
 	}
-	if err := binary.Read(in, binary.LittleEndian, &bh.Version); err != nil {
-		return err
-	}
-	return nil
+	return binary.Read(in, binary.LittleEndian, &bh.Version)
 }
 
 func CheckBatchVersion(in io.Reader, desiredVersion uint16) error {

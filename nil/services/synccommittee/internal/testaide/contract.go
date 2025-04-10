@@ -23,12 +23,12 @@ func NewCallContractMock(abi *abi.ABI) *CallContractMock {
 }
 
 func (c *CallContractMock) Reset() {
-	c.methodsReturnValue = make(map[string][][]interface{})
+	c.methodsReturnValue = make(map[string][][]any)
 }
 
 type NoValue struct{}
 
-func (c *CallContractMock) AddExpectedCall(methodName string, returnValues ...interface{}) {
+func (c *CallContractMock) AddExpectedCall(methodName string, returnValues ...any) {
 	c.methodsReturnValue[methodName] = append(c.methodsReturnValue[methodName], returnValues)
 }
 

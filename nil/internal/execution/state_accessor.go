@@ -166,7 +166,7 @@ func collectSszBlockEntities(
 			return fmt.Errorf("failed to get from %v with index %v from trie: %w", tableName, index, err)
 		}
 		items = append(items, entity)
-		index += 1
+		index++
 	}
 
 	*res = initWith(items)

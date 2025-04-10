@@ -136,17 +136,19 @@ func SetConfigFile(cfgFile string) {
 	viper.SetConfigFile(cfgFile)
 }
 
-func decodePrivateKey(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+func decodePrivateKey(f reflect.Type, t reflect.Type, data any) (any, error) {
 	if f.Kind() == reflect.String && t == reflect.TypeOf(&ecdsa.PrivateKey{}) {
-		s, _ := data.(string)
+		s, ok := data.(string)
+		check.PanicIfNot(ok)
 		return crypto.HexToECDSA(s)
 	}
 	return data, nil
 }
 
-func decodeAddress(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+func decodeAddress(f reflect.Type, t reflect.Type, data any) (any, error) {
 	if f.Kind() == reflect.String && t == reflect.TypeOf(types.Address{}) {
-		s, _ := data.(string)
+		s, ok := data.(string)
+		check.PanicIfNot(ok)
 		var res types.Address
 		if err := res.UnmarshalText([]byte(s)); err != nil {
 			return nil, err

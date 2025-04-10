@@ -123,7 +123,6 @@ func TestDebugBlockToText(t *testing.T) {
 				ReceiptsRoot:        common.HexToHash("0xD15EA5E"),
 				ChildBlocksRootHash: common.HexToHash("0xDEADBABE"),
 				MainShardHash:       common.HexToHash("0xB16B055"),
-				Timestamp:           0x12345678,
 				GasUsed:             1234,
 			},
 			LogsBloom: types.Bloom{},
@@ -148,7 +147,7 @@ func TestDebugBlockToText(t *testing.T) {
 		text, err := s.debugBlockToText(types.ShardId(13), block, false, false)
 		require.NoError(t, err)
 
-		expectedText := `Block #100500 [0x000dba05b595d9709214a9f31c34785e40733b6a01d90f295a44e7ab9a861088] @ 13 shard
+		expectedText := `Block #100500 [0x000d56649371d4a16ffa8863401aa1d8c2bf71df8935a8349962b3d9ef0d3e8b] @ 13 shard
   PrevBlock: 0x00000000000000000000000000000000000000000000000000000000deadbeef
   BaseFee: 0
   GasUsed: 1234

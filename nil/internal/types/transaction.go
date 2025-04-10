@@ -91,8 +91,8 @@ func NewTransactionFlagsFromBits(bits uint8) TransactionFlags {
 	return TransactionFlags{BitFlags: BitFlags[uint8]{Bits: bits}}
 }
 
-func (flags TransactionFlags) Value() (driver.Value, error) {
-	return flags.Bits, nil
+func (m TransactionFlags) Value() (driver.Value, error) {
+	return m.Bits, nil
 }
 
 var _ driver.Value = new(TransactionFlags)

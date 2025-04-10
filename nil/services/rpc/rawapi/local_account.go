@@ -152,11 +152,10 @@ func (api *LocalShardApi) GetContract(
 
 	code, err := db.ReadCode(tx, address.ShardId(), contract.CodeHash)
 	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			code = nil
-		} else {
+		if !errors.Is(err, db.ErrKeyNotFound) {
 			return nil, err
 		}
+		code = nil
 	}
 
 	storageReader := execution.NewDbStorageTrieReader(tx, address.ShardId())

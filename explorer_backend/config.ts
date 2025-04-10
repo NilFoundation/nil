@@ -17,6 +17,7 @@ const defaults = {
   TRACE_EXPORTER_URL: null,
   INTERVAL_CACHE_CHECKER: 1000,
   CACHE_DEADLINE: 5000,
+  EXPLORER_CODE_SNIPPETS_DB_PATH: "./database.db",
 };
 
 export const config = {
@@ -42,4 +43,6 @@ export const config = {
   CACHE_DEADLINE: process.env.CACHE_DEADLINE
     ? +process.env.CACHE_DEADLINE
     : defaults.CACHE_DEADLINE,
+  EXPLORER_CODE_SNIPPETS_DB_PATH:
+    process.env.EXPLORER_CODE_SNIPPETS_DB_PATH || defaults.EXPLORER_CODE_SNIPPETS_DB_PATH,
 } as const;

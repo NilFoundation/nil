@@ -56,29 +56,29 @@ func GenerateZeroState(t *testing.T, shardId types.ShardId, txFabric db.DB) *typ
 	return block
 }
 
-func GenerateBlockFromTransactions(t *testing.T, ctx context.Context,
+func GenerateBlockFromTransactions(t *testing.T,
 	shardId types.ShardId, blockId types.BlockNumber, prevBlock common.Hash,
 	txFabric db.DB, childShardBlocks map[types.ShardId]common.Hash, txns ...*types.Transaction,
 ) common.Hash {
 	t.Helper()
-	return generateBlockFromTransactions(t, ctx, true, shardId, blockId, prevBlock, txFabric, childShardBlocks, txns...)
+	return generateBlockFromTransactions(t, true, shardId, blockId, prevBlock, txFabric, childShardBlocks, txns...)
 }
 
-func GenerateBlockFromTransactionsWithoutExecution(t *testing.T, ctx context.Context,
+func GenerateBlockFromTransactionsWithoutExecution(t *testing.T,
 	shardId types.ShardId, blockId types.BlockNumber, prevBlock common.Hash,
 	txFabric db.DB, txns ...*types.Transaction,
 ) common.Hash {
 	t.Helper()
-	return generateBlockFromTransactions(t, ctx, false, shardId, blockId, prevBlock, txFabric, nil, txns...)
+	return generateBlockFromTransactions(t, false, shardId, blockId, prevBlock, txFabric, nil, txns...)
 }
 
-func generateBlockFromTransactions(t *testing.T, ctx context.Context, execute bool,
+func generateBlockFromTransactions(t *testing.T, execute bool,
 	shardId types.ShardId, blockId types.BlockNumber, prevBlockHash common.Hash,
 	txFabric db.DB, childShardBlocks map[types.ShardId]common.Hash, txns ...*types.Transaction,
 ) common.Hash {
 	t.Helper()
 
-	tx, err := txFabric.CreateRwTx(ctx)
+	tx, err := txFabric.CreateRwTx(t.Context())
 	require.NoError(t, err)
 	defer tx.Rollback()
 
@@ -107,9 +107,9 @@ func generateBlockFromTransactions(t *testing.T, ctx context.Context, execute bo
 		var execResult *ExecutionResult
 		if txn.IsRefund() {
 			execResult = NewExecutionResult()
-			execResult.SetFatal(es.handleRefundTransaction(ctx, txn))
+			execResult.SetFatal(es.handleRefundTransaction(t.Context(), txn))
 		} else {
-			execResult = es.HandleTransaction(ctx, txn, dummyPayer{})
+			execResult = es.HandleTransaction(t.Context(), txn, dummyPayer{})
 		}
 		require.False(t, execResult.Failed())
 
@@ -174,13 +174,13 @@ func NewSendMoneyTransaction(t *testing.T, to types.Address, seqno types.Seqno) 
 	return m
 }
 
-func Deploy(t *testing.T, ctx context.Context, es *ExecutionState,
+func Deploy(t *testing.T, es *ExecutionState,
 	payload types.DeployPayload, shardId types.ShardId, from types.Address, seqno types.Seqno,
 ) types.Address {
 	t.Helper()
 
 	txn := NewDeployTransaction(payload, shardId, from, seqno, types.Value{})
-	execResult := es.AddAndHandleTransaction(ctx, txn, dummyPayer{})
+	execResult := es.AddAndHandleTransaction(t.Context(), txn, dummyPayer{})
 	require.False(t, execResult.Failed())
 	es.AddReceipt(execResult)
 

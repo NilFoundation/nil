@@ -39,11 +39,11 @@ type Wrapper interface {
 }
 
 type WrapperConfig struct {
-	Endpoint           string
-	RequestsTimeout    time.Duration
-	DisableL1          bool
-	PrivateKeyHex      string
-	ContractAddressHex string
+	Endpoint           string        `yaml:"l1Endpoint,omitempty"`
+	RequestsTimeout    time.Duration `yaml:"l1ClientTimeout,omitempty"`
+	DisableL1          bool          `yaml:"disableL1,omitempty"`
+	PrivateKeyHex      string        `yaml:"l1PrivateKey,omitempty"`
+	ContractAddressHex string        `yaml:"l1ContractAddress,omitempty"`
 }
 
 func NewDefaultWrapperConfig() WrapperConfig {

@@ -27,6 +27,8 @@ import (
 	"github.com/NilFoundation/nil/nil/services/admin"
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/faucet"
+	"github.com/NilFoundation/nil/nil/services/indexer"
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	"github.com/NilFoundation/nil/nil/services/rollup"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
@@ -128,6 +130,28 @@ func startRpcServer(
 		apiList = append(apiList, cmt.GetRpcApi())
 	}
 
+	if cfg.Indexer != nil {
+		idx, err := indexer.NewService(ctx, cfg.Indexer)
+		if err != nil {
+			return fmt.Errorf("failed to create indexer service: %w", err)
+		}
+		apiList = append(apiList, idx.GetRpcApi())
+
+		check.PanicIfErr(err)
+		task := concurrent.MakeTask(
+			"indexer",
+			func(ctx context.Context) (err error) {
+				return indexer.StartIndexer(ctx, &indexer.Cfg{
+					Client:        client,
+					IndexerDriver: idx.Driver,
+					BlocksChan:    make(chan *driver.BlockWithShardId, 1000),
+				})
+			})
+		if err := concurrent.Run(ctx, task); err != nil {
+			return err
+		}
+	}
+
 	if cfg.IsFaucetApiEnabled() {
 		f, err := faucet.NewService(client)
 		if err != nil {
@@ -179,7 +203,6 @@ func getRawApi(
 	case NormalRunMode, ArchiveRunMode:
 		myShards = cfg.GetMyShards()
 	case RpcRunMode:
-		break
 	case CollatorsOnlyRunMode:
 		return nil, nil
 	default:
@@ -219,7 +242,7 @@ func setP2pRequestHandlers(
 	}
 	for shardId, api := range rawApi.Apis {
 		if err := rawapi.SetShardApiAsP2pRequestHandlersIfAllowed(
-			api, ctx, networkManager, readonly, logger,
+			ctx, api, networkManager, readonly, logger,
 		); err != nil {
 			logger.Error().Err(err).Stringer(logging.FieldShardId, shardId).Msg("Failed to set raw API request handler")
 			return err
@@ -595,7 +618,7 @@ func addRpcServerWorkerIfEnabled(
 			}
 
 			var cl client.Client
-			if cfg.Cometa != nil || cfg.IsFaucetApiEnabled() {
+			if cfg.Cometa != nil || cfg.IsFaucetApiEnabled() || cfg.Indexer != nil {
 				var err error
 				cl, err = client.NewEthClient(ctx, database, rawApi, logger)
 				if err != nil {
@@ -695,7 +718,10 @@ func createValidators(
 			}
 		}
 
-		list[i] = collate.NewValidator(params, list[0], database, txpool, networkManager)
+		list[i], err = collate.NewValidator(params, list[0], database, txpool, networkManager)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return list, nil
 }

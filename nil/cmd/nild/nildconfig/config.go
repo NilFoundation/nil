@@ -14,7 +14,8 @@ type ReadThroughOptions struct {
 type Config struct {
 	*nilservice.Config `yaml:",inline"`
 
-	DB           *db.BadgerDBOptions `yaml:"db"`
-	ReadThrough  *ReadThroughOptions `yaml:"readThrough,omitempty"`
-	CometaConfig string              `yaml:"cometaConfig,omitempty"`
+	DB            *db.BadgerDBOptions `yaml:"db"`
+	ReadThrough   *ReadThroughOptions `yaml:"readThrough,omitempty"`
+	CometaConfig  string              `yaml:"cometaConfig,omitempty"`
+	IndexerConfig string              `yaml:"indexerConfig,omitempty"`
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
@@ -27,12 +28,12 @@ type ProposerStorage interface {
 
 type ProposerMetrics interface {
 	metrics.BasicMetrics
-	RecordProposerTxSent(ctx context.Context, proposalData *scTypes.ProposalData)
+	RecordStateUpdated(ctx context.Context, proposalData *scTypes.ProposalData)
 }
 
 type proposer struct {
 	storage   ProposerStorage
-	rpcClient RpcBlockFetcher
+	rpcClient fetching.RpcBlockFetcher
 
 	rollupContractWrapper rollupcontract.Wrapper
 	config                ProposerConfig
@@ -56,7 +57,7 @@ func NewProposer(
 	config ProposerConfig,
 	storage ProposerStorage,
 	contractWrapper rollupcontract.Wrapper,
-	rpcClient RpcBlockFetcher,
+	rpcClient fetching.RpcBlockFetcher,
 	metrics ProposerMetrics,
 	logger logging.Logger,
 ) (*proposer, error) {
@@ -141,14 +142,14 @@ func (p *proposer) updateStateIfReady(ctx context.Context) error {
 
 	err = p.updateState(ctx, data)
 	if err != nil {
-		if errors.Is(err, rollupcontract.ErrBatchAlreadyFinalized) {
-			// another actor has already sent an update for this batch, we need to refetch state from contract
-			p.logger.Warn().Msg("batch is already finalized, skipping UpdateState tx")
-			if err := p.updateStoredStateRootFromContract(ctx); err != nil {
-				return err
-			}
-		} else {
+		if !errors.Is(err, rollupcontract.ErrBatchAlreadyFinalized) {
 			return fmt.Errorf("failed to send proof to L1 for batch with id=%s: %w", data.BatchId, err)
+		}
+
+		// another actor has already sent an update for this batch, we need to refetch state from contract
+		p.logger.Warn().Msg("batch is already finalized, skipping UpdateState tx")
+		if err := p.updateStoredStateRootFromContract(ctx); err != nil {
+			return err
 		}
 	}
 
@@ -199,7 +200,7 @@ func (p *proposer) updateState(
 		return fmt.Errorf("failed to update state: %w", err)
 	}
 
-	p.metrics.RecordProposerTxSent(ctx, proposalData)
+	p.metrics.RecordStateUpdated(ctx, proposalData)
 
 	return nil
 }

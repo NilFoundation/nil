@@ -31,19 +31,19 @@ const data = encodeFunctionData({
     }
 );
 
-const transactionHash = await smartAccount.sendTransaction({
+const transaction = await smartAccount.sendTransaction({
     to: '{CONTRACT_ADDRESS}',
     data: data,
     value: 100_000n,
     feeCredit: 1_000_000n
 });
 
-await waitTillCompleted(client, transactionHash);
+await transaction.wait();
 ```
 
 :::tip
 
-The `waitTillCompleted()` function enforces waiting for the results of the execution of the transaction whose hash is passed as an argument. It is crucial for avoiding null-type errors.
+The `wait()` function enforces waiting for the results of the execution of the transaction whose hash is passed as an argument. It is crucial for avoiding null-type errors.
 
 :::
 

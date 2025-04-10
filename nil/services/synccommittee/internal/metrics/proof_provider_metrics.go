@@ -27,9 +27,5 @@ func (h *ProofProviderMetricsHandler) init(attributes metric.MeasurementOption, 
 		return err
 	}
 
-	if err = h.taskStorageMetricsHandler.init(attributes, meter); err != nil {
-		return err
-	}
-
-	return nil
+	return h.taskStorageMetricsHandler.init(attributes, meter)
 }

@@ -35,7 +35,7 @@ func (s *RawApiTestSuite) SetupSuite() {
 }
 
 func (s *RawApiTestSuite) SetupTest() {
-	networkManagers := network.NewTestManagers(s.T(), s.ctx, int(initialTcpPort.Add(2)), 2)
+	networkManagers := network.NewTestManagers(s.ctx, s.T(), int(initialTcpPort.Add(2)), 2)
 	s.clientNetworkManager = networkManagers[0]
 	s.serverNetworkManager = networkManagers[1]
 	_, s.serverPeerId = network.ConnectManagers(s.T(), s.clientNetworkManager, s.serverNetworkManager)
@@ -117,7 +117,7 @@ func (s *ApiServerTestSuite) makeInvalidBlockRequest() []byte {
 func (s *ApiServerTestSuite) TestValidResponse() {
 	var index types.TransactionIndex
 	s.api.handler = func() (sszx.SSZEncodedData, error) {
-		index += 1
+		index++
 		return index.Bytes(), nil
 	}
 

@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	nilrpc "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
@@ -35,7 +35,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 	}
 
 	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)
-	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
+	client := rpc.NewRetryClient(cfg.RpcEndpoint, logger)
 
 	clock := clockwork.NewRealClock()
 	blockStorage := storage.NewBlockStorage(
@@ -55,7 +55,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		return nil, fmt.Errorf("error initializing rollup contract wrapper: %w", err)
 	}
 
-	agg := NewAggregator(
+	agg := fetching.NewAggregator(
 		client,
 		blockStorage,
 		taskStorage,
@@ -65,6 +65,10 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		logger,
 		metricsHandler,
 		cfg.AggregatorConfig,
+	)
+
+	lagTracker := fetching.NewLagTracker(
+		client, blockStorage, metricsHandler, fetching.NewDefaultLagTrackerConfig(), logger,
 	)
 
 	prop, err := NewProposer(
@@ -98,7 +102,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 
 	syncCommittee.Service = srv.NewService(
 		logger,
-		prop, agg, taskScheduler, taskListener,
+		prop, agg, lagTracker, taskScheduler, taskListener,
 	)
 
 	return syncCommittee, nil

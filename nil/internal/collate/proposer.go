@@ -21,9 +21,8 @@ import (
 )
 
 const (
-	defaultMaxInternalTxns               = 1000
 	defaultMaxGasInBlock                 = types.DefaultMaxGasInBlock
-	maxTxnsFromPool                      = 1000
+	maxTxnsFromPool                      = 10_000
 	defaultMaxForwardTransactionsInBlock = 200
 
 	validatorPatchLevel = 1
@@ -48,9 +47,6 @@ type proposer struct {
 func newProposer(params *Params, topology ShardTopology, pool TxnPool, logger logging.Logger) *proposer {
 	if params.MaxGasInBlock == 0 {
 		params.MaxGasInBlock = defaultMaxGasInBlock
-	}
-	if params.MaxInternalTransactionsInBlock == 0 {
-		params.MaxInternalTransactionsInBlock = defaultMaxInternalTxns
 	}
 	if params.MaxForwardTransactionsInBlock == 0 {
 		params.MaxForwardTransactionsInBlock = defaultMaxForwardTransactionsInBlock
@@ -327,11 +323,11 @@ func (p *proposer) handleTransactionsFromPool() error {
 		if ok, err := handle(txn); err != nil {
 			return err
 		} else if ok {
+			p.proposal.ExternalTxns = append(p.proposal.ExternalTxns, txn.Transaction)
 			if p.executionState.GasUsed > p.params.MaxGasInBlock {
+				unverified = append(unverified, txn.Hash())
 				break
 			}
-
-			p.proposal.ExternalTxns = append(p.proposal.ExternalTxns, txn.Transaction)
 		}
 	}
 
@@ -367,7 +363,6 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 
 	checkLimits := func() bool {
 		return p.executionState.GasUsed < p.params.MaxGasInBlock &&
-			len(p.proposal.InternalTxnRefs) < p.params.MaxInternalTransactionsInBlock &&
 			len(p.proposal.ForwardTxnRefs) < p.params.MaxForwardTransactionsInBlock
 	}
 

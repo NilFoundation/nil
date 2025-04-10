@@ -591,7 +591,7 @@ type sendRequest struct{}
 
 var _ ReadWritePrecompiledContract = (*sendRequest)(nil)
 
-func (c *sendRequest) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
+func (*sendRequest) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
 	dst, err := extractDstAddress(input, "precompileSendRequest", 0)
 	if err != nil {
 		return math.MaxUint64, err
@@ -1172,11 +1172,11 @@ func (e *emitLog) Run(state StateDB, input []byte, value *uint256.Int, caller Co
 	slice := reflect.ValueOf(args[1])
 	data := make([]types.Uint256, slice.Len())
 	for i := range slice.Len() {
-		if v, ok := slice.Index(i).Interface().(*big.Int); ok {
-			data[i].SetFromBig(v)
-		} else {
+		v, ok := slice.Index(i).Interface().(*big.Int)
+		if !ok {
 			return nil, types.NewVmError(types.ErrorAbiUnpackFailed)
 		}
+		data[i].SetFromBig(v)
 	}
 
 	debugLog, err := types.NewDebugLog([]byte(transaction), data)

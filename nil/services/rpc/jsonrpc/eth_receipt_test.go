@@ -26,7 +26,7 @@ func (s *SuiteEthReceipt) SetupSuite() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
-	s.api = NewTestEthAPI(s.T(), ctx, s.db, 2)
+	s.api = NewTestEthAPI(ctx, s.T(), s.db, 2)
 
 	tx, err := s.db.CreateRwTx(ctx)
 	s.Require().NoError(err)

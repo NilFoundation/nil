@@ -33,7 +33,7 @@ func (s *SuiteEthFilters) SetupTest() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
-	s.api = NewTestEthAPI(s.T(), s.ctx, s.db, 1)
+	s.api = NewTestEthAPI(s.ctx, s.T(), s.db, 1)
 }
 
 func (s *SuiteEthFilters) TearDownTest() {
