@@ -17,7 +17,7 @@ type TaskCancelCheckerConfig struct {
 
 func MakeDefaultCheckerConfig() TaskCancelCheckerConfig {
 	return TaskCancelCheckerConfig{
-		UpdateInterval: 5 * time.Second,
+		UpdateInterval: 60 * time.Second,
 	}
 }
 
@@ -26,7 +26,7 @@ type TaskCancelChecker interface {
 }
 
 type TaskSource interface {
-	CanlcelDeadTasks(ctx context.Context, callback func(context.Context, types.TaskId) (bool, error)) (uint, error)
+	CancelTasksByParentId(ctx context.Context, isActive func(context.Context, types.TaskId) (bool, error)) (uint, error)
 }
 
 type TaskCancelCheckerImpl struct {
@@ -34,6 +34,7 @@ type TaskCancelCheckerImpl struct {
 
 	requestHandler api.TaskRequestHandler
 	taskSource     TaskSource
+	executorId     types.TaskExecutorId
 	logger         logging.Logger
 	config         TaskCancelCheckerConfig
 }
@@ -41,11 +42,13 @@ type TaskCancelCheckerImpl struct {
 func NewTaskCancelChecker(
 	requestHandler api.TaskRequestHandler,
 	taskSource TaskSource,
+	executorId types.TaskExecutorId,
 	logger logging.Logger,
 ) TaskCancelChecker {
 	checker := &TaskCancelCheckerImpl{
 		requestHandler: requestHandler,
 		taskSource:     taskSource,
+		executorId:     executorId,
 		config:         MakeDefaultCheckerConfig(),
 	}
 
@@ -56,12 +59,12 @@ func NewTaskCancelChecker(
 
 func (c *TaskCancelCheckerImpl) runIteration(ctx context.Context) {
 	if err := c.processRunningTasks(ctx); err != nil {
-		c.logger.Error().Err(err).Msg("failed to send next task result")
+		c.logger.Error().Err(err).Msg("failed to check cancelled tasks")
 	}
 }
 
 func (c *TaskCancelCheckerImpl) processRunningTasks(ctx context.Context) error {
-	canceledCounter, err := c.taskSource.CanlcelDeadTasks(ctx, c.callback)
+	canceledCounter, err := c.taskSource.CancelTasksByParentId(ctx, c.isActive)
 	if err != nil {
 		return fmt.Errorf("failed to cancel dead tasks: %w", err)
 	}
@@ -73,8 +76,8 @@ func (c *TaskCancelCheckerImpl) processRunningTasks(ctx context.Context) error {
 	return nil
 }
 
-func (c *TaskCancelCheckerImpl) callback(ctx context.Context, taskId types.TaskId) (bool, error) {
-	taskRequest := api.NewTaskCheckRequest(taskId)
+func (c *TaskCancelCheckerImpl) isActive(ctx context.Context, taskId types.TaskId) (bool, error) {
+	taskRequest := api.NewTaskCheckRequest(taskId, c.executorId)
 	isExists, err := c.requestHandler.CheckIfTaskExists(ctx, taskRequest)
 	if err != nil {
 		return isExists, fmt.Errorf("failed to check task: %w", err)

@@ -67,13 +67,16 @@ func (s *TaskCancelCheckerSuite) Test_Check_Empty_Storage() {
 	s.Require().Zero(handlerMock.CheckIfTaskExistsCalls())
 }
 
-func (s *TaskCancelCheckerSuite) Test_Chech_Alive_Task() {
+func (s *TaskCancelCheckerSuite) Test_Check_Alive_Task() {
 	parentTaskId := types.NewTaskId()
 	task := types.Task{
 		Id:           types.NewTaskId(),
 		ParentTaskId: &parentTaskId,
 	}
-	expectedTaskEntry := types.TaskEntry{Task: task}
+	expectedTaskEntry := types.TaskEntry{
+		Task: task,
+		Status: types.WaitingForExecutor,
+	}
 	err := s.taskStorage.AddTaskEntries(s.ctx, &expectedTaskEntry)
 	s.Require().NoError(err)
 
@@ -99,13 +102,16 @@ func (s *TaskCancelCheckerSuite) Test_Chech_Alive_Task() {
 	s.Require().Equal(taskEntry.Task.Id, expectedTaskEntry.Task.Id)
 }
 
-func (s *TaskCancelCheckerSuite) Test_Chech_Dead_Task() {
+func (s *TaskCancelCheckerSuite) Test_Check_Dead_Task() {
 	parentTaskId := types.NewTaskId()
 	task := types.Task{
 		Id:           types.NewTaskId(),
 		ParentTaskId: &parentTaskId,
 	}
-	expectedTaskEntry := types.TaskEntry{Task: task}
+	expectedTaskEntry := types.TaskEntry{
+		Task: task,
+		Status: types.WaitingForExecutor,
+	}
 	err := s.taskStorage.AddTaskEntries(s.ctx, &expectedTaskEntry)
 	s.Require().NoError(err)
 

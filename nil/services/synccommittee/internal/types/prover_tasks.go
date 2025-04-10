@@ -240,8 +240,10 @@ func errTaskInvalidStatus(task *TaskEntry, methodName string) error {
 }
 
 func (t *TaskEntry) ExecutionTime(currentTime time.Time) *time.Duration {
+	var execTime time.Duration
 	if t.Started == nil {
-		return nil
+		execTime = currentTime.Sub(currentTime)
+		return &execTime
 	}
 	var rightBound time.Time
 	if t.Finished == nil {
@@ -249,7 +251,7 @@ func (t *TaskEntry) ExecutionTime(currentTime time.Time) *time.Duration {
 	} else {
 		rightBound = *t.Finished
 	}
-	execTime := rightBound.Sub(*t.Started)
+	execTime = rightBound.Sub(*t.Started)
 	return &execTime
 }
 

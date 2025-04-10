@@ -22,11 +22,15 @@ func NewTaskRequest(executorId types.TaskExecutorId) *TaskRequest {
 }
 
 type TaskCheckRequest struct {
-	TaskId types.TaskId `json:"taskId"`
+	TaskId types.TaskId             `json:"taskId"`
+	ExecutorId types.TaskExecutorId `json:"executorId"`
 }
 
-func NewTaskCheckRequest(taskId types.TaskId) *TaskCheckRequest {
-	return &TaskCheckRequest{TaskId: taskId}
+func NewTaskCheckRequest(taskId types.TaskId, executorId types.TaskExecutorId) *TaskCheckRequest {
+	return &TaskCheckRequest{
+		TaskId:     taskId,
+		ExecutorId: executorId,
+	}
 }
 
 type TaskRequestHandler interface {

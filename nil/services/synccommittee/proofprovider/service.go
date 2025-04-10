@@ -85,6 +85,7 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 	taskCanclelChecker := scheduler.NewTaskCancelChecker(
 		taskRpcClient,
 		taskStorage,
+		taskExecutor.Id(),
 		logger,
 	)
 

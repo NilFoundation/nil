@@ -128,11 +128,16 @@ func (s *taskSchedulerImpl) CheckIfTaskExists(ctx context.Context, request *api.
 
 	taskEntry, err := s.storage.TryGetTaskEntry(ctx, request.TaskId)
 	if err != nil {
-		s.logger.Error().Stringer(logging.FieldTaskId, request.TaskId).Msg("can't check if task exists")
+		s.logger.Error().Err(err).Stringer(logging.FieldTaskId, request.TaskId).Msg("can't check if task exists")
 		return false, err
 	}
 	if taskEntry == nil {
 		s.logger.Debug().Stringer(logging.FieldTaskId, request.TaskId).Msg("task not exists")
+		return false, nil
+	}
+	if taskEntry.Owner != request.ExecutorId {
+		s.logger.Debug().Stringer(logging.FieldTaskId, request.TaskId).
+			Msgf("task has unexpected executor id %d, expected %d", taskEntry.Owner, request.ExecutorId)
 		return false, nil
 	}
 

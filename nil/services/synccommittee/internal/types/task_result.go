@@ -42,6 +42,14 @@ type TaskResult struct {
 	Data            TaskResultData      `json:"binaryData,omitempty"`
 }
 
+// StatusStr returns status as string.
+func (r *TaskResult) StatusStr() string {
+	if r.Error == nil {
+		return "Success"
+	}
+	return r.Error.Error()
+}
+
 // IsSuccess determines if the task result indicates success.
 func (r *TaskResult) IsSuccess() bool {
 	return r.Error == nil
@@ -59,15 +67,17 @@ func (r *TaskResult) ValidateForTask(entry *TaskEntry) error {
 		return fmt.Errorf("task result's taskId=%s does not match task entry's taskId=%s", r.TaskId, entry.Task.Id)
 	}
 
-	if r.Sender == UnknownExecutorId || r.Sender != entry.Owner {
-		return fmt.Errorf(
-			"%w: taskId=%v, taskStatus=%v, taskOwner=%v, requestSenderId=%v",
-			ErrTaskWrongExecutor, entry.Task.Id, entry.Status, entry.Owner, r.Sender,
-		)
+	if entry.Status == TaskStatusNone {
+		return errTaskInvalidStatus(entry, "Validate")
 	}
 
-	if entry.Status != Running {
-		return errTaskInvalidStatus(entry, "Validate")
+	if entry.Status == Running {
+		if r.Sender == UnknownExecutorId || r.Sender != entry.Owner {
+			return fmt.Errorf(
+				"%w: taskId=%v, taskStatus=%v, taskOwner=%v, requestSenderId=%v",
+				ErrTaskWrongExecutor, entry.Task.Id, entry.Status, entry.Owner, r.Sender,
+			)
+		}
 	}
 
 	return nil
@@ -136,6 +146,7 @@ func NewCancelTaskResult(
 	return &TaskResult{
 		TaskId: taskId,
 		Sender: executorId,
+		Error:  NewTaskExecError(TaskErrCancelled, "task was cancelled"),
 	}
 }
 
