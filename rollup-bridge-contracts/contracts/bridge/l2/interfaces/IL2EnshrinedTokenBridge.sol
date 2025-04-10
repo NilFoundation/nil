@@ -2,6 +2,8 @@
 pragma solidity 0.8.28;
 
 import { IL2Bridge } from "./IL2Bridge.sol";
+import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 interface IL2EnshrinedTokenBridge is IL2Bridge {
   /*//////////////////////////////////////////////////////////////////////////
@@ -26,8 +28,8 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
   /// @param feeRefundRecipient The address of recipient for fee-refund on L2.
   /// @param data The optional calldata passed to recipient in L2.
   event FinalizeDepositERC20(
-    address indexed l1Token,
-    address indexed l2Token,
+    TokenId indexed l1Token,
+    TokenId indexed l2Token,
     address indexed depositor,
     uint256 depositAmount,
     address depositRecipient,

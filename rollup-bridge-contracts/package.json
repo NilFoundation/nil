@@ -79,6 +79,8 @@
     "ethers": "^6.13.4",
     "hardhat-deploy": "0.14.0",
     "path-exists": "^5.0.0",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.2",
+    "@nilfoundation/niljs": "0.25.0",
+    "@nilfoundation/smart-contracts": "0.7.0"
   }
 }

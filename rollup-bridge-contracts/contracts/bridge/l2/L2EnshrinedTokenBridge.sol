@@ -16,8 +16,10 @@ import { IL2Bridge } from "./interfaces/IL2Bridge.sol";
 import { IL2BridgeMessenger } from "./interfaces/IL2BridgeMessenger.sol";
 import { IL2BridgeRouter } from "./interfaces/IL2BridgeRouter.sol";
 import { L2BaseBridge } from "./L2BaseBridge.sol";
+import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
-contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge {
+contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBase, NilTokenBase {
   using AddressChecker for address;
 
   /// @notice Mapping from enshrined-token-address to layer-1 ERC20-TokenAddress.
@@ -87,9 +89,45 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge {
       revert ErrorL1TokenAddressMismatch();
     }
 
-    // TODO - Mint EnshrinedToken Amount to recipient
+    /// @notice Encoding the context to process the loan after the price is fetched
+    /// @dev The context contains the borrower’s details, loan amount, borrow token, and collateral token.
+    bytes memory tokenTransferContext = abi.encodeWithSelector(
+      this.handleTokenTransferResponse.selector,
+      l1Token,
+      l2Token,
+      depositor,
+      depositAmount,
+      depositRecipient,
+      feeRefundRecipient,
+      additionalData
+    );
 
-    // TODO - assert that the balance increase on the recipient is equal to the depositAmount
+    /// @notice Prepare a call to the token contract to mint the tokens
+    bytes memory mintCallData = abi.encodeWithSignature("mintTokenInternal(uint256)", depositAmount);
+
+    /// @notice Send a request to the Oracle to get the price of the borrow token.
+    /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
+    Nil.sendRequest(l2Token, 0, Nil.ASYNC_REQUEST_MIN_GAS, tokenTransferContext, mintCallData);
+  }
+
+  function handleTokenTransferResponse(bool success, bytes memory returnData, bytes memory context) public {
+    /// @notice Ensure the Oracle call was successful
+    /// @dev Verifies that the price data was successfully retrieved from the Oracle.
+    require(success, "token call failed");
+
+    /// @notice Decode the context to extract borrower details, loan amount, and collateral token
+    /// @dev Decodes the context passed from the borrow function to retrieve necessary data.
+    (
+      TokenId l1Token,
+      TokenId l2Token,
+      address depositor,
+      uint256 depositAmount,
+      address depositRecipient,
+      address feeRefundRecipient,
+      bytes memory additionalData
+    ) = abi.decode(context, (TokenId, TokenId, address, uint256, address, address, bytes));
+
+    NilTokenBase.sendTokenInternal(depositRecipient, l2Token, depositAmount);
 
     emit FinalizeDepositERC20(
       l1Token,
