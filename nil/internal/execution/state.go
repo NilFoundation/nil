@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	TraceBlocksEnabled                    = false
+	TraceBlocksEnabled                    = true
 	ExternalTransactionVerificationMaxGas = types.Gas(100_000)
 
 	ModeReadOnly     = "read-only"
@@ -915,28 +915,6 @@ func (es *ExecutionState) AddOutTransaction(
 	txn.MaxPriorityFeePerGas = es.GetInTransaction().MaxPriorityFeePerGas
 	txn.MaxFeePerGas = es.GetInTransaction().MaxFeePerGas
 
-	// In case of bounce transaction, we don't debit token from account
-	// In case of refund transaction, we don't transfer tokens
-	if !txn.IsBounce() && !txn.IsRefund() {
-		acc, err := es.GetAccount(txn.From)
-		if err != nil {
-			return nil, err
-		}
-		for _, token := range txn.Token {
-			balance := acc.GetTokenBalance(token.Token)
-			if balance == nil {
-				balance = &types.Value{}
-			}
-			if balance.Cmp(token.Balance) < 0 {
-				return nil, fmt.Errorf("%w: %s < %s, token %s",
-					vm.ErrInsufficientBalance, balance, token.Balance, token.Token)
-			}
-			if err := es.SubToken(txn.From, token.Token, token.Balance); err != nil {
-				return nil, err
-			}
-		}
-	}
-
 	// Use next TxId
 	txn.TxId = es.OutTxCounts[txn.To.ShardId()]
 	es.OutTxCounts[txn.To.ShardId()] = txn.TxId + 1
@@ -1343,6 +1321,8 @@ func (es *ExecutionState) handleExecutionTransaction(
 		return NewExecutionResult().SetFatal(err)
 	}
 	defer es.resetVm()
+
+	//es.EnableVmTracing()
 
 	es.preTxHookCall(transaction)
 	defer func() { es.postTxHookCall(transaction, res) }()
@@ -2018,6 +1998,19 @@ func (es *ExecutionState) preTxHookCall(txn *types.Transaction) {
 func (es *ExecutionState) postTxHookCall(txn *types.Transaction, txResult *ExecutionResult) {
 	if es.EvmTracingHooks != nil && es.EvmTracingHooks.OnTxEnd != nil {
 		es.EvmTracingHooks.OnTxEnd(es.evm.GetVMContext(), txn, txResult.Error)
+	}
+}
+
+func (es *ExecutionState) EnableVmTracing() {
+	es.evm.Config.Tracer = &tracing.Hooks{
+		OnOpcode: func(
+			pc uint64, op byte, gas, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error,
+		) {
+			for i, item := range scope.StackData() {
+				fmt.Printf("     %d: %s\n", i, item.String())
+			}
+			fmt.Printf("%04x: %s\n", pc, vm.OpCode(op).String())
+		},
 	}
 }
 

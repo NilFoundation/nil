@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./Relayer.sol";
+
 // TokenId is a type that represents a unique token identifier.
 type TokenId is address;
 
@@ -158,8 +160,25 @@ library Nil {
         Token[] memory tokens,
         bytes memory callData
     ) internal {
-        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(false, forwardKind, dst, refundTo,
-            bounceTo, feeCredit, tokens, callData, 0, 0);
+        Relayer(getRelayerAddress()).sendTx(dst, refundTo, feeCredit, forwardKind, value, tokens, callData);
+    }
+
+    function getRelayerAddress() internal view returns (address) {
+        uint160 addr = uint160(getShardId(address(this))) << (18 * 8);
+        addr |= uint160(0x333333333333333333333333333333333333);
+        return address(addr);
+    }
+
+    function getRelayerAddress(uint shardId) internal view returns (address) {
+        uint160 addr = uint160(shardId) << (18 * 8);
+        addr |= uint160(0x333333333333333333333333333333333333);
+        return address(addr);
+    }
+
+    function getTokenManagerAddress() internal view returns (address) {
+        uint160 addr = uint160(getShardId(address(this))) << (18 * 8);
+        addr |= uint160(0x444444444444444444444444444444444444);
+        return address(addr);
     }
 
     /**
@@ -428,7 +447,7 @@ abstract contract NilBounceable is NilBase {
 // WARNING: User should never use this contract directly.
 contract __Precompile__ {
     // if mint flag is set to false, token will be burned instead
-    function precompileManageToken(uint256 amount, bool mint) public returns(bool) {}
+    function precompileManageToken(uint256 amount, bool mint, TokenId token) public returns(bool) {}
     function precompileGetTokenBalance(TokenId id, address addr) public view returns(uint256) {}
     function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory, uint256, uint) public payable returns(bool) {}
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
