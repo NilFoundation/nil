@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	ErrBatchMismatch  = errors.New("batch mismatch")
-	ErrBatchNotProved = errors.New("batch is not proved")
-	ErrBlockMismatch  = errors.New("block mismatch")
+	ErrBatchMismatch      = errors.New("batch mismatch")
+	ErrBatchNotProved     = errors.New("batch is not proved")
+	ErrBatchInvalidStatus = errors.New("batch has invalid status")
+	ErrBlockMismatch      = errors.New("block mismatch")
 )
 
 // BatchId Unique ID of a batch of blocks.
@@ -52,6 +53,7 @@ func (id *BatchId) Set(val string) error {
 type BlockBatch struct {
 	Id         BatchId       `json:"id"`
 	ParentId   *BatchId      `json:"parentId"`
+	Status     BatchStatus   `json:"status"`
 	Blocks     ChainSegments `json:"blocks"`
 	DataProofs DataProofs    `json:"dataProofs"`
 }
@@ -60,6 +62,7 @@ func NewBlockBatch(parentId *BatchId) *BlockBatch {
 	return &BlockBatch{
 		Id:       NewBatchId(),
 		ParentId: parentId,
+		Status:   BatchStatusCreated,
 		Blocks:   make(ChainSegments),
 	}
 }
@@ -67,30 +70,75 @@ func NewBlockBatch(parentId *BatchId) *BlockBatch {
 func ExistingBlockBatch(
 	id BatchId,
 	parentId *BatchId,
+	status BatchStatus,
 	blocks ChainSegments,
 	dataProofs DataProofs,
 ) *BlockBatch {
 	return &BlockBatch{
 		Id:         id,
 		ParentId:   parentId,
+		Status:     status,
 		Blocks:     blocks,
 		DataProofs: dataProofs,
 	}
 }
 
 func (b BlockBatch) WithAddedBlocks(segments ChainSegments) (*BlockBatch, error) {
+	if b.Status.IsSealed() {
+		return nil, b.invalidStatusErr("WithAddedBlocks")
+	}
+
 	newSegments, err := b.Blocks.Concat(segments)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add blocks to batch with id=%s: %w", b.Id, err)
 	}
 
 	b.Blocks = newSegments
+	b.Status = BatchStatusPending
 	return &b, nil
 }
 
-func (b BlockBatch) WithDataProofs(dataProofs DataProofs) *BlockBatch {
+func (b BlockBatch) AsSealed() (*BlockBatch, error) {
+	if b.Status != BatchStatusPending {
+		return nil, b.invalidStatusErr("AsSealed")
+	}
+
+	b.Status = BatchStatusSealed
+	return &b, nil
+}
+
+func (b BlockBatch) AsCommitted(dataProofs DataProofs) (*BlockBatch, error) {
+	if b.Status != BatchStatusSealed {
+		return nil, b.invalidStatusErr("AsCommitted")
+	}
+
 	b.DataProofs = dataProofs
-	return &b
+	b.Status = BatchStatusCommitted
+	return &b, nil
+}
+
+func (b BlockBatch) CreateProofTask(currentTime time.Time) (*BlockBatch, *TaskEntry, error) {
+	if b.Status != BatchStatusCommitted {
+		return nil, nil, b.invalidStatusErr("CreateProofTask")
+	}
+
+	blockIds := b.BlockIds()
+	taskEntry, err := NewBatchProofTaskEntry(b.Id, blockIds, currentTime)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	b.Status = BatchStatusProofTaskCreated
+	return &b, taskEntry, nil
+}
+
+func (b BlockBatch) AsProved() (*BlockBatch, error) {
+	if b.Status != BatchStatusProofTaskCreated {
+		return nil, b.invalidStatusErr("AsProved")
+	}
+
+	b.Status = BatchStatusProved
+	return &b, nil
 }
 
 func (b *BlockBatch) BlockIds() []BlockId {
@@ -148,9 +196,11 @@ func (b *BlockBatch) LatestRefs() BlockRefs {
 	return BlocksToRefs(latestBlocks)
 }
 
-func (b *BlockBatch) CreateProofTask(currentTime time.Time) (*TaskEntry, error) {
-	blockIds := b.BlockIds()
-	return NewBatchProofTaskEntry(b.Id, blockIds, currentTime)
+func (b *BlockBatch) invalidStatusErr(operationName string) error {
+	return fmt.Errorf(
+		"%w: cannot perform operation %s on batch with id=%s, actualStatus=%s",
+		ErrBatchInvalidStatus, operationName, b.Id, b.Status,
+	)
 }
 
 type PrunedBatch struct {

@@ -46,7 +46,7 @@ func TestMPTTracer_GetAccountSlotChangeTraces(t *testing.T) {
 	err = acc.SetState(key2, value2)
 	require.NoError(t, err)
 
-	// To get correct result from GetMPTTraces we need to commit account with UpdateContracts, not acc.Commit()
+	// To get correct result from GetMPTTraces we need to commit account with UpdateContracts, not acc.AsCommitted()
 	err = mptTracer.UpdateContracts(map[types.Address]*execution.AccountState{contract.Address: acc})
 	require.NoError(t, err)
 

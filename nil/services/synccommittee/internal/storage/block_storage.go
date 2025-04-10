@@ -45,6 +45,7 @@ type BlockStorage struct {
 	ops struct {
 		batchOp
 		batchCountOp
+		batchEventOp
 		batchLatestOp
 		blockOp
 		blockLatestFetchedOp
@@ -146,7 +147,7 @@ func (bs *BlockStorage) reconstructBatch(tx db.RoTx, entry *batchEntry) (*scType
 		return nil, fmt.Errorf("failed to recreate chain segments, batchId=%s: %w", entry.Id, err)
 	}
 
-	batch := scTypes.ExistingBlockBatch(entry.Id, entry.ParentId, segments, entry.DataProofs)
+	batch := scTypes.ExistingBlockBatch(entry.Id, entry.ParentId, entry.Status, segments, entry.DataProofs)
 	return batch, nil
 }
 

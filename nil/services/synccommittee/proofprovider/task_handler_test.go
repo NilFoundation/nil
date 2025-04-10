@@ -91,7 +91,7 @@ func (s *TaskHandlerTestSuite) TestHandleBatchProofTask() {
 	now := s.clock.Now()
 	executorId := testaide.RandomExecutorId()
 	batch := testaide.NewBlockBatch(testaide.ShardsCount)
-	taskEntry, err := batch.CreateProofTask(now)
+	_, taskEntry, err := batch.CreateProofTask(now)
 	s.Require().NoError(err)
 
 	err = s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
@@ -182,7 +182,7 @@ func (s *TaskHandlerTestSuite) TestMaxActiveTasksLimit() {
 	now := s.clock.Now()
 	executorId := testaide.RandomExecutorId()
 	batch := testaide.NewBlockBatch(testaide.ShardsCount)
-	taskEntry, err := batch.CreateProofTask(now)
+	_, taskEntry, err := batch.CreateProofTask(now)
 	s.Require().NoError(err)
 	err = s.taskHandler.Handle(s.context, executorId, &taskEntry.Task)
 	s.Require().NoError(err)

@@ -88,7 +88,7 @@ func (s *BlockBatchTestSuite) Test_CreateProofTask() {
 	const childBLockCount = 4
 	batch := testaide.NewBlockBatch(childBLockCount)
 
-	taskEntry, err := batch.CreateProofTask(testaide.Now)
+	_, taskEntry, err := batch.CreateProofTask(testaide.Now)
 	s.Require().NoError(err)
 
 	task := taskEntry.Task

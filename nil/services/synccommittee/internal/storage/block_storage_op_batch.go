@@ -105,31 +105,7 @@ func (t batchOp) getBatchesSeqReversed(
 
 // getStoredBatchesSeq returns a sequence of stored batches in an arbitrary order.
 func (batchOp) getStoredBatchesSeq(tx db.RoTx) iter.Seq2[*batchEntry, error] {
-	return func(yield func(*batchEntry, error) bool) {
-		txIter, err := tx.Range(batchesTable, nil, nil)
-		if err != nil {
-			yield(nil, err)
-			return
-		}
-		defer txIter.Close()
-
-		for txIter.HasNext() {
-			key, val, err := txIter.Next()
-			if err != nil {
-				yield(nil, err)
-				return
-			}
-			entry, err := unmarshallEntry[batchEntry](key, val)
-			if err != nil {
-				yield(nil, err)
-				return
-			}
-
-			if !yield(entry, nil) {
-				return
-			}
-		}
-	}
+	return tableIter[batchEntry](tx, batchesTable)
 }
 
 func (t batchOp) deleteBatch(tx db.RwTx, batch *batchEntry) error {

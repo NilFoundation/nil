@@ -186,7 +186,7 @@ func (agg *aggregator) handleProcessingErr(ctx context.Context, err error) error
 		return err
 
 	default:
-		agg.logger.Error().Err(err).Msg("Error processing blocks")
+		agg.logger.Error().Err(err).Msg("Unexpected error during block aggregation")
 		return err
 	}
 }
@@ -365,7 +365,10 @@ func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 	if err != nil {
 		return err
 	}
-	batch = batch.WithDataProofs(dataProofs)
+	batch, err = batch.AsCommitted(dataProofs)
+	if err != nil {
+		return err
+	}
 
 	if err := agg.blockStorage.SetBlockBatch(ctx, batch); err != nil {
 		return fmt.Errorf("error storing block batch, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
@@ -386,7 +389,7 @@ func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 // createProofTask generates proof task for block batch
 func (agg *aggregator) createProofTasks(ctx context.Context, batch *types.BlockBatch) error {
 	currentTime := agg.clock.Now()
-	proofTask, err := batch.CreateProofTask(currentTime)
+	_, proofTask, err := batch.CreateProofTask(currentTime)
 	if err != nil {
 		return fmt.Errorf("error creating proof tasks, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
 	}

@@ -5,10 +5,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
@@ -16,8 +18,9 @@ import (
 var mainShardKey = marshallShardId(types.MainShardId)
 
 type batchEntry struct {
-	Id       scTypes.BatchId  `json:"batchId"`
-	ParentId *scTypes.BatchId `json:"parentBatchId,omitempty"`
+	Id       scTypes.BatchId     `json:"batchId"`
+	ParentId *scTypes.BatchId    `json:"parentBatchId,omitempty"`
+	Status   scTypes.BatchStatus `json:"status"`
 
 	ParentRefs          map[types.ShardId]*scTypes.BlockRef `json:"parentRefs"`
 	LatestMainBlockHash common.Hash                         `json:"latestMainBlockHash"`
@@ -36,6 +39,7 @@ func newBatchEntry(batch *scTypes.BlockBatch, createdAt time.Time) *batchEntry {
 	return &batchEntry{
 		Id:       batch.Id,
 		ParentId: batch.ParentId,
+		Status:   batch.Status,
 
 		ParentRefs:          batch.ParentRefs(),
 		LatestMainBlockHash: batch.LatestMainBlock().Hash,
@@ -100,4 +104,32 @@ func marshallShardId(shardId types.ShardId) []byte {
 
 func unmarshallShardId(key []byte) types.ShardId {
 	return types.ShardId(binary.LittleEndian.Uint32(key))
+}
+
+func tableIter[Entry any](tx db.RoTx, table db.TableName) iter.Seq2[*Entry, error] {
+	return func(yield func(*Entry, error) bool) {
+		txIter, err := tx.Range(table, nil, nil)
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+		defer txIter.Close()
+
+		for txIter.HasNext() {
+			key, val, err := txIter.Next()
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+			entry, err := unmarshallEntry[Entry](key, val)
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			if !yield(entry, nil) {
+				return
+			}
+		}
+	}
 }

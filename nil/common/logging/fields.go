@@ -37,6 +37,7 @@ const (
 	FieldBlockMainShardHash = "blockMainShardHash"
 	FieldBlockNumber        = "blockNumber"
 	FieldBatchId            = "batchId"
+	FieldBatchEventId       = "batchEventId"
 	FieldStateRoot          = "stateRoot"
 
 	FieldTaskId         = "taskId"
