@@ -1,7 +1,8 @@
 import "hardhat/types/config";
+import type { HardhatUserConfig } from "hardhat/types";
 
 declare module "hardhat/types/config" {
-  import type { HardhatUserConfig } from "hardhat/types";
+  
 
   export interface NilHardhatUserConfig extends HardhatUserConfig {
     walletAddress?: string;
@@ -10,3 +11,4 @@ declare module "hardhat/types/config" {
 
   interface HardhatConfig extends NilHardhatUserConfig {} // Augmenting existing type
 }
+
