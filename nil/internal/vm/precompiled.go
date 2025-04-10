@@ -726,6 +726,7 @@ func (c *manageToken) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
 }
 
 func (c *manageToken) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	panic("Deprecated")
 	if len(input) < 4 {
 		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
 	}

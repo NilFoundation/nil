@@ -81,6 +81,23 @@ func CreateDefaultZeroStateConfig(mainPublicKey []byte) (*ZeroStateConfig, error
 	return zeroStateConfig, nil
 }
 
+func AddRelayersToZeroStateConfig(zeroStateConfig *ZeroStateConfig, shardsNum int) {
+	for i := range shardsNum {
+		zeroStateConfig.Contracts = append(zeroStateConfig.Contracts, &ContractDescr{
+			Name:     fmt.Sprintf("Relayer_%d", i),
+			Contract: "Relayer",
+			Address:  types.ShardAndHexToAddress(types.ShardId(i), types.RelayerPureAddress),
+			Value:    types.Value0,
+		})
+		zeroStateConfig.Contracts = append(zeroStateConfig.Contracts, &ContractDescr{
+			Name:     fmt.Sprintf("TokenManager_%d", i),
+			Contract: "TokenManager",
+			Address:  types.ShardAndHexToAddress(types.ShardId(i), types.TokenManagerPureAddress),
+			Value:    types.Value0,
+		})
+	}
+}
+
 func (cfg *ZeroStateConfig) GetValidators() []config.ListValidators {
 	return cfg.ConfigParams.Validators.Validators
 }
