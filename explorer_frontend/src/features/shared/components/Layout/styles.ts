@@ -38,7 +38,6 @@ const content = {
 const navbar = {
   width: "100%",
   display: "grid",
-  gap: "8px",
   gridTemplateColumns: "1fr auto",
   gridTemplateRows: "1fr",
   height: "auto",
@@ -57,6 +56,7 @@ const navigation = {
   display: "flex",
   alignItems: "center",
   justifyContent: "flex-end",
+  marginLeft: "8px",
 };
 
 const tutorialText = {
