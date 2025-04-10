@@ -271,7 +271,6 @@ func (g *BlockGenerator) prepareExecutionState(proposal *Proposal, gasPrices []t
 				Msg("Failed to handle out message")
 			continue
 		}
-		fmt.Println("====================== out txn added", msg.Address, "======================")
 	}
 
 	g.executionState.ChildShardBlocks = make(map[types.ShardId]common.Hash, len(proposal.ShardHashes))

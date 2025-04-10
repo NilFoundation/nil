@@ -722,15 +722,15 @@ func (s *SuiteRpc) TestRpcBlockContent() {
 		block, err = s.Client.GetBlock(s.Context, types.BaseShardId, "latest", false)
 		s.Require().NoError(err)
 
-		return len(block.TransactionHashes) > 0
+		return len(block.TransactionHashes) > 1
 	}, 6*time.Second, 50*time.Millisecond)
 
 	block, err = s.Client.GetBlock(s.Context, types.BaseShardId, block.Hash, true)
 	s.Require().NoError(err)
 
 	s.Require().NotNil(block.Hash)
-	s.Require().Len(block.Transactions, 1)
-	s.Equal(hash, block.Transactions[0].Hash)
+	s.Require().Len(block.Transactions, 2)
+	s.Equal(hash, block.Transactions[1].Hash)
 }
 
 func (s *SuiteRpc) TestRpcTransactionContent() {

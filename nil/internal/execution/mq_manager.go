@@ -1,7 +1,6 @@
 package execution
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/internal/config"
@@ -100,6 +99,9 @@ func HandleOutMessage(es *ExecutionState, msg *message) error {
 		return vm.ErrTransactionToMainShard
 	}
 
+	// TODO: support estimate fee for such messages
+	payload.FeeCredit = types.MaxFeePerGasDefault
+
 	// TODO: withdrawFunds should be implemneted
 	// if err := withdrawFunds(es, msg.Address, payload.Value); err != nil {
 	// 	return nil, fmt.Errorf("withdraw value failed: %w", err)
@@ -120,9 +122,5 @@ func HandleOutMessage(es *ExecutionState, msg *message) error {
 	}
 
 	_, err = es.AddOutTransaction(msg.Address, &payload)
-	if err == nil {
-		pJson, _ := json.MarshalIndent(payload, "", "  ")
-		fmt.Println("out transaction added", msg.Address, string(pJson))
-	}
 	return err
 }
