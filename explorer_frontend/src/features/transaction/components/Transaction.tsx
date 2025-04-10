@@ -14,7 +14,6 @@ import type { OnChangeHandler, TabsOverrides } from "baseui/tabs";
 import { useUnit } from "effector-react";
 import { type Key, useEffect, useState } from "react";
 import { useStyletron } from "styletron-react";
-import { getDesktopStyles, getMobileStyles, getTabletStyles } from "../../../styleHelpers";
 import { useMobile } from "../../shared";
 import { TransactionList } from "../../transaction-list";
 import { $transaction, fetchTransactionFx } from "../models/transaction";
@@ -54,21 +53,6 @@ export const Transaction = () => {
         flexDirection: "column",
         flexWrap: "nowrap",
         width: "100%",
-        ...getMobileStyles({
-          paddingLeft: "16px",
-          paddingRight: "16px",
-        }),
-        ...getTabletStyles({
-          paddingLeft: "48px",
-          paddingRight: "48px",
-          margin: "0 auto",
-        }),
-        ...getDesktopStyles({
-          paddingLeft: "48px",
-          paddingRight: "48px",
-          maxWidth: "1440px",
-          margin: "0 auto",
-        }),
       })}
     >
       <HeadingXLarge className={css({ marginBottom: SPACE[32] })}>Transaction</HeadingXLarge>

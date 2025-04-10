@@ -70,7 +70,7 @@ export const MobileConvertableTable = ({ columns, data, isMobile }: MobileConver
       <div
         className={css({
           ...getTabletStyles({
-            minWidth: "990px",
+            minWidth: "1020px",
             maxWidth: "100%",
             width: "100%",
           }),

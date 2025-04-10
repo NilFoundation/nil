@@ -14,8 +14,8 @@ export const InternalPageContainer: FC<InternalPageContainerProps> = ({ children
     <div
       className={css({
         gridColumn: "1 / 4",
-        paddingLeft: isMobile ? "0" : "32px",
-        paddingRight: isMobile ? "0" : "32px",
+        // paddingLeft: isMobile ? "0" : "32px",
+        // paddingRight: isMobile ? "0" : "32px",
       })}
     >
       {children}

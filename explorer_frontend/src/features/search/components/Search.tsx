@@ -54,11 +54,6 @@ const Search = () => {
               width: "100%",
             },
           },
-          // InputContainer: {
-          //   style: {
-          //     width: "100%",
-          //   },
-          // },
         }}
       />
       {isShowResult && (

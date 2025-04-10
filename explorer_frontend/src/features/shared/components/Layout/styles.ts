@@ -1,7 +1,7 @@
 import { COLORS, SPACE } from "@nilfoundation/ui-kit";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { StyleObject } from "styletron-react";
-import { getDesktopStyles, getTabletStyles } from "../../../../styleHelpers";
+import { getTabletStyles } from "../../../../styleHelpers";
 
 const linkOutlineStyles = {
   borderRadius: "4px",
@@ -21,16 +21,6 @@ const container: StyleObject = {
   justifyContent: "start",
   backgroundColor: "transparent",
   ...expandProperty("padding", "0 16px 16px 16px"),
-  ...getTabletStyles({
-    ...expandProperty("padding", "0 48px 16px 48px"),
-    margin: "0 auto",
-    overflowX: "auto",
-  }),
-  ...getDesktopStyles({
-    ...expandProperty("padding", "0 48px 16px 48px"),
-    maxWidth: "1440px",
-    margin: "0 auto",
-  }),
 };
 
 const content = {
@@ -60,7 +50,6 @@ const logo = {
   alignItems: "start",
   marginRight: "auto",
   ...linkOutlineStyles,
-  marginLeft: "32px",
   flexDirection: "column",
 };
 

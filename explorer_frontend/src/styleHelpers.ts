@@ -1,3 +1,4 @@
+import { expandProperty } from "inline-style-expand-shorthand";
 import type { StyleObject } from "styletron-react";
 
 export const mobileMaxScreenSize = 768;
@@ -33,5 +34,18 @@ export const scrollableContentStyles: StyleObject = {
   }),
   ...getDesktopStyles({
     overflowX: "auto" as const,
+  }),
+};
+
+export const explorerContainer: StyleObject = {
+  width: "100%",
+  ...getTabletStyles({
+    ...expandProperty("padding", "0 32px 0 32px"),
+    margin: "0 auto",
+    overflowX: "auto",
+  }),
+  ...getDesktopStyles({
+    maxWidth: "1440px",
+    margin: "0 auto",
   }),
 };

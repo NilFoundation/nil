@@ -20,6 +20,7 @@ export const Navbar = ({ children }: NavbarProps) => {
           display: "flex",
           flexGrow: 1,
           width: "100%",
+          alignItems: "center",
         })}
       >
         <Logo />
