@@ -40,7 +40,7 @@ async function main() {
     faucetEndpoint: endpoint,
   });
 
-  console.log("🔑 Smart account:", deployer.address);
+  console.log(" Smart account:", deployer.address);
 
   await faucet.topUpAndWaitUntilCompletion(
     {
@@ -85,7 +85,7 @@ async function main() {
   });
 
   await waitTillCompleted(client, factoryTx);
-  console.log("🏭 LendingPoolFactory deployed at:", factoryAddress);
+  console.log(" LendingPoolFactory deployed at:", factoryAddress);
 
   const deployCalldata = encodeFunctionData({
     abi: LendingPoolFactory.abi,
@@ -93,19 +93,19 @@ async function main() {
     args: [],
   });
 
-  const { hash: deployHash } = await deployer.execute({
+  const { hash: deployHash } = await deployer.sendTransaction({
     to: factoryAddress,
     data: deployCalldata,
     value: 0n,
   });
 
   await waitTillCompleted(client, deployHash);
-  console.log("📦 LendingPool deployed via factory. Tx:", deployHash);
+  console.log(" LendingPool deployed via factory. Tx:", deployHash);
 
   const receipt = await client.getTransactionReceiptByHash(deployHash);
 
   if (!receipt) {
-    throw new Error("❌ Transaction receipt not found. It may not have been finalized.");
+    throw new Error(" Transaction receipt not found. It may not have been finalized.");
   }
 
   // Decode the logs and assert the event type
@@ -134,9 +134,9 @@ async function main() {
   if (log) {
     const pool = log.args.pool;
     const shard = log.args.shardId;
-    console.log(`✅ LendingPool deployed at: ${pool} on shard ${shard}`);
+    console.log(`LendingPool deployed at: ${pool} on shard ${shard}`);
   } else {
-    console.warn("⚠️ LendingPoolDeployed event not found");
+    console.warn("LendingPoolDeployed event not found");
   }
 }
 

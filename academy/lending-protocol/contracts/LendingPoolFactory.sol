@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import "./LendingPool.sol";
-import "./INilAsync.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 /// @title LendingPoolFactory
 /// @dev Handles deployment of LendingPool contracts across different shards and registers them with the GlobalLedger
@@ -15,9 +15,8 @@ contract LendingPoolFactory {
     TokenId public eth;
     uint8 public shardCounter;
 
-    /// @dev Address of the Nil precompile that handles async calls (replace if required)
-    address constant NIL_ASYNC_PRECOMPILE =
-        0x0000000000000000000000000000000000008003;
+    /// @dev Nil precompile interface for async deploy/call
+    Nil constant nil = Nil(0x0000000000000000000000000000000000008003);
 
     event LendingPoolDeployed(address pool, uint8 shardId, address owner);
 
@@ -53,7 +52,7 @@ contract LendingPoolFactory {
             constructorArgs
         );
 
-        address poolAddress = INilAsync(NIL_ASYNC_PRECOMPILE).asyncDeploy(
+        address poolAddress = nil.asyncDeploy(
             shardCounter,
             msg.sender,
             address(0),
@@ -66,7 +65,7 @@ contract LendingPoolFactory {
 
         require(poolAddress != address(0), "Deployment failed");
 
-        bool success = INilAsync(NIL_ASYNC_PRECOMPILE).asyncCall(
+        bool success = nil.asyncCall(
             globalLedgerShardId,
             address(0),
             globalLedger,
