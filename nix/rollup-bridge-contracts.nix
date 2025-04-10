@@ -18,6 +18,7 @@ stdenv.mkDerivation rec {
     "pnpm-workspace.yaml"
     ".npmrc"
     "^niljs(/.*)?$"
+    "^smart-contracts(/.*)?$"
     "^rollup-bridge-contracts(/.*)?$"
     "biome.json"
     "^create-nil-hardhat-project(/.*)?$"
