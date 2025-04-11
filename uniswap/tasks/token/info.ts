@@ -4,19 +4,12 @@ import { createSmartAccount } from "../basic/basic";
 
 task("token-info", "Retrieve token name and ID")
   .addParam("address", "The address of the deployed token contract")
-  .setAction(async (taskArgs, _) => {
+  .setAction(async (taskArgs, hre) => {
     const smartAccount = await createSmartAccount();
 
-    const TokenJson = require("../../artifacts/contracts/Token.sol/Token.json");
-    const contract = getContract({
-      abi: TokenJson.abi,
-      address: taskArgs.address,
-      client: smartAccount.client,
+    const contract = await hre.nil.getContractAt("Token", taskArgs.address, {
+      publicClient: smartAccount.client,
       smartAccount: smartAccount,
-      externalInterface: {
-        signer: smartAccount.signer,
-        methods: [],
-      },
     });
 
     // Retrieve the token's name
