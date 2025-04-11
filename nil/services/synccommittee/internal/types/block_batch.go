@@ -136,15 +136,25 @@ func (b *BlockBatch) ParentRefs() map[types.ShardId]*BlockRef {
 	return refs
 }
 
+// EarliestBlocks returns the earliest block for each shard in the batch
+func (b *BlockBatch) EarliestBlocks() map[types.ShardId]*Block {
+	return b.Blocks.getEdgeBlocks(false)
+}
+
+// LatestBlocks returns the latest block for each shard in the batch
+func (b *BlockBatch) LatestBlocks() map[types.ShardId]*Block {
+	return b.Blocks.getEdgeBlocks(false)
+}
+
 // EarliestRefs returns refs to the earliest blocks for each shard in the batch
 func (b *BlockBatch) EarliestRefs() BlockRefs {
-	earliestBlocks := b.Blocks.getEdgeBlocks(false)
-	return BlocksToRefs(earliestBlocks)
+	latestBlocks := b.LatestBlocks()
+	return BlocksToRefs(latestBlocks)
 }
 
 // LatestRefs returns refs to the latest blocks for each shard in the batch
 func (b *BlockBatch) LatestRefs() BlockRefs {
-	latestBlocks := b.Blocks.getEdgeBlocks(true)
+	latestBlocks := b.LatestBlocks()
 	return BlocksToRefs(latestBlocks)
 }
 
