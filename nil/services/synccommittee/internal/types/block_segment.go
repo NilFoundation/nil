@@ -35,8 +35,9 @@ func validateSegment(blocks []*Block) error {
 			continue
 		}
 
+		blockRef := BlockToRef(block)
 		parentRef := BlockToRef(blocks[i-1])
-		if err := parentRef.ValidateNext(block); err != nil {
+		if err := parentRef.ValidateNext(blockRef); err != nil {
 			return fmt.Errorf("parent-child mismatch at index %d: %w", i, err)
 		}
 	}
@@ -55,7 +56,7 @@ func (s ShardChainSegment) Concat(other ShardChainSegment) (ShardChainSegment, e
 	}
 
 	prevLatestRef := BlockToRef(s.Latest())
-	nextEarliest := other.Earliest()
+	nextEarliest := BlockToRef(other.Earliest())
 
 	if err := prevLatestRef.ValidateNext(nextEarliest); err != nil {
 		return nil, fmt.Errorf("failed to join chain segments: %w", err)

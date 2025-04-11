@@ -18,22 +18,28 @@ type Block = jsonrpc.RPCBlock
 
 // BlockRef represents a reference to a specific shard block
 type BlockRef struct {
-	ShardId types.ShardId     `json:"shardId"`
-	Hash    common.Hash       `json:"hash"`
-	Number  types.BlockNumber `json:"number"`
+	ShardId    types.ShardId     `json:"shardId"`
+	Hash       common.Hash       `json:"hash"`
+	ParentHash common.Hash       `json:"parentHash"`
+	Number     types.BlockNumber `json:"number"`
 }
 
-func NewBlockRef(shardId types.ShardId, hash common.Hash, number types.BlockNumber) BlockRef {
+func NewBlockRef(shardId types.ShardId, hash common.Hash, parentHash common.Hash, number types.BlockNumber) BlockRef {
 	return BlockRef{
-		ShardId: shardId,
-		Hash:    hash,
-		Number:  number,
+		ShardId:    shardId,
+		Hash:       hash,
+		ParentHash: parentHash,
+		Number:     number,
 	}
 }
 
 func BlockToRef(block *Block) BlockRef {
 	check.PanicIff(block == nil, "block cannot be nil")
-	return NewBlockRef(block.ShardId, block.Hash, block.Number)
+	return NewBlockRef(block.ShardId, block.Hash, block.ParentHash, block.Number)
+}
+
+func (br *BlockRef) AsId() BlockId {
+	return NewBlockId(br.ShardId, br.Hash)
 }
 
 func (br *BlockRef) String() string {
@@ -142,13 +148,8 @@ func (br *BlockRef) ValidateDescendant(descendant BlockRef) error {
 }
 
 // ValidateNext ensures that the given child block is a valid subsequent block of the current BlockRef.
-func (br *BlockRef) ValidateNext(child *Block) error {
-	if child == nil {
-		return errors.New("child block cannot be nil")
-	}
-
-	childRef := BlockToRef(child)
-	if err := br.ValidateDescendant(childRef); err != nil {
+func (br *BlockRef) ValidateNext(child BlockRef) error {
+	if err := br.ValidateDescendant(child); err != nil {
 		return err
 	}
 

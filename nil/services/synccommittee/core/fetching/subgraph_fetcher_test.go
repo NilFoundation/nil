@@ -63,7 +63,7 @@ func (s *SubgraphFetcherTestSuite) Test_Child_Fetched_Mismatch() {
 
 	// emulating SyncCommittee getting ahead of the cluster in shard 1
 	refs := targetBatch.LatestRefs()
-	refs[1] = types.NewBlockRef(refs[1].ShardId, refs[1].Hash, refs[1].Number+10)
+	refs[1] = types.NewBlockRef(refs[1].ShardId, refs[1].Hash, refs[1].ParentHash, refs[1].Number+10)
 
 	subgraph, err := s.fetcher.FetchSubgraph(s.ctx, mainBlock, refs)
 	s.Require().ErrorIs(err, types.ErrBlockMismatch)
