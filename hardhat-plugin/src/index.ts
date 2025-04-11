@@ -69,14 +69,14 @@ extendEnvironment((hre) => {
           salt: 1n,
         });
 
-        try { 
-          await smartAccount.selfDeploy(true)
-        } catch (e) {
-          if (typeof e === 'object' && e !== null && 'message' in e && typeof e.message ==='string' && e.message.includes("already deployed")) {
-            return smartAccount;
-          }
-          throw new Error(`Failed to deploy smart account: ${e}`);
-        }
+        // try { 
+        //   await smartAccount.selfDeploy(true)
+        // } catch (e) {
+        //   if (typeof e === 'object' && e !== null && 'message' in e && typeof e.message ==='string' && e.message.includes("already deployed")) {
+        //     return smartAccount;
+        //   }
+        //   throw new Error(`Failed to deploy smart account: ${e}`);
+        // }
         return smartAccount;
       },
       getContractAt: async (contractName, address, config) => {

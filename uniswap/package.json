@@ -15,6 +15,7 @@
   "dependencies": {
     "@nilfoundation/niljs": "workspace:*",
     "@nilfoundation/smart-contracts": "workspace:*",
+    "@nilfoundation/hardhat-nil-plugin": "workspace:*",
     "abitype": "^1.0.7",
     "dotenv": "^16.4.5"
   },

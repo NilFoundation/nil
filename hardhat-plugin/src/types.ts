@@ -6,24 +6,28 @@ export type GetContractAtConfig = {
   smartAccount?: SmartAccountInterface;
 }
 
+export declare function getContractAt(
+  contractName: string,
+  address: IAddress,
+  config?: GetContractAtConfig
+): Promise<{
+  read: CommonReadContractMethods;
+  write: CommonWriteContractMethods;
+}>;
+
+export type NilHelper = {
+    provider: PublicClient;
+    getPublicClient: () => PublicClient;
+    getSmartAccount: () => Promise<SmartAccountInterface>;
+    getContractAt: typeof getContractAt;
+};
+
 declare module 'hardhat/types/runtime' {
     interface Network {
         zksync: boolean;
     }
 
     interface HardhatRuntimeEnvironment {
-        nil: {
-            provider: PublicClient;
-            getPublicClient: () => PublicClient;
-            getSmartAccount: () => Promise<SmartAccountInterface>;
-            getContractAt: (
-            contractName: string,
-            address: IAddress,
-            config: GetContractAtConfig
-            ) => Promise<{
-            read: CommonReadContractMethods;
-            write: CommonWriteContractMethods;
-            }>;
-        };
+        nil: NilHelper;
     }
 }
