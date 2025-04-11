@@ -7,8 +7,8 @@ import {
   SmartAccountV1,
 } from "@nilfoundation/niljs";
 import "./tasks/subtasks";
-import { fetchConfigIni } from "./config/config";
 import { generateRandomPrivateKey } from "@nilfoundation/niljs";
+import { fetchConfigIni } from "./config/config";
 import { getContractAt } from "./internal/contracts";
 
 extendEnvironment((hre) => {
@@ -34,10 +34,10 @@ extendEnvironment((hre) => {
       signer: signer,
       shardId: 1,
     });
-  }
+  };
 
-  if ('nil' in hre.network.config && hre.network.config.nil) {
-    if (!('url' in hre.network.config)) {
+  if ("nil" in hre.network.config && hre.network.config.nil) {
+    if (!("url" in hre.network.config)) {
       throw new Error("Nil network config is missing url");
     }
     const url = hre.network.config.url;
@@ -57,7 +57,6 @@ extendEnvironment((hre) => {
     hre.nil = {
       provider: publicClient,
       getPublicClient: () => {
-
         return publicClient;
       },
       getSmartAccount: async () => {
@@ -69,7 +68,7 @@ extendEnvironment((hre) => {
           salt: 1n,
         });
 
-        // try { 
+        // try {
         //   await smartAccount.selfDeploy(true)
         // } catch (e) {
         //   if (typeof e === 'object' && e !== null && 'message' in e && typeof e.message ==='string' && e.message.includes("already deployed")) {
@@ -81,9 +80,9 @@ extendEnvironment((hre) => {
       },
       getContractAt: async (contractName, address, config) => {
         return getContractAt(hre, contractName, address, config);
-      }
+      },
     };
-  }  
+  }
 });
 export type * from "./types";
 export type * from "./config";
