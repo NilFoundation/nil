@@ -75,7 +75,7 @@ func (s *Scheduler) Validator() *Validator {
 	return s.validator
 }
 
-func (s *Scheduler) Run(ctx context.Context, consensus Consensus) error {
+func (s *Scheduler) Run(ctx context.Context) error {
 	s.logger.Info().Msg("Starting collation...")
 
 	// Enable handler for blocks relaying

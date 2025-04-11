@@ -6,12 +6,12 @@ const (
 
 	FieldComponent = "component"
 	FieldShardId   = "shardId"
-	FieldChainId   = "chainId"
 
 	FieldDuration = "duration"
 	FieldUrl      = "url"
 	FieldReqId    = "reqId"
 
+	FieldRpcPort   = "rpcPort"
 	FieldRpcMethod = "rpcMethod"
 	FieldRpcParams = "rpcParams"
 	FieldRpcResult = "rpcResult"
@@ -20,8 +20,6 @@ const (
 	FieldPeerId      = "peerId"
 	FieldTopic       = "topic"
 	FieldProtocolID  = "protocolId"
-	FieldTcpPort     = "tcpPort"
-	FieldQuicPort    = "quicPort"
 
 	FieldTransactionHash  = "txnHash"
 	FieldTransactionSeqno = "txnSeqno"
@@ -30,8 +28,7 @@ const (
 	FieldTransactionFlags = "txnFlags"
 	FieldFullTransaction  = "txn"
 
-	FieldAccountAddress = "accountAddress"
-	FieldAccountSeqno   = "accountSeqno"
+	FieldAccountSeqno = "accountSeqno"
 
 	FieldBlockHash          = "blockHash"
 	FieldBlockMainShardHash = "blockMainShardHash"
@@ -43,7 +40,6 @@ const (
 	FieldTaskParentId   = "taskParentId"
 	FieldTaskType       = "taskType"
 	FieldTaskExecutorId = "taskExecutorId"
-	FieldTaskExecTime   = "taskExecutionTime"
 
 	FieldTokenId = "TokenId"
 

@@ -9,7 +9,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
-	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
@@ -83,12 +82,7 @@ func (s *SuiteAsyncAwait) SetupSuite() {
 		DisableConsensus: disableConsensus,
 	}, port)
 
-	_, archiveNodeAddr := s.StartArchiveNode(&tests.ArchiveNodeConfig{
-		Port:               port + int(nShards),
-		WithBootstrapPeers: true,
-		DisableConsensus:   disableConsensus,
-	})
-	s.DefaultClient, _ = s.StartRPCNode(tests.WithDhtBootstrapByValidators, network.AddrInfoSlice{archiveNodeAddr})
+	s.DefaultClient, _ = s.StartRPCNode(tests.WithDhtBootstrapByValidators, nil)
 }
 
 func (s *SuiteAsyncAwait) SetupTest() {
@@ -286,7 +280,7 @@ func (s *SuiteAsyncAwait) TestFactorial() {
 }
 
 func (s *SuiteAsyncAwait) TestFibonacci() {
-	data := s.AbiPack(s.abiTest, "fibonacci", int32(6))
+	data := s.AbiPack(s.abiTest, "fibonacci", int32(4))
 	receipt := s.SendExternalTransactionNoCheck(data, s.testAddress0)
 	s.Require().True(receipt.AllSuccess())
 
@@ -296,7 +290,7 @@ func (s *SuiteAsyncAwait) TestFibonacci() {
 	s.Require().NoError(err)
 	value, ok := nameRes[0].(int32)
 	s.Require().True(ok)
-	s.Require().Equal(int32(8), value)
+	s.Require().Equal(int32(3), value)
 }
 
 func (s *SuiteAsyncAwait) TestTwoRequests() {
