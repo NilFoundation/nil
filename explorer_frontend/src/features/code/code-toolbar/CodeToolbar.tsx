@@ -9,9 +9,10 @@ import { QuestionButton } from "./QuestionButton";
 type CodeToolbarProps = {
   disabled: boolean;
   extraToolbarButton?: ReactNode;
+  isSolidity?: boolean;
 };
 
-export const CodeToolbar: FC<CodeToolbarProps> = ({ disabled, extraToolbarButton }) => {
+export const CodeToolbar: FC<CodeToolbarProps> = ({ disabled, extraToolbarButton, isSolidity }) => {
   const [css] = useStyletron();
   const [isMobile] = useMobile();
 
@@ -30,9 +31,8 @@ export const CodeToolbar: FC<CodeToolbarProps> = ({ disabled, extraToolbarButton
       {extraToolbarButton === undefined && (
         <>
           {" "}
-          <OpenProjectButton disabled={disabled} /> <CompilerVersionButton
-            disabled={disabled}
-          />{" "}
+          <OpenProjectButton disabled={disabled} />
+          {isSolidity && <CompilerVersionButton disabled={disabled} />}{" "}
         </>
       )}
     </div>

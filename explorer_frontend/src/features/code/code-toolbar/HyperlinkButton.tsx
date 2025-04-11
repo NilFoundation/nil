@@ -13,12 +13,7 @@ import { expandProperty } from "inline-style-expand-shorthand";
 import type { FC } from "react";
 import { playgroundWithHashRoute } from "../../routing";
 import { HyperlinkIcon, Link, OverflowEllipsis, StatefulPopover, useMobile } from "../../shared";
-import {
-  $codeSnippetHash,
-  $shareCodeSnippetError,
-  setCodeSnippetEvent,
-  setCodeSnippetFx,
-} from "../model";
+import { $projectHash, $shareProjectError, setProjectEvent, setProjectFx } from "../model";
 
 type HyperlinkButtonProps = {
   disabled?: boolean;
@@ -28,9 +23,9 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
   const [isMobile] = useMobile();
   const [css, theme] = useStyletron();
   const [shareCodeSnippetPending, codeHash, shareCodeError] = useUnit([
-    setCodeSnippetFx.pending,
-    $codeSnippetHash,
-    $shareCodeSnippetError,
+    setProjectFx.pending,
+    $projectHash,
+    $shareProjectError,
   ]);
   const link = !codeHash ? null : `${window.location.origin}/playground/${codeHash}`;
 
@@ -102,7 +97,7 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
       }
       placement="bottom"
       autoFocus
-      onOpen={() => setCodeSnippetEvent()}
+      onOpen={() => setProjectEvent()}
     >
       <ButtonIcon
         disabled={disabled}
