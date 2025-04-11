@@ -11,11 +11,11 @@ export const getContractAt = async (
       { artifacts, network, nil }: HardhatRuntimeEnvironment,
     contractName: string,
     address: IAddress,
-    config: GetContractAtConfig
+    config?: GetContractAtConfig
 ) => {
     const [publicClient, smartAccount, contractArtifact] = await Promise.all([
-    config.publicClient ?? nil.getPublicClient(),
-    config.smartAccount ??
+    config?.publicClient ?? nil.getPublicClient(),
+    config?.smartAccount ??
       nil.getSmartAccount(),
     artifacts.readArtifact(contractName),
   ]);

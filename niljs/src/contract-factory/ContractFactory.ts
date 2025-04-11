@@ -44,8 +44,6 @@ import {
 } from "./contractInteraction.js";
 import type { WriteOptions } from "./contractInteraction.js";
 
-abstract class AbstractContract {}
-
 export type LogTopic = Hex | Hex[] | null;
 
 export type ContractFunctionName<
