@@ -2,7 +2,6 @@ package rawapi
 
 import (
 	"context"
-	"reflect"
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/network"
@@ -19,12 +18,8 @@ var (
 )
 
 func newShardApiClientNetworkDev(shardId types.ShardId, networkManager network.Manager) *shardApiClientDev {
-	client, err := newShardApiClientNetwork[*shardApiClientDev](
-		shardId,
-		apiNameDev,
-		networkManager,
-		reflect.TypeFor[ShardApiDev](),
-		reflect.TypeFor[NetworkTransportProtocolDev]())
+	client, err := newShardApiClientNetwork[ShardApiDev, NetworkTransportProtocolDev, *shardApiClientDev](
+		shardId, apiNameDev, networkManager)
 	check.PanicIfErr(err)
 	return client
 }

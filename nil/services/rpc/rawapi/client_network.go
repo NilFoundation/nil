@@ -44,6 +44,8 @@ func (api *shardApiRequestPerformerNetwork) apiCodec() apiCodec {
 }
 
 func newShardApiClientNetwork[
+	ShardApiType shardApiBase,
+	TransportType any,
 	T interface {
 		~*S
 		shardApiRequestPerformerSetter
@@ -53,10 +55,8 @@ func newShardApiClientNetwork[
 	shardId types.ShardId,
 	apiName string,
 	networkManager network.Manager,
-	apiType reflect.Type,
-	transportType reflect.Type,
 ) (T, error) {
-	codec, err := newApiCodec(apiType, transportType)
+	codec, err := newApiCodec(reflect.TypeFor[ShardApiType](), reflect.TypeFor[TransportType]())
 	if err != nil {
 		return nil, err
 	}
