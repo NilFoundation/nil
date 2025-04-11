@@ -1,4 +1,4 @@
-import { getContract } from "@nilfoundation/niljs";
+import { generateRandomPrivateKey, getContract, LocalECDSAKeySigner } from "@nilfoundation/niljs";
 import { task } from "hardhat/config";
 import { createSmartAccount } from "../basic/basic";
 
@@ -10,7 +10,12 @@ task("token-info", "Retrieve token name and ID")
     const contract = await hre.nil.getContractAt("Token", taskArgs.address, {
       publicClient: smartAccount.client,
       smartAccount: smartAccount,
+      signer: new LocalECDSAKeySigner({
+        privateKey: generateRandomPrivateKey(),
+      }),
     });
+
+    contract.
 
     // Retrieve the token's name
     const tokenName = await contract.read.getTokenName([]);

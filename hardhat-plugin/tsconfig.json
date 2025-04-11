@@ -1,17 +1,20 @@
 {
   "compilerOptions": {
-    "declaration": true,
-    "module": "ESNext",
-    "outDir": "dist",
-    "strict": true,
-    "target": "es2022",
-    "moduleResolution": "bundler",
+     "strict": true,
+    "allowJs": false,
+    "checkJs": false,
+    "esModuleInterop": false,
+    "allowSyntheticDefaultImports": false,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
+    "target": "ES2021",
+    "lib": ["ES2021", "DOM"],
     "skipLibCheck": true,
-    "composite": true
+    "noEmitOnError": true,
+    "resolveJsonModule": true,
+    "useUnknownInCatchVariables": false
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],
-  "exclude": ["node_modules"],
-  "ts-node": {
-    "esm": true
-  }
+  "exclude": ["node_modules"]
 }
