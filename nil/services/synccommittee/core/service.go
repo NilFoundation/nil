@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1statesyncer"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
@@ -55,12 +56,15 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		return nil, fmt.Errorf("error initializing rollup contract wrapper: %w", err)
 	}
 
+	l1Syncer := l1statesyncer.NewL1StateSyncer(blockStorage, rollupContractWrapper, client, logger)
+
 	agg := fetching.NewAggregator(
 		client,
 		blockStorage,
 		taskStorage,
 		stateResetter,
 		rollupContractWrapper,
+		l1Syncer,
 		clock,
 		logger,
 		metricsHandler,
@@ -75,7 +79,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		cfg.ProposerParams,
 		blockStorage,
 		rollupContractWrapper,
-		client,
+		l1Syncer,
 		metricsHandler,
 		logger,
 	)

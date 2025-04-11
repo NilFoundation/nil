@@ -15,6 +15,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode"
 	v1 "github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode/v1"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1statesyncer"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
@@ -65,6 +66,7 @@ type aggregator struct {
 	batchEncoder    encode.BatchEncoder
 	blobBuilder     blob.Builder
 	rollupContract  rollupcontract.Wrapper
+	l1Syncer        *l1statesyncer.L1StateSyncer
 	resetter        *reset.StateResetter
 	clock           clockwork.Clock
 	metrics         AggregatorMetrics
@@ -79,6 +81,7 @@ func NewAggregator(
 	taskStorage AggregatorTaskStorage,
 	resetter *reset.StateResetter,
 	rollupContractWrapper rollupcontract.Wrapper,
+	l1Syncer *l1statesyncer.L1StateSyncer,
 	clock clockwork.Clock,
 	logger logging.Logger,
 	metrics AggregatorMetrics,
@@ -92,6 +95,7 @@ func NewAggregator(
 		batchEncoder:    v1.NewEncoder(logger),
 		blobBuilder:     blob.NewBuilder(),
 		rollupContract:  rollupContractWrapper,
+		l1Syncer:        l1Syncer,
 		resetter:        resetter,
 		clock:           clock,
 		metrics:         metrics,
@@ -174,8 +178,8 @@ func (agg *aggregator) handleProcessingErr(ctx context.Context, err error) error
 		return nil
 
 	case errors.Is(err, storage.ErrStateRootNotInitialized):
-		agg.logger.Warn().Err(err).Msg("State root not initialized, skipping")
-		return nil
+		agg.logger.Warn().Err(err).Msg("State root not initialized, fetching from L1")
+		return agg.l1Syncer.SyncStoredStateRootWithL1(ctx)
 
 	case errors.Is(err, storage.ErrCapacityLimitReached):
 		agg.logger.Info().Err(err).Msg("Storage capacity limit reached, skipping")
@@ -372,6 +376,16 @@ func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 	}
 
 	if err := agg.rollupContract.CommitBatch(ctx, sidecar, batch.Id.String()); err != nil {
+		if errors.Is(err, rollupcontract.ErrBatchAlreadyCommitted) ||
+			errors.Is(err, rollupcontract.ErrBatchAlreadyFinalized) {
+			// for some reason, we attempted to prove a batch that has already been proved,
+			// sync the latest proved root with the L1 contract.
+			agg.logger.Warn().Msg("batch is already committed, syncing state with L1")
+			if err := agg.l1Syncer.SyncStoredStateRootWithL1(ctx); err != nil {
+				return fmt.Errorf("error syncing last proved state with L1, latestMainHash=%s: %w",
+					batch.LatestMainBlock().Hash, err)
+			}
+		}
 		return fmt.Errorf("error committing batch, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
 	}
 

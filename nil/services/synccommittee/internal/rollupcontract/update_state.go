@@ -23,6 +23,8 @@ func (r *wrapperImpl) UpdateState(
 	validityProof []byte,
 	publicDataInputs INilRollupPublicDataInfo,
 ) error {
+	// go-ethereum states not all RPC nodes support EVM errors parsing
+	// explicitly check possible error in advance
 	if oldStateRoot.Empty() {
 		return errors.New("old state root is empty")
 	}
@@ -43,24 +45,39 @@ func (r *wrapperImpl) UpdateState(
 		return fmt.Errorf("%w: batchId=%s", ErrBatchNotCommitted, batchIndex)
 	}
 
-	// Get last finalized batch index
-	lastFinalizedBatchIndex, err := r.FinalizedBatchIndex(ctx)
+	latestFinalizedStateRoot, err := r.LatestFinalizedStateRoot(ctx)
 	if err != nil {
 		return err
 	}
 
-	// Get last finalized state root
-	lastFinalizedstateRoot, err := r.rollupContract.FinalizedStateRoots(r.getEthCallOpts(ctx), lastFinalizedBatchIndex)
-	if err != nil {
-		return err
-	}
-
-	if !bytes.Equal(lastFinalizedstateRoot[:], oldStateRoot.Bytes()) {
+	if !bytes.Equal(latestFinalizedStateRoot[:], oldStateRoot.Bytes()) {
 		return fmt.Errorf("last finalized state root (%s) and oldStateRoot (%s) differ, batchId=%s",
-			lastFinalizedstateRoot, oldStateRoot, batchIndex)
+			latestFinalizedStateRoot, oldStateRoot, batchIndex)
 	}
 
+	// sumilate tx before submission
 	var tx *ethtypes.Transaction
+	if err := r.transactWithCtx(ctx, func(opts *bind.TransactOpts) error {
+		var err error
+		opts.NoSend = true
+		tx, err = r.rollupContract.UpdateState(
+			opts,
+			batchIndex,
+			oldStateRoot,
+			newStateRoot,
+			dataProofs,
+			validityProof,
+			publicDataInputs,
+		)
+		return err
+	}); err != nil {
+		return fmt.Errorf("simulation transaction creation failed: %w", err)
+	}
+	err = r.simulateTx(ctx, tx, nil)
+	if err != nil {
+		return fmt.Errorf("UpdateState simulation failed: %w", err)
+	}
+
 	if err := r.transactWithCtx(ctx, func(opts *bind.TransactOpts) error {
 		var err error
 		tx, err = r.rollupContract.UpdateState(

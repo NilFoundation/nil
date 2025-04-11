@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1statesyncer"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
@@ -56,7 +57,7 @@ func (s *AggregatorTestSuite) SetupSuite() {
 }
 
 func (s *AggregatorTestSuite) newTestAggregator(
-	blockStorage AggregatorBlockStorage,
+	blockStorage *storage.BlockStorage,
 ) *aggregator {
 	s.T().Helper()
 
@@ -76,6 +77,7 @@ func (s *AggregatorTestSuite) newTestAggregator(
 		s.taskStorage,
 		stateResetter,
 		contractWrapper,
+		l1statesyncer.NewL1StateSyncer(blockStorage, contractWrapper, s.rpcClientMock, logger),
 		clock,
 		logger,
 		s.metrics,
@@ -221,9 +223,6 @@ func (s *AggregatorTestSuite) Test_Block_Storage_Capacity_Exceeded() {
 }
 
 func (s *AggregatorTestSuite) Test_State_Root_Is_Not_Initialized() {
-	batches := testaide.NewBatchesSequence(3)
-	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
-
 	err := s.aggregator.processBlockRange(s.ctx)
 	s.Require().ErrorIs(err, storage.ErrStateRootNotInitialized)
 
