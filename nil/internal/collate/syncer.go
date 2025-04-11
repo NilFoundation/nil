@@ -63,16 +63,20 @@ func NewSyncer(cfg *SyncerConfig, validator *Validator, db db.DB, networkManager
 	var waitForSync sync.WaitGroup
 	waitForSync.Add(1)
 
+	loggerCtx := logging.NewLogger(cfg.Name).With().
+		Stringer(logging.FieldShardId, cfg.ShardId)
+	if networkManager != nil {
+		loggerCtx = loggerCtx.Stringer(logging.FieldP2PIdentity, networkManager.ID())
+	}
+
 	return &Syncer{
 		config:         cfg,
 		topic:          topicShardBlocks(cfg.ShardId),
 		db:             db,
 		networkManager: networkManager,
-		logger: logging.NewLogger(cfg.Name).With().
-			Stringer(logging.FieldShardId, cfg.ShardId).
-			Logger(),
-		waitForSync: &waitForSync,
-		validator:   validator,
+		logger:         loggerCtx.Logger(),
+		waitForSync:    &waitForSync,
+		validator:      validator,
 	}, nil
 }
 
@@ -209,6 +213,10 @@ func (s *Syncer) Init(ctx context.Context, allowDbDrop bool) error {
 	return s.fetchSnapshot(ctx)
 }
 
+// SetHandlers sets the handlers for generic (shard-independent) protocols.
+// It must be called after the initial sync of ALL shards is completed.
+// It should be called once, e.g., by the main shard syncer.
+// (Subsequent calls do not have any side effects, but might return an error.)
 func (s *Syncer) SetHandlers(ctx context.Context) error {
 	if s.networkManager == nil {
 		return nil
@@ -232,6 +240,8 @@ func (s *Syncer) Run(ctx context.Context) error {
 
 	s.fetchBlocks(ctx)
 	s.waitForSync.Done()
+
+	s.logger.Info().Msg("Syncer initialization complete")
 
 	if ctx.Err() != nil {
 		return nil
@@ -352,7 +362,10 @@ func (s *Syncer) fetchBlocksRange(ctx context.Context) <-chan *types.BlockWithEx
 		"No last block found. If the syncers were correctly initialized, this should be impossible.")
 
 	for _, p := range peers {
-		s.logger.Trace().Msgf("Requesting blocks from %d from peer %s", lastBlock.Id+1, p)
+		logger := s.logger.With().
+			Stringer(logging.FieldPeerId, p).
+			Logger()
+		logger.Trace().Msgf("Requesting blocks from %d", lastBlock.Id+1)
 
 		blocksCh, err := RequestBlocks(ctx, s.networkManager, p, s.config.ShardId, lastBlock.Id+1, s.logger)
 		if err == nil {
@@ -360,11 +373,13 @@ func (s *Syncer) fetchBlocksRange(ctx context.Context) <-chan *types.BlockWithEx
 		}
 
 		if errors.As(err, &multistream.ErrNotSupported[network.ProtocolID]{}) {
-			s.logger.Debug().Err(err).Msgf("Peer %s does not support the block protocol with our shard", p)
+			logger.Debug().Err(err).Msg("Peer does not support the block protocol with our shard")
 		} else {
-			s.logger.Warn().Err(err).Msgf("Failed to request block from peer %s", p)
+			logger.Warn().Err(err).Msg("Failed to request block from peer")
 		}
 	}
+
+	s.logger.Warn().Msg("Failed to fetch blocks from all peers")
 
 	return nil
 }

@@ -99,6 +99,12 @@ func newHost(ctx context.Context, conf *Config) (Host, logging.Logger, error) {
 
 	if len(conf.Relays) > 0 {
 		options = append(options, libp2p.EnableAutoRelayWithStaticRelays(ToLibP2pAddrInfoSlice(conf.Relays)))
+
+		// todo: remove it after relay is tested
+		// this is to make sure that the relays are actually used
+		if conf.Reachability == network.ReachabilityUnknown {
+			options = append(options, libp2p.ForceReachabilityPrivate())
+		}
 	}
 
 	// In tests, we might wish to force a specific reachability

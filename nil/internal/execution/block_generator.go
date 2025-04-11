@@ -153,6 +153,11 @@ func (p *BlockGenerator) CollectGasPrices(prevBlockId types.BlockNumber) []types
 			shardHash = mainBlock.PrevBlock
 		}
 
+		if shardHash.Empty() {
+			shards[shardId] = *types.DefaultGasPrice.Uint256
+			continue
+		}
+
 		block, err := db.ReadBlock(p.rwTx, shardId, shardHash)
 		if err != nil {
 			p.logger.Err(err).

@@ -49,7 +49,7 @@ func runCommand() error {
 	cfg.Network.ServeRelay = true
 
 	cfgFileName := cobrax.GetConfigNameFromArgs()
-	if err := cobrax.LoadConfigFromFile(cfgFileName, cfg); err != nil {
+	if err := cobrax.LoadConfigFromFile(cfgFileName, cfg); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 
@@ -69,7 +69,7 @@ func runCommand() error {
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run libp2p relay server",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(*cobra.Command, []string) error {
 			return run(ctx, cfg)
 		},
 	}
@@ -78,7 +78,7 @@ func runCommand() error {
 	genConfigCmd := &cobra.Command{
 		Use:   "gen-config",
 		Short: "Generate default config",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(*cobra.Command, []string) error {
 			return genConfig(cfg, cfgFileName)
 		},
 	}
@@ -135,7 +135,7 @@ func run(ctx context.Context, cfg *config) error {
 	}
 	defer nm.Close()
 
-	concurrent.RunTickerLoop(ctx, reportPeriod, func(ctx context.Context) {
+	concurrent.RunTickerLoop(ctx, reportPeriod, func(context.Context) {
 		logger.Info().Msg("I am still alive")
 	})
 

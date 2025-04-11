@@ -122,6 +122,10 @@ func NewClientManager(ctx context.Context, conf *Config, database db.DB) (*Manag
 	return newManagerFromHost(ctx, conf, h, database, logger)
 }
 
+func (m *Manager) ID() PeerID {
+	return m.host.ID()
+}
+
 func (m *Manager) PubSub() *PubSub {
 	return m.pubSub
 }

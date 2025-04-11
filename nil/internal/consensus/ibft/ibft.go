@@ -199,7 +199,12 @@ func (i *backendIBFT) isActiveValidator() bool {
 }
 
 func NewConsensus(cfg *ConsensusParams) (*backendIBFT, error) {
-	logger := logging.NewLogger("consensus").With().Stringer(logging.FieldShardId, cfg.ShardId).Logger()
+	logger := logging.NewLogger("consensus").With().
+		Stringer(logging.FieldShardId, cfg.ShardId).
+		Logger()
+	if cfg.NetManager != nil {
+		logger = logger.With().Stringer(logging.FieldP2PIdentity, cfg.NetManager.ID()).Logger()
+	}
 	l := &ibftLogger{
 		logger: logger.With().CallerWithSkipFrameCount(3).Logger(),
 	}
