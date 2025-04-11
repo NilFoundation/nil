@@ -54,12 +54,17 @@ func ClientMockSetBlocks(client *client.ClientMock, blocks iter.Seq[*scTypes.Blo
 	client.GetBlockFunc = func(
 		_ context.Context, shardId types.ShardId, blockId any, fullTx bool,
 	) (*scTypes.Block, error) {
-		if strId, ok := blockId.(string); ok && strId == "latest" {
+		if strId, ok := blockId.(string); ok {
 			shardSlice := shardsToBlocks[shardId]
 			if len(shardSlice) == 0 {
 				return nil, nil
 			}
-			return shardSlice[len(shardSlice)-1], nil
+			switch strId {
+			case "latest":
+				return shardSlice[len(shardSlice)-1], nil
+			case "earliest":
+				return shardSlice[0], nil
+			}
 		}
 
 		blockHash, ok := blockId.(common.Hash)

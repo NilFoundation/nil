@@ -97,23 +97,8 @@ func (s *SyncCommitteeTestSuite) waitMainShardToProcess() {
 	)
 }
 
-func (s *SyncCommitteeTestSuite) TestProcessingLoop() {
-	// Run processing loop for a short time
-	ctx, cancel := context.WithTimeout(s.Context, 5*time.Second)
-	defer cancel()
-
-	errCh := make(chan error)
-	go func() {
-		errCh <- s.syncCommittee.Run(ctx)
-	}()
-
-	s.waitMainShardToProcess()
-
-	cancel()
-	s.Require().ErrorIs(<-errCh, context.Canceled)
-}
-
 func (s *SyncCommitteeTestSuite) TestRun() {
+	// Run processing loop for a short time
 	ctx, cancel := context.WithTimeout(s.Context, 5*time.Second)
 	defer cancel()
 

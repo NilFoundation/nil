@@ -20,7 +20,7 @@ type builderImpl struct{}
 
 var _ Builder = (*builderImpl)(nil)
 
-func NewBuilder() *builderImpl {
+func NewBuilder() Builder {
 	return &builderImpl{}
 }
 

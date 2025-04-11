@@ -2,7 +2,6 @@ package rollupcontract
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"math/big"
@@ -12,7 +11,6 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	ethparams "github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
@@ -25,6 +23,8 @@ func (r *wrapperImpl) CommitBatch(
 	sidecar *ethtypes.BlobTxSidecar,
 	batchIndex string,
 ) error {
+	// go-ethereum states not all RPC nodes support EVM errors parsing
+	// explicitly check possible error in advance
 	isCommited, err := r.rollupContract.IsBatchCommitted(r.getEthCallOpts(ctx), batchIndex)
 	if err != nil {
 		return err
@@ -33,12 +33,10 @@ func (r *wrapperImpl) CommitBatch(
 		return ErrBatchAlreadyCommitted
 	}
 
-	publicKeyECDSA, ok := r.privateKey.Public().(*ecdsa.PublicKey)
-	if !ok {
-		return errors.New("error casting public key to ECDSA")
+	address, err := r.getAddress()
+	if err != nil {
+		return err
 	}
-
-	address := crypto.PubkeyToAddress(*publicKeyECDSA)
 
 	blobTx, err := r.createBlobTx(ctx, sidecar, address, batchIndex)
 	if err != nil {
@@ -55,9 +53,14 @@ func (r *wrapperImpl) CommitBatch(
 		return err
 	}
 
+	err = r.simulateTx(ctx, signedTx, nil)
+	if err != nil {
+		return r.handleCommitBatchTxError(fmt.Errorf("pre-submition simulation: %w", err))
+	}
+
 	err = r.ethClient.SendTransaction(ctx, signedTx)
 	if err != nil {
-		return err
+		return fmt.Errorf("SendTransaction: %w", err)
 	}
 
 	r.logger.Info().
@@ -73,12 +76,38 @@ func (r *wrapperImpl) CommitBatch(
 	if err != nil {
 		return err
 	}
+
 	r.logReceiptDetails(receipt)
 	if receipt.Status != ethtypes.ReceiptStatusSuccessful {
-		return errors.New("CommitBatch tx failed")
+		// Re-simulate the transaction on top of the block it originally failed in.
+		// Note: The execution order of transactions in the block is not preserved during simulation,
+		// so results may differ — but we attempt to identify the cause of failure anyway.
+		err = r.simulateTx(ctx, signedTx, receipt.BlockNumber)
+		if err != nil {
+			return r.handleCommitBatchTxError(fmt.Errorf("post-submition simulation: %w", err))
+		}
+		return errors.New("CommitBatch tx failed, can't establish the reason")
 	}
 
 	return nil
+}
+
+func (r *wrapperImpl) handleCommitBatchTxError(err error) error {
+	var cerr contractError
+	if errors.As(err, &cerr) {
+		// abigen doesn't generate error types, have to specify them manually
+		switch cerr.MethodName {
+		case "ErrorBatchAlreadyFinalized":
+			return ErrBatchAlreadyFinalized
+		case "ErrorBatchAlreadyCommitted":
+			return ErrBatchAlreadyCommitted
+		case "ErrorInvalidBatchIndex":
+			panic("invalid batch index encountered")
+		case "ErrorInvalidVersionedHash":
+			panic("invalid versioned hash was computed")
+		}
+	}
+	return err
 }
 
 // ComputeSidecar handles all KZG commitment related computations
@@ -177,6 +206,9 @@ type txParams struct {
 
 // computeTxParams fetches and computes all necessary transaction parameters
 func (r *wrapperImpl) computeTxParams(ctx context.Context, from ethcommon.Address, blobCount int) (*txParams, error) {
+	if blobCount == 0 {
+		return nil, errors.New("can't create blob tx params for 0 blobs")
+	}
 	nonce, err := r.ethClient.PendingNonceAt(ctx, from)
 	if err != nil {
 		return nil, fmt.Errorf("getting nonce: %w", err)
@@ -226,12 +258,7 @@ func (r *wrapperImpl) createBlobTx(
 		return nil, fmt.Errorf("computing tx params: %w", err)
 	}
 
-	abi, err := RollupcontractMetaData.GetAbi()
-	if err != nil {
-		return nil, fmt.Errorf("getting ABI: %w", err)
-	}
-
-	data, err := abi.Pack("commitBatch", batchIndex, big.NewInt(int64(len(sidecar.Blobs))))
+	data, err := r.abi.Pack("commitBatch", batchIndex, big.NewInt(int64(len(sidecar.Blobs))))
 	if err != nil {
 		return nil, fmt.Errorf("packing ABI data: %w", err)
 	}

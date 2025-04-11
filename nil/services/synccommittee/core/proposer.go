@@ -10,8 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1statesyncer"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
@@ -32,8 +31,8 @@ type ProposerMetrics interface {
 }
 
 type proposer struct {
-	storage   ProposerStorage
-	rpcClient fetching.RpcBlockFetcher
+	storage  ProposerStorage
+	l1Syncer *l1statesyncer.L1StateSyncer
 
 	rollupContractWrapper rollupcontract.Wrapper
 	config                ProposerConfig
@@ -57,14 +56,14 @@ func NewProposer(
 	config ProposerConfig,
 	storage ProposerStorage,
 	contractWrapper rollupcontract.Wrapper,
-	rpcClient fetching.RpcBlockFetcher,
+	l1Syncer *l1statesyncer.L1StateSyncer,
 	metrics ProposerMetrics,
 	logger logging.Logger,
 ) (*proposer, error) {
 	p := &proposer{
 		storage:               storage,
 		rollupContractWrapper: contractWrapper,
-		rpcClient:             rpcClient,
+		l1Syncer:              l1Syncer,
 		config:                config,
 		metrics:               metrics,
 	}
@@ -79,9 +78,6 @@ func (*proposer) Name() string {
 }
 
 func (p *proposer) Run(ctx context.Context, started chan<- struct{}) error {
-	if err := p.updateStoredStateRootFromContract(ctx); err != nil {
-		return fmt.Errorf("initial proved state root update failed: %w", err)
-	}
 	close(started)
 
 	concurrent.RunTickerLoop(ctx, p.config.ProposingInterval,
@@ -94,37 +90,6 @@ func (p *proposer) Run(ctx context.Context, started chan<- struct{}) error {
 		},
 	)
 
-	return nil
-}
-
-func (p *proposer) updateStoredStateRootFromContract(ctx context.Context) error {
-	p.logger.Info().Msg("updating stored state root from L1")
-
-	latestStateRoot, err := p.getLatestProvedStateRoot(ctx)
-	if err != nil {
-		return err
-	}
-
-	if latestStateRoot == common.EmptyHash {
-		p.logger.Warn().
-			Err(err).
-			Stringer("latestStateRoot", latestStateRoot).
-			Msg("L1 state root is not initialized, genesis state root will be used")
-
-		genesisBlock, err := p.rpcClient.GetBlock(ctx, types.MainShardId, "earliest", false)
-		if err != nil {
-			return err
-		}
-		latestStateRoot = genesisBlock.Hash
-	}
-
-	if err := p.storage.SetProvedStateRoot(ctx, latestStateRoot); err != nil {
-		return fmt.Errorf("failed set proved state root: %w", err)
-	}
-
-	p.logger.Info().
-		Stringer("stateRoot", latestStateRoot).
-		Msg("stored state root updated")
 	return nil
 }
 
@@ -147,8 +112,8 @@ func (p *proposer) updateStateIfReady(ctx context.Context) error {
 		}
 
 		// another actor has already sent an update for this batch, we need to refetch state from contract
-		p.logger.Warn().Msg("batch is already finalized, skipping UpdateState tx")
-		if err := p.updateStoredStateRootFromContract(ctx); err != nil {
+		p.logger.Warn().Msg("batch is already finalized, skipping UpdateState tx, syncing state with L1")
+		if err := p.l1Syncer.SyncStoredStateRootWithL1(ctx); err != nil {
 			return err
 		}
 	}
@@ -158,15 +123,6 @@ func (p *proposer) updateStateIfReady(ctx context.Context) error {
 		return fmt.Errorf("failed set batch with id=%s as proposed: %w", data.BatchId, err)
 	}
 	return nil
-}
-
-func (p *proposer) getLatestProvedStateRoot(ctx context.Context) (common.Hash, error) {
-	finalizedBatchIndex, err := p.rollupContractWrapper.FinalizedBatchIndex(ctx)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	return p.rollupContractWrapper.FinalizedStateRoot(ctx, finalizedBatchIndex)
 }
 
 func (p *proposer) updateState(
