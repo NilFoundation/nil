@@ -20,7 +20,7 @@ type Config struct {
 }
 
 func NewDefaultConfig() *Config {
-	return &Config{
+	cfg := Config{
 		RpcEndpoint:             "tcp://127.0.0.1:8529",
 		TaskListenerRpcEndpoint: DefaultTaskRpcEndpoint,
 		AggregatorConfig:        fetching.NewDefaultAggregatorConfig(),
@@ -30,4 +30,8 @@ func NewDefaultConfig() *Config {
 			ServiceName: "sync_committee",
 		},
 	}
+
+	cfg.ProposerParams.DisableL1 = &cfg.ContractWrapperConfig.DisableL1
+
+	return &cfg
 }
