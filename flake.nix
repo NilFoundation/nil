@@ -34,7 +34,7 @@
             solc = solc;
             rollup-bridge-contracts = rollup-bridge-contracts;
           });
-          niljs = (pkgs.callPackage ./nix/niljs.nix { solc = solc; });
+          niljs = (pkgs.callPackage ./nix/niljs.nix { solc = solc; nil = nil; });
           clijs = (pkgs.callPackage ./nix/clijs.nix { nil = nil; });
           nilhardhat = (pkgs.callPackage ./nix/nilhardhat.nix { solc = solc; });
           nildocs = (pkgs.callPackage ./nix/nildocs.nix {

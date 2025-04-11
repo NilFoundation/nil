@@ -8,11 +8,7 @@ const HEX_REGEX = /^[0-9a-fA-F]+$/;
  * @param value The value to check.
  */
 const isHexString = (value: unknown): value is Hex => {
-  return (
-    typeof value === "string" &&
-    value.startsWith("0x") &&
-    HEX_REGEX.test(removeHexPrefix(value) as string)
-  );
+  return typeof value === "string" && HEX_REGEX.test(removeHexPrefix(value) as string);
 };
 
 /**

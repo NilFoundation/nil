@@ -17,7 +17,6 @@ stdenv.mkDerivation rec {
 
   pnpmDeps = (callPackage ./npmdeps.nix { });
 
-
   nativeBuildInputs = [
     nodejs
     biome
@@ -31,7 +30,13 @@ stdenv.mkDerivation rec {
     export UV_USE_IO_URING=0
   '';
 
+  preBuild = ''
+    mkdir -p ~/.gsolc-select/artifacts/solc-0.8.28
+    ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.28/solc-0.8.28
+  '';
+
   buildPhase = ''
+    runHook preBuild
     (cd smart-contracts; pnpm run build)
     cd niljs
     pnpm run build
@@ -41,7 +46,12 @@ stdenv.mkDerivation rec {
 
   checkPhase = ''
     patchShebangs node_modules
-    nohup nild run --http-port 8529 --collator-tick-ms=100 > nild.log 2>&1 & echo $! > nild_pid &
+
+    nohup nild run \
+      --http-port=8529 \
+      --cometa-config=test/mocks/cometa-config.yml \
+      --collator-tick-ms=100 \
+      > nild.log 2>&1 & echo $! > nild_pid &
 
     export BIOME_BINARY=${biome}/bin/biome
 
@@ -55,6 +65,11 @@ stdenv.mkDerivation rec {
     kill `cat nild_pid` && rm nild_pid
 
     echo "tests finished successfully"
+  '';
+
+  shellHook = ''
+    mkdir -p ~/.solc-select/artifacts/solc-0.8.28
+    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.28/solc-0.8.28
   '';
 
   installPhase = ''

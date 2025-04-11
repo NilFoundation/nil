@@ -118,7 +118,7 @@ export default class SmartAccountDeploy extends BaseCommand {
       const compileInputPath = path.resolve(flags.compileInput);
       const compileInputContent = fs.readFileSync(compileInputPath, "utf8");
       contractData = await cometaClient.compileContract(compileInputContent);
-      bytecode = contractData.code;
+      bytecode = addHexPrefix(contractData.code);
       abi = contractData.abi as unknown as Abi;
     } else {
       const filename = args.filename;
