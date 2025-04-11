@@ -14,6 +14,7 @@ const linkOutlineStyles = {
 
 const container: StyleObject = {
   width: "100%",
+  maxWidth: "84rem",
   color: COLORS.gray50,
   display: "flex",
   flexDirection: "column",
