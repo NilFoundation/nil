@@ -24,10 +24,8 @@ library Nil {
     address private constant GET_TRANSACTION_TOKENS = address(0xd3);
     address private constant GET_GAS_PRICE = address(0xd4);
     address private constant GET_POSEIDON_HASH = address(0xd5);
-    address private constant AWAIT_CALL = address(0xd6);
     address private constant CONFIG_PARAM = address(0xd7);
     address private constant SEND_REQUEST = address(0xd8);
-    address public constant IS_RESPONSE_TRANSACTION = address(0xd9);
     address public constant LOG = address(0xda);
     address public constant GOVERNANCE = address(0xdb);
 
@@ -43,8 +41,6 @@ library Nil {
     uint8 public constant FORWARD_VALUE = 2;
     // Do not forward gas from inbound transaction, take gas from the account instead.
     uint8 public constant FORWARD_NONE = 3;
-    // Minimal amount of gas reserved by AWAIT_CALL / SEND_REQUEST
-    uint public constant ASYNC_REQUEST_MIN_GAS = 50_000;
 
     // Token is a struct that represents a token with an id and amount.
     struct Token {
@@ -188,64 +184,6 @@ library Nil {
         }
         (bool success, bytes memory returnData) = dst.call{gas: gas, value: value}(callData);
         return (success, returnData);
-    }
-
-    /**
-     * @dev Makes an asynchronous call to a contract and waits for the result.
-     * @param dst Destination address of the call.
-     * @param responseProcessingGas Amount of gas is being bought and reserved to process the response.
-     *        should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `awaitCall` will fail.
-     * @param callData Calldata for the call.
-     * @return returnData Data returned from the call.
-     * @return success Boolean indicating if the call was successful.
-     */
-    function awaitCall(
-        address dst,
-        uint responseProcessingGas,
-        bytes memory callData
-    ) internal returns(bytes memory, bool) {
-        return __Precompile__(AWAIT_CALL).precompileAwaitCall(dst, responseProcessingGas, callData);
-    }
-
-    /**
-     * @dev Sends a request to a contract.
-     * @param dst Destination address of the request.
-     * @param value Value to be sent with the request.
-     * @param responseProcessingGas Amount of gas is being bought and reserved to process the response.
-     *        Should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `sendRequest` will fail.
-     * @param context Context data that is preserved in order to be available in the response method.
-     * @param callData Calldata for the request.
-     */
-    function sendRequest(
-        address dst,
-        uint256 value,
-        uint responseProcessingGas,
-        bytes memory context,
-        bytes memory callData
-    ) internal {
-        Token[] memory tokens;
-        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, responseProcessingGas, context, callData);
-    }
-
-    /**
-     * @dev Sends a request to a contract with tokens.
-     * @param dst Destination address of the request.
-     * @param value Value to be sent with the request.
-     * @param tokens Array of tokens to be sent with the request.
-     * @param responseProcessingGas Amount of gas is being bought and reserved to process the response.
-     *        should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `awaitCall` will fail.
-     * @param context Context data that is preserved in order to be available in the response method.
-     * @param callData Calldata for the request.
-     */
-    function sendRequestWithTokens(
-        address dst,
-        uint256 value,
-        Token[] memory tokens,
-        uint responseProcessingGas,
-        bytes memory context,
-        bytes memory callData
-    ) internal {
-        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, responseProcessingGas, context, callData);
     }
 
     /**
@@ -473,15 +411,6 @@ library Nil {
 // NilBase is a base contract that provides modifiers for checking the type of transaction (internal or external).
 contract NilBase {
     /**
-     * @dev Modifier to check that the method was invoked from a response transaction.
-     */
-    modifier onlyResponse() {
-        (bool success,/* bytes memory returnData*/) = Nil.IS_RESPONSE_TRANSACTION.staticcall(bytes(""));
-        require(success, "IS_RESPONSE_TRANSACTION call failed");
-        _;
-    }
-
-    /**
      * @dev Modifier to check that the method was invoked from an internal transaction.
      */
     modifier onlyInternal() {
@@ -517,7 +446,6 @@ contract __Precompile__ {
     function precompileManageToken(uint256 amount, bool mint) public returns(bool) {}
     function precompileGetTokenBalance(TokenId id, address addr) public view returns(uint256) {}
     function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
-    function precompileAwaitCall(address, uint, bytes memory) public payable returns(bytes memory, bool) {}
     function precompileSendRequest(address, Nil.Token[] memory, uint, bytes memory, bytes memory) public payable returns(bool) {}
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
     function precompileGetTransactionTokens() public returns(Nil.Token[] memory) {}

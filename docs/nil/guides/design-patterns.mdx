@@ -1,6 +1,6 @@
 # Adapting common design patterns to the async model
 
-This guide discusses the common design patterns in smart contract development and shows how they can be adapted to the async programming model. 
+This guide discusses the common design patterns in smart contract development and shows how they can be adapted to the async programming model.
 
 The design patterns in the guide include:
 
@@ -25,51 +25,6 @@ function withdraw(uint amount) public {
 ```
 
 In the above snippet, the `require()` statement (the check) is first, followed by updating the `balances` mapping (the effect). The final statement sends funds to another contract (the interaction). An attacker is unable to re-enter inside the `withdraw` function: on re-entry, `balances` is already updated to reflect the new value, and the initial `require()` statement will always fail.
-
-Async calls add one more consideration to the pattern:
-
-```solidity showLineNumbers file=../../tests/CheckEffectsInteraction.sol start=startBadCheckEffectsInteraction end=endBadCheckEffectsInteraction
-```
-
-The example implements the pattern by simply replacing the transfer with `asyncCall()`. This raises an issue: if the async call fails, the contract will not know that the `balances` mapping also has to be reverted to its original state.
-
-The `sendRequest()` function provides a convenient way for implementing Check Effects Interaction correctly:
-
-```solidity showLineNumbers file=../../tests/CheckEffectsInteraction.sol start=startGoodCheckEffectsInteraction end=endGoodCheckEffectsInteraction
-```
-
-The callback function specified inside `context` is always executed once the async call is processed regardless of its results. This makes the callback the ideal place for reverting any changes to the contract state. In the example, the `exampleBalances` mapping is reverted to its pre-request state to reflect that the transfer was unsuccessful.
-
-## Guard Check
-
-The Guard Check pattern helps achieve these goals:
-
-* Only execute certain logic if all necessary conditions are met
-* In case conditions are not met, revert all changes to the contract state 
-
-Typically, the Guard Check pattern is implemented by using the `require()` and `assert()` functions:
-
-```solidity showLineNumbers
-require(addr != address(0));
-
-assert(addr != address(0));      
-```
-
-`require()` is typically used for check for errors in function inputs. `assert()` is used for detecting bugs in the contract logic. `assert()` uses all gas sent with a transaction while `require()` can refund gas that has not been used at the time when an exception was thrown. This means that `require()` is typically used as early as possible while `assert()` checks are done at the end of a function. 
-
-Async programming introduces a complication to conducting such checks: there is no fool-proof method for ensuring an async call is successful.
-
-```solidity showLineNumbers file=../../tests/GuardCheck.sol start=startBadGuardCheck end=endBadGuardCheck
-```
-
-In the above example, the `assert()` check may succeed only for `asyncCall()` to later encounter an error and the transaction value being refunded to the contract. However, since `assert()` has already succeeded, there is no way to reverse changes to the `successfulCallsCounter` property.
-
-Delegating post-`assert` statements to a callback function resolves the issue:
-
-```solidity showLineNumbers file=../../tests/GuardCheck.sol start=startGoodGuardCheck end=endGoodGuardCheck
-```
-
-In the snippet, `successfulCallsCounter` is only increased after the contract receives a response to the transfer and only if the transfer was successful. The callback function can be provided with its own `require()` statement which propagates the pattern.
 
 ## Clone Factory
 
@@ -105,7 +60,7 @@ contract Factory is CloneFactory {
 
 contract Child{
     uint public data;
-    
+
     function init(uint _data) external {
         data = _data;
     }

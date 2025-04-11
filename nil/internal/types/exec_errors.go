@@ -79,8 +79,6 @@ const (
 	// ErrorInvalidTransactionInputUnmarshalFailed is returned from SendRaw precompile if the given transaction cannot
 	// be unmarshal
 	ErrorInvalidTransactionInputUnmarshalFailed
-	// ErrorOnlyResponseCheckFailed is returned from `onlyResponse` precompile if inbound transaction is not a response
-	ErrorOnlyResponseCheckFailed
 	// ErrorUnexpectedPrecompileType is returned if the precompile type is invalid
 	ErrorUnexpectedPrecompileType
 	// ErrorStackUnderflow is returned if the EVM stack underflows

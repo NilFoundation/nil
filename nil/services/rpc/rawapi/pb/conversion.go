@@ -490,29 +490,6 @@ func (cr *TokensResponse) UnpackProtoMessage() (map[types.TokenId]types.Value, e
 	return nil, errors.New("unexpected response type")
 }
 
-// AsyncContext converters
-
-func (ac *AsyncContext) PackProtoMessage(context *types.AsyncContext) {
-	if context == nil {
-		return
-	}
-
-	ac.IsAwait = context.IsAwait
-	ac.Data = context.Data
-	ac.ResponseProcessingGas = context.ResponseProcessingGas.Uint64()
-}
-
-func (rc *AsyncContext) UnpackProtoMessage() types.AsyncContext {
-	if rc == nil {
-		return types.AsyncContext{}
-	}
-	return types.AsyncContext{
-		IsAwait:               rc.IsAwait,
-		Data:                  rc.Data,
-		ResponseProcessingGas: types.Gas(rc.ResponseProcessingGas),
-	}
-}
-
 // RawContract converters
 
 func (rc *RawContract) PackProtoMessage(contract *rawapitypes.SmartContract) error {
@@ -535,14 +512,6 @@ func (rc *RawContract) PackProtoMessage(contract *rawapitypes.SmartContract) err
 				u = u.PackProtoMessage(*v.Uint256)
 			}
 			rc.Tokens[k.String()] = u
-		}
-	}
-
-	if contract.AsyncContext != nil {
-		rc.AsyncContext = make(map[uint64]*AsyncContext)
-		for k, v := range contract.AsyncContext {
-			rc.AsyncContext[uint64(k)] = new(AsyncContext)
-			rc.AsyncContext[uint64(k)].PackProtoMessage(&v)
 		}
 	}
 
@@ -570,14 +539,6 @@ func (rc *RawContract) UnpackProtoMessage() (*rawapitypes.SmartContract, error) 
 			tokens[types.TokenId(types.HexToAddress(k))] = newValueFromUint256(v)
 		}
 		contract.Tokens = tokens
-	}
-
-	if len(rc.AsyncContext) > 0 {
-		asyncContext := make(map[types.TransactionIndex]types.AsyncContext)
-		for k, v := range rc.AsyncContext {
-			asyncContext[types.TransactionIndex(k)] = v.UnpackProtoMessage()
-		}
-		contract.AsyncContext = asyncContext
 	}
 
 	return contract, nil

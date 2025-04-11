@@ -14,10 +14,6 @@
   gasRange:
     from: 10000
     to: 500000
-- name: await_call
-  interval: 2s
-  n: 4
-  contractsNumToSend: 8
 - name: block_range
   interval: 1s
   range: 100

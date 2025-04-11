@@ -1,57 +1,42 @@
-# Request/response pattern
+# Async deploy between shards
 
-[The request/response pattern](https://docs.nil.foundation/nil/smart-contracts/handling-async-execution#examples) works as follows:
+In =nil;, it is possible to deploy smart contracts from other smart contracts. This operation can extend across shards.
 
-* A contract uses the *Nil.sendRequest()* function to call another contract asynchronously
-* The contract being called executes a function and sends the result back to the caller
-* The caller contract executes another function based on the response
-
-Note that the caller contract does not have to wait for the response from the callee. The caller contract can freely execute other functions or respond to other calls until a response to *Nil.sendRequest()* arrives.
-
-To use *Nil.sendRequest()*:
+To initiate such an async deployment, use the *Nil.asyncDeploy()* function:
 
 ```solidity
-Nil.sendRequest(
-  dst,
-  0,
-  Nil.ASYNC_REQUEST_MIN_GAS,
-  context,
-  callData
-);
+function asyncDeploy(
+    uint shardId,
+    address bounceTo,
+    uint value,
+    bytes memory code,
+    uint256 salt
+) internal returns (address)
 ```
 
 ## Task
 
-This tutorial includes two contracts:
+* *Counter*
+* *Deployer*
 
-* *Requester*
-* *RequestedContract*
+*Counter* is a simple 'incrementer' contract. It should not be modified.
 
-*Requester* holds two private numeric values. The contract must do the following:
-
-* Form a valid *context* that contains the product of multiplication of these two values.
-* Form valid *callData* calling the *multiply()* function inside *RequestedContract*.
-* Use *Nil.sendRequest()* to call *RequestedContract* with the formed *context* and *callData*.
-* Upon receiving a response, *Requester* must execute the *checkResult()* function that verifies whether the result received from *RequestedContract* is a valid product of multiplication of the two private numeric values.
-* The result of the check must be stored inside the private *result* variable.
-
-*RequestedContract* contains the *multiply()* function that receives two numeric values and returns the result.
+*Deployer* only has one function (*deploy()*) which is a 'wrapper' function over *Nil.asyncDeploy()*. 
 
 To complete this tutorial:
 
-* Make it so that *Requester* sends a valid request to *RequestedContract*.
-* On receiving a response, *Requester* must return a boolean value signifying whether the result received from *RequestedContract* is a valid multiplication product.
+* Finish the *Deployer* contract by completing the *deploy()* function. The function should accept bytecode and deploy a contract with said bytecode.
 
 ## Checks
 
-This tutorial is verified once the following checks are passed:
+This tutorial is verified once the following checks are passed.
 
-* *Requester* and *RequestedContract* are compiled and deployed.
-* *Requester* successfully uses *Nil.sendRequest()* to call *RequestedContract*
-* *RequestedContract* multiplies the provided values and returns the result
-* *Requester* receives the result and verifies it
+* *Deployer* and *Counter* are compiled.
+* *Deployer* is deployed.
+* *Deployer* successfully deploys *Counter* contract via the *deploy()* function.
+* The deployed *Counter* can increment its value.
 
 To run these checks:
 
-1. Compile both contracts
+1. Compile both contacts
 2. Click on 'Run Checks'

@@ -109,7 +109,6 @@ func NewEVM(
 	statedb StateDB,
 	origin types.Address,
 	gasPrice types.Value,
-	state *EvmRestoreData,
 ) *EVM {
 	evm := &EVM{
 		Context: blockContext,
@@ -120,7 +119,7 @@ func NewEVM(
 		},
 		chainConfig: &params.ChainConfig{ChainID: big.NewInt(1)},
 	}
-	evm.interpreter = NewEVMInterpreter(evm, state)
+	evm.interpreter = NewEVMInterpreter(evm)
 	return evm
 }
 
@@ -616,11 +615,6 @@ func (evm *EVM) GetDepth() int {
 
 func (evm *EVM) SetTokenTransfer(tokens []types.TokenBalance) {
 	evm.tokenTransfer = tokens
-}
-
-func (evm *EVM) StopAndDumpState(continuationGasCredit types.Gas) {
-	evm.interpreter.stopAndDumpState = true
-	evm.interpreter.continuationGasCredit = continuationGasCredit
 }
 
 // GetVMContext provides context about the block being executed as well as state

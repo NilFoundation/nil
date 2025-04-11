@@ -79,9 +79,6 @@ func (w *BlockchainMetrics) Run(ctx context.Context, args *RunParams) error {
 				} else {
 					externalTxsNum++
 				}
-				if tx.Flags.IsResponse() {
-					responseTxsNum++
-				}
 				if tx.Flags.IsRefund() {
 					refundTxsNum++
 				}

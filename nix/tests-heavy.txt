@@ -1,6 +1,5 @@
 nil/internal/execution
 nil/tests/archive_node
-nil/tests/async_await
 nil/tests/basic
 nil/tests/block_replay
 nil/tests/cli

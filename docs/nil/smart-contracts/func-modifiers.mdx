@@ -68,7 +68,7 @@ Contract 2 records votes:
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract Election {
-    using Nil for address; 
+    using Nil for address;
     mapping(address => string) public votes;
     mapping(address => bool) private voters; // Filled by the contract owner
 
@@ -85,10 +85,3 @@ contract Election {
 Note that Contract 2 lacks the `verifyExternal()` function and, therefore, cannot accept external transactions. This means that `requestVote()` does not need to have the `onlyInternal` modifier. Vote verification in Contract 2 can only be initiated by another contract.
 
 Contract 1 makes an async call to Contract 2 requesting vote registration. If the caller is a valid voter, the `votes` map is updated to include the new vote for the specified `candidate`. Careful use of modifiers and the `verifyExternal()` function means that the voting system cannot be abused: votes cannot be requested directly, and additional verification occurs at the level of the election contract.
-
-### `onlyResponse`
-
-The following escrow contract uses `onlyResponse` to limit access to its `resolve()` function:
-
-```solidity showLineNumbers file=../../tests/Escrow.sol start=startEscrow end=endEscrow
-```

@@ -24,7 +24,6 @@ var SchemesInsideDb = []any{
 	Transaction{},
 	ExternalTransaction{},
 	InternalTransactionPayload{},
-	AsyncContext{},
 	CollatorState{},
 }
 

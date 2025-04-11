@@ -1,40 +1,46 @@
-# Async deploy between shards
+# Custom tokens in an async call
 
-In =nil;, it is possible to deploy smart contracts from other smart contracts. This operation can extend across shards.
+=nil; allows for [**sending custom tokens in an async call**](https://docs.nil.foundation/nil/smart-contracts/tokens#nft-example).
 
-To initiate such an async deployment, use the *Nil.asyncDeploy()* function:
+To achieve this, use the *Nil.asyncCallWithTokens()* function:
 
 ```solidity
-function asyncDeploy(
-    uint shardId,
+function asyncCallWithTokens(
+    address dst,
+    address refundTo,
     address bounceTo,
+    uint feeCredit,
+    uint8 forwardKind,
     uint value,
-    bytes memory code,
-    uint256 salt
-) internal returns (address)
+    Token[] memory tokens,
+    bytes memory callData
+) internal {}
 ```
 
 ## Task
 
-* *Counter*
-* *Deployer*
+This tutorial includes three contracts:
 
-*Counter* is a simple 'incrementer' contract. It should not be modified.
+* *Receiver*
+* *NFT*
 
-*Deployer* only has one function (*deploy()*) which is a 'wrapper' function over *Nil.asyncDeploy()*. 
+*Receiver* is an empty contract meant to hold the NFT represented by the *NFT* contract.
+
+The *NFT* contract represents a simple non-fungible token. It must be able to handle minting and sending the NFT but only once and the total supply of the NFT can never be greater than one (1).
 
 To complete this tutorial:
 
-* Finish the *Deployer* contract by completing the *deploy()* function. The function should accept bytecode and deploy a contract with said bytecode.
+* Finish the *NFT* contract so that it can mint one custom token and send it to *Receiver*.
 
 ## Checks
 
 This tutorial is verified once the following checks are passed.
 
-* *Deployer* and *Counter* are compiled.
-* *Deployer* is deployed.
-* *Deployer* successfully deploys *Counter* contract via the *deploy()* function.
-* The deployed *Counter* can increment its value.
+* *Receiver* and *NFT* are compiled and deployed.
+* *NFT* mints a custom token.
+* *NFT* cannot mint tokens after the first mint.
+* *NFT* can successfully send the custom token to *Receiver*.
+
 
 To run these checks:
 

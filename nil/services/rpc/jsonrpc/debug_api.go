@@ -113,11 +113,10 @@ func (api *DebugAPIImpl) GetContract(
 	}
 
 	return &DebugRPCContract{
-		Contract:     contract.ContractSSZ,
-		Code:         hexutil.Bytes(contract.Code),
-		Proof:        contract.ProofEncoded,
-		Storage:      contract.Storage,
-		Tokens:       contract.Tokens,
-		AsyncContext: contract.AsyncContext,
+		Contract: contract.ContractSSZ,
+		Code:     hexutil.Bytes(contract.Code),
+		Proof:    contract.ProofEncoded,
+		Storage:  contract.Storage,
+		Tokens:   contract.Tokens,
 	}, nil
 }

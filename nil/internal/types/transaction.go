@@ -20,7 +20,6 @@ const (
 	ExecutionTransactionKind TransactionKind = iota
 	DeployTransactionKind
 	RefundTransactionKind
-	ResponseTransactionKind
 )
 
 func (k TransactionKind) String() string {
@@ -31,8 +30,6 @@ func (k TransactionKind) String() string {
 		return "DeployTransactionKind"
 	case RefundTransactionKind:
 		return "RefundTransactionKind"
-	case ResponseTransactionKind:
-		return "ResponseTransactionKind"
 	}
 	panic("unknown TransactionKind")
 }
@@ -45,8 +42,6 @@ func (k *TransactionKind) Set(input string) error {
 		*k = DeployTransactionKind
 	case "refund", "RefundTransactionKind":
 		*k = RefundTransactionKind
-	case "response", "ResponseTransactionKind":
-		*k = ResponseTransactionKind
 	default:
 		return fmt.Errorf("unknown TransactionKind: %s", input)
 	}
@@ -125,7 +120,6 @@ const (
 	TransactionFlagDeploy
 	TransactionFlagRefund
 	TransactionFlagBounce
-	TransactionFlagResponse
 )
 
 type ForwardKind uint64
@@ -191,10 +185,6 @@ type Transaction struct {
 	Value    Value            `json:"value,omitempty" ch:"value" ssz-size:"32"`
 	Token    []TokenBalance   `json:"token,omitempty" ch:"token" ssz-max:"256"`
 
-	// These fields are needed for async requests
-	RequestId    uint64              `json:"requestId,omitempty" ch:"request_id"`
-	RequestChain []*AsyncRequestInfo `json:"response,omitempty" ch:"response" ssz-max:"4096"`
-
 	// This field should always be at the end of the structure for easy signing
 	Signature Signature `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
 }
@@ -218,18 +208,16 @@ type ExternalTransaction struct {
 }
 
 type InternalTransactionPayload struct {
-	Kind           TransactionKind `json:"kind,omitempty" ch:"kind"`
-	Bounce         bool            `json:"bounce,omitempty" ch:"bounce"`
-	FeeCredit      Value           `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
-	ForwardKind    ForwardKind     `json:"forwardKind,omitempty" ch:"forward_kind"`
-	To             Address         `json:"to,omitempty" ch:"to"`
-	RefundTo       Address         `json:"refundTo,omitempty" ch:"refund_to"`
-	BounceTo       Address         `json:"bounceTo,omitempty" ch:"bounce_to"`
-	Token          []TokenBalance  `json:"token,omitempty" ch:"token" ssz-max:"256"`
-	Value          Value           `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Data           Code            `json:"data,omitempty" ch:"data" ssz-max:"24576"`
-	RequestId      uint64          `json:"requestId,omitempty" ch:"request_id"`
-	RequestContext Code            `json:"context,omitempty" ch:"context" ssz-max:"24576"`
+	Kind        TransactionKind `json:"kind,omitempty" ch:"kind"`
+	Bounce      bool            `json:"bounce,omitempty" ch:"bounce"`
+	FeeCredit   Value           `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
+	ForwardKind ForwardKind     `json:"forwardKind,omitempty" ch:"forward_kind"`
+	To          Address         `json:"to,omitempty" ch:"to"`
+	RefundTo    Address         `json:"refundTo,omitempty" ch:"refund_to"`
+	BounceTo    Address         `json:"bounceTo,omitempty" ch:"bounce_to"`
+	Token       []TokenBalance  `json:"token,omitempty" ch:"token" ssz-max:"256"`
+	Value       Value           `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data        Code            `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 }
 
 type FeePack struct {
@@ -250,38 +238,6 @@ func NewFeePackFromFeeCredit(feeCredit Value) FeePack {
 	return FeePack{FeeCredit: feeCredit, MaxPriorityFeePerGas: NewZeroValue(), MaxFeePerGas: MaxFeePerGasDefault}
 }
 
-// EvmState contains EVM data to be saved/restored during await request.
-type EvmState struct {
-	Memory []byte `ssz-max:"10000000"`
-	Stack  []byte `ssz-max:"32768"`
-	Pc     uint64
-}
-
-// AsyncRequestInfo contains information about the incomplete request, that is a request which waits for response to a
-// nested request.
-type AsyncRequestInfo struct {
-	Id     uint64  `json:"id"`
-	Caller Address `json:"caller"`
-}
-
-func (a AsyncRequestInfo) Value() (driver.Value, error) {
-	return []any{a.Id, a.Caller}, nil
-}
-
-// AsyncResponsePayload contains data returned in the response.
-type AsyncResponsePayload struct {
-	Success    bool
-	ReturnData []byte `ssz-max:"10000000"`
-}
-
-// AsyncContext contains the context of the request. For await requests, it contains the VM state, which will be
-// restored upon receiving the response. For callback requests, it contains captured variables.
-type AsyncContext struct {
-	IsAwait               bool   `json:"isAwait"`
-	Data                  []byte `ssz-max:"10000000" json:"data"`
-	ResponseProcessingGas Gas    `json:"gas"`
-}
-
 // interfaces
 var (
 	_ common.Hashable = new(Transaction)
@@ -297,10 +253,9 @@ func NewEmptyTransaction() *Transaction {
 			MaxPriorityFeePerGas: NewZeroValue(),
 			MaxFeePerGas:         NewZeroValue(),
 		},
-		Value:        NewZeroValue(),
-		Token:        make([]TokenBalance, 0),
-		Signature:    make(Signature, 0),
-		RequestChain: make([]*AsyncRequestInfo, 0),
+		Value:     NewZeroValue(),
+		Token:     make([]TokenBalance, 0),
+		Signature: make(Signature, 0),
 	}
 }
 
@@ -358,14 +313,11 @@ func (m *Transaction) VerifyFlags() error {
 		if m.IsBounce() {
 			num++
 		}
-		if m.IsRequestOrResponse() {
-			num++
-		}
 		if num > 1 {
-			return errors.New("internal transaction cannot be deploy, refund, bounce or async at the same time")
+			return errors.New("internal transaction cannot be deploy, refund or bounce at the same time")
 		}
-	} else if m.IsRefund() || m.IsBounce() || m.IsRequestOrResponse() {
-		return errors.New("external transaction cannot be bounce, refund or async")
+	} else if m.IsRefund() || m.IsBounce() {
+		return errors.New("external transaction cannot be bounce or refund")
 	}
 	if m.To.ShardId().IsMainShard() && !m.From.ShardId().IsMainShard() {
 		return errors.New("transaction to main shard is not allowed from a regular shard")
@@ -397,18 +349,6 @@ func (m *Transaction) IsRefund() bool {
 	return m.Flags.IsRefund()
 }
 
-func (m *Transaction) IsResponse() bool {
-	return m.Flags.IsResponse()
-}
-
-func (m *Transaction) IsRequest() bool {
-	return m.IsRequestOrResponse() && !m.IsResponse()
-}
-
-func (m *Transaction) IsRequestOrResponse() bool {
-	return m.RequestId != 0
-}
-
 func (m *Transaction) IsSystem() bool {
 	return m.To.ShardId().IsMainShard()
 }
@@ -435,12 +375,11 @@ func (m InternalTransactionPayload) ToTransaction(from Address, seqno Seqno) *Tr
 			FeeCredit: m.FeeCredit,
 			Seqno:     seqno,
 		},
-		RefundTo:  m.RefundTo,
-		BounceTo:  m.BounceTo,
-		From:      from,
-		Value:     m.Value,
-		Token:     m.Token,
-		RequestId: m.RequestId,
+		RefundTo: m.RefundTo,
+		BounceTo: m.BounceTo,
+		From:     from,
+		Value:    m.Value,
+		Token:    m.Token,
 	}
 	if m.Bounce {
 		txn.Flags.SetBit(TransactionFlagBounce)
@@ -519,8 +458,6 @@ func TransactionFlagsFromKind(internal bool, kind TransactionKind) TransactionFl
 		flags = append(flags, TransactionFlagDeploy)
 	case RefundTransactionKind:
 		flags = append(flags, TransactionFlagRefund)
-	case ResponseTransactionKind:
-		flags = append(flags, TransactionFlagResponse)
 	case ExecutionTransactionKind: // do nothing
 	}
 	return NewTransactionFlags(flags...)
@@ -542,9 +479,6 @@ func (m TransactionFlags) String() string {
 	if m.IsBounce() {
 		res += ", Bounce"
 	}
-	if m.IsResponse() {
-		res += ", Response"
-	}
 	return res
 }
 
@@ -563,9 +497,6 @@ func (m TransactionFlags) MarshalJSON() ([]byte, error) {
 	}
 	if m.IsBounce() {
 		res += ", \"Bounce\""
-	}
-	if m.IsResponse() {
-		res += ", \"Response\""
 	}
 	return []byte(fmt.Sprintf("[%s]", res)), nil
 }
@@ -586,8 +517,6 @@ func (m *TransactionFlags) UnmarshalJSON(data []byte) error {
 			m.SetBit(TransactionFlagRefund)
 		case "Bounce":
 			m.SetBit(TransactionFlagBounce)
-		case "Response":
-			m.SetBit(TransactionFlagResponse)
 		}
 	}
 	return nil
@@ -609,11 +538,7 @@ func (m TransactionFlags) IsBounce() bool {
 	return m.GetBit(TransactionFlagBounce)
 }
 
-func (m TransactionFlags) IsResponse() bool {
-	return m.GetBit(TransactionFlagResponse)
-}
-
-//go:generate go run github.com/NilFoundation/fastssz/sszgen --path transaction.go -include ../../common/hexutil/bytes.go,../../common/length.go,address.go,gas.go,value.go,code.go,shard.go,bloom.go,log.go,../../common/hash.go,signature.go,account.go,bitflags.go --objs Transaction,ExternalTransaction,InternalTransactionPayload,TransactionDigest,TransactionFlags,EvmState,AsyncContext,AsyncResponsePayload
+//go:generate go run github.com/NilFoundation/fastssz/sszgen --path transaction.go -include ../../common/hexutil/bytes.go,../../common/length.go,address.go,gas.go,value.go,code.go,shard.go,bloom.go,log.go,../../common/hash.go,signature.go,account.go,bitflags.go --objs Transaction,ExternalTransaction,InternalTransactionPayload,TransactionDigest,TransactionFlags
 
 type TxnWithHash struct {
 	*Transaction

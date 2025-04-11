@@ -3,14 +3,14 @@ import type { CheckProps } from "../../src/features/tutorial-check/CheckProps";
 import runTutorialCheckOne from "../../src/features/tutorial-check/checks/tutorialOneCheck";
 import runTutorialCheckΤwo from "../../src/features/tutorial-check/checks/tutorialTwoCheck";
 import runTutorialCheckThree from "../../src/features/tutorial-check/checks/tutorialThreeCheck";
-import runTutorialCheckFour from "../../src/features/tutorial-check/checks/tutorialFourCheck";
+import runTutorialCheckFour from "../../src/features/tutorial-check/checks/tutorialThreeCheck";
 import { deploymentEffect, RPC_ENDPOINT, setCompletedTutorialEvent, setTutorialChecksEvent, tutorialContractStepFailed, tutorialContractStepPassed } from "./globals";
 import { expect, describe, test } from "vitest";
 const solc = require("solc");
 import path from "node:path";
 import { createCompileInput } from "../../src/features/shared/utils/solidityCompiler/helper.ts";
 import type { App } from "../../src/features/code/types.ts";
-import runTutorialCheckFive from "../../src/features/tutorial-check/checks/tutorialFiveCheck.ts";
+import runTutorialCheckFive from "../../src/features/tutorial-check/checks/tutorialFourCheck.ts";
 
 const TEST_PROPS: CheckProps = {
   rpcUrl: RPC_ENDPOINT,
@@ -87,7 +87,7 @@ describe("Tutorial Three tests", async () => {
 
 describe("Tutorial Four tests", async () => {
   test("Tutorial Four passes with the given solution", async () => {
-    const code = await import(path.resolve(__dirname, "../../src/features/tutorial/assets/tutorialFour/tutorialFourSolution.sol?raw"));
+    const code = await import(path.resolve(__dirname, "../../src/features/tutorial/assets/tutorialThree/tutorialThreeSolution.sol?raw"));
     const codeRes = code.default;
 
     const contracts = await createContracts(codeRes);
@@ -101,7 +101,7 @@ describe("Tutorial Four tests", async () => {
 
 describe("Tutorial Five tests", async () => {
   test("Tutorial Five passes with the given solution", async () => {
-    const code = await import(path.resolve(__dirname, "../../src/features/tutorial/assets/tutorialFive/tutorialFiveSolution.sol?raw"));
+    const code = await import(path.resolve(__dirname, "../../src/features/tutorial/assets/tutorialFour/tutorialFourSolution.sol?raw"));
     const codeRes = code.default;
 
     const contracts = await createContracts(codeRes);
@@ -112,6 +112,3 @@ describe("Tutorial Five tests", async () => {
     expect(testRes).toBe(true);
   });
 }, 45000);
-
-
-

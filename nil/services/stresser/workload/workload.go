@@ -100,8 +100,6 @@ func GetWorkload(name string) (Workload, error) {
 	switch name {
 	case "external_tx":
 		wd = &ExternalTxs{}
-	case "await_call":
-		wd = &AwaitCall{}
 	case "block_range":
 		wd = &BlockRange{}
 	case "send_requests":

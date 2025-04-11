@@ -64,7 +64,7 @@ func TestOpcodes(t *testing.T) {
 
 			require.NoError(t, state.SetCode(address, code))
 
-			require.NoError(t, state.newVm(true, address, nil))
+			require.NoError(t, state.newVm(true, address))
 			_, _, _ = state.evm.Call(vm.AccountRef(address), address, nil, 100000, new(uint256.Int))
 		}
 		_, err := state.Commit(types.BlockNumber(i), nil)
@@ -84,7 +84,7 @@ func TestPrecompiles(t *testing.T) {
 	// Test checks that precompiles are not crashed
 	// if called with an empty input data
 	check := func(i int) {
-		require.NoError(t, state.newVm(true, types.EmptyAddress, nil))
+		require.NoError(t, state.newVm(true, types.EmptyAddress))
 
 		callTransaction := types.NewEmptyTransaction()
 		callTransaction.Flags = types.NewTransactionFlags(types.TransactionFlagInternal)

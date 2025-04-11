@@ -1,6 +1,5 @@
 import { HttpTransport, PublicClient, generateSmartAccount } from "@nilfoundation/niljs";
 import { TutorialChecksStatus } from "../../../pages/tutorials/model";
-import { deploySmartContractFx } from "../../contracts/models/base";
 import type { CheckProps } from "../CheckProps";
 
 async function runTutorialCheckThree(props: CheckProps) {
@@ -11,23 +10,21 @@ async function runTutorialCheckThree(props: CheckProps) {
     shardId: 1,
   });
 
-  const requesterContract = props.contracts.find((contract) => contract.name === "Requester")!;
-  const requestedContract = props.contracts.find(
-    (contract) => contract.name === "RequestedContract",
-  )!;
+  const counterContract = props.contracts.find((contract) => contract.name === "Counter")!;
+  const deployerContract = props.contracts.find((contract) => contract.name === "Deployer")!;
 
-  const appRequester = {
-    name: "Requester",
-    bytecode: requesterContract.bytecode,
-    abi: requesterContract.abi,
-    sourcecode: requesterContract.sourcecode,
+  const appCounter = {
+    name: "Counter",
+    bytecode: counterContract.bytecode,
+    abi: counterContract.abi,
+    sourcecode: counterContract.sourcecode,
   };
 
-  const appRequestedContract = {
-    name: "RequestedContract",
-    bytecode: requestedContract.bytecode,
-    abi: requestedContract.abi,
-    sourcecode: requestedContract.sourcecode,
+  const appDeployer = {
+    name: "Deployer",
+    bytecode: deployerContract.bytecode,
+    abi: deployerContract.abi,
+    sourcecode: deployerContract.sourcecode,
   };
 
   const smartAccount = await generateSmartAccount({
@@ -38,71 +35,78 @@ async function runTutorialCheckThree(props: CheckProps) {
 
   props.tutorialContractStepPassed("A new smart account has been generated!");
 
-  const resultRequester = await props.deploymentEffect({
-    app: appRequester,
-    args: [],
-    shardId: 1,
-    smartAccount,
-  });
-
-  const resultRequestedContract = await deploySmartContractFx({
-    app: appRequestedContract,
+  const resultDeployer = await props.deploymentEffect({
+    app: appDeployer,
     args: [],
     shardId: 2,
     smartAccount,
   });
 
-  props.tutorialContractStepPassed("Requester and RequestedContract have been deployed!");
+  props.tutorialContractStepPassed("Deployer has been deployed!");
 
-  const requestTx = await smartAccount.sendTransaction({
-    to: resultRequester.address,
-    abi: requesterContract.abi,
-    functionName: "requestMultiplication",
-    args: [resultRequestedContract.address],
+  const gasPrice = await client.getGasPrice(1);
+
+  const salt = BigInt(Math.floor(Math.random() * 1000000));
+
+  const deployTx = await smartAccount.sendTransaction({
+    to: resultDeployer.address,
+    abi: deployerContract.abi,
+    functionName: "deploy",
+    args: [appCounter.bytecode, salt],
+    feeCredit: gasPrice * 500_000n,
   });
 
-  const resRequest = await requestTx.wait();
+  const resDeploy = await deployTx.wait();
 
-  const checkRequest = await resRequest.some((receipt) => !receipt.success);
+  const checkDeploy = await resDeploy.some((receipt) => !receipt.success);
 
-  if (checkRequest) {
+  if (checkDeploy) {
     props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
-    console.log(resRequest);
+    console.log(resDeploy);
     props.tutorialContractStepFailed(
       `
-      Calling Requester.requestMultiplication() produced one or more failed receipts!
-      To investigate, debug this transaction using the Cometa service: ${hashRequest}.
+      Calling Deployer.deploy() produced one or more failed receipts!
+      To investigate, debug this transaction using the Cometa service: ${hashDeploy}.
       `,
     );
     return false;
   }
 
-  props.tutorialContractStepPassed(
-    "Requester.requestMultiplication() has been called successfully!",
-  );
+  props.tutorialContractStepPassed("Counter has been deployed!");
 
-  const result = await client.call(
-    {
-      to: resultRequester.address,
-      abi: requesterContract.abi,
-      functionName: "getResult",
-    },
-    "latest",
-  );
+  const counterAddress = resDeploy.at(2)?.contractAddress as `0x${string}`;
 
-  if (!result.decodedData) {
-    props.tutorialContractStepFailed("Failed to verify the result of multiplication!");
+  const incrementTx = await smartAccount.sendTransaction({
+    to: counterAddress,
+    abi: counterContract.abi,
+    functionName: "increment",
+    args: [],
+    feeCredit: gasPrice * 500_000n,
+  });
+
+  const resIncrement = await incrementTx.wait();
+
+  const checkIncrement = resIncrement.some((receipt) => !receipt.success);
+
+  if (checkIncrement) {
     props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
+    console.log(resIncrement);
+    props.tutorialContractStepFailed(
+      `
+      Calling Counter.increment() produced one or more failed receipts!
+      To investigate, debug this transaction using the Cometa service: ${hashDeploy}.
+      `,
+    );
     return false;
   }
 
-  props.tutorialContractStepPassed("The result of multiplication has been verified!");
+  props.tutorialContractStepPassed("Counter.increment() has been called successfully!");
 
   props.setTutorialChecksEvent(TutorialChecksStatus.Successful);
 
-  props.setCompletedTutorialEvent(3);
+  props.tutorialContractStepPassed("Tutorial has been completed successfully!");
 
-  props.tutorialContractStepPassed("Tutorial Three has been completed successfully!");
+  props.setCompletedTutorialEvent(3);
 
   return true;
 }

@@ -14,12 +14,11 @@ import (
 )
 
 type DeserializedDebugRPCContract struct {
-	Contract                types.SmartContract
-	ExistenceProof          mpt.Proof
-	Code                    types.Code
-	StorageTrieEntries      map[common.Hash]types.Uint256
-	TokenTrieEntries        map[types.TokenId]types.Value
-	AsyncContextTrieEntries map[types.TransactionIndex]types.AsyncContext
+	Contract           types.SmartContract
+	ExistenceProof     mpt.Proof
+	Code               types.Code
+	StorageTrieEntries map[common.Hash]types.Uint256
+	TokenTrieEntries   map[types.TokenId]types.Value
 }
 
 func deserializeDebugRPCContract(debugRPCContract *jsonrpc.DebugRPCContract) (*DeserializedDebugRPCContract, error) {
@@ -29,11 +28,10 @@ func deserializeDebugRPCContract(debugRPCContract *jsonrpc.DebugRPCContract) (*D
 	}
 
 	return &DeserializedDebugRPCContract{
-		Contract:                *contract,
-		Code:                    types.Code(debugRPCContract.Code),
-		StorageTrieEntries:      debugRPCContract.Storage,
-		TokenTrieEntries:        debugRPCContract.Tokens,
-		AsyncContextTrieEntries: debugRPCContract.AsyncContext,
+		Contract:           *contract,
+		Code:               types.Code(debugRPCContract.Code),
+		StorageTrieEntries: debugRPCContract.Storage,
+		TokenTrieEntries:   debugRPCContract.Tokens,
 	}, nil
 }
 
@@ -105,16 +103,6 @@ func (dacr *DebugApiContractReader) GetAccount(
 		dacr.shardId,
 		debugContract.TokenTrieEntries,
 		execution.NewDbTokenTrie,
-	)
-	if err != nil {
-		return nil, mpt.Proof{}, err
-	}
-
-	err = insertTrieValues(
-		dacr.rwTx,
-		dacr.shardId,
-		debugContract.AsyncContextTrieEntries,
-		execution.NewDbAsyncContextTrie,
 	)
 	if err != nil {
 		return nil, mpt.Proof{}, err

@@ -48,14 +48,8 @@ type AccountState struct {
 	ExtSeqno    types.Seqno
 	StorageTree *StorageTrie
 	TokenTree   *TokenTrie
-	// AsyncContextTree is a trie that stores the context for each request sent from this account.
-	AsyncContextTree *AsyncContextTrie
-	// requestId is a current request id. It is used to generate unique number for each request.
-	requestId uint64
 
-	State               Storage
-	AsyncContext        map[types.TransactionIndex]*types.AsyncContext
-	AsyncContextRemoved []types.TransactionIndex
+	State Storage
 	// Tokens holds the token changed during execution. If execution fails, these changes will be dropped.
 	Tokens map[types.TokenId]types.Value
 
@@ -71,12 +65,6 @@ type AccountState struct {
 	NewContract bool
 
 	logger logging.Logger
-}
-
-// FetchRequestId returns unique request id.
-func (as *AccountState) FetchRequestId() uint64 {
-	as.requestId++
-	return as.requestId
 }
 
 func NewAccountStateReader(account *AccountState) *AccountStateReader {
@@ -95,16 +83,13 @@ func NewAccountState(
 	shardId := addr.ShardId()
 
 	accountState := &AccountState{
-		db:               es,
-		address:          addr,
-		TokenTree:        NewDbTokenTrie(es.GetRwTx(), shardId),
-		StorageTree:      NewDbStorageTrie(es.GetRwTx(), shardId),
-		AsyncContextTree: NewDbAsyncContextTrie(es.GetRwTx(), shardId),
-
-		State:        make(Storage),
-		AsyncContext: make(map[types.TransactionIndex]*types.AsyncContext),
-		Tokens:       make(map[types.TokenId]types.Value),
-		logger:       logger,
+		db:          es,
+		address:     addr,
+		TokenTree:   NewDbTokenTrie(es.GetRwTx(), shardId),
+		StorageTree: NewDbStorageTrie(es.GetRwTx(), shardId),
+		State:       make(Storage),
+		Tokens:      make(map[types.TokenId]types.Value),
+		logger:      logger,
 	}
 
 	if account != nil {
@@ -112,7 +97,6 @@ func NewAccountState(
 		accountState.TokenTree.SetRootHash(account.TokenRoot)
 		accountState.StorageTree.SetRootHash(account.StorageRoot)
 		accountState.CodeHash = account.CodeHash
-		accountState.AsyncContextTree.SetRootHash(account.AsyncContextRoot)
 		var err error
 		accountState.Code, err = db.ReadCode(es.GetRwTx(), shardId, account.CodeHash)
 		if err != nil {
@@ -120,7 +104,6 @@ func NewAccountState(
 		}
 		accountState.ExtSeqno = account.ExtSeqno
 		accountState.Seqno = account.Seqno
-		accountState.requestId = account.RequestId
 	}
 
 	return accountState, nil
@@ -255,23 +238,6 @@ func (as *AccountState) SetCode(codeHash common.Hash, code []byte) {
 	as.setCode(codeHash, code)
 }
 
-func (as *AccountState) SetAsyncContext(index types.TransactionIndex, ctx *types.AsyncContext) {
-	as.db.AppendToJournal(asyncContextChange{
-		account:   &as.address,
-		requestId: index,
-	})
-	as.AsyncContext[index] = ctx
-}
-
-func (as *AccountState) GetAndRemoveAsyncContext(index types.TransactionIndex) (*types.AsyncContext, error) {
-	ctx, exists := as.AsyncContext[index]
-	if exists {
-		return ctx, nil
-	}
-	as.AsyncContextRemoved = append(as.AsyncContextRemoved, index)
-	return as.AsyncContextTree.Fetch(index)
-}
-
 func (as *AccountState) setCode(codeHash common.Hash, code []byte) {
 	as.Code = code
 	as.CodeHash = common.Hash(codeHash[:])
@@ -348,16 +314,6 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 		return nil, err
 	}
 
-	if err := UpdateFromMap(as.AsyncContextTree, as.AsyncContext, nil); err != nil {
-		return nil, err
-	}
-
-	for _, k := range as.AsyncContextRemoved {
-		if err := as.AsyncContextTree.Delete(k); err != nil {
-			return nil, err
-		}
-	}
-
 	// Remove tokens with zero value
 	for k, v := range as.Tokens {
 		if v.IsZero() {
@@ -375,15 +331,13 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 	}
 
 	acc := &types.SmartContract{
-		Address:          as.address,
-		Balance:          as.Balance,
-		StorageRoot:      as.StorageTree.RootHash(),
-		TokenRoot:        as.TokenTree.RootHash(),
-		AsyncContextRoot: as.AsyncContextTree.RootHash(),
-		CodeHash:         as.CodeHash,
-		ExtSeqno:         as.ExtSeqno,
-		Seqno:            as.Seqno,
-		RequestId:        as.requestId,
+		Address:     as.address,
+		Balance:     as.Balance,
+		StorageRoot: as.StorageTree.RootHash(),
+		TokenRoot:   as.TokenTree.RootHash(),
+		CodeHash:    as.CodeHash,
+		ExtSeqno:    as.ExtSeqno,
+		Seqno:       as.Seqno,
 	}
 
 	if err := db.WriteCode(as.db.GetRwTx(), as.address.ShardId(), as.CodeHash, as.Code); err != nil {

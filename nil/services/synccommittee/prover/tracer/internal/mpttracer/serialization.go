@@ -161,15 +161,13 @@ func smartContractFromProto(pbSmartContract *pb.SmartContract) *types.SmartContr
 		balance = types.NewValue(b.Int())
 	}
 	return &types.SmartContract{
-		Address:          types.HexToAddress(pbSmartContract.Address),
-		Balance:          types.NewValue(balance.Int()),
-		TokenRoot:        common.HexToHash(pbSmartContract.TokenRoot),
-		StorageRoot:      common.HexToHash(pbSmartContract.StorageRoot),
-		CodeHash:         common.HexToHash(pbSmartContract.CodeHash),
-		AsyncContextRoot: common.HexToHash(pbSmartContract.AsyncContextRoot),
-		Seqno:            types.Seqno(pbSmartContract.Seqno),
-		ExtSeqno:         types.Seqno(pbSmartContract.ExtSeqno),
-		RequestId:        pbSmartContract.RequestId,
+		Address:     types.HexToAddress(pbSmartContract.Address),
+		Balance:     types.NewValue(balance.Int()),
+		TokenRoot:   common.HexToHash(pbSmartContract.TokenRoot),
+		StorageRoot: common.HexToHash(pbSmartContract.StorageRoot),
+		CodeHash:    common.HexToHash(pbSmartContract.CodeHash),
+		Seqno:       types.Seqno(pbSmartContract.Seqno),
+		ExtSeqno:    types.Seqno(pbSmartContract.ExtSeqno),
 	}
 }
 
@@ -184,15 +182,13 @@ func smartContractToProto(smartContract *types.SmartContract) *pb.SmartContract 
 		pbBalance = pb.Uint256ToProtoUint256(smartContract.Balance.Uint256)
 	}
 	return &pb.SmartContract{
-		Address:          smartContract.Address.Hex(),
-		Balance:          pbBalance,
-		TokenRoot:        smartContract.TokenRoot.Hex(),
-		StorageRoot:      smartContract.StorageRoot.Hex(),
-		CodeHash:         smartContract.CodeHash.Hex(),
-		AsyncContextRoot: smartContract.AsyncContextRoot.Hex(),
-		Seqno:            uint64(smartContract.Seqno),
-		ExtSeqno:         uint64(smartContract.ExtSeqno),
-		RequestId:        smartContract.RequestId,
+		Address:     smartContract.Address.Hex(),
+		Balance:     pbBalance,
+		TokenRoot:   smartContract.TokenRoot.Hex(),
+		StorageRoot: smartContract.StorageRoot.Hex(),
+		CodeHash:    smartContract.CodeHash.Hex(),
+		Seqno:       uint64(smartContract.Seqno),
+		ExtSeqno:    uint64(smartContract.ExtSeqno),
 	}
 }
 

@@ -10,21 +10,23 @@ async function runTutorialCheckFour(props: CheckProps) {
     shardId: 1,
   });
 
-  const counterContract = props.contracts.find((contract) => contract.name === "Counter")!;
-  const deployerContract = props.contracts.find((contract) => contract.name === "Deployer")!;
+  const gasPrice = await client.getGasPrice(1);
 
-  const appCounter = {
-    name: "Counter",
-    bytecode: counterContract.bytecode,
-    abi: counterContract.abi,
-    sourcecode: counterContract.sourcecode,
+  const receiverContract = props.contracts.find((contract) => contract.name === "Receiver")!;
+  const NFTContract = props.contracts.find((contract) => contract.name === "NFT")!;
+
+  const appReceiver = {
+    name: "Receiver",
+    bytecode: receiverContract.bytecode,
+    abi: receiverContract.abi,
+    sourcecode: receiverContract.sourcecode,
   };
 
-  const appDeployer = {
-    name: "Deployer",
-    bytecode: deployerContract.bytecode,
-    abi: deployerContract.abi,
-    sourcecode: deployerContract.sourcecode,
+  const appNFT = {
+    name: "NFT",
+    bytecode: NFTContract.bytecode,
+    abi: NFTContract.abi,
+    sourcecode: NFTContract.sourcecode,
   };
 
   const smartAccount = await generateSmartAccount({
@@ -35,78 +37,112 @@ async function runTutorialCheckFour(props: CheckProps) {
 
   props.tutorialContractStepPassed("A new smart account has been generated!");
 
-  const resultDeployer = await props.deploymentEffect({
-    app: appDeployer,
+  const resultReceiver = await props.deploymentEffect({
+    app: appReceiver,
+    args: [],
+    shardId: 1,
+    smartAccount,
+  });
+
+  const resultNFT = await props.deploymentEffect({
+    app: appNFT,
     args: [],
     shardId: 2,
     smartAccount,
   });
 
-  props.tutorialContractStepPassed("Deployer has been deployed!");
+  props.tutorialContractStepPassed("Receiver and NFT have been deployed successfully!");
 
-  const gasPrice = await client.getGasPrice(1);
-
-  const salt = BigInt(Math.floor(Math.random() * 1000000));
-
-  const deployTx = await smartAccount.sendTransaction({
-    to: resultDeployer.address,
-    abi: deployerContract.abi,
-    functionName: "deploy",
-    args: [appCounter.bytecode, salt],
-    feeCredit: gasPrice * 500_000n,
-  });
-
-  const resDeploy = await deployTx.wait();
-
-  const checkDeploy = await resDeploy.some((receipt) => !receipt.success);
-
-  if (checkDeploy) {
-    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
-    console.log(resDeploy);
-    props.tutorialContractStepFailed(
-      `
-      Calling Deployer.deploy() produced one or more failed receipts!
-      To investigate, debug this transaction using the Cometa service: ${hashDeploy}.
-      `,
-    );
-    return false;
-  }
-
-  props.tutorialContractStepPassed("Counter has been deployed!");
-
-  const counterAddress = resDeploy.at(2)?.contractAddress as `0x${string}`;
-
-  const incrementTx = await smartAccount.sendTransaction({
-    to: counterAddress,
-    abi: counterContract.abi,
-    functionName: "increment",
+  const mintRequest = await smartAccount.sendTransaction({
+    to: resultNFT.address,
+    abi: NFTContract.abi,
+    functionName: "mintNFT",
     args: [],
     feeCredit: gasPrice * 500_000n,
   });
 
-  const resIncrement = await incrementTx.wait();
+  const resMinting = await mintRequest.wait();
 
-  const checkIncrement = resIncrement.some((receipt) => !receipt.success);
+  const checkMinting = await resMinting.some((receipt) => !receipt.success);
 
-  if (checkIncrement) {
+  if (checkMinting) {
     props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
-    console.log(resIncrement);
+    console.log(resMinting);
     props.tutorialContractStepFailed(
       `
-      Calling Counter.increment() produced one or more failed receipts!
-      To investigate, debug this transaction using the Cometa service: ${hashDeploy}.
+      Calling NFT.mintNFT() produced one or more failed receipts!
+      To investigate, debug this transaction using the Cometa service: ${mintRequest}.
       `,
     );
     return false;
   }
 
-  props.tutorialContractStepPassed("Counter.increment() has been called successfully!");
+  props.tutorialContractStepPassed("NFT has been minted successfully!");
+
+  const secondMintRequest = await smartAccount.sendTransaction({
+    to: resultNFT.address,
+    abi: NFTContract.abi,
+    functionName: "mintNFT",
+    args: [],
+    feeCredit: gasPrice * 500_000n,
+  });
+
+  const resSecondMinting = await secondMintRequest.wait();
+
+  const checkSecondMinting = await resSecondMinting.some((receipt) => !receipt.success);
+
+  if (!checkSecondMinting) {
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
+    console.log(resSecondMinting);
+    props.tutorialContractStepFailed(
+      `
+      Calling NFT.mintNFT() the second time did not produce any failed receipts!
+      The NFT has been minted twice.
+      `,
+    );
+    return false;
+  }
+
+  props.tutorialContractStepPassed("NFT is protected against repeated minting!");
+
+  const sendRequest = await smartAccount.sendTransaction({
+    to: resultNFT.address,
+    abi: NFTContract.abi,
+    functionName: "sendNFT",
+    args: [resultReceiver.address],
+  });
+
+  const resSending = await sendRequest.wait();
+
+  const checkSending = await resSending.some((receipt) => !receipt.success);
+
+  if (checkSending) {
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
+    console.log(resSending);
+    props.tutorialContractStepFailed(
+      `
+      Calling NFT.sendNFT() produced one or more failed receipts!
+      To investigate, debug this transaction using the Cometa service: ${sendRequest}.
+      `,
+    );
+    return false;
+  }
+
+  const result = await client.getTokens(resultReceiver.address, "latest");
+
+  if (Object.keys(result).length === 0) {
+    props.setTutorialChecksEvent(TutorialChecksStatus.Failed);
+    props.tutorialContractStepFailed("NFT has not been received!");
+    return false;
+  }
+
+  props.tutorialContractStepPassed("NFT has been received successfully!");
 
   props.setTutorialChecksEvent(TutorialChecksStatus.Successful);
 
   props.tutorialContractStepPassed("Tutorial has been completed successfully!");
 
-  props.setCompletedTutorialEvent(3);
+  props.setCompletedTutorialEvent(5);
 
   return true;
 }

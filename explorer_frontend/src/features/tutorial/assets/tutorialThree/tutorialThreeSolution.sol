@@ -1,54 +1,53 @@
-//SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.21;
 
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
-contract Requester is NilBase {
-    using Nil for address;
-    uint256 private num1 = 5;
-    uint256 private num2 = 10;
-    bool private result;
+/**
+ * @title Counter
+ * @author =nil; Foundation
+ * @notice A counter contract that increments a value.
+ */
+contract Counter {
+    uint256 private value;
 
-    function requestMultiplication(address dst) public payable {
-        bytes memory context = abi.encodeWithSelector(
-            this.checkResult.selector,
-            num1,
-            num2
-        );
-        bytes memory callData = abi.encodeWithSignature(
-            "multiply(uint256,uint256)",
-            num1,
-            num2
-        );
+    event ValueChanged(uint256 newValue);
 
-        Nil.sendRequest(dst, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
+    receive() external payable {}
+
+    function increment() public {
+        value += 1;
+        emit ValueChanged(value);
     }
 
-    function checkResult(
-        bool success,
-        bytes memory returnData,
-        bytes memory context
-    ) public payable onlyResponse {
-        require(success, "Request failed!");
-        uint256 res = abi.decode(returnData, (uint256));
-        if (res == 50) {
-            result = true;
-        } else {
-            result = false;
-        }
+    function getValue() public view returns (uint256) {
+        return value;
     }
 
-    function getResult() public view returns (bool) {
-        return result;
+    function verifyExternal(
+        uint256 hash,
+        bytes memory authData
+    ) external pure returns (bool) {
+        return true;
     }
 }
 
-contract RequestedContract {
-    function multiply(
-        uint256 num1,
-        uint256 num2
-    ) public pure returns (uint256) {
-        return num1 * num2;
+/**
+ * @title Deployer
+ * @author =nil; Foundation
+ * @notice The contract that is meant to deploy Counter.
+ */
+contract Deployer is NilBase {
+    constructor() public payable {}
+
+    function deposit() public payable {}
+
+    /**
+     * The function for deploying the Counter contract.
+     * @param data The bytecode of the Counter contract.
+     */
+    function deploy(bytes memory data, uint salt) public payable {
+        Nil.asyncDeploy(2, address(0), 0, data, salt);
     }
 }

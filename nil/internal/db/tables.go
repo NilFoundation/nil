@@ -29,7 +29,6 @@ const (
 		"BlockHashAndInTransactionIndexByTransactionHash")
 	BlockHashAndOutTransactionIndexByTransactionHash = ShardedTableName(
 		"BlockHashAndOutTransactionIndexByTransactionHash")
-	AsyncCallContextTable = ShardedTableName("AsyncCallContext")
 
 	collatorStateTable          = TableName("CollatorState")
 	errorByTransactionHashTable = TableName("ErrorByTransactionHash")

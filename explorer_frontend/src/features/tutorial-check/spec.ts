@@ -1,4 +1,3 @@
-import runTutorialCheckFive from "./checks/tutorialFiveCheck";
 import runTutorialCheckFour from "./checks/tutorialFourCheck";
 import runTutorialCheckOne from "./checks/tutorialOneCheck";
 import runTutorialCheckThree from "./checks/tutorialThreeCheck";
@@ -14,15 +13,11 @@ export const spec = [
     check: runTutorialCheckTwo,
   },
   {
-    urlSlug: "request-response",
+    urlSlug: "async-deploy",
     check: runTutorialCheckThree,
   },
   {
-    urlSlug: "async-deploy",
-    check: runTutorialCheckFour,
-  },
-  {
     urlSlug: "send-nft",
-    check: runTutorialCheckFive,
+    check: runTutorialCheckFour,
   },
 ];

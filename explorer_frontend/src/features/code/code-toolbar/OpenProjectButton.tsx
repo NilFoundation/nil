@@ -15,7 +15,6 @@ import { type FC, useState } from "react";
 import { useStyletron } from "styletron-react";
 import { StatefulPopover, useMobile } from "../../shared";
 import AsyncCallExample from "../assets/AsyncCallExample.sol";
-import AsyncRequestExample from "../assets/AsyncRequestExample.sol";
 import HandlingExtTxExample from "../assets/HandlingExtTxExample.sol";
 import TokenExample from "../assets/TokenExample.sol";
 import { $recentProjects, changeCode, updateRecentProjects } from "../model";
@@ -47,14 +46,6 @@ export const OpenProjectButton: FC<OpenProjectButtonProps> = ({ disabled }) => {
         onChange: () => {
           updateRecentProjects();
           changeCode(AsyncCallExample);
-          compile();
-        },
-      },
-      {
-        label: "Async request with response guarantee",
-        onChange: () => {
-          updateRecentProjects();
-          changeCode(AsyncRequestExample);
           compile();
         },
       },

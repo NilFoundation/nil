@@ -172,20 +172,12 @@ func (api *LocalShardApi) GetContract(
 		return nil, err
 	}
 
-	asyncContextReader := execution.NewDbAsyncContextTrieReader(tx, address.ShardId())
-	asyncContextReader.SetRootHash(contract.AsyncContextRoot)
-	asyncContextEntries, err := asyncContextReader.Entries()
-	if err != nil {
-		return nil, err
-	}
-
 	return &rawapitypes.SmartContract{
 		ContractSSZ:  contractRaw,
 		Code:         code,
 		ProofEncoded: encodedProof,
 		Storage:      execution.ConvertTrieEntriesToMap(storageEntries),
 		Tokens:       execution.ConvertTrieEntriesToMap(tokenEntries),
-		AsyncContext: execution.ConvertTrieEntriesToMap(asyncContextEntries),
 	}, nil
 }
 
