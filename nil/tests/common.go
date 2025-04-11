@@ -35,7 +35,7 @@ func WaitForReceiptCommon(
 		receipt, err = client.GetInTransactionReceipt(t.Context(), hash)
 		require.NoError(t, err)
 		return check(receipt)
-	}, ReceiptWaitTimeout, ReceiptPollInterval)
+	}, BlockWaitTimeout, BlockPollInterval)
 
 	assert.Equal(t, hash, receipt.TxnHash)
 	return receipt
@@ -139,8 +139,7 @@ func WaitBlock(
 	var err error
 	require.Eventually(t, func() bool {
 		block, err = client.GetBlock(t.Context(), shardId, transport.BlockNumber(blockNum), false)
-		require.NoError(t, err)
-		return block != nil
+		return err == nil && block != nil
 	}, BlockWaitTimeout, BlockPollInterval)
 	return block
 }

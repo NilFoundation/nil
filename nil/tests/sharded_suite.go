@@ -318,14 +318,13 @@ func (s *ShardedSuite) RunArchiveNode(params *ArchiveNodeConfig) (*nilservice.Co
 	serviceName := fmt.Sprintf("archive-%d", params.Port)
 
 	cfg := &nilservice.Config{
-		AllowDbDrop:          params.AllowDbDrop,
-		NShards:              s.GetNShards(),
-		CollatorTickPeriodMs: s.Instances[0].Config.CollatorTickPeriodMs,
-		Network:              netCfg,
-		HttpUrl:              rpc.GetSockPathService(s.T(), serviceName),
-		RunMode:              nilservice.ArchiveRunMode,
-		ZeroState:            s.Instances[0].Config.ZeroState,
-		DisableConsensus:     params.DisableConsensus,
+		AllowDbDrop:      params.AllowDbDrop,
+		NShards:          s.GetNShards(),
+		Network:          netCfg,
+		HttpUrl:          rpc.GetSockPathService(s.T(), serviceName),
+		RunMode:          nilservice.ArchiveRunMode,
+		ZeroState:        s.Instances[0].Config.ZeroState,
+		DisableConsensus: params.DisableConsensus,
 	}
 
 	PatchConfigWithTestDefaults(cfg)
