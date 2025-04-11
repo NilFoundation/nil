@@ -9,6 +9,7 @@ import {
   registerContractInCometaFx,
   sendMethodFx,
 } from "../contracts/models/base";
+import { getResultDisplay } from "../contracts/utils.tsx";
 import {
   tutorialContractStepFailedEvent,
   tutorialContractStepPassedEvent,
@@ -209,7 +210,9 @@ $logs.on(callFx.doneData, (logs, { result, appName, functionName }) => {
         >{`${appName}.${functionName}()`}</MonoParagraphMedium>
       ),
       payload: (
-        <MonoParagraphMedium color={COLORS.gray400}>{`Result: ${result}`}</MonoParagraphMedium>
+        <MonoParagraphMedium
+          color={COLORS.gray400}
+        >{`Result: ${getResultDisplay(result)}`}</MonoParagraphMedium>
       ),
       timestamp: Date.now(),
     },

@@ -409,15 +409,14 @@ sample({
   filter: (source, doneData) => {
     const { activeApp, smartAccount } = source;
     const isAppAndAccountValid = !!activeApp && !!smartAccount && !!activeApp.address;
-
     const isSendMethodCalled = doneData.eventType === "sendMethod";
 
     return isAppAndAccountValid && isSendMethodCalled;
   },
   fn: ({ activeApp, params, smartAccount, valueInputs }, { functionName }) => {
     const restParams = params[functionName];
-
     let args: unknown[] = [];
+
     if (!activeApp) {
       args = [];
     } else {
@@ -428,22 +427,40 @@ sample({
           break;
         }
       }
+
       if (!abiFunction) {
         args = [];
       } else {
         const callParams = restParams;
+
         abiFunction.inputs.forEach((input, index) => {
           const name = input.name || index.toString();
-          const paramValue = callParams[name].value;
+          const param = callParams?.[name];
+          const inputValue = param?.value;
 
-          if (Array.isArray(paramValue)) {
-            args.push(paramValue.map((v) => v.value));
-          } else {
-            if (input.type === "bool") {
-              args.push(paramValue === "true");
+          if (input.type.endsWith("[]")) {
+            if (Array.isArray(inputValue)) {
+              args.push(inputValue);
+            } else if (typeof inputValue === "string") {
+              try {
+                const parsed = JSON.parse(inputValue);
+                if (Array.isArray(parsed)) {
+                  args.push(parsed);
+                } else {
+                  console.warn(`Parsed param "${name}" is not an array:`, parsed);
+                  args.push([]);
+                }
+              } catch (e) {
+                console.warn(`Invalid JSON for param "${name}":`, inputValue);
+                args.push([]);
+              }
             } else {
-              args.push(paramValue || "");
+              args.push([]);
             }
+          } else if (input.type === "bool") {
+            args.push(inputValue === "true");
+          } else {
+            args.push(inputValue || "");
           }
         });
       }
