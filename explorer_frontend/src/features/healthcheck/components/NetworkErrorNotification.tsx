@@ -1,6 +1,5 @@
 import { COLORS, Notification, WarningIcon } from "@nilfoundation/ui-kit";
 import type { FC } from "react";
-import { useMobile } from "../../shared/hooks/useMobile";
 
 export const NetworkErrorNotification: FC = () => {
   const [isMobile] = useMobile();

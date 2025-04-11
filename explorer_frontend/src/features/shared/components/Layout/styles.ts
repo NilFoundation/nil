@@ -35,8 +35,6 @@ const content = {
 const navbar = {
   width: "100%",
   display: "grid",
-  gap: "8px",
-  gridTemplateColumns: "calc(66% + 8px) 33%", // 8px - width of resize handle
   gridTemplateRows: "1fr",
   height: "auto",
   ...expandProperty("padding", "16px 0"),
@@ -47,7 +45,6 @@ const logo = {
   alignItems: "start",
   marginRight: "auto",
   ...linkOutlineStyles,
-  marginLeft: "32px",
   flexDirection: "column",
 };
 
@@ -61,6 +58,13 @@ const tutorialText = {
   marginTop: "4px",
   fontSize: "12px",
   color: COLORS.blue400,
+  fontFamily: "Inter, sans-serif",
+};
+
+const playgroundText = {
+  marginTop: "4px",
+  fontSize: "12px",
+  color: COLORS.gray400,
   fontFamily: "Inter, sans-serif",
 };
 
@@ -88,6 +92,7 @@ export const styles = {
   content,
   navLink,
   tutorialText,
+  playgroundText,
 };
 
 export const mobileContainerStyle: StyleObject = {
