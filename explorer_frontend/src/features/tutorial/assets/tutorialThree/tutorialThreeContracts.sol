@@ -5,51 +5,49 @@ pragma solidity ^0.8.21;
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 /**
- * @title Requester
+ * @title Counter
  * @author =nil; Foundation
- * @notice A contract for requesting the multiplication of two numbers.
+ * @notice A counter contract that increments a value.
  */
-contract Requester is NilBase {
-  using Nil for address;
-  uint256 private num1 = 5;
-  uint256 private num2 = 10;
-  boolean private result;
+contract Counter {
+    uint256 private value;
 
-  function requestMultiplication(address dst) public payable {
-    // TODO: create valid context and callData
-    bytes memory context = ;
-    bytes memory callData = ;
+    event ValueChanged(uint256 newValue);
 
-    Nil.sendRequest(
-      dst,
-      0,
-      Nil.ASYNC_REQUEST_MIN_GAS,
-      context,
-      callData
-    );
-  }
+    receive() external payable {}
 
-  function checkResult(bool success, bytes memory returnData, bytes memory context) 
-    public 
-    payable
-    onlyResponse
-    {
-    require(success, "Request failed!");
-    // TODO: complete the function
-  }
+    function increment() public {
+        value += 1;
+        emit ValueChanged(value);
+    }
 
-  function getResult() public view returns (bool) {
-    return result;
-  }
+    function getValue() public view returns (uint256) {
+        return value;
+    }
+
+    function verifyExternal(
+        uint256 hash,
+        bytes memory authData
+    ) external pure returns (bool) {
+        return true;
+    }
 }
 
 /**
- * @title RequestedContract
+ * @title Deployer
  * @author =nil; Foundation
- * @notice A contract for multiplying two numbers and returning the result.
+ * @notice The contract that is meant to deploy Counter.
  */
-contract RequestedContract {
-  function multiply(uint256 num1, uint256 num2) public pure returns (uint256) {
-    return num1 * num2;
-  }
+contract Deployer is NilBase {
+    constructor() public payable {}
+
+    function deposit() public payable {}
+
+    /**
+     * The function for deploying the Counter contract.
+     * @param data The bytecode of the Counter contract.
+     */
+    function deploy(bytes memory data, uint salt) public payable {
+        // TODO: complete the function
+    }
 }

@@ -122,10 +122,6 @@ type (
 		txnHash common.Hash
 		index   int
 	}
-	asyncContextChange struct {
-		account   *types.Address
-		requestId types.TransactionIndex
-	}
 )
 
 func (ch createAccountChange) revert(s IRevertableExecutionState) {
@@ -178,10 +174,6 @@ func (ch transientStorageChange) revert(s IRevertableExecutionState) {
 
 func (ch outTransactionsChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertOutTransactionsChange(ch.index, ch.txnHash)
-}
-
-func (ch asyncContextChange) revert(s IRevertableExecutionState) {
-	reverter{s}.revertAsyncContextChange(*ch.account, ch.requestId)
 }
 
 type reverter struct {
@@ -274,12 +266,4 @@ func (w reverter) revertTransientStorageChange(addr types.Address, key common.Ha
 
 func (w reverter) revertOutTransactionsChange(index int, txnHash common.Hash) {
 	w.es.DeleteOutTransaction(index, txnHash)
-}
-
-func (w reverter) revertAsyncContextChange(addr types.Address, requestId types.TransactionIndex) {
-	account, err := w.es.GetAccount(addr)
-	check.PanicIfErr(err)
-	if account != nil {
-		delete(account.AsyncContext, requestId)
-	}
 }

@@ -55,20 +55,6 @@ func (bt *BlocksTracer) PrintTransaction(txn *types.Transaction, hash common.Has
 	bt.Printf("bounceTo: %s\n", txn.BounceTo.Hex())
 	bt.Printf("value: %s\n", txn.Value)
 	bt.Printf("fee: %s\n", txn.FeeCredit)
-	if txn.IsRequestOrResponse() {
-		bt.Printf("requestId: %d\n", txn.RequestId)
-	}
-	if len(txn.RequestChain) > 0 {
-		bt.Printf("requestChain: [")
-		for i, req := range txn.RequestChain {
-			if i > 0 {
-				fmt.Fprintf(bt.file, ", %d", req.Id)
-			} else {
-				fmt.Fprintf(bt.file, "%d", req.Id)
-			}
-		}
-		fmt.Fprintln(bt.file, "]")
-	}
 	if len(txn.Data) < 1024 {
 		bt.Printf("data: %s\n", hexutil.Encode(txn.Data))
 	} else {

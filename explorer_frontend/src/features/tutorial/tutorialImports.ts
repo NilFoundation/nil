@@ -14,10 +14,6 @@ import tutorialFourContracts from "./assets/tutorialFour/tutorialFourContracts.s
 import tutorialFourIcon from "./assets/tutorialFour/tutorialFourIcon.svg";
 import tutorialFourText from "./assets/tutorialFour/tutorialFourText.md";
 
-import tutorialFiveContracts from "./assets/tutorialFive/tutorialFiveContracts.sol";
-import tutorialFiveIcon from "./assets/tutorialFive/tutorialFiveIcon.svg";
-import tutorialFiveText from "./assets/tutorialFive/tutorialFiveText.md";
-
 export {
   tutorialOneText,
   tutorialOneContracts,
@@ -31,7 +27,4 @@ export {
   tutorialFourText,
   tutorialFourContracts,
   tutorialFourIcon,
-  tutorialFiveText,
-  tutorialFiveContracts,
-  tutorialFiveIcon,
 };

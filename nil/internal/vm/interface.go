@@ -89,22 +89,11 @@ type StateDB interface {
 	// AddOutTransaction adds internal out transaction for current transaction
 	AddOutTransaction(caller types.Address, payload *types.InternalTransactionPayload) (*types.Transaction, error)
 
-	// AddOutRequestTransaction adds outbound request transaction for current transaction
-	AddOutRequestTransaction(
-		caller types.Address,
-		payload *types.InternalTransactionPayload,
-		responseProcessingGas types.Gas,
-		isAwait bool,
-	) (*types.Transaction, error)
-
 	// Get current transaction
 	GetInTransaction() *types.Transaction
 
 	// Get execution context shard id
 	GetShardID() types.ShardId
-
-	// SaveVmState saves current VM state
-	SaveVmState(state *types.EvmState, continuationGasCredit types.Gas) error
 
 	GetConfigAccessor() config.ConfigAccessor
 

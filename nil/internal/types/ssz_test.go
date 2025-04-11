@@ -72,7 +72,7 @@ func TestSszTransaction(t *testing.T) {
 	h, err := common.PoseidonSSZ(&transaction2)
 	require.NoError(t, err)
 
-	h2 := common.HexToHash("1ac6e7d9fb17cc30dee4987c5d36f89ffa5db62ca1be63c788ce6be5d309c13f")
+	h2 := common.HexToHash("16295c632994b5e1fd96118cda4b7079cbf7d166ce36ff26ed02544062d92b05")
 	require.Equal(t, h2, h)
 }
 
@@ -103,7 +103,7 @@ func TestSszSmc(t *testing.T) {
 	h, err := common.PoseidonSSZ(&smc2)
 	require.NoError(t, err)
 
-	h2 := common.HexToHash("0x2cb178ec91a69c6f1373cf97931d32de124f1352deea5fc12b9b7e7e4e40b2c2")
+	h2 := common.HexToHash("0x15e93397378829f0b317b1ed2d5c2731c9f8239c6b420a546e326aca7a4db91c")
 	require.Equal(t, h2, common.BytesToHash(h[:]))
 }
 

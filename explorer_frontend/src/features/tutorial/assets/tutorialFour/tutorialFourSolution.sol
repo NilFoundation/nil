@@ -3,51 +3,67 @@
 pragma solidity ^0.8.21;
 
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
 
 /**
- * @title Counter
+ * @title Receiver
  * @author =nil; Foundation
- * @notice A counter contract that increments a value.
+ * @notice A simple contract for storing the NFT.
  */
-contract Counter {
-    uint256 private value;
-
-    event ValueChanged(uint256 newValue);
-
-    receive() external payable {}
-
-    function increment() public {
-        value += 1;
-        emit ValueChanged(value);
-    }
-
-    function getValue() public view returns (uint256) {
-        return value;
-    }
-
-    function verifyExternal(
-        uint256 hash,
-        bytes memory authData
-    ) external pure returns (bool) {
-        return true;
-    }
+contract Receiver {
+    function deposit() public payable {}
 }
 
 /**
- * @title Deployer
+ * @title NFT
  * @author =nil; Foundation
- * @notice The contract that is meant to deploy Counter.
+ * @notice A contract representing a non-fungible token.
  */
-contract Deployer is NilBase {
-    constructor() public payable {}
+contract NFT is NilTokenBase {
+    bool private hasBeenSent = false;
+    address private owner;
+
+    constructor() public payable {
+        owner = msg.sender;
+    }
 
     function deposit() public payable {}
 
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can call this function");
+        _;
+    }
+
     /**
-     * The function for deploying the Counter contract.
-     * @param data The bytecode of the Counter contract.
+     * The function for minting the NFT.
+     * It must call mintTokenInternal().
      */
-    function deploy(bytes memory data, uint salt) public payable {
-        Nil.asyncDeploy(2, address(0), 0, data, salt);
+    function mintNFT() public {
+        require(totalSupply == 0, "NFT has already been minted");
+        require(!hasBeenSent, "NFT has already been sent");
+        mintTokenInternal(1);
+    }
+
+    /**
+     * The function for sending the NFT.
+     * It must call sendTokenInternal().
+     * @param to The address where the NFT should be sent.
+     */
+    function sendNFT(address to) public {
+        require(!hasBeenSent, "NFT has already been sent");
+        Nil.Token[] memory nft = new Nil.Token[](1);
+        nft[0].id = getTokenId();
+        nft[0].amount = 1;
+        Nil.asyncCallWithTokens(
+            to,
+            msg.sender,
+            msg.sender,
+            0,
+            Nil.FORWARD_REMAINING,
+            0,
+            nft,
+            abi.encodeWithSignature("deposit()")
+        );
+        hasBeenSent = true;
     }
 }

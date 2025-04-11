@@ -32,7 +32,6 @@ type (
 // @componentprop Token value array true "Token values."
 type Transaction struct {
 	Flags                types.TransactionFlags `json:"flags"`
-	RequestId            uint64                 `json:"requestId"`
 	Data                 hexutil.Bytes          `json:"data"`
 	From                 types.Address          `json:"from"`
 	FeeCredit            types.Value            `json:"feeCredit,omitempty"`
@@ -322,7 +321,6 @@ func (re *RPCReceipt) IsCommitted() bool {
 func NewTransaction(transaction *types.Transaction) *Transaction {
 	return &Transaction{
 		Flags:                transaction.Flags,
-		RequestId:            transaction.RequestId,
 		Data:                 hexutil.Bytes(transaction.Data),
 		From:                 transaction.From,
 		FeeCredit:            transaction.FeeCredit,
@@ -498,12 +496,11 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 // @componentprop Proof serialized data for MPT access operation proving
 // @componentprop Storage storage slice of key-value pairs of the data in storage
 type DebugRPCContract struct {
-	Code         hexutil.Bytes                                 `json:"code"`
-	Contract     hexutil.Bytes                                 `json:"contract"`
-	Proof        hexutil.Bytes                                 `json:"proof"`
-	Storage      map[common.Hash]types.Uint256                 `json:"storage,omitempty"`
-	Tokens       map[types.TokenId]types.Value                 `json:"tokens"`
-	AsyncContext map[types.TransactionIndex]types.AsyncContext `json:"asyncContext"`
+	Code     hexutil.Bytes                 `json:"code"`
+	Contract hexutil.Bytes                 `json:"contract"`
+	Proof    hexutil.Bytes                 `json:"proof"`
+	Storage  map[common.Hash]types.Uint256 `json:"storage,omitempty"`
+	Tokens   map[types.TokenId]types.Value `json:"tokens"`
 }
 
 // @component OutTransaction outTransaction object "Outbound transaction produced by eth_call and result of its execution."

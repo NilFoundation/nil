@@ -242,17 +242,13 @@ func (d *DebugHandler) PrintReceipt(receipt *ReceiptInfo, indentEntry, indent st
 	}
 
 	flags := receipt.Transaction.Flags.String()
-	if receipt.Transaction.RequestId != 0 && !receipt.Transaction.Flags.IsResponse() {
-		flags += ", Request"
-	}
-
 	fmt.Printf("%s0x%x\n", makeKeyEntry("Transaction"), receipt.Transaction.Hash)
 	if hasContract {
 		fmt.Printf("%s%s\n", makeKey("Contract"), color.MagentaString(receipt.Contract.ShortName()))
 	}
 	fmt.Printf("%s%s\n", makeKey("Flags"), color.YellowString(flags))
 	fmt.Printf("%s%s\n", makeKey("Address"), receipt.Receipt.ContractAddress.Hex())
-	if hasContract && !receipt.Transaction.Flags.GetBit(types.TransactionFlagResponse) {
+	if hasContract {
 		calldata, err := receipt.Contract.DecodeCallData(receipt.Transaction.Data)
 		if err != nil {
 			errStr := color.RedString("Failed to decode: %s", err.Error())
@@ -330,9 +326,6 @@ func (d *DebugHandler) PrintReceipt(receipt *ReceiptInfo, indentEntry, indent st
 	}
 	if !receipt.Transaction.Value.IsZero() {
 		fmt.Printf("%s%s\n", makeKey("Value"), receipt.Transaction.Value)
-	}
-	if receipt.Transaction.RequestId != 0 {
-		fmt.Printf("%s%d\n", makeKey("RequestId"), receipt.Transaction.RequestId)
 	}
 	fmt.Printf(
 		"%s%d:%d\n", makeKey("Block"), receipt.Receipt.ContractAddress.ShardId(), receipt.Transaction.BlockNumber)

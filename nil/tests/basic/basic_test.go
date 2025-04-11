@@ -555,64 +555,6 @@ func (s *SuiteRpc) TestChainCall() {
 	s.EqualValues(22, contracts.GetCounterValue(s.T(), resData), "Final value after two additions is 22")
 }
 
-func (s *SuiteRpc) TestAsyncAwaitCall() {
-	var addrCounter, addrAwait types.Address
-	s.Run("Deploy counter", func() {
-		dpCounter := contracts.CounterDeployPayload(s.T())
-		addrCounter, _ = s.DeployContractViaMainSmartAccount(types.BaseShardId, dpCounter, types.Value{})
-
-		addCalldata := contracts.NewCounterAddCallData(s.T(), 123)
-		getCalldata := contracts.NewCounterGetCallData(s.T())
-		receipt := s.SendTransactionViaSmartAccount(
-			types.MainSmartAccountAddress, addrCounter, execution.MainPrivateKey, addCalldata)
-		s.Require().True(receipt.IsCommitted())
-
-		getCallArgs := &jsonrpc.CallArgs{
-			To:   addrCounter,
-			Fee:  types.NewFeePackFromGas(10_000_000),
-			Data: (*hexutil.Bytes)(&getCalldata),
-		}
-		res, err := s.Client.Call(s.Context, getCallArgs, "latest", nil)
-		s.Require().NoError(err)
-		s.Require().EqualValues(123, contracts.GetCounterValue(s.T(), res.Data))
-	})
-
-	s.Run("Deploy await", func() {
-		dpAwait := contracts.GetDeployPayload(s.T(), contracts.NameRequestResponseTest)
-		addrAwait, _ = s.DeployContractViaMainSmartAccount(types.BaseShardId, dpAwait, tests.DefaultContractValue)
-	})
-
-	abiAwait, err := contracts.GetAbi(contracts.NameRequestResponseTest)
-	s.Require().NoError(err)
-
-	callArgs := &jsonrpc.CallArgs{
-		To:  addrAwait,
-		Fee: types.NewFeePackFromGas(1_000_000),
-	}
-
-	s.Run("Call await", func() {
-		data := s.AbiPack(abiAwait, "sumCounters", []types.Address{addrCounter})
-		receipt := s.SendExternalTransactionNoCheck(data, addrAwait)
-		s.Require().True(receipt.AllSuccess())
-
-		callArgs.Data = (*hexutil.Bytes)(&data)
-		res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
-		s.Require().NoError(err)
-		s.Nil(res.Data)
-	})
-
-	s.Run("Call await with result", func() {
-		data := s.AbiPack(abiAwait, "get")
-		callArgs.Data = (*hexutil.Bytes)(&data)
-
-		res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
-		s.Require().NoError(err)
-		value := s.AbiUnpack(abiAwait, "get", res.Data)
-		s.Require().Len(value, 1)
-		s.Require().EqualValues(123, value[0])
-	})
-}
-
 func (s *SuiteRpc) TestEmptyDeployPayload() {
 	smartAccount := types.MainSmartAccountAddress
 

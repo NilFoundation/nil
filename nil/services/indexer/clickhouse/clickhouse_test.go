@@ -61,12 +61,6 @@ func (s *SuiteClickhouse) TestTransactionWithBinaryBatching() {
 	tx := types.NewEmptyTransaction()
 	tokenId := types.TokenIdForAddress(types.Address{})
 	tx.Token = []types.TokenBalance{{*tokenId, types.NewValueFromUint64(123)}}
-	tx.RequestChain = []*types.AsyncRequestInfo{
-		{
-			Id:     123,
-			Caller: types.MainSmartAccountAddress,
-		},
-	}
 
 	txn := &TransactionWithBinary{Transaction: *tx}
 

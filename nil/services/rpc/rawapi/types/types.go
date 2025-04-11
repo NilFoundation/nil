@@ -150,5 +150,4 @@ type SmartContract struct {
 	ProofEncoded []byte
 	Storage      map[common.Hash]types.Uint256
 	Tokens       map[types.TokenId]types.Value
-	AsyncContext map[types.TransactionIndex]types.AsyncContext
 }

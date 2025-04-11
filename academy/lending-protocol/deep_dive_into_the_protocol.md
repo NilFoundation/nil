@@ -48,44 +48,7 @@ function deposit() public payable {
 
 ---
 
-#### **2. Using `sendRequest` and `sendRequestWithTokens`**
-
-The **`sendRequest`** and **`sendRequestWithTokens`** functions are used to send asynchronous requests to other contracts. These functions are crucial for non-blocking operations, allowing the protocol to continue processing. When the request is processed at the destination contract, a response is sent and the function selector encoded in the `context` is invoked along with the response data.
-
-Example of using `sendRequest`:
-
-```solidity
-bytes memory callData = abi.encodeWithSignature("getPrice(address)", borrowToken);
-bytes memory context = abi.encodeWithSelector(
-    this.processLoan.selector, msg.sender, amount, borrowToken, collateralToken
-);
-Nil.sendRequest(oracle, 0, 9_000_000, context, callData);
-```
-
-**Key Points:**
-
-- **Function Selectors:** Always use `abi.encodeWithSelector` when creating function selectors to ensure the correct function is called during the callback.
-
-```solidity
-bytes memory context = abi.encodeWithSelector(
-    this.processLoan.selector, msg.sender, amount, borrowToken, collateralToken
-);
-```
-
-- **Signature Encoding:** The function signature must match exactly, including spaces, capitalization, and parameter types. Even small errors can lead to encoding failures.
-
-```solidity
-bytes memory callData = abi.encodeWithSignature("getPrice(address)", borrowToken);
-```
-
-**Best Practices:**
-
-- **Ensure correct encoding of function signatures:** Be cautious about the spacing, capitalization, and parameter ordering. Even a small discrepancy will break the function call.
-- Always verify that the `context` you create matches the structure expected by the callback function. Mismatches can cause decoding errors during execution.
-
----
-
-#### **3. Handling Context and `asyncCall`**
+#### **2. Handling Context and `asyncCall`**
 
 The **`asyncCall`** function enables asynchronous interactions between contracts. In this example, `asyncCall` is used to record deposit information in the **GlobalLedger** contract while allowing the **LendingPool** contract to continue processing other transactions. The `asyncCall` doesnn't expect a callback and hence is a fire and forget function, where as `sendRequest` discussed above expects a callback.
 
@@ -107,7 +70,7 @@ Nil.asyncCall(globalLedger, address(this), 0, callData);
 
 ---
 
-#### **4. Be Cautious with Space and Character Sensitivity**
+#### **3. Be Cautious with Space and Character Sensitivity**
 
 Solidity is sensitive to even the smallest differences in function signatures, such as spaces or capitalization. This is crucial when working with ABI encoding functions like `abi.encodeWithSignature`.
 
@@ -136,7 +99,7 @@ This guide provides an example implementation of a decentralized lending and bor
 By following the coding practices outlined here, you can better understand how to:
 
 1. Handle `TokenId` as an `address` when interacting with other contracts.
-2. Correctly use `sendRequest` and `asyncCall` for asynchronous contract interactions.
+2. Correctly use `asyncCall` for asynchronous contract interactions.
 3. Ensure that function signatures and contexts are encoded and decoded properly.
 4. Avoid common pitfalls related to character sensitivity in ABI encoding.
 

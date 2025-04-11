@@ -22,10 +22,7 @@ export const CALLER_ASYNC_COMPILATION_COMMAND = `solc -o ./tests/CallerAsync --b
 
 export const CALLER_ASYNC_BP_COMPILATION_COMMAND = `solc -o ./tests/CallerAsyncBasicPattern --bin --abi ./tests/CallerAsyncBasicPattern.sol  --overwrite ${NODE_MODULES}`;
 
-export const ESCROW_COMPILATION_COMMAND = `solc -o ./tests/Escrow --bin --abi ./tests/Escrow.sol  --overwrite ${NODE_MODULES}`;
-
 export const VALIDATOR_COMPILATION_COMMAND = `solc -o ./tests/Validator --bin --abi ./tests/Validator.sol  --overwrite ${NODE_MODULES}`;
-export const AWAITER_COMPILATION_COMMAND = `solc -o ./tests/Awaiter --bin --abi ./tests/Awaiter.sol --overwrite ${NODE_MODULES}`;
 
 export const SWAP_MATCH_COMPILATION_COMMAND = `solc -o ./tests/SwapMatch --abi --bin ./tests/SwapMatch.sol --overwrite ${NODE_MODULES}`;
 

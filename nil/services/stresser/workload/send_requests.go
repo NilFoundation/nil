@@ -13,7 +13,6 @@ type SendRequests struct {
 	WorkloadBase `yaml:",inline"`
 	GasRange     Range `yaml:"gasRange"`
 	RequestsNum  int   `yaml:"requestsNum"`
-	AsyncCall    bool  `yaml:"asyncCall"`
 	addresses    []types.Address
 	mathodName   string
 }
@@ -25,10 +24,7 @@ func (w *SendRequests) Init(ctx context.Context, client *core.Helper, args *Work
 		w.addresses = append(w.addresses, w.getRandomContract().Address)
 	}
 	w.logger = logging.NewLogger("send_requests")
-	w.mathodName = "sendRequests"
-	if w.AsyncCall {
-		w.mathodName = "asyncCalls"
-	}
+	w.mathodName = "asyncCalls"
 	return nil
 }
 
