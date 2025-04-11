@@ -79,12 +79,7 @@ contract L2ETHBridge is L2BaseBridge, IL2ETHBridge {
     uint256 befBalance = depositRecipient.balance;
 
     // call sendEth on L2ETHBridgeVault
-    l2ETHBridgeVault.transferETHOnDepositFinalisation(depositRecipient, depositAmount);
-
-    // check for balance change of recipient
-    if (depositRecipient.balance - befBalance != depositAmount) {
-      revert ErrorIncompleteETHDeposit();
-    }
+    l2ETHBridgeVault.transferETHOnDepositFinalisation(depositRecipient, feeRefundRecipient, depositAmount);
 
     // emit FinalisedETHDepositEvent
     emit FinaliseETHDeposit(depositorAddress, depositRecipient, depositAmount);
