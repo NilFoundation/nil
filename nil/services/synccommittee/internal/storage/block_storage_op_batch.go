@@ -7,19 +7,19 @@ import (
 	"iter"
 
 	"github.com/NilFoundation/nil/nil/internal/db"
-	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
 const (
 	// batchesTable stores blocks batches produced by the Sync Committee.
-	// Key: scTypes.BatchId, Value: batchEntry.
+	// Key: types.BatchId, Value: batchEntry.
 	batchesTable db.TableName = "batches"
 )
 
 // batchOp represents the set of operations related to batches within the storage.
 type batchOp struct{}
 
-func (batchOp) putBatch(tx db.RwTx, entry *batchEntry) error {
+func (batchOp) putBatchEntry(tx db.RwTx, entry *batchEntry) error {
 	value, err := marshallEntry(entry)
 	if err != nil {
 		return fmt.Errorf("%w, id=%s", err, entry.Id)
@@ -32,7 +32,16 @@ func (batchOp) putBatch(tx db.RwTx, entry *batchEntry) error {
 	return nil
 }
 
-func (batchOp) getBatchEntry(tx db.RoTx, id scTypes.BatchId) (*batchEntry, error) {
+func (batchOp) batchExists(tx db.RwTx, batchId types.BatchId) (bool, error) {
+	key := batchId.Bytes()
+	exists, err := tx.Exists(batchesTable, key)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if batch with id=%s exists: %w", batchId, err)
+	}
+	return exists, nil
+}
+
+func (batchOp) getBatchEntry(tx db.RoTx, id types.BatchId) (*batchEntry, error) {
 	idBytes := id.Bytes()
 	value, err := tx.Get(batchesTable, idBytes)
 
@@ -43,7 +52,7 @@ func (batchOp) getBatchEntry(tx db.RoTx, id scTypes.BatchId) (*batchEntry, error
 		return nil, err
 
 	case errors.Is(err, db.ErrKeyNotFound):
-		return nil, fmt.Errorf("%w, id=%s", scTypes.ErrBatchNotFound, id)
+		return nil, fmt.Errorf("%w, id=%s", types.ErrBatchNotFound, id)
 
 	default:
 		return nil, fmt.Errorf("failed to get batch with id=%s: %w", id, err)
@@ -60,7 +69,7 @@ func (batchOp) getBatchEntry(tx db.RoTx, id scTypes.BatchId) (*batchEntry, error
 // getBatchesSeqReversed iterates through a chain of batches between two ids (boundaries included) in reverse order.
 // Batch `from` is expected to be a descendant of the batch `to`.
 func (t batchOp) getBatchesSeqReversed(
-	tx db.RoTx, from scTypes.BatchId, to scTypes.BatchId,
+	tx db.RoTx, from types.BatchId, to types.BatchId,
 ) iter.Seq2[*batchEntry, error] {
 	return func(yield func(*batchEntry, error) bool) {
 		startBatch, err := t.getBatchEntry(tx, from)
@@ -73,7 +82,7 @@ func (t batchOp) getBatchesSeqReversed(
 			return
 		}
 
-		seenBatches := make(map[scTypes.BatchId]bool)
+		seenBatches := make(map[types.BatchId]bool)
 		nextBatchId := startBatch.ParentId
 		for {
 			if nextBatchId == nil {

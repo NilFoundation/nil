@@ -187,7 +187,7 @@ func (s *ProposerTestSuite) TestStorageProposalDataRemoved() {
 	mainBlock := batch.Blocks[types.MainShardId].Latest()
 	mainBlock.ParentHash = s.testData.OldProvedStateRoot
 
-	s.Require().NoError(s.storage.SetBlockBatch(s.ctx, batch))
+	s.Require().NoError(s.storage.PutBlockBatch(s.ctx, batch))
 	s.Require().NoError(s.storage.SetBatchAsProved(s.ctx, s.testData.BatchId))
 	s.Require().NoError(s.storage.SetProvedStateRoot(s.ctx, s.testData.OldProvedStateRoot))
 

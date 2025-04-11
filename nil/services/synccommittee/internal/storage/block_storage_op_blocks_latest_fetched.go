@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -51,10 +53,15 @@ func (blockLatestFetchedOp) putLatestFetchedRef(tx db.RwTx, shardId types.ShardI
 	key := marshallShardId(shardId)
 
 	if blockRef == nil {
-		if err := tx.Delete(latestFetchedTable, key); err != nil {
+		err := tx.Delete(latestFetchedTable, key)
+		switch {
+		case err == nil || errors.Is(err, db.ErrKeyNotFound):
+			return nil
+		case errors.Is(err, context.Canceled):
+			return err
+		default:
 			return fmt.Errorf("failed to delete latest fetched ref, shardId=%d: %w", shardId, err)
 		}
-		return nil
 	}
 
 	bytes, err := json.Marshal(blockRef)
@@ -66,15 +73,6 @@ func (blockLatestFetchedOp) putLatestFetchedRef(tx db.RwTx, shardId types.ShardI
 	err = tx.Put(latestFetchedTable, key, bytes)
 	if err != nil {
 		return fmt.Errorf("failed to put block ref with hash=%s: %w", blockRef.Hash.String(), err)
-	}
-	return nil
-}
-
-func (t blockLatestFetchedOp) putLatestFetchedRefs(tx db.RwTx, refs scTypes.BlockRefs) error {
-	for _, ref := range refs {
-		if err := t.putLatestFetchedRef(tx, ref.ShardId, &ref); err != nil {
-			return err
-		}
 	}
 	return nil
 }

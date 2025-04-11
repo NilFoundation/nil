@@ -104,7 +104,7 @@ func (s *AggregatorTestSuite) TearDownSuite() {
 
 func (s *AggregatorTestSuite) Test_No_New_Blocks_To_Fetch() {
 	batch := testaide.NewBlockBatch(testaide.ShardsCount)
-	err := s.blockStorage.SetBlockBatch(s.ctx, batch)
+	err := s.blockStorage.PutBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
 	testaide.ClientMockSetBatches(s.rpcClientMock, []*scTypes.BlockBatch{batch})
@@ -129,7 +129,7 @@ func (s *AggregatorTestSuite) Test_Main_Parent_Hash_Mismatch() {
 
 	// Set first 2 batches as proved
 	for _, provedBatch := range batches[:2] {
-		err := s.blockStorage.SetBlockBatch(s.ctx, provedBatch)
+		err := s.blockStorage.PutBlockBatch(s.ctx, provedBatch)
 		s.Require().NoError(err)
 		err = s.blockStorage.SetBatchAsProved(s.ctx, provedBatch.Id)
 		s.Require().NoError(err)
@@ -176,7 +176,7 @@ func (s *AggregatorTestSuite) Test_Fetch_At_Zero_State() {
 
 func (s *AggregatorTestSuite) Test_Fetch_Next_Valid() {
 	batches := testaide.NewBatchesSequence(2)
-	err := s.blockStorage.SetBlockBatch(s.ctx, batches[0])
+	err := s.blockStorage.PutBlockBatch(s.ctx, batches[0])
 	s.Require().NoError(err)
 	nextMainBlock := batches[1].LatestMainBlock()
 
@@ -195,7 +195,7 @@ func (s *AggregatorTestSuite) Test_Block_Storage_Capacity_Exceeded() {
 	batches := testaide.NewBatchesSequence(2)
 	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
 
-	err := blockStorage.SetBlockBatch(s.ctx, batches[0])
+	err := blockStorage.PutBlockBatch(s.ctx, batches[0])
 	s.Require().NoError(err)
 
 	agg := s.newTestAggregator(blockStorage)

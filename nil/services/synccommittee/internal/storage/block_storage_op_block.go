@@ -40,6 +40,15 @@ func (bs blockOp) getBlock(tx db.RoTx, id scTypes.BlockId, required bool) (*bloc
 	return bs.getBlockBytesId(tx, id.Bytes(), required)
 }
 
+func (blockOp) blockExists(tx db.RoTx, id scTypes.BlockId) (bool, error) {
+	key := id.Bytes()
+	exists, err := tx.Exists(blocksTable, key)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if block with id=%s exists: %w", id, err)
+	}
+	return exists, nil
+}
+
 func (blockOp) getBlockBytesId(tx db.RoTx, idBytes []byte, required bool) (*blockEntry, error) {
 	value, err := tx.Get(blocksTable, idBytes)
 

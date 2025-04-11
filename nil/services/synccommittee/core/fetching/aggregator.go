@@ -37,7 +37,7 @@ type AggregatorBlockStorage interface {
 	GetLatestFetched(ctx context.Context) (types.BlockRefs, error)
 	TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error)
 	TryGetLatestBatch(ctx context.Context) (*types.BlockBatch, error)
-	SetBlockBatch(ctx context.Context, batch *types.BlockBatch) error
+	PutBlockBatch(ctx context.Context, batch *types.BlockBatch) error
 	GetFreeSpaceBatchCount(ctx context.Context) (uint32, error)
 	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
 }
@@ -374,7 +374,8 @@ func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 	}
 
 	mainRef := latestFetched.TryGetMain()
-	if err := mainRef.ValidateNext(batch.EarliestMainBlock()); err != nil {
+	batchEarliestMain := batch.EarliestMainBlock()
+	if err := mainRef.ValidateNext(batchEarliestMain); err != nil {
 		return err
 	}
 
@@ -384,7 +385,7 @@ func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 	}
 	batch = batch.WithDataProofs(dataProofs)
 
-	if err := agg.blockStorage.SetBlockBatch(ctx, batch); err != nil {
+	if err := agg.blockStorage.PutBlockBatch(ctx, batch); err != nil {
 		return fmt.Errorf("error storing block batch, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
 	}
 

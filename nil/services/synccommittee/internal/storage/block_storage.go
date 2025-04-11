@@ -194,24 +194,44 @@ func (bs *BlockStorage) GetFreeSpaceBatchCount(ctx context.Context) (uint32, err
 	return bs.config.StoredBatchesLimit - batchCount, nil
 }
 
-func (bs *BlockStorage) SetBlockBatch(ctx context.Context, batch *scTypes.BlockBatch) error {
+// PutBlockBatch creates a new batch in the storage or updates an existing one.
+func (bs *BlockStorage) PutBlockBatch(ctx context.Context, batch *scTypes.BlockBatch) error {
 	if batch == nil {
 		return errors.New("batch cannot be nil")
 	}
 
 	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
-		return bs.setBlockBatchImpl(ctx, batch)
+		return bs.putBlockBatchImpl(ctx, batch)
 	})
 }
 
-func (bs *BlockStorage) setBlockBatchImpl(ctx context.Context, batch *scTypes.BlockBatch) error {
+func (bs *BlockStorage) putBlockBatchImpl(ctx context.Context, batch *scTypes.BlockBatch) error {
 	tx, err := bs.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	if err := bs.validateBatchSequencing(tx, batch); err != nil {
+	batchExists, err := bs.ops.batchExists(tx, batch.Id)
+	if err != nil {
+		return err
+	}
+
+	if !batchExists {
+		if err := bs.ops.addStoredCount(tx, 1, bs.config); err != nil {
+			return err
+		}
+		if err := bs.ops.updateLatestBatchId(tx, batch); err != nil {
+			return err
+		}
+	}
+
+	currentLatestRefs, err := bs.ops.getLatestFetched(tx)
+	if err != nil {
+		return err
+	}
+
+	if err := bs.validateBatchSequencing(tx, currentLatestRefs, batch); err != nil {
 		return err
 	}
 
@@ -219,35 +239,59 @@ func (bs *BlockStorage) setBlockBatchImpl(ctx context.Context, batch *scTypes.Bl
 		return err
 	}
 
-	latestFetched := batch.LatestRefs()
-	if err := bs.ops.putLatestFetchedRefs(tx, latestFetched); err != nil {
-		return err
-	}
-
-	if err := bs.ops.updateLatestBatchId(tx, batch); err != nil {
+	if err := bs.updateLatestFetched(tx, currentLatestRefs, batch); err != nil {
 		return err
 	}
 
 	return bs.commit(tx)
 }
 
-func (bs *BlockStorage) validateBatchSequencing(tx db.RoTx, batch *scTypes.BlockBatch) error {
-	currentLatestRefs, err := bs.ops.getLatestFetched(tx)
-	if err != nil {
-		return err
-	}
-
-	for shard, batchParentRef := range batch.ParentRefs() {
+func (bs *BlockStorage) updateLatestFetched(
+	tx db.RwTx,
+	currentLatestRefs scTypes.BlockRefs,
+	batch *scTypes.BlockBatch,
+) error {
+	for shard, batchEarliestRef := range batch.LatestRefs() {
 		currentLatestRef := currentLatestRefs.TryGet(shard)
-
-		if currentLatestRef == nil || batchParentRef.Equals(currentLatestRef) {
+		if currentLatestRef != nil && currentLatestRef.Number >= batchEarliestRef.Number {
 			continue
 		}
 
-		return fmt.Errorf(
-			"%w, id=%s: parent ref %s does not match current ref %s",
-			scTypes.ErrBatchMismatch, batch.Id, batchParentRef, currentLatestRef,
-		)
+		if err := bs.ops.putLatestFetchedRef(tx, batchEarliestRef.ShardId, &batchEarliestRef); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (bs *BlockStorage) validateBatchSequencing(
+	tx db.RoTx,
+	currentLatestRefs scTypes.BlockRefs,
+	batch *scTypes.BlockBatch,
+) error {
+	for shard, block := range batch.EarliestBlocks() {
+		blockId := scTypes.IdFromBlock(block)
+		alreadyExists, err := bs.ops.blockExists(tx, blockId)
+		if err != nil {
+			return err
+		}
+		if alreadyExists {
+			// block has already been saved, no need to validate sequencing
+			continue
+		}
+
+		currentRef := currentLatestRefs.TryGet(shard)
+		if currentRef == nil {
+			// no blocks fetched in shard, no need to validate
+			continue
+		}
+
+		if err := currentRef.ValidateNext(block); err != nil {
+			return fmt.Errorf(
+				"%w, batchId=%s, shardId=%s: latestFetched=%s, batchEarliest=%s",
+				scTypes.ErrBatchMismatch, batch.Id, shard, currentRef, scTypes.BlockToRef(block),
+			)
+		}
 	}
 
 	return nil
@@ -282,7 +326,7 @@ func (bs *BlockStorage) setBatchAsProvedImpl(ctx context.Context, batchId scType
 	}
 
 	entry.IsProved = true
-	if err := bs.ops.putBatch(tx, entry); err != nil {
+	if err := bs.ops.putBatchEntry(tx, entry); err != nil {
 		return false, err
 	}
 
@@ -463,10 +507,10 @@ func (bs *BlockStorage) resetBatchesPartialImpl(
 }
 
 // unsetBlockBatch removes a batch from storage and resets all related state to the parent batch.
-// This operation completely rolls back the effects of setBlockBatchImpl.
+// This operation completely rolls back the effects of putBlockBatchImpl.
 //
 // In the following example, the storage returns to its initial state:
-// setBlockBatchImpl(A) -> setBlockBatchImpl(B) -> unsetBlockBatch(B) -> unsetBlockBatch(A)
+// putBlockBatchImpl(A) -> putBlockBatchImpl(B) -> unsetBlockBatch(B) -> unsetBlockBatch(A)
 func (bs *BlockStorage) unsetBlockBatch(tx db.RwTx, batch *batchEntry) error {
 	if err := bs.deleteBatchWithBlocks(tx, batch); err != nil {
 		return err
@@ -533,14 +577,10 @@ func (bs *BlockStorage) deleteBatches(tx db.RwTx, skipFilter func(batch *batchEn
 }
 
 func (bs *BlockStorage) putBatchWithBlocks(tx db.RwTx, batch *scTypes.BlockBatch) error {
-	if err := bs.ops.addStoredCount(tx, 1, bs.config); err != nil {
-		return err
-	}
-
 	currentTime := bs.clock.Now()
 
 	entry := newBatchEntry(batch, currentTime)
-	if err := bs.ops.putBatch(tx, entry); err != nil {
+	if err := bs.ops.putBatchEntry(tx, entry); err != nil {
 		return err
 	}
 
