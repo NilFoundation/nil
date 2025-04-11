@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { createRPCClient } from "./rpcClient.js";
+import { createRPCClient } from "./createRPCClient.js";
 
 const endpoint = "http://127.0.0.1:8529";
 

@@ -1,39 +1,38 @@
-import { Client, HTTPTransport, RequestManager } from "@open-rpc/client-js";
-import fetch from "isomorphic-fetch";
-import { isValidHttpHeaders } from "../utils/rpc.js";
-import { version } from "../version.js";
+interface RequestArguments {
+  readonly method: string;
+  readonly params?: readonly unknown[] | object;
+  readonly id?: number;
+  jsonrpc?: "2.0";
+}
 
-/**
- * The options for the RPC client.
- */
-type RPCClientOptions = {
-  signal?: AbortSignal;
-  headers?: Record<string, string>;
-};
+class RPCClient {
+  private endpoint: string;
+  private headers: Record<string, string>;
+  private signal?: AbortSignal;
 
-/**
- * Creates a new RPC client to interact with the network using the RPC API.
- * The RPC client uses an HTTP transport to send requests to the network.
- * HTTP is currently the only supported transport.
- * @example const client = createRPCClient(RPC_ENDPOINT);
- */
-const createRPCClient = (endpoint: string, { signal, headers = {} }: RPCClientOptions = {}) => {
-  const fetcher: typeof fetch = (url, options) => {
-    return fetch(url, { ...options, signal });
-  };
-
-  isValidHttpHeaders(headers);
-
-  const transport = new HTTPTransport(endpoint, {
-    headers: {
+  constructor(endpoint: string, { signal, headers = {} }: { signal?: AbortSignal; headers?: Record<string, string> } = {}) {
+    this.endpoint = endpoint;
+    this.headers = {
       "Client-Version": `niljs/${version}`,
       ...headers,
-    },
-    fetcher,
-  });
+    };
+    this.signal = signal;
+  }
 
-  const requestManager = new RequestManager([transport]);
-  return new Client(requestManager);
-};
+  async request({ method, params }: RequestArguments): Promise<any> {
+    const response = await fetch(this.endpoint, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify({ method, params }),
+      signal: this.signal,
+    });
 
-export { createRPCClient };
+    if (!response.ok) {
+      throw new Error(`Error: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+}
+
+export { RPCClient};

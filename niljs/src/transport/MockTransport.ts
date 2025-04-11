@@ -34,15 +34,6 @@ class MockTransport implements ITransport {
   }
 
   /**
-   * Connects to the network.
-   *
-   * @public
-   */
-  public connect(): void {
-    //
-  }
-
-  /**
    * Closes the connection to the network.
    *
    * @public

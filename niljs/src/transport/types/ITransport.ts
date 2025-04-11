@@ -12,11 +12,6 @@ abstract class ITransport {
   abstract request<T>(requestObject: RequestArguments): Promise<T>;
 
   /**
-   * Connects to the network.
-   */
-  abstract connect(): void;
-
-  /**
    * Closes the connection to the network.
    */
   abstract closeConnection(): void;

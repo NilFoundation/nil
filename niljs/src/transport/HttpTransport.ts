@@ -1,6 +1,6 @@
 import type { Client as RPCClient } from "@open-rpc/client-js";
 import type { RequestArguments } from "@open-rpc/client-js/build/ClientInterface.js";
-import { createRPCClient } from "../rpc/rpcClient.js";
+import { createRPCClient } from "../rpc/createRPCClient.js";
 import type { IHttpTransportConfig } from "./types/IHttpTransportConfig.js";
 import type { ITransport } from "./types/ITransport.js";
 
@@ -33,8 +33,13 @@ class HttpTransport implements ITransport {
    * @constructor
    * @param {IHttpTransportConfig} config The transport config. See {@link IHttpTransportConfig}.
    */
-  constructor({ endpoint, signal, timeout = 20000, headers }: IHttpTransportConfig) {
-    this.rpcClient = createRPCClient(endpoint, { signal, headers });
+  constructor({
+    endpoint,
+    fetcher,
+    timeout = 20000,
+    headers,
+  }: IHttpTransportConfig) {
+    this.rpcClient = createRPCClient(endpoint, { headers, fetcher });
     this.timeout = timeout;
   }
 
@@ -49,15 +54,6 @@ class HttpTransport implements ITransport {
    */
   public async request<T>(requestObject: RequestArguments): Promise<T> {
     return this.rpcClient.request(requestObject, this.timeout);
-  }
-
-  /**
-   * Connects to the network.
-   *
-   * @public
-   */
-  public connect(): void {
-    //
   }
 
   /**

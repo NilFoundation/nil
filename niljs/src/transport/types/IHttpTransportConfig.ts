@@ -15,12 +15,13 @@ type IHttpTransportConfig = {
    */
   timeout?: number;
   /**
-   * The signal to abort the request.
-   * If the signal is aborted, the request will be aborted.
-   * @example new AbortSignal()
-   * @default undefined
+   * The fetch function to be used for making requests.
+   * This is useful for testing purposes and leveraging signals/etc.
+   * @example
+   * import fetch from 'isomorphic-fetch';
+   * @default fetch
    */
-  signal?: AbortSignal;
+  fetcher?: typeof fetch;
   /**
    * The headers to be sent with the request.
    * @example { 'My-header': 'my-value' }
