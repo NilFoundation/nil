@@ -18,6 +18,7 @@ import { IBridge } from "../interfaces/IBridge.sol";
 import { IL1BridgeMessenger } from "./interfaces/IL1BridgeMessenger.sol";
 import { INilGasPriceOracle } from "./interfaces/INilGasPriceOracle.sol";
 import { L1BaseBridge } from "./L1BaseBridge.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 /// @title L1ERC20Bridge
 /// @notice The `L1ERC20Bridge` contract for ERC20Bridging in L1.
@@ -184,6 +185,14 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
     );
   }
 
+  function finaliseWithdrawERC20(
+    address l1Token,
+    address l2Token,
+    address l2Withdrawer,
+    address l1WithdrawRecipient,
+    uint256 withdrawalAmount
+  ) public {}
+
   /*//////////////////////////////////////////////////////////////////////////
                          RESTRICTED FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
@@ -309,7 +318,7 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
       IL2EnshrinedTokenBridge.finaliseERC20Deposit,
       (
         _depositMessageParams.l1Token,
-        _depositMessageParams.l2Token,
+        TokenId.wrap(_depositMessageParams.l2Token), // Explicitly cast address to TokenId
         _depositMessageParams.depositorAddress,
         _depositMessageParams.depositAmount,
         _depositMessageParams.l2DepositRecipient,

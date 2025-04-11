@@ -24,7 +24,7 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
 
   /// @notice Mapping from enshrined-token-address to layer-1 ERC20-TokenAddress.
   // solhint-disable-next-line var-name-mixedcase
-  mapping(address => address) public tokenMapping;
+  mapping(TokenId => address) public tokenMapping;
 
   /// @dev The storage slots for future usage.
   uint256[50] private __gap;
@@ -59,7 +59,7 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
                              PUBLIC CONSTANT FUNCTIONS   
     //////////////////////////////////////////////////////////////////////////*/
 
-  function getL1ERC20Address(address l2Token) external view override returns (address) {
+  function getL1ERC20Address(TokenId l2Token) external view override returns (address) {
     return tokenMapping[l2Token];
   }
 
@@ -67,9 +67,20 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
                              PUBLIC MUTATING FUNCTIONS   
     //////////////////////////////////////////////////////////////////////////*/
 
+  /**
+   * @notice Finalizes an ERC20 deposit from L1 to L2.
+   * @dev Mints tokens to the current contract and initiates an async request to transfer them to the deposit recipient.
+   * @param l1Token The address of the ERC20 token on L1.
+   * @param l2Token The address of the corresponding ERC20 token on L2.
+   * @param depositor The address of the depositor on L1.
+   * @param depositAmount The amount of tokens deposited.
+   * @param depositRecipient The address of the recipient on L2.
+   * @param feeRefundRecipient The address to refund any excess fees on L2.
+   * @param additionalData Additional data for processing the deposit.
+   */
   function finaliseERC20Deposit(
     address l1Token,
-    address l2Token,
+    TokenId l2Token,
     address depositor,
     uint256 depositAmount,
     address depositRecipient,
@@ -80,19 +91,35 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
       revert ErrorInvalidL1TokenAddress();
     }
 
-    // TODO - check if the l1TokenAddress is a contract address
-    // TODO - check if the l2TokenAddress exists and is a contract
-    // TODO - if the L1Token address mapping doesnot exist, it means the L2Token is to be created
-    // TODO - Mapping for L1TokenAddress to be set
-
-    if (l1Token != tokenMapping[l2Token]) {
+    if (tokenMapping[l2Token] != address(0) && l1Token != tokenMapping[l2Token]) {
       revert ErrorL1TokenAddressMismatch();
     }
 
-    /// @notice Encoding the context to process the loan after the price is fetched
-    /// @dev The context contains the borrower’s details, loan amount, borrow token, and collateral token.
-    bytes memory tokenTransferContext = abi.encodeWithSelector(
-      this.handleTokenTransferResponse.selector,
+    if (tokenMapping[l2Token] == address(0)) {
+      // TODO - check if the l1TokenAddress is a contract address
+      // TODO - check if the l2TokenAddress exists and is a contract
+      // TODO - if the L1Token address mapping doesnot exist, it means the L2Token is to be created
+      // TODO - Mapping for L1TokenAddress to be set
+    }
+
+    /// @notice Prepare a call to the token contract to mint the tokens
+    bytes memory mintCallData = abi.encodeWithSignature("mintTokenInternal(uint256)", depositAmount);
+    Nil.Token[] memory emptyTokens;
+    (bool success, bytes memory result) = Nil.syncCall(
+      TokenId.unwrap(l2Token),
+      gasleft(),
+      0,
+      emptyTokens,
+      mintCallData
+    );
+
+    if (!success) {
+      revert ErrorMintTokenFailed();
+    }
+
+    //NilTokenBase.sendTokenInternal(depositRecipient, l2Token, depositAmount);
+
+    emit FinalizedDepositERC20(
       l1Token,
       l2Token,
       depositor,
@@ -101,42 +128,49 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
       feeRefundRecipient,
       additionalData
     );
-
-    /// @notice Prepare a call to the token contract to mint the tokens
-    bytes memory mintCallData = abi.encodeWithSignature("mintTokenInternal(uint256)", depositAmount);
-
-    /// @notice Send a request to the Oracle to get the price of the borrow token.
-    /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
-    Nil.sendRequest(l2Token, 0, Nil.ASYNC_REQUEST_MIN_GAS, tokenTransferContext, mintCallData);
   }
 
-  function handleTokenTransferResponse(bool success, bytes memory returnData, bytes memory context) public {
-    /// @notice Ensure the Oracle call was successful
-    /// @dev Verifies that the price data was successfully retrieved from the Oracle.
-    require(success, "token call failed");
+  function withdrawEnshrinedToken(address l1WithdrawRecipient, uint256 withdrawalAmount) public {
+    // validate for l1WithdrawalRecipient
+    if (!l1WithdrawRecipient.isContract()) {
+      revert ErrorInvalidAddress();
+    }
 
-    /// @notice Decode the context to extract borrower details, loan amount, and collateral token
-    /// @dev Decodes the context passed from the borrow function to retrieve necessary data.
-    (
-      TokenId l1Token,
-      TokenId l2Token,
-      address depositor,
-      uint256 depositAmount,
-      address depositRecipient,
-      address feeRefundRecipient,
-      bytes memory additionalData
-    ) = abi.decode(context, (TokenId, TokenId, address, uint256, address, address, bytes));
+    // validate the withdrawalAmount
+    if (withdrawalAmount == 0) {
+      revert ErrorInvalidAmount();
+    }
 
-    NilTokenBase.sendTokenInternal(depositRecipient, l2Token, depositAmount);
+    /// @notice Retrieve the tokens being sent in the transaction
+    Nil.Token[] memory tokens = Nil.txnTokens();
 
-    emit FinalizeDepositERC20(
-      l1Token,
-      l2Token,
-      depositor,
-      depositAmount,
-      depositRecipient,
-      feeRefundRecipient,
-      additionalData
+    // check if the l1Token exists for the TokenId in NilToken being withdrawn
+    if (tokenMapping[tokens[0].id] == address(0)) {
+      revert ErrorNoL1TokenMapping();
+    }
+
+    /// @dev declare an empty list of tokens (to be sent on to destination address)
+    Nil.Token[] memory tokenList;
+
+    Nil.syncCall(
+      TokenId.unwrap(tokens[0].id), // destination address
+      gasleft(), //gas
+      0, // value
+      tokenList, // empty token List
+      abi.encodeWithSignature("burnTokenInternal(uint256)", withdrawalAmount) // calldata
+    );
+
+    // Generate message to be executed on L1ETHBridge
+    bytes memory message = abi.encodeCall(
+      IL1ERC20Bridge.finaliseWithdrawERC20,
+      (TokenId.unwrap(tokens[0].id), tokenMapping[tokens[0].id], _msgSender(), l1WithdrawRecipient, withdrawalAmount)
+    );
+
+    // Send message to L2BridgeMessenger.
+    bytes32 messageHash = IL2BridgeMessenger(messenger).sendMessage(
+      NilConstants.MessageType.WITHDRAW_ENSHRINED_TOKEN,
+      counterpartyBridge,
+      message
     );
   }
 
@@ -145,8 +179,8 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc IL2EnshrinedTokenBridge
-  function setTokenMapping(address l2EnshrinedTokenAddress, address l1TokenAddress) external override onlyOwnerOrAdmin {
-    if (!l2EnshrinedTokenAddress.isContract() || !l1TokenAddress.isContract()) {
+  function setTokenMapping(TokenId l2EnshrinedTokenAddress, address l1TokenAddress) external override onlyOwnerOrAdmin {
+    if (!l1TokenAddress.isContract()) {
       revert ErrorInvalidTokenAddress();
     }
 

@@ -10,6 +10,16 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
                              ERRORS   
     //////////////////////////////////////////////////////////////////////////*/
 
+  error ErrorTokenMintFailed();
+
+  error ErrorTokenTransferFailed();
+
+  error ErrorNoL1TokenMapping();
+
+  error ErrorMintTokenFailed();
+
+  error ErrorInvalidAmount();
+
   /*//////////////////////////////////////////////////////////////////////////
                              EVENTS   
     //////////////////////////////////////////////////////////////////////////*/
@@ -17,7 +27,7 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
   /// @notice Emitted when the token mapping is updated
   /// @param l2EnshrinedTokenAddress The address of the enshrined token on L2
   /// @param l1TokenAddress The address of the corresponding token on L1
-  event TokenMappingUpdated(address indexed l2EnshrinedTokenAddress, address indexed l1TokenAddress);
+  event TokenMappingUpdated(TokenId indexed l2EnshrinedTokenAddress, address indexed l1TokenAddress);
 
   /// @notice Emitted when ERC20 token is deposited from L1 to L2 and transfer to recipient.
   /// @param l1Token The address of the token in L1.
@@ -27,8 +37,8 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
   /// @param depositRecipient The address of recipient in L2.
   /// @param feeRefundRecipient The address of recipient for fee-refund on L2.
   /// @param data The optional calldata passed to recipient in L2.
-  event FinalizeDepositERC20(
-    TokenId indexed l1Token,
+  event FinalizedDepositERC20(
+    address indexed l1Token,
     TokenId indexed l2Token,
     address indexed depositor,
     uint256 depositAmount,
@@ -43,7 +53,7 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
 
   /// @notice Return the corresponding l1 token address given l2 token address.
   /// @param l2Token The address of l2 token.
-  function getL1ERC20Address(address l2Token) external view returns (address);
+  function getL1ERC20Address(TokenId l2Token) external view returns (address);
 
   /*//////////////////////////////////////////////////////////////////////////
                              PUBLIC MUTATION FUNCTIONS   
@@ -62,7 +72,7 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
   /// @param additionalData Optional data to hold token-metadata
   function finaliseERC20Deposit(
     address l1Token,
-    address l2Token,
+    TokenId l2Token,
     address depositor,
     uint256 depositAmount,
     address depositRecipient,
@@ -73,5 +83,5 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
   /// @notice Sets the token mapping between L2 enshrined token and L1 token
   /// @param l2EnshrinedTokenAddress The address of the enshrined token on L2
   /// @param l1TokenAddress The address of the corresponding token on L1
-  function setTokenMapping(address l2EnshrinedTokenAddress, address l1TokenAddress) external;
+  function setTokenMapping(TokenId l2EnshrinedTokenAddress, address l1TokenAddress) external;
 }
