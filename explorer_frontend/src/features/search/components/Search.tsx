@@ -24,6 +24,7 @@ const Search = () => {
         width: "100%",
         position: "relative",
         zIndex: 2,
+        flex: 1,
       })}
     >
       <Input
@@ -50,6 +51,7 @@ const Search = () => {
               ":hover": {
                 backgroundColor: theme.colors.inputButtonAndDropdownOverrideBackgroundHoverColor,
               },
+              width: "100%",
             },
           },
         }}

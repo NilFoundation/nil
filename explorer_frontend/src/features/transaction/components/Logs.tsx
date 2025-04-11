@@ -3,6 +3,7 @@ import { ParagraphLarge, ParagraphSmall } from "baseui/typography";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { FC } from "react";
 import { type StyleObject, useStyletron } from "styletron-react";
+import { scrollableContentStyles } from "../../../styleHelpers";
 import { addressRoute } from "../../routing";
 import { Card, Link, addHexPrefix } from "../../shared";
 import type { TransactionLog } from "../types/TransactionLog";
@@ -34,6 +35,7 @@ const styles = {
     height: "100%",
     width: "100%",
     flexGrow: 1,
+    ...scrollableContentStyles,
   },
   infoContainer: {
     display: "flex",
@@ -76,25 +78,27 @@ export const Logs: FC<LogsProps> = ({ logs }) => {
         <div className={css(styles.logsContainer)}>
           {logs.map((log) => (
             <Card key={log.transaction_hash}>
-              <div className={css(styles.contaier)}>
-                <ParagraphSmall color={COLORS.gray400}>Address:</ParagraphSmall>
-                <div className={css(styles.infoContainer)}>
-                  <ParagraphSmall>
-                    <Link
-                      to={addressRoute}
-                      params={{
-                        address: addHexPrefix(log.address.toLowerCase()),
-                      }}
-                    >
-                      {addHexPrefix(log.address.toLowerCase())}
-                    </Link>
-                  </ParagraphSmall>
-                  <CopyButton textToCopy={addHexPrefix(log.address.toLowerCase())} />
+              <div className={css(scrollableContentStyles)}>
+                <div className={css(styles.contaier)}>
+                  <ParagraphSmall color={COLORS.gray400}>Address:</ParagraphSmall>
+                  <div className={css(styles.infoContainer)}>
+                    <ParagraphSmall>
+                      <Link
+                        to={addressRoute}
+                        params={{
+                          address: addHexPrefix(log.address.toLowerCase()),
+                        }}
+                      >
+                        {addHexPrefix(log.address.toLowerCase())}
+                      </Link>
+                    </ParagraphSmall>
+                    <CopyButton textToCopy={addHexPrefix(log.address.toLowerCase())} />
+                  </div>
+                  <ParagraphSmall color={COLORS.gray400}>Topics:</ParagraphSmall>
+                  <div>{getTopics(log, css)}</div>
+                  <ParagraphSmall color={COLORS.gray400}>Data:</ParagraphSmall>
+                  <div className={css(styles.data)}>{log.data}</div>
                 </div>
-                <ParagraphSmall color={COLORS.gray400}>Topics:</ParagraphSmall>
-                <div>{getTopics(log, css)}</div>
-                <ParagraphSmall color={COLORS.gray400}>Data:</ParagraphSmall>
-                <div className={css(styles.data)}>{log.data}</div>
               </div>
             </Card>
           ))}

@@ -8,6 +8,7 @@ import {
 import { useStyletron } from "baseui";
 import type { ReactNode } from "react";
 import { StyledList } from "..";
+import { getTabletStyles } from "../../../styleHelpers";
 
 export type MobileConvertableTable = {
   columns: ReactNode[];
@@ -62,31 +63,40 @@ export const MobileConvertableTable = ({ columns, data, isMobile }: MobileConver
   return (
     <div
       className={css({
-        width: "100%",
         flexGrow: 1,
-        overflow: "hidden",
+        overflowX: "auto",
       })}
     >
-      <TableSemantic
-        size={TABLE_SIZE.compact}
-        horizontalScrollWidth="100%"
-        columns={columns}
-        data={data}
-        emptyTransaction="No transactions"
-        overrides={{
-          Root: {
-            style: () => ({
-              backgroundColor: COLORS.gray900,
-            }),
-          },
-          Table: {
-            style: () => ({
-              tableLayout: "fixed",
-              width: "100%",
-            }),
-          },
-        }}
-      />
+      <div
+        className={css({
+          ...getTabletStyles({
+            minWidth: "1020px",
+            maxWidth: "100%",
+            width: "100%",
+          }),
+        })}
+      >
+        <TableSemantic
+          size={TABLE_SIZE.compact}
+          horizontalScrollWidth="100%"
+          columns={columns}
+          data={data}
+          emptyTransaction="No transactions"
+          overrides={{
+            Root: {
+              style: () => ({
+                backgroundColor: COLORS.gray900,
+              }),
+            },
+            Table: {
+              style: () => ({
+                tableLayout: "fixed",
+                width: "100%",
+              }),
+            },
+          }}
+        />
+      </div>
     </div>
   );
 };
