@@ -126,7 +126,7 @@ func (s *BlockStorageTestSuite) Test_SetBlockBatch_Free_Capacity_On_SetBatchAsPr
 	err = storage.SetBatchAsProved(s.ctx, provedBatchId)
 	s.Require().NoError(err)
 
-	err = storage.SetProvedStateRoot(s.ctx, provedBatch.FirstMainBlock().ParentHash)
+	err = storage.SetProvedStateRoot(s.ctx, provedBatch.EarliestMainBlock().ParentHash)
 	s.Require().NoError(err)
 
 	err = storage.SetBatchAsProposed(s.ctx, provedBatchId)
@@ -136,21 +136,21 @@ func (s *BlockStorageTestSuite) Test_SetBlockBatch_Free_Capacity_On_SetBatchAsPr
 	s.Require().NoError(err)
 }
 
-func (s *BlockStorageTestSuite) Test_TryGetLatestBatchId() {
+func (s *BlockStorageTestSuite) Test_TryGetLatestBatch() {
 	const batchesCount = 5
 	batches := testaide.NewBatchesSequence(batchesCount)
 
-	latestBatchId, err := s.bs.TryGetLatestBatchId(s.ctx)
+	latestBatch, err := s.bs.TryGetLatestBatch(s.ctx)
 	s.Require().NoError(err)
-	s.Require().Nil(latestBatchId)
+	s.Require().Nil(latestBatch)
 
 	for _, batch := range batches {
 		err := s.bs.SetBlockBatch(s.ctx, batch)
 		s.Require().NoError(err)
 
-		latestBatchId, err := s.bs.TryGetLatestBatchId(s.ctx)
+		latestBatch, err := s.bs.TryGetLatestBatch(s.ctx)
 		s.Require().NoError(err)
-		s.Equal(&batch.Id, latestBatchId)
+		s.Equal(batch, latestBatch)
 	}
 }
 
@@ -174,7 +174,7 @@ func (s *BlockStorageTestSuite) Test_BatchExists_False() {
 	s.Require().False(exists)
 }
 
-func (s *BlockStorageTestSuite) Test_LatestBatchId_Mismatch() {
+func (s *BlockStorageTestSuite) Test_Parent_Batch_Id_Mismatch() {
 	const batchesCount = 2
 	batches := testaide.NewBatchesSequence(batchesCount)
 	invalidParentId := scTypes.NewBatchId()
@@ -228,7 +228,7 @@ func (s *BlockStorageTestSuite) Test_SetBatchAsProved() {
 func (s *BlockStorageTestSuite) Test_SetBatchAsProved_Multiple_Times() {
 	batch := testaide.NewBlockBatch(3)
 
-	err := s.bs.SetProvedStateRoot(s.ctx, batch.FirstMainBlock().ParentHash)
+	err := s.bs.SetProvedStateRoot(s.ctx, batch.EarliestMainBlock().ParentHash)
 	s.Require().NoError(err)
 
 	err = s.bs.SetBlockBatch(s.ctx, batch)
@@ -265,7 +265,7 @@ func (s *BlockStorageTestSuite) Test_SetBlockBatch_ParentHashMismatch() {
 	s.Require().NoError(err)
 
 	newBatch := testaide.NewBlockBatch(4)
-	newBatch.FirstMainBlock().Number = prevBatch.LatestMainBlock().Number + 1
+	newBatch.EarliestMainBlock().Number = prevBatch.LatestMainBlock().Number + 1
 
 	err = s.bs.SetBlockBatch(s.ctx, newBatch)
 	s.Require().ErrorIs(err, scTypes.ErrBatchMismatch)
@@ -283,8 +283,8 @@ func (s *BlockStorageTestSuite) TestSetBlockBatch_ParentMismatch() {
 			name: "Main_Block_Hash_Mismatch",
 			batchModifier: func(prev *scTypes.BlockBatch) *scTypes.BlockBatch {
 				next := testaide.NewBlockBatch(childBlocksCount)
-				next.FirstMainBlock().ParentHash = testaide.RandomHash()
-				next.FirstMainBlock().Number = prev.LatestMainBlock().Number + 1
+				next.EarliestMainBlock().ParentHash = testaide.RandomHash()
+				next.EarliestMainBlock().Number = prev.LatestMainBlock().Number + 1
 				return next
 			},
 		},
@@ -292,8 +292,8 @@ func (s *BlockStorageTestSuite) TestSetBlockBatch_ParentMismatch() {
 			name: "Main_Block_Number_Mismatch",
 			batchModifier: func(prev *scTypes.BlockBatch) *scTypes.BlockBatch {
 				next := testaide.NewBlockBatch(childBlocksCount)
-				next.FirstMainBlock().ParentHash = prev.LatestMainBlock().Hash
-				next.FirstMainBlock().Number = testaide.RandomBlockNum()
+				next.EarliestMainBlock().ParentHash = prev.LatestMainBlock().Hash
+				next.EarliestMainBlock().Number = testaide.RandomBlockNum()
 				return next
 			},
 		},
@@ -383,7 +383,7 @@ func (s *BlockStorageTestSuite) Test_TryGetNextProposalData_Collect_Transactions
 	err = s.bs.SetBatchAsProved(s.ctx, batch.Id)
 	s.Require().NoError(err)
 
-	err = s.bs.SetProvedStateRoot(s.ctx, batch.FirstMainBlock().ParentHash)
+	err = s.bs.SetProvedStateRoot(s.ctx, batch.EarliestMainBlock().ParentHash)
 	s.Require().NoError(err)
 
 	data, err := s.bs.TryGetNextProposalData(s.ctx)
@@ -438,7 +438,7 @@ func (s *BlockStorageTestSuite) Test_TryGetNextProposalData_Concurrently() {
 	})
 
 	proofGroup.Go(func() error {
-		return s.bs.SetProvedStateRoot(s.ctx, batches[0].FirstMainBlock().ParentHash)
+		return s.bs.SetProvedStateRoot(s.ctx, batches[0].EarliestMainBlock().ParentHash)
 	})
 
 	err := proofGroup.Wait()
@@ -474,7 +474,7 @@ func (s *BlockStorageTestSuite) Test_ResetBatchesRange_Block_Does_Not_Exists() {
 
 	latestFetchedBeforeReset, err := s.bs.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
-	latestBatchIdBeforeReset, err := s.bs.TryGetLatestBatchId(s.ctx)
+	latestBatchBeforeReset, err := s.bs.TryGetLatestBatch(s.ctx)
 	s.Require().NoError(err)
 
 	nonExistentBatchId := scTypes.NewBatchId()
@@ -490,9 +490,9 @@ func (s *BlockStorageTestSuite) Test_ResetBatchesRange_Block_Does_Not_Exists() {
 	s.Require().NoError(err)
 	s.Require().Equal(latestFetchedBeforeReset, latestFetchedAfterReset)
 
-	latestBatchIdAfterReset, err := s.bs.TryGetLatestBatchId(s.ctx)
+	latestBatchAfterReset, err := s.bs.TryGetLatestBatch(s.ctx)
 	s.Require().NoError(err)
-	s.Require().Equal(latestBatchIdBeforeReset, latestBatchIdAfterReset)
+	s.Require().Equal(latestBatchBeforeReset, latestBatchAfterReset)
 }
 
 func (s *BlockStorageTestSuite) Test_ResetBatchesRange() {
@@ -549,9 +549,14 @@ func (s *BlockStorageTestSuite) testResetBatchesRange(firstBatchToPurgeIdx int) 
 		s.Require().Equal(expectedNewLatest, actualLatestFetched)
 	}
 
-	actualLatestBatchId, err := s.bs.TryGetLatestBatchId(s.ctx)
+	actualLatestBatch, err := s.bs.TryGetLatestBatch(s.ctx)
 	s.Require().NoError(err)
-	s.Require().Equal(batches[firstBatchToPurgeIdx].ParentId, actualLatestBatchId)
+	var actualParentId *scTypes.BatchId
+	if actualLatestBatch != nil {
+		actualParentId = &actualLatestBatch.Id
+	}
+
+	s.Require().Equal(batches[firstBatchToPurgeIdx].ParentId, actualParentId)
 }
 
 func (s *BlockStorageTestSuite) Test_ResetBatchesNotProved() {

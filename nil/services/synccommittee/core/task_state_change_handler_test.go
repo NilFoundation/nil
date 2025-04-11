@@ -109,7 +109,7 @@ func (s *TaskStateChangeHandlerTestSuite) batchTaskSetUp() (*types.Task, *types.
 
 	batch := testaide.NewBlockBatch(10)
 
-	err := s.blockStorage.SetProvedStateRoot(s.ctx, batch.FirstMainBlock().ParentHash)
+	err := s.blockStorage.SetProvedStateRoot(s.ctx, batch.EarliestMainBlock().ParentHash)
 	s.Require().NoError(err)
 
 	err = s.blockStorage.SetBlockBatch(s.ctx, batch)
