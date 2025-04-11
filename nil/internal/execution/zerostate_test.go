@@ -35,7 +35,7 @@ func (s *SuiteZeroState) SetupSuite() {
 	var err error
 	s.ctx = context.Background()
 
-	defaultZeroStateConfig, err := CreateDefaultZeroStateConfig(MainPublicKey)
+	defaultZeroStateConfig, err := CreateDefaultZeroStateConfig(MainPublicKey, 2)
 	s.Require().NoError(err)
 
 	faucetAddress := defaultZeroStateConfig.GetContractAddress("Faucet")
@@ -66,7 +66,7 @@ func (s *SuiteZeroState) getBalance(address types.Address) types.Value {
 }
 
 func (s *SuiteZeroState) TestYamlSerialization() {
-	orig, err := CreateDefaultZeroStateConfig(MainPublicKey)
+	orig, err := CreateDefaultZeroStateConfig(MainPublicKey, 2)
 	s.Require().NoError(err)
 
 	yamlData, err := yaml.Marshal(orig)

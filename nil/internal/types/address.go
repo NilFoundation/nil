@@ -34,6 +34,10 @@ var (
 	GovernanceAddress       = ShardAndHexToAddress(MainShardId, "777777777777777777777777777777777777")
 )
 
+func GetMessageQueueAddress(shardId ShardId) Address {
+	return ShardAndHexToAddress(shardId, "333333333333333333333333333333333333")
+}
+
 func GetTokenName(addr TokenId) string {
 	switch Address(addr) {
 	case FaucetAddress:

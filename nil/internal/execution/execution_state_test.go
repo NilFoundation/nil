@@ -239,7 +239,7 @@ func newState(t *testing.T) *ExecutionState {
 	state.BaseFee = types.DefaultGasPrice
 	require.NoError(t, err)
 
-	defaultZeroStateConfig, err := CreateDefaultZeroStateConfig(MainPublicKey)
+	defaultZeroStateConfig, err := CreateDefaultZeroStateConfig(MainPublicKey, 4)
 	require.NoError(t, err)
 	err = state.GenerateZeroState(defaultZeroStateConfig)
 	require.NoError(t, err)

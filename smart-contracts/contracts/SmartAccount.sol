@@ -3,6 +3,7 @@
 pragma solidity ^0.8.9;
 
 import "./NilTokenBase.sol";
+import "./IMessageQueue.sol";
 
 /**
  * @title SmartAccount
@@ -39,7 +40,11 @@ contract SmartAccount is NilTokenBase {
      * @param transaction The raw transaction to send.
      */
     function send(bytes calldata transaction) public onlyExternal {
-        Nil.sendTransaction(transaction);
+        bytes20 addrBytes = bytes20(address(this));
+        bytes2 prefix = bytes2(addrBytes);
+        bytes18 suffix = hex"333333333333333333333333333333333333";
+        bytes20 result = bytes20(abi.encodePacked(prefix, suffix));
+        IMessageQueue(address(result)).sendRawTransaction(transaction);
     }
 
     /**

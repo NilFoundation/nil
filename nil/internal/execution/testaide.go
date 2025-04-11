@@ -43,7 +43,7 @@ func GenerateZeroState(t *testing.T, shardId types.ShardId, txFabric db.DB) *typ
 	require.NoError(t, err)
 	defer g.Rollback()
 
-	zerostateCfg, err := CreateDefaultZeroStateConfig(MainPublicKey)
+	zerostateCfg, err := CreateDefaultZeroStateConfig(MainPublicKey, 4)
 	require.NoError(t, err)
 	zerostateCfg.ConfigParams = ConfigParams{
 		GasPrice: config.ParamGasPrice{
