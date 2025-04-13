@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/constraints"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
@@ -58,8 +59,15 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 	syncCommittee := &SyncCommittee{}
 	resetLauncher := reset.NewResetLauncher(stateResetter, syncCommittee, logger)
 
+	batchChecker := constraints.NewChecker(
+		constraints.DefaultBatchConstraints(),
+		clock,
+		logger,
+	)
+
 	agg := fetching.NewAggregator(
 		client,
+		batchChecker,
 		blockStorage,
 		taskStorage,
 		resetLauncher,

@@ -18,6 +18,7 @@ $(root_sc)/core/rollupcontract/rollupcontract_abi_generated.go: \
 
 .PHONY: sync_committee_types_stringer
 sync_committee_types_stringer: \
+	$(root_sc)/core/batches/constraints/checkresult_string.go \
 	$(root_sc)/internal/types/tasktype_string.go \
 	$(root_sc)/internal/types/proverresulttype_string.go \
 	$(root_sc)/internal/types/taskstatus_string.go \
@@ -25,6 +26,8 @@ sync_committee_types_stringer: \
 	$(root_sc)/internal/types/taskerrtype_string.go \
 	$(root_sc)/public/taskdebugorder_string.go
 
+$(root_sc)/core/batches/constraints/checkresult_string.go: $(root_sc)/core/batches/constraints/result.go
+	go generate -run="CheckResult" $(root_sc)/core/batches/constraints/result.go
 $(root_sc)/internal/types/tasktype_string.go: $(root_sc)/internal/types/task_type.go
 	go generate -run="TaskType" $(root_sc)/internal/types/generate.go
 $(root_sc)/internal/types/proverresulttype_string.go: $(root_sc)/internal/types/task_result.go
