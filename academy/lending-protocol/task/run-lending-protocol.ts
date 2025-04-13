@@ -128,53 +128,46 @@ task(
     `Global Ledger (Central) deployed at ${deployGlobalLedger} with hash ${deployGlobalLedgerTx.hash} on shard ${listOfShards[2]}`,
   );
 
-  // Deploy LendingPool contracts on all shards
+  // Deploy LendingPool contracts via GlobalLedger
+  console.log("\\nDeploying LendingPool contracts via GlobalLedger...");
+  const deployPoolsTx = await deployerWallet.sendTransaction({
+    to: deployGlobalLedger,
+    functionName: "deployLendingPools",
+    args: [listOfShards],
+    abi: GlobalLedger.abi as Abi,
+    // No value or tokens needed for this call
+  });
+  await deployPoolsTx.wait();
+  console.log(`LendingPool deployment initiated via GlobalLedger at tx hash ${deployPoolsTx.hash}`);
+
+  // Wait for async deployments to likely complete
+  console.log("Waiting a few seconds for LendingPools to deploy asynchronously...");
+  await new Promise(resolve => setTimeout(resolve, 8000)); // Adjust wait time if needed
+
+  // Fetch deployed LendingPool addresses from GlobalLedger state
+  console.log("Fetching deployed LendingPool addresses...");
   const lendingPools: { address: `0x${string}`; shardId: number }[] = [];
+  const globalLedgerReader = getContract({ client, abi: GlobalLedger.abi, address: deployGlobalLedger });
 
   for (const shardId of listOfShards) {
-    const { address: deployLendingPool, tx: deployLendingPoolTx } =
-      await deployerWallet.deployContract({
-        shardId,
-        args: [
-          deployGlobalLedger,
-          deployInterestManager,
-          deployOracle,
-          process.env.USDT as `0x${string}`,
-          process.env.ETH as `0x${string}`,
-        ],
-        bytecode: LendingPool.bytecode as `0x${string}`,
-        abi: LendingPool.abi as Abi,
-        salt: BigInt(Math.floor(Math.random() * 10000)),
-      });
-
-    await deployLendingPoolTx.wait();
-    console.log(
-      `Lending Pool deployed at ${deployLendingPool} with hash ${deployLendingPoolTx.hash} on shard ${shardId}`,
-    );
-
-    lendingPools.push({ address: deployLendingPool as `0x${string}`, shardId });
+    try {
+      const poolAddress = await globalLedgerReader.read.lendingPoolsByShard([shardId]) as `0x${string}`;
+      if (poolAddress && poolAddress !== '0x0000000000000000000000000000000000000000') {
+        console.log(`  Found LendingPool on shard ${shardId} at address: ${poolAddress}`);
+        lendingPools.push({ address: poolAddress, shardId });
+      } else {
+        console.log(`  No LendingPool found registered for shard ${shardId}.`);
+      }
+    } catch (error) {
+      console.error(`Error fetching pool address for shard ${shardId}:`, error);
+    }
   }
 
-  // Register each LendingPool with the GlobalLedger
-  console.log("Registering Lending Pools with Global Ledger...");
-  for (const pool of lendingPools) {
-    const registerCallData = encodeFunctionData({
-      abi: GlobalLedger.abi as Abi,
-      functionName: "registerLendingPool",
-      args: [pool.address],
-    });
-
-    const registerResponseTx = await deployerWallet.sendTransaction({
-      to: deployGlobalLedger,
-      data: registerCallData,
-    });
-
-    await registerResponseTx.wait();
-    console.log(
-      `Registered lending pool ${pool.address} (shard ${pool.shardId}) with GlobalLedger at tx hash ${registerResponseTx.hash}`,
-    );
+  if (lendingPools.length !== listOfShards.length) {
+    console.warn(`WARNING: Expected ${listOfShards.length} pools, but only found ${lendingPools.length} registered in GlobalLedger.`);
+    // Depending on requirements, you might want to throw an error here
   }
-  console.log("Lending Pool registration complete.\n");
+  console.log("Lending Pool address fetching complete.\n");
 
   // Generate two smart accounts (account1 and account2)
   const account1 = await generateSmartAccount({
