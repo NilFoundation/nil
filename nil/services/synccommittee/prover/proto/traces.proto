@@ -99,15 +99,14 @@ message MPTTraces {
 // types.SmartContract serialization
 message SmartContract {
     string address = 1;
-    bool initialized = 2;
-    Uint256 balance = 3;
-    string token_root = 4;
-    string storage_root = 5;
-    string code_hash = 6;
-    string async_context_root = 7;
-    uint64 seqno = 8;
-    uint64 ext_seqno = 9;
-    uint64 request_id = 10;
+    Uint256 balance = 2;
+    string token_root = 3;
+    string storage_root = 4;
+    string code_hash = 5;
+    string async_context_root = 6;
+    uint64 seqno = 7;
+    uint64 ext_seqno = 8;
+    uint64 request_id = 9;
 }
 
 // StorageEntry is a key-value pair representing a single piece of storage data

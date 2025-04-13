@@ -352,7 +352,7 @@ func (sot *StackOpTracer) TraceOp(opCode vm.OpCode, pc uint64, scope tracing.OpC
 	sot.scope = scope
 
 	if !sot.traceBasicOp() && !sot.traceDupOp() && !sot.traceSwapOp() {
-		return fmt.Errorf("No stack save info for opcode: %v", opCode)
+		return fmt.Errorf("no stack save info for opcode: %v", opCode)
 	}
 	return nil
 }

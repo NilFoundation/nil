@@ -2,20 +2,22 @@ package nil_load_generator
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
-	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
-	uniswap "github.com/NilFoundation/nil/nil/services/nil_load_generator/contracts"
 )
 
 type NilLoadGeneratorAPI interface {
 	HealthCheck() bool
 	SmartAccountsAddr() []types.Address
-	CallSwap(tokenName1, tokenName2 string, amountSwap, expectedAmount types.Uint256) (common.Hash, error)
+	CallSwap(
+		tokenName1 string,
+		tokenName2 string,
+		amountSwap types.Uint256,
+		expectedAmount types.Uint256,
+	) (common.Hash, error)
 	CallQuote(tokenName1, tokenName2 string, swapAmount types.Uint256) (types.Uint256, error)
 	CallInfo(hash common.Hash) (UniswapTransactionInfo, error)
 }
@@ -48,35 +50,29 @@ var AvailablePairs = map[[2]string]struct {
 	{"ETH", "USDC"}: {types.ShardId(1), types.EthFaucetAddress},
 }
 
-type NilLoadGeneratorAPIImpl struct{}
+type NilLoadGeneratorAPIImpl struct {
+	service *Service
+}
 
 var _ NilLoadGeneratorAPI = (*NilLoadGeneratorAPIImpl)(nil)
 
-func NewNilLoadGeneratorAPI() *NilLoadGeneratorAPIImpl {
-	return &NilLoadGeneratorAPIImpl{}
+func NewNilLoadGeneratorAPI(serviceData *Service) *NilLoadGeneratorAPIImpl {
+	return &NilLoadGeneratorAPIImpl{service: serviceData}
 }
 
 func (c NilLoadGeneratorAPIImpl) HealthCheck() bool {
-	return isInitialized.Load()
+	return c.service.isInitialized.Load()
 }
 
 func (c NilLoadGeneratorAPIImpl) SmartAccountsAddr() []types.Address {
-	if !isInitialized.Load() {
+	if !c.service.isInitialized.Load() {
 		return nil
 	}
-	smartAccountsAddr := make([]types.Address, len(smartAccounts))
-	for i, smartAccount := range smartAccounts {
+	smartAccountsAddr := make([]types.Address, len(c.service.smartAccounts))
+	for i, smartAccount := range c.service.smartAccounts {
 		smartAccountsAddr[i] = smartAccount.Addr
 	}
 	return smartAccountsAddr
-}
-
-func getRandomSmartAccount() (uniswap.SmartAccount, *cliservice.Service, error) {
-	index, err := rand.Int(rand.Reader, big.NewInt(int64(len(uniswapSmartAccounts))))
-	if err != nil {
-		return uniswap.SmartAccount{}, nil, err
-	}
-	return uniswapSmartAccounts[index.Int64()], uniswapServices[index.Int64()], nil
 }
 
 func (c NilLoadGeneratorAPIImpl) CallSwap(
@@ -89,10 +85,10 @@ func (c NilLoadGeneratorAPIImpl) CallSwap(
 	if !ok {
 		return common.EmptyHash, errors.New("swap for this pair is not available")
 	}
-	if !isInitialized.Load() {
+	if !c.service.isInitialized.Load() {
 		return common.EmptyHash, errors.New("uniswap not initialized yet, please wait")
 	}
-	if amountSwap.ToBig().Cmp(rpcSwapLimit.ToBig()) > 0 {
+	if amountSwap.ToBig().Cmp(c.service.config.RpcSwapLimit.ToBig()) > 0 {
 		return common.EmptyHash, errors.New("swap amount should be less")
 	}
 	amount1 := types.Uint256{0}
@@ -101,15 +97,16 @@ func (c NilLoadGeneratorAPIImpl) CallSwap(
 		amount2 = types.Uint256{0}
 		amount1 = expectedAmount
 	}
-	uniswapSmartAccount, _, err := getRandomSmartAccount()
+	uniswapSmartAccount, err := c.service.getRandomSmartAccount()
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	calldata, err := pairs[res.ShardId-1].Abi.Pack("swap", amount1, amount2, uniswapSmartAccount.Addr)
+	calldata, err := c.service.pairs[res.ShardId-1].Abi.Pack(
+		"swap", amount1, amount2, uniswapSmartAccount.Addr)
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	return client.SendTransactionViaSmartAccount(
+	return c.service.client.SendTransactionViaSmartAccount(
 		context.Background(),
 		uniswapSmartAccount.Addr,
 		calldata,
@@ -121,7 +118,7 @@ func (c NilLoadGeneratorAPIImpl) CallSwap(
 				Balance: types.Value{Uint256: &amountSwap},
 			},
 		},
-		pairs[res.ShardId-1].Addr,
+		c.service.pairs[res.ShardId-1].Addr,
 		uniswapSmartAccount.PrivateKey,
 	)
 }
@@ -135,14 +132,14 @@ func (c NilLoadGeneratorAPIImpl) CallQuote(
 	if !ok {
 		return types.Uint256{0}, errors.New("quote for this pair is not available")
 	}
-	if !isInitialized.Load() {
+	if !c.service.isInitialized.Load() {
 		return types.Uint256{0}, errors.New("uniswap not initialized yet, please wait")
 	}
-	_, uniswapService, err := getRandomSmartAccount()
+	uniswapSmartAccount, err := c.service.getRandomSmartAccount()
 	if err != nil {
 		return types.Uint256{0}, err
 	}
-	reserve0, reserve1, err := pairs[res.ShardId-1].GetReserves(uniswapService)
+	reserve0, reserve1, err := c.service.pairs[res.ShardId-1].GetReserves(uniswapSmartAccount)
 	if err != nil {
 		return types.Uint256{0}, err
 	}
@@ -202,12 +199,12 @@ func getSwapInfo(hash common.Hash, uniswapService *cliservice.Service) (UniswapT
 }
 
 func (c NilLoadGeneratorAPIImpl) CallInfo(hash common.Hash) (UniswapTransactionInfo, error) {
-	if !isInitialized.Load() {
+	if !c.service.isInitialized.Load() {
 		return UniswapTransactionInfo{}, errors.New("uniswap not initialized yet, please wait")
 	}
-	_, uniswapService, err := getRandomSmartAccount()
+	uniswapSmartAccountWithCliService, err := c.service.getRandomSmartAccount()
 	if err != nil {
 		return UniswapTransactionInfo{}, err
 	}
-	return getSwapInfo(hash, uniswapService)
+	return getSwapInfo(hash, uniswapSmartAccountWithCliService.CliService)
 }

@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: ["ibft", "heavy", "nil", "nildocs", "niljs", "nilexplorer", "uniswap", "clijs", "walletextension"]
+        check: ["ibft", "heavy", "nil", "nildocs", "niljs", "nilexplorer", "uniswap", "rollup-bridge-contracts", "clijs", "walletextension", "nilhardhat"]
     steps:
       - name: checkout local actions
         uses: actions/checkout@v3
@@ -106,7 +106,7 @@ jobs:
       - name: build binaries
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
-          make
+          make nild nil
 
       - name: Upload nil binary as artifact
         if: github.event_name == 'workflow_dispatch'

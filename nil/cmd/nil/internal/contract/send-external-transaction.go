@@ -10,13 +10,17 @@ import (
 )
 
 func GetSendExternalTransactionCommand(cfg *common.Config) *cobra.Command {
+	params := &contractParams{
+		Params: &common.Params{},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "send-external-transaction [address] [bytecode or method] [args...]",
 		Short: "Send an external transaction to a smart contract",
 		Long:  "Send an external transaction to the smart contract with the specified bytecode or command",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSendExternalTransaction(cmd, args, cfg)
+			return runSendExternalTransaction(cmd, args, cfg, params)
 		},
 		SilenceUsage: true,
 		// This command is useful for only rare cases, so it's hidden
@@ -48,7 +52,7 @@ func GetSendExternalTransactionCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runSendExternalTransaction(cmd *cobra.Command, args []string, cfg *common.Config) error {
+func runSendExternalTransaction(cmd *cobra.Command, args []string, cfg *common.Config, params *contractParams) error {
 	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var address types.Address

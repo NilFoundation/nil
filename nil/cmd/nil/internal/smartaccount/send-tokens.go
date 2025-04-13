@@ -10,13 +10,17 @@ import (
 )
 
 func SendTokensCommand(cfg *common.Config) *cobra.Command {
+	params := &smartAccountParams{
+		Params: &common.Params{},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "send-tokens [address] [amount]",
 		Short: "Transfer tokens to a specific address",
 		Long:  "Transfer some amount of tokens to a specific address",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTransfer(cmd, args, cfg)
+			return runTransfer(cmd, args, cfg, params)
 		},
 		SilenceUsage: true,
 	}
@@ -43,7 +47,7 @@ func SendTokensCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runTransfer(cmd *cobra.Command, args []string, cfg *common.Config) error {
+func runTransfer(cmd *cobra.Command, args []string, cfg *common.Config, params *smartAccountParams) error {
 	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var address types.Address

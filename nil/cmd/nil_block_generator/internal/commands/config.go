@@ -179,7 +179,7 @@ func GetSockPath() (string, error) {
 func (cfg *Config) GetContract(contractName string) (*Contract, error) {
 	contract, ok := cfg.Contracts[contractName]
 	if !ok {
-		return nil, fmt.Errorf("Contract %s not deployed", contractName)
+		return nil, fmt.Errorf("contract %s not deployed", contractName)
 	}
 	return &contract, nil
 }

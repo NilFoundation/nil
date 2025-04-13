@@ -1013,7 +1013,7 @@ func (i *IBFT) handleCommit(view *proto.View) bool {
 	commitSeals, err := messages.ExtractCommittedSeals(commitMessages)
 	if err != nil {
 		// safe check
-		i.log.Error("failed to extract committed seals from commit messages: %+v", err)
+		i.log.Error("failed to extract committed seals from commit messages", "error", err)
 
 		return false
 	}
@@ -1090,6 +1090,7 @@ func (i *IBFT) buildProposal(ctx context.Context, view *proto.View) *proto.IbftM
 	rcc := i.waitForRCC(ctx, height, round)
 	if rcc == nil {
 		// Timeout occurred
+		i.log.Error("no valid RCC received, timeout expired")
 		return nil
 	}
 
@@ -1123,26 +1124,18 @@ func (i *IBFT) buildProposal(ctx context.Context, view *proto.View) *proto.IbftM
 		maxRound = round
 	}
 
-	if previousProposal == nil {
+	proposal := previousProposal
+	if proposal == nil {
 		//	build new proposal
-		proposal := i.backend.BuildProposal(
+		proposal = i.backend.BuildProposal(
 			&proto.View{
 				Height: height,
 				Round:  round,
 			})
-
-		return i.backend.BuildPrePrepareMessage(
-			proposal,
-			rcc,
-			&proto.View{
-				Height: height,
-				Round:  round,
-			},
-		)
 	}
 
 	return i.backend.BuildPrePrepareMessage(
-		previousProposal,
+		proposal,
 		rcc,
 		&proto.View{
 			Height: height,

@@ -22,8 +22,7 @@ var defaultMaxFeePerGas = types.MaxFeePerGasDefault
 func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionState, seqno types.Seqno) types.Address {
 	t.Helper()
 
-	return Deploy(t, t.Context(), state,
-		types.BuildDeployPayload(hexutil.FromHex(contract.Code), common.EmptyHash),
+	return Deploy(t, state, types.BuildDeployPayload(hexutil.FromHex(contract.Code), common.EmptyHash),
 		types.BaseShardId, types.Address{}, seqno)
 }
 
@@ -79,17 +78,19 @@ func TestOpcodes(t *testing.T) {
 func TestPrecompiles(t *testing.T) {
 	t.Parallel()
 
+	state := newState(t)
+	defer state.tx.Rollback()
+
 	// Test checks that precompiles are not crashed
 	// if called with an empty input data
 	check := func(i int) {
-		state := newState(t)
-		defer state.tx.Rollback()
 		require.NoError(t, state.newVm(true, types.EmptyAddress, nil))
 
 		callTransaction := types.NewEmptyTransaction()
 		callTransaction.Flags = types.NewTransactionFlags(types.TransactionFlagInternal)
 		callTransaction.FeeCredit = toGasCredit(100_000)
 		callTransaction.MaxFeePerGas = defaultMaxFeePerGas
+		callTransaction.Seqno = types.Seqno(i)
 		state.AddInTransaction(callTransaction)
 
 		addr := fmt.Sprintf("%x", i)
@@ -129,9 +130,9 @@ func TestCall(t *testing.T) {
 	callTransaction.Data = calldata
 	callTransaction.To = addr
 
-	res := state.HandleTransaction(ctx, callTransaction, dummyPayer{})
+	res := state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
-	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2A"), 32), res.ReturnData)
+	require.Equal(t, common.LeftPadBytes(hexutil.FromHex("0x2A"), 32), res.ReturnData)
 
 	// deploy and call Caller
 	caller := contracts["Caller"]
@@ -146,13 +147,13 @@ func TestCall(t *testing.T) {
 	callTransaction2.Data = calldata2
 	callTransaction2.To = callerAddr
 
-	res = state.HandleTransaction(ctx, callTransaction2, dummyPayer{})
+	res = state.AddAndHandleTransaction(ctx, callTransaction2, dummyPayer{})
 	require.False(t, res.Failed())
 
 	// check that it changed the state of SimpleContract
-	res = state.HandleTransaction(ctx, callTransaction, dummyPayer{})
+	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
-	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), res.ReturnData)
+	require.Equal(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), res.ReturnData)
 
 	// check that callSetAndRevert does not change anything
 	calldata2, err = solc.ExtractABI(caller).Pack("callSetAndRevert", addr, big.NewInt(45))
@@ -162,13 +163,13 @@ func TestCall(t *testing.T) {
 	callTransaction2.FeeCredit = toGasCredit(10000)
 	callTransaction2.Data = calldata2
 	callTransaction2.To = callerAddr
-	res = state.HandleTransaction(ctx, callTransaction2, dummyPayer{})
+	res = state.AddAndHandleTransaction(ctx, callTransaction2, dummyPayer{})
 	require.ErrorIs(t, res.Error, vm.ErrExecutionReverted)
 
 	// check that did not change the state of SimpleContract
-	res = state.HandleTransaction(ctx, callTransaction, dummyPayer{})
+	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
-	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), res.ReturnData)
+	require.Equal(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), res.ReturnData)
 }
 
 func TestDelegate(t *testing.T) {
@@ -196,7 +197,7 @@ func TestDelegate(t *testing.T) {
 	callTransaction.MaxFeePerGas = defaultMaxFeePerGas
 	callTransaction.Data = calldata
 	callTransaction.To = proxyAddr
-	res := state.HandleTransaction(ctx, callTransaction, dummyPayer{})
+	res := state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
 
 	// call ProxyContract.getValue()
@@ -208,10 +209,10 @@ func TestDelegate(t *testing.T) {
 	callTransaction.MaxFeePerGas = defaultMaxFeePerGas
 	callTransaction.Data = calldata
 	callTransaction.To = proxyAddr
-	res = state.HandleTransaction(ctx, callTransaction, dummyPayer{})
+	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
 	// check that it returned 42
-	require.EqualValues(t, common.LeftPadBytes(hexutil.FromHex("0x2a"), 32), res.ReturnData)
+	require.Equal(t, common.LeftPadBytes(hexutil.FromHex("0x2a"), 32), res.ReturnData)
 
 	// call ProxyContract.setValueStatic(delegateAddr, 42)
 	calldata, err = solc.ExtractABI(proxyContract).Pack("setValueStatic", delegateAddr, big.NewInt(42))
@@ -222,7 +223,7 @@ func TestDelegate(t *testing.T) {
 	callTransaction.MaxFeePerGas = defaultMaxFeePerGas
 	callTransaction.Data = calldata
 	callTransaction.To = proxyAddr
-	res = state.HandleTransaction(ctx, callTransaction, dummyPayer{})
+	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
 }
 
@@ -255,9 +256,8 @@ func TestAsyncCall(t *testing.T) {
 	callTransaction.MaxFeePerGas = defaultMaxFeePerGas
 	callTransaction.Data = calldata
 	callTransaction.To = addrCaller
+	res := state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	txnHash := callTransaction.Hash()
-	state.AddInTransaction(callTransaction)
-	res := state.HandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
 
 	require.Len(t, state.OutTransactions, 1)
@@ -268,8 +268,7 @@ func TestAsyncCall(t *testing.T) {
 	require.Equal(t, addrCallee, outTxn.To)
 
 	// Process outbound transaction, i.e. "Callee::add"
-	state.AddInTransaction(outTxn.Transaction)
-	res = state.HandleTransaction(ctx, outTxn.Transaction, dummyPayer{})
+	res = state.AddAndHandleTransaction(ctx, outTxn.Transaction, dummyPayer{})
 	require.False(t, res.Failed())
 	require.Len(t, res.ReturnData, 32)
 	require.Equal(t, types.NewUint256FromBytes(res.ReturnData), types.NewUint256(11))
@@ -279,9 +278,8 @@ func TestAsyncCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callTransaction.Data = calldata
+	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	txnHash = callTransaction.Hash()
-	state.AddInTransaction(callTransaction)
-	res = state.HandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
 
 	require.Len(t, state.OutTransactions, 2)
@@ -292,7 +290,7 @@ func TestAsyncCall(t *testing.T) {
 	require.Equal(t, outTxn.To, addrCallee)
 
 	// Process outbound transaction, i.e. "Callee::add"
-	res = state.HandleTransaction(ctx, outTxn.Transaction, dummyPayer{})
+	res = state.AddAndHandleTransaction(ctx, outTxn.Transaction, dummyPayer{})
 	require.False(t, res.Failed())
 	require.Len(t, res.ReturnData, 32)
 	require.Equal(t, types.NewUint256FromBytes(res.ReturnData), types.NewUint256(4))
@@ -304,8 +302,6 @@ func TestSendTransaction(t *testing.T) {
 	ctx := t.Context()
 	state := newState(t)
 	defer state.tx.Rollback()
-
-	state.TraceVm = false
 
 	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/contracts/async_call.sol"))
 	require.NoError(t, err)
@@ -339,11 +335,12 @@ func TestSendTransaction(t *testing.T) {
 	callTransaction.MaxFeePerGas = defaultMaxFeePerGas
 	callTransaction.Data = calldata
 	callTransaction.To = addrCaller
-	res := state.HandleTransaction(ctx, callTransaction, dummyPayer{})
+	callTransaction.Seqno = 1
+	res := state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
+	tx := callTransaction.Hash()
 	require.False(t, res.Failed())
 	require.NotEmpty(t, state.Receipts)
 	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
-	tx := state.Receipts[len(state.Receipts)-1].TxnHash
 
 	require.Len(t, state.OutTransactions, 1)
 	require.Len(t, state.OutTransactions[tx], 1)
@@ -354,7 +351,7 @@ func TestSendTransaction(t *testing.T) {
 	require.Less(t, uint64(99999), outTxn.FeeCredit.Uint64())
 
 	// Process outbound transaction, i.e. "Callee::add"
-	res = state.HandleTransaction(ctx, outTxn.Transaction, dummyPayer{})
+	res = state.AddAndHandleTransaction(ctx, outTxn.Transaction, dummyPayer{})
 	require.False(t, res.Failed())
 	lastReceipt := state.Receipts[len(state.Receipts)-1]
 	require.True(t, lastReceipt.Success)

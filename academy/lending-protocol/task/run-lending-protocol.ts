@@ -6,6 +6,7 @@ import {
   generateSmartAccount,
   getContract,
   waitTillCompleted,
+  Transaction,
 } from "@nilfoundation/niljs";
 
 import { type Abi, decodeFunctionResult, encodeFunctionData } from "viem";
@@ -78,7 +79,7 @@ task(
   );
 
   // Deploy InterestManager contract on second shard
-  const { address: deployInterestManager, hash: deployInterestManagerHash } =
+  const { address: deployInterestManager, tx: deployInterestManagerTx } =
     await deployerWallet.deployContract({
       shardId: listOfShards[1],
       args: [],
@@ -87,13 +88,13 @@ task(
       salt: BigInt(Math.floor(Math.random() * 10000)),
     });
 
-  await waitTillCompleted(client, deployInterestManagerHash);
+  await deployInterestManagerTx.wait();
   console.log(
-    `Interest Manager deployed at ${deployInterestManager} with hash ${deployInterestManagerHash} on shard ${listOfShards[1]}`,
+    `Interest Manager deployed at ${deployInterestManager} with hash ${deployInterestManagerTx.hash} on shard ${listOfShards[1]}`,
   );
 
   // Deploy Oracle contract on fourth shard
-  const { address: deployOracle, hash: deployOracleHash } =
+  const { address: deployOracle, tx: deployOracleTx } =
     await deployerWallet.deployContract({
       shardId: listOfShards[3],
       args: [],
@@ -102,13 +103,13 @@ task(
       salt: BigInt(Math.floor(Math.random() * 10000)),
     });
 
-  await waitTillCompleted(client, deployOracleHash);
+  await deployOracleTx.wait();
   console.log(
-    `Oracle deployed at ${deployOracle} with hash ${deployOracleHash} on shard ${listOfShards[3]}`,
+    `Oracle deployed at ${deployOracle} with hash ${deployOracleTx.hash} on shard ${listOfShards[3]}`,
   );
 
   // Deploy GlobalLedger (CentralLedger) contract on third shard
-  const { address: deployGlobalLedger, hash: deployGlobalLedgerHash } =
+  const { address: deployGlobalLedger, tx: deployGlobalLedgerTx } =
     await deployerWallet.deployContract({
       shardId: listOfShards[2],
       args: [
@@ -122,16 +123,16 @@ task(
       salt: BigInt(Math.floor(Math.random() * 10000)),
     });
 
-  await waitTillCompleted(client, deployGlobalLedgerHash);
+  await deployGlobalLedgerTx.wait();
   console.log(
-    `Global Ledger (Central) deployed at ${deployGlobalLedger} with hash ${deployGlobalLedgerHash} on shard ${listOfShards[2]}`,
+    `Global Ledger (Central) deployed at ${deployGlobalLedger} with hash ${deployGlobalLedgerTx.hash} on shard ${listOfShards[2]}`,
   );
 
   // Deploy LendingPool contracts on all shards
   const lendingPools: { address: `0x${string}`; shardId: number }[] = [];
 
   for (const shardId of listOfShards) {
-    const { address: deployLendingPool, hash: deployLendingPoolHash } =
+    const { address: deployLendingPool, tx: deployLendingPoolTx } =
       await deployerWallet.deployContract({
         shardId,
         args: [
@@ -146,9 +147,9 @@ task(
         salt: BigInt(Math.floor(Math.random() * 10000)),
       });
 
-    await waitTillCompleted(client, deployLendingPoolHash);
+    await deployLendingPoolTx.wait();
     console.log(
-      `Lending Pool deployed at ${deployLendingPool} with hash ${deployLendingPoolHash} on shard ${shardId}`,
+      `Lending Pool deployed at ${deployLendingPool} with hash ${deployLendingPoolTx.hash} on shard ${shardId}`,
     );
 
     lendingPools.push({ address: deployLendingPool as `0x${string}`, shardId });
@@ -163,14 +164,14 @@ task(
       args: [pool.address],
     });
 
-    const registerResponse = await deployerWallet.sendTransaction({
+    const registerResponseTx = await deployerWallet.sendTransaction({
       to: deployGlobalLedger,
       data: registerCallData,
     });
 
-    await waitTillCompleted(client, registerResponse);
+    await registerResponseTx.wait();
     console.log(
-      `Registered lending pool ${pool.address} (shard ${pool.shardId}) with GlobalLedger at tx hash ${registerResponse}`,
+      `Registered lending pool ${pool.address} (shard ${pool.shardId}) with GlobalLedger at tx hash ${registerResponseTx.hash}`,
     );
   }
   console.log("Lending Pool registration complete.\n");
@@ -264,22 +265,24 @@ task(
   });
 
   // Set the price for USDT
-  const setOraclePriceUSDT = await deployerWallet.sendTransaction({
+  const setOraclePriceUSDTTx = await deployerWallet.sendTransaction({
     to: deployOracle,
     data: setUSDTPrice,
   });
 
-  await waitTillCompleted(client, setOraclePriceUSDT);
-  console.log(`Oracle price set for USDT at tx hash ${setOraclePriceUSDT}`);
+  await setOraclePriceUSDTTx.wait();
+  console.log(
+    `Oracle price set for USDT at tx hash ${setOraclePriceUSDTTx.hash}`,
+  );
 
   // Set the price for ETH
-  const setOraclePriceETH = await deployerWallet.sendTransaction({
+  const setOraclePriceETHTx = await deployerWallet.sendTransaction({
     to: deployOracle,
     data: setETHPrice,
   });
 
-  await waitTillCompleted(client, setOraclePriceETH);
-  console.log(`Oracle price set for ETH at tx hash ${setOraclePriceETH}`);
+  await setOraclePriceETHTx.wait();
+  console.log(`Oracle price set for ETH at tx hash ${setOraclePriceETHTx.hash}`);
 
   // Retrieve the prices of USDT and ETH from the Oracle contract
   const usdtPriceRequest = await client.call(
@@ -338,7 +341,7 @@ task(
   };
 
   console.log(`Account 1 depositing ${depositAmountUSDT} USDT via Pool on Shard ${lendingPools[0].shardId}...`);
-  const depositUSDTResponse = await account1.sendTransaction({
+  const depositUSDTResponseTx = await account1.sendTransaction({
     to: lendingPools[0].address,
     functionName: "deposit",
     abi: LendingPool.abi as Abi,
@@ -346,9 +349,9 @@ task(
     feeCredit: convertEthToWei(0.001),
   });
 
-  const depositUSDTResponseData = await waitTillCompleted(client, depositUSDTResponse);
+  await depositUSDTResponseTx.wait();
   console.log(
-    `Account 1 deposit initiated at tx hash ${depositUSDTResponse}`
+    `Account 1 deposit initiated at tx hash ${depositUSDTResponseTx.hash}`
   );
 
   // Perform a deposit of ETH by account2 into the LendingPool on shard 2
@@ -359,7 +362,7 @@ task(
   };
 
   console.log(`Account 2 depositing ${depositAmountETH} ETH via Pool on Shard ${lendingPools[2].shardId}...`);
-  const depositETHResponse = await account2.sendTransaction({
+  const depositETHResponseTx = await account2.sendTransaction({
     to: lendingPools[2].address,
     functionName: "deposit",
     abi: LendingPool.abi as Abi,
@@ -367,9 +370,10 @@ task(
     feeCredit: convertEthToWei(0.001),
   });
 
-  const depositETHResponseData = await waitTillCompleted(client, depositETHResponse);
+  await depositETHResponseTx.wait();
   console.log(
-    `Account 2 deposit initiated at tx hash ${depositETHResponse}`);
+    `Account 2 deposit initiated at tx hash ${depositETHResponseTx.hash}`
+  );
 
   // --- Add a delay or wait mechanism if necessary for async calls to process ---
   console.log("Waiting a few seconds for deposits to process asynchronously...");
@@ -412,15 +416,15 @@ task(
   console.log("Account 1 Tokens BEFORE Borrow:", account1TokensBeforeBorrow);
   console.log("GlobalLedger Tokens BEFORE Borrow:", globalLedgerTokensBeforeBorrow);
 
-  const borrowETHResponse = await account1.sendTransaction({
+  const borrowETHResponseTx = await account1.sendTransaction({
     to: lendingPools[0].address,
     data: borrowETHData,
     feeCredit: convertEthToWei(0.001),
   });
 
-  const borrowETHResponseData = await waitTillCompleted(client, borrowETHResponse);
+  await borrowETHResponseTx.wait();
   console.log(
-    `Account 1 borrow initiated at tx hash ${borrowETHResponse}`
+    `Account 1 borrow initiated at tx hash ${borrowETHResponseTx.hash}`
   );
 
   // --- Add delay for borrow processing ---
@@ -492,16 +496,16 @@ task(
   console.log("Account 1 Tokens BEFORE Repay:", account1TokensBeforeRepay);
   console.log("Account 1 USDT Collateral BEFORE Repay:", account1CollateralBeforeRepay);
 
-  const repayETHResponse = await account1.sendTransaction({
+  const repayETHResponseTx = await account1.sendTransaction({
     to: lendingPools[0].address,
     data: repayETHData,
     tokens: repayETH,
     feeCredit: convertEthToWei(0.001),
   });
 
-  const repayETHResponseData = await waitTillCompleted(client, repayETHResponse);
+  await repayETHResponseTx.wait();
   console.log(
-    `Account 1 repay initiated at tx hash ${repayETHResponse}`
+    `Account 1 repay initiated at tx hash ${repayETHResponseTx.hash}`
   );
 
   // --- Add delay for repay processing ---

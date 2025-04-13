@@ -1,11 +1,6 @@
 import { FAUCET_GLOBAL, NIL_GLOBAL, RPC_GLOBAL } from "./globals";
 
-import {
-  HttpTransport,
-  PublicClient,
-  generateSmartAccount,
-  waitTillCompleted,
-} from "@nilfoundation/niljs";
+import { HttpTransport, PublicClient, generateSmartAccount } from "@nilfoundation/niljs";
 
 import { FT_COMPILATION_COMMAND } from "./compilationCommands";
 
@@ -117,20 +112,20 @@ describe.sequential("basic Nil.js usage tests", async () => {
       });
 
       {
-        const hashTransaction = await smartAccount.setTokenName("MY_TOKEN");
-        await waitTillCompleted(client, hashTransaction);
+        const tx = await smartAccount.setTokenName("MY_TOKEN");
+        await tx.wait();
       }
 
       {
-        const hashTransaction = await smartAccount.mintToken(100_000_000n);
-        await waitTillCompleted(client, hashTransaction);
+        const tx = await smartAccount.mintToken(100_000_000n);
+        await tx.wait();
       }
       //endBasicNilJSExample
 
       //startNilJSBurningExample
       {
-        const hashTransaction = await smartAccount.burnToken(50_000_000n);
-        await waitTillCompleted(client, hashTransaction);
+        const tx = await smartAccount.burnToken(50_000_000n);
+        await tx.wait();
       }
       //endNilJSBurningExample
 
@@ -166,30 +161,30 @@ describe.sequential("tutorial flows Nil.js tests", async () => {
     });
 
     {
-      const hashTransaction = await smartAccount.setTokenName("MY_TOKEN");
-      await waitTillCompleted(client, hashTransaction);
+      const tx = await smartAccount.setTokenName("MY_TOKEN");
+      await tx.wait();
     }
 
     {
-      const hashTransaction = await smartAccountTwo.setTokenName("ANOTHER_TOKEN");
-      await waitTillCompleted(client, hashTransaction);
+      const tx = await smartAccountTwo.setTokenName("ANOTHER_TOKEN");
+      await tx.wait();
     }
     //endAdvancedNilJSExample
 
     //startAdvancedNilJSMintingExample
     {
-      const hashTransaction = await smartAccount.mintToken(100_000_000n);
-      await waitTillCompleted(client, hashTransaction);
+      const tx = await smartAccount.mintToken(100_000_000n);
+      await tx.wait();
     }
 
     {
-      const hashTransaction = await smartAccountTwo.mintToken(50_000_000n);
-      await waitTillCompleted(client, hashTransaction);
+      const tx = await smartAccountTwo.mintToken(50_000_000n);
+      await tx.wait();
     }
     //endAdvancedNilJSMintingExample
 
     //startNilJSTransferExample
-    const transferTransaction = smartAccountTwo.sendTransaction({
+    const tx = await smartAccountTwo.sendTransaction({
       to: smartAccount.address,
       value: 1_000_000n,
       feeCredit: 5_000_000n,

@@ -89,8 +89,8 @@ func NewFiltersManager(ctx context.Context, db db.ReadOnlyDB, noPolling bool) *F
 	return f
 }
 
-func (f *FiltersManager) WaitForShutdown() {
-	f.wg.Wait()
+func (m *FiltersManager) WaitForShutdown() {
+	m.wg.Wait()
 }
 
 func (f *Filter) LogsChannel() <-chan *MetaLog {
@@ -349,8 +349,8 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 		BlockHash *common.Hash           `json:"blockHash"`
 		FromBlock *transport.BlockNumber `json:"fromBlock"`
 		ToBlock   *transport.BlockNumber `json:"toBlock"`
-		Addresses interface{}            `json:"address"`
-		Topics    []interface{}          `json:"topics"`
+		Addresses any                    `json:"address"`
+		Topics    []any                  `json:"topics"`
 	}
 
 	var raw input
@@ -379,17 +379,17 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 	if raw.Addresses != nil {
 		// raw.Address can contain a single address or an array of addresses
 		switch rawAddr := raw.Addresses.(type) {
-		case []interface{}:
+		case []any:
 			for i, addr := range rawAddr {
-				if strAddr, ok := addr.(string); ok {
-					addr, err := decodeAddress(strAddr)
-					if err != nil {
-						return fmt.Errorf("invalid address at index %d: %w", i, err)
-					}
-					args.Addresses = append(args.Addresses, addr)
-				} else {
+				strAddr, ok := addr.(string)
+				if !ok {
 					return fmt.Errorf("non-string address at index %d", i)
 				}
+				addr, err := decodeAddress(strAddr)
+				if err != nil {
+					return fmt.Errorf("invalid address at index %d: %w", i, err)
+				}
+				args.Addresses = append(args.Addresses, addr)
 			}
 		case string:
 			addr, err := decodeAddress(rawAddr)
@@ -419,7 +419,7 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 				}
 				args.Topics[i] = []common.Hash{top}
 
-			case []interface{}:
+			case []any:
 				// or case e.g. [null, "topic0", "topic1"]
 				for _, rawTopic := range topic {
 					if rawTopic == nil {
@@ -427,15 +427,15 @@ func (args *FilterQuery) UnmarshalJSON(data []byte) error {
 						args.Topics[i] = nil
 						break
 					}
-					if topic, ok := rawTopic.(string); ok {
-						parsed, err := decodeTopic(topic)
-						if err != nil {
-							return err
-						}
-						args.Topics[i] = append(args.Topics[i], parsed)
-					} else {
+					topic, ok := rawTopic.(string)
+					if !ok {
 						return errors.New("invalid topic(s)")
 					}
+					parsed, err := decodeTopic(topic)
+					if err != nil {
+						return err
+					}
+					args.Topics[i] = append(args.Topics[i], parsed)
 				}
 			default:
 				return errors.New("invalid topic(s)")

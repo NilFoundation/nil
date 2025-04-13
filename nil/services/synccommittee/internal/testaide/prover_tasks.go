@@ -70,9 +70,10 @@ func RandomExecutorId() types.TaskExecutorId {
 }
 
 func RandomTaskResultData() types.TaskResultData {
-	size, err := rand.Int(rand.Reader, big.NewInt(int64(1024)))
+	randVal, err := rand.Int(rand.Reader, big.NewInt(int64(1024)))
 	check.PanicIfErr(err)
-	dataBytes := make([]byte, size.Int64())
+	size := randVal.Int64() + 1
+	dataBytes := make([]byte, size)
 
 	_, err = rand.Read(dataBytes)
 	check.PanicIfErr(err)

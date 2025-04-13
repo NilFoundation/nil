@@ -19,7 +19,7 @@ type SuiteReadThrough struct {
 
 func (s *SuiteReadThrough) SetupTest() {
 	s.Start(&nilservice.Config{
-		NShards: 5,
+		NShards: 3,
 		HttpUrl: rpc.GetSockPath(s.T()),
 	})
 	inDb, err := db.NewBadgerDbInMemory()

@@ -10,25 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-// FetchBlock fetches the block by number or hash
-func (s *Service) FetchBlock(shardId types.ShardId, blockId any) ([]byte, error) {
-	blockData, err := s.client.GetBlock(s.ctx, shardId, blockId, true)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to fetch block")
-		return nil, err
-	}
-
-	// Marshal the block data into a pretty-printed JSON format
-	blockDataJSON, err := json.MarshalIndent(blockData, "", "  ")
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to marshal block data to JSON")
-		return nil, err
-	}
-
-	s.logger.Info().Msgf("Fetched block:\n%s", blockDataJSON)
-	return blockDataJSON, nil
-}
-
 // FetchDebugBlock fetches the block by number or hash with transactions related data.
 func (s *Service) FetchDebugBlock(
 	shardId types.ShardId,
@@ -43,6 +24,10 @@ func (s *Service) FetchDebugBlock(
 		return nil, err
 	}
 
+	if hexedBlock == nil {
+		return nil, nil
+	}
+
 	block, err := hexedBlock.DecodeSSZ()
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to decode block data from hexed SSZ")
@@ -51,9 +36,8 @@ func (s *Service) FetchDebugBlock(
 
 	if jsonOutput {
 		return s.debugBlockToJson(shardId, block)
-	} else {
-		return s.debugBlockToText(shardId, block, !noColor, fullOutput)
 	}
+	return s.debugBlockToText(shardId, block, !noColor, fullOutput)
 }
 
 // We cannot make it generic because of
@@ -66,7 +50,7 @@ func (m *transactionWithHash) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		*types.Transaction
 		Hash common.Hash `json:"hash"`
-	}{&m.Transaction, m.Transaction.Hash()})
+	}{&m.Transaction, m.Hash()})
 }
 
 func (s *Service) debugBlockToJson(shardId types.ShardId, block *types.BlockWithExtractedData) ([]byte, error) {
@@ -90,6 +74,8 @@ func (s *Service) debugBlockToJson(shardId types.ShardId, block *types.BlockWith
 		Errors          map[common.Hash]string `json:"errors,omitempty"`
 		Hash            common.Hash            `json:"hash"`
 		ShardId         types.ShardId          `json:"shardId"`
+		BaseFee         types.Value            `json:"baseFee"`
+		GasUsed         types.Gas              `json:"gasUsed"`
 	}{
 		block.Block,
 		block.ChildBlocks,
@@ -97,8 +83,10 @@ func (s *Service) debugBlockToJson(shardId types.ShardId, block *types.BlockWith
 		toWithHashTransactions(block.OutTransactions),
 		block.Receipts,
 		block.Errors,
-		block.Block.Hash(shardId),
+		block.Hash(shardId),
 		shardId,
+		block.BaseFee,
+		block.GasUsed,
 	}, "", "  ")
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to marshal block data to JSON")
@@ -133,6 +121,8 @@ func (s *Service) debugBlockToText(
 {{- $color := .color -}}
 Block #{{ .block.Id }} [{{ .color.bold }}{{ .block.Hash .shardId }}{{ .color.reset }}] @ {{ .shardId }} shard
   PrevBlock: {{ .block.PrevBlock }}
+  BaseFee: {{ .block.BaseFee }}
+  GasUsed: {{ .block.GasUsed }}
   ChildBlocksRootHash: {{ .block.ChildBlocksRootHash }}
 {{- if len .block.ChildBlocks}}
   ChildBlocks:

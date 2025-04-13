@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"slices"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
-	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -27,6 +25,8 @@ import (
 	"github.com/NilFoundation/nil/nil/services/admin"
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/faucet"
+	"github.com/NilFoundation/nil/nil/services/indexer"
+	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	"github.com/NilFoundation/nil/nil/services/rollup"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
@@ -38,7 +38,7 @@ import (
 )
 
 // syncer will pull blocks actively if no blocks appear for 5 rounds
-const syncTimeoutFactor = 5
+const defaultSyncTimeoutFactor = 5
 
 func startRpcServer(
 	ctx context.Context,
@@ -81,6 +81,8 @@ func startRpcServer(
 	debugImpl := jsonrpc.NewDebugAPI(rawApi, logger)
 	web3Impl := jsonrpc.NewWeb3API(rawApi)
 
+	txpoolImpl := jsonrpc.NewTxPoolAPI(rawApi, logger)
+
 	apiList := []transport.API{
 		{
 			Namespace: "eth",
@@ -100,6 +102,22 @@ func startRpcServer(
 			Service:   jsonrpc.Web3API(web3Impl),
 			Version:   "1.0",
 		},
+		{
+			Namespace: "txpool",
+			Public:    true,
+			Service:   jsonrpc.TxPoolAPI(txpoolImpl),
+			Version:   "1.0",
+		},
+	}
+
+	if cfg.EnableDevApi {
+		devImpl := jsonrpc.NewDevAPI(rawApi)
+		apiList = append(apiList, transport.API{
+			Namespace: "dev",
+			Public:    true,
+			Service:   devImpl,
+			Version:   "1.0",
+		})
 	}
 
 	if cfg.Cometa != nil {
@@ -108,6 +126,28 @@ func startRpcServer(
 			return fmt.Errorf("failed to create cometa service: %w", err)
 		}
 		apiList = append(apiList, cmt.GetRpcApi())
+	}
+
+	if cfg.Indexer != nil {
+		idx, err := indexer.NewService(ctx, cfg.Indexer)
+		if err != nil {
+			return fmt.Errorf("failed to create indexer service: %w", err)
+		}
+		apiList = append(apiList, idx.GetRpcApi())
+
+		check.PanicIfErr(err)
+		task := concurrent.MakeTask(
+			"indexer",
+			func(ctx context.Context) (err error) {
+				return indexer.StartIndexer(ctx, &indexer.Cfg{
+					Client:        client,
+					IndexerDriver: idx.Driver,
+					BlocksChan:    make(chan *driver.BlockWithShardId, 1000),
+				})
+			})
+		if err := concurrent.Run(ctx, task); err != nil {
+			return err
+		}
 	}
 
 	if cfg.IsFaucetApiEnabled() {
@@ -149,68 +189,48 @@ type ServiceInterop struct {
 
 func getRawApi(
 	cfg *Config,
-	networkManager *network.Manager,
+	networkManager network.Manager,
 	database db.DB,
 	txnPools map[types.ShardId]txnpool.Pool,
-) (*rawapi.NodeApiOverShardApis, error) {
-	var myShards []uint
+) rawapi.NodeApi {
+	nodeApiBuilder := rawapi.NodeApiBuilder(database, networkManager)
+
 	switch cfg.RunMode {
-	case BlockReplayRunMode:
-		txnPools = nil
-		fallthrough
-	case NormalRunMode, ArchiveRunMode:
-		myShards = cfg.GetMyShards()
 	case RpcRunMode:
-		break
-	case CollatorsOnlyRunMode:
-		return nil, nil
-	default:
-		panic("unsupported run mode for raw API")
-	}
+		for shardId := range types.ShardId(cfg.NShards) {
+			nodeApiBuilder.
+				WithNetworkShardApiClientRo(shardId).
+				WithNetworkShardApiClientRw(shardId).
+				WithNetworkShardApiClientDev(shardId)
+		}
 
-	shardApis := make(map[types.ShardId]rawapi.ShardApi)
-	for shardId := range types.ShardId(cfg.NShards) {
-		var err error
-		if slices.Contains(myShards, uint(shardId)) {
-			shardApis[shardId] = rawapi.NewLocalShardApi(shardId, database, txnPools[shardId])
-			if assert.Enable {
-				api, ok := shardApis[shardId].(*rawapi.LocalShardApi)
-				check.PanicIfNot(ok)
-				shardApis[shardId], err = rawapi.NewLocalRawApiAccessor(shardId, api)
+	case ArchiveRunMode:
+		for shardId := range types.ShardId(cfg.NShards) {
+			nodeApiBuilder.WithLocalShardApiRo(shardId)
+		}
+
+	case NormalRunMode:
+		for shardId := range types.ShardId(cfg.NShards) {
+			nodeApiBuilder.WithLocalShardApiRo(shardId)
+			if cfg.IsShardActive(shardId) {
+				nodeApiBuilder.WithLocalShardApiRw(shardId, txnPools[shardId])
 			}
-		} else {
-			shardApis[shardId], err = rawapi.NewNetworkRawApiAccessor(shardId, networkManager)
+			if cfg.EnableDevApi {
+				nodeApiBuilder.WithLocalShardApiDev(shardId)
+			}
 		}
-		if err != nil {
-			return nil, err
-		}
-	}
-	rawApi := rawapi.NewNodeApiOverShardApis(shardApis)
-	return rawApi, nil
-}
 
-func setP2pRequestHandlers(
-	ctx context.Context,
-	rawApi *rawapi.NodeApiOverShardApis,
-	networkManager *network.Manager,
-	readonly bool,
-	logger logging.Logger,
-) error {
-	if networkManager == nil {
+	case BlockReplayRunMode:
+		nodeApiBuilder.WithLocalShardApiRo(cfg.Replay.ShardId)
+
+	case CollatorsOnlyRunMode:
 		return nil
 	}
-	for shardId, api := range rawApi.Apis {
-		if err := rawapi.SetShardApiAsP2pRequestHandlersIfAllowed(
-			api, ctx, networkManager, readonly, logger,
-		); err != nil {
-			logger.Error().Err(err).Stringer(logging.FieldShardId, shardId).Msg("Failed to set raw API request handler")
-			return err
-		}
-	}
-	return nil
+
+	return nodeApiBuilder.BuildAndReset()
 }
 
-func validateArchiveNodeConfig(_ *Config, nm *network.Manager) error {
+func validateArchiveNodeConfig(_ *Config, nm network.Manager) error {
 	if nm == nil {
 		return errors.New("failed to start archive node without network configuration")
 	}
@@ -222,7 +242,7 @@ func initSyncers(ctx context.Context, syncers []*collate.Syncer, allowDbDrop boo
 		return err
 	}
 	for _, syncer := range syncers {
-		if err := syncer.GenerateZerostate(ctx); err != nil {
+		if err := syncer.GenerateZerostateIfShardIsEmpty(ctx); err != nil {
 			return err
 		}
 	}
@@ -231,7 +251,7 @@ func initSyncers(ctx context.Context, syncers []*collate.Syncer, allowDbDrop boo
 
 func getSyncerConfig(name string, cfg *Config, shardId types.ShardId) *collate.SyncerConfig {
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
-	syncerTimeout := syncTimeoutFactor * collatorTickPeriod
+	syncerTimeout := collatorTickPeriod * time.Duration(cfg.SyncTimeoutFactor)
 
 	return &collate.SyncerConfig{
 		Name:                 name,
@@ -244,25 +264,27 @@ func getSyncerConfig(name string, cfg *Config, shardId types.ShardId) *collate.S
 }
 
 type syncersResult struct {
-	funcs   []concurrent.Func
+	funcs   []concurrent.Task
 	syncers []*collate.Syncer
 	wgInit  sync.WaitGroup
+	result  error
 }
 
-func (s *syncersResult) Wait() {
+func (s *syncersResult) Wait() error {
 	s.wgInit.Wait()
+	return s.result
 }
 
 func createSyncers(
 	name string,
 	cfg *Config,
 	validators []*collate.Validator,
-	nm *network.Manager,
+	nm network.Manager,
 	database db.DB,
 	logger logging.Logger,
 ) (*syncersResult, error) {
 	res := &syncersResult{
-		funcs:   make([]concurrent.Func, 0, cfg.NShards+2),
+		funcs:   make([]concurrent.Task, 0, cfg.NShards+2),
 		syncers: make([]*collate.Syncer, 0, cfg.NShards),
 	}
 	res.wgInit.Add(1)
@@ -275,46 +297,70 @@ func createSyncers(
 			return nil, err
 		}
 		res.syncers = append(res.syncers, syncer)
-		res.funcs = append(res.funcs, func(ctx context.Context) error {
-			res.Wait() // Wait for syncers initialization
-			if err := syncer.Run(ctx); err != nil {
-				logger.Error().
-					Err(err).
-					Stringer(logging.FieldShardId, shardId).
-					Msg("Syncer goroutine failed")
-				return err
-			}
-			return nil
-		})
+		res.funcs = append(res.funcs, concurrent.MakeTask(
+			fmt.Sprintf("[%d] syncer", i),
+			func(ctx context.Context) error {
+				if err := res.Wait(); err != nil { // Wait for syncers initialization
+					return err
+				}
+				if err := syncer.Run(ctx); err != nil {
+					logger.Error().
+						Err(err).
+						Stringer(logging.FieldShardId, shardId).
+						Msg("Syncer goroutine failed")
+					return err
+				}
+				return nil
+			}))
 	}
-	res.funcs = append(res.funcs, func(ctx context.Context) error {
-		defer res.wgInit.Done()
-		if err := initSyncers(ctx, res.syncers, cfg.AllowDbDrop); err != nil {
-			logger.Error().Err(err).Msg("Failed to initialize syncers")
-			return err
-		}
-		return nil
-	})
-	res.funcs = append(res.funcs, func(ctx context.Context) error {
-		for _, syncer := range res.syncers {
-			syncer.WaitComplete()
-		}
-		return res.syncers[0].SetHandlers(ctx)
-	})
+	res.funcs = append(res.funcs, concurrent.MakeTask(
+		"init syncers",
+		func(ctx context.Context) (err error) {
+			defer func() {
+				res.result = err
+				res.wgInit.Done()
+			}()
+			if err = initSyncers(ctx, res.syncers, cfg.AllowDbDrop); err != nil {
+				logger.Error().Err(err).Msg("Failed to initialize syncers")
+			}
+			return
+		}))
+	res.funcs = append(res.funcs, concurrent.MakeTask(
+		"set syncer handlers",
+		func(ctx context.Context) error {
+			for _, syncer := range res.syncers {
+				if err := syncer.WaitComplete(ctx); err != nil {
+					if errors.Is(err, context.Canceled) {
+						return nil
+					}
+					return err
+				}
+			}
+			return res.syncers[0].SetHandlers(ctx)
+		}))
 
 	return res, nil
 }
 
 type Node struct {
-	NetworkManager *network.Manager
-	funcs          []concurrent.Func
+	NetworkManager network.Manager
+	funcs          []concurrent.Task
 	logger         logging.Logger
 	ctx            context.Context
 }
 
 func (i *Node) Run() error {
 	if err := concurrent.Run(i.ctx, i.funcs...); err != nil {
-		i.logger.Error().Err(err).Msg("App encountered an error and will be terminated.")
+		var executionErr *concurrent.ExecutionError
+		var protocolVersionMismatchErr *collate.ProtocolVersionMismatchError
+		if errors.As(err, &executionErr) && errors.As(executionErr.Err, &protocolVersionMismatchErr) {
+			i.logger.Error().
+				Str("localVersion", protocolVersionMismatchErr.LocalVersion).
+				Str("remoteVersion", protocolVersionMismatchErr.RemoteVersion).
+				Msg("Protocol version mismatch. Probably nild executable is outdated.")
+		} else {
+			i.logger.Error().Err(err).Msg("App encountered an error and will be terminated.")
+		}
 		return err
 	}
 	i.logger.Info().Msg("App is terminated.")
@@ -330,12 +376,12 @@ func (i *Node) Close(ctx context.Context) {
 
 func runNormalOrCollatorsOnly(
 	ctx context.Context,
-	funcs []concurrent.Func,
+	funcs []concurrent.Task,
 	cfg *Config,
 	database db.DB,
-	networkManager *network.Manager,
+	networkManager network.Manager,
 	logger logging.Logger,
-) ([]concurrent.Func, map[types.ShardId]txnpool.Pool, error) {
+) ([]concurrent.Task, map[types.ShardId]txnpool.Pool, error) {
 	if err := cfg.LoadValidatorKeys(); err != nil {
 		return nil, nil, err
 	}
@@ -382,7 +428,7 @@ func CreateNode(
 	cfg *Config,
 	database db.DB,
 	interop chan<- ServiceInterop,
-	workers ...concurrent.Func,
+	workers ...concurrent.Task,
 ) (*Node, error) {
 	logger := logging.NewLogger(name)
 
@@ -407,10 +453,14 @@ func CreateNode(
 		cfg.L1Fetcher = rollup.NewL1BlockFetcherRpc(ctx)
 	}
 
-	funcs := make([]concurrent.Func, 0, int(cfg.NShards)+2+len(workers))
+	funcs := make([]concurrent.Task, 0, int(cfg.NShards)+2+len(workers))
 
 	if cfg.CollatorTickPeriodMs == 0 {
 		cfg.CollatorTickPeriodMs = defaultCollatorTickPeriodMs
+	}
+
+	if cfg.SyncTimeoutFactor == 0 {
+		cfg.SyncTimeoutFactor = defaultSyncTimeoutFactor
 	}
 
 	if cfg.ZeroState == nil {
@@ -422,9 +472,9 @@ func CreateNode(
 		}
 	}
 
-	var txnPools map[types.ShardId]txnpool.Pool
-	if cfg.Network != nil && cfg.RunMode != NormalRunMode {
-		cfg.Network.DHTMode = dht.ModeClient
+	createNetworkManager := cfg.NetworkManagerFactory
+	if createNetworkManager == nil {
+		createNetworkManager = CreateNetworkManager
 	}
 	networkManager, err := createNetworkManager(ctx, cfg, database)
 	if err != nil {
@@ -432,6 +482,7 @@ func CreateNode(
 		return nil, err
 	}
 
+	var txnPools map[types.ShardId]txnpool.Pool
 	var syncersResult *syncersResult
 	switch cfg.RunMode {
 	case NormalRunMode, CollatorsOnlyRunMode:
@@ -461,26 +512,30 @@ func CreateNode(
 			ReplayLastBlock:      cfg.Replay.BlockIdLast,
 		})
 
-		funcs = append(funcs, func(ctx context.Context) error {
-			if err := replayer.Run(ctx); err != nil {
-				logger.Error().
-					Err(err).
-					Stringer(logging.FieldShardId, cfg.Replay.ShardId).
-					Msg("Replayer goroutine failed")
-				return err
-			}
-			return nil
-		})
+		funcs = append(funcs, concurrent.MakeTask(
+			"block-replay",
+			func(ctx context.Context) error {
+				if err := replayer.Run(ctx); err != nil {
+					logger.Error().
+						Err(err).
+						Stringer(logging.FieldShardId, cfg.Replay.ShardId).
+						Msg("Replayer goroutine failed")
+					return err
+				}
+				return nil
+			}))
 	case RpcRunMode:
 		if networkManager == nil {
-			err := errors.New("Failed to start rpc node without network configuration")
+			err := errors.New("failed to start rpc node without network configuration")
 			logger.Error().Err(err).Send()
 			return nil, err
 		}
-		funcs = append(funcs, func(ctx context.Context) error {
-			network.ConnectToPeers(ctx, cfg.RpcNode.ArchiveNodeList, *networkManager, logger)
-			return nil
-		})
+		funcs = append(funcs, concurrent.MakeTask(
+			"connect to peers",
+			func(ctx context.Context) error {
+				network.ConnectToPeers(ctx, cfg.RpcNode.ArchiveNodeList, networkManager, logger)
+				return nil
+			}))
 	default:
 		panic("unsupported run mode")
 	}
@@ -489,44 +544,21 @@ func CreateNode(
 		interop <- ServiceInterop{TxnPools: txnPools}
 	}
 
-	funcs = append(funcs, func(ctx context.Context) error {
-		if err := startAdminServer(ctx, cfg); err != nil {
-			logger.Error().Err(err).Msg("Admin server goroutine failed")
-			return err
-		}
-		return nil
-	})
-
-	rawApi, err := getRawApi(cfg, networkManager, database, txnPools)
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to create raw API")
-		return nil, err
-	}
-
-	if (cfg.RPCPort != 0 || cfg.HttpUrl != "") && rawApi != nil {
-		funcs = append(funcs, func(ctx context.Context) error {
-			if syncersResult != nil {
-				syncersResult.Wait() // Wait for syncers initialization
-			}
-
-			var cl client.Client
-			if cfg.Cometa != nil || cfg.IsFaucetApiEnabled() {
-				cl, err = client.NewEthClient(ctx, database, rawApi, logger)
-				if err != nil {
-					return fmt.Errorf("failed to create node client: %w", err)
-				}
-			}
-			if err := startRpcServer(ctx, cfg, rawApi, database, cl); err != nil {
-				logger.Error().Err(err).Msg("RPC server goroutine failed")
+	funcs = append(funcs, concurrent.MakeTask(
+		"admin-api",
+		func(ctx context.Context) error {
+			if err := startAdminServer(ctx, cfg); err != nil {
+				logger.Error().Err(err).Msg("Admin server goroutine failed")
 				return err
 			}
 			return nil
-		})
-	}
+		}))
+
+	rawApi := getRawApi(cfg, networkManager, database, txnPools)
+	funcs = addRpcServerWorkerIfEnabled(funcs, cfg, rawApi, syncersResult, database, logger)
 
 	if cfg.RunMode != CollatorsOnlyRunMode && cfg.RunMode != RpcRunMode {
-		readonly := cfg.RunMode != NormalRunMode
-		if err := setP2pRequestHandlers(ctx, rawApi, networkManager, readonly, logger); err != nil {
+		if err := rawApi.SetP2pRequestHandlers(ctx, networkManager, logger); err != nil {
 			return nil, err
 		}
 
@@ -545,6 +577,43 @@ func CreateNode(
 	}, nil
 }
 
+func addRpcServerWorkerIfEnabled(
+	tasks []concurrent.Task,
+	cfg *Config,
+	rawApi rawapi.NodeApi,
+	syncersResult *syncersResult,
+	database db.DB,
+	logger logging.Logger,
+) []concurrent.Task {
+	if (cfg.RPCPort == 0 && cfg.HttpUrl == "") || rawApi == nil {
+		return tasks
+	}
+
+	return append(tasks, concurrent.MakeTask(
+		"rpc-api",
+		func(ctx context.Context) error {
+			if syncersResult != nil {
+				if err := syncersResult.Wait(); err != nil { // Wait for syncers initialization
+					return err
+				}
+			}
+
+			var cl client.Client
+			if cfg.Cometa != nil || cfg.IsFaucetApiEnabled() || cfg.Indexer != nil {
+				var err error
+				cl, err = client.NewEthClient(ctx, database, rawApi, logger)
+				if err != nil {
+					return fmt.Errorf("failed to create node client: %w", err)
+				}
+			}
+			if err := startRpcServer(ctx, cfg, rawApi, database, cl); err != nil {
+				logger.Error().Err(err).Msg("RPC server goroutine failed")
+				return err
+			}
+			return nil
+		}))
+}
+
 // Run starts transaction pools and collators for given shards, creates a single RPC server for all shards.
 // It waits until one of the events:
 //   - all goroutines finish successfully,
@@ -557,7 +626,7 @@ func Run(
 	cfg *Config,
 	database db.DB,
 	interop chan<- ServiceInterop,
-	workers ...concurrent.Func,
+	workers ...concurrent.Task,
 ) int {
 	if cfg.GracefulShutdown {
 		signalCtx, cancel := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
@@ -580,7 +649,11 @@ func Run(
 	return 0
 }
 
-func createNetworkManager(ctx context.Context, cfg *Config, database db.DB) (*network.Manager, error) {
+func CreateNetworkManager(ctx context.Context, cfg *Config, database db.DB) (network.Manager, error) {
+	if cfg.Network != nil && cfg.RunMode != NormalRunMode {
+		cfg.Network.DHTMode = dht.ModeClient
+	}
+
 	if cfg.RunMode == RpcRunMode {
 		return network.NewClientManager(ctx, cfg.Network, database)
 	}
@@ -612,7 +685,7 @@ func createValidators(
 	ctx context.Context,
 	cfg *Config,
 	database db.DB,
-	networkManager *network.Manager,
+	networkManager network.Manager,
 ) ([]*collate.Validator, error) {
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
 
@@ -630,18 +703,23 @@ func createValidators(
 			}
 		}
 
-		list[i] = collate.NewValidator(params, list[0], database, txpool, networkManager)
+		list[i], err = collate.NewValidator(params, list[0], database, txpool, networkManager)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return list, nil
 }
 
 func createShards(
 	cfg *Config,
-	validators []*collate.Validator, syncers *syncersResult,
-	database db.DB, networkManager *network.Manager,
+	validators []*collate.Validator,
+	syncers *syncersResult,
+	database db.DB,
+	networkManager network.Manager,
 	logger logging.Logger,
-) ([]concurrent.Func, error) {
-	funcs := make([]concurrent.Func, 0, cfg.NShards)
+) ([]concurrent.Task, error) {
+	funcs := make([]concurrent.Task, 0, cfg.NShards)
 
 	validatorsNum := len(cfg.ZeroState.GetValidators())
 	if validatorsNum != int(cfg.NShards)-1 {
@@ -670,20 +748,24 @@ func createShards(
 			}
 			collator := collate.NewScheduler(validators[i], database, consensus, networkManager)
 
-			funcs = append(funcs, func(ctx context.Context) error {
-				syncers.Wait() // Wait for syncers initialization
-				if err := consensus.Init(ctx); err != nil {
-					return err
-				}
-				if err := collator.Run(ctx, consensus); err != nil {
-					logger.Error().
-						Err(err).
-						Stringer(logging.FieldShardId, shardId).
-						Msg("Collator goroutine failed")
-					return err
-				}
-				return nil
-			})
+			funcs = append(funcs, concurrent.MakeTask(
+				fmt.Sprintf("[%d] collator", i),
+				func(ctx context.Context) error {
+					if err := syncers.Wait(); err != nil { // Wait for syncers initialization
+						return err
+					}
+					if err := consensus.Init(ctx); err != nil {
+						return err
+					}
+					if err := collator.Run(ctx, consensus); err != nil {
+						logger.Error().
+							Err(err).
+							Stringer(logging.FieldShardId, shardId).
+							Msg("Collator goroutine failed")
+						return err
+					}
+					return nil
+				}))
 		} else if networkManager == nil {
 			return nil, errors.New("trying to start syncer without network configuration")
 		}

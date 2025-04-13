@@ -22,7 +22,7 @@ var (
 	// This is done in order to not stamp the commit hash on build and
 	// thus not needlessly thrash the cache. Instead, this string will
 	// be replaced on package-build time.
-	versionMagic          string = "qm5h7IEa3ahXUgsPknK8bwWulPEmpgMWSaQSaOUa"
+	versionMagic          = "qm5h7IEa3ahXUgsPknK8bwWulPEmpgMWSaQSaOUa"
 	versionInfoCache      versionInfo
 	versionInfoCacheMutex sync.Mutex
 )

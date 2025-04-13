@@ -21,6 +21,8 @@ type batchEncoder struct {
 	logger     logging.Logger
 }
 
+var _ encode.BatchEncoder = (*batchEncoder)(nil)
+
 func NewEncoder(logger logging.Logger) *batchEncoder {
 	return &batchEncoder{
 		compressor: NewZstdCompressor(logger),
@@ -41,9 +43,5 @@ func (be *batchEncoder) Encode(batch *types.PrunedBatch, out io.Writer) error {
 		return err
 	}
 
-	if err := be.compressor.Compress(bytes.NewReader(serialized), out); err != nil {
-		return err
-	}
-
-	return nil
+	return be.compressor.Compress(bytes.NewReader(serialized), out)
 }

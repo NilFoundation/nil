@@ -591,7 +591,7 @@ type sendRequest struct{}
 
 var _ ReadWritePrecompiledContract = (*sendRequest)(nil)
 
-func (c *sendRequest) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
+func (*sendRequest) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
 	dst, err := extractDstAddress(input, "precompileSendRequest", 0)
 	if err != nil {
 		return math.MaxUint64, err
@@ -690,7 +690,7 @@ func (a *verifySignature) Run(input []byte) ([]byte, error) {
 	pubkey, ok1 := values[0].([]byte)
 	hash, ok2 := values[1].(*big.Int)
 	sig, ok3 := values[2].([]byte)
-	if !(ok1 && ok2 && ok3 && len(sig) == common.SignatureSize) {
+	if !ok1 || !ok2 || !ok3 || len(sig) != common.SignatureSize {
 		return common.EmptyHash[:], nil
 	}
 	result := crypto.VerifySignature(pubkey, common.BigToHash(hash).Bytes(), sig[:64])
@@ -700,17 +700,20 @@ func (a *verifySignature) Run(input []byte) ([]byte, error) {
 	return common.EmptyHash[:], nil
 }
 
-func VerifySignatureArgs() abi.Arguments {
-	// arguments: bytes pubkey, uint256 hash, bytes signature
-	// returns: bool signatureValid
-	uint256Ty, _ := abi.NewType("uint256", "", nil)
-	bytesTy, _ := abi.NewType("bytes", "", nil)
-	args := abi.Arguments{
+// arguments: bytes pubkey, uint256 hash, bytes signature
+// returns: bool signatureValid
+var (
+	uint256Ty, _        = abi.NewType("uint256", "", nil)
+	bytesTy, _          = abi.NewType("bytes", "", nil)
+	verifySignatureArgs = abi.Arguments{
 		abi.Argument{Name: "pubkey", Type: bytesTy},
 		abi.Argument{Name: "hash", Type: uint256Ty},
 		abi.Argument{Name: "signature", Type: bytesTy},
 	}
-	return args
+)
+
+func VerifySignatureArgs() abi.Arguments {
+	return verifySignatureArgs
 }
 
 type checkIsInternal struct{}
@@ -1169,11 +1172,11 @@ func (e *emitLog) Run(state StateDB, input []byte, value *uint256.Int, caller Co
 	slice := reflect.ValueOf(args[1])
 	data := make([]types.Uint256, slice.Len())
 	for i := range slice.Len() {
-		if v, ok := slice.Index(i).Interface().(*big.Int); ok {
-			data[i].SetFromBig(v)
-		} else {
+		v, ok := slice.Index(i).Interface().(*big.Int)
+		if !ok {
 			return nil, types.NewVmError(types.ErrorAbiUnpackFailed)
 		}
+		data[i].SetFromBig(v)
 	}
 
 	debugLog, err := types.NewDebugLog([]byte(transaction), data)

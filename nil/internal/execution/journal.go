@@ -11,20 +11,12 @@ const (
 )
 
 type IRevertableExecutionState interface {
-	deleteObject(addr types.Address)
-	deleteContractChange(addr types.Address)
-	revertSelfDestructChange(addr types.Address, prev bool, prevBalance types.Value)
-	revertBalanceChange(addr types.Address, prevBalance types.Value)
-	revertTokenChange(addr types.Address, tokenId types.TokenId, prevValue types.Value)
-	revertSeqnoChange(addr types.Address, prevSeqno types.Seqno)
-	revertExtSeqnoChange(addr types.Address, prevExtSeqno types.Seqno)
-	revertCodeChange(addr types.Address, prevCodeHash common.Hash, prevCode []byte)
-	revertStorageChange(addr types.Address, key common.Hash, prevValue common.Hash)
-	revertRefundChange(prevRefund uint64)
-	deleteLog(txHash common.Hash)
-	revertTransientStorageChange(addr types.Address, key common.Hash, prevValue common.Hash)
-	revertOutTransactionsChange(index int, txnHash common.Hash)
-	revertAsyncContextChange(addr types.Address, requestId types.TransactionIndex)
+	DeleteAccount(addr types.Address)
+	GetAccount(addr types.Address) (*AccountState, error)
+	SetRefund(value uint64)
+	DeleteLog(txHash common.Hash)
+	SetTransientNoJournal(addr types.Address, key common.Hash, prevValue common.Hash)
+	DeleteOutTransaction(index int, txnHash common.Hash)
 }
 
 // JournalEntry is a modification entry in the state change journal that can be
@@ -67,14 +59,14 @@ func (j *journal) length() int {
 
 type (
 	// Changes to the account trie.
-	createObjectChange struct {
+	createAccountChange struct {
 		account *types.Address
 	}
 
-	// createContractChange represents an account becoming a contract-account.
+	// accountBecameContractChange represents an account becoming a contract-account.
 	// This event happens prior to executing initcode. The journal-event simply
 	// manages the created-flag, in order to allow same-tx destruction.
-	createContractChange struct {
+	accountBecameContractChange struct {
 		account types.Address
 	}
 
@@ -136,73 +128,71 @@ type (
 	}
 )
 
-func (ch createObjectChange) revert(s IRevertableExecutionState) {
-	s.deleteObject(*ch.account)
+func (ch createAccountChange) revert(s IRevertableExecutionState) {
+	reverter{s}.revertCreateAccount(*ch.account)
 }
 
-func (ch createContractChange) revert(s IRevertableExecutionState) {
-	s.deleteContractChange(ch.account)
+func (ch accountBecameContractChange) revert(s IRevertableExecutionState) {
+	reverter{s}.revertAccountBecameContractChange(ch.account)
 }
 
 func (ch selfDestructChange) revert(s IRevertableExecutionState) {
-	s.revertSelfDestructChange(*ch.account, ch.prev, ch.prevbalance)
+	reverter{s}.revertSelfDestructChange(*ch.account, ch.prev, ch.prevbalance)
 }
 
 func (ch balanceChange) revert(s IRevertableExecutionState) {
-	s.revertBalanceChange(*ch.account, ch.prev)
+	reverter{s}.revertBalanceChange(*ch.account, ch.prev)
 }
 
 func (ch tokenChange) revert(s IRevertableExecutionState) {
-	s.revertTokenChange(*ch.account, ch.id, ch.prev)
+	reverter{s}.revertTokenChange(*ch.account, ch.id, ch.prev)
 }
 
 func (ch seqnoChange) revert(s IRevertableExecutionState) {
-	s.revertSeqnoChange(*ch.account, ch.prev)
+	reverter{s}.revertSeqnoChange(*ch.account, ch.prev)
 }
 
 func (ch extSeqnoChange) revert(s IRevertableExecutionState) {
-	s.revertExtSeqnoChange(*ch.account, ch.prev)
+	reverter{s}.revertExtSeqnoChange(*ch.account, ch.prev)
 }
 
 func (ch codeChange) revert(s IRevertableExecutionState) {
-	s.revertCodeChange(*ch.account, common.BytesToHash(ch.prevhash), ch.prevcode)
+	reverter{s}.revertCodeChange(*ch.account, common.BytesToHash(ch.prevhash), ch.prevcode)
 }
 
 func (ch storageChange) revert(s IRevertableExecutionState) {
-	s.revertStorageChange(*ch.account, ch.key, ch.prevvalue)
+	reverter{s}.revertStorageChange(*ch.account, ch.key, ch.prevvalue)
 }
 
 func (ch refundChange) revert(s IRevertableExecutionState) {
-	s.revertRefundChange(ch.prev)
+	reverter{s}.revertRefundChange(ch.prev)
 }
 
 func (ch addLogChange) revert(s IRevertableExecutionState) {
-	s.deleteLog(ch.txhash)
+	reverter{s}.deleteLog(ch.txhash)
 }
 
 func (ch transientStorageChange) revert(s IRevertableExecutionState) {
-	s.revertTransientStorageChange(*ch.account, ch.key, ch.prevalue)
+	reverter{s}.revertTransientStorageChange(*ch.account, ch.key, ch.prevalue)
 }
 
 func (ch outTransactionsChange) revert(s IRevertableExecutionState) {
-	s.revertOutTransactionsChange(ch.index, ch.txnHash)
+	reverter{s}.revertOutTransactionsChange(ch.index, ch.txnHash)
 }
 
 func (ch asyncContextChange) revert(s IRevertableExecutionState) {
-	s.revertAsyncContextChange(*ch.account, ch.requestId)
+	reverter{s}.revertAsyncContextChange(*ch.account, ch.requestId)
 }
 
-type ExecutionStateRevertableWrapper struct {
-	es *ExecutionState
+type reverter struct {
+	es IRevertableExecutionState
 }
 
-var _ IRevertableExecutionState = new(ExecutionStateRevertableWrapper)
-
-func (w *ExecutionStateRevertableWrapper) deleteObject(addr types.Address) {
-	delete(w.es.Accounts, addr)
+func (w reverter) revertCreateAccount(addr types.Address) {
+	w.es.DeleteAccount(addr)
 }
 
-func (w *ExecutionStateRevertableWrapper) deleteContractChange(addr types.Address) {
+func (w reverter) revertAccountBecameContractChange(addr types.Address) {
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
@@ -210,11 +200,7 @@ func (w *ExecutionStateRevertableWrapper) deleteContractChange(addr types.Addres
 	}
 }
 
-func (w *ExecutionStateRevertableWrapper) revertSelfDestructChange(
-	addr types.Address,
-	prev bool,
-	prevBalance types.Value,
-) {
+func (w reverter) revertSelfDestructChange(addr types.Address, prev bool, prevBalance types.Value) {
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
@@ -223,7 +209,7 @@ func (w *ExecutionStateRevertableWrapper) revertSelfDestructChange(
 	}
 }
 
-func (w *ExecutionStateRevertableWrapper) revertBalanceChange(addr types.Address, prevBalance types.Value) {
+func (w reverter) revertBalanceChange(addr types.Address, prevBalance types.Value) {
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
@@ -231,11 +217,7 @@ func (w *ExecutionStateRevertableWrapper) revertBalanceChange(addr types.Address
 	}
 }
 
-func (w *ExecutionStateRevertableWrapper) revertTokenChange(
-	addr types.Address,
-	tokenId types.TokenId,
-	prevValue types.Value,
-) {
+func (w reverter) revertTokenChange(addr types.Address, tokenId types.TokenId, prevValue types.Value) {
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
@@ -243,7 +225,7 @@ func (w *ExecutionStateRevertableWrapper) revertTokenChange(
 	}
 }
 
-func (w *ExecutionStateRevertableWrapper) revertSeqnoChange(addr types.Address, prevSeqno types.Seqno) {
+func (w reverter) revertSeqnoChange(addr types.Address, prevSeqno types.Seqno) {
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
@@ -251,7 +233,7 @@ func (w *ExecutionStateRevertableWrapper) revertSeqnoChange(addr types.Address, 
 	}
 }
 
-func (w *ExecutionStateRevertableWrapper) revertExtSeqnoChange(addr types.Address, prevExtSeqno types.Seqno) {
+func (w reverter) revertExtSeqnoChange(addr types.Address, prevExtSeqno types.Seqno) {
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
@@ -259,11 +241,7 @@ func (w *ExecutionStateRevertableWrapper) revertExtSeqnoChange(addr types.Addres
 	}
 }
 
-func (w *ExecutionStateRevertableWrapper) revertCodeChange(
-	addr types.Address,
-	prevCodeHash common.Hash,
-	prevCode []byte,
-) {
+func (w reverter) revertCodeChange(addr types.Address, prevCodeHash common.Hash, prevCode []byte) {
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
@@ -271,11 +249,7 @@ func (w *ExecutionStateRevertableWrapper) revertCodeChange(
 	}
 }
 
-func (w *ExecutionStateRevertableWrapper) revertStorageChange(
-	addr types.Address,
-	key common.Hash,
-	prevValue common.Hash,
-) {
+func (w reverter) revertStorageChange(addr types.Address, key common.Hash, prevValue common.Hash) {
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
@@ -283,45 +257,26 @@ func (w *ExecutionStateRevertableWrapper) revertStorageChange(
 	}
 }
 
-func (w *ExecutionStateRevertableWrapper) revertRefundChange(prevRefund uint64) {
-	w.es.refund = prevRefund
+func (w reverter) revertRefundChange(prevRefund uint64) {
+	w.es.SetRefund(prevRefund)
 }
 
-func (w *ExecutionStateRevertableWrapper) deleteLog(txHash common.Hash) {
+func (w reverter) deleteLog(txHash common.Hash) {
 	if doNotRevertLogsFeatureEnabled {
 		return
 	}
-	logs := w.es.Logs[txHash]
-	if len(logs) == 1 {
-		delete(w.es.Logs, txHash)
-	} else {
-		w.es.Logs[txHash] = logs[:len(logs)-1]
-	}
+	w.es.DeleteLog(txHash)
 }
 
-func (w *ExecutionStateRevertableWrapper) revertTransientStorageChange(
-	addr types.Address,
-	key common.Hash,
-	prevValue common.Hash,
-) {
-	w.es.setTransientState(addr, key, prevValue)
+func (w reverter) revertTransientStorageChange(addr types.Address, key common.Hash, prevValue common.Hash) {
+	w.es.SetTransientNoJournal(addr, key, prevValue)
 }
 
-func (w *ExecutionStateRevertableWrapper) revertOutTransactionsChange(index int, txnHash common.Hash) {
-	outTransactions, ok := w.es.OutTransactions[txnHash]
-	check.PanicIfNot(ok)
-
-	// Probably it is possible that the transaction is not the last in the list, but let's assume it is for a now.
-	// And catch opposite case with this assert.
-	check.PanicIfNot(index == len(outTransactions)-1)
-
-	w.es.OutTransactions[txnHash] = outTransactions[:index]
+func (w reverter) revertOutTransactionsChange(index int, txnHash common.Hash) {
+	w.es.DeleteOutTransaction(index, txnHash)
 }
 
-func (w *ExecutionStateRevertableWrapper) revertAsyncContextChange(
-	addr types.Address,
-	requestId types.TransactionIndex,
-) {
+func (w reverter) revertAsyncContextChange(addr types.Address, requestId types.TransactionIndex) {
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {

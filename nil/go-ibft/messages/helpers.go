@@ -34,7 +34,10 @@ func ExtractCommittedSeals(commitMessages []*proto.IbftMessage) ([]*CommittedSea
 
 // ExtractCommittedSeal extracts the committed seal from the passed in message
 func ExtractCommittedSeal(commitMessage *proto.IbftMessage) *CommittedSeal {
-	commitData, _ := commitMessage.Payload.(*proto.IbftMessage_CommitData)
+	commitData, ok := commitMessage.Payload.(*proto.IbftMessage_CommitData)
+	if !ok {
+		return nil
+	}
 
 	return &CommittedSeal{
 		Signer:    commitMessage.From,
@@ -48,7 +51,10 @@ func ExtractCommitHash(commitMessage *proto.IbftMessage) []byte {
 		return nil
 	}
 
-	commitData, _ := commitMessage.Payload.(*proto.IbftMessage_CommitData)
+	commitData, ok := commitMessage.Payload.(*proto.IbftMessage_CommitData)
+	if !ok {
+		return nil
+	}
 
 	return commitData.CommitData.ProposalHash
 }
@@ -59,7 +65,10 @@ func ExtractProposal(proposalMessage *proto.IbftMessage) *proto.Proposal {
 		return nil
 	}
 
-	preprepareData, _ := proposalMessage.Payload.(*proto.IbftMessage_PreprepareData)
+	preprepareData, ok := proposalMessage.Payload.(*proto.IbftMessage_PreprepareData)
+	if !ok {
+		return nil
+	}
 
 	return preprepareData.PreprepareData.Proposal
 }
@@ -70,7 +79,10 @@ func ExtractProposalHash(proposalMessage *proto.IbftMessage) []byte {
 		return nil
 	}
 
-	preprepareData, _ := proposalMessage.Payload.(*proto.IbftMessage_PreprepareData)
+	preprepareData, ok := proposalMessage.Payload.(*proto.IbftMessage_PreprepareData)
+	if !ok {
+		return nil
+	}
 
 	return preprepareData.PreprepareData.ProposalHash
 }
@@ -81,7 +93,10 @@ func ExtractRoundChangeCertificate(proposalMessage *proto.IbftMessage) *proto.Ro
 		return nil
 	}
 
-	preprepareData, _ := proposalMessage.Payload.(*proto.IbftMessage_PreprepareData)
+	preprepareData, ok := proposalMessage.Payload.(*proto.IbftMessage_PreprepareData)
+	if !ok {
+		return nil
+	}
 
 	return preprepareData.PreprepareData.Certificate
 }
@@ -92,7 +107,10 @@ func ExtractPrepareHash(prepareMessage *proto.IbftMessage) []byte {
 		return nil
 	}
 
-	prepareData, _ := prepareMessage.Payload.(*proto.IbftMessage_PrepareData)
+	prepareData, ok := prepareMessage.Payload.(*proto.IbftMessage_PrepareData)
+	if !ok {
+		return nil
+	}
 
 	return prepareData.PrepareData.ProposalHash
 }
@@ -103,7 +121,10 @@ func ExtractLatestPC(roundChangeMessage *proto.IbftMessage) *proto.PreparedCerti
 		return nil
 	}
 
-	rcData, _ := roundChangeMessage.Payload.(*proto.IbftMessage_RoundChangeData)
+	rcData, ok := roundChangeMessage.Payload.(*proto.IbftMessage_RoundChangeData)
+	if !ok {
+		return nil
+	}
 
 	return rcData.RoundChangeData.LatestPreparedCertificate
 }
@@ -114,8 +135,10 @@ func ExtractLastPreparedProposal(roundChangeMessage *proto.IbftMessage) *proto.P
 		return nil
 	}
 
-	rcData, _ := roundChangeMessage.Payload.(*proto.IbftMessage_RoundChangeData)
-
+	rcData, ok := roundChangeMessage.Payload.(*proto.IbftMessage_RoundChangeData)
+	if !ok {
+		return nil
+	}
 	return rcData.RoundChangeData.LastPreparedProposal
 }
 

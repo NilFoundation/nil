@@ -12,12 +12,11 @@
 , go-tools
 , gotools
 , golangci-lint
-, gofumpt
-, gci
 , delve
 , gopls
 , protoc-gen-go
 , protobuf
+, rollup-bridge-contracts
 }:
 let inherit (lib) optional;
   overrideBuildGoModule = pkg: pkg.override { buildGoModule = buildGo124Module; };
@@ -27,16 +26,23 @@ buildGo124Module rec {
   pname = "nil";
 
   preBuild = ''
-    make -j$NIX_BUILD_CORES generated rpcspec
+    mkdir -p nil/services/rollup-bridge-contracts-compiled
+    ln -sf ${rollup-bridge-contracts.outPath}/artifacts/contracts nil/services/rollup-bridge-contracts-compiled
+    chmod -R u+w nil/services/rollup-bridge-contracts-compiled
+ 
+    make -j$NIX_BUILD_CORES generated rpcspec gen_rollup_contracts_bindings
     export HOME="$TMPDIR"
     mkdir -p ~/.gsolc-select/artifacts/solc-0.8.28
     ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.28/solc-0.8.28
 
+    
     case ${testGroup} in
       all|others) ;; # build everything
       *) subPackages=nil/internal/types;; # build something small
     esac
   '';
+
+  tags = [ "assert" ];
 
   src = lib.sourceByRegex ./.. [
     "Makefile"
@@ -49,7 +55,7 @@ buildGo124Module rec {
   ];
 
   # to obtain run `nix build` with vendorHash = "";
-  vendorHash = "sha256-X2oX/gpk5CjDHjtoZfN8F//aLpxTAsetdoCFTSkZ8cI=";
+  vendorHash = "sha256-brU97FtvJ1rRDrgBvWNdJgVgSICeV2R3CQeLR/u1lNo=";
 
   postInstall = ''
     mkdir -p $out/share/doc/nil
@@ -71,8 +77,6 @@ buildGo124Module rec {
     (overrideBuildGoModule go-tools)
     (overrideBuildGoModule gopls)
     golangci-lint
-    (overrideBuildGoModule gofumpt)
-    (overrideBuildGoModule gci)
     (overrideBuildGoModule delve)
     (overrideBuildGoModule protoc-gen-go)
   ];
@@ -80,7 +84,7 @@ buildGo124Module rec {
   packageName = "github.com/NilFoundation/nil";
 
   doCheck = enableTesting;
-  checkFlags = [ "-tags assert,test" "-timeout 15m" ]
+  checkFlags = [ "-tags assert,test,goexperiment.synctest" "-timeout 15m" ]
     ++ (if enableRaceDetector then [ "-race" ] else [ ]);
 
   preCheck = ''
@@ -123,6 +127,10 @@ buildGo124Module rec {
     export GOMODCACHE=/tmp/${vendorHash}/go/mod/cache
     chmod -R u+w vendor
     mkdir -p ~/.solc-select/artifacts/solc-0.8.28
-    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.28/solc-0.8.28
+    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.28/solc-0.8.28  
+
+    mkdir -p nil/services/rollup-bridge-contracts-compiled
+    ln -sf ${rollup-bridge-contracts.outPath}/artifacts/contracts nil/services/rollup-bridge-contracts-compiled
+    chmod -R u+w nil/services/rollup-bridge-contracts-compiled
   '';
 }

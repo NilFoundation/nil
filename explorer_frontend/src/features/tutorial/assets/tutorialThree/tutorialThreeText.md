@@ -39,7 +39,7 @@ This tutorial includes two contracts:
 
 To complete this tutorial:
 
-* Complete both contracts so that *Requester* sends a valid request to *RequestedContract*.
+* Make it so that *Requester* sends a valid request to *RequestedContract*.
 * On receiving a response, *Requester* must return a boolean value signifying whether the result received from *RequestedContract* is a valid multiplication product.
 
 ## Checks

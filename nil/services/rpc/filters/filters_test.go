@@ -291,7 +291,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	blockHash := block.Hash(types.MainShardId)
 	s.Require().NoError(db.WriteBlock(tx, types.MainShardId, blockHash, &block))
 	blockResult := &execution.BlockGenerationResult{BlockHash: blockHash, Block: &block}
-	err = execution.PostprocessBlock(tx, types.MainShardId, blockResult)
+	err = execution.PostprocessBlock(tx, types.MainShardId, blockResult, execution.ModeVerify)
 	s.Require().NoError(err)
 
 	block = types.Block{
@@ -303,7 +303,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	blockHash = block.Hash(types.MainShardId)
 	s.Require().NoError(db.WriteBlock(tx, types.MainShardId, blockHash, &block))
 	blockResult = &execution.BlockGenerationResult{BlockHash: blockHash, Block: &block}
-	err = execution.PostprocessBlock(tx, types.MainShardId, blockResult)
+	err = execution.PostprocessBlock(tx, types.MainShardId, blockResult, execution.ModeVerify)
 	s.Require().NoError(err)
 
 	block = types.Block{
@@ -315,7 +315,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	blockHash = block.Hash(types.MainShardId)
 	s.Require().NoError(db.WriteBlock(tx, types.MainShardId, blockHash, &block))
 	blockResult = &execution.BlockGenerationResult{BlockHash: blockHash, Block: &block}
-	err = execution.PostprocessBlock(tx, types.MainShardId, blockResult)
+	err = execution.PostprocessBlock(tx, types.MainShardId, blockResult, execution.ModeVerify)
 	s.Require().NoError(err)
 
 	block = types.Block{
@@ -327,7 +327,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	blockHash = block.Hash(types.MainShardId)
 	s.Require().NoError(db.WriteBlock(tx, types.MainShardId, blockHash, &block))
 	blockResult = &execution.BlockGenerationResult{BlockHash: blockHash, Block: &block}
-	err = execution.PostprocessBlock(tx, types.MainShardId, blockResult)
+	err = execution.PostprocessBlock(tx, types.MainShardId, blockResult, execution.ModeVerify)
 	s.Require().NoError(err)
 	s.Require().NoError(tx.Commit())
 
@@ -391,7 +391,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	blockHash = block.Hash(types.MainShardId)
 	s.Require().NoError(db.WriteBlock(tx, types.MainShardId, blockHash, &block))
 	blockResult = &execution.BlockGenerationResult{BlockHash: blockHash, Block: &block}
-	err = execution.PostprocessBlock(tx, types.MainShardId, blockResult)
+	err = execution.PostprocessBlock(tx, types.MainShardId, blockResult, execution.ModeVerify)
 	s.Require().NoError(err)
 	s.Require().NoError(tx.Commit())
 

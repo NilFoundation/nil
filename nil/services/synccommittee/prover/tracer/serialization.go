@@ -38,7 +38,7 @@ const (
 	keccakExtension   = "keccak"
 )
 
-func SerializeToFile(proofs ExecutionTraces, mode MarshalMode, baseFileName string) error {
+func SerializeToFile(proofs *ExecutionTraces, mode MarshalMode, baseFileName string) error {
 	randval, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
 		return err
@@ -100,7 +100,7 @@ func SerializeToFile(proofs ExecutionTraces, mode MarshalMode, baseFileName stri
 	return eg.Wait()
 }
 
-func DeserializeFromFile(baseFileName string, mode MarshalMode) (ExecutionTraces, error) {
+func DeserializeFromFile(baseFileName string, mode MarshalMode) (*ExecutionTraces, error) {
 	pbTraces := PbTracesSet{
 		bytecode: &pb.BytecodeTraces{},
 		rw:       &pb.RWTraces{},
@@ -170,8 +170,8 @@ func DeserializeFromFile(baseFileName string, mode MarshalMode) (ExecutionTraces
 	return FromProto(&pbTraces)
 }
 
-func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
-	ep := &executionTracesImpl{
+func FromProto(traces *PbTracesSet) (*ExecutionTraces, error) {
+	ep := &ExecutionTraces{
 		StackOps:          make([]StackOp, len(traces.rw.StackOps)),
 		MemoryOps:         make([]MemoryOp, len(traces.rw.MemoryOps)),
 		StorageOps:        make([]StorageOp, len(traces.rw.StorageOps)),
@@ -186,7 +186,7 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 		ep.StackOps[i] = StackOp{
 			IsRead: pbStackOp.IsRead,
 			Idx:    int(pbStackOp.Index),
-			Value:  pb.ProtoUint256ToUint256(pbStackOp.Value),
+			Value:  *pb.ProtoUint256ToUint256(pbStackOp.Value),
 			PC:     pbStackOp.Pc,
 			TxnId:  uint(pbStackOp.TxnId),
 			RwIdx:  uint(pbStackOp.RwIdx),
@@ -208,8 +208,8 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 		ep.StorageOps[i] = StorageOp{
 			IsRead:    pbStorageOp.IsRead,
 			Key:       common.HexToHash(pbStorageOp.Key),
-			Value:     pb.ProtoUint256ToUint256(pbStorageOp.Value),
-			PrevValue: pb.ProtoUint256ToUint256(pbStorageOp.PrevValue),
+			Value:     *pb.ProtoUint256ToUint256(pbStorageOp.Value),
+			PrevValue: *pb.ProtoUint256ToUint256(pbStorageOp.PrevValue),
 			PC:        pbStorageOp.Pc,
 			TxnId:     uint(pbStorageOp.TxnId),
 			RwIdx:     uint(pbStorageOp.RwIdx),
@@ -222,9 +222,9 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 		exponent := pb.ProtoUint256ToUint256(pbExpOp.Exponent)
 		result := pb.ProtoUint256ToUint256(pbExpOp.Result)
 		ep.ExpOps[i] = ExpOp{
-			Base:     (*uint256.Int)(&base),
-			Exponent: (*uint256.Int)(&exponent),
-			Result:   (*uint256.Int)(&result),
+			Base:     (*uint256.Int)(base),
+			Exponent: (*uint256.Int)(exponent),
+			Result:   (*uint256.Int)(result),
 			PC:       pbExpOp.Pc,
 			TxnId:    uint(pbExpOp.TxnId),
 		}
@@ -247,7 +247,7 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 			RwIdx:           uint(pbZKEVMState.RwIdx),
 			BytecodeHash:    common.HexToHash(pbZKEVMState.BytecodeHash),
 			OpCode:          vm.OpCode(pbZKEVMState.Opcode),
-			AdditionalInput: pb.ProtoUint256ToUint256(pbZKEVMState.AdditionalInput),
+			AdditionalInput: *pb.ProtoUint256ToUint256(pbZKEVMState.AdditionalInput),
 			StackSize:       pbZKEVMState.StackSize,
 			MemorySize:      pbZKEVMState.MemorySize,
 			TxFinish:        pbZKEVMState.TxFinish,
@@ -257,14 +257,14 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 		}
 
 		for j, stackVal := range pbZKEVMState.StackSlice {
-			ep.ZKEVMStates[i].StackSlice[j] = pb.ProtoUint256ToUint256(stackVal)
+			ep.ZKEVMStates[i].StackSlice[j] = *pb.ProtoUint256ToUint256(stackVal)
 		}
 		for addr, memVal := range pbZKEVMState.MemorySlice {
 			ep.ZKEVMStates[i].MemorySlice[addr] = uint8(memVal)
 		}
 		for _, entry := range pbZKEVMState.StorageSlice {
 			key := pb.ProtoUint256ToUint256(entry.Key)
-			ep.ZKEVMStates[i].StorageSlice[key] = pb.ProtoUint256ToUint256(entry.Value)
+			ep.ZKEVMStates[i].StorageSlice[*key] = *pb.ProtoUint256ToUint256(entry.Value)
 		}
 	}
 
@@ -288,11 +288,7 @@ func FromProto(traces *PbTracesSet) (ExecutionTraces, error) {
 	return ep, nil
 }
 
-func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
-	traces, ok := tr.(*executionTracesImpl)
-	if !ok {
-		panic("Unexpected traces type")
-	}
+func ToProto(traces *ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 	pbTraces := &PbTracesSet{
 		bytecode: &pb.BytecodeTraces{
 			ContractBytecodes: make(map[string][]byte),
@@ -333,7 +329,7 @@ func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 		pbTraces.rw.StackOps[i] = &pb.StackOp{
 			IsRead: stackOp.IsRead,
 			Index:  int32(stackOp.Idx),
-			Value:  pb.Uint256ToProtoUint256(stackOp.Value),
+			Value:  pb.Uint256ToProtoUint256(&stackOp.Value),
 			Pc:     stackOp.PC,
 			TxnId:  uint64(stackOp.TxnId),
 			RwIdx:  uint64(stackOp.RwIdx),
@@ -357,8 +353,8 @@ func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 		pbTraces.rw.StorageOps[i] = &pb.StorageOp{
 			IsRead:    storageOp.IsRead,
 			Key:       storageOp.Key.Hex(),
-			Value:     pb.Uint256ToProtoUint256(storageOp.Value),
-			PrevValue: pb.Uint256ToProtoUint256(storageOp.PrevValue),
+			Value:     pb.Uint256ToProtoUint256(&storageOp.Value),
+			PrevValue: pb.Uint256ToProtoUint256(&storageOp.PrevValue),
 			Pc:        storageOp.PC,
 			TxnId:     uint64(storageOp.TxnId),
 			RwIdx:     uint64(storageOp.RwIdx),
@@ -368,9 +364,9 @@ func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 
 	for i, expOp := range traces.ExpOps {
 		pbTraces.exp.ExpOps[i] = &pb.ExpOp{
-			Base:     pb.Uint256ToProtoUint256(types.Uint256(*expOp.Base)),
-			Exponent: pb.Uint256ToProtoUint256(types.Uint256(*expOp.Exponent)),
-			Result:   pb.Uint256ToProtoUint256(types.Uint256(*expOp.Result)),
+			Base:     pb.Uint256ToProtoUint256((*types.Uint256)(expOp.Base)),
+			Exponent: pb.Uint256ToProtoUint256((*types.Uint256)(expOp.Exponent)),
+			Result:   pb.Uint256ToProtoUint256((*types.Uint256)(expOp.Result)),
 			Pc:       expOp.PC,
 			TxnId:    uint64(expOp.TxnId),
 		}
@@ -380,7 +376,7 @@ func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 		hash := keccakOp.hash.Uint256()
 		pbTraces.keccaks.HashedBuffers[i] = &pb.KeccakBuffer{
 			Buffer:     keccakOp.buf,
-			KeccakHash: pb.Uint256ToProtoUint256(types.Uint256(*hash)),
+			KeccakHash: pb.Uint256ToProtoUint256((*types.Uint256)(hash)),
 		}
 	}
 
@@ -393,7 +389,7 @@ func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 			RwIdx:           uint64(zkevmState.RwIdx),
 			BytecodeHash:    zkevmState.BytecodeHash.String(),
 			Opcode:          uint64(zkevmState.OpCode),
-			AdditionalInput: pb.Uint256ToProtoUint256(zkevmState.AdditionalInput),
+			AdditionalInput: pb.Uint256ToProtoUint256(&zkevmState.AdditionalInput),
 			StackSize:       zkevmState.StackSize,
 			MemorySize:      zkevmState.MemorySize,
 			TxFinish:        zkevmState.TxFinish,
@@ -402,7 +398,7 @@ func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 			StorageSlice:    make([]*pb.StorageEntry, len(zkevmState.StorageSlice)),
 		}
 		for j, stackVal := range zkevmState.StackSlice {
-			pbTraces.zkevm.ZkevmStates[i].StackSlice[j] = pb.Uint256ToProtoUint256(stackVal)
+			pbTraces.zkevm.ZkevmStates[i].StackSlice[j] = pb.Uint256ToProtoUint256(&stackVal)
 		}
 		for addr, memVal := range zkevmState.MemorySlice {
 			pbTraces.zkevm.ZkevmStates[i].MemorySlice[addr] = uint32(memVal)
@@ -410,8 +406,8 @@ func ToProto(tr ExecutionTraces, traceIdx uint64) (*PbTracesSet, error) {
 		storageSliceCounter := 0
 		for storageKey, storageVal := range zkevmState.StorageSlice {
 			pbEntry := &pb.StorageEntry{
-				Key:   pb.Uint256ToProtoUint256(storageKey),
-				Value: pb.Uint256ToProtoUint256(storageVal),
+				Key:   pb.Uint256ToProtoUint256(&storageKey),
+				Value: pb.Uint256ToProtoUint256(&storageVal),
 			}
 			pbTraces.zkevm.ZkevmStates[i].StorageSlice[storageSliceCounter] = pbEntry
 			storageSliceCounter++

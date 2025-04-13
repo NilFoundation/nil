@@ -11,8 +11,6 @@ const (
 	shardIdFlag = "shard-id"
 )
 
-var params = &blockParams{}
-
 type blockParams struct {
 	jsonOutput bool
 	fullOutput bool

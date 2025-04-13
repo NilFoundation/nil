@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/cmd/nild/nildconfig"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/cobrax"
 	"github.com/NilFoundation/nil/nil/internal/cobrax/cmdflags"
@@ -15,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/readthroughdb"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
+	"github.com/NilFoundation/nil/nil/services/indexer"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/spf13/cobra"
@@ -48,10 +50,16 @@ func main() {
 		check.PanicIfErr(err)
 	}
 
-	exitCode := nilservice.Run(context.Background(), cfg.Config, database, nil,
-		func(ctx context.Context) error {
-			return database.LogGC(ctx, cfg.DB.DiscardRatio, cfg.DB.GcFrequency)
-		})
+	exitCode := nilservice.Run(
+		context.Background(),
+		cfg.Config,
+		database,
+		nil,
+		concurrent.MakeTask(
+			"badger GC",
+			func(ctx context.Context) error {
+				return database.LogGC(ctx, cfg.DB.DiscardRatio, cfg.DB.GcFrequency)
+			}))
 
 	database.Close()
 	os.Exit(exitCode)
@@ -123,7 +131,7 @@ func parseArgs() *nildconfig.Config {
 		&cfg.AdminSocketPath,
 		"admin-socket-path",
 		cfg.AdminSocketPath,
-		"unix socket path to start admin server on (disabled if empty)}")
+		"unix socket path to start admin server on (disabled if empty)")
 	rootCmd.PersistentFlags().StringVar(
 		&cfg.ReadThrough.SourceAddr,
 		"read-through-db-addr",
@@ -153,9 +161,11 @@ func parseArgs() *nildconfig.Config {
 	runCmd.Flags().StringVar(&cfg.CometaConfig, "cometa-config", "", "path to Cometa config")
 	runCmd.Flags().StringVar(
 		&cfg.ValidatorKeysPath, "validator-keys-path", cfg.ValidatorKeysPath, "path to write validator keys")
+	runCmd.Flags().BoolVar(&cfg.EnableDevApi, "dev-api", cfg.EnableDevApi, "enable development API")
+	runCmd.Flags().StringVar(&cfg.IndexerConfig, "indexer-config", "", "path to Indexer config")
 
 	addBasicFlags(runCmd.Flags(), cfg)
-	cmdflags.AddNetwork(runCmd.Flags(), cfg.Config.Network)
+	cmdflags.AddNetwork(runCmd.Flags(), cfg.Network)
 	cmdflags.AddTelemetry(runCmd.Flags(), cfg.Telemetry)
 
 	replayCmd := &cobra.Command{
@@ -178,7 +188,7 @@ func parseArgs() *nildconfig.Config {
 	}
 
 	addBasicFlags(archiveCmd.Flags(), cfg)
-	cmdflags.AddNetwork(archiveCmd.Flags(), cfg.Config.Network)
+	cmdflags.AddNetwork(archiveCmd.Flags(), cfg.Network)
 	cmdflags.AddTelemetry(archiveCmd.Flags(), cfg.Telemetry)
 
 	rpcCmd := &cobra.Command{
@@ -188,10 +198,11 @@ func parseArgs() *nildconfig.Config {
 			cfg.RunMode = nilservice.RpcRunMode
 		},
 	}
+	rpcCmd.Flags().BoolVar(&cfg.EnableDevApi, "dev-api", cfg.EnableDevApi, "enable development API")
 
 	addRpcNodeFlags(rpcCmd.Flags(), cfg)
 	addAllowDbClearFlag(rpcCmd.Flags(), cfg)
-	cmdflags.AddNetwork(rpcCmd.Flags(), cfg.Config.Network)
+	cmdflags.AddNetwork(rpcCmd.Flags(), cfg.Network)
 	cmdflags.AddTelemetry(rpcCmd.Flags(), cfg.Telemetry)
 
 	versionCmd := cobrax.VersionCmd(appTitle)
@@ -218,6 +229,13 @@ func parseArgs() *nildconfig.Config {
 		cfg.Cometa = &cometa.Config{}
 		cfg.Cometa.ResetToDefault()
 		cfg.Cometa.UseBadger = true
+	}
+
+	if cfg.IndexerConfig != "" {
+		cfg.Indexer = &indexer.Config{}
+		cfg.Indexer.ResetToDefault()
+		ok := cfg.Indexer.InitFromFile(cfg.IndexerConfig)
+		check.PanicIfNotf(ok, "failed to load indexer config from %s", cfg.IndexerConfig)
 	}
 
 	return cfg

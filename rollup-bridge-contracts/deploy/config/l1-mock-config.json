@@ -1,0 +1,59 @@
+{
+  "networks": {
+    "geth": {
+      "tokens": [
+        {
+          "address": "",
+          "erc20TokenInitConfig": {
+            "name": "USD Coin",
+            "symbol": "USDC",
+            "decimals": 6
+          }
+        },
+        {
+          "address": "",
+          "erc20TokenInitConfig": {
+            "name": "USD Tether",
+            "symbol": "USDT",
+            "decimals": 6
+          }
+        },
+        {
+          "address": "",
+          "erc20TokenInitConfig": {
+            "name": "DAI",
+            "symbol": "DAI",
+            "decimals": 18
+          }
+        }
+      ],
+      "mockL2Tokens": [
+        {
+          "address": "",
+          "erc20TokenInitConfig": {
+            "name": "USD Coin",
+            "symbol": "USDC",
+            "decimals": 6
+          }
+        },
+        {
+          "address": "",
+          "erc20TokenInitConfig": {
+            "name": "USD Tether",
+            "symbol": "USDT",
+            "decimals": 6
+          }
+        },
+        {
+          "address": "",
+          "erc20TokenInitConfig": {
+            "name": "DAI",
+            "symbol": "DAI",
+            "decimals": 18
+          }
+        }
+      ],
+      "mockL2Bridge": ""
+    }
+  }
+}

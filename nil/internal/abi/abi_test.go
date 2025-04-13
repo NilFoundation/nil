@@ -16,8 +16,6 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with Erigon. If not, see <http://www.gnu.org/licenses/>.
-//
-//nolint:scopelint
 package abi
 
 import (
@@ -369,7 +367,7 @@ func TestInvalidABI(t *testing.T) {
 	if err == nil {
 		t.Fatal("invalid json should produce error")
 	}
-	json2 := `[{ 
+	json2 := `[{
 		"type" : "function",
 		"name" : "send",
 		"constant" : false,
@@ -1146,8 +1144,8 @@ func TestUnpackEventIntoMap(t *testing.T) {
 		t.Errorf("len(data) is %d, want a non-multiple of 32", len(data))
 	}
 
-	receivedMap := map[string]interface{}{}
-	expectedReceivedMap := map[string]interface{}{
+	receivedMap := map[string]any{}
+	expectedReceivedMap := map[string]any{
 		"sender": types.HexToAddress("0x376c47978271565f56DEB45495afa69E59c16Ab2"),
 		"amount": big.NewInt(1),
 		"memo":   []byte{88},
@@ -1168,7 +1166,7 @@ func TestUnpackEventIntoMap(t *testing.T) {
 		t.Error("unpacked `received` map does not match expected map")
 	}
 
-	receivedAddrMap := map[string]interface{}{}
+	receivedAddrMap := map[string]any{}
 	if err = abi.UnpackIntoMap(receivedAddrMap, "receivedAddr", data); err != nil {
 		t.Error(err)
 	}
@@ -1222,7 +1220,7 @@ func TestUnpackMethodIntoMap(t *testing.T) {
 	}
 
 	// Tests a method with no outputs
-	receiveMap := map[string]interface{}{}
+	receiveMap := map[string]any{}
 	if err = abi.UnpackIntoMap(receiveMap, "receive", data); err != nil {
 		t.Error(err)
 	}
@@ -1231,7 +1229,7 @@ func TestUnpackMethodIntoMap(t *testing.T) {
 	}
 
 	// Tests a method with only outputs
-	sendMap := map[string]interface{}{}
+	sendMap := map[string]any{}
 	if err = abi.UnpackIntoMap(sendMap, "send", data); err != nil {
 		t.Error(err)
 	}
@@ -1243,7 +1241,7 @@ func TestUnpackMethodIntoMap(t *testing.T) {
 	}
 
 	// Tests a method with outputs and inputs
-	getMap := map[string]interface{}{}
+	getMap := map[string]any{}
 	if err = abi.UnpackIntoMap(getMap, "get", data); err != nil {
 		t.Error(err)
 	}
@@ -1305,7 +1303,7 @@ func TestUnpackIntoMapNamingConflict(t *testing.T) {
 	if len(data)%32 == 0 {
 		t.Errorf("len(data) is %d, want a non-multiple of 32", len(data))
 	}
-	getMap := map[string]interface{}{}
+	getMap := map[string]any{}
 	if err = abi.UnpackIntoMap(getMap, "get", data); err == nil {
 		t.Error("naming conflict between two methods; error expected")
 	}
@@ -1346,7 +1344,7 @@ func TestUnpackIntoMapNamingConflict(t *testing.T) {
 	if len(data)%32 == 0 {
 		t.Errorf("len(data) is %d, want a non-multiple of 32", len(data))
 	}
-	receivedMap := map[string]interface{}{}
+	receivedMap := map[string]any{}
 	if err = abi.UnpackIntoMap(receivedMap, "received", data); err != nil {
 		t.Error("naming conflict between two events; no error expected")
 	}
@@ -1416,7 +1414,7 @@ func TestUnpackIntoMapNamingConflict(t *testing.T) {
 	if len(data)%32 == 0 {
 		t.Errorf("len(data) is %d, want a non-multiple of 32", len(data))
 	}
-	expectedReceivedMap := map[string]interface{}{
+	expectedReceivedMap := map[string]any{
 		"sender": types.HexToAddress("0x376c47978271565f56DEB45495afa69E59c16Ab2"),
 		"amount": big.NewInt(1),
 		"memo":   []byte{88},
@@ -1496,12 +1494,12 @@ func TestABI_EventById(t *testing.T) {
 		}, {
 			name: "",
 			json: `[{
-				"constant": true, 
-				"inputs": [], 
-				"name": "name", 
-				"outputs": [ { "name": "", "type": "string" } ], 
-				"payable": false, 
-				"stateMutability": "view", 
+				"constant": true,
+				"inputs": [],
+				"name": "name",
+				"outputs": [ { "name": "", "type": "string" } ],
+				"payable": false,
+				"stateMutability": "view",
 				"type": "function"
 			}, {
 				"constant": false,
@@ -1515,15 +1513,15 @@ func TestABI_EventById(t *testing.T) {
 				"stateMutability": "nonpayable",
 				"type": "function"
 			}, {
-				"constant": true, 
-				"inputs": [], 
-				"name": "totalSupply", 
-				"outputs": [ { "name": "", "type": "uint256" } ], 
-				"payable": false, 
-				"stateMutability": "view", 
+				"constant": true,
+				"inputs": [],
+				"name": "totalSupply",
+				"outputs": [ { "name": "", "type": "uint256" } ],
+				"payable": false,
+				"stateMutability": "view",
 				"type": "function"
 			}, {
-				"constant": false, 
+				"constant": false,
 				"inputs": [
 					{ "name": "_from", "type": "address" },
 					{ "name": "_to", "type": "address" },
@@ -1535,31 +1533,31 @@ func TestABI_EventById(t *testing.T) {
 				"stateMutability": "nonpayable",
 				"type": "function"
 			}, {
-				"constant": true, 
-				"inputs": [], 
-				"name": "decimals", 
-				"outputs": [ { "name": "", "type": "uint8" } ], 
-				"payable": false, 
-				"stateMutability": "view", 
+				"constant": true,
+				"inputs": [],
+				"name": "decimals",
+				"outputs": [ { "name": "", "type": "uint8" } ],
+				"payable": false,
+				"stateMutability": "view",
 				"type": "function"
 			}, {
-				"constant": true, 
-				"inputs": [ { "name": "_owner", "type": "address" } ], 
-				"name": "balanceOf", 
+				"constant": true,
+				"inputs": [ { "name": "_owner", "type": "address" } ],
+				"name": "balanceOf",
 				"outputs": [ { "name": "balance", "type": "uint256" } ],
 				"payable": false,
 				"stateMutability": "view",
 				"type": "function"
 			}, {
 				"constant": true,
-				"inputs": [], 
-				"name": "symbol", 
-				"outputs": [ { "name": "", "type": "string" } ], 
-				"payable": false, 
-				"stateMutability": "view", 
+				"inputs": [],
+				"name": "symbol",
+				"outputs": [ { "name": "", "type": "string" } ],
+				"payable": false,
+				"stateMutability": "view",
 				"type": "function"
 			}, {
-				"constant": false, 
+				"constant": false,
 				"inputs": [
 					{ "name": "_to", "type": "address" },
 					{ "name": "_value", "type": "uint256" }

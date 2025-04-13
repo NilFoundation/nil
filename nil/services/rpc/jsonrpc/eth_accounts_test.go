@@ -67,14 +67,14 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.blockHash = blockRes.BlockHash
 
-	err = execution.PostprocessBlock(tx, shardId, blockRes)
+	err = execution.PostprocessBlock(tx, shardId, blockRes, execution.ModeVerify)
 	suite.Require().NotNil(blockRes.Block)
 	suite.Require().NoError(err)
 
 	err = tx.Commit()
 	suite.Require().NoError(err)
 
-	suite.api = NewTestEthAPI(suite.T(), ctx, suite.db, 2)
+	suite.api = NewTestEthAPI(ctx, suite.T(), suite.db, 2)
 }
 
 func (suite *SuiteEthAccounts) TearDownSuite() {

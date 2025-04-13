@@ -68,7 +68,10 @@ $privateKey.on(setPrivateKey, (_, privateKey) => privateKey);
 $rpcUrl.on(setRpcUrl, (_, rpcUrl) => rpcUrl);
 
 createSmartAccountFx.use(async ({ privateKey, rpcUrl }) => {
-  if (rpcUrl === "") return;
+  if (rpcUrl === "") {
+    throw new Error("RPC URL should be provided");
+  }
+
   const signer = new LocalECDSAKeySigner({ privateKey });
   const client = new PublicClient({
     transport: new HttpTransport({ endpoint: rpcUrl }),
@@ -93,7 +96,7 @@ createSmartAccountFx.use(async ({ privateKey, rpcUrl }) => {
 
   if (balance === 0n) {
     if (!faucets) {
-      throw new Error("No faucets available");
+      return { smartAccount, rpcUrl };
     }
 
     await faucetClient.topUpAndWaitUntilCompletion(
@@ -116,7 +119,7 @@ createSmartAccountFx.use(async ({ privateKey, rpcUrl }) => {
   setInitializingSmartAccountState("Adding some tokens...");
 
   if (!faucets) {
-    return smartAccount;
+    return { smartAccount, rpcUrl };
   }
 
   const tokensMap = await smartAccount.client.getTokens(smartAccount.address, "latest");
@@ -149,7 +152,7 @@ createSmartAccountFx.use(async ({ privateKey, rpcUrl }) => {
     await Promise.all(promises);
   }
 
-  return smartAccount;
+  return { smartAccount, rpcUrl };
 });
 
 topUpSmartAccountBalanceFx.use(async (smartAccount) => {
@@ -182,15 +185,22 @@ createSmartAccountFx.failData.watch((error) => {
 });
 
 $smartAccount.reset($privateKey);
-$smartAccount.on(createSmartAccountFx.doneData, (_, smartAccount) => smartAccount);
+$smartAccount.on(createSmartAccountFx.doneData, (_, { smartAccount }) => smartAccount);
 
 sample({
-  source: combine($privateKey, $rpcUrl, $faucets, (privateKey, rpcUrl, faucets) => ({
+  clock: createSmartAccountFx.doneData,
+  fn: ({ rpcUrl }) => rpcUrl,
+  target: setRpcUrl,
+});
+
+sample({
+  source: $privateKey,
+  fn: (privateKey, rpcUrlEventPayload) => ({
     privateKey,
-    rpcUrl,
-    faucets,
-  })),
+    rpcUrl: rpcUrlEventPayload,
+  }),
   clock: initilizeSmartAccount,
+  filter: (_, rpcUrl) => rpcUrl !== "",
   target: createSmartAccountFx,
 });
 
@@ -209,11 +219,13 @@ sample({
 
 sample({
   clock: createSmartAccountFx.doneData,
+  fn: ({ smartAccount }) => smartAccount,
   target: fetchBalanceFx,
 });
 
 sample({
   clock: createSmartAccountFx.doneData,
+  fn: ({ smartAccount }) => smartAccount,
   target: fetchBalanceTokensFx,
 });
 
@@ -234,7 +246,7 @@ $balanceToken.reset($smartAccount);
 
 initializePrivateKey();
 
-initilizeSmartAccount();
+initilizeSmartAccount($rpcUrl.getState());
 
 $activeComponent.on(setActiveComponent, (_, payload) => payload);
 

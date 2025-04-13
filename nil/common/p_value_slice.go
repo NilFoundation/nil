@@ -59,7 +59,7 @@ func (s *PValueSlice[T, S]) Type() string {
 	return fmt.Sprintf("PValueSlice[%s]", T(new(S)).Type())
 }
 
-func (s PValueSlice[T, S]) MarshalYAML() (interface{}, error) {
+func (s PValueSlice[T, S]) MarshalYAML() (any, error) {
 	values := make([]string, len(s))
 	for j, val := range s {
 		values[j] = T(&val).String()

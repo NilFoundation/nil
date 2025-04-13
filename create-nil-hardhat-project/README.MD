@@ -32,7 +32,7 @@ cd ./nil/create-nil-hardhat-project
 Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 ## ⚙️ Configuration
@@ -110,4 +110,4 @@ This project is currently under active development. Not all features are fully i
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENCE)

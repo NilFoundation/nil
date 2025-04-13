@@ -44,7 +44,7 @@ func (g Gas) ToValue(price Value) Value {
 }
 
 func (g Gas) ToValueOverflow(price Value) (Value, bool) {
-	res, overflow := price.Uint256.mulOverflow64(g.Uint64())
+	res, overflow := price.mulOverflow64(g.Uint64())
 	return Value{res}, overflow
 }
 

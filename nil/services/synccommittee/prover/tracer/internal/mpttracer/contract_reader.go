@@ -28,14 +28,8 @@ func deserializeDebugRPCContract(debugRPCContract *jsonrpc.DebugRPCContract) (*D
 		return nil, err
 	}
 
-	existenceProof, err := mpt.DecodeProof(debugRPCContract.Proof)
-	if err != nil {
-		return nil, err
-	}
-
 	return &DeserializedDebugRPCContract{
 		Contract:                *contract,
-		ExistenceProof:          existenceProof,
 		Code:                    types.Code(debugRPCContract.Code),
 		StorageTrieEntries:      debugRPCContract.Storage,
 		TokenTrieEntries:        debugRPCContract.Tokens,
@@ -50,6 +44,9 @@ type DebugApiContractReader struct {
 	rwTx             db.RwTx
 	shardId          types.ShardId
 }
+
+// Ensure DebugApiContractReader implements ContractReader
+var _ ContractReader = (*DebugApiContractReader)(nil)
 
 // NewDebugApiContractReader creates a new DebugApiContractReader
 func NewDebugApiContractReader(
@@ -66,29 +63,32 @@ func NewDebugApiContractReader(
 	}
 }
 
-// GetRwTx returns the read-write transaction
-func (dacr *DebugApiContractReader) GetRwTx() db.RwTx {
-	return dacr.rwTx
-}
-
-// AppendToJournal is a no-op method to satisfy the interface
-func (dacr *DebugApiContractReader) AppendToJournal(je execution.JournalEntry) {}
-
 // GetAccount retrieves an account with its debug information. If not such contract at the given address,
-// nil and empty proof are returned
+// nil and proof of absence are returned
 func (dacr *DebugApiContractReader) GetAccount(
 	ctx context.Context,
 	addr types.Address,
-) (*TracerAccount, mpt.Proof, error) {
+) (*types.SmartContract, mpt.Proof, error) {
 	debugRPCContract, err := dacr.client.GetDebugContract(ctx, addr, transport.BlockNumber(dacr.shardBlockNumber))
 	if err != nil || debugRPCContract == nil {
 		return nil, mpt.Proof{}, err
+	}
+
+	proof, err := mpt.DecodeProof(debugRPCContract.Proof)
+	if err != nil {
+		return nil, mpt.Proof{}, err
+	}
+
+	if len(debugRPCContract.Contract) == 0 {
+		// no such contract, absence proof is still provided
+		return nil, proof, nil
 	}
 
 	debugContract, err := deserializeDebugRPCContract(debugRPCContract)
 	if err != nil {
 		return nil, mpt.Proof{}, err
 	}
+	debugContract.ExistenceProof = proof
 
 	err = insertTrieValues(
 		dacr.rwTx,
@@ -125,16 +125,7 @@ func (dacr *DebugApiContractReader) GetAccount(
 		return nil, mpt.Proof{}, err
 	}
 
-	accountState, err := NewTracerAccount(
-		dacr,
-		debugContract.Contract.Address,
-		&debugContract.Contract,
-	)
-	if err != nil {
-		return nil, mpt.Proof{}, err
-	}
-
-	return accountState, debugContract.ExistenceProof, nil
+	return &debugContract.Contract, debugContract.ExistenceProof, nil
 }
 
 // Generic function to insert key-value trie pairs into db
@@ -160,6 +151,3 @@ func insertTrieValues[K comparable, V any, VPtr execution.MPTValue[V]](
 
 	return trie.UpdateBatch(keys, values)
 }
-
-// Ensure DebugApiContractReader implements ContractReader
-var _ ContractReader = &DebugApiContractReader{}

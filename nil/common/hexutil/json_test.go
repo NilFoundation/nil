@@ -21,7 +21,7 @@ func checkError(t *testing.T, input string, got, want error) {
 		require.NoError(t, want, "input %s", input)
 		return
 	}
-	require.EqualValues(t, want.Error(), got.Error(), "input %s", input)
+	require.Equal(t, want.Error(), got.Error(), "input %s", input)
 }
 
 func bigFromString(s string) *big.Int {
@@ -110,8 +110,8 @@ func TestMarshalBig(t *testing.T) {
 			out, err := json.Marshal((*Big)(in))
 			require.NoError(t, err)
 			want := `"` + test.want + `"`
-			require.EqualValues(t, want, string(out))
-			require.EqualValues(t, test.want, (*Big)(in).String())
+			require.Equal(t, want, string(out))
+			require.Equal(t, test.want, (*Big)(in).String())
 		})
 	}
 }
@@ -176,8 +176,8 @@ func TestMarshalUint64(t *testing.T) {
 			out, err := json.Marshal(Uint64(in))
 			require.NoError(t, err)
 			want := `"` + test.want + `"`
-			require.EqualValues(t, want, string(out))
-			require.EqualValues(t, test.want, (Uint64)(in).String())
+			require.Equal(t, want, string(out))
+			require.Equal(t, test.want, (Uint64)(in).String())
 		})
 	}
 }
@@ -194,8 +194,8 @@ func TestMarshalUint(t *testing.T) {
 			out, err := json.Marshal(Uint(in))
 			require.NoError(t, err)
 			want := `"` + test.want + `"`
-			require.EqualValues(t, want, string(out))
-			require.EqualValues(t, test.want, (Uint)(in).String())
+			require.Equal(t, want, string(out))
+			require.Equal(t, test.want, (Uint)(in).String())
 		})
 	}
 }

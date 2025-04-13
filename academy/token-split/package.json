@@ -1,0 +1,23 @@
+{
+  "name": "example-token-split",
+  "description": "This is an example repository to showcase how a token split can be built on top of =nil;",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "hardhat": "^2.22.18"
+  },
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "format": "biome format ./",
+    "lint": "biome check ./",
+    "lint:fix": "biome check --write ."
+  },
+  "dependencies": {
+    "@nilfoundation/niljs": "0.25.0",
+    "@nilfoundation/smart-contracts": "0.7.0",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "5.2.0",
+    "@openzeppelin/contracts-upgradeable": "^5.2.0",
+    "create-nil-hardhat-project": "workspace:*",
+    "viem": "^2.23.4"
+  }
+}

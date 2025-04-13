@@ -1,6 +1,11 @@
 import type { PublicClient } from "../clients/PublicClient.js";
 import type { Hex } from "../types/Hex.js";
-import type { ProcessedReceipt, Receipt } from "../types/IReceipt.js";
+import type {
+  ProcessedReceipt,
+  Receipt,
+  ReceiptHash,
+  TransactionOptions,
+} from "../types/IReceipt.js";
 
 /**
  * Makes it so that the client waits until the processing of the transaction whose hash is passed.
@@ -14,13 +19,19 @@ import type { ProcessedReceipt, Receipt } from "../types/IReceipt.js";
  */
 async function waitTillCompleted(
   client: PublicClient,
-  hash: Hex,
-  options?: { waitTillMainShard?: boolean; interval?: number },
+  hash: ReceiptHash,
+  options?: TransactionOptions,
 ): Promise<ProcessedReceipt[]> {
+  let hashes: [Hex][];
+  if (typeof hash === "string") {
+    hashes = [[hash]];
+  } else {
+    hashes = [[hash.hash]];
+  }
+
   const interval = options?.interval || 1000;
   const waitTillMainShard = options?.waitTillMainShard || false;
   const receipts: ProcessedReceipt[] = [];
-  const hashes: [Hex][] = [[hash]];
   let cur = 0;
   while (cur !== hashes.length) {
     const [hash] = hashes[cur];

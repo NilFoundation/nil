@@ -1,4 +1,3 @@
-import { waitTillCompleted } from "../../src/index.js";
 import { generateRandomAddress, generateTestSmartAccount, newClient } from "./helpers.js";
 
 const client = newClient();
@@ -10,13 +9,13 @@ test("mint and transfer tokens", async () => {
   const mintCount = 100_000_000n;
 
   {
-    const hashTransaction = await smartAccount.setTokenName("MY_TOKEN");
-    await waitTillCompleted(client, hashTransaction);
+    const tx = await smartAccount.setTokenName("MY_TOKEN");
+    await tx.wait();
   }
 
   {
-    const hashTransaction = await smartAccount.mintToken(mintCount);
-    await waitTillCompleted(client, hashTransaction);
+    const tx = await smartAccount.mintToken(mintCount);
+    await tx.wait();
   }
 
   const tokens = await client.getTokens(smartAccountAddress, "latest");
@@ -31,7 +30,7 @@ test("mint and transfer tokens", async () => {
   const transferCount = 100_000n;
 
   const gasPriceOnShard2 = await client.getGasPrice(2);
-  const sendHash = await smartAccount.sendTransaction({
+  const sendTx = await smartAccount.sendTransaction({
     to: anotherAddress,
     value: 10_000_000n,
     feeCredit: 100_000n * gasPriceOnShard2,
@@ -43,7 +42,7 @@ test("mint and transfer tokens", async () => {
     ],
   });
 
-  await waitTillCompleted(client, sendHash);
+  await sendTx.wait();
 
   const anotherTokens = await client.getTokens(anotherAddress, "latest");
 

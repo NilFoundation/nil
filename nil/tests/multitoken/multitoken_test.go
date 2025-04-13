@@ -545,7 +545,7 @@ func (s *SuiteMultiTokenRpc) TestTokenViaCall() {
 	}, "latest", nil)
 	s.Require().NoError(err)
 	s.Require().Empty(res.Error)
-	s.Require().Positive(res.CoinsUsed.Uint64())
+	s.Require().NotZero(res.CoinsUsed.Uint64())
 }
 
 func (s *SuiteMultiTokenRpc) TestRemoveEmptyToken() {

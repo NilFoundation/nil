@@ -2,6 +2,7 @@ import type { Abi, Address } from "abitype";
 import type { XOR } from "ts-essentials";
 import type { Hex } from "../types/Hex.js";
 import type { Token } from "../types/Token.js";
+import type { Transaction } from "../utils/transaction.js";
 
 export type SendBaseTransactionParams = {
   to: Address | Uint8Array;
@@ -50,5 +51,5 @@ export interface SmartAccountInterface {
     value,
     tokens,
     chainId,
-  }: SendTransactionParams): Promise<Hex>;
+  }: SendTransactionParams): Promise<Transaction>;
 }

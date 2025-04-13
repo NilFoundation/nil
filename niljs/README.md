@@ -36,15 +36,14 @@
 </p>
 </row>
 
-
 ## Table of contents
 
-* [Installation](#installation)
-* [Getting started](#getting-started)
-* [Usage](#usage)
-* [Tokens and bouncing](#tokens-and-bouncing)
-* [Accessing the dev environment](#accessing-the-dev-environment)
-* [Licence](#licence)
+- [Installation](#installation)
+- [Getting started](#getting-started)
+- [Usage](#usage)
+- [Tokens and bouncing](#tokens-and-bouncing)
+- [Accessing the dev environment](#accessing-the-dev-environment)
+- [Licence](#licence)
 
 ## Installation
 
@@ -54,7 +53,8 @@ npm install @nilfoundation/niljs
 
 ## Getting started
 
-`PublicClient` is used for performing read-only requests to =nil; that do not require authentication (e.g., attaining information about a block).
+`PublicClient` is used for performing read-only requests to =nil; that do not
+require authentication (e.g., attaining information about a block).
 
 To initialize a `PublicClient`:
 
@@ -67,9 +67,12 @@ const client = new PublicClient({
 });
 ```
 
-`shardId` is a concept unique to =nil; in that it designates the execution shard where the smart account should be deployed. Execution shards manage portions of the global state and are coordinated by the main shard.
+`shardId` is a concept unique to =nil; in that it designates the execution shard
+where the smart account should be deployed. Execution shards manage portions of
+the global state and are coordinated by the main shard.
 
-`SmartAccountV1` is a class representing a smart account that allows for signing transactions and performing requests that require authentication.
+`SmartAccountV1` is a class representing a smart account that allows for signing
+transactions and performing requests that require authentication.
 
 To deploy a new smart account:
 
@@ -83,9 +86,12 @@ const smartAccount = await generateSmartAccount({
 
 ## Usage
 
-In =nil;, it is possible to call functions asynchronously. When a contract makes an async call, a new transaction is spawned. When this transaction is processed, the function call itself is executed.
+In =nil;, it is possible to call functions asynchronously. When a contract makes
+an async call, a new transaction is spawned. When this transaction is processed,
+the function call itself is executed.
 
-It is possible to make async calls within the confines of the same shard or between contracts deployed on different shards.
+It is possible to make async calls within the confines of the same shard or
+between contracts deployed on different shards.
 
 To perform an async call:
 
@@ -123,14 +129,19 @@ It is only possible to perform sync calls within the confines of one shard.
 
 ## Tokens and bouncing
 
-=nil; provides a multi-token mechanism. A contract can be the owner of one custom token, and owners can freely send custom tokens to other contracts. As a result, the balance of a given contract may contain standard tokens, and several custom tokens created by other contracts.
+=nil; provides a multi-token mechanism. A contract can be the owner of one
+custom token, and owners can freely send custom tokens to other contracts. As a
+result, the balance of a given contract may contain standard tokens, and several
+custom tokens created by other contracts.
 
-Custom tokens do not have to be created, and each contract is assigned one by default. However, at contract deployment, a token has no name and its total supply equals zero. 
+Custom tokens do not have to be created, and each contract is assigned one by
+default. However, at contract deployment, a token has no name and its total
+supply equals zero.
 
 To set the name of the token for an existing smart account:
 
 ```ts
-const hashTransaction = await smartAccount.sendTransaction({
+const transaction = await smartAccount.sendTransaction({
   to: smartAccountAddress,
   feeCredit: 1_000_000n * gasPrice,
   value: 0n,
@@ -141,13 +152,13 @@ const hashTransaction = await smartAccount.sendTransaction({
   }),
 });
 
-await waitTillCompleted(client, hashTransaction);
+await transaction.wait();
 ```
 
 To mint 1000 tokens:
 
 ```ts
-const hashTransaction2 = await smartAccount.sendTransaction({
+const transaction2 = await smartAccount.sendTransaction({
   to: smartAccountAddress,
   feeCredit: 1_000_000n * gasPrice,
   value: 0n,
@@ -158,16 +169,15 @@ const hashTransaction2 = await smartAccount.sendTransaction({
   }),
 });
 
-await waitTillCompleted(client, hashTransaction2);
+await transaction2.wait();
 ```
 
 To send a token to another contract:
 
 ```ts
-
 const anotherAddress = generateRandomAddress();
 
-const sendHash = await smartAccount.sendTransaction({
+const tx = await smartAccount.sendTransaction({
   to: anotherAddress,
   value: 10_000_000n,
   feeCredit: 100_000n * gasPrice,
@@ -179,10 +189,12 @@ const sendHash = await smartAccount.sendTransaction({
   ],
 });
 
-await waitTillCompleted(client, sendHash);
+await tx.wait();
 ```
 
-=nil; also supports token bouncing. If a transaction carries custom tokens, and it is unsuccesful, the funds will be returned to the address specified in the `bounceTo` parameter when sending the transaction.
+=nil; also supports token bouncing. If a transaction carries custom tokens, and
+it is unsuccesful, the funds will be returned to the address specified in the
+`bounceTo` parameter when sending the transaction.
 
 ## Accessing the dev environment
 
@@ -192,8 +204,8 @@ To enter the Nix dev environment for `Nil.js`:
 nix develop .#niljs
 ```
 
-After that, it should be possible to run `npm run test` and other scripts specified in `./niljs/package.json`.
-
+After that, it should be possible to run `npm run test` and other scripts
+specified in `./niljs/package.json`.
 
 ## Licence
 

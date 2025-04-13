@@ -125,7 +125,7 @@ func createNew(path PathAccessor, length int) *Path {
 
 	if isOddLen {
 		data = append(data, byte(path.At(pos)))
-		pos += 1
+		pos++
 	}
 
 	for pos < length {
@@ -143,7 +143,7 @@ func (path *Path) CommonPrefix(other *Path) *Path {
 		if path.At(i) != other.At(i) {
 			break
 		}
-		commonLen += 1
+		commonLen++
 	}
 	return createNew(path, commonLen)
 }
@@ -156,9 +156,8 @@ type Chained struct {
 func (c *Chained) At(idx int) int {
 	if idx < c.first.Size() {
 		return c.first.At(idx)
-	} else {
-		return c.second.At(idx - c.first.Size())
 	}
+	return c.second.At(idx - c.first.Size())
 }
 
 func (c *Chained) Size() int {

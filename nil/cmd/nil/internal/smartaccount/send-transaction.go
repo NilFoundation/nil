@@ -10,13 +10,17 @@ import (
 )
 
 func SendTransactionCommand(cfg *common.Config) *cobra.Command {
+	params := &smartAccountParams{
+		Params: &common.Params{},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "send-transaction [address] [bytecode or method] [args...]",
 		Short: "Send a transaction to a smart contract via the smart account",
 		Long:  "Send a transaction to the smart contract with the specified bytecode or command via the smart account",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSend(cmd, args, cfg)
+			return runSend(cmd, args, cfg, params)
 		},
 		SilenceUsage: true,
 	}
@@ -62,7 +66,7 @@ func SendTransactionCommand(cfg *common.Config) *cobra.Command {
 	return cmd
 }
 
-func runSend(cmd *cobra.Command, args []string, cfg *common.Config) error {
+func runSend(cmd *cobra.Command, args []string, cfg *common.Config, params *smartAccountParams) error {
 	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var address types.Address

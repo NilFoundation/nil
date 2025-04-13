@@ -76,12 +76,12 @@ export async function writeContract<
     functionName,
   } as EncodeFunctionDataParameters);
   // @ts-ignore
-  const hex = await smartAccount.sendTransaction({
+  const tx = await smartAccount.sendTransaction({
     data: calldata,
     deploy: false,
     ...options,
   });
-  return hex;
+  return tx.hash;
 }
 
 export async function writeExternalContract<

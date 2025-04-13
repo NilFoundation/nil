@@ -1,7 +1,7 @@
 { lib
 , stdenv
 , callPackage
-, npmHooks
+, pnpm_10
 , nodejs
 }:
 
@@ -10,20 +10,19 @@ stdenv.mkDerivation rec {
   pname = "smart-contracts";
   src = lib.sourceByRegex ./.. [
     "package.json"
-    "package-lock.json"
+    "pnpm-lock.yaml"
+    "pnpm-workspace.yaml"
+    ".npmrc"
     "^smart-contracts(/.*)?$"
   ];
 
-  npmDeps = (callPackage ./npmdeps.nix { });
-
-  NODE_PATH = "$npmDeps";
+  pnpmDeps = (callPackage ./npmdeps.nix { });
 
   nativeBuildInputs = [
     nodejs
-    npmHooks.npmConfigHook
+    pnpm_10.configHook
   ];
 
-  dontConfigure = true;
 
   preUnpack = ''
     echo "Setting UV_USE_IO_URING=0 to work around the io_uring kernel bug"
@@ -32,7 +31,7 @@ stdenv.mkDerivation rec {
 
   buildPhase = ''
     cd smart-contracts
-    npm run build
+    pnpm run build
   '';
 
   installPhase = ''

@@ -72,7 +72,7 @@ func aggregateCircuitDependencies(
 			path, ok := res.OutputArtifacts[resultType]
 			if !ok {
 				return nil,
-					fmt.Errorf("Inconsistent task %v , dependencyType %v has no expected result %v",
+					fmt.Errorf("inconsistent task %v , dependencyType %v has no expected result %v",
 						task.Id.String(),
 						dependencyType.String(),
 						resultType.String())
@@ -82,7 +82,7 @@ func aggregateCircuitDependencies(
 	}
 	if len(depFiles) != int(types.CircuitAmount) {
 		return nil,
-			fmt.Errorf("Insufficient input for task %v with type %v on %v dependency: expected %d, actual %d",
+			fmt.Errorf("insufficient input for task %v with type %v on %v dependency: expected %d, actual %d",
 				task.Id.String(),
 				task.TaskType.String(),
 				dependencyType,
@@ -108,7 +108,7 @@ func findDependencyResult(
 		if res.TaskType == dependencyType {
 			if foundFile != "" {
 				return "", fmt.Errorf(
-					"More then one %v files was found as a result for %v dependency",
+					"more then one %v files was found as a result for %v dependency",
 					resultType.String(), dependencyType.String())
 			}
 			path, ok := res.OutputArtifacts[resultType]

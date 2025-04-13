@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	nilrpc "github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
@@ -22,10 +22,10 @@ type SyncCommittee struct {
 	srv.Service
 }
 
-func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*SyncCommittee, error) {
+func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, error) {
 	logger := logging.NewLogger("sync_committee")
 
-	if err := telemetry.Init(context.Background(), cfg.Telemetry); err != nil {
+	if err := telemetry.Init(ctx, cfg.Telemetry); err != nil {
 		logger.Error().Err(err).Msg("failed to initialize telemetry")
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 	}
 
 	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)
-	client := nilrpc.NewClient(cfg.RpcEndpoint, logger)
+	client := rpc.NewRetryClient(cfg.RpcEndpoint, logger)
 
 	clock := clockwork.NewRealClock()
 	blockStorage := storage.NewBlockStorage(
@@ -46,24 +46,35 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 	//  and pass it here in https://github.com/NilFoundation/nil/pull/419
 	stateResetter := reset.NewStateResetter(logger, blockStorage)
 
-	agg := NewAggregator(
+	rollupContractWrapper, err := rollupcontract.NewWrapper(
+		ctx,
+		cfg.ContractWrapperConfig,
+		logger,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing rollup contract wrapper: %w", err)
+	}
+
+	agg := fetching.NewAggregator(
 		client,
 		blockStorage,
 		taskStorage,
 		stateResetter,
+		rollupContractWrapper,
 		clock,
 		logger,
 		metricsHandler,
 		cfg.AggregatorConfig,
 	)
 
-	ctx := context.Background()
+	lagTracker := fetching.NewLagTracker(
+		client, blockStorage, metricsHandler, fetching.NewDefaultLagTrackerConfig(), logger,
+	)
 
 	prop, err := NewProposer(
-		ctx,
 		cfg.ProposerParams,
 		blockStorage,
-		ethClient,
+		rollupContractWrapper,
 		client,
 		metricsHandler,
 		logger,
@@ -91,7 +102,7 @@ func New(cfg *Config, database db.DB, ethClient rollupcontract.EthClient) (*Sync
 
 	syncCommittee.Service = srv.NewService(
 		logger,
-		prop, agg, taskScheduler, taskListener,
+		prop, agg, lagTracker, taskScheduler, taskListener,
 	)
 
 	return syncCommittee, nil

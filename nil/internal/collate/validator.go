@@ -11,6 +11,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	cerrors "github.com/NilFoundation/nil/nil/internal/collate/errors"
 	"github.com/NilFoundation/nil/nil/internal/config"
@@ -33,29 +34,49 @@ func newErrInvalidSignature(inner error) invalidSignatureError {
 	return invalidSignatureError{inner: inner}
 }
 
+type eventType int
+
+const (
+	/* Block inserted by validator. */
+	commitType eventType = iota
+	/* Block inserted by syncer. */
+	replayType
+)
+
+type event struct {
+	evType      eventType
+	blockNumber types.BlockNumber
+}
+
 type Validator struct {
 	params             *Params
 	mainShardValidator *Validator // +checklocksignore: thread safe
 
 	txFabric       db.DB
 	pool           TxnPool
-	networkManager *network.Manager      // +checklocksignore: thread safe
+	networkManager network.Manager       // +checklocksignore: thread safe
 	blockVerifier  *signer.BlockVerifier // +checklocksignore: thread safe
 
 	mutex         sync.RWMutex
-	lastBlock     *types.Block // +checklocks:mutex
-	lastBlockHash common.Hash  // +checklocks:mutex
+	lastBlock     *types.Block    // +checklocks:mutex
+	lastBlockHash common.Hash     // +checklocks:mutex
+	metrics       *MetricsHandler // +checklocks:mutex
 
 	subsMutex sync.Mutex
-	subsId    uint64                            // +checklocks:subsMutex
-	subs      map[uint64]chan types.BlockNumber // +checklocks:subsMutex
+	subsId    uint64                 // +checklocks:subsMutex
+	subs      map[uint64]chan *event // +checklocks:subsMutex
 
 	logger logging.Logger
 }
 
 func NewValidator(
-	params *Params, mainShardValidator *Validator, txFabric db.DB, pool TxnPool, nm *network.Manager,
-) *Validator {
+	params *Params, mainShardValidator *Validator, txFabric db.DB, pool TxnPool, nm network.Manager,
+) (*Validator, error) {
+	metrics, err := NewMetricsHandler(params.ShardId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create metrics handler: %w", err)
+	}
+
 	return &Validator{
 		params:             params,
 		mainShardValidator: mainShardValidator,
@@ -63,11 +84,12 @@ func NewValidator(
 		pool:               pool,
 		networkManager:     nm,
 		blockVerifier:      signer.NewBlockVerifier(params.ShardId, txFabric),
-		subs:               make(map[uint64]chan types.BlockNumber),
+		subs:               make(map[uint64]chan *event),
 		logger: logging.NewLogger("validator").With().
 			Stringer(logging.FieldShardId, params.ShardId).
 			Logger(),
-	}
+		metrics: metrics,
+	}, nil
 }
 
 // +checklocksread:s.mutex
@@ -131,38 +153,68 @@ func (s *Validator) BuildProposal(ctx context.Context) (*execution.ProposalSSZ, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate proposal: %w", err)
 	}
-	return proposal, nil
-}
 
-func (s *Validator) VerifyProposal(ctx context.Context, proposal *execution.ProposalSSZ) (*types.Block, error) {
 	p, err := execution.ConvertProposal(proposal)
 	if err != nil {
 		return nil, err
 	}
 
-	// No lock since below we use only locked functions and only in read mode
-	if err := s.validateProposal(ctx, p); err != nil {
-		return nil, err
-	}
-
-	prevBlock, _, err := s.GetLastBlock(ctx)
+	hash, err := s.buildBlockHashByProposal(ctx, p)
 	if err != nil {
 		return nil, err
 	}
+	proposal.BlockHash = hash
 
-	s.params.ExecutionMode = execution.ModeVerify
-	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric, prevBlock)
+	return proposal, nil
+}
+
+func (s *Validator) buildBlockHashByProposal(ctx context.Context, proposal *execution.Proposal) (common.Hash, error) {
+	prevBlock, err := s.getBlock(ctx, proposal.PrevBlockHash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create block generator: %w", err)
+		return common.EmptyHash, err
+	}
+
+	params := s.params.BlockGeneratorParams
+	params.ExecutionMode = execution.ModeVerify
+	gen, err := execution.NewBlockGenerator(ctx, params, s.txFabric, prevBlock)
+	if err != nil {
+		return common.EmptyHash, fmt.Errorf("failed to create block generator: %w", err)
 	}
 	defer gen.Rollback()
 
 	gasPrices := gen.CollectGasPrices(proposal.PrevBlockId)
-	res, err := gen.BuildBlock(p, gasPrices)
+	res, err := gen.BuildBlock(proposal, gasPrices)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate block: %w", err)
+		return common.EmptyHash, fmt.Errorf("failed to generate block: %w", err)
 	}
-	return res.Block, nil
+	return res.BlockHash, nil
+}
+
+func (s *Validator) IsValidProposal(ctx context.Context, proposal *execution.ProposalSSZ) error {
+	p, err := execution.ConvertProposal(proposal)
+	if err != nil {
+		return err
+	}
+
+	// No lock since below we use only locked functions and only in read mode
+	if err := s.validateProposal(ctx, p); err != nil {
+		return err
+	}
+
+	hash, err := s.buildBlockHashByProposal(ctx, p)
+	if err != nil {
+		return fmt.Errorf("failed to build block by proposal: %w", err)
+	}
+
+	if proposal.BlockHash != hash {
+		s.logger.Error().
+			Stringer("proposedHash", proposal.BlockHash).
+			Stringer("gotHash", hash).
+			Err(cerrors.ErrInvalidProposedHash).
+			Msg("proposed block hash is different")
+		return cerrors.ErrInvalidProposedHash
+	}
+	return nil
 }
 
 func (s *Validator) InsertProposal(
@@ -179,7 +231,7 @@ func (s *Validator) InsertProposal(
 func (s *Validator) insertProposalUnlocked(
 	ctx context.Context,
 	proposal *execution.ProposalSSZ,
-	params *types.ConsensusParams,
+	consensusParams *types.ConsensusParams,
 ) error {
 	p, err := execution.ConvertProposal(proposal)
 	if err != nil {
@@ -194,34 +246,41 @@ func (s *Validator) insertProposalUnlocked(
 		return err
 	}
 
-	s.params.ExecutionMode = execution.ModeProposal
-	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric, prevBlock)
+	params := s.params.BlockGeneratorParams
+	params.ExecutionMode = execution.ModeProposal
+	gen, err := execution.NewBlockGenerator(ctx, params, s.txFabric, prevBlock)
 	if err != nil {
 		return fmt.Errorf("failed to create block generator: %w", err)
 	}
 	defer gen.Rollback()
 
-	res, err := gen.GenerateBlock(p, params)
+	s.metrics.StartProcessingMeasurement()
+	res, err := gen.GenerateBlock(p, consensusParams)
 	if err != nil {
 		return fmt.Errorf("failed to generate block: %w", err)
 	}
+	s.metrics.EndProcessingMeasurement(ctx, res.Counters)
 
-	s.onBlockCommitUnlocked(ctx, res, p)
+	s.onBlockCommitUnlocked(ctx, res, p, commitType)
 
 	return PublishBlock(ctx, s.networkManager, s.params.ShardId, &types.BlockWithExtractedData{
 		Block:           res.Block,
 		InTransactions:  res.InTxns,
 		OutTransactions: res.OutTxns,
 		ChildBlocks:     proposal.ShardHashes,
-		Config:          res.ConfigParams,
+		Config: common.TransformMap(res.ConfigParams, func(k string, v []byte) (string, hexutil.Bytes) {
+			return k, v
+		}),
 	})
 }
 
 // +checklocks:s.mutex
 func (s *Validator) onBlockCommitUnlocked(
-	ctx context.Context, res *execution.BlockGenerationResult, proposal *execution.Proposal,
+	ctx context.Context, res *execution.BlockGenerationResult, proposal *execution.Proposal, evType eventType,
 ) {
 	s.setLastBlockUnlocked(res.Block, res.BlockHash)
+
+	s.metrics.RecordBlockId(ctx, res.Block.Id)
 
 	if !reflect.ValueOf(s.pool).IsNil() {
 		if err := s.pool.OnCommitted(ctx, res.Block.BaseFee, proposal.ExternalTxns); err != nil {
@@ -230,7 +289,7 @@ func (s *Validator) onBlockCommitUnlocked(
 		}
 	}
 
-	s.notify(res.Block.Id)
+	s.notify(&event{evType, res.Block.Id})
 }
 
 func (s *Validator) logBlockDiffError(expected, got *types.Block, expHash, gotHash common.Hash) error {
@@ -250,7 +309,8 @@ func (s *Validator) logBlockDiffError(expected, got *types.Block, expHash, gotHa
 }
 
 func (s *Validator) validateRepliedBlock(
-	in *types.Block, replied *execution.BlockGenerationResult, inHash common.Hash, inTxns []*types.Transaction,
+	in *types.BlockWithExtractedData, replied *execution.BlockGenerationResult,
+	inHash common.Hash, inTxns []*types.Transaction,
 ) error {
 	if replied.Block.OutTransactionsRoot != in.OutTransactionsRoot {
 		return returnErrorOrPanic(fmt.Errorf("out transactions root mismatch. Expected %x, got %x",
@@ -261,13 +321,37 @@ func (s *Validator) validateRepliedBlock(
 			len(inTxns), len(replied.InTxns)))
 	}
 	if replied.Block.ConfigRoot != in.ConfigRoot {
-		return returnErrorOrPanic(fmt.Errorf("config root mismatch. Expected %x, got %x",
-			in.ConfigRoot, replied.Block.ConfigRoot))
+		expectedConfigJson, err := json.Marshal(in.Config)
+		check.PanicIfErr(err)
+
+		gotConfig := common.TransformMap(replied.ConfigParams, func(k string, v []byte) (string, hexutil.Bytes) {
+			return k, hexutil.Bytes(v)
+		})
+		gotConfigJson, err := json.Marshal(gotConfig)
+		check.PanicIfErr(err)
+
+		err = fmt.Errorf("config root mismatch. Expected %x, got %x", in.ConfigRoot, replied.Block.ConfigRoot)
+		s.logger.Error().Err(err).
+			RawJSON("expectedConfig", expectedConfigJson).
+			RawJSON("gotConfig", gotConfigJson).
+			Msg("config root mismatch")
+		return returnErrorOrPanic(err)
 	}
 	if replied.BlockHash != inHash {
-		return s.logBlockDiffError(in, replied.Block, inHash, replied.BlockHash)
+		return s.logBlockDiffError(in.Block, replied.Block, inHash, replied.BlockHash)
 	}
 	return nil
+}
+
+// +checklocksread:s.mutex
+func (s *Validator) validateBlockForProposalUnlocked(ctx context.Context, block *types.BlockWithExtractedData) error {
+	proposal := &execution.Proposal{
+		PrevBlockId:   block.Id - 1,
+		PrevBlockHash: block.PrevBlock,
+		MainShardHash: block.MainShardHash,
+		ShardHashes:   block.ChildBlocks,
+	}
+	return s.validateProposalUnlocked(ctx, proposal)
 }
 
 // +checklocksread:s.mutex
@@ -322,16 +406,23 @@ func (s *Validator) ReplayBlock(ctx context.Context, block *types.BlockWithExtra
 
 // +checklocks:s.mutex
 func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockWithExtractedData) error {
-	blockHash := block.Block.Hash(s.params.ShardId)
+	blockHash := block.Hash(s.params.ShardId)
 	s.logger.Trace().
-		Stringer(logging.FieldBlockNumber, block.Block.Id).
+		Stringer(logging.FieldBlockNumber, block.Id).
 		Stringer(logging.FieldBlockHash, blockHash).
 		Msg("Replaying block")
 
+	if err := s.validateBlockForProposalUnlocked(ctx, block); err != nil {
+		if errors.Is(err, cerrors.ErrHashMismatch) {
+			return returnErrorOrPanic(err)
+		}
+		return err
+	}
+
 	proposal := &execution.Proposal{
-		PrevBlockId:   block.Block.Id - 1,
-		PrevBlockHash: block.Block.PrevBlock,
-		MainShardHash: block.Block.MainShardHash,
+		PrevBlockId:   block.Id - 1,
+		PrevBlockHash: block.PrevBlock,
+		MainShardHash: block.MainShardHash,
 		ShardHashes:   block.ChildBlocks,
 	}
 	proposal.InternalTxns, proposal.ExternalTxns = execution.SplitInTransactions(block.InTransactions)
@@ -367,7 +458,6 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 			s.logger.Error().
 				Uint64(logging.FieldBlockNumber, uint64(block.Id)).
 				Stringer(logging.FieldBlockHash, block.Hash(s.params.ShardId)).
-				Stringer(logging.FieldShardId, s.params.ShardId).
 				Stringer(logging.FieldSignature, block.Signature).
 				Err(err).
 				Msg("Failed to verify block signature")
@@ -375,15 +465,9 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 		}
 	}
 
-	if err := s.validateProposalUnlocked(ctx, proposal); err != nil {
-		if errors.Is(err, cerrors.ErrHashMismatch) {
-			return returnErrorOrPanic(err)
-		}
-		return err
-	}
-
-	s.params.ExecutionMode = execution.ModeReplay
-	gen, err := execution.NewBlockGenerator(ctx, s.params.BlockGeneratorParams, s.txFabric, prevBlock)
+	params := s.params.BlockGeneratorParams
+	params.ExecutionMode = execution.ModeSyncReplay
+	gen, err := execution.NewBlockGenerator(ctx, params, s.txFabric, prevBlock)
 	if err != nil {
 		return err
 	}
@@ -397,7 +481,7 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 	}
 
 	// Check generated block and proposed are equal
-	if err = s.validateRepliedBlock(block.Block, resBlock, blockHash, block.OutTransactions); err != nil {
+	if err = s.validateRepliedBlock(block, resBlock, blockHash, block.OutTransactions); err != nil {
 		return fmt.Errorf("failed to validate replied block: %w", err)
 	}
 
@@ -406,7 +490,7 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 		return fmt.Errorf("failed to finalize block: %w", err)
 	}
 
-	s.onBlockCommitUnlocked(ctx, resBlock, proposal)
+	s.onBlockCommitUnlocked(ctx, resBlock, proposal, replayType)
 
 	return nil
 }
@@ -417,11 +501,11 @@ func (s *Validator) setLastBlockUnlocked(block *types.Block, hash common.Hash) {
 	s.lastBlockHash = hash
 }
 
-func (s *Validator) Subscribe() (uint64, <-chan types.BlockNumber) {
+func (s *Validator) Subscribe() (uint64, <-chan *event) {
 	s.subsMutex.Lock()
 	defer s.subsMutex.Unlock()
 
-	ch := make(chan types.BlockNumber, 1)
+	ch := make(chan *event, 1)
 	id := s.subsId
 	s.subs[id] = ch
 	s.subsId++
@@ -436,13 +520,13 @@ func (s *Validator) Unsubscribe(id uint64) {
 	delete(s.subs, id)
 }
 
-func (s *Validator) notify(blockId types.BlockNumber) {
+func (s *Validator) notify(ev *event) {
 	s.subsMutex.Lock()
 	defer s.subsMutex.Unlock()
 
 	for _, ch := range s.subs {
 		select {
-		case ch <- blockId:
+		case ch <- ev:
 		default:
 		}
 	}

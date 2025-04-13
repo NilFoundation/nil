@@ -113,6 +113,9 @@ const (
 	// ErrorSeqnoGap is returned when transaction seqno does not match the seqno of the recipient.
 	ErrorSeqnoGap
 
+	// ErrorTxIdGap is returned when TxId is greater than what the recipient expects.
+	ErrorTxIdGap
+
 	// ErrorExternalMsgVerificationFailed is returned when verifyExternal call fails.
 	ErrorExternalMsgVerificationFailed
 
@@ -188,6 +191,8 @@ const (
 	ErrorBaseFeeTooHigh
 	// ErrorMaxFeePerGasIsZero is returned when the MaxFeePerGas is zero. It is not allowed to have zero MaxFeePerGas.
 	ErrorMaxFeePerGasIsZero
+	// ErrorTransactionExceedsBlockGasLimit is returned when the transaction consumes more than the block gas limit.
+	ErrorTransactionExceedsBlockGasLimit
 )
 
 type ExecError interface {
@@ -228,14 +233,6 @@ func IsValidError(err error) bool {
 	return ToError(err) != nil
 }
 
-func ToBaseError(err error) *BaseError {
-	var base *BaseError
-	if errors.As(err, &base) {
-		return base
-	}
-	return nil
-}
-
 func ToError(err error) ExecError {
 	if e, ok := err.(ExecError); ok { //nolint:errorlint
 		return e
@@ -256,7 +253,7 @@ func IsOutOfGasError(err error) bool {
 }
 
 func GetErrorCode(err error) ErrorCode {
-	if base := ToBaseError(err); base != nil {
+	if base := ToError(err); base != nil {
 		return base.Code()
 	}
 	return ErrorUnknown

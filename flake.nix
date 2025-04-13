@@ -29,9 +29,14 @@
       rec {
         packages = rec {
           solc = (pkgs.callPackage ./nix/solc.nix { });
-          nil = (pkgs.callPackage ./nix/nil.nix { solc = solc; });
+          rollup-bridge-contracts = (pkgs.callPackage ./nix/rollup-bridge-contracts.nix { });
+          nil = (pkgs.callPackage ./nix/nil.nix {
+            solc = solc;
+            rollup-bridge-contracts = rollup-bridge-contracts;
+          });
           niljs = (pkgs.callPackage ./nix/niljs.nix { solc = solc; });
           clijs = (pkgs.callPackage ./nix/clijs.nix { nil = nil; });
+          nilhardhat = (pkgs.callPackage ./nix/nilhardhat.nix { solc = solc; });
           nildocs = (pkgs.callPackage ./nix/nildocs.nix {
             nil = nil;
             solc = solc;
@@ -50,15 +55,13 @@
           walletextension = (pkgs.callPackage ./nix/walletextension.nix { });
           uniswap = (pkgs.callPackage ./nix/uniswap.nix { });
           docsaibackend = (pkgs.callPackage ./nix/docsaibackend.nix { });
-          l1-contracts = (pkgs.callPackage ./nix/l1-contracts.nix { });
-          rollup-bridge-contracts =
-            (pkgs.callPackage ./nix/rollup-bridge-contracts.nix { });
         };
         checks = rec {
           nil = (pkgs.callPackage ./nix/nil.nix {
             enableRaceDetector = true;
             enableTesting = true;
             solc = packages.solc;
+            rollup-bridge-contracts = packages.rollup-bridge-contracts;
           });
 
           # split tests into groups
@@ -84,6 +87,11 @@
             nil = packages.nil;
             enableTesting = true;
           });
+          nilhardhat = (pkgs.callPackage ./nix/nilhardhat.nix {
+            nil = packages.nil;
+            solc = packages.solc;
+            enableTesting = true;
+          });
           nildocs = (pkgs.callPackage ./nix/nildocs.nix {
             nil = packages.nil;
             enableTesting = true;
@@ -101,9 +109,10 @@
             nil = packages.nil;
             enableTesting = true;
           });
-          rollup-bridge-contracts = (pkgs.callPackage ./nix/rollup-bridge-contracts.nix {
-            enableTesting = true;
-          });
+          rollup-bridge-contracts =
+            (pkgs.callPackage ./nix/rollup-bridge-contracts.nix {
+              enableTesting = true;
+            });
         };
 
         bundlers = rec {
@@ -120,15 +129,13 @@
                 mkdir -p ./usr/share/${packages.nildocs.pname}
                 mkdir -p ./usr/share/${packages.nilexplorer.name}
                 mkdir -p ./usr/share/${packages.docsaibackend.name}
-                mkdir -p ./usr/share/${packages.l1-contracts.name}
                 mkdir -p ./usr/share/${packages.rollup-bridge-contracts.name}
 
                 cp -r ${pkg}/bin ./usr/
                 cp -r ${pkg}/share ./usr/
                 cp -r ${packages.nildocs.outPath}/* ./usr/share/${packages.nildocs.pname}
                 cp -r ${packages.nilexplorer.outPath}/* ./usr/share/${packages.nilexplorer.name}
-                cp -r ${packages.docsaibackend.outPath}/* ./usr/share/${packages.nilexplorer.name}
-                cp -r ${packages.l1-contracts.outPath}/* ./usr/share/${packages.l1-contracts.name}
+                cp -r ${packages.docsaibackend.outPath}/* ./usr/share/${packages.docsaibackend.name}
                 cp -r ${packages.rollup-bridge-contracts.outPath}/{.,}* ./usr/share/${packages.rollup-bridge-contracts.name}
 
                 chmod -R u+rw,g+r,o+r ./usr
@@ -137,15 +144,15 @@
                 chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nilexplorer.name}
                 chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.docsaibackend.name}
 
-                bash ${
-                  ./scripts/binary_patch_version.sh
-                } ./usr/bin/nild ${versionFull}
-                bash ${
-                  ./scripts/binary_patch_version.sh
-                } ./usr/bin/nil ${versionFull}
-                bash ${
-                  ./scripts/binary_patch_version.sh
-                } ./usr/bin/cometa ${versionFull}
+                mv ./usr/bin/cometa ./usr/bin/nil-cometa
+                mv ./usr/bin/indexer ./usr/bin/nil-indexer
+
+                for binary in ./usr/bin/*; do
+                    if [ -f "$binary" ]; then
+                        bash ${ ./scripts/binary_patch_version.sh } "$binary" ${versionFull}
+                    fi
+                done
+
                 ${pkgs.fpm}/bin/fpm -s dir -t deb --name ${pkg.pname} -v ${version} --deb-compression xz --deb-use-file-permissions usr
               '';
               installPhase = ''

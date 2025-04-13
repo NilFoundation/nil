@@ -116,5 +116,5 @@ func (cmd *partialProofCmd) BeforeCommandExecuted(
 		BlockIDs:     blockIds,
 		BaseFileName: traceFileName,
 	}
-	return tracer.GenerateTrace(ctx, cmd.client, &tracerConfig)
+	return tracer.CollectTracesToFile(ctx, cmd.client, &tracerConfig)
 }

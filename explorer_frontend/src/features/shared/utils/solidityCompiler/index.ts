@@ -91,7 +91,7 @@ export class CompileWorker {
     });
   }
 
-  _dequeue() {
+  async _dequeue() {
     if (this.currentTask) {
       return;
     }
@@ -101,7 +101,7 @@ export class CompileWorker {
         console.log("task", task);
         this.currentTask = task;
         this.worker.postMessage({
-          input: JSON.stringify(createCompileInput(task.code, task.options)),
+          input: JSON.stringify(await createCompileInput(task.code, task.options)),
         });
       }
     }

@@ -19,32 +19,22 @@ type (
 )
 
 // @component RPCInTransaction rpcInTransaction object "The transaction whose information is requested."
-// @componentprop BlockHash blockHash string true "The hash of the block containing the transaction."
-// @componentprop BlockNumber blockNumber integer true "The number of the block containing the transaction."
-// @componentprop ChainId chainId integer true "The number of the chain containing the transaction."
 // @componentprop From from string true "The address from where the transaction was sent."
 // @componentprop FeeCredit feeCredit string true "The fee credit for the transaction."
 // @componentprop MaxPriorityFeePerGas maxPriorityFeePerGas string true "Priority fee for the transaction."
 // @componentprop MaxFeePerGas maxFeePerGas string true "Maximum fee per gas for the transaction."
-// @componentprop GasUsed gasUsed string true "The amount of gas spent on the transaction."
 // @componentprop Hash hash string true "The transaction hash."
-// @componentprop Index index string true "The transaction index."
 // @componentprop Seqno seqno string true "The sequence number of the transaction."
 // @componentprop Signature signature string true "The transaction signature."
-// @componentprop Success success boolean true "The flag that shows whether the transaction was successful."
 // @componentprop Flags flags string true "The array of transaction flags."
 // @componentprop To to string true "The address where the transaction was sent."
 // @componentprop Value value string true "The transaction value."
 // @componentprop Token value array true "Token values."
-type RPCInTransaction struct {
+type Transaction struct {
 	Flags                types.TransactionFlags `json:"flags"`
-	Success              bool                   `json:"success"`
 	RequestId            uint64                 `json:"requestId"`
 	Data                 hexutil.Bytes          `json:"data"`
-	BlockHash            common.Hash            `json:"blockHash"`
-	BlockNumber          types.BlockNumber      `json:"blockNumber"`
 	From                 types.Address          `json:"from"`
-	GasUsed              types.Gas              `json:"gasUsed"`
 	FeeCredit            types.Value            `json:"feeCredit,omitempty"`
 	MaxPriorityFeePerGas types.Value            `json:"maxPriorityFeePerGas,omitempty"`
 	MaxFeePerGas         types.Value            `json:"maxFeePerGas,omitempty"`
@@ -53,11 +43,26 @@ type RPCInTransaction struct {
 	To                   types.Address          `json:"to"`
 	RefundTo             types.Address          `json:"refundTo"`
 	BounceTo             types.Address          `json:"bounceTo"`
-	Index                hexutil.Uint64         `json:"index"`
 	Value                types.Value            `json:"value"`
 	Token                []types.TokenBalance   `json:"token,omitempty"`
 	ChainID              types.ChainId          `json:"chainId,omitempty"`
 	Signature            types.Signature        `json:"signature"`
+}
+
+// @component RPCInTransaction rpcInTransaction object "The transaction whose information is requested."
+// @componentprop Transaction transaction object true "The transaction data."
+// @componentprop BlockHash blockHash string true "The hash of the block containing the transaction."
+// @componentprop BlockNumber blockNumber integer true "The number of the block containing the transaction." "
+// @componentprop GasUsed gasUsed string true "The amount of gas spent on the transaction."
+// @componentprop Index index string true "The transaction index."
+// @componentprop Success success boolean true "The flag that shows whether the transaction was successful."
+type RPCInTransaction struct {
+	Transaction
+	Success     bool              `json:"success"`
+	BlockHash   common.Hash       `json:"blockHash"`
+	BlockNumber types.BlockNumber `json:"blockNumber"`
+	GasUsed     types.Gas         `json:"gasUsed"`
+	Index       hexutil.Uint64    `json:"index"`
 }
 
 // @component RPCBlock rpcBlock object "The block whose information was requested."
@@ -90,11 +95,18 @@ type RPCBlock struct {
 	GasUsed             types.Gas           `json:"gasUsed,omitempty"`
 }
 
+type ShardCount struct {
+	ShardId types.ShardId          `json:"shardId"`
+	Count   types.TransactionIndex `json:"count"`
+}
+
 type DebugRPCBlock struct {
 	Content         hexutil.Bytes          `json:"content"`
 	ChildBlocks     []common.Hash          `json:"childBlocks"`
 	InTransactions  []hexutil.Bytes        `json:"inTransactions"`
+	InTxCounts      []hexutil.Bytes        `json:"inTxCounts"`
 	OutTransactions []hexutil.Bytes        `json:"outTransactions"`
+	OutTxCounts     []hexutil.Bytes        `json:"outTxCounts"`
 	Receipts        []hexutil.Bytes        `json:"receipts"`
 	Errors          map[common.Hash]string `json:"errors"`
 	Config          *ChainConfig           `json:"config"`
@@ -160,7 +172,9 @@ func (b *DebugRPCBlock) Encode(block *types.RawBlockWithExtractedData) error {
 	b.Content = block.Block
 	b.ChildBlocks = block.ChildBlocks
 	b.InTransactions = hexutil.FromBytesSlice(block.InTransactions)
+	b.InTxCounts = hexutil.FromBytesSlice(block.InTxCounts)
 	b.OutTransactions = hexutil.FromBytesSlice(block.OutTransactions)
+	b.OutTxCounts = hexutil.FromBytesSlice(block.OutTxCounts)
 	b.Receipts = hexutil.FromBytesSlice(block.Receipts)
 	b.Errors = block.Errors
 
@@ -180,7 +194,9 @@ func (b *DebugRPCBlock) Decode() (*types.RawBlockWithExtractedData, error) {
 		Block:           b.Content,
 		ChildBlocks:     b.ChildBlocks,
 		InTransactions:  hexutil.ToBytesSlice(b.InTransactions),
+		InTxCounts:      hexutil.ToBytesSlice(b.InTxCounts),
 		OutTransactions: hexutil.ToBytesSlice(b.OutTransactions),
+		OutTxCounts:     hexutil.ToBytesSlice(b.OutTxCounts),
 		Receipts:        hexutil.ToBytesSlice(b.Receipts),
 		Errors:          b.Errors,
 	}
@@ -198,7 +214,7 @@ func (b *DebugRPCBlock) Decode() (*types.RawBlockWithExtractedData, error) {
 func (b *DebugRPCBlock) DecodeSSZ() (*types.BlockWithExtractedData, error) {
 	block, err := b.Decode()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("DebugRPCBlock.Decode failed: %w", err)
 	}
 	return block.DecodeSSZ()
 }
@@ -303,37 +319,44 @@ func (re *RPCReceipt) IsCommitted() bool {
 	return true
 }
 
-func NewRPCInTransaction(
-	transaction *types.Transaction, receipt *types.Receipt, index types.TransactionIndex,
-	blockHash common.Hash, blockId types.BlockNumber,
-) (*RPCInTransaction, error) {
-	hash := transaction.Hash()
-	if receipt == nil || hash != receipt.TxnHash {
-		return nil, errors.New("txn and receipt are not compatible")
-	}
-
-	result := &RPCInTransaction{
+func NewTransaction(transaction *types.Transaction) *Transaction {
+	return &Transaction{
 		Flags:                transaction.Flags,
-		Success:              receipt.Success,
 		RequestId:            transaction.RequestId,
 		Data:                 hexutil.Bytes(transaction.Data),
-		BlockHash:            blockHash,
-		BlockNumber:          blockId,
 		From:                 transaction.From,
-		GasUsed:              receipt.GasUsed,
 		FeeCredit:            transaction.FeeCredit,
 		MaxPriorityFeePerGas: transaction.MaxPriorityFeePerGas,
 		MaxFeePerGas:         transaction.MaxFeePerGas,
-		Hash:                 hash,
+		Hash:                 transaction.Hash(),
 		Seqno:                hexutil.Uint64(transaction.Seqno),
 		To:                   transaction.To,
 		RefundTo:             transaction.RefundTo,
 		BounceTo:             transaction.BounceTo,
-		Index:                hexutil.Uint64(index),
 		Value:                transaction.Value,
 		Token:                transaction.Token,
 		ChainID:              transaction.ChainId,
 		Signature:            transaction.Signature,
+	}
+}
+
+func NewRPCInTransaction(
+	transaction *types.Transaction, receipt *types.Receipt, index types.TransactionIndex,
+	blockHash common.Hash, blockId types.BlockNumber,
+) (*RPCInTransaction, error) {
+	txn := NewTransaction(transaction)
+
+	if receipt == nil || txn.Hash != receipt.TxnHash {
+		return nil, errors.New("txn and receipt are not compatible")
+	}
+
+	result := &RPCInTransaction{
+		Transaction: *txn,
+		Success:     receipt.Success,
+		BlockHash:   blockHash,
+		BlockNumber: blockId,
+		GasUsed:     receipt.GasUsed,
+		Index:       hexutil.Uint64(index),
 	}
 
 	return result, nil
@@ -475,7 +498,6 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 // @componentprop Proof serialized data for MPT access operation proving
 // @componentprop Storage storage slice of key-value pairs of the data in storage
 type DebugRPCContract struct {
-	// path, node type, next ref, branches, data
 	Code         hexutil.Bytes                                 `json:"code"`
 	Contract     hexutil.Bytes                                 `json:"contract"`
 	Proof        hexutil.Bytes                                 `json:"proof"`
@@ -515,10 +537,10 @@ func toOutTransactions(input []*rpctypes.OutTransaction) ([]*OutTransaction, err
 			Transaction: &types.Transaction{},
 			ForwardKind: txn.ForwardKind,
 		}
-		if err := decoded.Transaction.UnmarshalSSZ(txn.TransactionSSZ); err != nil {
+		if err := decoded.UnmarshalSSZ(txn.TransactionSSZ); err != nil {
 			return nil, err
 		}
-		decoded.TxnHash = decoded.Transaction.Hash()
+		decoded.TxnHash = decoded.Hash()
 
 		output[i] = &OutTransaction{
 			Transaction:     decoded,

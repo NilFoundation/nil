@@ -78,7 +78,7 @@ func Test_checkPath(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, tt.expected, checkPath(tt.req, tt.prefix)) //nolint:scopelint
+			assert.Equal(t, tt.expected, checkPath(tt.req, tt.prefix))
 		})
 	}
 }

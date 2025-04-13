@@ -34,6 +34,8 @@ message RawFullBlock {
   repeated Hash childBlocks = 6;
   uint64 dbTimestamp = 7;
   map<string, bytes> config = 8;
+  repeated bytes inTxCountsSSZ = 9;
+  repeated bytes outTxCountsSSZ = 10;
 }
 
 message RawFullBlocks {

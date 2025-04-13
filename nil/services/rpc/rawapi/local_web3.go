@@ -6,6 +6,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/version"
 )
 
-func (api *LocalShardApi) ClientVersion(ctx context.Context) (string, error) {
+func (api *localShardApiRo) ClientVersion(ctx context.Context) (string, error) {
 	return version.BuildClientVersion("=;Nil"), nil
 }

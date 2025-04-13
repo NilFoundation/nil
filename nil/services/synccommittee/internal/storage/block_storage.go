@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -113,19 +115,32 @@ func (bs *BlockStorage) TryGetLatestBatchId(ctx context.Context) (*scTypes.Batch
 	return bs.ops.getLatestBatchId(tx)
 }
 
-func (bs *BlockStorage) TryGetLatestFetched(ctx context.Context) (*scTypes.MainBlockRef, error) {
+func (bs *BlockStorage) BatchExists(ctx context.Context, batchId scTypes.BatchId) (bool, error) {
+	tx, err := bs.database.CreateRoTx(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	_, err = bs.ops.getBatch(tx, batchId)
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, scTypes.ErrBatchNotFound):
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
+func (bs *BlockStorage) GetLatestFetched(ctx context.Context) (scTypes.BlockRefs, error) {
 	tx, err := bs.database.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	lastFetched, err := bs.ops.getLatestFetchedMain(tx)
-	if err != nil {
-		return nil, err
-	}
-
-	return lastFetched, nil
+	return bs.ops.getLatestFetched(tx)
 }
 
 func (bs *BlockStorage) TryGetBlock(ctx context.Context, id scTypes.BlockId) (*jsonrpc.RPCBlock, error) {
@@ -172,15 +187,16 @@ func (bs *BlockStorage) setBlockBatchImpl(ctx context.Context, batch *scTypes.Bl
 	}
 	defer tx.Rollback()
 
+	if err := bs.validateBatchSequencing(tx, batch); err != nil {
+		return err
+	}
+
 	if err := bs.putBatchWithBlocks(tx, batch); err != nil {
 		return err
 	}
 
-	if err := bs.setProposeParentHash(tx, batch.MainShardBlock); err != nil {
-		return err
-	}
-
-	if err := bs.ops.updateLatestFetched(tx, batch.MainShardBlock); err != nil {
+	latestFetched := batch.LatestRefs()
+	if err := bs.ops.putLatestFetchedRefs(tx, latestFetched); err != nil {
 		return err
 	}
 
@@ -191,28 +207,26 @@ func (bs *BlockStorage) setBlockBatchImpl(ctx context.Context, batch *scTypes.Bl
 	return bs.commit(tx)
 }
 
-func (bs *BlockStorage) setProposeParentHash(tx db.RwTx, block *jsonrpc.RPCBlock) error {
-	if block.ShardId != types.MainShardId {
-		return nil
-	}
-	parentHash, err := bs.ops.getParentOfNextToPropose(tx)
+func (bs *BlockStorage) validateBatchSequencing(tx db.RoTx, batch *scTypes.BlockBatch) error {
+	currentLatestRefs, err := bs.ops.getLatestFetched(tx)
 	if err != nil {
 		return err
 	}
-	if parentHash != nil {
-		return nil
+
+	for shard, batchParentRef := range batch.ParentRefs() {
+		currentLatestRef := currentLatestRefs.TryGet(shard)
+
+		if currentLatestRef == nil || batchParentRef.Equals(currentLatestRef) {
+			continue
+		}
+
+		return fmt.Errorf(
+			"%w, id=%s: parent ref %s does not match current ref %s",
+			scTypes.ErrBatchMismatch, batch.Id, batchParentRef, currentLatestRef,
+		)
 	}
 
-	if block.Number > 0 && block.ParentHash.Empty() {
-		return fmt.Errorf("block with hash=%s has empty parent hash", block.Hash.String())
-	}
-
-	bs.logger.Info().
-		Stringer(logging.FieldBlockHash, block.Hash).
-		Stringer("parentHash", block.ParentHash).
-		Msg("block parent hash is not set, updating it")
-
-	return bs.ops.setParentOfNextToPropose(tx, block.ParentHash)
+	return nil
 }
 
 func (bs *BlockStorage) SetBatchAsProved(ctx context.Context, batchId scTypes.BatchId) error {
@@ -270,65 +284,49 @@ func (bs *BlockStorage) TryGetNextProposalData(ctx context.Context) (*scTypes.Pr
 		return nil, ErrStateRootNotInitialized
 	}
 
-	parentHash, err := bs.ops.getParentOfNextToPropose(tx)
-	if err != nil {
-		return nil, err
-	}
-
-	if parentHash == nil {
-		bs.logger.Debug().Msg("block parent hash is not set")
-		return nil, nil
-	}
-
 	var proposalCandidate *batchEntry
 	for entry, err := range bs.ops.getStoredBatchesSeq(tx) {
 		if err != nil {
 			return nil, err
 		}
-		if isValidProposalCandidate(entry, *parentHash) {
+		if entry.IsValidProposalCandidate(*currentProvedStateRoot) {
 			proposalCandidate = entry
 			break
 		}
 	}
 
 	if proposalCandidate == nil {
-		bs.logger.Debug().Stringer("parentHash", parentHash).Msg("no proved batch found")
+		bs.logger.Debug().Stringer(logging.FieldStateRoot, currentProvedStateRoot).Msg("no proved batch found")
 		return nil, nil
 	}
 
-	return bs.createProposalDataTx(tx, proposalCandidate, currentProvedStateRoot)
+	return bs.createProposalDataTx(tx, proposalCandidate, *currentProvedStateRoot)
 }
 
 func (bs *BlockStorage) createProposalDataTx(
 	tx db.RoTx,
 	proposalCandidate *batchEntry,
-	currentProvedStateRoot *common.Hash,
+	currentProvedStateRoot common.Hash,
 ) (*scTypes.ProposalData, error) {
-	mainBlockEntry, err := bs.ops.getBlock(tx, proposalCandidate.MainBlockId, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get main block with id=%s: %w", proposalCandidate.MainBlockId, err)
-	}
+	var firstBlockFetchedAt time.Time
 
-	transactions := scTypes.BlockTransactions(&mainBlockEntry.Block)
-
-	for _, childId := range proposalCandidate.ExecBlockIds {
-		childEntry, err := bs.ops.getBlock(tx, childId, true)
+	for i, blockId := range proposalCandidate.BlockIds {
+		bEntry, err := bs.ops.getBlock(tx, blockId, true)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get child block with id=%s: %w", childId, err)
+			return nil, err
 		}
-
-		blockTransactions := scTypes.BlockTransactions(&childEntry.Block)
-		transactions = append(transactions, blockTransactions...)
+		if i == 0 {
+			firstBlockFetchedAt = bEntry.FetchedAt
+		}
 	}
 
-	return &scTypes.ProposalData{
-		BatchId:            proposalCandidate.Id,
-		MainShardBlockHash: mainBlockEntry.Block.Hash,
-		Transactions:       transactions,
-		OldProvedStateRoot: *currentProvedStateRoot,
-		NewProvedStateRoot: mainBlockEntry.Block.Hash,
-		MainBlockFetchedAt: mainBlockEntry.FetchedAt,
-	}, nil
+	return scTypes.NewProposalData(
+		proposalCandidate.Id,
+		proposalCandidate.DataProofs,
+		currentProvedStateRoot,
+		proposalCandidate.LatestMainBlockHash,
+		firstBlockFetchedAt,
+	), nil
 }
 
 func (bs *BlockStorage) SetBatchAsProposed(ctx context.Context, id scTypes.BatchId) error {
@@ -353,56 +351,28 @@ func (bs *BlockStorage) setBatchAsProposedImpl(ctx context.Context, id scTypes.B
 		return fmt.Errorf("%w, id=%s", scTypes.ErrBatchNotProved, id)
 	}
 
-	mainShardEntry, err := bs.ops.getBlock(tx, batch.MainBlockId, true)
-	if err != nil {
+	currentStateRoot, err := bs.ops.getProvedStateRoot(tx)
+	switch {
+	case err != nil:
 		return err
-	}
-
-	if err := bs.validateMainShardEntry(tx, mainShardEntry); err != nil {
-		return err
+	case currentStateRoot == nil:
+		return ErrStateRootNotInitialized
+	case batch.ParentRefs[types.MainShardId].Hash != *currentStateRoot:
+		return fmt.Errorf(
+			"%w: currentStateRoot=%s, batch.LatestMainBlockHash=%s, id=%s",
+			scTypes.ErrBatchMismatch, currentStateRoot, batch.LatestMainBlockHash, id,
+		)
 	}
 
 	if err := bs.deleteBatchWithBlocks(tx, batch); err != nil {
 		return err
 	}
 
-	if err := bs.ops.putProvedStateRoot(tx, mainShardEntry.Block.Hash); err != nil {
-		return err
-	}
-	if err := bs.ops.setParentOfNextToPropose(tx, mainShardEntry.Block.Hash); err != nil {
+	if err := bs.ops.putProvedStateRoot(tx, batch.LatestMainBlockHash); err != nil {
 		return err
 	}
 
 	return bs.commit(tx)
-}
-
-func isValidProposalCandidate(batch *batchEntry, parentHash common.Hash) bool {
-	return batch.IsProved && batch.MainParentBlockHash == parentHash
-}
-
-func (bs *BlockStorage) validateMainShardEntry(tx db.RoTx, entry *blockEntry) error {
-	id := scTypes.IdFromBlock(&entry.Block)
-
-	if entry.Block.ShardId != types.MainShardId {
-		return fmt.Errorf("block with id=%s is not from main shard", id.String())
-	}
-
-	parentHash, err := bs.ops.getParentOfNextToPropose(tx)
-	if err != nil {
-		return err
-	}
-	if parentHash == nil {
-		return errors.New("next to propose parent hash is not set")
-	}
-
-	if *parentHash != entry.Block.ParentHash {
-		return fmt.Errorf(
-			"parent's block hash=%s is not equal to the stored value=%s",
-			entry.Block.ParentHash.String(),
-			parentHash.String(),
-		)
-	}
-	return nil
 }
 
 // ResetBatchesRange resets the block storage state starting from the batch with given ID:
@@ -435,22 +405,26 @@ func (bs *BlockStorage) resetBatchesPartialImpl(
 	}
 	defer tx.Rollback()
 
-	startingBatch, err := bs.ops.getBatch(tx, firstBatchToPurge)
+	if _, err := bs.ops.getBatch(tx, firstBatchToPurge); err != nil {
+		return nil, err
+	}
+
+	latestBatch, err := bs.ops.getLatestBatchId(tx)
 	if err != nil {
 		return nil, err
 	}
-
-	if err := bs.resetToParent(tx, startingBatch); err != nil {
-		return nil, err
+	if latestBatch == nil {
+		bs.logger.Debug().Msg("no batches created, nothing to purge")
+		return nil, nil
 	}
 
-	for batch, err := range bs.ops.getBatchesSequence(tx, firstBatchToPurge) {
+	for batch, err := range bs.ops.getBatchesSeqReversed(tx, *latestBatch, firstBatchToPurge) {
 		if err != nil {
 			return nil, err
 		}
 
-		if err := bs.deleteBatchWithBlocks(tx, batch); err != nil {
-			return nil, err
+		if err := bs.unsetBlockBatch(tx, batch); err != nil {
+			return nil, fmt.Errorf("failed to unset batch %s: %w", batch.Id, err)
 		}
 
 		purgedBatches = append(purgedBatches, batch.Id)
@@ -460,27 +434,33 @@ func (bs *BlockStorage) resetBatchesPartialImpl(
 		return nil, err
 	}
 
+	slices.Reverse(purgedBatches)
 	return purgedBatches, nil
 }
 
-func (bs *BlockStorage) resetToParent(tx db.RwTx, batch *batchEntry) error {
-	mainBlockEntry, err := bs.ops.getBlock(tx, batch.MainBlockId, true)
-	if err != nil {
+// unsetBlockBatch removes a batch from storage and resets all related state to the parent batch.
+// This operation completely rolls back the effects of setBlockBatchImpl.
+//
+// In the following example, the storage returns to its initial state:
+// setBlockBatchImpl(A) -> setBlockBatchImpl(B) -> unsetBlockBatch(B) -> unsetBlockBatch(A)
+func (bs *BlockStorage) unsetBlockBatch(tx db.RwTx, batch *batchEntry) error {
+	if err := bs.deleteBatchWithBlocks(tx, batch); err != nil {
 		return err
 	}
 
-	refToParent, err := scTypes.GetMainParentRef(&mainBlockEntry.Block)
-	if err != nil {
-		return fmt.Errorf("failed to get main block parent ref: %w", err)
-	}
-	if err := bs.ops.putLatestFetchedBlock(tx, types.MainShardId, refToParent); err != nil {
-		return fmt.Errorf("failed to reset latest fetched block: %w", err)
-	}
-	if err := bs.ops.putLatestBatchId(tx, batch.ParentId); err != nil {
-		return fmt.Errorf("failed to reset latest batch id: %w", err)
+	if batch.ParentId == nil {
+		if err := bs.ops.resetLatestFetched(tx); err != nil {
+			return err
+		}
+	} else {
+		for shardId, ref := range batch.ParentRefs {
+			if err := bs.ops.putLatestFetchedRef(tx, shardId, ref); err != nil {
+				return err
+			}
+		}
 	}
 
-	return nil
+	return bs.ops.putLatestBatchId(tx, batch.ParentId)
 }
 
 // ResetBatchesNotProved resets the block storage state:
@@ -501,7 +481,7 @@ func (bs *BlockStorage) resetBatchesNotProvedImpl(ctx context.Context) error {
 	}
 	defer tx.Rollback()
 
-	if err := bs.ops.putLatestFetchedBlock(tx, types.MainShardId, nil); err != nil {
+	if err := bs.ops.resetLatestFetched(tx); err != nil {
 		return fmt.Errorf("failed to reset latest fetched block: %w", err)
 	}
 
@@ -526,10 +506,6 @@ func (bs *BlockStorage) putBatchWithBlocks(tx db.RwTx, batch *scTypes.BlockBatch
 		return err
 	}
 
-	if err := bs.ops.putBatchParentIndexEntry(tx, batch); err != nil {
-		return err
-	}
-
 	currentTime := bs.clock.Now()
 
 	entry := newBatchEntry(batch, currentTime)
@@ -537,14 +513,9 @@ func (bs *BlockStorage) putBatchWithBlocks(tx db.RwTx, batch *scTypes.BlockBatch
 		return err
 	}
 
-	mainEntry := newBlockEntry(batch.MainShardBlock, batch, currentTime)
-	if err := bs.ops.putBlockTx(tx, mainEntry); err != nil {
-		return err
-	}
-
-	for _, childBlock := range batch.ChildBlocks {
-		childEntry := newBlockEntry(childBlock, batch, currentTime)
-		if err := bs.ops.putBlockTx(tx, childEntry); err != nil {
+	for block := range batch.BlocksIter() {
+		bEntry := newBlockEntry(block, batch, currentTime)
+		if err := bs.ops.putBlockTx(tx, bEntry); err != nil {
 			return err
 		}
 	}
@@ -557,16 +528,12 @@ func (bs *BlockStorage) deleteBatchWithBlocks(tx db.RwTx, batch *batchEntry) err
 		return err
 	}
 
-	if err := bs.ops.deleteBatch(tx, batch, bs.logger); err != nil {
+	if err := bs.ops.deleteBatch(tx, batch); err != nil {
 		return err
 	}
 
-	if err := bs.ops.deleteBlock(tx, batch.MainBlockId, bs.logger); err != nil {
-		return err
-	}
-
-	for _, childId := range batch.ExecBlockIds {
-		if err := bs.ops.deleteBlock(tx, childId, bs.logger); err != nil {
+	for _, blockId := range batch.BlockIds {
+		if err := bs.ops.deleteBlock(tx, blockId, bs.logger); err != nil {
 			return err
 		}
 	}

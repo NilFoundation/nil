@@ -21,6 +21,8 @@ type NildInstance struct {
 	logger     logging.Logger
 }
 
+var nildIndex = 0
+
 func (n *NildInstance) Init(nildPath string, workingDir string) error {
 	n.logger = logging.NewLogger(n.Name)
 
@@ -35,7 +37,13 @@ func (n *NildInstance) Init(nildPath string, workingDir string) error {
 	if n.IsRpc {
 		cmd = "rpc"
 	}
-	n.cmd = exec.Command(nildPath, cmd, "--config", cfgFile, "-l", "debug", "--log-filter", "-consensus")
+
+	const profilePortBase = 6000
+	profPort := profilePortBase + nildIndex
+
+	nildIndex++
+	n.cmd = exec.Command(nildPath, cmd, "--config", cfgFile, "-l", "warn", "--log-filter", "-consensus", "--dev-api",
+		"--pprof-port", strconv.Itoa(profPort))
 	n.cmd.Dir = n.workingDir
 
 	return nil
@@ -58,7 +66,7 @@ func (n *NildInstance) InitSingle(nildPath string, rootDir string, rpcPort int, 
 	}
 
 	n.cmd = exec.Command(nildPath, "run", "--nshards", strconv.Itoa(numShards), "--http-port", //nolint:gosec
-		strconv.Itoa(rpcPort), "-l", "debug", "--log-filter", "-consensus")
+		strconv.Itoa(rpcPort), "-l", "debug", "--log-filter", "-consensus", "--dev-api")
 	n.cmd.Dir = n.workingDir
 
 	return nil

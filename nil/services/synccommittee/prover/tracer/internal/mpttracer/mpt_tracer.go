@@ -14,14 +14,80 @@ import (
 
 // MPTTracer handles interaction with Merkle Patricia Tries
 type MPTTracer struct {
-	contractReader     ContractReader
-	rwTx               db.RwTx
-	shardId            types.ShardId
-	accountsCache      map[types.Address]*TracerAccount
-	ContractSparseTrie *mpt.MerklePatriciaTrie
+	// es *execution.ExecutionState,
+	contractReader      ContractReader
+	rwTx                db.RwTx
+	shardId             types.ShardId
+	ContractSparseTrie  *mpt.MerklePatriciaTrie
+	initialContractRoot common.Hash
+	// since we can't iterate over sparse trie, keep accounts for explicit checks
+	touchedAccounts map[types.Address]struct{}
 }
 
-var _ = (*MPTTracer)(nil)
+var _ execution.IContractMPTRepository = (*MPTTracer)(nil)
+
+func (mt *MPTTracer) SetRootHash(root common.Hash) {
+	mt.ContractSparseTrie.SetRootHash(root)
+	if mt.initialContractRoot == common.EmptyHash {
+		// first call, save this root to compare state with it during traces generation
+		mt.initialContractRoot = root
+	}
+}
+
+func (mt *MPTTracer) GetContract(addr types.Address) (*types.SmartContract, error) {
+	contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
+
+	// try to fetch from cache
+	smartContract, err := contractTrie.Fetch(addr.Hash())
+	if smartContract != nil {
+		// we fetched this contract before (in could be even updated by this time)
+		return smartContract, nil
+	}
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return nil, err
+	}
+
+	// TODO: use meaningful context
+	contract, proof, err := mt.contractReader.GetAccount(context.Background(), addr)
+	if err != nil {
+		return nil, err
+	}
+
+	rootBeforePupulation := mt.ContractSparseTrie.RootHash()
+	err = mpt.PopulateMptWithProof(mt.ContractSparseTrie, &proof)
+	if err != nil {
+		return nil, err
+	}
+	mt.ContractSparseTrie.SetRootHash(rootBeforePupulation)
+
+	if contract == nil {
+		err = db.ErrKeyNotFound
+	}
+	return contract, err
+}
+
+func (mt *MPTTracer) UpdateContracts(contracts map[types.Address]*execution.AccountState) error {
+	keys := make([]common.Hash, 0, len(contracts))
+	values := make([]*types.SmartContract, 0, len(contracts))
+	for addr, acc := range contracts {
+		mt.touchedAccounts[addr] = struct{}{}
+
+		smartAccount, err := acc.Commit()
+		if err != nil {
+			return err
+		}
+		keys = append(keys, addr.Hash())
+		values = append(values, smartAccount)
+	}
+	contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
+
+	err := contractTrie.UpdateBatch(keys, values)
+	return err
+}
+
+func (mt *MPTTracer) RootHash() common.Hash {
+	return mt.ContractSparseTrie.RootHash()
+}
 
 // New creates a new MPTTracer using a debug API client
 func New(
@@ -34,117 +100,59 @@ func New(
 	return NewWithReader(debugApiReader, rwTx, shardId)
 }
 
-// NewWithReader creates a new MPTTracer with a custom contract reader
+// NewWithReader creates a new MPTTracer with a provided contract reader
 func NewWithReader(
 	contractReader ContractReader,
 	rwTx db.RwTx,
 	shardId types.ShardId,
 ) *MPTTracer {
-	contractSparseTrie := mpt.NewDbMPT(rwTx, shardId, db.ReceiptTrieTable)
+	contractSparseTrie := mpt.NewDbMPT(rwTx, shardId, db.ConfigTrieTable)
 	return &MPTTracer{
 		contractReader:     contractReader,
 		rwTx:               rwTx,
 		shardId:            shardId,
 		ContractSparseTrie: contractSparseTrie,
-		accountsCache:      make(map[types.Address]*TracerAccount),
+		touchedAccounts:    make(map[types.Address]struct{}),
 	}
-}
-
-// CreateAccount creates a new account in the tracer
-func (mt *MPTTracer) CreateAccount(addr types.Address) (*TracerAccount, error) {
-	existingAccount, err := mt.GetAccount(addr)
-	if err != nil {
-		return nil, err
-	}
-	if existingAccount != nil {
-		return nil, errors.New("account already exists")
-	}
-
-	newAcc, err := NewTracerAccount(mt, addr, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	mt.accountsCache[addr] = newAcc
-
-	return newAcc, nil
-}
-
-// GetAccount retrieves an account from the cache or contract reader
-func (mt *MPTTracer) GetAccount(addr types.Address) (*TracerAccount, error) {
-	// return cached
-	smartContract, exists := mt.accountsCache[addr]
-	if exists {
-		return smartContract, nil
-	}
-
-	// TODO: use meaningful context
-	contract, proof, err := mt.contractReader.GetAccount(context.Background(), addr)
-	if err != nil {
-		return nil, err
-	}
-
-	err = mpt.PopulateMptWithProof(mt.ContractSparseTrie, &proof)
-	if err != nil {
-		return nil, err
-	}
-
-	mt.accountsCache[addr] = contract
-
-	return contract, nil
-}
-
-// GetSlot retrieves a slot value for a specific address
-func (mt *MPTTracer) GetSlot(addr types.Address, key common.Hash) (common.Hash, error) {
-	acc, err := mt.GetAccount(addr)
-	if err != nil || acc == nil {
-		return common.EmptyHash, err
-	}
-
-	return acc.GetState(key)
-}
-
-// SetSlot sets a slot value for a specific address
-func (mt *MPTTracer) SetSlot(addr types.Address, key common.Hash, val common.Hash) error {
-	acc, err := mt.GetAccount(addr)
-	if err != nil {
-		return err
-	}
-
-	err = acc.SetState(key, val)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// GetAccountsStorageUpdatesTraces retrieves storage update traces for all cached accounts
-func (mt *MPTTracer) getAccountsStorageUpdatesTraces() (map[types.Address][]StorageTrieUpdateTrace, error) {
-	storageTracesByAccount := make(map[types.Address][]StorageTrieUpdateTrace)
-	for addr, acc := range mt.accountsCache {
-		if acc == nil {
-			continue
-		}
-		accTraces, err := acc.GetSlotUpdatesTraces()
-		if err != nil {
-			return nil, err
-		}
-		if len(accTraces) != 0 {
-			storageTracesByAccount[addr] = accTraces
-		}
-	}
-	return storageTracesByAccount, nil
 }
 
 // GetMPTTraces retrieves all MPT traces including storage and contract trie traces
 func (mt *MPTTracer) GetMPTTraces() (MPTTraces, error) {
-	storageTracesByAccount, err := mt.getAccountsStorageUpdatesTraces()
-	if err != nil {
-		return MPTTraces{}, err
+	// TODO: in case of node deletion from MPT (SELFDESTRUCT and zero balance),
+	// extra nodes (not fetched previously) could be required, currently this is not handled.
+	contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
+	curRoot := mt.ContractSparseTrie.RootHash()
+
+	storageTracesByAccount := make(map[types.Address][]StorageTrieUpdateTrace)
+	for addr := range mt.touchedAccounts {
+		// contractTrie.SetRootHash() affects underlying ContractSparseTrie, so we need to change
+		// it each time we switch between current and initial tries
+		contractTrie.SetRootHash(mt.initialContractRoot)
+		initialSmartContract, err := contractTrie.Fetch(addr.Hash())
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+			return MPTTraces{}, err
+		}
+
+		contractTrie.SetRootHash(curRoot)
+		currentSmartContract, err := contractTrie.Fetch(addr.Hash())
+		if err != nil {
+			return MPTTraces{}, err
+		}
+
+		if initialSmartContract == nil || initialSmartContract.StorageRoot != currentSmartContract.StorageRoot {
+			initialRootToCompare := common.EmptyHash
+			if initialSmartContract != nil {
+				initialRootToCompare = initialSmartContract.StorageRoot
+			}
+			storageTraces, err := mt.getStorageTraces(initialRootToCompare, currentSmartContract.StorageRoot)
+			if err != nil {
+				return MPTTraces{}, err
+			}
+			storageTracesByAccount[addr] = storageTraces
+		}
 	}
 
-	contractTrieTraces, err := mt.getAccountTrieTraces()
+	contractTrieTraces, err := mt.getAccountTrieTraces(mt.initialContractRoot, curRoot)
 	if err != nil {
 		return MPTTraces{}, err
 	}
@@ -154,65 +162,126 @@ func (mt *MPTTracer) GetMPTTraces() (MPTTraces, error) {
 	}, nil
 }
 
-// GetAccountTrieTraces retrieves traces for changes in the contract trie.
-// Modifies underlying StorageTrie for each account,  thus, should be called after `GetAccountsStorageUpdatesTraces`
-// to not affect `before` values.
-func (mt *MPTTracer) getAccountTrieTraces() ([]ContractTrieUpdateTrace, error) {
-	contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
-	contractTrieTraces := make([]ContractTrieUpdateTrace, 0, len(mt.accountsCache))
-	for addr, acc := range mt.accountsCache {
-		if acc == nil {
-			continue
-		}
-		accInTrie, err := contractTrie.Fetch(addr.Hash())
-		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-			return nil, err
-		}
+func getTrieTraces[V any, VPtr execution.MPTValue[V]](
+	rawTrie *mpt.MerklePatriciaTrie,
+	trieCtor func(parent *mpt.MerklePatriciaTrie) *execution.BaseMPT[common.Hash, V, VPtr],
+	initialRoot common.Hash,
+	currentRoot common.Hash,
+) ([]GenericTrieUpdateTrace[VPtr], error) {
+	trie := trieCtor(rawTrie)
 
-		committedAcc, err := acc.Commit()
-		if err != nil {
-			return nil, err
-		}
+	trie.SetRootHash(initialRoot)
+	initialEntries, err := trie.Entries()
+	if err != nil {
+		return nil, err
+	}
+	initialEntriesMap := make(map[common.Hash]VPtr, len(initialEntries))
+	for _, e := range initialEntries {
+		initialEntriesMap[e.Key] = e.Val
+	}
 
-		if accInTrie != nil && accInTrie.Hash() == committedAcc.Hash() {
-			continue
+	trie.SetRootHash(currentRoot)
+	currentEntries, err := trie.Entries()
+	if err != nil {
+		return nil, err
+	}
+
+	traces := make([]GenericTrieUpdateTrace[VPtr], 0, len(currentEntries)) // can't establish final size here
+	trie.SetRootHash(initialRoot)
+	for _, e := range currentEntries {
+		initialValue, exists := initialEntriesMap[e.Key]
+		if exists {
+			// delete from initial entries map, every key left in map was deleted within execution
+			delete(initialEntriesMap, e.Key)
+
+			if initialValue == e.Val {
+				// value was not changed, no trace required
+				continue
+			}
 		}
 
 		// ReadMPTOperation plays no role here, could be any
-		proof, err := mpt.BuildProof(contractTrie.Reader, addr.Hash().Bytes(), mpt.ReadMPTOperation)
+		proof, err := mpt.BuildProof(trie.Reader, e.Key.Bytes(), mpt.ReadMPTOperation)
 		if err != nil {
 			return nil, err
 		}
 
-		trace := ContractTrieUpdateTrace{
-			Key:         addr.Hash(),
-			RootBefore:  contractTrie.RootHash(),
-			ValueBefore: accInTrie,
-			Proof:       proof,
-			PathBefore:  proof.PathToNode,
+		slotChangeTrace := GenericTrieUpdateTrace[VPtr]{
+			Key:        e.Key,
+			RootBefore: trie.RootHash(),
+			PathBefore: proof.PathToNode,
+			ValueAfter: e.Val,
+			Proof:      proof,
 		}
 
-		if err := contractTrie.Update(addr.Hash(), committedAcc); err != nil {
+		if exists && initialValue != e.Val {
+			slotChangeTrace.ValueBefore = initialValue
+			// update happened
+		} // else insertion happened
+
+		if err := trie.Update(e.Key, e.Val); err != nil {
 			return nil, err
 		}
 
-		proof, err = mpt.BuildProof(contractTrie.Reader, addr.Hash().Bytes(), mpt.ReadMPTOperation)
+		// ReadMPTOperation plays no role here, could be any
+		proof, err = mpt.BuildProof(trie.Reader, e.Key.Bytes(), mpt.ReadMPTOperation)
 		if err != nil {
 			return nil, err
 		}
-		trace.RootAfter = contractTrie.RootHash()
-		trace.ValueAfter = committedAcc
-		trace.PathAfter = proof.PathToNode
 
-		contractTrieTraces = append(contractTrieTraces, trace)
+		slotChangeTrace.RootAfter = trie.RootHash()
+		slotChangeTrace.PathAfter = proof.PathToNode
+
+		traces = append(traces, slotChangeTrace)
 	}
-	return contractTrieTraces, nil
+	for k, v := range initialEntriesMap {
+		// deletion happened
+
+		// ReadMPTOperation plays no role here, could be any
+		proof, err := mpt.BuildProof(trie.Reader, k.Bytes(), mpt.ReadMPTOperation)
+		if err != nil {
+			return nil, err
+		}
+
+		slotChangeTrace := GenericTrieUpdateTrace[VPtr]{
+			Key:         k,
+			RootBefore:  trie.RootHash(),
+			PathBefore:  proof.PathToNode,
+			ValueBefore: v,
+			Proof:       proof,
+		}
+
+		if err := trie.Delete(k); err != nil {
+			return nil, err
+		}
+
+		// ReadMPTOperation plays no role here, could be any
+		proof, err = mpt.BuildProof(trie.Reader, k.Bytes(), mpt.ReadMPTOperation)
+		if err != nil {
+			return nil, err
+		}
+
+		slotChangeTrace.RootAfter = trie.RootHash()
+		slotChangeTrace.PathAfter = proof.PathToNode
+		traces = append(traces, slotChangeTrace)
+	}
+
+	return traces, nil
 }
 
-// GetRwTx returns the read-write transaction
-func (mt *MPTTracer) GetRwTx() db.RwTx {
-	return mt.rwTx
+// getAccountTrieTraces retrieves traces for changes in a storage trie.
+func (mt *MPTTracer) getStorageTraces(
+	initialRoot common.Hash,
+	currentRoot common.Hash,
+) ([]StorageTrieUpdateTrace, error) {
+	rawMpt := mpt.NewDbMPT(mt.rwTx, mt.shardId, db.StorageTrieTable)
+	return getTrieTraces(rawMpt, execution.NewStorageTrie, initialRoot, currentRoot)
 }
 
-// AppendToJournal is a no-op method to satisfy the interface
-func (mt *MPTTracer) AppendToJournal(je execution.JournalEntry) {}
+// getAccountTrieTraces retrieves traces for changes in a contract trie.
+func (mt *MPTTracer) getAccountTrieTraces(
+	initialRoot common.Hash, currentRoot common.Hash,
+) ([]ContractTrieUpdateTrace, error) {
+	rawMpt := mpt.NewDbMPT(mt.rwTx, mt.shardId, db.ConfigTrieTable)
+	return getTrieTraces(rawMpt, execution.NewContractTrie, initialRoot, currentRoot)
+}

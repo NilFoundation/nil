@@ -21,9 +21,8 @@ import (
 )
 
 const (
-	defaultMaxInternalTxns               = 1000
 	defaultMaxGasInBlock                 = types.DefaultMaxGasInBlock
-	maxTxnsFromPool                      = 1000
+	maxTxnsFromPool                      = 10_000
 	defaultMaxForwardTransactionsInBlock = 200
 
 	validatorPatchLevel = 1
@@ -49,9 +48,6 @@ func newProposer(params *Params, topology ShardTopology, pool TxnPool, logger lo
 	if params.MaxGasInBlock == 0 {
 		params.MaxGasInBlock = defaultMaxGasInBlock
 	}
-	if params.MaxInternalTransactionsInBlock == 0 {
-		params.MaxInternalTransactionsInBlock = defaultMaxInternalTxns
-	}
 	if params.MaxForwardTransactionsInBlock == 0 {
 		params.MaxForwardTransactionsInBlock = defaultMaxForwardTransactionsInBlock
 	}
@@ -73,26 +69,25 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	}
 	defer tx.Rollback()
 
-	block, err := p.fetchPrevBlock(tx)
+	prevBlock, prevBlockHash, err := db.ReadLastBlock(tx, p.params.ShardId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch previous block: %w", err)
 	}
 
-	if block.PatchLevel > validatorPatchLevel {
+	if prevBlock.PatchLevel > validatorPatchLevel {
 		return nil, fmt.Errorf(
-			"block patch level %d is higher than supported %d", block.PatchLevel, validatorPatchLevel)
+			"block patch level %d is higher than supported %d", prevBlock.PatchLevel, validatorPatchLevel)
 	}
 
-	p.proposal.PatchLevel = block.PatchLevel
-	p.proposal.RollbackCounter = block.RollbackCounter
+	p.setPrevBlockData(prevBlock, prevBlockHash)
 
-	configAccessor, err := config.NewConfigAccessorFromBlockWithTx(tx, block, p.params.ShardId)
+	configAccessor, err := config.NewConfigAccessorFromBlockWithTx(tx, prevBlock, p.params.ShardId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create config accessor: %w", err)
 	}
 
 	p.executionState, err = execution.NewExecutionState(tx, p.params.ShardId, execution.StateParams{
-		Block:          block,
+		Block:          prevBlock,
 		ConfigAccessor: configAccessor,
 		FeeCalculator:  p.params.FeeCalculator,
 		Mode:           execution.ModeProposal,
@@ -107,7 +102,7 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		return nil, fmt.Errorf("failed to fetch last block hashes: %w", err)
 	}
 
-	if err := p.handleL1Attributes(tx); err != nil {
+	if err := p.handleL1Attributes(tx, prevBlockHash); err != nil {
 		// TODO: change to Error severity once Consensus/Proposer increase time intervals
 		p.logger.Trace().Err(err).Msg("Failed to handle L1 attributes")
 	}
@@ -140,15 +135,11 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	return p.proposal, nil
 }
 
-func (p *proposer) fetchPrevBlock(tx db.RoTx) (*types.Block, error) {
-	b, hash, err := db.ReadLastBlock(tx, p.params.ShardId)
-	if err != nil {
-		return nil, err
-	}
-
-	p.proposal.PrevBlockId = b.Id
-	p.proposal.PrevBlockHash = hash
-	return b, nil
+func (p *proposer) setPrevBlockData(block *types.Block, blockHash common.Hash) {
+	p.proposal.PrevBlockId = block.Id
+	p.proposal.PrevBlockHash = blockHash
+	p.proposal.PatchLevel = block.PatchLevel
+	p.proposal.RollbackCounter = block.RollbackCounter
 }
 
 func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
@@ -174,7 +165,7 @@ func (p *proposer) fetchLastBlockHashes(tx db.RoTx) error {
 	return nil
 }
 
-func (p *proposer) handleL1Attributes(tx db.RoTx) error {
+func (p *proposer) handleL1Attributes(tx db.RoTx, mainShardHash common.Hash) error {
 	if !p.params.ShardId.IsMainShard() {
 		return nil
 	}
@@ -192,7 +183,7 @@ func (p *proposer) handleL1Attributes(tx db.RoTx) error {
 	}
 
 	// Check if this L1 block was already processed
-	if cfgAccessor, err := config.NewConfigReader(tx, nil); err == nil {
+	if cfgAccessor, err := config.NewConfigReader(tx, &mainShardHash); err == nil {
 		if prevL1Block, err := config.GetParamL1Block(cfgAccessor); err == nil {
 			if prevL1Block != nil && prevL1Block.Number >= block.Number.Uint64() {
 				return nil
@@ -332,11 +323,11 @@ func (p *proposer) handleTransactionsFromPool() error {
 		if ok, err := handle(txn); err != nil {
 			return err
 		} else if ok {
+			p.proposal.ExternalTxns = append(p.proposal.ExternalTxns, txn.Transaction)
 			if p.executionState.GasUsed > p.params.MaxGasInBlock {
+				unverified = append(unverified, txn.Hash())
 				break
 			}
-
-			p.proposal.ExternalTxns = append(p.proposal.ExternalTxns, txn.Transaction)
 		}
 	}
 
@@ -368,7 +359,6 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 
 	checkLimits := func() bool {
 		return p.executionState.GasUsed < p.params.MaxGasInBlock &&
-			len(p.proposal.InternalTxnRefs) < p.params.MaxInternalTransactionsInBlock &&
 			len(p.proposal.ForwardTxnRefs) < p.params.MaxForwardTransactionsInBlock
 	}
 
@@ -382,6 +372,7 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 			state.Neighbors = append(state.Neighbors, types.Neighbor{ShardId: neighborId})
 		}
 		neighbor := &state.Neighbors[position]
+		nextTx := p.executionState.InTxCounts[neighborId]
 
 		var lastBlockNumber types.BlockNumber
 		lastBlock, _, err := db.ReadLastBlock(tx, neighborId)
@@ -439,8 +430,19 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 				}
 
 				if txn.To.ShardId() == p.params.ShardId {
+					if txn.TxId < nextTx {
+						// When we become proposer, we start with an outdated CollatorState,
+						// so we need to skip transactions that were already processed.
+						p.logger.Debug().
+							Uint64("txId", uint64(txn.TxId)).Uint64("nextTx", uint64(nextTx)).
+							Msg("Already processed transaction")
+						continue
+					}
+					nextTx++
+
 					txnHash := txn.Hash()
-					if err := execution.ValidateInternalTransaction(txn); err != nil {
+
+					if err := p.executionState.ValidateInternalTransaction(txn); err != nil {
 						p.logger.Warn().Err(err).
 							Stringer(logging.FieldTransactionHash, txnHash).
 							Msg("Invalid internal transaction")

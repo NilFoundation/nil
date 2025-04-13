@@ -45,7 +45,6 @@ func (batchCountOp) getBatchesCount(tx db.RoTx) (uint32, error) {
 	bytes, err := tx.Get(storedBatchesCountTable, mainShardKey)
 	switch {
 	case err == nil:
-		break
 	case errors.Is(err, db.ErrKeyNotFound):
 		return 0, nil
 	default:

@@ -34,7 +34,10 @@ func prepareHashMatches(prepareHash []byte, message *proto.IbftMessage) bool {
 		return false
 	}
 
-	prepareData, _ := message.Payload.(*proto.IbftMessage_PrepareData)
+	prepareData, ok := message.Payload.(*proto.IbftMessage_PrepareData)
+	if !ok {
+		return false
+	}
 	extractedPrepareHash := prepareData.PrepareData.ProposalHash
 
 	return bytes.Equal(prepareHash, extractedPrepareHash)
@@ -45,7 +48,10 @@ func commitHashMatches(commitHash []byte, message *proto.IbftMessage) bool {
 		return false
 	}
 
-	commitData, _ := message.Payload.(*proto.IbftMessage_CommitData)
+	commitData, ok := message.Payload.(*proto.IbftMessage_CommitData)
+	if !ok {
+		return false
+	}
 	extractedCommitHash := commitData.CommitData.ProposalHash
 
 	return bytes.Equal(commitHash, extractedCommitHash)
@@ -112,12 +118,18 @@ func appendProposalHash(messages []*proto.IbftMessage, proposalHash []byte) {
 	for _, message := range messages {
 		switch message.Type {
 		case proto.MessageType_PREPREPARE:
-			ppData, _ := message.Payload.(*proto.IbftMessage_PreprepareData)
+			ppData, ok := message.Payload.(*proto.IbftMessage_PreprepareData)
+			if !ok {
+				continue
+			}
 			payload := ppData.PreprepareData
 
 			payload.ProposalHash = proposalHash
 		case proto.MessageType_PREPARE:
-			pData, _ := message.Payload.(*proto.IbftMessage_PrepareData)
+			pData, ok := message.Payload.(*proto.IbftMessage_PrepareData)
+			if !ok {
+				continue
+			}
 			payload := pData.PrepareData
 
 			payload.ProposalHash = proposalHash
@@ -227,8 +239,8 @@ func TestRunNewRound_Proposer(t *testing.T) { //nolint:maintidx
 			ctx, cancelFn := context.WithCancel(t.Context())
 
 			var (
-				newRawProposal                         = []byte("new block")
-				multicastedProposal *proto.IbftMessage = nil
+				newRawProposal      = []byte("new block")
+				multicastedProposal *proto.IbftMessage
 
 				log       = mockLogger{}
 				transport = mockTransport{func(message *proto.IbftMessage) {
@@ -314,9 +326,9 @@ func TestRunNewRound_Proposer(t *testing.T) { //nolint:maintidx
 			setRoundForMessages(roundChangeMessages, 1)
 
 			var (
-				multicastedPreprepare *proto.IbftMessage = nil
-				multicastedPrepare    *proto.IbftMessage = nil
-				notifyCh                                 = make(chan uint64, 1)
+				multicastedPreprepare *proto.IbftMessage
+				multicastedPrepare    *proto.IbftMessage
+				notifyCh              = make(chan uint64, 1)
 
 				log       = mockLogger{}
 				transport = mockTransport{func(message *proto.IbftMessage) {
@@ -457,7 +469,8 @@ func TestRunNewRound_Proposer(t *testing.T) { //nolint:maintidx
 			setRoundForMessages(roundChangeMessages, 1)
 
 			// Make sure at least one RC message has a PC
-			payload, _ := roundChangeMessages[1].Payload.(*proto.IbftMessage_RoundChangeData)
+			payload, ok := roundChangeMessages[1].Payload.(*proto.IbftMessage_RoundChangeData)
+			require.True(t, ok)
 			rcData := payload.RoundChangeData
 
 			rcData.LastPreparedProposal = lastPreparedProposedProposal
@@ -481,11 +494,11 @@ func TestRunNewRound_Proposer(t *testing.T) { //nolint:maintidx
 			}
 
 			var (
-				proposerID                               = []byte("unique node")
-				multicastedPreprepare *proto.IbftMessage = nil
-				multicastedPrepare    *proto.IbftMessage = nil
-				proposal                                 = []byte("proposal")
-				notifyCh                                 = make(chan uint64, 1)
+				proposerID            = []byte("unique node")
+				multicastedPreprepare *proto.IbftMessage
+				multicastedPrepare    *proto.IbftMessage
+				proposal              = []byte("proposal")
+				notifyCh              = make(chan uint64, 1)
 
 				log       = mockLogger{}
 				transport = mockTransport{func(message *proto.IbftMessage) {
@@ -610,9 +623,9 @@ func TestRunNewRound_Validator_Zero(t *testing.T) {
 	ctx, cancelFn := context.WithCancel(t.Context())
 
 	var (
-		proposer                              = []byte("proposer")
-		multicastedPrepare *proto.IbftMessage = nil
-		notifyCh                              = make(chan uint64, 1)
+		proposer           = []byte("proposer")
+		multicastedPrepare *proto.IbftMessage
+		notifyCh           = make(chan uint64, 1)
 
 		log       = mockLogger{}
 		transport = mockTransport{
@@ -780,8 +793,8 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 			defer cancelFn()
 
 			var (
-				multicastedPrepare *proto.IbftMessage = nil
-				notifyCh                              = make(chan uint64, 1)
+				multicastedPrepare *proto.IbftMessage
+				notifyCh           = make(chan uint64, 1)
 
 				log       = mockLogger{}
 				transport = mockTransport{
@@ -880,8 +893,8 @@ func TestRunPrepare(t *testing.T) {
 			ctx, cancelFn := context.WithCancel(t.Context())
 
 			var (
-				multicastedCommit *proto.IbftMessage = nil
-				notifyCh                             = make(chan uint64, 1)
+				multicastedCommit *proto.IbftMessage
+				notifyCh          = make(chan uint64, 1)
 
 				log       = mockLogger{}
 				transport = mockTransport{func(message *proto.IbftMessage) {
@@ -987,10 +1000,10 @@ func TestRunCommit(t *testing.T) {
 			var (
 				wg sync.WaitGroup
 
-				signer                                           = []byte("node 0")
-				insertedProposal       []byte                    = nil
-				insertedCommittedSeals []*messages.CommittedSeal = nil
-				committedSeals                                   = []*messages.CommittedSeal{
+				insertedProposal       []byte
+				insertedCommittedSeals []*messages.CommittedSeal
+				signer                 = []byte("node 0")
+				committedSeals         = []*messages.CommittedSeal{
 					{
 						Signer:    signer,
 						Signature: generateSeals(1)[0],
@@ -1415,8 +1428,8 @@ func TestIBFT_FutureProposal(t *testing.T) {
 
 			var (
 				wg                    sync.WaitGroup
-				receivedProposalEvent *newProposalEvent = nil
-				notifyCh                                = make(chan uint64, 1)
+				receivedProposalEvent *newProposalEvent
+				notifyCh              = make(chan uint64, 1)
 
 				log     = mockLogger{}
 				backend = mockBackend{
@@ -1508,7 +1521,7 @@ func TestIBFT_ValidPC(t *testing.T) { //nolint:maintidx
 		t.Parallel()
 
 		var (
-			certificate *proto.PreparedCertificate = nil
+			certificate *proto.PreparedCertificate
 
 			log       = mockLogger{}
 			transport = mockTransport{}

@@ -7,6 +7,7 @@ import (
 
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -14,7 +15,7 @@ import (
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
 
-func (api *LocalShardApi) GetInTransactionReceipt(
+func (api *localShardApiRo) GetInTransactionReceipt(
 	ctx context.Context,
 	hash common.Hash,
 ) (*rawapitypes.ReceiptInfo, error) {
@@ -24,7 +25,7 @@ func (api *LocalShardApi) GetInTransactionReceipt(
 	}
 	defer tx.Rollback()
 
-	block, indexes, err := api.getBlockAndInTransactionIndexByTransactionHash(tx, api.ShardId, hash)
+	block, indexes, err := api.getBlockAndInTransactionIndexByTransactionHash(tx, api.shardId(), hash)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
 	}
@@ -36,13 +37,13 @@ func (api *LocalShardApi) GetInTransactionReceipt(
 	includedInMain := false
 	if block != nil {
 		receipt, err = getBlockEntity[*types.Receipt](
-			tx, api.ShardId, db.ReceiptTrieTable, block.ReceiptsRoot, indexes.TransactionIndex.Bytes())
+			tx, api.shardId(), db.ReceiptTrieTable, block.ReceiptsRoot, indexes.TransactionIndex.Bytes())
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return nil, err
 		}
 		transaction, err = getBlockEntity[*types.Transaction](
 			tx,
-			api.ShardId,
+			api.shardId(),
 			db.TransactionTrieTable,
 			block.InTransactionsRoot,
 			indexes.TransactionIndex.Bytes())
@@ -50,11 +51,13 @@ func (api *LocalShardApi) GetInTransactionReceipt(
 			return nil, err
 		}
 
-		priorityFee, ok := execution.GetEffectivePriorityFee(block.BaseFee, transaction)
-		if !ok {
-			return nil, errors.New("critical error: effective priority fee is invalid")
+		if priorityFee, ok := execution.GetEffectivePriorityFee(block.BaseFee, transaction); ok {
+			gasPrice = block.BaseFee.Add(priorityFee)
+		} else if receipt.Status != types.ErrorBaseFeeTooHigh {
+			api.logger.Error().
+				Stringer(logging.FieldTransactionHash, hash).
+				Msgf("Calculation of EffectivePriorityFee failed with wrong status: %s", receipt.Status)
 		}
-		gasPrice = block.BaseFee.Add(priorityFee)
 
 		// Check if the transaction is included in the main chain
 		rawMainBlock, err := api.nodeApi.GetFullBlockData(
@@ -67,17 +70,17 @@ func (api *LocalShardApi) GetInTransactionReceipt(
 				return nil, err
 			}
 
-			if api.ShardId.IsMainShard() {
+			if api.shardId().IsMainShard() {
 				includedInMain = mainBlockData.Id >= block.Id
 			} else {
-				if len(rawMainBlock.ChildBlocks) < int(api.ShardId) {
+				if len(rawMainBlock.ChildBlocks) < int(api.shardId()) {
 					return nil, fmt.Errorf(
 						"%w: main shard includes only %d blocks",
-						makeShardNotFoundError(methodNameChecked("GetInTransactionReceipt"), api.ShardId),
+						makeShardNotFoundError(methodNameChecked("GetInTransactionReceipt"), api.shardId()),
 						len(rawMainBlock.ChildBlocks))
 				}
-				blockHash := rawMainBlock.ChildBlocks[api.ShardId-1]
-				if last, err := api.accessor.Access(tx, api.ShardId).GetBlock().ByHash(blockHash); err == nil {
+				blockHash := rawMainBlock.ChildBlocks[api.shardId()-1]
+				if last, err := api.accessor.Access(tx, api.shardId()).GetBlock().ByHash(blockHash); err == nil {
 					includedInMain = last.Block().Id >= block.Id
 				}
 			}
@@ -104,14 +107,14 @@ func (api *LocalShardApi) GetInTransactionReceipt(
 		}
 	}
 
-	var outReceipts []*rawapitypes.ReceiptInfo = nil
-	var outTransactions []common.Hash = nil
+	var outReceipts []*rawapitypes.ReceiptInfo
+	var outTransactions []common.Hash
 
 	if receipt.OutTxnNum != 0 {
 		outReceipts = make([]*rawapitypes.ReceiptInfo, 0, receipt.OutTxnNum)
 		for i := receipt.OutTxnIndex; i < receipt.OutTxnIndex+receipt.OutTxnNum; i++ {
 			res, err := api.accessor.
-				Access(tx, api.ShardId).
+				Access(tx, api.shardId()).
 				GetOutTransaction().
 				ByIndex(types.TransactionIndex(i), block)
 			if err != nil {
@@ -144,7 +147,7 @@ func (api *LocalShardApi) GetInTransactionReceipt(
 	var blockHash common.Hash
 	if block != nil {
 		blockId = block.Id
-		blockHash = block.Hash(api.ShardId)
+		blockHash = block.Hash(api.shardId())
 	}
 
 	return &rawapitypes.ReceiptInfo{
@@ -162,7 +165,7 @@ func (api *LocalShardApi) GetInTransactionReceipt(
 	}, nil
 }
 
-func (api *LocalShardApi) getBlockAndInTransactionIndexByTransactionHash(
+func (api *localShardApiRo) getBlockAndInTransactionIndexByTransactionHash(
 	tx db.RoTx,
 	shardId types.ShardId,
 	hash common.Hash,

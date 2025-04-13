@@ -8,6 +8,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/relayer/internal/storage"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/jonboulle/clockwork"
 	"golang.org/x/sync/errgroup"
@@ -50,6 +51,7 @@ type EventListener struct {
 	clock           clockwork.Clock
 
 	config       *EventListenerConfig
+	metrics      EventListenerMetrics
 	eventStorage *EventStorage
 
 	state struct {
@@ -69,6 +71,7 @@ func NewEventListener(
 	ethClient EthClient,
 	contractClient L1Contract,
 	storage *EventStorage,
+	metrics EventListenerMetrics,
 	logger logging.Logger,
 ) (*EventListener, error) {
 	el := &EventListener{
@@ -77,16 +80,17 @@ func NewEventListener(
 		clock:           clock,
 		config:          config,
 		eventStorage:    storage,
-		logger:          logger,
+		metrics:         metrics,
 	}
 
 	el.state.emitter = make(chan struct{}, config.EmitEventCapacity)
+	el.logger = logger.With().Str(logging.FieldComponent, el.Name()).Logger()
 
 	return el, nil
 }
 
 func (el *EventListener) Name() string {
-	return "l1-event-listener"
+	return "event-listener"
 }
 
 func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error {
@@ -106,7 +110,7 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 
 	// event listener has to be interrupted in case of subscription is broken
 	return retrier.Do(ctx, func(ctx context.Context) error {
-		el.logger.Info().Msg("initializing event listener")
+		el.logger.Info().Msg("initializing component")
 		return el.run(ctx)
 	})
 }
@@ -136,7 +140,7 @@ func (el *EventListener) run(ctx context.Context) error {
 	})
 
 	err := eg.Wait()
-	el.logger.Debug().Err(err).Msg("l1 event listener done")
+	el.logger.Debug().Err(err).Msg("end processing")
 	return err
 }
 
@@ -160,8 +164,6 @@ func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1Messa
 			Err(err).
 			Msg("failed to subscribe to updates from L1 contract")
 		return err
-
-		// TODO(oclaw) metrics
 	}
 	defer sub.Unsubscribe()
 
@@ -180,7 +182,7 @@ func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1Messa
 				Err(err).
 				Msg("L1 subscription is broken")
 
-			// TODO(oclaw) metrics
+			el.metrics.AddSubscriptionError(ctx)
 			return fmt.Errorf("%w: %w", ErrSubscriptionIsBroken, err)
 		}
 		el.logger.Debug().Msg("subscription channel is closed")
@@ -196,6 +198,9 @@ func (el *EventListener) fetcher(ctx context.Context, eventCh chan<- *L1MessageS
 
 	el.logger.Info().Msg("started fetcher")
 
+	el.metrics.SetFetcherActive(ctx)
+	defer el.metrics.SetFetcherIdle(ctx)
+
 	// try fetching as long as possible, force exit after large enough attempt number
 	retrier := common.NewRetryRunner(
 		common.RetryConfig{
@@ -209,12 +214,9 @@ func (el *EventListener) fetcher(ctx context.Context, eventCh chan<- *L1MessageS
 		err := el.fetchPastEvents(ctx, eventCh)
 		if err != nil {
 			el.logger.Error().Err(err).Msg("historical event fetching failed")
-			// TODO (oclaw) metrics
 		}
 		return err
 	})
-
-	// TODO(oclaw) metrics (this routine is not expected to run for too long, we should now if something is stuck here)
 }
 
 func (el *EventListener) fetchPastEvents(ctx context.Context, eventCh chan<- *L1MessageSent) error {
@@ -238,7 +240,7 @@ func (el *EventListener) fetchPastEvents(ctx context.Context, eventCh chan<- *L1
 	el.logger.Info().
 		Uint64("latest_block_num", latestBlock).
 		Uint64("latest_processed_block_num", el.state.currentBlockNumber).
-		Msg("connected to Etherium")
+		Msg("connected to Ethereum")
 
 	if el.state.currentBlockNumber >= latestBlock {
 		el.logger.Info().Msg("no need to fetch old events")
@@ -285,6 +287,7 @@ func (el *EventListener) eventProcessor(
 		if err := el.processEvent(ctx, event); err != nil {
 			return err
 		}
+		el.metrics.AddEventFromFetcher(ctx)
 		processedOldEvents++
 	}
 
@@ -303,6 +306,7 @@ func (el *EventListener) eventProcessor(
 			if err := el.processEvent(ctx, event); err != nil {
 				return err
 			}
+			el.metrics.AddEventFromSubscriber(ctx)
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -312,9 +316,13 @@ func (el *EventListener) eventProcessor(
 func (el *EventListener) processEvent(ctx context.Context, ethEvent *L1MessageSent) error {
 	event := el.convertEvent(ethEvent)
 
+	if err := event.validate(); err != nil {
+		return err
+	}
+
 	// all retryable errors should be handled inside storage, otherwise we should interrupt service work
 	err := el.eventStorage.StoreEvent(ctx, event)
-	if err := ignoreErrors(err, ErrKeyExists); err != nil {
+	if err := ignoreErrors(err, storage.ErrKeyExists); err != nil {
 		return err
 	}
 
@@ -346,7 +354,7 @@ func (el *EventListener) convertEvent(ethEvent *L1MessageSent) *Event {
 
 		Sender:             ethEvent.MessageSender,
 		Target:             ethEvent.MessageTarget,
-		Value:              ethEvent.MessageValue,
+		Nonce:              ethEvent.MessageNonce,
 		Message:            ethEvent.Message,
 		Type:               ethEvent.MessageType,
 		CreatedAt:          ethEvent.MessageCreatedAt,
@@ -359,6 +367,10 @@ func (el *EventListener) convertEvent(ethEvent *L1MessageSent) *Event {
 			FeeCredit:            ethEvent.FeeCreditData.FeeCredit,
 		},
 	}
+	el.logger.Trace().
+		Stringer("block_hash", ethEvent.Raw.BlockHash).
+		Uint64("block_number", ethEvent.Raw.BlockNumber).
+		Msg("event received")
 	return event
 }
 

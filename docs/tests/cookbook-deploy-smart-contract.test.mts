@@ -71,7 +71,7 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
         faucetEndpoint: FAUCET_ENDPOINT,
       });
 
-      const { address, hash } = await smartAccount.deployContract({
+      const { address, tx } = await smartAccount.deployContract({
         bytecode: COUNTER_BYTECODE,
         abi: COUNTER_ABI,
         args: [],
@@ -80,7 +80,7 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
         shardId: 1,
       });
 
-      const manufacturerReceipts = await waitTillCompleted(client, hash);
+      const manufacturerReceipts = await tx.wait();
       //endInternalDeployment
 
       COUNTER_ADDRESS = address;
@@ -200,13 +200,13 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
     });
 
     //startInternalTransaction
-    const hash = await smartAccount.sendTransaction({
+    const tx = await smartAccount.sendTransaction({
       to: COUNTER_ADDRESS,
       abi: COUNTER_ABI,
       functionName: "increment",
     });
 
-    const receipts = await waitTillCompleted(client, hash);
+    const receipts = await tx.wait();
     //endInternalTransaction
 
     expect(receipts.some((receipt) => !receipt.success)).toBe(false);

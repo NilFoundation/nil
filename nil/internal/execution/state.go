@@ -32,10 +32,11 @@ const (
 	TraceBlocksEnabled                    = false
 	ExternalTransactionVerificationMaxGas = types.Gas(100_000)
 
-	ModeReadOnly = "read-only"
-	ModeProposal = "proposal"
-	ModeReplay   = "replay"
-	ModeVerify   = "verify"
+	ModeReadOnly     = "read-only"
+	ModeProposal     = "proposal"
+	ModeSyncReplay   = "syncer-replay"
+	ModeManualReplay = "manual-replay"
+	ModeVerify       = "verify"
 )
 
 var blocksTracer *BlocksTracer
@@ -61,18 +62,26 @@ type RollbackParams struct {
 	SearchDepth uint32
 }
 
+type IContractMPTRepository interface {
+	SetRootHash(root common.Hash)
+	GetContract(addr types.Address) (*types.SmartContract, error)
+	UpdateContracts(contracts map[types.Address]*AccountState) error
+	RootHash() common.Hash
+}
+
+type TxCounts map[types.ShardId]types.TransactionIndex
+
 type ExecutionState struct {
-	tx                 db.RwTx
-	ContractTree       *ContractTrie
-	InTransactionTree  *TransactionTrie
-	OutTransactionTree *TransactionTrie
-	ReceiptTree        *ReceiptTrie
-	PrevBlock          common.Hash
-	MainShardHash      common.Hash
-	ShardId            types.ShardId
-	ChildShardBlocks   map[types.ShardId]common.Hash
-	GasPrice           types.Value // Current gas price including priority fee
-	BaseFee            types.Value
+	tx               db.RwTx
+	ContractTree     IContractMPTRepository
+	ReceiptTree      *ReceiptTrie
+	PrevBlock        common.Hash
+	MainShardHash    common.Hash
+	ShardId          types.ShardId
+	ChildShardBlocks map[types.ShardId]common.Hash
+	GasPrice         types.Value // Current gas price including priority fee
+	BaseFee          types.Value
+	GasLimit         types.Gas
 
 	// Those fields are just copied from the proposal into the block
 	// and are not used in the state
@@ -85,11 +94,13 @@ type ExecutionState struct {
 
 	Accounts            map[types.Address]*AccountState
 	InTransactions      []*types.Transaction
+	InTxCounts          TxCounts
 	InTransactionHashes []common.Hash
 
 	// OutTransactions holds outbound transactions for every transaction in the executed block, where key is hash of
 	// Transaction that sends the transaction
 	OutTransactions map[common.Hash][]*types.OutboundTransaction
+	OutTxCounts     TxCounts
 
 	Receipts []*types.Receipt
 	Errors   map[common.Hash]error
@@ -109,8 +120,8 @@ type ExecutionState struct {
 	nextRevisionId int
 	revertId       int
 
-	// If true, log every instruction execution.
-	TraceVm bool
+	// Tracing hooks set for every EVM created during execution
+	EvmTracingHooks *tracing.Hooks
 
 	shardAccessor *shardAccessor
 
@@ -136,6 +147,11 @@ type ExecutionState struct {
 
 	logger logging.Logger
 }
+
+var (
+	_ vm.StateDB                = new(ExecutionState)
+	_ IRevertableExecutionState = new(ExecutionState)
+)
 
 type ExecutionResult struct {
 	ReturnData     []byte
@@ -239,8 +255,6 @@ type revision struct {
 	journalIndex int
 }
 
-var _ vm.StateDB = new(ExecutionState)
-
 // NewEVMBlockContext creates a new context for use in the EVM.
 func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 	data, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
@@ -266,6 +280,7 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 		Random:      &common.EmptyHash,
 		BaseFee:     big.NewInt(10),
 		BlobBaseFee: big.NewInt(10),
+		GasLimit:    es.GasLimit.Uint64(),
 		Time:        time,
 
 		RollbackCounter: rollbackCounter,
@@ -277,6 +292,7 @@ type StateParams struct {
 	ConfigAccessor config.ConfigAccessor
 	FeeCalculator  FeeCalculator
 	Mode           string
+	GasLimit       types.Gas
 }
 
 func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*ExecutionState, error) {
@@ -291,10 +307,13 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		return nil, errors.New("invalid tx type")
 	}
 
-	logger := logging.NewLogger("execution")
+	l := logging.NewLogger("execution").
+		With().
+		Stringer(logging.FieldShardId, shardId)
 	if params.Mode != "" {
-		logger = logger.With().Str("mode", params.Mode).Logger()
+		l = l.Str("mode", params.Mode)
 	}
+	logger := l.Logger()
 
 	feeCalculator := params.FeeCalculator
 	if feeCalculator == nil {
@@ -313,6 +332,9 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		}
 		prevBlockHash = params.Block.Hash(shardId)
 	}
+	if params.GasLimit == 0 {
+		params.GasLimit = types.DefaultMaxGasInBlock
+	}
 
 	res := &ExecutionState{
 		tx:               resTx,
@@ -321,6 +343,8 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		ChildShardBlocks: map[types.ShardId]common.Hash{},
 		Accounts:         map[types.Address]*AccountState{},
 		OutTransactions:  map[common.Hash][]*types.OutboundTransaction{},
+		OutTxCounts:      TxCounts{},
+		InTxCounts:       TxCounts{},
 		Logs:             map[common.Hash][]*types.Log{},
 		DebugLogs:        map[common.Hash][]*types.DebugLog{},
 		Errors:           map[common.Hash]error{},
@@ -333,6 +357,7 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 
 		BaseFee:  baseFeePerGas,
 		GasPrice: types.NewZeroValue(),
+		GasLimit: params.GasLimit,
 
 		isReadOnly: isReadOnly,
 
@@ -344,18 +369,42 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 	return res, res.initTries()
 }
 
+type DbContractAccessor struct {
+	*ContractTrie
+}
+
+func (ca *DbContractAccessor) GetContract(addr types.Address) (*types.SmartContract, error) {
+	return ca.Fetch(addr.Hash())
+}
+
+func (ca *DbContractAccessor) UpdateContracts(contracts map[types.Address]*AccountState) error {
+	keys := make([]common.Hash, 0, len(contracts))
+	values := make([]*types.SmartContract, 0, len(contracts))
+	for addr, acc := range contracts {
+		smartContract, err := acc.Commit()
+		if err != nil {
+			return err
+		}
+
+		keys = append(keys, addr.Hash())
+		values = append(values, smartContract)
+	}
+	return ca.UpdateBatch(keys, values)
+}
+
 func (es *ExecutionState) initTries() error {
 	data, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return err
 	}
 
-	es.ContractTree = NewDbContractTrie(es.tx, es.ShardId)
-	es.InTransactionTree = NewDbTransactionTrie(es.tx, es.ShardId)
-	es.OutTransactionTree = NewDbTransactionTrie(es.tx, es.ShardId)
+	es.ContractTree = &DbContractAccessor{NewDbContractTrie(es.tx, es.ShardId)}
 	es.ReceiptTree = NewDbReceiptTrie(es.tx, es.ShardId)
 	if err == nil {
-		es.ContractTree.SetRootHash(data.Block().SmartContractsRoot)
+		block := data.Block()
+		es.ContractTree.SetRootHash(block.SmartContractsRoot)
+		es.fetchTxCounts(block.OutTransactionsRoot, es.OutTxCounts)
+		es.fetchTxCounts(block.InTransactionsRoot, es.InTxCounts)
 	}
 
 	return nil
@@ -363,6 +412,14 @@ func (es *ExecutionState) initTries() error {
 
 func (es *ExecutionState) GetConfigAccessor() config.ConfigAccessor {
 	return es.configAccessor
+}
+
+func (es *ExecutionState) fetchTxCounts(root common.Hash, counts TxCounts) {
+	reader := NewDbTxCountTrieReader(es.tx, es.ShardId)
+	reader.SetRootHash(root)
+	for shardId, count := range reader.Items() {
+		counts[shardId] = count
+	}
 }
 
 func (es *ExecutionState) GetReceipt(txnIndex types.TransactionIndex) (*types.Receipt, error) {
@@ -384,9 +441,7 @@ func (es *ExecutionState) GetAccount(addr types.Address) (*AccountState, error) 
 		return acc, nil
 	}
 
-	addrHash := addr.Hash()
-
-	data, err := es.ContractTree.Fetch(addrHash)
+	data, err := es.ContractTree.GetContract(addr)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return nil, nil
 	}
@@ -429,7 +484,7 @@ func (es *ExecutionState) SubBalance(addr types.Address, amount types.Value, rea
 }
 
 func (es *ExecutionState) AddLog(log *types.Log) error {
-	es.journal.append(addLogChange{txhash: es.InTransactionHash})
+	es.AppendToJournal(addLogChange{txhash: es.InTransactionHash})
 	if len(es.Logs[es.InTransactionHash]) >= types.ReceiptMaxLogsSize {
 		return errors.New("too many logs")
 	}
@@ -447,7 +502,7 @@ func (es *ExecutionState) AddDebugLog(log *types.DebugLog) error {
 
 // AddRefund adds gas to the refund counter
 func (es *ExecutionState) AddRefund(gas uint64) {
-	es.journal.append(refundChange{prev: es.refund})
+	es.AppendToJournal(refundChange{prev: es.refund})
 	es.refund += gas
 }
 
@@ -505,7 +560,7 @@ func (es *ExecutionState) RevertToSnapshot(revid int) {
 	snapshot := es.validRevisions[idx].journalIndex
 
 	// Replay the journal to undo changes and remove invalidated snapshots
-	es.journal.revert(&ExecutionStateRevertableWrapper{es}, snapshot)
+	es.journal.revert(es, snapshot)
 	es.validRevisions = es.validRevisions[:idx]
 }
 
@@ -525,17 +580,17 @@ func (es *ExecutionState) SetTransientState(addr types.Address, key, value commo
 	if prev == value {
 		return
 	}
-	es.journal.append(transientStorageChange{
+	es.AppendToJournal(transientStorageChange{
 		account:  &addr,
 		key:      key,
 		prevalue: prev,
 	})
-	es.setTransientState(addr, key, value)
+	es.SetTransientNoJournal(addr, key, value)
 }
 
-// setTransientState is a lower level setter for transient storage. It
+// SetTransientNoJournal is a lower level setter for transient storage. It
 // is called during a revert to prevent modifications to the journal.
-func (es *ExecutionState) setTransientState(addr types.Address, key, value common.Hash) {
+func (es *ExecutionState) SetTransientNoJournal(addr types.Address, key, value common.Hash) {
 	es.transientStorage.Set(addr, key, value)
 }
 
@@ -550,7 +605,7 @@ func (es *ExecutionState) GetTransientState(addr types.Address, key common.Hash)
 // The account's state object is still available until the state is committed,
 // GetAccount will return a non-nil account after SelfDestruct.
 func (es *ExecutionState) selfDestruct(stateObject *AccountState) {
-	es.journal.append(selfDestructChange{
+	es.AppendToJournal(selfDestructChange{
 		account:     &stateObject.address,
 		prev:        stateObject.selfDestructed,
 		prevbalance: stateObject.Balance,
@@ -587,19 +642,6 @@ func (es *ExecutionState) SetCode(addr types.Address, code []byte) error {
 	return nil
 }
 
-func (es *ExecutionState) EnableVmTracing() {
-	es.evm.Config.Tracer = &tracing.Hooks{
-		OnOpcode: func(
-			pc uint64, op byte, gas, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error,
-		) {
-			for i, item := range scope.StackData() {
-				es.logger.Debug().Msgf("     %d: %s", i, item.String())
-			}
-			es.logger.Debug().Msgf("%04x: %s", pc, vm.OpCode(op).String())
-		},
-	}
-}
-
 func (es *ExecutionState) SetInitState(addr types.Address, transaction *types.Transaction) error {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
@@ -613,7 +655,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, transaction *types.Tr
 	defer es.resetVm()
 
 	_, deployAddr, _, err := es.evm.Deploy(
-		addr, vm.AccountRef{}, transaction.Data, uint64(100_000_000) /* gas */, uint256.NewInt(0))
+		addr, vm.AccountRef{}, transaction.Data, uint64(10_000_000) /* gas */, uint256.NewInt(0))
 	if err != nil {
 		return err
 	}
@@ -630,7 +672,7 @@ func (es *ExecutionState) SlotInAccessList(addr types.Address, slot common.Hash)
 // SubRefund removes gas from the refund counter.
 // This method will panic if the refund counter goes below zero
 func (es *ExecutionState) SubRefund(gas uint64) {
-	es.journal.append(refundChange{prev: es.refund})
+	es.AppendToJournal(refundChange{prev: es.refund})
 	if gas > es.refund {
 		panic(fmt.Sprintf("Refund counter below zero (gas: %d > refund: %d)", gas, es.refund))
 	}
@@ -734,7 +776,7 @@ func (es *ExecutionState) CreateAccount(addr types.Address) error {
 func (es *ExecutionState) createAccount(addr types.Address) (*AccountState, error) {
 	if addr.ShardId() != es.ShardId {
 		return nil, fmt.Errorf(
-			"Attempt to create account %v from %v shard on %v shard", addr, addr.ShardId(), es.ShardId)
+			"attempt to create account %v from %v shard on %v shard", addr, addr.ShardId(), es.ShardId)
 	}
 	acc, err := es.GetAccount(addr)
 	if err != nil {
@@ -744,7 +786,7 @@ func (es *ExecutionState) createAccount(addr types.Address) (*AccountState, erro
 		return nil, errors.New("account already exists")
 	}
 
-	es.journal.append(createObjectChange{account: &addr})
+	es.AppendToJournal(createAccountChange{account: &addr})
 
 	accountState, err := NewAccountState(es, addr, nil, es.logger)
 	if err != nil {
@@ -766,7 +808,7 @@ func (es *ExecutionState) CreateContract(addr types.Address) error {
 	}
 	if !obj.NewContract {
 		obj.NewContract = true
-		es.journal.append(createContractChange{account: addr})
+		es.AppendToJournal(accountBecameContractChange{account: addr})
 	}
 	return nil
 }
@@ -898,18 +940,11 @@ func (es *ExecutionState) AddOutTransaction(
 		return nil, err
 	}
 
-	// TODO:	This happens when we send refunds from uninitialized accounts when transferring money to them.
-	//			For now we will write all such refunds with identical zero seqno, because we can't change seqno
-	//			of uninitialized accounts.
-	//			In future we should add transfer that is free on the reciepient's side, so that these transfers
-	//			won't require refunds.
-	if seqno != 0 {
-		if seqno+1 < seqno {
-			return nil, vm.ErrNonceUintOverflow
-		}
-		if err := es.SetSeqno(caller, seqno+1); err != nil {
-			return nil, err
-		}
+	if seqno+1 < seqno {
+		return nil, vm.ErrNonceUintOverflow
+	}
+	if err := es.SetSeqno(caller, seqno+1); err != nil {
+		return nil, err
 	}
 
 	txn := payload.ToTransaction(caller, seqno)
@@ -917,8 +952,6 @@ func (es *ExecutionState) AddOutTransaction(
 	// Propagate fee settings from the inbound message
 	txn.MaxPriorityFeePerGas = es.GetInTransaction().MaxPriorityFeePerGas
 	txn.MaxFeePerGas = es.GetInTransaction().MaxFeePerGas
-
-	txnHash := txn.Hash()
 
 	// In case of bounce transaction, we don't debit token from account
 	// In case of refund transaction, we don't transfer tokens
@@ -942,13 +975,19 @@ func (es *ExecutionState) AddOutTransaction(
 		}
 	}
 
+	// Use next TxId
+	txn.TxId = es.OutTxCounts[txn.To.ShardId()]
+	es.OutTxCounts[txn.To.ShardId()] = txn.TxId + 1
+
+	txnHash := txn.Hash()
+
 	es.logger.Trace().
 		Stringer(logging.FieldTransactionHash, txnHash).
 		Stringer(logging.FieldTransactionFrom, txn.From).
 		Stringer(logging.FieldTransactionTo, txn.To).
 		Msg("Outbound transaction added")
 
-	es.journal.append(outTransactionsChange{
+	es.AppendToJournal(outTransactionsChange{
 		txnHash: es.InTransactionHash,
 		index:   len(es.OutTransactions[es.InTransactionHash]),
 	})
@@ -1013,37 +1052,36 @@ func (es *ExecutionState) SendResponseTransaction(txn *types.Transaction, res *E
 		Data:        data,
 	}
 
+	// Send back value in case of failed transaction, so that we don't need a separate bounce transaction
+	if res.Failed() {
+		responsePayload.Value = txn.Value
+	}
+
+	requestChain := txn.RequestChain
+	if txn.IsRequest() {
+		responsePayload.To = txn.From
+		responsePayload.RequestId = txn.RequestId
+	} else {
+		// We are processing a response transaction with requests chain. So get pending request from the chain and send
+		// response to it.
+		check.PanicIfNotf(txn.IsResponse(), "Transaction should be a response")
+		responsePayload.To = txn.RequestChain[len(txn.RequestChain)-1].Caller
+		responsePayload.RequestId = txn.RequestChain[len(txn.RequestChain)-1].Id
+		requestChain = txn.RequestChain[:len(txn.RequestChain)-1]
+	}
+
 	// TODO: need to pay for response here
 	// we pay for mem during VM execution, so likely big response isn't a problem
 	responseTxn, err := es.AddOutTransaction(txn.To, responsePayload)
 	if err != nil {
 		return err
 	}
-
-	// Send back value in case of failed transaction, thereby we don't need in a separate bounce transaction.
-	if res.Failed() {
-		responseTxn.Value = txn.Value
-	}
-
-	if txn.IsRequest() {
-		responseTxn.To = txn.From
-		responseTxn.RequestId = txn.RequestId
-		responseTxn.RequestChain = txn.RequestChain
-	} else {
-		// We are processing a response transaction with requests chain. So get pending request from the chain and send
-		// response to it.
-		check.PanicIfNotf(txn.IsResponse(), "Transaction should be a response")
-		responseTxn.To = txn.RequestChain[len(txn.RequestChain)-1].Caller
-		responseTxn.RequestId = txn.RequestChain[len(txn.RequestChain)-1].Id
-		responseTxn.RequestChain = txn.RequestChain[:len(txn.RequestChain)-1]
-	}
+	responseTxn.RequestChain = requestChain
 	return nil
 }
 
 func (es *ExecutionState) HandleTransaction(
-	ctx context.Context,
-	txn *types.Transaction,
-	payer Payer,
+	ctx context.Context, txn *types.Transaction, payer Payer,
 ) (retError *ExecutionResult) {
 	defer func() {
 		var ev *logging.Event
@@ -1055,7 +1093,7 @@ func (es *ExecutionState) HandleTransaction(
 			}
 			ev = es.logger.Debug()
 		}
-
+		ev.Stringer(logging.FieldTransactionHash, es.InTransactionHash)
 		ev.Stringer("result", retError).Int(logging.FieldTransactionSeqno, int(txn.Seqno))
 		if !txn.IsRefund() && !txn.IsBounce() {
 			ev.Stringer("gasUsed", retError.GasUsed).
@@ -1089,6 +1127,25 @@ func (es *ExecutionState) HandleTransaction(
 		}
 	}()
 
+	if txn.IsExternal() {
+		addr := txn.To
+		seqno, err := es.GetExtSeqno(addr)
+		if err != nil {
+			return NewExecutionResult().SetFatal(err)
+		}
+		if err := es.SetExtSeqno(addr, seqno+1); err != nil {
+			return NewExecutionResult().SetFatal(err)
+		}
+
+		defer func() {
+			// Execution message pays for verifyExternal.
+			// We need to revert ExtSeqno only for Deploy messages that doesn't spend gas.
+			if txn.IsDeploy() && retError.GasUsed == 0 {
+				check.PanicIfErr(es.SetExtSeqno(txn.To, seqno))
+			}
+		}()
+	}
+
 	es.txnFeeCredit = txn.FeeCredit
 
 	if err := es.updateGasPrice(txn); err != nil {
@@ -1120,7 +1177,7 @@ func (es *ExecutionState) HandleTransaction(
 	if txn.IsRequest() {
 		if !es.wasAwaitCall {
 			if err := es.SendResponseTransaction(txn, res); err != nil {
-				return NewExecutionResult().SetFatal(fmt.Errorf("SendResponseTransaction failed: %w\n", err))
+				return NewExecutionResult().SetFatal(fmt.Errorf("SendResponseTransaction failed: %w", err))
 			}
 			bounced = true
 			responseWasSent = true
@@ -1129,7 +1186,7 @@ func (es *ExecutionState) HandleTransaction(
 		// There is pending requests in the chain, so we need to send response to them.
 		// But we don't send response if a new request was sent during the execution.
 		if err := es.SendResponseTransaction(txn, res); err != nil {
-			return NewExecutionResult().SetFatal(fmt.Errorf("SendResponseTransaction failed: %w\n", err))
+			return NewExecutionResult().SetFatal(fmt.Errorf("SendResponseTransaction failed: %w", err))
 		}
 		responseWasSent = true
 	}
@@ -1192,7 +1249,6 @@ func (es *ExecutionState) handleDeployTransaction(_ context.Context, transaction
 
 	es.logger.Debug().
 		Stringer(logging.FieldTransactionTo, addr).
-		Stringer(logging.FieldShardId, es.ShardId).
 		Msg("Handling deploy transaction...")
 
 	if err := es.newVm(transaction.IsInternal(), transaction.From, nil); err != nil {
@@ -1200,9 +1256,16 @@ func (es *ExecutionState) handleDeployTransaction(_ context.Context, transaction
 	}
 	defer es.resetVm()
 
-	gas := transaction.FeeCredit.ToGas(es.GasPrice)
+	es.preTxHookCall(transaction)
+	defer func() { es.postTxHookCall(transaction, result) }()
+
+	gas, exceedBlockLimit := es.calcGasLimit(es.txnFeeCredit.ToGas(es.GasPrice))
 	ret, addr, leftOver, err := es.evm.Deploy(
 		addr, (vm.AccountRef)(transaction.From), deployTxn.Code(), gas.Uint64(), transaction.Value.Int())
+
+	if exceedBlockLimit && types.IsOutOfGasError(err) {
+		err = types.NewError(types.ErrorTransactionExceedsBlockGasLimit)
+	}
 
 	event := es.logger.Debug().Stringer(logging.FieldTransactionTo, addr)
 	if err != nil {
@@ -1278,14 +1341,18 @@ func (es *ExecutionState) TryProcessResponse(
 func (es *ExecutionState) handleExecutionTransaction(
 	_ context.Context,
 	transaction *types.Transaction,
-) *ExecutionResult {
+) (res *ExecutionResult) {
+	if assert.Enable {
+		check.PanicIfNot(transaction.Hash() == es.InTransactionHash)
+	}
+
 	check.PanicIfNot(transaction.IsExecution())
 	addr := transaction.To
 	es.logger.Debug().
 		Stringer(logging.FieldTransactionFrom, transaction.From).
 		Stringer(logging.FieldTransactionTo, addr).
 		Stringer(logging.FieldTransactionFlags, transaction.Flags).
-		Stringer(logging.FieldTransactionHash, transaction.Hash()).
+		Stringer(logging.FieldTransactionHash, es.InTransactionHash).
 		Stringer("value", transaction.Value).
 		Stringer("feeCredit", transaction.FeeCredit).
 		Msg("Handling execution transaction...")
@@ -1302,30 +1369,30 @@ func (es *ExecutionState) handleExecutionTransaction(
 	}
 	defer es.resetVm()
 
-	if es.TraceVm {
-		es.EnableVmTracing()
-	}
-
-	if transaction.IsExternal() {
-		seqno, err := es.GetExtSeqno(addr)
-		if err != nil {
-			return NewExecutionResult().SetFatal(err)
-		}
-		if err := es.SetExtSeqno(addr, seqno+1); err != nil {
-			return NewExecutionResult().SetFatal(err)
-		}
-	}
+	es.preTxHookCall(transaction)
+	defer func() { es.postTxHookCall(transaction, res) }()
 
 	es.revertId = es.Snapshot()
 
+	gas, exceedBlockLimit := es.calcGasLimit(es.txnFeeCredit.ToGas(es.GasPrice))
 	es.evm.SetTokenTransfer(transaction.Token)
-	gas := es.txnFeeCredit.ToGas(es.GasPrice)
 	ret, leftOver, err := es.evm.Call(caller, addr, callData, gas.Uint64(), transaction.Value.Int())
+
+	if exceedBlockLimit && types.IsOutOfGasError(err) {
+		err = types.NewError(types.ErrorTransactionExceedsBlockGasLimit)
+	}
 
 	return NewExecutionResult().
 		SetTxnErrorOrFatal(err).
 		SetUsed(gas-types.Gas(leftOver), es.GasPrice).
 		SetReturnData(ret).SetDebugInfo(es.evm.DebugInfo)
+}
+
+func (es *ExecutionState) calcGasLimit(gas types.Gas) (types.Gas, bool) {
+	if gas > es.GasLimit {
+		return es.GasLimit, true
+	}
+	return gas, false
 }
 
 // decodeRevertTransaction decodes the revert transaction from the EVM revert data
@@ -1378,7 +1445,7 @@ func (es *ExecutionState) AddReceipt(execResult *ExecutionResult) {
 	es.Receipts = append(es.Receipts, r)
 }
 
-func GetOutTransactions(es *ExecutionState) ([]*types.Transaction, []common.Hash) {
+func getOutTransactions(es *ExecutionState) ([]*types.Transaction, []common.Hash) {
 	txns := make([]*types.Transaction, 0, len(es.OutTransactions[common.EmptyHash]))
 	hashes := make([]common.Hash, 0, len(es.OutTransactions[common.EmptyHash]))
 
@@ -1399,19 +1466,29 @@ func GetOutTransactions(es *ExecutionState) ([]*types.Transaction, []common.Hash
 	return txns, hashes
 }
 
-func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGenerationResult, error) {
-	keys := make([]common.Hash, 0, len(es.Accounts))
-	values := make([]*types.SmartContract, 0, len(es.Accounts))
-	for k, acc := range es.Accounts {
-		v, err := acc.Commit()
-		if err != nil {
-			return nil, err
-		}
-
-		keys = append(keys, k.Hash())
-		values = append(values, v)
+func (es *ExecutionState) writeTxCounts(root common.Hash, counts TxCounts) common.Hash {
+	if len(counts) == 0 {
+		return root
 	}
-	if err := es.ContractTree.UpdateBatch(keys, values); err != nil {
+	keys := make([]types.ShardId, 0, len(counts))
+	values := make([]*types.TransactionIndex, 0, len(counts))
+	for shard, count := range counts {
+		if count > 0 {
+			keys = append(keys, shard)
+			cnt := count
+			values = append(values, &cnt)
+		}
+	}
+	trie := NewDbTxCountTrie(es.tx, es.ShardId)
+	trie.SetRootHash(root)
+	if err := trie.UpdateBatch(keys, values); err != nil {
+		panic(fmt.Errorf("failed to update tx count trie: %w", err))
+	}
+	return trie.RootHash()
+}
+
+func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGenerationResult, error) {
+	if err := es.ContractTree.UpdateContracts(es.Accounts); err != nil {
 		return nil, err
 	}
 
@@ -1433,18 +1510,23 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 		inTxnValues = append(inTxnValues, txn)
 	}
 
-	outTxnValues, outTxnHashes := GetOutTransactions(es)
+	outTxnValues, outTxnHashes := getOutTransactions(es)
 	outTxnKeys := make([]types.TransactionIndex, 0, len(es.InTransactions))
 	for i := range outTxnValues {
 		outTxnKeys = append(outTxnKeys, types.TransactionIndex(i))
 	}
 
-	if err := es.InTransactionTree.UpdateBatch(inTxnKeys, inTxnValues); err != nil {
+	inTransactionTree := NewDbTransactionTrie(es.tx, es.ShardId)
+	if err := inTransactionTree.UpdateBatch(inTxnKeys, inTxnValues); err != nil {
 		return nil, err
 	}
-	if err := es.OutTransactionTree.UpdateBatch(outTxnKeys, outTxnValues); err != nil {
+	inTxRoot := es.writeTxCounts(inTransactionTree.RootHash(), es.InTxCounts)
+
+	outTransactionTree := NewDbTransactionTrie(es.tx, es.ShardId)
+	if err := outTransactionTree.UpdateBatch(outTxnKeys, outTxnValues); err != nil {
 		return nil, err
 	}
+	outTxRoot := es.writeTxCounts(outTransactionTree.RootHash(), es.OutTxCounts)
 
 	if assert.Enable {
 		// Check that each outbound transaction belongs to some inbound transaction
@@ -1464,16 +1546,17 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 				return nil, fmt.Errorf("outbound transaction %v does not belong to any inbound transaction", outTxnHash)
 			}
 		}
+		// Check that each inbound transaction has its receipt in the same index
+		for i, txnHash := range es.InTransactionHashes {
+			if txnHash != es.Receipts[i].TxnHash {
+				return nil, fmt.Errorf("receipt hash doesn't match its transaction #%d", i)
+			}
+		}
 	}
 	if len(es.InTransactions) != len(es.Receipts) {
 		return nil, fmt.Errorf(
 			"number of transactions does not match number of receipts: %d != %d",
 			len(es.InTransactions), len(es.Receipts))
-	}
-	for i, txnHash := range es.InTransactionHashes {
-		if txnHash != es.Receipts[i].TxnHash {
-			return nil, fmt.Errorf("receipt hash doesn't match its transaction #%d", i)
-		}
 	}
 
 	// Update receipts trie
@@ -1524,8 +1607,8 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 			Id:                  blockId,
 			PrevBlock:           es.PrevBlock,
 			SmartContractsRoot:  es.ContractTree.RootHash(),
-			InTransactionsRoot:  es.InTransactionTree.RootHash(),
-			OutTransactionsRoot: es.OutTransactionTree.RootHash(),
+			InTransactionsRoot:  inTxRoot,
+			OutTransactionsRoot: outTxRoot,
 			ConfigRoot:          configRoot,
 			OutTransactionsNum:  types.TransactionIndex(len(outTxnKeys)),
 			ReceiptsRoot:        es.ReceiptTree.RootHash(),
@@ -1536,8 +1619,6 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 			L1BlockNumber:       l1BlockNumber,
 			PatchLevel:          es.PatchLevel,
 			RollbackCounter:     es.RollbackCounter,
-			// TODO(@klonD90): remove this field after changing explorer
-			Timestamp: 0,
 		},
 		LogsBloom: types.CreateBloom(es.Receipts),
 	}
@@ -1586,7 +1667,6 @@ func (es *ExecutionState) CommitBlock(src *BlockGenerationResult, params *types.
 	}
 
 	es.logger.Trace().
-		Stringer(logging.FieldShardId, es.ShardId).
 		Stringer(logging.FieldBlockNumber, block.Id).
 		Stringer(logging.FieldBlockHash, blockHash).
 		Msgf("Committed new block with %d in-txns and %d out-txns", len(es.InTransactions), block.OutTransactionsNum)
@@ -1679,7 +1759,10 @@ func (es *ExecutionState) GetShardID() types.ShardId {
 	return es.ShardId
 }
 
-func (es *ExecutionState) CallVerifyExternal(transaction *types.Transaction, account *AccountState) *ExecutionResult {
+func (es *ExecutionState) CallVerifyExternal(
+	transaction *types.Transaction,
+	account *AccountState,
+) (res *ExecutionResult) {
 	methodSignature := "verifyExternal(uint256,bytes)"
 	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
 	argSpec := vm.VerifySignatureArgs()[1:] // skip first arg (pubkey)
@@ -1704,6 +1787,9 @@ func (es *ExecutionState) CallVerifyExternal(transaction *types.Transaction, acc
 	}
 	defer es.resetVm()
 
+	es.preTxHookCall(transaction)
+	defer func() { es.postTxHookCall(transaction, res) }()
+
 	gasCreditLimit := ExternalTransactionVerificationMaxGas
 	gasAvailable := account.Balance.ToGas(es.GasPrice)
 
@@ -1725,7 +1811,7 @@ func (es *ExecutionState) CallVerifyExternal(transaction *types.Transaction, acc
 	if !bytes.Equal(ret, common.LeftPadBytes([]byte{1}, 32)) {
 		return NewExecutionResult().SetError(types.NewError(types.ErrorExternalVerificationFailed))
 	}
-	res := NewExecutionResult()
+	res = NewExecutionResult()
 	spentGas := gasCreditLimit.Sub(types.Gas(leftOverGas))
 	res.SetUsed(spentGas, es.GasPrice)
 	es.GasUsed += res.GasUsed
@@ -1879,6 +1965,9 @@ func (es *ExecutionState) newVm(internal bool, origin types.Address, state *vm.E
 	}
 	es.evm = vm.NewEVM(blockContext, es, origin, es.GasPrice, state)
 	es.evm.IsAsyncCall = internal
+
+	es.evm.Config.Tracer = es.EvmTracingHooks
+
 	return nil
 }
 
@@ -1898,37 +1987,33 @@ func (es *ExecutionState) MarshalJSON() ([]byte, error) {
 	}
 
 	data := struct {
-		ContractTreeRoot       common.Hash                                  `json:"contractTreeRoot"`
-		InTransactionTreeRoot  common.Hash                                  `json:"inTransactionTreeRoot"`
-		OutTransactionTreeRoot common.Hash                                  `json:"outTransactionTreeRoot"`
-		ReceiptTreeRoot        common.Hash                                  `json:"receiptTreeRoot"`
-		PrevBlock              *types.Block                                 `json:"prevBlock"`
-		PrevBlockHash          common.Hash                                  `json:"prevBlockHash"`
-		MainShardHash          common.Hash                                  `json:"mainShardHash"`
-		ShardId                types.ShardId                                `json:"shardId"`
-		ChildShardBlocks       map[types.ShardId]common.Hash                `json:"childShardBlocks"`
-		GasPrice               types.Value                                  `json:"gasPrice"`
-		InTransactions         []*types.Transaction                         `json:"inTransactions"`
-		InTransactionHashes    []common.Hash                                `json:"inTransactionHashes"`
-		OutTransactions        map[common.Hash][]*types.OutboundTransaction `json:"outTransactions"`
-		Receipts               []*types.Receipt                             `json:"receipts"`
-		Errors                 map[common.Hash]error                        `json:"errors"`
+		ContractTreeRoot    common.Hash                                  `json:"contractTreeRoot"`
+		ReceiptTreeRoot     common.Hash                                  `json:"receiptTreeRoot"`
+		PrevBlock           *types.Block                                 `json:"prevBlock"`
+		PrevBlockHash       common.Hash                                  `json:"prevBlockHash"`
+		MainShardHash       common.Hash                                  `json:"mainShardHash"`
+		ShardId             types.ShardId                                `json:"shardId"`
+		ChildShardBlocks    map[types.ShardId]common.Hash                `json:"childShardBlocks"`
+		GasPrice            types.Value                                  `json:"gasPrice"`
+		InTransactions      []*types.Transaction                         `json:"inTransactions"`
+		InTransactionHashes []common.Hash                                `json:"inTransactionHashes"`
+		OutTransactions     map[common.Hash][]*types.OutboundTransaction `json:"outTransactions"`
+		Receipts            []*types.Receipt                             `json:"receipts"`
+		Errors              map[common.Hash]error                        `json:"errors"`
 	}{
-		ContractTreeRoot:       es.ContractTree.RootHash(),
-		InTransactionTreeRoot:  es.InTransactionTree.RootHash(),
-		OutTransactionTreeRoot: es.OutTransactionTree.RootHash(),
-		ReceiptTreeRoot:        es.ReceiptTree.RootHash(),
-		PrevBlock:              prevBlock,
-		PrevBlockHash:          es.PrevBlock,
-		MainShardHash:          es.MainShardHash,
-		ShardId:                es.ShardId,
-		ChildShardBlocks:       es.ChildShardBlocks,
-		GasPrice:               es.GasPrice,
-		InTransactions:         es.InTransactions,
-		InTransactionHashes:    es.InTransactionHashes,
-		OutTransactions:        es.OutTransactions,
-		Receipts:               es.Receipts,
-		Errors:                 es.Errors,
+		ContractTreeRoot:    es.ContractTree.RootHash(),
+		ReceiptTreeRoot:     es.ReceiptTree.RootHash(),
+		PrevBlock:           prevBlock,
+		PrevBlockHash:       es.PrevBlock,
+		MainShardHash:       es.MainShardHash,
+		ShardId:             es.ShardId,
+		ChildShardBlocks:    es.ChildShardBlocks,
+		GasPrice:            es.GasPrice,
+		InTransactions:      es.InTransactions,
+		InTransactionHashes: es.InTransactionHashes,
+		OutTransactions:     es.OutTransactions,
+		Receipts:            es.Receipts,
+		Errors:              es.Errors,
 	}
 
 	return json.Marshal(data)
@@ -1940,4 +2025,61 @@ func (es *ExecutionState) AppendToJournal(entry JournalEntry) {
 
 func (es *ExecutionState) GetRwTx() db.RwTx {
 	return es.tx
+}
+
+func (es *ExecutionState) DeleteAccount(addr types.Address) {
+	delete(es.Accounts, addr)
+}
+
+func (es *ExecutionState) SetRefund(value uint64) {
+	es.refund = value
+}
+
+func (es *ExecutionState) DeleteLog(txHash common.Hash) {
+	logs := es.Logs[txHash]
+	if len(logs) == 1 {
+		delete(es.Logs, txHash)
+	} else {
+		es.Logs[txHash] = logs[:len(logs)-1]
+	}
+}
+
+func (es *ExecutionState) DeleteOutTransaction(index int, txnHash common.Hash) {
+	outTransactions, ok := es.OutTransactions[txnHash]
+	check.PanicIfNot(ok)
+
+	// Probably it is possible that the transaction is not the last in the list, but let's assume it is for a now.
+	// And catch opposite case with this assert.
+	check.PanicIfNot(index == len(outTransactions)-1)
+
+	txn := outTransactions[index]
+	toShard := txn.To.ShardId()
+	check.PanicIfNot(es.OutTxCounts[toShard] == txn.TxId+1)
+	es.OutTxCounts[toShard]--
+	es.OutTransactions[txnHash] = outTransactions[:index]
+}
+
+func (es *ExecutionState) preTxHookCall(txn *types.Transaction) {
+	if es.EvmTracingHooks != nil && es.EvmTracingHooks.OnTxEnd != nil {
+		es.EvmTracingHooks.OnTxStart(es.evm.GetVMContext(), txn)
+	}
+}
+
+func (es *ExecutionState) postTxHookCall(txn *types.Transaction, txResult *ExecutionResult) {
+	if es.EvmTracingHooks != nil && es.EvmTracingHooks.OnTxEnd != nil {
+		es.EvmTracingHooks.OnTxEnd(es.evm.GetVMContext(), txn, txResult.Error)
+	}
+}
+
+func VerboseTracingHooks(logger logging.Logger) *tracing.Hooks {
+	return &tracing.Hooks{
+		OnOpcode: func(
+			pc uint64, op byte, gas, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error,
+		) {
+			for i, item := range scope.StackData() {
+				logger.Debug().Msgf("     %d: %s", i, item.String())
+			}
+			logger.Debug().Msgf("%04x: %s", pc, vm.OpCode(op).String())
+		},
+	}
 }

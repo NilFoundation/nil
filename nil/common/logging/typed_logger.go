@@ -75,7 +75,7 @@ func GetClickhouseByAbbreviation(abbr string) (string, error) {
 	return chType.Clickhouse, nil
 }
 
-func GetAbbreviationByInterface(v interface{}) string {
+func GetAbbreviationByInterface(v any) string {
 	typeName := reflect.TypeOf(v).String()
 	if val, found := goToClickhouseTypes[typeName]; found {
 		return val.Abbreviation

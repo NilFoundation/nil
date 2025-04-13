@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "node ./scripts/compile.js",
-    "pub": "npm run build && npm publish"
+    "pub": "pnpm build && pnpm publish"
   },
   "main": "artifacts/index.cjs.js",
   "module": "artifacts/index.esm.js",

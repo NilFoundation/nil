@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/proto"
 )
@@ -21,7 +22,7 @@ type generatedApiClientIface interface {
 
 type generatedApiClient struct {
 	apiCodec       apiCodec
-	networkManager *network.Manager
+	networkManager network.Manager
 	serverPeerId   network.PeerID
 	doApiRequest   doApiRequestFunction
 }
@@ -32,7 +33,7 @@ type ApiClientTestSuite struct {
 	apiClient *generatedApiClient
 }
 
-func newGeneratedApiClient(networkManager *network.Manager, serverPeerId network.PeerID) (*generatedApiClient, error) {
+func newGeneratedApiClient(networkManager network.Manager, serverPeerId network.PeerID) (*generatedApiClient, error) {
 	apiCodec, err := newApiCodec(
 		reflect.TypeFor[generatedApiClientIface](),
 		reflect.TypeFor[compatibleNetworkTransportProtocol]())
@@ -43,7 +44,9 @@ func newGeneratedApiClient(networkManager *network.Manager, serverPeerId network
 		apiCodec:       apiCodec,
 		networkManager: networkManager,
 		serverPeerId:   serverPeerId,
-		doApiRequest:   makeDoNetworkRawApiRequestFunction(networkManager, types.BaseShardId, "testapi"),
+		doApiRequest: func(ctx context.Context, codec *methodCodec, args ...any) ([]byte, error) {
+			return doNetworkShardApiRequest(ctx, networkManager, types.BaseShardId, "testapi", codec, args...)
+		},
 	}, nil
 }
 
@@ -52,7 +55,7 @@ func (api *generatedApiClient) TestMethod(
 	blockReference rawapitypes.BlockReference,
 ) (sszx.SSZEncodedData, error) {
 	return sendRequestAndGetResponse[sszx.SSZEncodedData](
-		api.doApiRequest, api.apiCodec, "TestMethod", ctx, blockReference)
+		ctx, api.doApiRequest, api.apiCodec, "TestMethod", blockReference)
 }
 
 func (s *ApiClientTestSuite) SetupSuite() {
@@ -71,11 +74,11 @@ func (s *ApiClientTestSuite) doRequest() (sszx.SSZEncodedData, error) {
 	return s.apiClient.TestMethod(s.ctx, rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
 }
 
-func (s *ApiClientTestSuite) waitForRequestHandler() {
+func (s *ApiClientTestSuite) waitForRequestHandler(protocol protocol.ID) {
 	s.T().Helper()
 	s.Eventually(
 		func() bool {
-			return len(s.clientNetworkManager.GetPeersForProtocolPrefix("/shard/1/testapi/")) != 0
+			return len(s.clientNetworkManager.GetPeersForProtocol(protocol)) != 0
 		},
 		10*time.Second,
 		100*time.Millisecond)
@@ -90,7 +93,7 @@ func (s *ApiClientTestSuite) TestValidResponse() {
 			var blockRequest pb.BlockRequest
 			s.Require().NoError(proto.Unmarshal(request, &blockRequest))
 
-			index += 1
+			index++
 			response := &pb.RawBlockResponse{
 				Result: &pb.RawBlockResponse_Data{
 					Data: &pb.RawBlock{
@@ -98,11 +101,11 @@ func (s *ApiClientTestSuite) TestValidResponse() {
 					},
 				},
 			}
-			index += 1
+			index++
 			resp, err := proto.Marshal(response)
 			return resp, err
 		})
-	s.waitForRequestHandler()
+	s.waitForRequestHandler("/shard/1/testapi/TestMethod")
 
 	response, err := s.doRequest()
 	s.Require().NoError(err)
@@ -119,7 +122,7 @@ func (s *ApiClientTestSuite) TestInvalidResponse() {
 			*requestHandlerCalled = true
 			return nil, nil
 		})
-	s.waitForRequestHandler()
+	s.waitForRequestHandler("/shard/1/testapi/TestMethod")
 
 	_, err := s.doRequest()
 	s.Require().ErrorContains(err, "unexpected response")
@@ -141,7 +144,7 @@ func (s *ApiClientTestSuite) TestErrorResponse() {
 			}
 			return proto.Marshal(response)
 		})
-	s.waitForRequestHandler()
+	s.waitForRequestHandler("/shard/1/testapi/TestMethod")
 
 	_, err := s.doRequest()
 	s.Require().ErrorContains(err, "Test error")

@@ -38,7 +38,7 @@ type Config struct {
 	// reputation change that should be applied.
 	ReputationChangeSettings ReputationChangeSettings `yaml:"reputationChangeSettings,omitempty"`
 
-	clock clockwork.Clock `yaml:"-"`
+	clock clockwork.Clock
 }
 
 func NewDefaultConfig() *Config {

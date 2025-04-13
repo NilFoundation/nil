@@ -455,3 +455,53 @@ func (s *TaskStorageSuite) Test_AddTaskEntries_Fail_If_Already_Exists() {
 	s.Require().NoError(err)
 	s.Require().Nil(entryFromStorage)
 }
+
+func (s *TaskStorageSuite) Test_GetStats() {
+	stats, err := s.ts.GetTaskStats(s.ctx)
+	s.Require().NoError(err)
+	s.Require().NotNil(stats)
+
+	s.Require().Empty(stats.CountPerType)
+	s.Require().Empty(stats.CountPerExecutor)
+
+	now := s.clock.Now()
+	entry := testaide.NewTaskEntry(now, types.WaitingForExecutor, types.UnknownExecutorId)
+	err = s.ts.AddTaskEntries(s.ctx, entry)
+	s.Require().NoError(err)
+
+	stats, err = s.ts.GetTaskStats(s.ctx)
+	s.Require().NoError(err)
+	s.Require().NotNil(stats)
+
+	s.Require().Len(stats.CountPerType, 1)
+	s.Equal(uint32(1), stats.CountPerType[entry.Task.TaskType].PendingCount)
+	s.Equal(uint32(0), stats.CountPerType[entry.Task.TaskType].ActiveCount)
+	s.Empty(stats.CountPerExecutor)
+
+	executor := testaide.RandomExecutorId()
+	_, err = s.ts.RequestTaskToExecute(s.ctx, executor)
+	s.Require().NoError(err)
+
+	stats, err = s.ts.GetTaskStats(s.ctx)
+	s.Require().NoError(err)
+	s.Require().NotNil(stats)
+
+	s.Require().Len(stats.CountPerType, 1)
+	s.Equal(uint32(0), stats.CountPerType[entry.Task.TaskType].PendingCount)
+	s.Equal(uint32(1), stats.CountPerType[entry.Task.TaskType].ActiveCount)
+	s.Require().Len(stats.CountPerExecutor, 1)
+	s.Equal(uint32(1), stats.CountPerExecutor[executor])
+
+	err = s.ts.ProcessTaskResult(
+		s.ctx,
+		types.NewSuccessProverTaskResult(entry.Task.Id, executor, types.TaskOutputArtifacts{}, types.TaskResultData{}),
+	)
+	s.Require().NoError(err)
+
+	stats, err = s.ts.GetTaskStats(s.ctx)
+	s.Require().NoError(err)
+	s.Require().NotNil(stats)
+
+	s.Empty(stats.CountPerType)
+	s.Empty(stats.CountPerExecutor)
+}

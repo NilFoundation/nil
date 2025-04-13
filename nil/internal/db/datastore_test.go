@@ -55,7 +55,7 @@ func newDS(t *testing.T, opts *Options) (*Datastore, func()) {
 
 	d := NewDatastore(db, TableName(t.Name()), opts)
 	return d, func() {
-		d.Close()
+		require.NoError(t, d.Close())
 		os.RemoveAll(path)
 	}
 }
@@ -371,7 +371,7 @@ func TestBatchingRequired(t *testing.T) {
 
 	d := NewDatastore(db, TableName(t.Name()), nil)
 	defer func() {
-		d.Close()
+		require.NoError(t, d.Close())
 		os.RemoveAll(path)
 	}()
 
@@ -620,7 +620,7 @@ func TestDiskUsage(t *testing.T) {
 	d := NewDatastore(db, TableName(t.Name()), nil)
 
 	addTestCases(t, d, testcases)
-	d.Close()
+	require.NoError(t, d.Close())
 
 	db, err = badger.Open(opts)
 	require.NoError(t, err)
@@ -631,7 +631,7 @@ func TestDiskUsage(t *testing.T) {
 	if s == 0 {
 		t.Error("expected some size")
 	}
-	d.Close()
+	require.NoError(t, d.Close())
 }
 
 func TestTxnDiscard(t *testing.T) {
@@ -662,7 +662,7 @@ func TestTxnDiscard(t *testing.T) {
 		t.Fatal("key written in aborted transaction still exists")
 	}
 
-	d.Close()
+	require.NoError(t, d.Close())
 }
 
 func TestTxnCommit(t *testing.T) {
@@ -696,7 +696,7 @@ func TestTxnCommit(t *testing.T) {
 		t.Fatal("key written in committed transaction does not exist")
 	}
 
-	d.Close()
+	require.NoError(t, d.Close())
 }
 
 func TestTxnBatch(t *testing.T) {
@@ -746,7 +746,7 @@ func TestTxnBatch(t *testing.T) {
 		}
 	}
 
-	d.Close()
+	require.NoError(t, d.Close())
 }
 
 func TestTTL(t *testing.T) {
@@ -819,7 +819,7 @@ func TestTTL(t *testing.T) {
 		}
 	}
 
-	d.Close()
+	require.NoError(t, d.Close())
 }
 
 func TestExpirations(t *testing.T) {
@@ -955,8 +955,7 @@ func TestClosedError(t *testing.T) {
 	tx, ok := dstx.(*txn)
 	require.True(t, ok)
 
-	err = d.Close()
-	require.NoError(t, err)
+	require.NoError(t, d.Close())
 	os.RemoveAll(path)
 
 	key := ds.NewKey("/a/b/c")

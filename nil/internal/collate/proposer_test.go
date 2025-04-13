@@ -80,7 +80,7 @@ func (s *ProposerTestSuite) TestBlockGas() {
 	})
 
 	s.Run("MaxGasInBlockFor1Txn", func() {
-		params.MaxGasInBlock = 12000
+		params.MaxGasInBlock = 2000
 		p := newTestProposer(params, pool)
 
 		proposal := s.generateProposal(p)
@@ -146,25 +146,14 @@ func (s *ProposerTestSuite) TestCollator() {
 		s.Equal(types.Value{}, s.getBalance(shardId, to))
 	})
 
-	// Now process internal transactions by one to test queueing.
-	p.params.MaxInternalTransactionsInBlock = 1
 	pool.Reset()
 
 	s.Run("ProcessInternalTransaction1", func() {
 		generateBlock()
 
 		s.Equal(balance, s.getMainBalance())
-		s.Equal(txnValue, s.getBalance(shardId, to))
+		s.Equal(txnValue.Mul(types.NewValueFromUint64(2)), s.getBalance(shardId, to))
 	})
-
-	s.Run("ProcessInternalTransaction2", func() {
-		generateBlock()
-
-		s.Equal(balance, s.getMainBalance())
-		s.Equal(txnValue.Add(txnValue), s.getBalance(shardId, to))
-	})
-
-	p.params.MaxInternalTransactionsInBlock = defaultMaxInternalTxns
 
 	s.Run("ProcessRefundTransactions", func() {
 		generateBlock()
@@ -172,8 +161,7 @@ func (s *ProposerTestSuite) TestCollator() {
 		balance = balance.Add(feeCredit).Add(feeCredit)
 		s.Equal(balance, s.getMainBalance())
 
-		// TODO: Enable when fixed uninitialized refunds
-		// s.checkSeqno(shardId)
+		s.checkSeqno(shardId)
 	})
 
 	s.Run("DoNotProcessDuplicates", func() {
@@ -200,7 +188,7 @@ func (s *ProposerTestSuite) TestCollator() {
 	})
 
 	s.Run("Execute", func() {
-		m := execution.NewExecutionTransaction(to, to, 0, contracts.NewCounterAddCallData(s.T(), 3))
+		m := execution.NewExecutionTransaction(to, to, 1, contracts.NewCounterAddCallData(s.T(), 3))
 		pool.Reset()
 		pool.Add(m)
 
@@ -278,7 +266,7 @@ func (s *ProposerTestSuite) checkSeqno(shardId types.ShardId) {
 		seqno := txns[0].Seqno
 		for _, m := range txns {
 			s.Require().Equal(seqno, m.Seqno)
-			seqno += 1
+			seqno++
 		}
 	}
 

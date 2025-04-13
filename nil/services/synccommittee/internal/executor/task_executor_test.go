@@ -23,9 +23,11 @@ type TestSuite struct {
 }
 
 func (s *TestSuite) SetupTest() {
-	s.context, s.cancellation = context.WithCancel(context.Background())
+	s.context, s.cancellation = context.WithCancel(s.T().Context())
 	s.requestHandler = newTaskRequestHandlerMock()
-	s.taskHandler = &api.TaskHandlerMock{}
+	s.taskHandler = &api.TaskHandlerMock{
+		IsReadyToHandleFunc: func(ctx context.Context) (bool, error) { return true, nil },
+	}
 
 	config := Config{
 		TaskPollingInterval: 10 * time.Millisecond,
@@ -60,10 +62,9 @@ func TestTaskExecutorSuite(t *testing.T) {
 }
 
 func (s *TestSuite) Test_TaskExecutor_Executes_Tasks() {
-	started := make(chan struct{})
-	go func() {
-		_ = s.taskExecutor.Run(s.context, started)
-	}()
+	taskHandler := s.taskHandler
+	started, cancelFn := s.runTaskExecutor(s.context)
+	defer cancelFn()
 	err := testaide.WaitFor(s.context, started, 10*time.Second)
 	s.Require().NoError(err, "task executor did not start in time")
 
@@ -86,15 +87,50 @@ func (s *TestSuite) Test_TaskExecutor_Executes_Tasks() {
 
 	s.Require().Eventually(
 		func() bool {
-			taskHandleCalls := s.taskHandler.HandleCalls()
+			taskHandleCalls := taskHandler.HandleCalls()
 			return len(taskHandleCalls) >= tasksThreshold
 		},
 		time.Second,
 		10*time.Millisecond,
 	)
 
-	for _, call := range s.taskHandler.HandleCalls() {
+	for _, call := range taskHandler.HandleCalls() {
 		s.Require().Equal(s.taskExecutor.Id(), call.ExecutorId,
 			"Task executor should have passed its id in the result")
 	}
+}
+
+func (s *TestSuite) runTaskExecutor(ctx context.Context) (chan struct{}, func()) {
+	s.T().Helper()
+
+	ctx, cancelFunc := context.WithCancel(ctx)
+	started := make(chan struct{})
+	stopped := make(chan struct{})
+	go func() {
+		_ = s.taskExecutor.Run(ctx, started)
+		stopped <- struct{}{}
+	}()
+
+	return started, func() {
+		cancelFunc()
+		<-stopped
+	}
+}
+
+func (s *TestSuite) Test_TaskExecutor_Busy_Handler() {
+	taskHandler := s.taskHandler
+	// Make task handler not ready for tasks and check that Handle() was not called
+	taskHandler.IsReadyToHandleFunc = func(ctx context.Context) (bool, error) {
+		return false, nil
+	}
+	_, cancelFn := s.runTaskExecutor(s.context)
+	defer cancelFn()
+
+	s.Require().Never(
+		func() bool {
+			return len(taskHandler.HandleCalls()) != 0
+		},
+		time.Second,
+		100*time.Millisecond,
+	)
 }

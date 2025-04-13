@@ -34,7 +34,7 @@ func (s *SuiteReadThroughDb) SetupTest() {
 	s.num = 0
 
 	s.cfg = &nilservice.Config{
-		NShards: 5,
+		NShards: 3,
 		HttpUrl: rpc.GetSockPathIdx(s.T(), s.num),
 	}
 
@@ -58,7 +58,7 @@ func (s *SuiteReadThroughDb) initCache() {
 		return db
 	}
 
-	s.num += 1
+	s.num++
 	s.cfg.HttpUrl = rpc.GetSockPathIdx(s.T(), s.num)
 	s.cache.Start(s.cfg)
 }

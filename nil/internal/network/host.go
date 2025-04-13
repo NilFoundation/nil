@@ -53,6 +53,7 @@ func getCommonOptions(ctx context.Context, conf *Config) ([]libp2p.Option, loggi
 	}
 
 	return []libp2p.Option{
+		libp2p.ProtocolVersion(conf.ProtocolVersion),
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.ConnectionManager(cm),
 		libp2p.Identity(conf.PrivateKey),

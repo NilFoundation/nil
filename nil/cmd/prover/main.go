@@ -9,6 +9,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/cobrax"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -18,15 +19,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const appTitle = "=nil; Prover"
+
 func main() {
-	check.PanicIfErr(execute())
+	check.PanicIfNotCancelledErr(execute())
 }
 
 type CommonConfig = prover.Config
 
 type RunConfig struct {
-	*CommonConfig
-	DbPath string
+	*CommonConfig `yaml:",inline"`
+
+	DbPath string `yaml:"dbPath"`
 }
 
 type PrintConfig struct {
@@ -40,9 +44,11 @@ func execute() error {
 		Short: "Run nil prover node",
 	}
 
-	commonCfg := prover.NewDefaultConfig()
+	runConfig, err := loadRunConfig()
+	if err != nil {
+		return err
+	}
 
-	runConfig := &RunConfig{CommonConfig: commonCfg}
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run the prover service",
@@ -50,10 +56,9 @@ func execute() error {
 			return run(runConfig)
 		},
 	}
-	addCommonFlags(runCmd, commonCfg)
-	runCmd.Flags().StringVar(&runConfig.DbPath, "db-path", "prover.db", "path to database")
-
-	rootCmd.AddCommand(runCmd)
+	commonCfg := runConfig.CommonConfig
+	addCommonFlags(rootCmd, commonCfg)
+	runCmd.Flags().StringVar(&runConfig.DbPath, "db-path", runConfig.DbPath, "path to database")
 
 	traceConfig := tracer.TraceConfig{}
 	var marshalModePlaceholder string
@@ -80,12 +85,10 @@ func execute() error {
 				}
 			}
 			client := prover.NewRPCClient(commonCfg.NilRpcEndpoint, logging.NewLogger("client"))
-			return tracer.GenerateTrace(context.Background(), client, &traceConfig)
+			return tracer.CollectTracesToFile(context.Background(), client, &traceConfig)
 		},
 	}
-	addCommonFlags(generateTraceCmd, commonCfg)
 	addMarshalModeFlag(generateTraceCmd, &marshalModePlaceholder)
-	rootCmd.AddCommand(generateTraceCmd)
 
 	var printConfig PrintConfig
 	printTraceCmd := &cobra.Command{
@@ -97,23 +100,37 @@ func execute() error {
 			return readTrace(&printConfig)
 		},
 	}
-	addCommonFlags(printTraceCmd, commonCfg)
 	addMarshalModeFlag(printTraceCmd, &printConfig.MarshalMode)
-	rootCmd.AddCommand(printTraceCmd)
 
+	versionCmd := cobrax.VersionCmd(appTitle)
+	rootCmd.AddCommand(runCmd, generateTraceCmd, printTraceCmd, versionCmd)
 	return rootCmd.Execute()
 }
 
+func loadRunConfig() (*RunConfig, error) {
+	cfg := &RunConfig{
+		CommonConfig: prover.NewDefaultConfig(),
+		DbPath:       "prover.db",
+	}
+
+	if err := cobrax.LoadConfigFromFile(cobrax.GetConfigNameFromArgs(), cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
 func addCommonFlags(cmd *cobra.Command, cfg *CommonConfig) {
-	cmd.Flags().StringVar(
+	cobrax.AddConfigFlag(cmd.PersistentFlags())
+	cmd.PersistentFlags().StringVar(
 		&cfg.ProofProviderRpcEndpoint,
 		"proof-provider-endpoint",
 		cfg.ProofProviderRpcEndpoint,
 		"proof provider rpc endpoint")
-	cmd.Flags().StringVar(&cfg.NilRpcEndpoint, "nil-endpoint", cfg.NilRpcEndpoint, "nil rpc endpoint")
-	logLevel := cmd.Flags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
+	cmd.PersistentFlags().StringVar(&cfg.NilRpcEndpoint, "nil-endpoint", cfg.NilRpcEndpoint, "nil rpc endpoint")
+	logLevel := cmd.PersistentFlags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 
-	cmd.PreRun = func(cmd *cobra.Command, args []string) {
+	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		logging.SetupGlobalLogger(*logLevel)
 	}
 }

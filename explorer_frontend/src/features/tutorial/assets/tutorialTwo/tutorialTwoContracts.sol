@@ -56,17 +56,23 @@ contract CustomToken is NilTokenBase {
      * The constructor must set operatorAddress to _operatorAddress.
      * @param _operatorAddress The address of the Operator contract.
      */
-    constructor(address _operatorAddress) {}
+    constructor(address _operatorAddress) {
+        // TODO: complete the constructor
+    }
 
     /**
      * A custom wrapper for mintTokenInternal().
      * @param amount The amount of the custom token to mint.
      */
-    function mintTokenCustom(uint256 amount) public payable {}
+    function mintTokenCustom(uint256 amount) public payable {
+        // TODO: complete the function
+    }
 
     /**
      * A custom wrapper for sendTokenInternal().
      * @param amount The amount of the custom token to send.
      */
-    function sendTokenCustom(uint256 amount) public payable {}
+    function sendTokenCustom(uint256 amount) public payable {
+        // TODO: complete the function
+    }
 }

@@ -1,4 +1,4 @@
 nil/go-ibft/core
-nil/tests/archive_node
+nil/go-ibft/messages
 nil/services/txnpool
-nil/tests/rpc_node
+nil/tests/regression

@@ -49,9 +49,3 @@ pragma solidity ^0.8.0;
 
 import "@nilfoundation/smart-contracts/contracts/SmartAccount.sol";
 ```
-
-## License
-
-[MIT](./LICENSE)
-
-

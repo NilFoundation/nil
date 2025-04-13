@@ -28,7 +28,10 @@ func (s *SuiteRpcNode) SetupTest() {
 		Port:               port + int(nShards),
 		WithBootstrapPeers: true,
 	})
-	s.DefaultClient, _ = s.StartRPCNode(tests.WithoutDhtBootstrapByValidators, network.AddrInfoSlice{archiveNodeAddr})
+	s.DefaultClient, _ = s.StartRPCNode(&tests.RpcNodeConfig{
+		WithDhtBootstrapByValidators: false,
+		ArchiveNodes:                 network.AddrInfoSlice{archiveNodeAddr},
+	})
 }
 
 func (s *SuiteRpcNode) TearDownTest() {
@@ -59,7 +62,7 @@ func (s *SuiteRpcNode) TestRpcNode() {
 		s.Require().NoError(err)
 		s.Require().NotNil(block)
 		s.NotEmpty(block.ChildBlocks)
-		s.Positive(block.DbTimestamp)
+		s.NotZero(block.DbTimestamp)
 	})
 
 	s.Run("TestGetBlockTransactionCount", func() {
@@ -113,11 +116,11 @@ func (s *SuiteRpcNode) TestRpcNode() {
 	s.Run("TestGasPrice", func() {
 		value, err := s.DefaultClient.GasPrice(s.Context, types.MainShardId)
 		s.Require().NoError(err)
-		s.Positive(value.Uint64())
+		s.NotZero(value.Uint64())
 
 		value, err = s.DefaultClient.GasPrice(s.Context, types.BaseShardId)
 		s.Require().NoError(err)
-		s.Positive(value.Uint64())
+		s.NotZero(value.Uint64())
 	})
 }
 

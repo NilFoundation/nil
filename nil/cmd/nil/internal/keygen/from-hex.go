@@ -19,8 +19,5 @@ func FromHexCommand(keygen *cliservice.Service) *cobra.Command {
 }
 
 func runFromHex(_ *cobra.Command, args []string, keygen *cliservice.Service) error {
-	if err := keygen.GenerateKeyFromHex(args[0]); err != nil {
-		return err
-	}
-	return nil
+	return keygen.GenerateKeyFromHex(args[0])
 }

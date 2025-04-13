@@ -87,6 +87,15 @@ func (p *taskExecutorImpl) runIteration(ctx context.Context) {
 }
 
 func (p *taskExecutorImpl) fetchAndHandleTask(ctx context.Context) error {
+	handlerReady, err := p.taskHandler.IsReadyToHandle(ctx)
+	if err != nil {
+		return err
+	}
+	if !handlerReady {
+		p.logger.Debug().Msg("handler is not ready to pick up tasks")
+		return nil
+	}
+
 	taskRequest := api.NewTaskRequest(p.nonceId)
 	task, err := p.requestHandler.GetTask(ctx, taskRequest)
 	if err != nil {

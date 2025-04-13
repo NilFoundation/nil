@@ -1,19 +1,24 @@
 package nilservice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/collate"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/crypto/bls"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/keys"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cometa"
+	"github.com/NilFoundation/nil/nil/services/indexer"
 	"github.com/NilFoundation/nil/nil/services/rollup"
 )
 
@@ -39,6 +44,7 @@ type Config struct {
 	// RPC
 	RPCPort        int                   `yaml:"rpcPort,omitempty"`
 	BootstrapPeers network.AddrInfoSlice `yaml:"bootstrapPeers,omitempty"`
+	EnableDevApi   bool                  `yaml:"enableDevApi,omitempty"`
 
 	// Profiling
 	PprofPort int `yaml:"pprofPort,omitempty"`
@@ -62,6 +68,7 @@ type Config struct {
 	GracefulShutdown     bool   `yaml:"-"`
 	TraceEVM             bool   `yaml:"-"`
 	CollatorTickPeriodMs uint32 `yaml:"-"`
+	SyncTimeoutFactor    uint32 `yaml:"-"`
 	Topology             string `yaml:"-"`
 	EnableConfigCache    bool   `yaml:"-"`
 
@@ -75,11 +82,13 @@ type Config struct {
 	ZeroState *execution.ZeroStateConfig `yaml:"zeroState,omitempty"`
 	Replay    *ReplayConfig              `yaml:"replay,omitempty"`
 	Cometa    *cometa.Config             `yaml:"cometa,omitempty"`
+	Indexer   *indexer.Config            `yaml:"indexer,omitempty"`
 	RpcNode   *RpcNodeConfig             `yaml:"rpcNode,omitempty"`
 
 	L1Fetcher rollup.L1BlockFetcher `yaml:"-"`
 
-	FeeCalculator execution.FeeCalculator `yaml:"-"`
+	FeeCalculator         execution.FeeCalculator                                                   `yaml:"-"`
+	NetworkManagerFactory func(ctx context.Context, cfg *Config, db db.DB) (network.Manager, error) `yaml:"-"`
 }
 
 const (
@@ -168,7 +177,7 @@ func (c *Config) Validate() error {
 
 	for _, shard := range c.MyShards {
 		if shard >= uint(c.NShards) {
-			return fmt.Errorf("Shard %d is out of range (nShards = %d)", shard, c.NShards)
+			return fmt.Errorf("shard %d is out of range (nShards = %d)", shard, c.NShards)
 		}
 	}
 
@@ -207,10 +216,14 @@ func (c *Config) LoadValidatorPrivateKey() (bls.PrivateKey, error) {
 }
 
 func (c *Config) BlockGeneratorParams(shardId types.ShardId) execution.BlockGeneratorParams {
+	var verboseTracingHook *tracing.Hooks
+	if c.TraceEVM {
+		verboseTracingHook = execution.VerboseTracingHooks(logging.NewLogger("tracer"))
+	}
 	return execution.BlockGeneratorParams{
 		ShardId:          shardId,
 		NShards:          c.NShards,
-		TraceEVM:         c.TraceEVM,
+		EvmTracingHooks:  verboseTracingHook,
 		MainKeysPath:     c.MainKeysPath,
 		DisableConsensus: c.DisableConsensus,
 		FeeCalculator:    c.FeeCalculator,

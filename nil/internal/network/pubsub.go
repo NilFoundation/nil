@@ -50,7 +50,7 @@ type Subscription struct {
 
 // newPubSub creates a new PubSub instance. It must be closed after use.
 func newPubSub(ctx context.Context, h Host, conf *Config, logger logging.Logger) (*PubSub, error) {
-	impl, err := pubsub.NewGossipSub(ctx, h)
+	impl, err := pubsub.NewGossipSub(ctx, h, conf.PubSubOptions...)
 	if err != nil {
 		return nil, err
 	}

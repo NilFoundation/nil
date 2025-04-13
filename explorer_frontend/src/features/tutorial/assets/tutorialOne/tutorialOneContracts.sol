@@ -22,7 +22,9 @@ contract Caller {
 
     // Should send some default tokens to the Receiver contract
     // using Nil.asyncCall().
-    function sendValue(address dst) public payable {}
+    function sendValue(address dst) public payable {
+        // TODO: complete the function
+    }
 }
 
 /**
@@ -32,5 +34,6 @@ contract Caller {
  * when the deposit() function is called.
  */
 contract Receiver {
+    // TODO: modify the function so that it can accept default tokens
     function deposit() public {}
 }

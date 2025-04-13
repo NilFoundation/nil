@@ -26,7 +26,7 @@ func (s *SuiteEthReceipt) SetupSuite() {
 	s.db, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
 
-	s.api = NewTestEthAPI(s.T(), ctx, s.db, 2)
+	s.api = NewTestEthAPI(ctx, s.T(), s.db, 2)
 
 	tx, err := s.db.CreateRwTx(ctx)
 	s.Require().NoError(err)
@@ -42,16 +42,16 @@ func (s *SuiteEthReceipt) SetupSuite() {
 		s.outTransactions,
 		&types.Transaction{
 			TransactionDigest: types.TransactionDigest{Data: []byte{12}},
-		})
-	s.outTransactions = append(
-		s.outTransactions,
+			TxId:              0,
+		},
 		&types.Transaction{
 			TransactionDigest: types.TransactionDigest{Data: []byte{34}},
+			TxId:              1,
 		})
 
 	blockRes := writeTestBlock(s.T(), tx, types.BaseShardId, types.BlockNumber(0), []*types.Transaction{s.transaction},
 		[]*types.Receipt{&s.receipt}, s.outTransactions)
-	err = execution.PostprocessBlock(tx, types.BaseShardId, blockRes)
+	err = execution.PostprocessBlock(tx, types.BaseShardId, blockRes, execution.ModeVerify)
 	s.Require().NoError(err)
 
 	err = tx.Commit()

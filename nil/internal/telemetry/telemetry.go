@@ -25,7 +25,7 @@ func Init(ctx context.Context, config *Config) error {
 		return nil
 	}
 
-	internal.StartPrometheusServer(config.PrometheusPort)
+	internal.StartPrometheusServer(config)
 
 	return internal.InitMetrics(ctx, config)
 }

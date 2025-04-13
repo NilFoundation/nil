@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node scripts/cli.js",
     "tests": "npx hardhat test --network nil",
-    "pub": "npm publish"
+    "pub": "pnpm publish"
   },
   "publishConfig": {
     "access": "public",

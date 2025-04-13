@@ -112,15 +112,13 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 
 	if cfg.RunMode == nilservice.CollatorsOnlyRunMode {
 		service := <-serviceInterop
-		localShardApis := make(map[types.ShardId]rawapi.ShardApi)
+		nodeApiBuilder := rawapi.NodeApiBuilder(s.Db, nil)
 		for shardId := range types.ShardId(s.ShardsNum) {
-			var err error
-			localShardApis[shardId], err = rawapi.NewLocalRawApiAccessor(
-				shardId,
-				rawapi.NewLocalShardApi(shardId, s.Db, service.TxnPools[shardId]))
-			s.Require().NoError(err)
+			nodeApiBuilder.
+				WithLocalShardApiRo(shardId).
+				WithLocalShardApiRw(shardId, service.TxnPools[shardId])
 		}
-		localApi := rawapi.NewNodeApiOverShardApis(localShardApis)
+		localApi := nodeApiBuilder.BuildAndReset()
 		c, err := client.NewEthClient(s.Context, s.Db, localApi, logging.NewFromZerolog(zerolog.New(os.Stderr)))
 		s.Require().NoError(err)
 		s.Client = c
@@ -140,8 +138,8 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 		}, BlockWaitTimeout, BlockPollInterval)
 	} else {
 		s.waitZerostate()
-		WaitShardTick(s.T(), s.Context, s.Client, types.MainShardId)
-		WaitShardTick(s.T(), s.Context, s.Client, types.BaseShardId)
+		WaitShardTick(s.T(), s.Client, types.MainShardId)
+		WaitShardTick(s.T(), s.Client, types.BaseShardId)
 	}
 }
 
@@ -160,13 +158,13 @@ func (s *RpcSuite) Cancel() {
 func (s *RpcSuite) WaitForReceipt(hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitForReceipt(s.T(), s.Context, s.Client, hash)
+	return WaitForReceipt(s.T(), s.Client, hash)
 }
 
 func (s *RpcSuite) WaitIncludedInMain(hash common.Hash) *jsonrpc.RPCReceipt {
 	s.T().Helper()
 
-	return WaitIncludedInMain(s.T(), s.Context, s.Client, hash)
+	return WaitIncludedInMain(s.T(), s.Client, hash)
 }
 
 func (s *RpcSuite) waitZerostate() {
@@ -195,7 +193,6 @@ func (s *RpcSuite) DeployContractViaMainSmartAccount(
 
 	return DeployContractViaSmartAccount(
 		s.T(),
-		s.Context,
 		s.Client,
 		types.MainSmartAccountAddress,
 		execution.MainPrivateKey,
@@ -230,7 +227,7 @@ func (s *RpcSuite) SendExternalTransactionNoCheck(
 	contractAddress types.Address,
 ) *jsonrpc.RPCReceipt {
 	s.T().Helper()
-	return SendExternalTransactionNoCheck(s.T(), s.Context, s.Client, bytecode, contractAddress)
+	return SendExternalTransactionNoCheck(s.T(), s.Client, bytecode, contractAddress)
 }
 
 // SendTransactionViaSmartAccountNoCheck sends a transaction via a smart account contract.
@@ -245,22 +242,8 @@ func (s *RpcSuite) SendTransactionViaSmartAccountNoCheck(
 	tokens []types.TokenBalance,
 ) *jsonrpc.RPCReceipt {
 	s.T().Helper()
-
-	// Send the raw transaction
-	txHash, err := s.Client.SendTransactionViaSmartAccount(
-		s.Context, addrSmartAccount, calldata, fee, value, tokens, addrTo, key)
-	s.Require().NoError(err)
-
-	receipt := s.WaitIncludedInMain(txHash)
-	// We don't check the receipt for success here, as it can be failed on purpose
-	if receipt.Success {
-		// But if it is successful, we expect exactly one out receipt
-		s.Require().Len(receipt.OutReceipts, 1)
-	} else {
-		s.Require().NotEqual("Success", receipt.Status)
-	}
-
-	return receipt
+	return SendTransactionViaSmartAccountNoCheck(
+		s.T(), s.Client, addrSmartAccount, addrTo, key, calldata, fee, value, tokens)
 }
 
 func (s *RpcSuite) CallGetter(
@@ -270,7 +253,7 @@ func (s *RpcSuite) CallGetter(
 	overrides *jsonrpc.StateOverrides,
 ) []byte {
 	s.T().Helper()
-	return CallGetter(s.T(), s.Context, s.Client, addr, calldata, blockId, overrides)
+	return CallGetter(s.T(), s.Client, addr, calldata, blockId, overrides)
 }
 
 func (s *RpcSuite) LoadContract(path string, name string) (types.Code, abi.ABI) {
@@ -280,7 +263,7 @@ func (s *RpcSuite) LoadContract(path string, name string) (types.Code, abi.ABI) 
 
 func (s *RpcSuite) GetBalance(address types.Address) types.Value {
 	s.T().Helper()
-	return GetBalance(s.T(), s.Context, s.Client, address)
+	return GetBalance(s.T(), s.Client, address)
 }
 
 func (s *RpcSuite) AbiPack(abi *abi.ABI, name string, args ...any) []byte {
@@ -288,19 +271,21 @@ func (s *RpcSuite) AbiPack(abi *abi.ABI, name string, args ...any) []byte {
 	return AbiPack(s.T(), abi, name, args...)
 }
 
-func (s *RpcSuite) AbiUnpack(abi *abi.ABI, name string, data []byte) []interface{} {
+func (s *RpcSuite) AbiUnpack(abi *abi.ABI, name string, data []byte) []any {
 	s.T().Helper()
 	res, err := abi.Unpack(name, data)
 	s.Require().NoError(err)
 	return res
 }
 
-func (s *RpcSuite) PrepareDefaultDeployPayload(abi abi.ABI, code []byte, args ...any) types.DeployPayload {
+func (s *RpcSuite) PrepareDefaultDeployPayload(
+	abi abi.ABI, salt common.Hash, code []byte, args ...any,
+) types.DeployPayload {
 	s.T().Helper()
-	return PrepareDefaultDeployPayload(s.T(), abi, code, args...)
+	return PrepareDefaultDeployPayload(s.T(), abi, salt, code, args...)
 }
 
-func (s *RpcSuite) GasToValue(gas uint64) types.Value {
+func (*RpcSuite) GasToValue(gas uint64) types.Value {
 	return GasToValue(gas)
 }
 
@@ -373,7 +358,7 @@ func (s *RpcSuite) GetRandomBytes(size int) []byte {
 
 func (s *RpcSuite) AnalyzeReceipt(receipt *jsonrpc.RPCReceipt, namesMap map[types.Address]string) ReceiptInfo {
 	s.T().Helper()
-	return AnalyzeReceipt(s.T(), s.Context, s.Client, receipt, namesMap)
+	return AnalyzeReceipt(s.T(), s.Client, receipt, namesMap)
 }
 
 func getContractInfo(addr types.Address, valuesMap ReceiptInfo) *ContractInfo {
@@ -388,5 +373,5 @@ func getContractInfo(addr types.Address, valuesMap ReceiptInfo) *ContractInfo {
 
 func (s *RpcSuite) CheckBalance(infoMap ReceiptInfo, balance types.Value, accounts []types.Address) types.Value {
 	s.T().Helper()
-	return CheckBalance(s.T(), s.Context, s.Client, infoMap, balance, accounts)
+	return CheckBalance(s.T(), s.Client, infoMap, balance, accounts)
 }

@@ -2,8 +2,6 @@ import { expect } from "chai";
 import { deployNilContract } from "../src/deploy";
 import type { Abi } from "abitype";
 import { createSmartAccount } from "../src/smart-account";
-import { waitTillCompleted } from "@nilfoundation/niljs";
-
 
 describe("Caller and Incrementer contract interaction", () => {
   let callerAddress: string;
@@ -13,11 +11,11 @@ describe("Caller and Incrementer contract interaction", () => {
     this.timeout(120000);
 
     // Deploy Caller contract
-    const smartAccount = await createSmartAccount({faucetDeposit: true});
+    const smartAccount = await createSmartAccount({ faucetDeposit: true });
 
     const AwaitJson = require("../artifacts/contracts/Await.sol/Await.json");
 
-    const {contract: awaiter, address: callerAddr} =
+    const { contract: awaiter, address: callerAddr } =
       await deployNilContract(
         smartAccount,
         AwaitJson.abi as Abi,
@@ -32,7 +30,7 @@ describe("Caller and Incrementer contract interaction", () => {
 
     // Deploy Incrementer contract
     const IncrementerJson = require("../artifacts/contracts/Incrementer.sol/Incrementer.json");
-    const {contract: incrementer, address: incrementerAddr} =
+    const { contract: incrementer, address: incrementerAddr } =
       await deployNilContract(
         smartAccount,
         IncrementerJson.abi as Abi,
@@ -45,13 +43,13 @@ describe("Caller and Incrementer contract interaction", () => {
     console.log("Incrementer deployed at:", incrementerAddress);
     // Increment the value
     const tx = await incrementer.write.increment([]);
-    await waitTillCompleted(smartAccount.client, tx);
+    await tx.wait();
     // Check the value of Incrementer
     expect(await incrementer.read.getValue([])).to.equal(1);
 
     // Call the Caller contract's call method with the Incrementer address
     const tx2 = await awaiter.write.call([incrementerAddress]);
-    await waitTillCompleted(smartAccount.client, tx2);
+    await tx2.wait();
 
     let value = await awaiter.read.result([]);
     console.log("returned value: ", value)

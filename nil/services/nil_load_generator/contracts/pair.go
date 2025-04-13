@@ -5,7 +5,6 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
@@ -27,8 +26,6 @@ func NewPair(contract Contract, addr types.Address) *Pair {
 
 func (p *Pair) Initialize(
 	ctx context.Context,
-	service *cliservice.Service,
-	client client.Client,
 	smartAccount SmartAccount,
 	token0 types.Address,
 	token1 types.Address,
@@ -37,16 +34,14 @@ func (p *Pair) Initialize(
 	if err != nil {
 		return err
 	}
-	if _, err := SendTransactionAndCheck(
-		ctx, client, service, smartAccount, p.Addr, calldata, []types.TokenBalance{},
-	); err != nil {
+	if _, err := smartAccount.SendTransactionAndCheck(ctx, p.Addr, calldata, []types.TokenBalance{}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *Pair) GetReserves(service *cliservice.Service) (*big.Int, *big.Int, error) {
-	res, err := GetFromContract(service, p.Abi, p.Addr, "getReserves")
+func (p *Pair) GetReserves(smartAccount SmartAccount) (*big.Int, *big.Int, error) {
+	res, err := GetFromContract(smartAccount.CliService, p.Abi, p.Addr, "getReserves")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -70,8 +65,8 @@ func (p *Pair) GetTokenTotalSupply(service *cliservice.Service) (*big.Int, error
 	return totalSupply, nil
 }
 
-func (p *Pair) GetTokenBalanceOf(service *cliservice.Service, addr types.Address) (*big.Int, error) {
-	res, err := GetFromContract(service, p.Abi, p.Addr, "getTokenBalanceOf", addr)
+func (p *Pair) GetTokenBalanceOf(smartAccount SmartAccount) (*big.Int, error) {
+	res, err := GetFromContract(smartAccount.CliService, p.Abi, p.Addr, "getTokenBalanceOf", smartAccount.Addr)
 	if err != nil {
 		return nil, err
 	}
@@ -82,19 +77,12 @@ func (p *Pair) GetTokenBalanceOf(service *cliservice.Service, addr types.Address
 	return totalSupply, nil
 }
 
-func (p *Pair) Mint(
-	ctx context.Context,
-	service *cliservice.Service,
-	client client.Client,
-	smartAccount SmartAccount,
-	addressTo types.Address,
-	tokens []types.TokenBalance,
-) error {
-	calldata, err := p.Abi.Pack("mint", addressTo)
+func (p *Pair) Mint(ctx context.Context, smartAccount SmartAccount, tokens []types.TokenBalance) error {
+	calldata, err := p.Abi.Pack("mint", smartAccount.Addr)
 	if err != nil {
 		return err
 	}
-	if _, err := SendTransactionAndCheck(ctx, client, service, smartAccount, p.Addr, calldata, tokens); err != nil {
+	if _, err := smartAccount.SendTransactionAndCheck(ctx, p.Addr, calldata, tokens); err != nil {
 		return err
 	}
 	return nil
@@ -102,21 +90,21 @@ func (p *Pair) Mint(
 
 func (p *Pair) Swap(
 	ctx context.Context,
-	service *cliservice.Service,
-	client client.Client,
 	smartAccount SmartAccount,
-	smartAccountTo types.Address,
-	amount1, amount2 *big.Int,
+	amount1 *big.Int,
+	amount2 *big.Int,
 	swapAmount types.Value,
 	tokenId types.TokenId,
 ) (common.Hash, error) {
-	calldata, err := p.Abi.Pack("swap", amount1, amount2, smartAccountTo)
+	calldata, err := p.Abi.Pack("swap", amount1, amount2, smartAccount.Addr)
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	hash, err := SendTransactionAndCheck(ctx, client, service, smartAccount, p.Addr, calldata, []types.TokenBalance{
-		{Token: tokenId, Balance: swapAmount},
-	})
+	hash, err := smartAccount.SendTransactionAndCheck(
+		ctx,
+		p.Addr,
+		calldata,
+		[]types.TokenBalance{{Token: tokenId, Balance: swapAmount}})
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -125,18 +113,15 @@ func (p *Pair) Swap(
 
 func (p *Pair) Burn(
 	ctx context.Context,
-	service *cliservice.Service,
-	client client.Client,
 	smartAccount SmartAccount,
-	smartAccountTo types.Address,
 	lpAddress types.TokenId,
 	burnAmount types.Value,
 ) error {
-	calldata, err := p.Abi.Pack("burn", smartAccountTo)
+	calldata, err := p.Abi.Pack("burn", smartAccount.Addr)
 	if err != nil {
 		return err
 	}
-	if _, err := SendTransactionAndCheck(ctx, client, service, smartAccount, p.Addr, calldata, []types.TokenBalance{
+	if _, err := smartAccount.SendTransactionAndCheck(ctx, p.Addr, calldata, []types.TokenBalance{
 		{Token: lpAddress, Balance: burnAmount},
 	}); err != nil {
 		return err

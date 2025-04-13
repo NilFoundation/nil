@@ -13,32 +13,48 @@ import (
 
 type HandlerTaskStorage interface {
 	AddTaskEntries(ctx context.Context, tasks ...*types.TaskEntry) error
+	GetTaskStats(ctx context.Context) (*types.TaskStats, error)
 }
 
 type taskHandler struct {
-	taskStorage HandlerTaskStorage
-	resultSaver TaskResultSaver
-	skipRate    int
-	taskNum     int
-	clock       clockwork.Clock
-	logger      logging.Logger
+	taskStorage          HandlerTaskStorage
+	resultSaver          TaskResultSaver
+	skipRate             int
+	taskNum              int
+	maxConcurrentBatches uint32
+	clock                clockwork.Clock
+	logger               logging.Logger
 }
 
 func newTaskHandler(
 	taskStorage HandlerTaskStorage,
 	resultSaver TaskResultSaver,
 	skipRate int,
+	maxConcurrentBatches uint32,
 	clock clockwork.Clock,
 	logger logging.Logger,
 ) api.TaskHandler {
 	return &taskHandler{
-		taskStorage: taskStorage,
-		resultSaver: resultSaver,
-		skipRate:    skipRate,
-		taskNum:     0,
-		clock:       clock,
-		logger:      logger,
+		taskStorage:          taskStorage,
+		resultSaver:          resultSaver,
+		skipRate:             skipRate,
+		maxConcurrentBatches: maxConcurrentBatches,
+		taskNum:              0,
+		clock:                clock,
+		logger:               logger,
 	}
+}
+
+func (h *taskHandler) IsReadyToHandle(ctx context.Context) (bool, error) {
+	stats, err := h.taskStorage.GetTaskStats(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	// Number of currently handled batches is equal to the amount of merge proof tasks in the storage
+	mergeProofStats := stats.CountPerType[types.MergeProof]
+	batchesBeingHandled := mergeProofStats.ActiveCount + mergeProofStats.PendingCount
+	return batchesBeingHandled < h.maxConcurrentBatches, nil
 }
 
 func (h *taskHandler) Handle(ctx context.Context, executorId types.TaskExecutorId, task *types.Task) error {

@@ -36,7 +36,7 @@ func TestSszBlock(t *testing.T) {
 	h, err := common.PoseidonSSZ(&block2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("305b9ab7546ad01a500dd57f29935bc43648d3f428b8b3a8869ab33c543940db")
+	h2, err := hex.DecodeString("06411df0d6a1117252c30bb3aefdade2b02ffd9c87d445336859274266d74578")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), common.BytesToHash(h[:]))
@@ -72,7 +72,7 @@ func TestSszTransaction(t *testing.T) {
 	h, err := common.PoseidonSSZ(&transaction2)
 	require.NoError(t, err)
 
-	h2 := common.HexToHash("2d3efc5c6f1d6ade476e0ed2641cde7e863434f7eb2429d59cc1844a0144ff38")
+	h2 := common.HexToHash("1ac6e7d9fb17cc30dee4987c5d36f89ffa5db62ca1be63c788ce6be5d309c13f")
 	require.Equal(t, h2, h)
 }
 
@@ -81,7 +81,6 @@ func TestSszSmc(t *testing.T) {
 
 	smc := SmartContract{
 		Address:     HexToAddress("1d9bc16f1a559"),
-		Initialised: true,
 		Balance:     NewValueFromUint64(1234),
 		StorageRoot: common.Hash{0x01},
 		CodeHash:    common.Hash{0x02},
@@ -96,7 +95,6 @@ func TestSszSmc(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, smc.Address, smc2.Address)
-	require.Equal(t, smc.Initialised, smc2.Initialised)
 	require.Equal(t, smc.Balance, smc2.Balance)
 	require.Equal(t, smc.StorageRoot, smc2.StorageRoot)
 	require.Equal(t, smc.CodeHash, smc2.CodeHash)
@@ -105,7 +103,7 @@ func TestSszSmc(t *testing.T) {
 	h, err := common.PoseidonSSZ(&smc2)
 	require.NoError(t, err)
 
-	h2 := common.HexToHash("0x1101c3ea5b9afdc740f1f37823a9bb5209276e1581237909ddba9836ad010237")
+	h2 := common.HexToHash("0x2cb178ec91a69c6f1373cf97931d32de124f1352deea5fc12b9b7e7e4e40b2c2")
 	require.Equal(t, h2, common.BytesToHash(h[:]))
 }
 

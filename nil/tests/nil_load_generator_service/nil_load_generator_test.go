@@ -32,7 +32,7 @@ func (s *NilLoadGeneratorRpc) SetupTest() {
 	})
 
 	var faucetEndpoint string
-	s.faucetClient, faucetEndpoint = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.Client)
+	s.faucetClient, faucetEndpoint = tests.StartFaucetService(s.Context, s.T(), &s.Wg, s.Client)
 	time.Sleep(time.Second)
 
 	s.runErrCh = make(chan error, 1)
@@ -41,16 +41,16 @@ func (s *NilLoadGeneratorRpc) SetupTest() {
 		defer s.Wg.Done()
 		if err := nil_load_generator.Run(
 			s.Context,
-			nil_load_generator.Config{
+			&nil_load_generator.Config{
 				OwnEndpoint:        nilLoadGeneratorSockPath,
 				Endpoint:           sockPath,
 				FaucetEndpoint:     faucetEndpoint,
 				SwapPerIteration:   1,
-				RpcSwapLimit:       "10000000",
-				MintTokenAmount0:   "3000000",
-				MintTokenAmount1:   "10000",
-				ThresholdAmount:    "3000000000",
-				SwapAmount:         "1000",
+				RpcSwapLimit:       *types.NewUint256(10000000),
+				MintTokenAmount0:   types.NewValueFromUint64(3000000),
+				MintTokenAmount1:   types.NewValueFromUint64(10000),
+				ThresholdAmount:    types.NewValueFromUint64(3000000000),
+				SwapAmount:         types.NewValueFromUint64(1000),
 				WaitClusterStartup: 10 * time.Second,
 			},
 			logging.NewLogger("test_nil_load_generator")); err != nil {
@@ -91,7 +91,7 @@ func (s *NilLoadGeneratorRpc) TestSmartAccountBalanceModification() {
 	}, 60*time.Second, 100*time.Millisecond)
 
 	for i, addr := range resSmartAccounts {
-		s.Require().Positive(smartAccountsBalance[i].Uint64(),
+		s.Require().NotZero(smartAccountsBalance[i].Uint64(),
 			"Zero balance for smart account %d, addr %s", i, addr)
 	}
 

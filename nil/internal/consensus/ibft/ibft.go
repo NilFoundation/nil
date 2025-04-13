@@ -27,13 +27,13 @@ type ConsensusParams struct {
 	ShardId    types.ShardId
 	Db         db.DB
 	Validator  validator
-	NetManager *network.Manager
+	NetManager network.Manager
 	PrivateKey bls.PrivateKey
 }
 
 type validator interface {
 	BuildProposal(ctx context.Context) (*execution.ProposalSSZ, error)
-	VerifyProposal(ctx context.Context, proposal *execution.ProposalSSZ) (*types.Block, error)
+	IsValidProposal(ctx context.Context, proposal *execution.ProposalSSZ) error
 	InsertProposal(ctx context.Context, proposal *execution.ProposalSSZ, params *types.ConsensusParams) error
 	GetLastBlock(ctx context.Context) (*types.Block, common.Hash, error)
 }
@@ -48,7 +48,7 @@ type backendIBFT struct {
 	shardId      types.ShardId
 	validator    validator
 	logger       logging.Logger
-	nm           *network.Manager
+	nm           network.Manager
 	transport    transport
 	signer       *Signer
 	mh           *MetricsHandler

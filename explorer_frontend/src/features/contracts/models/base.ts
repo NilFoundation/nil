@@ -9,7 +9,6 @@ import {
   convertEthToWei,
   isHexString,
   removeHexPrefix,
-  waitTillCompleted,
 } from "@nilfoundation/niljs";
 import type { Abi, Address } from "abitype";
 import { combine, createEffect, createEvent, createStore } from "effector";
@@ -93,7 +92,7 @@ export const deploySmartContract = createEvent();
 export const deployContractFunction = async ({ app, args, smartAccount, shardId }) => {
   const salt = BigInt(Math.floor(Math.random() * 10000000000000000));
 
-  const { hash, address } = await smartAccount.deployContract({
+  const { tx, address } = await smartAccount.deployContract({
     bytecode: app.bytecode,
     abi: app.abi,
     args,
@@ -102,14 +101,14 @@ export const deployContractFunction = async ({ app, args, smartAccount, shardId 
     feeCredit: convertEthToWei(0.0002),
   });
 
-  await waitTillCompleted(smartAccount.client, hash);
+  await tx.wait();
 
   return {
     address,
     app: app.bytecode,
     name: app.name,
     deployedFrom: smartAccount.address,
-    txHash: hash,
+    txHash: tx.hash,
   };
 };
 
@@ -141,7 +140,7 @@ export const registerContractInCometaFx = createEffect<
   },
   void
 >(async ({ name, app, address, cometaClient, solidityVersion }) => {
-  const result = createCompileInput(app.sourcecode);
+  const result = await createCompileInput(app.sourcecode);
 
   const refinedSolidityVersion = solidityVersion.match(/\d+\.\d+\.\d+/)?.[0] || "";
 
@@ -344,7 +343,7 @@ export const sendMethodFx = createEffect<
     txLogs: string[];
   }
 >(async ({ abi, functionName, args, smartAccount, address, value, tokens, appName }) => {
-  const hash = await smartAccount.sendTransaction({
+  const tx = await smartAccount.sendTransaction({
     abi,
     functionName,
     args,
@@ -354,9 +353,9 @@ export const sendMethodFx = createEffect<
     tokens: tokens,
   });
 
-  await waitTillCompleted(smartAccount.client, hash);
+  await tx.wait();
   const contractIface = new ethers.Interface(abi);
-  const receipts = await smartAccount.client.getTransactionReceiptByHash(hash);
+  const receipts = await smartAccount.client.getTransactionReceiptByHash(tx.hash);
   const logs = receipts
     ? [
         ...(receipts.outputReceipts?.flatMap((receipt) => {
@@ -377,7 +376,7 @@ export const sendMethodFx = createEffect<
 
   return {
     functionName,
-    hash,
+    hash: tx.hash,
     sendFrom: smartAccount.address,
     appName,
     txLogs,

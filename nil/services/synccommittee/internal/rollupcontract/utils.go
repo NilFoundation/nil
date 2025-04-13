@@ -1,28 +1,12 @@
 package rollupcontract
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common"
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 )
-
-func ComputeDataProofs(sidecar *ethtypes.BlobTxSidecar) ([][]byte, error) {
-	blobHashes := sidecar.BlobHashes()
-	dataProofs := make([][]byte, len(blobHashes))
-	for i, blobHash := range blobHashes {
-		point := generatePointFromVersionedHash(blobHash)
-		proof, claim, err := kzg4844.ComputeProof(&sidecar.Blobs[i], point)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate KZG proof from the blob and point: %w", err)
-		}
-		dataProofs[i] = encodeDataProof(point, claim, sidecar.Commitments[i], proof)
-	}
-	return dataProofs, nil
-}
 
 func generatePointFromVersionedHash(versionedHash ethcommon.Hash) kzg4844.Point {
 	blsModulo, _ := new(big.Int).SetString(

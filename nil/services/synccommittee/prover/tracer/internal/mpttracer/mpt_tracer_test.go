@@ -4,15 +4,29 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+type MockAccountExecutionState struct {
+	rwTx db.RwTx
+}
+
+func (es *MockAccountExecutionState) AppendToJournal(entry execution.JournalEntry) {}
+func (es *MockAccountExecutionState) GetRwTx() db.RwTx {
+	return es.rwTx
+}
+
+var _ execution.IAccountExecutionState = (*MockAccountExecutionState)(nil)
+
 func TestMPTTracer_GetAccountSlotChangeTraces(t *testing.T) {
 	t.Parallel()
 
-	account, mptTracer := CreateTestAccount(t)
+	addr, mptTracer, rwTx := CreateTestAccountAndTracer(t)
 
 	// Set multiple slots
 	key1 := common.BytesToHash([]byte("key1"))
@@ -20,9 +34,20 @@ func TestMPTTracer_GetAccountSlotChangeTraces(t *testing.T) {
 	key2 := common.BytesToHash([]byte("key2"))
 	value2 := common.BytesToHash([]byte("value2"))
 
-	err := mptTracer.SetSlot(account, key1, value1)
+	contract, err := mptTracer.GetContract(addr)
 	require.NoError(t, err)
-	err = mptTracer.SetSlot(account, key2, value2)
+	acc, err := execution.NewAccountState(
+		&MockAccountExecutionState{rwTx}, contract.Address, contract, logging.NewLogger("test"),
+	)
+	require.NoError(t, err)
+
+	err = acc.SetState(key1, value1)
+	require.NoError(t, err)
+	err = acc.SetState(key2, value2)
+	require.NoError(t, err)
+
+	// To get correct result from GetMPTTraces we need to commit account with UpdateContracts, not acc.Commit()
+	err = mptTracer.UpdateContracts(map[types.Address]*execution.AccountState{contract.Address: acc})
 	require.NoError(t, err)
 
 	mptTraces, err := mptTracer.GetMPTTraces()
@@ -37,7 +62,7 @@ func TestMPTTracer_GetAccountSlotChangeTraces(t *testing.T) {
 	// Verify both slots are included into trace for specific address
 	require.NoError(t, err)
 	assert.Len(t, mptTraces.StorageTracesByAccount, 1)
-	accountStorageTraces, exists := mptTraces.StorageTracesByAccount[account]
+	accountStorageTraces, exists := mptTraces.StorageTracesByAccount[addr]
 	assert.True(t, exists)
 	assert.Len(t, accountStorageTraces, 2)
 }
@@ -45,31 +70,38 @@ func TestMPTTracer_GetAccountSlotChangeTraces(t *testing.T) {
 func TestMPTTracer_MultipleUpdatesToSameSlot(t *testing.T) {
 	t.Parallel()
 
-	account, mptTracer := CreateTestAccount(t)
+	addr, mptTracer, rwTx := CreateTestAccountAndTracer(t)
 
 	key := common.BytesToHash([]byte("test_key"))
 	value1 := common.BytesToHash([]byte("value1"))
 	value2 := common.BytesToHash([]byte("value2"))
 
 	// Set slot multiple times
-	err := mptTracer.SetSlot(account, key, value1)
+	contract, err := mptTracer.GetContract(addr)
 	require.NoError(t, err)
-	err = mptTracer.SetSlot(account, key, value2)
+	acc, err := execution.NewAccountState(
+		&MockAccountExecutionState{rwTx}, contract.Address, contract, logging.NewLogger("test"),
+	)
+	require.NoError(t, err)
+	err = acc.SetState(key, value1)
+	require.NoError(t, err)
+	err = acc.SetState(key, value2)
 	require.NoError(t, err)
 
 	// Verify final value
-	retrievedValue, err := mptTracer.GetSlot(account, key)
+	retrievedValue, err := acc.GetState(key)
 	require.NoError(t, err)
 	assert.Equal(t, value2, retrievedValue)
 
-	// Verify only one operation was recorded
-	storageTracesByAccount, err := mptTracer.getAccountsStorageUpdatesTraces()
+	initialStorageRoot := acc.StorageTree.RootHash()
+	committedContract, err := acc.Commit()
 	require.NoError(t, err)
-	assert.Len(t, storageTracesByAccount, 1)
-	accountStorageTraces, exists := storageTracesByAccount[account]
-	assert.True(t, exists)
-	assert.Len(t, accountStorageTraces, 1)
+
+	// Verify only one operation was recorded
+	storageTraces, err := mptTracer.getStorageTraces(initialStorageRoot, committedContract.StorageRoot)
+	require.NoError(t, err)
+	assert.Len(t, storageTraces, 1)
 
 	// Verify the trace shows the final state
-	assert.Equal(t, types.Uint256(*value2.Uint256()), accountStorageTraces[0].ValueAfter)
+	assert.Equal(t, (*types.Uint256)(value2.Uint256()), storageTraces[0].ValueAfter)
 }

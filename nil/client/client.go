@@ -40,6 +40,8 @@ type Client interface {
 	RawClient
 	DbClient
 	Web3Client
+	TxPoolClient
+	jsonrpc.DevAPI
 
 	CreateBatchRequest() BatchRequest
 	BatchCall(ctx context.Context, req BatchRequest) ([]any, error)

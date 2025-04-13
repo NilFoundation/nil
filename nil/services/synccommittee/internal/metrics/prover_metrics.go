@@ -20,11 +20,5 @@ func NewProverMetrics() (*ProverMetricsHandler, error) {
 }
 
 func (h *ProverMetricsHandler) init(attributes metric.MeasurementOption, meter telemetry.Meter) error {
-	var err error
-
-	if err = h.basicMetricsHandler.init(attributes, meter); err != nil {
-		return err
-	}
-
-	return nil
+	return h.basicMetricsHandler.init(attributes, meter)
 }

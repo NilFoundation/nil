@@ -27,22 +27,39 @@ const (
 
 func GetDeployPayload(t *testing.T, name string) types.DeployPayload {
 	t.Helper()
+	return GetDeployPayloadWithSalt(t, name, common.EmptyHash)
+}
+
+func GetDeployPayloadWithSalt(t *testing.T, name string, salt common.Hash) types.DeployPayload {
+	t.Helper()
 
 	code, err := GetCode(name)
 	require.NoError(t, err)
-	return types.BuildDeployPayload(code, common.EmptyHash)
+	return types.BuildDeployPayload(code, salt)
 }
 
 func CounterDeployPayload(t *testing.T) types.DeployPayload {
 	t.Helper()
 
-	return GetDeployPayload(t, NameCounter)
+	return CounterDeployPayloadWithSalt(t, common.EmptyHash)
+}
+
+func CounterDeployPayloadWithSalt(t *testing.T, salt common.Hash) types.DeployPayload {
+	t.Helper()
+
+	return GetDeployPayloadWithSalt(t, NameCounter, salt)
 }
 
 func CounterAddress(t *testing.T, shardId types.ShardId) types.Address {
 	t.Helper()
 
-	return types.CreateAddress(shardId, CounterDeployPayload(t))
+	return CounterAddressWithSalt(t, shardId, common.EmptyHash)
+}
+
+func CounterAddressWithSalt(t *testing.T, shardId types.ShardId, salt common.Hash) types.Address {
+	t.Helper()
+
+	return types.CreateAddress(shardId, CounterDeployPayloadWithSalt(t, salt))
 }
 
 func FaucetDeployPayload(t *testing.T) types.DeployPayload {

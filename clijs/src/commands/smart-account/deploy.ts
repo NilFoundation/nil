@@ -138,7 +138,7 @@ export default class SmartAccountDeploy extends BaseCommand {
       value: BigInt(flags.amount ?? 0),
       feeCredit: flags.fee ?? SmartAccountDeploy.defaultFee,
     };
-    const { hash, address } = await smartAccount.deployContract(params);
+    const { tx, address } = await smartAccount.deployContract(params);
 
     if (flags.quiet) {
       this.log(address);
@@ -151,7 +151,8 @@ export default class SmartAccountDeploy extends BaseCommand {
     }
 
     this.info("Waiting for the contract to be deployed...");
-    await this.waitOnTx(hash);
+    // await this.waitOnTx(hash);
+    await tx.wait();
     this.info("Contract successfully deployed");
 
     if (flags.compileInput) {
@@ -163,14 +164,14 @@ export default class SmartAccountDeploy extends BaseCommand {
       const name =
         flags.tokenName ?? this.error("Token name is required when the token flag is set");
 
-      let hash = await smartAccount.setTokenName(name);
+      let tx = await smartAccount.setTokenName(name);
       this.info("Waiting for the token name to be set...");
-      await this.waitOnTx(hash);
+      await tx.wait();
       this.info("Token name successfully set");
 
-      hash = await smartAccount.mintToken(flags.token);
+      tx = await smartAccount.mintToken(flags.token);
       this.info("Waiting for the token to be minted...");
-      await this.waitOnTx(hash);
+      await tx.wait();
       this.info("Token successfully minted");
     }
 

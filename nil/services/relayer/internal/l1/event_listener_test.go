@@ -8,8 +8,8 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/services/relayer/internal/storage"
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/jonboulle/clockwork"
@@ -21,13 +21,15 @@ type EventListenerTestSuite struct {
 	suite.Suite
 
 	// high level dependencies
-	database db.DB
-	storage  *EventStorage
-	logger   logging.Logger
-	clock    clockwork.Clock
+	database       db.DB
+	storage        *EventStorage
+	storageMetrics storage.TableMetrics
+	logger         logging.Logger
+	clock          clockwork.Clock
 
 	// testing entity
-	listener *EventListener
+	listener        *EventListener
+	listenerMetrics EventListenerMetrics
 
 	// mocks
 	ethClientMock  *EthClientMock
@@ -57,11 +59,16 @@ func (s *EventListenerTestSuite) SetupTest() {
 	s.database, err = db.NewBadgerDbInMemory()
 	s.Require().NoError(err, "failed to initialize test db")
 
+	s.listenerMetrics, err = NewEventListenerMetrics()
+	s.Require().NoError(err)
+
+	s.storageMetrics, err = storage.NewTableMetrics()
+	s.Require().NoError(err)
+
 	s.clock = clockwork.NewRealClock()
 	s.ethClientMock = &EthClientMock{}
 	s.l1ContractMock = &L1ContractMock{}
-
-	s.storage, err = NewEventStorage(s.ctx, s.database, s.clock, nil, s.logger)
+	s.storage, err = NewEventStorage(s.ctx, s.database, s.clock, s.storageMetrics, s.logger)
 	s.Require().NoError(err, "failed to initialize event storage")
 
 	cfg := DefaultEventListenerConfig()
@@ -69,7 +76,15 @@ func (s *EventListenerTestSuite) SetupTest() {
 	cfg.BridgeMessengerContractAddress = "0xDEADBEEF"
 	cfg.EmitEventCapacity = 100 // do avoid event dropping
 
-	s.listener, err = NewEventListener(cfg, s.clock, s.ethClientMock, s.l1ContractMock, s.storage, s.logger)
+	s.listener, err = NewEventListener(
+		cfg,
+		s.clock,
+		s.ethClientMock,
+		s.l1ContractMock,
+		s.storage,
+		s.listenerMetrics,
+		s.logger,
+	)
 	s.Require().NoError(err, "failed to create listener")
 }
 
@@ -177,8 +192,10 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 			// for each range return single event for its first block
 			return []*L1MessageSent{
 				{
-					MessageHash: getMsgHash(msgSourceFetcher, callNumber+1),
-					Raw: types.Log{
+					MessageHash:       getMsgHash(msgSourceFetcher, callNumber+1),
+					MessageExpiryTime: big.NewInt(1),
+					MessageNonce:      big.NewInt(2),
+					Raw: ethtypes.Log{
 						BlockNumber: from,
 						BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
 					},
@@ -201,7 +218,7 @@ func (s *EventListenerTestSuite) TestFetchHistoricalEvents() {
 		err = s.storage.IterateEventsByBatch(s.ctx, 100, func(events []*Event) error {
 			s.Len(events, eventCount)
 			for i, event := range events {
-				s.EqualValues(expectedRanges[i].from, event.BlockNumber)
+				s.Equal(expectedRanges[i].from, event.BlockNumber)
 				s.EqualValues(i, event.SequenceNumber)
 			}
 			return nil
@@ -251,8 +268,10 @@ func (s *EventListenerTestSuite) TestFetchEventsFromSubscription() {
 			go func() {
 				for i := 1; i < 4; i++ {
 					sink <- &L1MessageSent{
-						MessageHash: getMsgHash(msgSourceSubscription, i),
-						Raw: types.Log{
+						MessageHash:       getMsgHash(msgSourceSubscription, i),
+						MessageExpiryTime: big.NewInt(1),
+						MessageNonce:      big.NewInt(2),
+						Raw: ethtypes.Log{
 							BlockNumber: 1024 + uint64(i),
 							BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, byte(i)}),
 						},
@@ -315,8 +334,10 @@ func (s *EventListenerTestSuite) TestSmoke() {
 		go func() {
 			for i := 1; i < 4; i++ {
 				sink <- &L1MessageSent{
-					MessageHash: getMsgHash(msgSourceSubscription, i),
-					Raw: types.Log{
+					MessageHash:       getMsgHash(msgSourceSubscription, i),
+					MessageExpiryTime: big.NewInt(1),
+					MessageNonce:      big.NewInt(2),
+					Raw: ethtypes.Log{
 						BlockNumber: 1024 + uint64(i),
 						BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, byte(i)}),
 					},
@@ -350,8 +371,10 @@ func (s *EventListenerTestSuite) TestSmoke() {
 		// for each range return single event for its first block
 		return []*L1MessageSent{
 			{
-				MessageHash: getMsgHash(msgSourceFetcher, callNumber+1),
-				Raw: types.Log{
+				MessageHash:       getMsgHash(msgSourceFetcher, callNumber+1),
+				MessageExpiryTime: big.NewInt(1),
+				MessageNonce:      big.NewInt(2),
+				Raw: ethtypes.Log{
 					BlockNumber: from,
 					BlockHash:   ethcommon.BytesToHash([]byte{1, 2, 3, 4}),
 				},

@@ -28,7 +28,7 @@ func protocolShardBlock(shardId types.ShardId) network.ProtocolID {
 }
 
 // ListPeers returns a list of peers that may support block exchange protocol.
-func ListPeers(networkManager *network.Manager, shardId types.ShardId) []network.PeerID {
+func ListPeers(networkManager network.Manager, shardId types.ShardId) []network.PeerID {
 	// Try to get peers supporting the protocol.
 	if res := networkManager.GetPeersForProtocol(protocolShardBlock(shardId)); len(res) > 0 {
 		return res
@@ -39,7 +39,7 @@ func ListPeers(networkManager *network.Manager, shardId types.ShardId) []network
 
 // PublishBlock publishes a block to the network.
 func PublishBlock(
-	ctx context.Context, networkManager *network.Manager, shardId types.ShardId, block *types.BlockWithExtractedData,
+	ctx context.Context, networkManager network.Manager, shardId types.ShardId, block *types.BlockWithExtractedData,
 ) error {
 	if networkManager == nil {
 		// we don't always want to run the network
@@ -106,7 +106,7 @@ func writeBlockToStream(s network.Stream, block *pb.RawFullBlock) error {
 	return nil
 }
 
-func RequestBlocks(ctx context.Context, networkManager *network.Manager, peerID network.PeerID,
+func RequestBlocks(ctx context.Context, networkManager network.Manager, peerID network.PeerID,
 	shardId types.ShardId, blockNumber types.BlockNumber, logger logging.Logger,
 ) (<-chan *types.BlockWithExtractedData, error) {
 	var err error
@@ -176,7 +176,7 @@ func unmarshalBlockSSZ(pbBlock *pb.RawFullBlock) (*types.BlockWithExtractedData,
 }
 
 func SetRequestHandler(
-	ctx context.Context, networkManager *network.Manager, shardId types.ShardId, database db.DB, logger logging.Logger,
+	ctx context.Context, networkManager network.Manager, shardId types.ShardId, database db.DB, logger logging.Logger,
 ) {
 	if networkManager == nil {
 		// we don't always want to run the network

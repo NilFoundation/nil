@@ -13,8 +13,8 @@
     "lint:fix": "biome check --write ."
   },
   "dependencies": {
-    "@nilfoundation/niljs": "0.25.0",
-    "@nilfoundation/smart-contracts": "0.7.0",
+    "@nilfoundation/niljs": "workspace:*",
+    "@nilfoundation/smart-contracts": "workspace:*",
     "abitype": "^1.0.7",
     "dotenv": "^16.4.5"
   },

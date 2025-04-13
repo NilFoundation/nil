@@ -11,23 +11,27 @@ import (
 )
 
 func GetDeployCommand(cfg *common.Config) *cobra.Command {
+	params := &contractParams{
+		Params: &common.Params{},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "deploy [path to file] [args...]",
 		Short: "Deploy a smart contract",
 		Long:  "Deploy a smart contract with the specified hex-bytecode from stdin or from a file",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDeploy(cmd, args, cfg)
+			return runDeploy(cmd, args, cfg, params)
 		},
 		SilenceUsage: true,
 	}
 
-	setDeployFlags(cmd)
+	setDeployFlags(cmd, params)
 
 	return cmd
 }
 
-func setDeployFlags(cmd *cobra.Command) {
+func setDeployFlags(cmd *cobra.Command, params *contractParams) {
 	cmd.Flags().Var(
 		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
@@ -62,7 +66,7 @@ func setDeployFlags(cmd *cobra.Command) {
 	)
 }
 
-func runDeploy(cmd *cobra.Command, cmdArgs []string, cfg *common.Config) error {
+func runDeploy(cmd *cobra.Command, cmdArgs []string, cfg *common.Config, params *contractParams) error {
 	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, nil)
 
 	var filename string

@@ -21,14 +21,14 @@ type Component struct {
 }
 
 type Method struct {
-	Name        string        `json:"name"`
-	Tags        []TagRef      `json:"tags"`
-	Summary     string        `json:"summary"`
-	Description string        `json:"description"`
-	Params      []Param       `json:"params"`
-	Errors      []interface{} `json:"errors"`
-	Result      Result        `json:"result"`
-	Examples    []interface{} `json:"examples"`
+	Name        string   `json:"name"`
+	Tags        []TagRef `json:"tags"`
+	Summary     string   `json:"summary"`
+	Description string   `json:"description"`
+	Params      []Param  `json:"params"`
+	Errors      []any    `json:"errors"`
+	Result      Result   `json:"result"`
+	Examples    []any    `json:"examples"`
 }
 
 type TagRef struct {
@@ -67,46 +67,46 @@ func generate_spec() error {
 	maps.Insert(components, maps.All(componentsFromRpcTypes))
 
 	methods := generateMethodsFromFile("nil/services/rpc/jsonrpc/eth_api.go")
-	openrpcSpec := map[string]interface{}{
+	openrpcSpec := map[string]any{
 		"openrpc": "1.2.4",
-		"info": map[string]interface{}{
+		"info": map[string]any{
 			"title":       "JSON-RPC API",
 			"version":     "1.0.0",
 			"description": "This section lists the JSON-RPC methods exposed by the =nil; RPC node.",
 		},
 		"methods": methods,
-		"components": map[string]interface{}{
+		"components": map[string]any{
 			"schemas": components,
-			"tags": map[string]interface{}{
-				"Accounts": map[string]interface{}{
+			"tags": map[string]any{
+				"Accounts": map[string]any{
 					"name":        "Accounts",
 					"description": "Methods for interacting with accounts.",
 				},
-				"Blocks": map[string]interface{}{
+				"Blocks": map[string]any{
 					"name":        "Blocks",
 					"description": "Methods for interacting with blocks.",
 				},
-				"Filters": map[string]interface{}{
+				"Filters": map[string]any{
 					"name":        "Filters",
 					"description": "Methods for interacting with filters.",
 				},
-				"Receipts": map[string]interface{}{
+				"Receipts": map[string]any{
 					"name":        "Receipts",
 					"description": "Methods for interacting with receipts.",
 				},
-				"Transactions": map[string]interface{}{
+				"Transactions": map[string]any{
 					"name":        "Transactions",
 					"description": "Methods for interacting with transactions.",
 				},
-				"Calls": map[string]interface{}{
+				"Calls": map[string]any{
 					"name":        "Sending",
 					"description": "Methods for calling transactions.",
 				},
-				"Shards": map[string]interface{}{
+				"Shards": map[string]any{
 					"name":        "Shards",
 					"description": "Methods for interacting with shards.",
 				},
-				"System": map[string]interface{}{
+				"System": map[string]any{
 					"name":        "System",
 					"description": "System methods.",
 				},
@@ -217,8 +217,8 @@ func generateMethodsFromFile(filename string) []Method {
 		if strings.HasPrefix(line, "/*") {
 			method := Method{
 				Params:   []Param{},
-				Errors:   []interface{}{},
-				Examples: []interface{}{},
+				Errors:   []any{},
+				Examples: []any{},
 			}
 			for scanner.Scan() {
 				line = scanner.Text()

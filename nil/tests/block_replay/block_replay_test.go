@@ -97,7 +97,7 @@ func TestSuiteBlockReplay(t *testing.T) {
 
 func (s *SuiteBlockReplay) TestBlockReplay() {
 	contractCode, abi := s.LoadContract(common.GetAbsolutePath("../contracts/increment.sol"), "Incrementer")
-	deployPayload := s.PrepareDefaultDeployPayload(abi, contractCode, big.NewInt(0))
+	deployPayload := s.PrepareDefaultDeployPayload(abi, common.EmptyHash, contractCode, big.NewInt(0))
 
 	_, receipt := s.DeployContractViaMainSmartAccount(types.BaseShardId, deployPayload, tests.DefaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)

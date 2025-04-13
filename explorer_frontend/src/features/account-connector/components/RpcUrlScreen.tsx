@@ -1,6 +1,7 @@
-import { HeadingLarge, Input } from "@nilfoundation/ui-kit";
+import { FormControl, HeadingLarge, Input, type InputProps } from "@nilfoundation/ui-kit";
 import { BUTTON_KIND, Button, COLORS, LabelLarge, LabelSmall } from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
+import type { ButtonOverrides } from "baseui/button";
 import { useUnit } from "effector-react";
 import lottie from "lottie-web/build/player/lottie_light";
 import { useEffect, useRef, useState } from "react";
@@ -18,9 +19,16 @@ import {
   createSmartAccountFx,
   initilizeSmartAccount,
   setActiveComponent,
-  setRpcUrl,
 } from "../model";
-import { type ValidationResult, validateRpcUrl } from "../validation";
+
+const btnOverrides: ButtonOverrides = {
+  Root: {
+    style: ({ $disabled }) => ({
+      backgroundColor: $disabled ? `${COLORS.gray400}!important` : "",
+      width: "100%",
+    }),
+  },
+};
 
 export const RpcUrlScreen = () => {
   const [css] = useStyletron();
@@ -49,7 +57,7 @@ export const RpcUrlScreen = () => {
   const [inputValue, setInputValue] = useState(rpcUrl);
   const animationContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Initialize Lottie animation on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   useEffect(() => {
     if (animationContainerRef.current) {
       const animationInstance = lottie.loadAnimation({
@@ -64,23 +72,12 @@ export const RpcUrlScreen = () => {
     }
   }, [isPendingSmartAccountCreation]);
 
-  // Handles connect button press
   const handleConnect = () => {
     const trimmedInputValue = inputValue.trim();
-    const validation: ValidationResult = validateRpcUrl(trimmedInputValue);
-    if (!validation.isValid) {
-      setError(validation.error);
-      return;
-    }
-
-    setError("");
     setIsDisabled(true);
-
-    setRpcUrl(trimmedInputValue);
-    initilizeSmartAccount();
+    initilizeSmartAccount(trimmedInputValue);
   };
 
-  // Opens a new browser tab to fetch the rpcUrl URL
   const handleGetRpcUrl = () => {
     if (RPC_TELEGRAM_BOT) {
       window.open(RPC_TELEGRAM_BOT, "_blank");
@@ -89,23 +86,20 @@ export const RpcUrlScreen = () => {
     }
   };
 
-  // Clears error message when user types
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange: InputProps["onChange"] = (e) => {
     setError("");
     setInputValue(e.target.value);
   };
 
-  // **Logic to switch to MainScreen**
   useEffect(() => {
     if (smartAccount !== null && balance !== null && balanceToken !== null) {
       setActiveComponent(ActiveComponent.Main);
     }
   }, [smartAccount, balance, balanceToken]);
 
-  // **Reset UI if error occurs**
   useEffect(() => {
     if (initializingSmartAccountError) {
-      setIsDisabled(false); // Re-enable everything
+      setIsDisabled(false);
       setError(initializingSmartAccountError);
     }
   }, [initializingSmartAccountError]);
@@ -121,7 +115,6 @@ export const RpcUrlScreen = () => {
         minHeight: "400px",
       }}
     >
-      {/* While creating account, show animation & state instead of logo and heading */}
       {!isPendingSmartAccountCreation ? (
         <div style={{ width: "100%" }}>
           <img src={asteriskIcon} alt="Asterisk Icon" width={124} height={124} />
@@ -152,32 +145,30 @@ export const RpcUrlScreen = () => {
         </div>
       )}
 
-      {/* Input Field */}
-      <Input
-        error={error !== ""}
-        placeholder="Enter your RPC URL"
-        value={inputValue}
-        onChange={handleInputChange}
-        disabled={isDisabled}
-        overrides={{
-          Root: {
-            style: {
-              width: "100%",
-              height: "48px",
-              marginTop: "12px",
-              background: COLORS.gray700,
-              ":hover": {
-                background: COLORS.gray600,
+      <FormControl error={error !== ""}>
+        <Input
+          placeholder="Enter your RPC URL"
+          value={inputValue}
+          onChange={handleInputChange}
+          disabled={isDisabled}
+          overrides={{
+            Root: {
+              style: {
+                width: "100%",
+                height: "48px",
+                marginTop: "12px",
+                background: COLORS.gray700,
+                ":hover": {
+                  background: COLORS.gray600,
+                },
               },
             },
-          },
-        }}
-      />
+          }}
+        />
+      </FormControl>
 
-      {/* Error Message */}
       <LabelSmall style={{ color: COLORS.red400, marginBottom: "8px" }}>{error}</LabelSmall>
 
-      {/* Buttons Section */}
       <div
         style={{
           width: "100%",
@@ -187,12 +178,13 @@ export const RpcUrlScreen = () => {
           gap: "8px",
         }}
       >
-        {/* Connect Button */}
         <Button
           onClick={handleConnect}
           kind={BUTTON_KIND.primary}
+          disabled={inputValue.trim() === ""}
           isLoading={isPendingSmartAccountCreation}
           style={{ width: "100%", height: "48px" }}
+          overrides={btnOverrides}
         >
           Connect
         </Button>
@@ -206,6 +198,7 @@ export const RpcUrlScreen = () => {
             backgroundColor: COLORS.gray700,
             color: COLORS.gray200,
           }}
+          overrides={btnOverrides}
         >
           Get RPC URL
         </Button>

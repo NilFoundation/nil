@@ -10,8 +10,8 @@ import (
 )
 
 func main() {
-	cfg := &journald_forwarder.Config{}
-	logger := logging.NewLogger("journald_forwarder")
+	cfg := &journald_forwarder.ClickhouseConfig{}
+	logger := logging.NewLoggerWithStore("journald_forwarder", false)
 	rootCmd := &cobra.Command{
 		Use:   "journald_to_click",
 		Short: "Run journald to click handler",

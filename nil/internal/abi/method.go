@@ -139,11 +139,12 @@ func NewMethod(
 		state += " "
 	}
 	identity := fmt.Sprintf("function %v", rawName)
-	if funType == Fallback { //nolint:gocritic
+	switch funType { //nolint:exhaustive
+	case Fallback:
 		identity = "fallback"
-	} else if funType == Receive {
+	case Receive:
 		identity = "receive"
-	} else if funType == Constructor {
+	case Constructor:
 		identity = "constructor"
 	}
 	str := fmt.Sprintf(

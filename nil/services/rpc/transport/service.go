@@ -45,7 +45,7 @@ type callback struct {
 	logger     logging.Logger
 }
 
-func (r *serviceRegistry) registerName(name string, rcvr interface{}) error {
+func (r *serviceRegistry) registerName(name string, rcvr any) error {
 	rcvrVal := reflect.ValueOf(rcvr)
 	if name == "" {
 		return fmt.Errorf("no service name for type %s", rcvrVal.Type().String())
@@ -176,7 +176,7 @@ func (c *callback) call(
 	method string,
 	args []reflect.Value,
 	stream *jsoniter.Stream,
-) (res interface{}, errRes error) {
+) (res any, errRes error) {
 	// Create the argument slice.
 	fullargs := make([]reflect.Value, 0, 2+len(args))
 	if c.rcvr.IsValid() {

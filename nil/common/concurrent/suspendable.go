@@ -69,16 +69,16 @@ func (s *Suspendable) Run(ctx context.Context, started chan<- struct{}) error {
 func (s *Suspendable) onStateChange(ticker *time.Ticker, currentState *workerState, req stateChangeRequest) {
 	defer close(req.response)
 
-	switch {
-	case req.newState == *currentState:
+	switch req.newState {
+	case *currentState:
 		// state remains unchanged, push false to the caller of Pause() / Resume()
 		req.response <- false
 		return
 
-	case req.newState == workerStatePaused:
+	case workerStatePaused:
 		ticker.Stop()
 
-	case req.newState == workerStateRunning:
+	case workerStateRunning:
 		ticker.Reset(s.interval)
 
 	default:

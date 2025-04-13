@@ -49,7 +49,7 @@ export default class SmartAccountSendToken extends BaseCommand {
     const balance = await smartAccount.getBalance();
     this.info("balance", balance);
 
-    const txHash = await smartAccount.sendTransaction({
+    const tx = await smartAccount.sendTransaction({
       to: args.address,
       value: flags.amount ?? 0n,
       feeCredit: flags.feeCredit,
@@ -57,19 +57,19 @@ export default class SmartAccountSendToken extends BaseCommand {
     });
 
     if (flags.quiet) {
-      this.log(txHash);
+      this.log(tx.hash);
     } else {
-      this.log(`Transaction hash: ${txHash}`);
+      this.log(`Transaction hash: ${tx.hash}`);
     }
 
     if (flags.noWait) {
-      return txHash;
+      return tx.hash;
     }
 
     this.info("Waiting for the transaction to be processed...");
-    await this.waitOnTx(txHash);
+    await tx.wait();
     this.info("Transaction successfully processed");
 
-    return txHash;
+    return tx.hash;
   }
 }

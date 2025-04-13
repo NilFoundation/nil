@@ -77,7 +77,7 @@ func calculateStateChange(newEs, oldEs *execution.ExecutionState) (rpctypes.Stat
 	return stateOverrides, nil
 }
 
-func (api *LocalShardApi) handleOutTransactions(
+func (api *localShardApiRo) handleOutTransactions(
 	ctx context.Context,
 	outTxns []*types.OutboundTransaction,
 	mainBlockHash common.Hash,
@@ -87,7 +87,7 @@ func (api *LocalShardApi) handleOutTransactions(
 	outTransactions := make([]*rpctypes.OutTransaction, len(outTxns))
 
 	for i, outTxn := range outTxns {
-		raw, err := outTxn.Transaction.MarshalSSZ()
+		raw, err := outTxn.MarshalSSZ()
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +126,7 @@ func (api *LocalShardApi) handleOutTransactions(
 	return outTransactions, nil
 }
 
-func (api *LocalShardApi) Call(
+func (api *localShardApiRo) Call(
 	ctx context.Context, args rpctypes.CallArgs,
 	mainBlockReferenceOrHashWithChildren rawapitypes.BlockReferenceOrHashWithChildren,
 	overrides *rpctypes.StateOverrides,
@@ -143,8 +143,8 @@ func (api *LocalShardApi) Call(
 	}
 
 	shardId := txn.To.ShardId()
-	if shardId != api.ShardId {
-		return nil, fmt.Errorf("destination shard %d is not equal to the instance shard %d", shardId, api.ShardId)
+	if shardId != api.shardId() {
+		return nil, fmt.Errorf("destination shard %d is not equal to the instance shard %d", shardId, api.shard)
 	}
 
 	var mainBlockHash common.Hash
@@ -229,6 +229,7 @@ func (api *LocalShardApi) Call(
 		payer = execution.NewAccountPayer(toAs, txn)
 	}
 
+	txn.TxId = es.InTxCounts[txn.From.ShardId()]
 	txnHash := es.AddInTransaction(txn)
 	res := es.HandleTransaction(ctx, txn, payer)
 

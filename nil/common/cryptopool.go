@@ -9,7 +9,7 @@ import (
 )
 
 var cryptoPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return sha3.NewLegacyKeccak256()
 	},
 }

@@ -27,7 +27,7 @@ func NewDecoder(logger logging.Logger) *decoder {
 	}
 }
 
-// decodes data data from binary format into human readable
+// decodes data from binary format into human readable
 // intermediate form (transaction in proto format encoded to protojson)
 // in case of need to access decoded data programmatically (from sync_committee or other cluster parts)
 // this decoder might be extended with returning something like types.BlockBatch functionality

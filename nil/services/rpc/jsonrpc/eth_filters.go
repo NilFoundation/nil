@@ -54,14 +54,10 @@ func (l *LogsAggregator) CreateBlocksListener() (filters.SubscriptionID, error) 
 	}
 
 	go func() {
-		for {
-			if block, ok := <-ch; ok {
-				l.blocksMap.DoAndStore(id, func(t []*types.Block, ok bool) []*types.Block {
-					return append(t, block)
-				})
-			} else {
-				break
-			}
+		for block := range ch {
+			l.blocksMap.DoAndStore(id, func(t []*types.Block, ok bool) []*types.Block {
+				return append(t, block)
+			})
 		}
 	}()
 

@@ -51,7 +51,7 @@ func DoTestServer(
 
 		resp2 := rpcRequest(t, u, "origin", "bad")
 		defer resp2.Body.Close()
-		assert.Equal(t, "", resp2.Header.Get("Access-Control-Allow-Origin"))
+		assert.Empty(t, resp2.Header.Get("Access-Control-Allow-Origin"))
 	})
 
 	// TestVhosts makes sure vhosts is properly handled on the http server.

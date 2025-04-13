@@ -229,7 +229,7 @@ func NewReadThroughDbWithMainShard(
 	defer tx.Rollback()
 
 	if block.DbTimestamp == types.InvalidDbTimestamp {
-		return nil, errors.New("The chosen block is too old and doesn't support read-through mode")
+		return nil, errors.New("the chosen block is too old and doesn't support read-through mode")
 	}
 	if err := client.DbInitTimestamp(ctx, block.DbTimestamp); err != nil {
 		return nil, err

@@ -9,13 +9,13 @@ import (
 )
 
 type marshalTest struct {
-	input interface{}
+	input any
 	want  string
 }
 
 type unmarshalTest struct {
 	input        string
-	want         interface{}
+	want         any
 	wantErr      error // if set, decoding must fail on any platform
 	wantErr32bit error // if set, decoding must fail on 32bit platforms (used for Uint tests)
 }
@@ -72,7 +72,7 @@ func TestEncodeBig(t *testing.T) {
 
 			in, ok := test.input.(*big.Int)
 			require.True(t, ok)
-			require.EqualValues(t, test.want, EncodeBig(in))
+			require.Equal(t, test.want, EncodeBig(in))
 		})
 	}
 }
@@ -86,7 +86,7 @@ func TestEncodeUint64(t *testing.T) {
 
 			in, ok := test.input.(uint64)
 			require.True(t, ok)
-			require.EqualValues(t, test.want, EncodeUint64(in))
+			require.Equal(t, test.want, EncodeUint64(in))
 		})
 	}
 }
@@ -101,7 +101,7 @@ func TestDecodeUint64(t *testing.T) {
 			dec, err := DecodeUint64(test.input)
 			checkError(t, test.input, err, test.wantErr)
 			if test.want != nil {
-				require.EqualValues(t, test.want, dec)
+				require.Equal(t, test.want, dec)
 			}
 		})
 	}

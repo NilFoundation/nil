@@ -41,3 +41,8 @@ This tutorial is verified once the following checks are passed.
 * *NFT* cannot mint tokens after the first mint.
 * *NFT* can successfully send the custom token to *Receiver*.
 
+
+To run these checks:
+
+1. Compile both contacts
+2. Click on 'Run Checks'

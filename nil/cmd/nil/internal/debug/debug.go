@@ -19,13 +19,12 @@ import (
 
 var logger = logging.NewLogger("debugCommand")
 
-var params = &debugParams{}
-
 type debugParams struct {
 	fullOutput bool
 }
 
 type DebugHandler struct {
+	params           *debugParams
 	Service          *cliservice.Service
 	CometaClient     *cometa.Client
 	RootReceipt      *ReceiptInfo
@@ -43,11 +42,15 @@ type ReceiptInfo struct {
 }
 
 func GetCommand() *cobra.Command {
+	params := &debugParams{}
+
 	cmd := &cobra.Command{
 		Use:   "debug [options] transaction hash",
 		Short: "Debug a transaction",
 		Args:  cobra.ExactArgs(1),
-		RunE:  runCommand,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCommand(cmd, args, params)
+		},
 	}
 
 	cmd.Flags().BoolVar(&params.fullOutput, "full", false, "Show full data output(don't truncate big data)")
@@ -55,8 +58,14 @@ func GetCommand() *cobra.Command {
 	return cmd
 }
 
-func NewDebugHandler(service *cliservice.Service, cometaClient *cometa.Client, txnHash libcommon.Hash) *DebugHandler {
+func NewDebugHandler(
+	params *debugParams,
+	service *cliservice.Service,
+	cometaClient *cometa.Client,
+	txnHash libcommon.Hash,
+) *DebugHandler {
 	return &DebugHandler{
+		params:           params,
 		Service:          service,
 		CometaClient:     cometaClient,
 		TxnHash:          txnHash,
@@ -125,7 +134,7 @@ func (d *DebugHandler) CollectReceiptsRec(
 		Transaction: txn,
 		Contract:    contract,
 	}
-	txnIndex += 1
+	txnIndex++
 	for _, outReceipt := range receipt.OutReceipts {
 		if _, err = d.CollectReceiptsRec(receiptInfo, outReceipt); err != nil {
 			return nil, err
@@ -156,7 +165,7 @@ func (d *DebugHandler) SelectFailedReceipts() []*ReceiptInfo {
 func (d *DebugHandler) PrintSourceLocation(receipt *ReceiptInfo, loc *cometa.Location) error {
 	lines, err := receipt.Contract.GetSourceLines(loc.FileName)
 	if err != nil {
-		return fmt.Errorf("Failed to fetch the source lines: %w\n", err)
+		return fmt.Errorf("failed to fetch the source lines: %w", err)
 	}
 	startLine := int(loc.Line) - 3
 	if startLine < 1 {
@@ -213,7 +222,7 @@ var (
 )
 
 func (d *DebugHandler) truncateData(length int, data []byte) string {
-	if len(data) > length && !params.fullOutput {
+	if len(data) > length && !d.params.fullOutput {
 		return fmt.Sprintf("%x...<%d bytes>", data[:length], len(data)-length)
 	}
 	return hex.EncodeToString(data)
@@ -351,7 +360,7 @@ func (d *DebugHandler) PrintTransactionChain() {
 	d.PrintReceipt(d.RootReceipt, "", "")
 }
 
-func runCommand(cmd *cobra.Command, args []string) error {
+func runCommand(cmd *cobra.Command, args []string, params *debugParams) error {
 	service := cliservice.NewService(cmd.Context(), common.GetRpcClient(), nil, nil)
 
 	hashStr := args[0]
@@ -366,7 +375,7 @@ func runCommand(cmd *cobra.Command, args []string) error {
 
 	cometa := common.GetCometaRpcClient()
 
-	debugHandler := NewDebugHandler(service, cometa, txnHash)
+	debugHandler := NewDebugHandler(params, service, cometa, txnHash)
 
 	receipt, err := service.FetchReceiptByHash(txnHash)
 	if err != nil {

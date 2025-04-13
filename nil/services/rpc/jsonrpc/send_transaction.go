@@ -30,7 +30,7 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Byte
 		headers.Add("Client-Type", "failed to extract headers from context")
 	}
 
-	log := api.clientEventsLog.Log().
+	log := api.clientEventsLog.Info().
 		Stringer(logging.FieldShardId, shardId).
 		Str(logging.FieldRpcMethod, "eth_sendRawTransaction").
 		Str(logging.FieldClientType, headers.Get("Client-Type")).

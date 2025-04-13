@@ -1,7 +1,6 @@
 package rollupcontract
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"errors"
@@ -11,53 +10,109 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 )
 
-type Wrapper struct {
+type Wrapper interface {
+	UpdateState(
+		ctx context.Context,
+		batchIndex string,
+		dataProofs types.DataProofs,
+		oldStateRoot, newStateRoot common.Hash,
+		validityProof []byte,
+		publicDataInputs INilRollupPublicDataInfo,
+	) error
+	FinalizedStateRoot(ctx context.Context, finalizedBatchIndex string) (common.Hash, error)
+	FinalizedBatchIndex(ctx context.Context) (string, error)
+	CommitBatch(
+		ctx context.Context,
+		sidecar *ethtypes.BlobTxSidecar,
+		batchIndex string,
+	) error
+	PrepareBlobs(ctx context.Context, blobs []kzg4844.Blob) (*ethtypes.BlobTxSidecar, types.DataProofs, error)
+}
+
+type WrapperConfig struct {
+	Endpoint           string        `yaml:"l1Endpoint,omitempty"`
+	RequestsTimeout    time.Duration `yaml:"l1ClientTimeout,omitempty"`
+	DisableL1          bool          `yaml:"disableL1,omitempty"`
+	PrivateKeyHex      string        `yaml:"l1PrivateKey,omitempty"`
+	ContractAddressHex string        `yaml:"l1ContractAddress,omitempty"`
+}
+
+func NewDefaultWrapperConfig() WrapperConfig {
+	return WrapperConfig{
+		Endpoint:           "http://rpc2.sepolia.org",
+		RequestsTimeout:    10 * time.Second,
+		DisableL1:          false,
+		PrivateKeyHex:      "0000000000000000000000000000000000000000000000000000000000000001",
+		ContractAddressHex: "0xBa79C93859394a5DEd3c1132a87f706Cca2582aA",
+	}
+}
+
+type wrapperImpl struct {
 	rollupContract  *Rollupcontract
 	contractAddress ethcommon.Address
-	requestTimeout  time.Duration
 	privateKey      *ecdsa.PrivateKey
 	chainID         *big.Int
 	ethClient       EthClient
 	logger          logging.Logger
 }
 
+var _ Wrapper = (*wrapperImpl)(nil)
+
+// NewWrapper initializes a Wrapper for interacting with an Ethereum contract.
+// It converts contract and private key hex strings to Ethereum formats, sets up the contract instance,
+// and fetches the Ethereum client's chain ID.
 func NewWrapper(
 	ctx context.Context,
-	contractAddressHex string,
-	privateKeyHex string,
-	ethClient EthClient,
-	requestTimeout time.Duration,
+	cfg WrapperConfig,
 	logger logging.Logger,
-) (*Wrapper, error) {
-	contactAddress := ethcommon.HexToAddress(contractAddressHex)
+) (Wrapper, error) {
+	var ethClient EthClient
+	if cfg.DisableL1 {
+		return &noopWrapper{logger}, nil
+	}
+
+	ethClient, err := NewRetryingEthClient(ctx, cfg.Endpoint, cfg.RequestsTimeout, logger)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing eth client: %w", err)
+	}
+
+	return NewWrapperWithEthClient(ctx, cfg, ethClient, logger)
+}
+
+func NewWrapperWithEthClient(
+	ctx context.Context,
+	cfg WrapperConfig,
+	ethClient EthClient,
+	logger logging.Logger,
+) (Wrapper, error) {
+	contactAddress := ethcommon.HexToAddress(cfg.ContractAddressHex)
 	rollupContract, err := NewRollupcontract(contactAddress, ethClient)
 	if err != nil {
 		return nil, fmt.Errorf("can't create rollup contract instance: %w", err)
 	}
 
-	privateKeyECDSA, err := crypto.HexToECDSA(privateKeyHex)
+	privateKeyECDSA, err := crypto.HexToECDSA(cfg.PrivateKeyHex)
 	if err != nil {
 		return nil, fmt.Errorf("converting private key hex to ECDSA: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
-	defer cancel()
 	chainID, err := ethClient.ChainID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve chain ID: %w", err)
 	}
 
-	return &Wrapper{
+	return &wrapperImpl{
 		rollupContract:  rollupContract,
 		contractAddress: contactAddress,
-		requestTimeout:  requestTimeout,
 		privateKey:      privateKeyECDSA,
 		chainID:         chainID,
 		ethClient:       ethClient,
@@ -65,72 +120,57 @@ func NewWrapper(
 	}, nil
 }
 
-// UpdateState attempts to update the state of a rollup contract using the provided proofs and state roots.
-// It checks for non-empty state roots, validates the batch, verifies data proofs, and finally submits the update.
-// Returns a transaction pointer on success or an error on validation failure or submission issues.
-func (r *Wrapper) UpdateState(
-	ctx context.Context,
-	batchIndex string,
-	oldStateRoot, newStateRoot common.Hash,
-	dataProofs [][]byte,
-	blobHashes []ethcommon.Hash, // used for verification
-	validityProof []byte,
-	publicDataInputs INilRollupPublicDataInfo,
-) (*ethtypes.Transaction, error) {
-	if oldStateRoot.Empty() {
-		return nil, errors.New("old state root is empty")
-	}
-	if newStateRoot.Empty() {
-		return nil, errors.New("new state root is empty")
+func (r *wrapperImpl) FinalizedStateRoot(ctx context.Context, finalizedBatchIndex string) (common.Hash, error) {
+	return r.rollupContract.FinalizedStateRoots(r.getEthCallOpts(ctx), finalizedBatchIndex)
+}
+
+func (r *wrapperImpl) FinalizedBatchIndex(ctx context.Context) (string, error) {
+	return r.rollupContract.GetLastFinalizedBatchIndex(r.getEthCallOpts(ctx))
+}
+
+func (r *wrapperImpl) getEthCallOpts(ctx context.Context) *bind.CallOpts {
+	return &bind.CallOpts{Context: ctx}
+}
+
+type (
+	contractTransactFunc func(opts *bind.TransactOpts) error
+)
+
+func (r *wrapperImpl) getKeyedTransactor() (*bind.TransactOpts, error) {
+	keyedTransactor, err := bind.NewKeyedTransactorWithChainID(r.privateKey, r.chainID)
+	if err != nil {
+		return nil, fmt.Errorf("creating keyed transactor with chain ID: %w", err)
 	}
 
-	_, err := r.validateBatch(ctx, batchIndex, oldStateRoot)
+	return keyedTransactor, nil
+}
+
+func (r *wrapperImpl) getEthTransactOpts(ctx context.Context) (*bind.TransactOpts, error) {
+	transactOpts, err := r.getKeyedTransactor()
 	if err != nil {
 		return nil, err
 	}
+	transactOpts.Context = ctx
+	return transactOpts, nil
+}
 
-	// to make sure proofs are correct before submission, not necessary
-	if err := r.verifyDataProofs(ctx, blobHashes, dataProofs); err != nil {
-		return nil, err
-	}
-
-	transactOpts, cancel, err := r.getEthTransactOpts(ctx)
+func (r *wrapperImpl) transactWithCtx(ctx context.Context, transactFunc contractTransactFunc) error {
+	transactOpts, err := r.getEthTransactOpts(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer cancel()
 
-	return r.rollupContract.UpdateState(
-		transactOpts,
-		batchIndex,
-		oldStateRoot,
-		newStateRoot,
-		dataProofs,
-		validityProof,
-		publicDataInputs,
-	)
+	return transactFunc(transactOpts)
 }
 
-func (r *Wrapper) StateRoots(ctx context.Context, finalizedBatchIndex string) ([32]byte, error) {
-	callOpts, cancel := r.getEthCallOpts(ctx)
-	defer cancel()
-	return r.rollupContract.FinalizedStateRoots(callOpts, finalizedBatchIndex)
-}
-
-func (r *Wrapper) FinalizedBatchIndex(ctx context.Context) (string, error) {
-	callOpts, cancel := r.getEthCallOpts(ctx)
-	defer cancel()
-	return r.rollupContract.GetLastFinalizedBatchIndex(callOpts)
-}
-
-// WaitForReceipt repeatedly tries to get tx receipt, retrying on `NotFound` error (tx not mined yet).
-// In case `ReceiptWaitFor` timeout is reached, returns `(nil, nil)`.
-func (r *Wrapper) WaitForReceipt(ctx context.Context, txnHash ethcommon.Hash) (*ethtypes.Receipt, error) {
+// waitForReceipt repeatedly tries to get tx receipt, retrying on `NotFound` error (tx not mined yet).
+// In case `ReceiptWaitFor` timeout is reached, raises an error.
+func (r *wrapperImpl) waitForReceipt(ctx context.Context, txnHash ethcommon.Hash) (*ethtypes.Receipt, error) {
 	const (
 		ReceiptWaitFor  = 30 * time.Second
 		ReceiptWaitTick = 500 * time.Millisecond
 	)
-	return common.WaitForValue(
+	receipt, err := common.WaitForValue(
 		ctx,
 		ReceiptWaitFor,
 		ReceiptWaitTick,
@@ -142,114 +182,71 @@ func (r *Wrapper) WaitForReceipt(ctx context.Context, txnHash ethcommon.Hash) (*
 			}
 			return receipt, err
 		})
+	if err != nil {
+		return nil, err
+	}
+	if receipt == nil {
+		return nil, errors.New("waitForReceipt timeout reached")
+	}
+	return receipt, nil
 }
 
-func (r *Wrapper) verifyDataProofs(
+// logReceiptDetails logs the essential details of a transaction receipt.
+func (r *wrapperImpl) logReceiptDetails(receipt *ethtypes.Receipt) {
+	r.logger.Info().
+		Uint8("type", receipt.Type).
+		Uint64("status", receipt.Status).
+		Uint64("cumulativeGasUsed", receipt.CumulativeGasUsed).
+		Hex("txHash", receipt.TxHash.Bytes()).
+		Str("contractAddress", receipt.ContractAddress.Hex()).
+		Uint64("gasUsed", receipt.GasUsed).
+		Str("effectiveGasPrice", receipt.EffectiveGasPrice.String()).
+		Hex("blockHash", receipt.BlockHash.Bytes()).
+		Str("blockNumber", receipt.BlockNumber.String()).
+		Uint("transactionIndex", receipt.TransactionIndex).
+		Msg("transaction receipt received")
+}
+
+type noopWrapper struct {
+	logger logging.Logger
+}
+
+var _ Wrapper = (*noopWrapper)(nil)
+
+func (w *noopWrapper) UpdateState(
 	ctx context.Context,
-	hashes []ethcommon.Hash,
-	dataProofs [][]byte,
+	batchIndex string,
+	dataProofs types.DataProofs,
+	oldStateRoot, newStateRoot common.Hash,
+	validityProof []byte,
+	publicDataInputs INilRollupPublicDataInfo,
 ) error {
-	opts, cancel := r.getEthCallOpts(ctx)
-	defer cancel()
-	for i, blobHash := range hashes {
-		if err := r.rollupContract.VerifyDataProof(opts, blobHash, dataProofs[i]); err != nil {
-			// TODO: make verification return a value.
-			//  Currently, no way to distinguish network error from verification one
-			return fmt.Errorf("proof verification failed for versioned hash %s (%w)", blobHash.Hex(), err)
-		}
-	}
+	w.logger.Debug().Msg("UpdateState noop wrapper method called")
 	return nil
 }
 
-func (r *Wrapper) getEthCallOpts(ctx context.Context) (*bind.CallOpts, context.CancelFunc) {
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, r.requestTimeout)
-	return &bind.CallOpts{Context: ctxWithTimeout}, cancel
+func (w *noopWrapper) FinalizedStateRoot(ctx context.Context, finalizedBatchIndex string) (common.Hash, error) {
+	w.logger.Debug().Msg("FinalizedStateRoot noop wrapper method called")
+	return common.Hash{}, nil
 }
 
-type contractCall func(opts *bind.CallOpts) error
-
-// callWithTimeout executes a contract call with the specified timeout
-func (r *Wrapper) callWithTimeout(ctx context.Context, call contractCall) error {
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, r.requestTimeout)
-	defer cancel()
-
-	return call(&bind.CallOpts{Context: ctxWithTimeout})
+func (w *noopWrapper) FinalizedBatchIndex(ctx context.Context) (string, error) {
+	w.logger.Debug().Msg("FinalizedBatchIndex noop wrapper method called")
+	return "", nil
 }
 
-func (r *Wrapper) getEthTransactOpts(ctx context.Context) (*bind.TransactOpts, context.CancelFunc, error) {
-	keyedTransactor, err := bind.NewKeyedTransactorWithChainID(r.privateKey, r.chainID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("creating keyed transactor with chain ID: %w", err)
-	}
-
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, r.requestTimeout)
-	keyedTransactor.Context = ctxWithTimeout
-	return keyedTransactor, cancel, nil
+func (w *noopWrapper) PrepareBlobs(
+	ctx context.Context, blobs []kzg4844.Blob,
+) (*ethtypes.BlobTxSidecar, types.DataProofs, error) {
+	w.logger.Debug().Msg("PrepareBlobs noop wrapper method called")
+	return nil, nil, nil
 }
 
-// BatchValidation contains validation results for a batch
-type BatchValidation struct {
-	IsFinalized             bool
-	IsCommitted             bool
-	LastFinalizedBatchIndex string
-	LastFinalizedStateRoot  common.Hash
-}
-
-func (r *Wrapper) validateBatch(
+func (w *noopWrapper) CommitBatch(
 	ctx context.Context,
+	sidecar *ethtypes.BlobTxSidecar,
 	batchIndex string,
-	oldStateRoot common.Hash,
-) (*BatchValidation, error) {
-	validation := &BatchValidation{}
-
-	// Check if batch is finalized
-	if err := r.callWithTimeout(ctx, func(opts *bind.CallOpts) error {
-		isFinalized, err := r.rollupContract.IsBatchFinalized(opts, batchIndex)
-		validation.IsFinalized = isFinalized
-		return err
-	}); err != nil {
-		return nil, err
-	}
-
-	if validation.IsFinalized {
-		return nil, ErrBatchAlreadyFinalized
-	}
-
-	// Check if batch is committed
-	if err := r.callWithTimeout(ctx, func(opts *bind.CallOpts) error {
-		isCommitted, err := r.rollupContract.IsBatchCommitted(opts, batchIndex)
-		validation.IsCommitted = isCommitted
-		return err
-	}); err != nil {
-		return nil, err
-	}
-
-	if !validation.IsCommitted {
-		return nil, fmt.Errorf("can't call UpdateState with uncommitted batch %s", batchIndex)
-	}
-
-	// Get last finalized batch index
-	if err := r.callWithTimeout(ctx, func(opts *bind.CallOpts) error {
-		index, err := r.rollupContract.LastFinalizedBatchIndex(opts)
-		validation.LastFinalizedBatchIndex = index
-		return err
-	}); err != nil {
-		return nil, err
-	}
-
-	// Get last finalized state root
-	if err := r.callWithTimeout(ctx, func(opts *bind.CallOpts) error {
-		stateRoot, err := r.rollupContract.FinalizedStateRoots(opts, validation.LastFinalizedBatchIndex)
-		validation.LastFinalizedStateRoot = stateRoot
-		return err
-	}); err != nil {
-		return nil, err
-	}
-
-	if !bytes.Equal(validation.LastFinalizedStateRoot[:], oldStateRoot.Bytes()) {
-		return nil, fmt.Errorf("last finalized state root (%s) and oldStateRoot (%s) differ",
-			validation.LastFinalizedStateRoot, oldStateRoot)
-	}
-
-	return validation, nil
+) error {
+	w.logger.Debug().Msg("CommitBatch noop wrapper method called")
+	return nil
 }

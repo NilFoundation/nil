@@ -13,7 +13,7 @@ import (
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
 
-func (api *LocalShardApi) GetBlockHeader(
+func (api *localShardApiRo) GetBlockHeader(
 	ctx context.Context,
 	blockReference rawapitypes.BlockReference,
 ) (sszx.SSZEncodedData, error) {
@@ -30,7 +30,7 @@ func (api *LocalShardApi) GetBlockHeader(
 	return block.Block, nil
 }
 
-func (api *LocalShardApi) GetFullBlockData(
+func (api *localShardApiRo) GetFullBlockData(
 	ctx context.Context,
 	blockReference rawapitypes.BlockReference,
 ) (*types.RawBlockWithExtractedData, error) {
@@ -43,7 +43,7 @@ func (api *LocalShardApi) GetFullBlockData(
 	return api.getBlockByReference(tx, blockReference, true)
 }
 
-func (api *LocalShardApi) GetBlockTransactionCount(
+func (api *localShardApiRo) GetBlockTransactionCount(
 	ctx context.Context,
 	blockReference rawapitypes.BlockReference,
 ) (uint64, error) {
@@ -60,7 +60,7 @@ func (api *LocalShardApi) GetBlockTransactionCount(
 	return uint64(len(res.InTransactions)), nil
 }
 
-func (api *LocalShardApi) getBlockByReference(
+func (api *localShardApiRo) getBlockByReference(
 	tx db.RoTx,
 	blockReference rawapitypes.BlockReference,
 	withTransactions bool,
@@ -73,19 +73,19 @@ func (api *LocalShardApi) getBlockByReference(
 	return api.getBlockByHash(tx, blockHash, withTransactions)
 }
 
-func (api *LocalShardApi) getBlockHashByReference(
+func (api *localShardApiRo) getBlockHashByReference(
 	tx db.RoTx,
 	blockReference rawapitypes.BlockReference,
 ) (common.Hash, error) {
 	switch blockReference.Type() {
 	case rawapitypes.NumberBlockReference:
-		return db.ReadBlockHashByNumber(tx, api.ShardId, types.BlockNumber(blockReference.Number()))
+		return db.ReadBlockHashByNumber(tx, api.shardId(), types.BlockNumber(blockReference.Number()))
 	case rawapitypes.NamedBlockIdentifierReference:
 		switch blockReference.NamedBlockIdentifier() {
 		case rawapitypes.EarliestBlock:
-			return db.ReadBlockHashByNumber(tx, api.ShardId, 0)
+			return db.ReadBlockHashByNumber(tx, api.shardId(), 0)
 		case rawapitypes.LatestBlock, rawapitypes.PendingBlock:
-			return db.ReadLastBlockHash(tx, api.ShardId)
+			return db.ReadLastBlockHash(tx, api.shardId())
 		}
 		return common.EmptyHash, errors.New("unknown named block identifier")
 	case rawapitypes.HashBlockReference:
@@ -94,12 +94,12 @@ func (api *LocalShardApi) getBlockHashByReference(
 	return common.EmptyHash, errors.New("unknown block reference type")
 }
 
-func (api *LocalShardApi) getBlockByHash(
+func (api *localShardApiRo) getBlockByHash(
 	tx db.RoTx,
 	hash common.Hash,
 	withTransactions bool,
 ) (*types.RawBlockWithExtractedData, error) {
-	accessor := api.accessor.RawAccess(tx, api.ShardId).GetBlock()
+	accessor := api.accessor.RawAccess(tx, api.shardId()).GetBlock()
 	if withTransactions {
 		accessor = accessor.
 			WithInTransactions().
@@ -124,7 +124,7 @@ func (api *LocalShardApi) getBlockByHash(
 		if err := block.UnmarshalSSZ(data.Block()); err != nil {
 			return nil, err
 		}
-		blockHash := block.Hash(api.ShardId)
+		blockHash := block.Hash(api.shardId())
 		check.PanicIfNotf(blockHash == hash, "block hash mismatch: %s != %s", blockHash, hash)
 	}
 
@@ -133,7 +133,9 @@ func (api *LocalShardApi) getBlockByHash(
 	}
 	if withTransactions {
 		result.InTransactions = data.InTransactions()
+		result.InTxCounts = data.InTxCounts()
 		result.OutTransactions = data.OutTransactions()
+		result.OutTxCounts = data.OutTxCounts()
 		result.Receipts = data.Receipts()
 		result.Errors = make(map[common.Hash]string)
 		result.ChildBlocks = data.ChildBlocks()

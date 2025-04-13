@@ -24,3 +24,6 @@
   batchSize: 20
 - name: blockchain_metrics
   interval: 10s
+- name: do_panic
+  interval: 20m
+  shardId: 2

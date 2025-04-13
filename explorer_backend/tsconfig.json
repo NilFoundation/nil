@@ -30,6 +30,6 @@
   "ts-node": {
     "esm": true
   },
-  "exclude": ["node_modules"],
-  "include": ["./**/*.ts", "package.json"],
+  "exclude": ["node_modules", "dist"],
+  "include": ["./**/*.ts"],
 }

@@ -4,24 +4,26 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/cobrax"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/profiling"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 )
 
+const appTitle = "=nil; Sync Committee"
+
 type cmdConfig struct {
-	*core.Config
-	DbPath string
+	*core.Config `yaml:",inline"`
+
+	DbPath string `yaml:"dbPath"`
 }
 
 func main() {
-	check.PanicIfErr(execute())
+	check.PanicIfNotCancelledErr(execute())
 }
 
 func execute() error {
@@ -30,8 +32,9 @@ func execute() error {
 		Short: "Run nil sync committee node",
 	}
 
-	cfg := &cmdConfig{
-		Config: core.NewDefaultConfig(),
+	cfg, err := loadConfig()
+	if err != nil {
+		return err
 	}
 
 	runCmd := &cobra.Command{
@@ -41,15 +44,28 @@ func execute() error {
 			return run(cfg)
 		},
 	}
-
 	addFlags(runCmd, cfg)
 
-	rootCmd.AddCommand(runCmd)
-
+	versionCmd := cobrax.VersionCmd(appTitle)
+	rootCmd.AddCommand(runCmd, versionCmd)
 	return rootCmd.Execute()
 }
 
+func loadConfig() (*cmdConfig, error) {
+	cfg := &cmdConfig{
+		Config: core.NewDefaultConfig(),
+		DbPath: "sync_committee.db",
+	}
+
+	if err := cobrax.LoadConfigFromFile(cobrax.GetConfigNameFromArgs(), cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
 func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
+	cobrax.AddConfigFlag(cmd.Flags())
 	cmd.Flags().StringVar(
 		&cfg.RpcEndpoint,
 		"endpoint",
@@ -68,32 +84,32 @@ func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
 	cmd.Flags().StringVar(
 		&cfg.DbPath,
 		"db-path",
-		"sync_committee.db",
+		cfg.DbPath,
 		"path to database")
 	cmd.Flags().StringVar(
-		&cfg.ProposerParams.Endpoint,
+		&cfg.ContractWrapperConfig.Endpoint,
 		"l1-endpoint",
-		cfg.ProposerParams.Endpoint,
+		cfg.ContractWrapperConfig.Endpoint,
 		"L1 endpoint")
 	cmd.Flags().StringVar(
-		&cfg.ProposerParams.PrivateKey,
+		&cfg.ContractWrapperConfig.PrivateKeyHex,
 		"l1-private-key",
-		cfg.ProposerParams.PrivateKey,
+		cfg.ContractWrapperConfig.PrivateKeyHex,
 		"L1 account private key")
 	cmd.Flags().StringVar(
-		&cfg.ProposerParams.ContractAddress,
+		&cfg.ContractWrapperConfig.ContractAddressHex,
 		"l1-contract-address",
-		cfg.ProposerParams.ContractAddress,
+		cfg.ContractWrapperConfig.ContractAddressHex,
 		"L1 update state contract address")
 	cmd.Flags().DurationVar(
-		&cfg.ProposerParams.EthClientTimeout,
+		&cfg.ContractWrapperConfig.RequestsTimeout,
 		"l1-client-timeout",
-		cfg.ProposerParams.EthClientTimeout,
+		cfg.ContractWrapperConfig.RequestsTimeout,
 		"L1 client timeout")
 	cmd.Flags().BoolVar(
-		&cfg.ProposerParams.DisableL1,
+		&cfg.ContractWrapperConfig.DisableL1,
 		"disable-l1",
-		cfg.ProposerParams.DisableL1,
+		cfg.ContractWrapperConfig.DisableL1,
 		"Disable send trancations to L1")
 	logLevel := cmd.Flags().String(
 		"log-level",
@@ -117,17 +133,14 @@ func run(cfg *cmdConfig) error {
 	}
 	defer database.Close()
 
-	ethClient, err := connectToEthClient(cfg.ProposerParams.Endpoint, cfg.ProposerParams.EthClientTimeout)
-	if err != nil {
-		return err
-	}
+	ctx := context.Background()
 
-	service, err := core.New(cfg.Config, database, ethClient)
+	service, err := core.New(ctx, cfg.Config, database)
 	if err != nil {
 		return fmt.Errorf("can't create sync committee service: %w", err)
 	}
 
-	err = service.Run(context.Background())
+	err = service.Run(ctx)
 	if err != nil {
 		return fmt.Errorf("service exited with error: %w", err)
 	}
@@ -141,14 +154,4 @@ func openDB(dbPath string) (db.DB, error) {
 		return nil, fmt.Errorf("failed to create new BadgerDB: %w", err)
 	}
 	return badger, nil
-}
-
-func connectToEthClient(url string, timeout time.Duration) (*ethclient.Client, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	ethClient, err := ethclient.DialContext(ctx, url)
-	if err != nil {
-		return nil, fmt.Errorf("connecting to ETH RPC node: %w", err)
-	}
-	return ethClient, nil
 }

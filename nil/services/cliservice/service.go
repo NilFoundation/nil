@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/faucet"
 )
@@ -30,4 +31,14 @@ func NewService(ctx context.Context, c client.Client, privateKey *ecdsa.PrivateK
 	s.privateKey = privateKey
 
 	return s
+}
+
+func (s *Service) Client() client.Client {
+	return s.client
+}
+
+func (s *Service) CloneWithPrivateKey(privateKey *ecdsa.PrivateKey) *Service {
+	service := common.CopyPtr(s)
+	service.privateKey = privateKey
+	return service
 }

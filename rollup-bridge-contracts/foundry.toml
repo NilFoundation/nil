@@ -19,7 +19,6 @@ fs_permissions = [
 fuzz_runs = 256 # the number of fuzz runs for tests
 gas_limit = 9223372036854775807 # the gas limit in tests
 gas_price = 0 # the gas price (in wei) in tests
-ignored_error_codes = [] # a list of ignored solc error codes   
 initial_balance = '0xffffffffffffffffffffffff' # the initial balance of the test contract
 libs = ["lib"] 
 optimizer = true 
@@ -40,6 +39,7 @@ src = "contracts"
 test = "/build/source/rollup-bridge-contracts/test" 
 tx_origin = '0x7580E71C10e5023a46DD11F21116471dcd60C400' # the address of `tx.origin` in tests
 verbosity = 2 # the verbosity of tests
+via_ir = true 
 
 [fmt]
 bracket_spacing = true

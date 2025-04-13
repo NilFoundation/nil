@@ -29,16 +29,28 @@ type Proof struct {
 	PathToNode ProofPath
 }
 
+// BuildProof constructs a proof for the given key in the MPT.
+// If no common path is found, the root node is included to prove that the key does not exist in the trie.
 func BuildProof(tree *Reader, key []byte, op MPTOperation) (Proof, error) {
 	if len(key) > maxRawKeyLen {
 		key = poseidon.Sum(key)
 	}
 	p := Proof{operation: op, key: key}
 
-	if path, err := getMaxMatchingRoute(tree, key); err != nil {
+	path, err := getMaxMatchingRoute(tree, key)
+	if err != nil {
 		return p, err
-	} else {
-		p.PathToNode = path
+	}
+	p.PathToNode = path
+
+	if len(p.PathToNode) == 0 && tree.root != nil {
+		if rootNode, err := tree.getNode(tree.root); err != nil {
+			if !errors.Is(err, db.ErrKeyNotFound) {
+				return p, err
+			}
+		} else {
+			p.PathToNode = []Node{rootNode}
+		}
 	}
 
 	return p, nil
@@ -156,6 +168,8 @@ func unwrapSparseMpt(p *Proof) (*MerklePatriciaTrie, error) {
 	return mpt, nil
 }
 
+// PopulateMptWithProof sets the root of the `mpt` instance to the first node from the `p` proof
+// and populates it with nodes contained in the proof.
 func PopulateMptWithProof(mpt *MerklePatriciaTrie, p *Proof) error {
 	for i, node := range p.PathToNode {
 		if nodeRef, err := mpt.storeNode(node); err != nil {

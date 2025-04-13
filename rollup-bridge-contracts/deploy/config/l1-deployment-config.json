@@ -1,0 +1,66 @@
+{
+  "networks": {
+    "geth": {
+      "l1DeployerConfig": {
+        "owner": "",
+        "admin": ""
+      },
+      "l1CommonContracts": {
+        "weth": ""
+      },
+      "nilRollup": {
+        "nilRollupContracts": {
+          "proxyAdmin": "",
+          "nilRollupImplementation": "",
+          "nilRollupProxy": "",
+          "nilVerifier": ""
+        },
+        "nilRollupDeployerConfig": {
+          "proposerAddress": ""
+        },
+        "nilRollupInitConfig": {
+          "l2ChainId": 0,
+          "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
+        }
+      },
+      "l1BridgeRouter": {
+        "proxyAdmin": "",
+        "l1BridgeRouterProxy": "",
+        "l1BridgeRouterImplementation": ""
+      },
+      "l1BridgeMessenger": {
+        "l1BridgeMessengerContracts": {
+          "proxyAdmin": "",
+          "l1BridgeMessengerProxy": "",
+          "l1BridgeMessengerImplementation": ""
+        },
+        "l1BridgeMessengerDeployerConfig": {
+          "maxProcessingTimeInEpochSeconds": 10000
+        }
+      },
+      "l1ERC20Bridge": {
+        "proxyAdmin": "",
+        "l1ERC20BridgeProxy": "",
+        "l1ERC20BridgeImplementation": ""
+      },
+      "l1ETHBridge": {
+        "proxyAdmin": "",
+        "l1ETHBridgeProxy": "",
+        "l1ETHBridgeImplementation": ""
+      },
+      "nilGasPriceOracle": {
+        "nilGasPriceOracleContracts": {
+          "proxyAdmin": "",
+          "nilGasPriceOracleProxy": "",
+          "nilGasPriceOracleImplementation": ""
+        },
+        "nilGasPriceOracleDeployerConfig": {
+          "proposerAddress": "",
+          "nilGasPriceOracleMaxFeePerGas": 1000,
+          "nilGasPriceOracleMaxPriorityFeePerGas": 1000,
+          "nilGasPriceSetterAddress": ""
+        }
+      }
+    }
+  }
+}

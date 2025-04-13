@@ -35,15 +35,17 @@ type OpContext interface {
 	Address() types.Address
 	CallValue() *uint256.Int
 	CallInput() []byte
+	Code() []byte
 }
 
 // StateDB gives tracers access to the whole state.
 type StateDB interface {
-	GetBalance(types.Address) *uint256.Int
-	GetNonce(types.Address) uint64
-	GetCode(types.Address) []byte
-	GetState(types.Address, common.Hash) common.Hash
-	Exist(types.Address) bool
+	GetBalance(types.Address) (types.Value, error)
+	GetSeqno(types.Address) (types.Seqno, error)
+	GetExtSeqno(types.Address) (types.Seqno, error)
+	GetCode(types.Address) ([]byte, common.Hash, error)
+	GetState(types.Address, common.Hash) (common.Hash, error)
+	Exists(types.Address) (bool, error)
 	GetRefund() uint64
 }
 
@@ -54,7 +56,7 @@ type VMContext struct {
 	Time        uint64
 	Random      *common.Hash
 	// Effective tx gas price
-	GasPrice    *big.Int
+	BaseFee     *big.Int
 	ChainConfig *params.ChainConfig
 	StateDB     StateDB
 }
@@ -75,11 +77,11 @@ type (
 
 	// TxStartHook is called before the execution of a transaction starts.
 	// Call simulations don't come with a valid signature. `from` field
-	// to be used for the address of the caller.
-	// TxStartHook = func(vm *VMContext, tx *types.Transaction, from common.Address)
+	// to be used for address of the caller.
+	TxStartHook = func(env *VMContext, tx *types.Transaction)
 
 	// TxEndHook is called after the execution of a transaction ends.
-	// TxEndHook = func(receipt *types.Receipt, err error)
+	TxEndHook = func(env *VMContext, tx *types.Transaction, err types.ExecError)
 
 	// EnterHook is invoked when the processing of a transaction starts.
 	//
@@ -174,8 +176,8 @@ type (
 
 type Hooks struct {
 	// VM events
-	// OnTxStart   TxStartHook
-	// OnTxEnd     TxEndHook
+	OnTxStart   TxStartHook
+	OnTxEnd     TxEndHook
 	OnEnter     EnterHook
 	OnExit      ExitHook
 	OnOpcode    OpcodeHook

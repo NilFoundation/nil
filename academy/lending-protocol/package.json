@@ -12,7 +12,7 @@
     "lint:fix": "biome check --write ."
   },
   "dependencies": {
-    "@nilfoundation/create-nil-hardhat-project": "^1.0.1",
+    "create-nil-hardhat-project": "workspace:*",
     "@nilfoundation/niljs": "0.25.0",
     "@nilfoundation/smart-contracts": "0.7.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

@@ -10,7 +10,7 @@ import (
 )
 
 type withCustomNotifeeDecorator struct {
-	libp2pconnmgr.ConnManager
+	*connmgr.BasicConnMgr
 
 	notifee network.Notifiee
 }
@@ -19,7 +19,10 @@ func (cm *withCustomNotifeeDecorator) Notifee() network.Notifiee {
 	return cm.notifee
 }
 
-var _ libp2pconnmgr.ConnManager = (*withCustomNotifeeDecorator)(nil)
+var (
+	_ libp2pconnmgr.ConnManager = (*withCustomNotifeeDecorator)(nil)
+	_ libp2pconnmgr.Decayer     = (*withCustomNotifeeDecorator)(nil)
+)
 
 func NewConnectionManagerWithPeerReputationTracking(
 	ctx context.Context,
@@ -35,7 +38,7 @@ func NewConnectionManagerWithPeerReputationTracking(
 	notifee := newNotifiee(baseConnectionManager.Notifee(), conf, logger)
 	notifee.start(ctx)
 	return &withCustomNotifeeDecorator{
-		ConnManager: baseConnectionManager,
-		notifee:     notifee,
+		BasicConnMgr: baseConnectionManager,
+		notifee:      notifee,
 	}, nil
 }

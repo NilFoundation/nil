@@ -170,7 +170,7 @@ func (h *handler) handleBatch(msgs []*Message) {
 
 	// Process calls on a goroutine because they may block indefinitely:
 	// All goroutines will place results right to this array. Because requests order must match reply orders.
-	answers := make([]interface{}, len(msgs))
+	answers := make([]any, len(msgs))
 	// Bounded parallelism pattern explanation https://blog.golang.org/pipelines#TOC_9.
 	boundedConcurrency := make(chan struct{}, h.maxBatchConcurrency)
 	defer close(boundedConcurrency)
@@ -245,7 +245,7 @@ func (h *handler) handleCallMsg(ctx context.Context, msg *Message, stream *jsoni
 			msg.Result = resp.Result
 		}
 
-		h.log(h.requestLoggingLevel(), msg, "Served.", requestDuration)
+		h.log(h.requestLoggingLevel(), msg, "Served: "+msg.Method, requestDuration)
 
 		return resp
 	case msg.hasValidID():

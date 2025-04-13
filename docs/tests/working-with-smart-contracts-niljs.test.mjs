@@ -87,7 +87,7 @@ describe.sequential("Nil.js deployment tests", async () => {
         faucetEndpoint: FAUCET_ENDPOINT,
       });
 
-      const { address: retailerAddress, hash: retailerDeploymentHash } =
+      const { address: retailerAddress, tx: retailerDeploymenttx } =
         await smartAccount.deployContract({
           bytecode: RETAILER_BYTECODE,
           abi: RETAILER_ABI,
@@ -98,14 +98,14 @@ describe.sequential("Nil.js deployment tests", async () => {
           shardId: 1,
         });
 
-      const receiptsRetailer = await waitTillCompleted(client, retailerDeploymentHash);
+      const receiptsRetailer = await retailerDeploymenttx.wait();
       expect(receiptsRetailer.some((receipt) => !receipt.success)).toBe(false);
       const retailerCode = await client.getCode(retailerAddress, "latest");
 
       expect(retailerCode).toBeDefined();
       expect(retailerCode.length).toBeGreaterThan(10);
 
-      const { address: manufacturerAddress, hash: manufacturerDeploymentHash } =
+      const { address: manufacturerAddress, tx: manufacturerDeploymenttx } =
         await smartAccount.deployContract({
           bytecode: MANUFACTURER_BYTECODE,
           abi: MANUFACTURER_ABI,
@@ -116,7 +116,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           shardId: 2,
         });
 
-      const manufacturerReceipts = await waitTillCompleted(client, manufacturerDeploymentHash);
+      const manufacturerReceipts = await manufacturerDeploymenttx.wait();
 
       expect(manufacturerReceipts.some((receipt) => !receipt.success)).toBe(false);
       const manufacturerCode = await client.getCode(manufacturerAddress, "latest");
@@ -180,7 +180,7 @@ describe.sequential("Nil.js deployment tests", async () => {
         faucetEndpoint: FAUCET_ENDPOINT,
       });
 
-      const { address: retailerAddress, hash: retailerDeploymentHash } =
+      const { address: retailerAddress, tx: retailerDeploymenttx } =
         await smartAccount.deployContract({
           bytecode: RETAILER_BYTECODE,
           abi: RETAILER_ABI,
@@ -191,7 +191,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           shardId: 1,
         });
 
-      const receiptsRetailer = await waitTillCompleted(client, retailerDeploymentHash);
+      const receiptsRetailer = await retailerDeploymenttx.wait();
       //endInternalDeployOfRetailer
       expect(receiptsRetailer.some((receipt) => !receipt.success)).toBe(false);
       const retailerCode = await client.getCode(retailerAddress, "latest");
@@ -201,7 +201,7 @@ describe.sequential("Nil.js deployment tests", async () => {
 
       //startInternalDeployOfManufacturer
 
-      const { address: manufacturerAddress, hash: manufacturerDeploymentHash } =
+      const { address: manufacturerAddress, tx: manufacturerDeploymenttx } =
         await smartAccount.deployContract({
           bytecode: MANUFACTURER_BYTECODE,
           abi: MANUFACTURER_ABI,
@@ -212,7 +212,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           shardId: 2,
         });
 
-      const manufacturerReceipts = await waitTillCompleted(client, manufacturerDeploymentHash);
+      const manufacturerReceipts = await manufacturerDeploymenttx.wait();
       //endInternalDeployOfManufacturer
 
       expect(manufacturerReceipts.some((receipt) => !receipt.success)).toBe(false);
@@ -226,7 +226,7 @@ describe.sequential("Nil.js deployment tests", async () => {
 
       await waitTillCompleted(client, hashFunds);
 
-      const hashProduct = await smartAccount.sendTransaction({
+      const tx = await smartAccount.sendTransaction({
         to: retailerAddress,
         data: encodeFunctionData({
           abi: RETAILER_ABI,
@@ -236,7 +236,7 @@ describe.sequential("Nil.js deployment tests", async () => {
         feeCredit: 3_000_000n * gasPrice,
       });
 
-      const productReceipts = await waitTillCompleted(client, hashProduct);
+      const productReceipts = await tx.wait();
       //endRetailerSendsTransactionToManufacturer
 
       expect(productReceipts.some((receipt) => !receipt.success)).toBe(false);

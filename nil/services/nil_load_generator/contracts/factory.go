@@ -5,7 +5,6 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 )
@@ -18,24 +17,18 @@ func NewFactory(contract Contract) *Factory {
 	return &Factory{Contract: contract}
 }
 
-func (f *Factory) Deploy(
-	service *cliservice.Service,
-	deploySmartAccount SmartAccount,
-	smartAccount types.Address,
-) error {
-	argsPacked, err := f.Abi.Pack("", smartAccount)
+func (f *Factory) Deploy(smartAccount SmartAccount) error {
+	argsPacked, err := f.Abi.Pack("", smartAccount.Addr)
 	if err != nil {
 		return err
 	}
-	code := append(f.Contract.Code.Clone(), argsPacked...)
-	f.Addr, err = DeployContract(service, deploySmartAccount.Addr, code)
+	code := append(f.Code.Clone(), argsPacked...)
+	f.Addr, err = DeployContract(smartAccount.CliService, smartAccount.Addr, code)
 	return err
 }
 
 func (f *Factory) CreatePair(
 	ctx context.Context,
-	service *cliservice.Service,
-	client client.Client,
 	smartAccount SmartAccount,
 	token0Address types.Address,
 	token1Address types.Address,
@@ -45,14 +38,19 @@ func (f *Factory) CreatePair(
 	if err != nil {
 		return err
 	}
-	hash, err := client.SendTransactionViaSmartAccount(ctx, smartAccount.Addr, calldata,
-		types.FeePack{}, types.NewZeroValue(), []types.TokenBalance{},
+	hash, err := smartAccount.CliService.Client().SendTransactionViaSmartAccount(
+		ctx,
+		smartAccount.Addr,
+		calldata,
+		types.FeePack{},
+		types.NewZeroValue(),
+		[]types.TokenBalance{},
 		f.Addr,
 		smartAccount.PrivateKey)
 	if err != nil {
 		return err
 	}
-	_, err = service.WaitForReceiptCommitted(hash)
+	_, err = smartAccount.CliService.WaitForReceiptCommitted(hash)
 	if err != nil {
 		return err
 	}

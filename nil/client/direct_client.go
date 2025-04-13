@@ -19,10 +19,12 @@ import (
 
 // DirectClient is a client that interacts with the end api directly, without using the rpc server.
 type DirectClient struct {
-	ethApi   jsonrpc.EthAPI
-	debugApi jsonrpc.DebugAPI
-	dbApi    jsonrpc.DbAPI
-	web3Api  jsonrpc.Web3API
+	ethApi    jsonrpc.EthAPI
+	debugApi  jsonrpc.DebugAPI
+	dbApi     jsonrpc.DbAPI
+	web3Api   jsonrpc.Web3API
+	devApi    jsonrpc.DevAPI
+	txPoolApi jsonrpc.TxPoolAPI
 }
 
 var _ Client = (*DirectClient)(nil)
@@ -30,19 +32,23 @@ var _ Client = (*DirectClient)(nil)
 func NewEthClient(
 	ctx context.Context,
 	db db.ReadOnlyDB,
-	localApi *rawapi.NodeApiOverShardApis,
+	localApi rawapi.NodeApi,
 	logger logging.Logger,
 ) (*DirectClient, error) {
 	ethApi := jsonrpc.NewEthAPI(ctx, localApi, db, true, false)
 	debugApi := jsonrpc.NewDebugAPI(localApi, logger)
 	dbApi := jsonrpc.NewDbAPI(db, logger)
 	web3Api := jsonrpc.NewWeb3API(localApi)
+	devApi := jsonrpc.NewDevAPI(localApi)
+	txPoolApi := jsonrpc.NewTxPoolAPI(localApi, logger)
 
 	return &DirectClient{
-		ethApi:   ethApi,
-		debugApi: debugApi,
-		dbApi:    dbApi,
-		web3Api:  web3Api,
+		ethApi:    ethApi,
+		debugApi:  debugApi,
+		dbApi:     dbApi,
+		web3Api:   web3Api,
+		devApi:    devApi,
+		txPoolApi: txPoolApi,
 	}, nil
 }
 
@@ -113,7 +119,21 @@ func (c *DirectClient) GetDebugBlocksRange(
 	fullTx bool,
 	batchSize int,
 ) ([]*jsonrpc.DebugRPCBlock, error) {
-	panic("Not supported")
+	if from >= to {
+		return nil, nil
+	}
+
+	result := make([]*jsonrpc.DebugRPCBlock, 0)
+	for curBlockId := from; curBlockId < to; curBlockId++ {
+		block, err := c.debugApi.GetBlockByNumber(ctx, shardId, transport.BlockNumber(curBlockId), fullTx)
+		if err != nil {
+			return nil, err
+		}
+		if block != nil {
+			result = append(result, block)
+		}
+	}
+	return result, nil
 }
 
 func (c *DirectClient) GetBlocksRange(
@@ -124,7 +144,21 @@ func (c *DirectClient) GetBlocksRange(
 	fullTx bool,
 	batchSize int,
 ) ([]*jsonrpc.RPCBlock, error) {
-	panic("Not supported")
+	if from >= to {
+		return nil, nil
+	}
+
+	result := make([]*jsonrpc.RPCBlock, 0)
+	for curBlockId := from; curBlockId < to; curBlockId++ {
+		block, err := c.ethApi.GetBlockByNumber(ctx, shardId, transport.BlockNumber(curBlockId), fullTx)
+		if err != nil {
+			return nil, err
+		}
+		if block != nil {
+			result = append(result, block)
+		}
+	}
+	return result, nil
 }
 
 func (c *DirectClient) SendTransaction(ctx context.Context, txn *types.ExternalTransaction) (common.Hash, error) {
@@ -382,9 +416,25 @@ func (c *DirectClient) GetDebugContract(
 	contractAddr types.Address,
 	blockId any,
 ) (*jsonrpc.DebugRPCContract, error) {
-	panic("Not supported")
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return nil, err
+	}
+	return c.debugApi.GetContract(ctx, contractAddr, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
 func (c *DirectClient) ClientVersion(ctx context.Context) (string, error) {
 	return c.web3Api.ClientVersion(ctx)
+}
+
+func (c *DirectClient) DoPanicOnShard(ctx context.Context, shardId types.ShardId) (uint64, error) {
+	return c.devApi.DoPanicOnShard(ctx, shardId)
+}
+
+func (c *DirectClient) GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (jsonrpc.TxPoolStatus, error) {
+	return c.txPoolApi.GetTxpoolStatus(ctx, shardId)
+}
+
+func (c *DirectClient) GetTxpoolContent(ctx context.Context, shardId types.ShardId) (jsonrpc.TxPoolContent, error) {
+	return c.txPoolApi.GetTxpoolContent(ctx, shardId)
 }

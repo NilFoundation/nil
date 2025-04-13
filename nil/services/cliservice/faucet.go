@@ -174,7 +174,7 @@ func (s *Service) CreateSmartAccount(
 		return types.EmptyAddress, err
 	}
 	if len(code) > 0 {
-		return types.EmptyAddress, fmt.Errorf("%w: %s", ErrSmartAccountExists, smartAccountAddress)
+		return smartAccountAddress, fmt.Errorf("%w: %s", ErrSmartAccountExists, smartAccountAddress)
 	}
 
 	// NOTE: we deploy smart account code with ext transaction

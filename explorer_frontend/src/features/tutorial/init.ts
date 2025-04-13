@@ -1,11 +1,13 @@
-import { sample } from "effector";
+import { combine, sample } from "effector";
 import { persist } from "effector-storage/local";
 import { changeCode, loadedTutorialPage } from "../code/model";
+import { $contracts } from "../contracts/models/base";
 import { notFoundRoute } from "../routing/routes/routes";
 import { tutorialWithUrlStringRoute } from "../routing/routes/tutorialRoute";
 import {
   $completedTutorials,
   $tutorial,
+  $tutorialUserSolutions,
   $tutorials,
   fetchAllTutorialsFx,
   fetchTutorialEvent,
@@ -19,6 +21,11 @@ $tutorials.on(fetchAllTutorialsFx.doneData, (_, tutorials) => tutorials);
 persist({
   key: "completedTutorials",
   store: $completedTutorials,
+});
+
+persist({
+  key: "userSolutions",
+  store: $tutorialUserSolutions,
 });
 
 sample({
@@ -43,7 +50,26 @@ sample({
 
 sample({
   clock: fetchTutorialFx.doneData,
-  fn: (tutorial) => tutorial.contracts,
+  source: combine($tutorial, $tutorialUserSolutions),
+  filter: ([tutorial, userSolutions]) => {
+    const res = Object.keys(userSolutions).includes(tutorial.urlSlug);
+    return !res;
+  },
+  fn: ([tutorial]) => tutorial.contracts,
+  target: changeCode,
+});
+
+sample({
+  clock: fetchTutorialFx.doneData,
+  source: combine($tutorial, $tutorialUserSolutions),
+  filter: ([tutorial, userSolutions]) => {
+    const res = Object.keys(userSolutions).includes(tutorial.urlSlug);
+    return res;
+  },
+  fn: ([tutorial, userSolutions]) => {
+    const solutions = userSolutions[tutorial.urlSlug];
+    return solutions;
+  },
   target: changeCode,
 });
 
@@ -62,4 +88,16 @@ sample({
     return completedTutorials;
   },
   target: $completedTutorials,
+});
+
+sample({
+  clock: setCompletedTutorial,
+  source: combine($contracts, tutorialWithUrlStringRoute.$params, $tutorialUserSolutions),
+  fn: ([userSolutions, urlSlug, currentSolutions]) => {
+    return {
+      ...currentSolutions,
+      [urlSlug.urlSlug]: userSolutions.at(0)?.sourcecode || "",
+    };
+  },
+  target: $tutorialUserSolutions,
 });

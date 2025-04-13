@@ -36,7 +36,7 @@ type SuiteRpc struct {
 	lock           sync.Mutex
 }
 
-func (s *SuiteRpc) SetupTest() {
+func (s *SuiteRpc) SetupSuite() {
 	s.DbInit = func() db.DB {
 		var err error
 		s.dbImpl, err = db.NewBadgerDbInMemory()
@@ -61,13 +61,13 @@ func (s *SuiteRpc) SetupTest() {
 	})
 }
 
-func (s *SuiteRpc) TearDownTest() {
+func (s *SuiteRpc) TearDownSuite() {
 	s.Cancel()
 }
 
 func (s *SuiteRpc) TestRpcContract() {
 	contractCode, abi := s.LoadContract(common.GetAbsolutePath("../contracts/increment.sol"), "Incrementer")
-	deployPayload := s.PrepareDefaultDeployPayload(abi, contractCode, big.NewInt(0))
+	deployPayload := s.PrepareDefaultDeployPayload(abi, common.Hash{0x77}, contractCode, big.NewInt(0))
 
 	addr, receipt := s.DeployContractViaMainSmartAccount(types.BaseShardId, deployPayload, tests.DefaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
@@ -90,7 +90,7 @@ func (s *SuiteRpc) TestRpcContractSendTransaction() {
 	callerCode, callerAbi := s.LoadContract(common.GetAbsolutePath("../contracts/async_call.sol"), "Caller")
 	calleeCode, calleeAbi := s.LoadContract(common.GetAbsolutePath("../contracts/async_call.sol"), "Callee")
 	callerAddr, receipt := s.DeployContractViaMainSmartAccount(
-		types.BaseShardId, types.BuildDeployPayload(callerCode, common.EmptyHash), tests.DefaultContractValue)
+		types.BaseShardId, types.BuildDeployPayload(callerCode, common.Hash{0x43}), tests.DefaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	waitTilBalanceAtLeast := func(balance uint64) types.Value {
@@ -112,7 +112,7 @@ func (s *SuiteRpc) TestRpcContractSendTransaction() {
 		s.Run("FailedDeploy", func() {
 			// no account at address to pay for the transaction
 			hash, _, err := s.Client.DeployExternal(s.Context, shardId,
-				types.BuildDeployPayload(calleeCode, common.EmptyHash), types.NewFeePackFromGas(100_000))
+				types.BuildDeployPayload(calleeCode, common.Hash{0x44}), types.NewFeePackFromGas(100_000))
 			s.Require().NoError(err)
 
 			receipt := s.WaitForReceipt(hash)
@@ -125,7 +125,7 @@ func (s *SuiteRpc) TestRpcContractSendTransaction() {
 		s.Run("DeployCallee", func() {
 			// deploy callee contracts to different shards
 			calleeAddr, receipt = s.DeployContractViaMainSmartAccount(
-				shardId, types.BuildDeployPayload(calleeCode, common.EmptyHash), tests.DefaultContractValue)
+				shardId, types.BuildDeployPayload(calleeCode, common.Hash{0x45}), tests.DefaultContractValue)
 			s.Require().True(receipt.Success)
 			s.Require().True(receipt.OutReceipts[0].Success)
 		})
@@ -282,7 +282,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() { //nolint:maintidx
 	s.Run("Deploy smart account", func() {
 		pub := crypto.CompressPubkey(&pk.PublicKey)
 		smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pub)
-		deployCode := types.BuildDeployPayload(smartAccountCode, common.EmptyHash)
+		deployCode := types.BuildDeployPayload(smartAccountCode, common.Hash{0x12})
 
 		hash, smartAccountAddr, err = s.Client.DeployContract(
 			s.Context, callerShardId, types.MainSmartAccountAddress, deployCode, types.GasToValue(10_000_000),
@@ -295,7 +295,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() { //nolint:maintidx
 	})
 
 	s.Run("Deploy counter", func() {
-		deployCode := contracts.CounterDeployPayload(s.T())
+		deployCode := contracts.CounterDeployPayloadWithSalt(s.T(), common.Hash{0x12})
 
 		hash, counterAddr, err = s.Client.DeployContract(
 			s.Context, calleeShardId, types.MainSmartAccountAddress, deployCode, types.Value{},
@@ -319,7 +319,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() { //nolint:maintidx
 
 		txnEstimation, err = s.Client.EstimateFee(s.Context, callArgs, "latest")
 		s.Require().NoError(err)
-		s.Positive(txnEstimation.FeeCredit.Uint64())
+		s.NotZero(txnEstimation.FeeCredit.Uint64())
 	})
 
 	intTxn := &types.InternalTransactionPayload{
@@ -349,7 +349,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() { //nolint:maintidx
 	s.Run("Estimate external transaction fee", func() {
 		estimation, err = s.Client.EstimateFee(s.Context, callArgs, "latest")
 		s.Require().NoError(err)
-		s.Positive(estimation.FeeCredit.Uint64())
+		s.NotZero(estimation.FeeCredit.Uint64())
 	})
 
 	s.Run("Call without override", func() {
@@ -655,7 +655,7 @@ func (s *SuiteRpc) TestNoOutTransactionsIfFailure() {
 
 	addr, receipt := s.DeployContractViaMainSmartAccount(
 		2,
-		types.BuildDeployPayload(code, common.EmptyHash),
+		types.BuildDeployPayload(code, common.Hash{0x8}),
 		tests.DefaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
@@ -689,16 +689,16 @@ func (s *SuiteRpc) TestMultipleRefunds() {
 
 	var leftShardId types.ShardId = 1
 	var rightShardId types.ShardId = 2
-
+	salt := common.Hash{0x2}
 	_, receipt := s.DeployContractViaMainSmartAccount(
 		leftShardId,
-		types.BuildDeployPayload(code, common.EmptyHash),
+		types.BuildDeployPayload(code, salt),
 		tests.DefaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
 
 	_, receipt = s.DeployContractViaMainSmartAccount(
 		rightShardId,
-		types.BuildDeployPayload(code, common.EmptyHash),
+		types.BuildDeployPayload(code, salt),
 		tests.DefaultContractValue)
 	s.Require().True(receipt.OutReceipts[0].Success)
 }
@@ -738,13 +738,14 @@ func (s *SuiteRpc) TestRpcTransactionContent() {
 		s.Context,
 		shardId,
 		types.MainSmartAccountAddress,
-		contracts.CounterDeployPayload(s.T()),
+		contracts.CounterDeployPayloadWithSalt(s.T(), common.Hash{0x10}),
 		types.Value{},
 		types.NewFeePackFromGas(1_000_000),
 		execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.WaitForReceipt(hash)
+	s.Require().Len(receipt.OutTransactions, 1)
 
 	txn1, err := s.Client.GetInTransactionByHash(s.Context, hash)
 	s.Require().NoError(err)
@@ -768,7 +769,7 @@ func (s *SuiteRpc) TestTwoInvalidSignatureTxs() {
 	block, err := s.Client.GetBlock(s.Context, shardId, "latest", false)
 	s.Require().NoError(err)
 
-	tests.WaitBlock(s.T(), s.Context, s.Client, shardId, uint64(block.Number)+1)
+	tests.WaitBlock(s.T(), s.Client, shardId, uint64(block.Number)+1)
 }
 
 func (s *SuiteRpc) TestDbApi() {
@@ -824,7 +825,7 @@ func (s *SuiteRpc) TestDebugLogs() {
 	s.Require().NoError(err)
 
 	addr, receipt := s.DeployContractViaMainSmartAccount(
-		2, types.BuildDeployPayload(code, common.EmptyHash), tests.DefaultContractValue)
+		2, types.BuildDeployPayload(code, common.Hash{0x5}), tests.DefaultContractValue)
 	s.Require().True(receipt.AllSuccess())
 
 	s.Run("DebugLog in successful transaction", func() {
@@ -878,11 +879,18 @@ func (s *SuiteRpc) TestPanicsInDb() {
 
 	addr, receipt := s.DeployContractViaMainSmartAccount(
 		types.ShardId(3),
-		types.BuildDeployPayload(code, common.EmptyHash),
+		types.BuildDeployPayload(code, common.Hash{0x42}),
 		tests.DefaultContractValue)
 	s.Require().True(receipt.AllSuccess())
 
 	calldata := s.AbiPack(abi, "getValue")
+
+	origCreateRwTxFunc := s.CreateRwTxFunc
+	defer func() {
+		s.lock.Lock()
+		s.CreateRwTxFunc = origCreateRwTxFunc
+		s.lock.Unlock()
+	}()
 
 	s.lock.Lock()
 	s.CreateRwTxFunc = func(ctx context.Context) (db.RwTx, error) {

@@ -58,12 +58,11 @@ func (s *adminServer) serve(ctx context.Context) error {
 		conn, err := net.Dial("unix", s.cfg.UnixSocketPath)
 		if err != nil {
 			var netErr *net.OpError
-			if errors.As(err, &netErr) && errors.Is(netErr, syscall.ECONNREFUSED) {
-				s.logger.Info().Msgf("Remove unused socket file: %s", s.cfg.UnixSocketPath)
-				os.Remove(s.cfg.UnixSocketPath)
-			} else {
+			if !errors.As(err, &netErr) || !errors.Is(netErr, syscall.ECONNREFUSED) {
 				return fmt.Errorf("error connecting to socket: %w", err)
 			}
+			s.logger.Info().Msgf("Remove unused socket file: %s", s.cfg.UnixSocketPath)
+			os.Remove(s.cfg.UnixSocketPath)
 		} else {
 			// Close if socket is already open.
 			// Error "already in use" will be returned by net.Listen.

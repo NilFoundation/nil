@@ -26,7 +26,7 @@ func TestLogger(t *testing.T) {
 		log1Buf.Reset()
 		log2Buf.Reset()
 		log3Buf.Reset()
-		msgIndex += 1
+		msgIndex++
 		log1.Warn().Msgf("log1 message %d", msgIndex)
 		log2.Warn().Msgf("log2 message %d", msgIndex)
 		log3.Warn().Msgf("log3 message %d", msgIndex)

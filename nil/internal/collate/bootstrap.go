@@ -40,7 +40,7 @@ func createShardBootstrapHandler(ctx context.Context, database db.DB, logger log
 }
 
 // SetBootstrapHandler sets a handler that streams DB data via libp2p.
-func SetBootstrapHandler(ctx context.Context, nm *network.Manager, db db.DB) {
+func SetBootstrapHandler(ctx context.Context, nm network.Manager, db db.DB) {
 	logger := logging.NewLogger("bootstrap").With().Logger()
 
 	nm.SetStreamHandler(
@@ -52,7 +52,7 @@ func SetBootstrapHandler(ctx context.Context, nm *network.Manager, db db.DB) {
 	logger.Info().Msg("Enable bootstrap endpoint")
 }
 
-func SetVersionHandler(ctx context.Context, nm *network.Manager, fabric db.DB) error {
+func SetVersionHandler(ctx context.Context, nm network.Manager, fabric db.DB) error {
 	tx, err := fabric.CreateRoTx(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create transaction: %w", err)
@@ -80,7 +80,7 @@ func SetVersionHandler(ctx context.Context, nm *network.Manager, fabric db.DB) e
 
 func fetchShardSnap(
 	ctx context.Context,
-	nm *network.Manager,
+	nm network.Manager,
 	peerId network.PeerID,
 	db db.DB,
 	logger logging.Logger,
@@ -106,7 +106,7 @@ func fetchShardSnap(
 // Fetch DB snapshot via libp2p.
 func fetchSnapshot(
 	ctx context.Context,
-	nm *network.Manager,
+	nm network.Manager,
 	peerAddr network.AddrInfo,
 	db db.DB,
 	logger logging.Logger,
@@ -119,12 +119,7 @@ func fetchSnapshot(
 	return fetchShardSnap(ctx, nm, peerId, db, logger)
 }
 
-func fetchGenesisBlockHash(ctx context.Context, nm *network.Manager, peerAddr network.AddrInfo) (common.Hash, error) {
-	peerId, err := nm.Connect(ctx, peerAddr)
-	if err != nil {
-		return common.EmptyHash, fmt.Errorf("failed to connect to %s: %w", peerAddr, err)
-	}
-
+func fetchGenesisBlockHash(ctx context.Context, nm network.Manager, peerId network.PeerID) (common.Hash, error) {
 	resp, err := nm.SendRequestAndGetResponse(ctx, peerId, topicVersion, nil)
 	if err != nil {
 		return common.EmptyHash, fmt.Errorf("failed to fetch genesis block hash: %w", err)

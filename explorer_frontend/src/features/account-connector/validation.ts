@@ -5,15 +5,6 @@ export type ValidationResult = {
   isValid: boolean;
 };
 
-// Validates if the provided RPC url matches the expected format
-export const validateRpcUrl = (rpcUrl: string): ValidationResult => {
-  const RPC_REGEX = /^https:\/\/api\.devnet\.nil\.foundation\/api\/.+\/.+$/;
-  if (RPC_REGEX.test(rpcUrl)) {
-    return { isValid: true, error: "" };
-  }
-  return { isValid: false, error: "Invalid RPC rpcUrl format" };
-};
-
 export const MAX_AMOUNT_NIL = 1;
 export const MIN_AMOUNT_NIL = 0.0001;
 export const MAX_AMOUNT_OTHER = 100;

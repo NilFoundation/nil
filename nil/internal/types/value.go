@@ -90,7 +90,7 @@ func (v Value) Div64(other uint64) Value {
 }
 
 func (v Value) AddOverflow(other Value) (Value, bool) {
-	res, overflow := v.Uint256.addOverflow(other.Uint256)
+	res, overflow := v.addOverflow(other.Uint256)
 	return Value{res}, overflow
 }
 
@@ -105,28 +105,28 @@ func (v Value) Eq(other Value) bool {
 }
 
 func (v Value) SubOverflow(other Value) (Value, bool) {
-	res, overflow := v.Uint256.subOverflow(other.Uint256)
+	res, overflow := v.subOverflow(other.Uint256)
 	return Value{res}, overflow
 }
 
 func (v Value) Add64(other uint64) Value {
-	res, overflow := v.Uint256.addOverflow(NewUint256(other))
+	res, overflow := v.addOverflow(NewUint256(other))
 	check.PanicIfNot(!overflow)
 	return Value{res}
 }
 
 func (v Value) Sub64(other uint64) Value {
-	res, overflow := v.Uint256.subOverflow(NewUint256(other))
+	res, overflow := v.subOverflow(NewUint256(other))
 	check.PanicIfNot(!overflow)
 	return Value{res}
 }
 
 func (v Value) Cmp(other Value) int {
-	return v.Uint256.cmp(other.Uint256)
+	return v.cmp(other.Uint256)
 }
 
 func (v Value) ToGas(price Value) Gas {
-	return Gas(v.Uint256.div64(price.Uint256))
+	return Gas(v.div64(price.Uint256))
 }
 
 func (v Value) ToBig() *big.Int {

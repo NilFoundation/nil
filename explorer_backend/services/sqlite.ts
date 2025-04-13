@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import BetterSqlite3 from "better-sqlite3";
+import sqlite3 from "node-sqlite3-wasm";
+import { config } from "../config";
 
-const db: BetterSqlite3.Database = new BetterSqlite3(process.env.EXPLORER_DB || "./database.db");
+const db = new sqlite3.Database(config.EXPLORER_CODE_SNIPPETS_DB_PATH);
 
 export { db };
 
@@ -13,21 +14,22 @@ CREATE TABLE IF NOT EXISTS code (
 );
 `);
 
-const getStmt = db.prepare<string, { code: string }>("SELECT code FROM code WHERE hash = ?");
+const getStmt = db.prepare("SELECT code FROM code WHERE hash = ?");
 
 export const getCode = (hash: string): string | null => {
-  return getStmt.get(hash)?.code || null;
+  const result = getStmt.get(hash) as { code: string } | undefined;
+  return result?.code || null;
 };
 
-export const setCode = (code: string): string => {
+export const setCode = async (code: string): Promise<string> => {
   const hash = createHash("sha256").update(code).digest("hex");
-  const res = getStmt.get(hash);
+  const res = await getCode(hash);
   if (res) {
     return hash;
   }
-  db.prepare("INSERT INTO code (hash, code, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)").run(
+  db.prepare("INSERT INTO code (hash, code, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)").run([
     hash,
     code,
-  );
+  ]);
   return hash;
 };

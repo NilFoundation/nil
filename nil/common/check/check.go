@@ -1,6 +1,8 @@
 package check
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -25,12 +27,12 @@ func PanicIfNot(flag bool) {
 }
 
 // PanicIff panics on true with the given message.
-func PanicIff(flag bool, format string, args ...interface{}) {
+func PanicIff(flag bool, format string, args ...any) {
 	PanicIfNotf(!flag, format, args...)
 }
 
 // PanicIfNotf panics on false with the given message.
-func PanicIfNotf(flag bool, format string, args ...interface{}) {
+func PanicIfNotf(flag bool, format string, args ...any) {
 	if !flag {
 		panic(fmt.Sprintf(format, args...))
 	}
@@ -43,8 +45,17 @@ func PanicIfErr(err error) {
 	}
 }
 
+// PanicIfNotCancelledErr panics if the provided error is non-nil and not a context.Canceled error.
+func PanicIfNotCancelledErr(err error) {
+	if err == nil || errors.Is(err, context.Canceled) {
+		return
+	}
+
+	panic(err)
+}
+
 // LogAndPanicIfErrf logs the error with the provided logger and message and panics if err is not nil.
-func LogAndPanicIfErrf(err error, logger logging.Logger, format string, args ...interface{}) {
+func LogAndPanicIfErrf(err error, logger logging.Logger, format string, args ...any) {
 	if err != nil {
 		l := logger.With().CallerWithSkipFrameCount(3).Logger()
 		l.Error().Err(err).Msgf(format, args...)

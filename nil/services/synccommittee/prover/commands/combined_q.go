@@ -30,10 +30,10 @@ func fetchStartingThetaPower(task *types.Task) (int, error) {
 	var aggregatedThetas []int
 	marshaledThetas, err := os.ReadFile(aggThetasFile)
 	if err != nil {
-		return 0, fmt.Errorf("Unable to read aggregated theta file: %w", err)
+		return 0, fmt.Errorf("unable to read aggregated theta file: %w", err)
 	}
 	if err := json.Unmarshal(marshaledThetas, &aggregatedThetas); err != nil {
-		return 0, fmt.Errorf("Unable to unmarshal aggregated theta file: %w", err)
+		return 0, fmt.Errorf("unable to unmarshal aggregated theta file: %w", err)
 	}
 	return aggregatedThetas[uint8(task.CircuitType)-types.CircuitStartIndex], nil
 }

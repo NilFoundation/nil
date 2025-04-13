@@ -5,6 +5,7 @@ import communityIcon from "../../../public/icons/community.svg";
 import endpointIcon from "../../../public/icons/endpoint.svg";
 import feedbackIcon from "../../../public/icons/feedback.svg";
 import connectionIcon from "../../../public/icons/linked.svg";
+import privateKeyIcon from "../../../public/icons/privatekey.svg";
 import supportIcon from "../../../public/icons/support.svg";
 import { Box, Icon, ScreenHeader } from "../../features/components/shared";
 import { WalletRoutes } from "../../router";
@@ -39,6 +40,10 @@ export const Settings = () => {
 
   const handleConnection = () => {
     navigate(WalletRoutes.WALLET.CONNECTIONS);
+  };
+
+  const handlePrivateKey = () => {
+    navigate(WalletRoutes.WALLET.PRIVATE_KEY);
   };
 
   return (
@@ -78,6 +83,32 @@ export const Settings = () => {
         />
         <ParagraphSmall $style={{ color: "inherit" }}>
           {t("wallet.settingsPage.endpointSection")}
+        </ParagraphSmall>
+      </Box>
+
+      {/* Private Key Section */}
+      <Box
+        $align="center"
+        $gap="8px"
+        $padding="0"
+        $style={{
+          flexDirection: "row",
+          cursor: "pointer",
+          color: COLORS.gray50,
+          ":hover": { color: COLORS.gray200 },
+          marginBottom: "24px",
+        }}
+        onClick={handlePrivateKey}
+      >
+        <Icon
+          src={privateKeyIcon}
+          alt={"private key icon"}
+          size={24}
+          iconSize="100%"
+          background="transparent"
+        />
+        <ParagraphSmall $style={{ color: "inherit" }}>
+          {t("wallet.settingsPage.privateKeySection")}
         </ParagraphSmall>
       </Box>
 
@@ -130,12 +161,12 @@ export const Settings = () => {
             >
               <Icon
                 src={link.icon}
-                alt={t(link.titleKey)}
+                alt={link.titleKey}
                 size={24}
                 iconSize="100%"
                 background="transparent"
               />
-              <ParagraphSmall $style={{ color: "inherit" }}>{t(link.titleKey)}</ParagraphSmall>
+              <ParagraphSmall $style={{ color: "inherit" }}>{link.titleKey}</ParagraphSmall>
             </Box>
           </a>
         ))}

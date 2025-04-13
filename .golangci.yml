@@ -1,3 +1,8 @@
+version: "2"
+run:
+  build-tags:
+    - test
+    - goexperiment.synctest
 linters:
   enable:
     - asasalint
@@ -17,14 +22,10 @@ linters:
     - exhaustive
     - fatcontext
     - forcetypeassert
-    - gci
     - gocheckcompilerdirectives
     - gochecksumtype
     - goconst
     - gocritic
-    - gofmt
-    - gofumpt
-    - goimports
     - goprintffuncname
     - gosec
     - gosmopolitan
@@ -46,6 +47,7 @@ linters:
     - prealloc
     - predeclared
     - reassign
+    - revive
     - rowserrcheck
     - sloglint
     - sqlclosecheck
@@ -61,55 +63,128 @@ linters:
     - wastedassign
     - whitespace
     - zerologlint
-
-linters-settings:
-  testifylint:
-    enable-all: true
-
-  lll:
-    # max line length, lines longer will be reported. Default is 120.
-    # '\t' is counted as 1 character by default, and can be changed with the tab-width option
-    line-length: 120
-    # tab width in spaces. Default to 1.
-    tab-width: 4
-
-  gosec:
-    excludes:
-      - G115
-
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-      - shadow
-
+  settings:
+    revive:
+      enable-all-rules: false
+      rules:
+        - name: atomic
+        - name: banned-characters
+        - name: blank-imports
+        - name: call-to-gc
+        - name: comments-density
+        - name: constant-logical-expr
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: datarace
+        - name: defer
+        - name: dot-imports
+        - name: duplicated-imports
+        - name: early-return
+        - name: empty-block
+        - name: empty-lines
+        - name: enforce-map-style
+        - name: enforce-repeated-arg-type-style
+        - name: enforce-slice-style
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: file-header
+        - name: file-length-limit
+        - name: filename-format
+        - name: get-return
+        - name: identical-branches
+        - name: if-return
+        - name: imports-blocklist
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: modifies-parameter
+        - name: modifies-value-receiver
+        - name: optimize-operands-order
+        - name: package-comments
+        - name: range-val-address
+        - name: range-val-in-closure
+        - name: range
+        - name: redefines-builtin-id
+        - name: redundant-build-tag
+        - name: redundant-test-main-exit
+        - name: string-format
+        - name: string-of-int
+        - name: struct-tag
+        - name: superfluous-else
+        - name: time-equal
+        - name: time-naming
+        - name: unchecked-type-assertion
+        - name: unconditional-recursion
+        - name: unhandled-error
+        - name: unnecessary-stmt
+        - name: unreachable-code
+        - name: use-any
+        - name: use-errors-new
+        - name: useless-break
+        - name: var-declaration
+        - name: waitgroup-by-value
+    gosec:
+      excludes:
+        - G115
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
+    lll:
+      # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+      line-length: 120
+      # tab width in spaces. Default to 1.
+      tab-width: 4
+    testifylint:
+      enable-all: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - lll
+        source: ^// @(component|componentprop)
+      - linters:
+          - lll
+        path: (nil/services/cliservice/block_format_test.go|nil/services/cliservice/block.go)
+      - linters:
+          - lll
+        path: nil/internal/abi/abi_test.go
+        source: "^//\treceipt{status=1 cgas=23949"
+      - linters:
+          - lll
+        path: nil/services/synccommittee/prover/internal/constants/proof_producer_codes.go
+        source: ^// https://github.com/NilFoundation/placeholder/
+      - linters:
+          - lll
+        path: nil/services/synccommittee/core/reset/resetter.go
+        source: "^\t\t// https://www.notion.so/nilfoundation/"
+    paths:
+      - clickhouse
+      - third_party$
+      - builtin$
+      - examples$
 issues:
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0
   # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
   max-same-issues: 0
-  exclude-dirs:
-    - clickhouse
-  exclude-rules:
-    - linters:
-        - lll
-      source: "^// @(component|componentprop)"
-    - linters:
-        - lll
-      path: "(nil/services/cliservice/block_format_test.go|nil/services/cliservice/block.go)"
-    - linters:
-        - lll
-      path: "nil/internal/abi/abi_test.go"
-      source: "^//	receipt{status=1 cgas=23949"
-    - linters:
-        - lll
-      path: "nil/services/synccommittee/prover/internal/constants/proof_producer_codes.go"
-      source: "^// https://github.com/NilFoundation/placeholder/"
-    - linters:
-        - lll
-      path: "nil/services/synccommittee/core/reset/resetter.go"
-      source: "^		// https://www.notion.so/nilfoundation/"
-
-run:
-  build-tags:
-    - test
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - clickhouse
+      - third_party$
+      - builtin$
+      - examples$

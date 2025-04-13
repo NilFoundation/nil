@@ -14,23 +14,27 @@ import (
 )
 
 func DeployCommand(cfg *common.Config) *cobra.Command {
+	params := &smartAccountParams{
+		Params: &common.Params{},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "deploy [path to file] [args...]",
 		Short: "Deploy a smart contract",
 		Long:  "Deploy the smart contract with the specified hex-bytecode from stdin or from file",
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDeploy(cmd, args, cfg)
+			return runDeploy(cmd, args, cfg, params)
 		},
 		SilenceUsage: true,
 	}
 
-	setDeployFlags(cmd)
+	setDeployFlags(cmd, params)
 
 	return cmd
 }
 
-func setDeployFlags(cmd *cobra.Command) {
+func setDeployFlags(cmd *cobra.Command, params *smartAccountParams) {
 	cmd.Flags().Var(
 		types.NewShardId(&params.shardId, types.BaseShardId),
 		shardIdFlag,
@@ -81,7 +85,7 @@ func setDeployFlags(cmd *cobra.Command) {
 	)
 }
 
-func runDeploy(cmd *cobra.Command, cmdArgs []string, cfg *common.Config) error {
+func runDeploy(cmd *cobra.Command, cmdArgs []string, cfg *common.Config, params *smartAccountParams) error {
 	if !params.token.IsZero() && params.noWait {
 		return errors.New("the \"no-wait\" flag cannot be used with the \"token\" flag")
 	}
@@ -139,7 +143,7 @@ func runDeploy(cmd *cobra.Command, cmdArgs []string, cfg *common.Config) error {
 	if err != nil {
 		if errors.Is(err, rpc.ErrTxnDataTooLong) {
 			return fmt.Errorf(
-				`Failed to marshal transaction: %w.
+				`failed to marshal transaction: %w.
 It appears that your code exceeds the maximum supported size.
 Try compiling your contract with the usage of solc --optimize flag,
 providing small values to --optimize-runs.

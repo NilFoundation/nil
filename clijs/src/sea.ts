@@ -21,6 +21,10 @@ import SmartAccountSendToken from "./commands/smart-account/send-tokens";
 import SmartAccountSendTransaction from "./commands/smart-account/send-transaction.js";
 import SmartAccountSeqno from "./commands/smart-account/seqno";
 import SmartAccountTopup from "./commands/smart-account/top-up";
+import SystemCommand from "./commands/system";
+import ChainId from "./commands/system/chain-id";
+import GasPrice from "./commands/system/gas-price";
+import Shards from "./commands/system/shards";
 
 export const COMMANDS: Record<string, Command.Class> = {
   abi: AbiCommand,
@@ -44,6 +48,11 @@ export const COMMANDS: Record<string, Command.Class> = {
   "smart-account:send-transaction": SmartAccountSendTransaction,
   "smart-account:seqno": SmartAccountSeqno,
   "smart-account:top-up": SmartAccountTopup,
+
+  system: SystemCommand,
+  "system:chain-id": ChainId,
+  "system:gas-price": GasPrice,
+  "system:shards": Shards,
 };
 
 export async function run() {

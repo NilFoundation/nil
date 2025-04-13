@@ -45,10 +45,15 @@ type operation struct {
 	memorySize memorySizeFunc
 }
 
-var cancunInstructionSet = newCancunInstructionSet()
+var CancunInstructionSet = newCancunInstructionSet()
 
 // JumpTable contains the EVM opcodes supported at a given fork.
 type JumpTable [256]*operation
+
+// GetNumRequiredStackItems gets minimal required stack size for an opcode
+func (jt *JumpTable) GetNumRequiredStackItems(op OpCode) int {
+	return jt[op].minStack
+}
 
 func validate(jt JumpTable) JumpTable {
 	for i, op := range jt {

@@ -12,13 +12,19 @@ import (
 
 const blobSize = len(kzg4844.Blob{})
 
-type builder struct{}
-
-func NewBuilder() *builder {
-	return &builder{}
+type Builder interface {
+	MakeBlobs(in io.Reader, limit uint) ([]kzg4844.Blob, error)
 }
 
-func (bb *builder) MakeBlobs(rd io.Reader, blobLimit int) ([]kzg4844.Blob, error) {
+type builderImpl struct{}
+
+var _ Builder = (*builderImpl)(nil)
+
+func NewBuilder() *builderImpl {
+	return &builderImpl{}
+}
+
+func (bb *builderImpl) MakeBlobs(rd io.Reader, blobLimit uint) ([]kzg4844.Blob, error) {
 	const blobSize = len(kzg4844.Blob{})
 
 	var blobs []kzg4844.Blob
@@ -39,7 +45,7 @@ func (bb *builder) MakeBlobs(rd io.Reader, blobLimit int) ([]kzg4844.Blob, error
 	}
 
 	align := 0
-	for i := 0; !eof && i < blobLimit; i++ {
+	for i := uint(0); !eof && i < blobLimit; i++ {
 		blobBuf.Reset()
 
 		blobWriter := bitio.NewWriter(&blobBuf)
@@ -94,7 +100,7 @@ func (bb *builder) MakeBlobs(rd io.Reader, blobLimit int) ([]kzg4844.Blob, error
 	if !eof {
 		return nil, fmt.Errorf(
 			"provided batch does not fit into %d blobs (%d bytes) [written = %d bits] [align = %d bits]",
-			blobLimit, blobSize*blobLimit, writtenBits, align)
+			blobLimit, uint(blobSize)*blobLimit, writtenBits, align)
 	}
 	return blobs, nil
 }

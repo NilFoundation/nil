@@ -51,9 +51,9 @@ func (m *mockInsertedProposals) insertProposal(
 	proposal []byte,
 ) {
 	m.Lock()
+	defer m.Unlock()
 	m.proposals[nodeIndex][m.currentProposals[nodeIndex]] = proposal
 	m.currentProposals[nodeIndex]++
-	m.Unlock()
 }
 
 // getProposer returns proposer index
@@ -83,9 +83,9 @@ func (e propertyTestEvent) isSilent(nodeIndex int) bool {
 // getMessage returns bad message for byzantine bad node,
 // correct message for non-byzantine nodes, and nil for silent nodes
 func (e propertyTestEvent) getMessage(nodeIndex int) *roundMessage {
-	message := correctRoundMessage
+	message := newCorrectRoundMessage(0)
 	if uint64(nodeIndex) < e.badNodes() {
-		message = badRoundMessage
+		message = newBadRoundMessage()
 	}
 
 	return &message
@@ -110,23 +110,23 @@ type propertyTestSetup struct {
 
 func (s *propertyTestSetup) setRound(nodeIndex int, round uint64) {
 	s.Lock()
+	defer s.Unlock()
 	s.currentRound[nodeIndex] = round
-	s.Unlock()
 }
 
 func (s *propertyTestSetup) incHeight() {
 	s.Lock()
+	defer s.Unlock()
 
 	for nodeIndex := 0; uint64(nodeIndex) < s.nodes; nodeIndex++ {
 		s.currentHeight[nodeIndex]++
 		s.currentRound[nodeIndex] = 0
 	}
-
-	s.Unlock()
 }
 
 func (s *propertyTestSetup) getEvent(nodeIndex int) propertyTestEvent {
 	s.Lock()
+	defer s.Unlock()
 
 	var (
 		height      = int(s.currentHeight[nodeIndex])
@@ -140,9 +140,23 @@ func (s *propertyTestSetup) getEvent(nodeIndex int) propertyTestEvent {
 		round = s.events[height][roundNumber]
 	}
 
-	s.Unlock()
-
 	return round
+}
+
+func (s *propertyTestSetup) getEventAt(height, round uint64) propertyTestEvent {
+	s.Lock()
+	defer s.Unlock()
+
+	if int(height) >= len(s.events) {
+		return propertyTestEvent{}
+	}
+
+	events := s.events[height]
+	if int(round) >= len(events) {
+		return events[len(events)-1]
+	}
+
+	return events[round]
 }
 
 func (s *propertyTestSetup) lastRound(height uint64) propertyTestEvent {
@@ -224,7 +238,7 @@ func TestProperty(t *testing.T) {
 				}
 
 				// If node is silent, don't send a message
-				if setup.getEvent(nodeIndex).isSilent(nodeIndex) {
+				if setup.getEventAt(message.View.Height, message.View.Round).isSilent(nodeIndex) {
 					return
 				}
 
@@ -272,7 +286,7 @@ func TestProperty(t *testing.T) {
 				certificate *proto.RoundChangeCertificate,
 				view *proto.View,
 			) *proto.IbftMessage {
-				message := setup.getEvent(nodeIndex).getMessage(nodeIndex)
+				message := setup.getEventAt(view.Height, view.Round).getMessage(nodeIndex)
 
 				return buildBasicPreprepareMessage(
 					proposal,
@@ -285,14 +299,14 @@ func TestProperty(t *testing.T) {
 
 			// Make sure the prepare message is built correctly
 			backend.buildPrepareMessageFn = func(proposal []byte, view *proto.View) *proto.IbftMessage {
-				message := setup.getEvent(nodeIndex).getMessage(nodeIndex)
+				message := setup.getEventAt(view.Height, view.Round).getMessage(nodeIndex)
 
 				return buildBasicPrepareMessage(message.hash, nodes[nodeIndex], view)
 			}
 
 			// Make sure the commit message is built correctly
 			backend.buildCommitMessageFn = func(proposal []byte, view *proto.View) *proto.IbftMessage {
-				message := setup.getEvent(nodeIndex).getMessage(nodeIndex)
+				message := setup.getEventAt(view.Height, view.Round).getMessage(nodeIndex)
 
 				return buildBasicCommitMessage(message.hash, message.seal, nodes[nodeIndex], view)
 			}

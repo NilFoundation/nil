@@ -42,13 +42,6 @@ func (i *backendIBFT) BuildPrePrepareMessage(
 		return nil
 	}
 
-	block, err := i.validator.VerifyProposal(i.ctx, proposal)
-	if err != nil {
-		i.logger.Error().Err(err).Msg("failed to verify proposal")
-		return nil
-	}
-
-	proposalHash := block.Hash(i.shardId)
 	msg := &protoIBFT.IbftMessage{
 		View: view,
 		From: i.ID(),
@@ -56,7 +49,7 @@ func (i *backendIBFT) BuildPrePrepareMessage(
 		Payload: &protoIBFT.IbftMessage_PreprepareData{
 			PreprepareData: &protoIBFT.PrePrepareMessage{
 				Proposal:     proposalMsg,
-				ProposalHash: proposalHash.Bytes(),
+				ProposalHash: proposal.BlockHash.Bytes(),
 				Certificate:  certificate,
 			},
 		},

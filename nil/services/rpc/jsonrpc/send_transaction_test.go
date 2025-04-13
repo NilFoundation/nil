@@ -59,7 +59,7 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 	err = tx.Commit()
 	suite.Require().NoError(err)
 
-	suite.api = NewTestEthAPI(suite.T(), ctx, suite.db, 1)
+	suite.api = NewTestEthAPI(ctx, suite.T(), suite.db, 1)
 }
 
 func (suite *SuiteSendTransaction) TearDownSuite() {

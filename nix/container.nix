@@ -101,7 +101,7 @@ in
   environment.etc."explorer_backend/runtime-config.toml".source =
     runtime_config;
 
-  environment.etc."exporter/exporter.yaml".text = ''
+  environment.etc."nil-indexer/config.yaml".text = ''
     clickhouse-password: ""
     clickhouse-endpoint: 127.0.0.1:9000
     clickhouse-login: "default"
@@ -185,19 +185,19 @@ in
     devnetConfig.nil_archive_config)) //
 
   {
-    exporter = {
-      description = "exporter service";
+    indexer = {
+      description = "indexer service";
       after = [ "network.target" "clickhouse.service" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
         ExecStart =
-          "${nil}/bin/exporter -c /etc/exporter/exporter.yaml --allow-db-clear";
+          "${nil}/bin/nil-indexer -c /etc/nil-indexer/config.yaml --allow-db-clear";
         Restart = "always";
         User = "nil";
         Group = "nil";
-        WorkingDirectory = "/var/lib/exporter";
-        StateDirectory = "exporter";
-        RuntimeDirectory = "exporter";
+        WorkingDirectory = "/var/lib/nil-indexer";
+        StateDirectory = "nil-indexer";
+        RuntimeDirectory = "nil-indexer";
         ExecStartPre = ''
           ${pkgs.clickhouse}/bin/clickhouse-client --query "CREATE DATABASE IF NOT EXISTS nil_database"'';
       };
@@ -218,7 +218,7 @@ in
         StateDirectory = "explorer_backend";
         RuntimeDirectory = "explorer_backend";
         Environment = [
-          "EXPLORER_DB=/var/lib/explorer_backend/explorer.db"
+          "EXPLORER_CODE_SNIPPETS_DB_PATH=/var/lib/explorer_backend/explorer.db"
           "DB_URL=http://127.0.0.1:8123"
           "DB_USER=default"
           "DB_NAME=nil_database"

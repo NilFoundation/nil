@@ -81,7 +81,7 @@ const config = {
   },
   themes: ["@docusaurus/theme-mermaid"],
   plugins: [
-    "custom-loader",
+    [path.resolve(__dirname, "./plugins/custom-loader"), {}],
     [path.resolve(__dirname, "./plugins/nil-playground-plugin"), {}],
     [
       "nil-docusaurus-plugin-typedoc",
@@ -170,12 +170,16 @@ const config = {
                 href: "https://explore.nil.foundation/",
               },
               {
-                label: "Solidity extension",
-                href: "https://www.npmjs.com/package/@nilfoundation/smart-contracts",
+                label: "Playground",
+                href: "https://explore.nil.foundation/playground"
               },
               {
-                label: "=nil; CLI",
-                href: "https://github.com/NilFoundation/nil_cli/tree/master",
+                label: "Interactive tutorials",
+                href: "https://explore.nil.foundation/tutorial/async-call"
+              },
+              {
+                label: "Solidity extension",
+                href: "https://www.npmjs.com/package/@nilfoundation/smart-contracts",
               },
               {
                 label: "Client library",

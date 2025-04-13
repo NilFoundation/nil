@@ -32,7 +32,7 @@ func writeTestBlock(t *testing.T, tx db.RwTx, shardId types.ShardId, blockNumber
 	hash := block.Hash(types.BaseShardId)
 	require.NoError(t, db.WriteBlock(tx, types.BaseShardId, hash, &block))
 
-	require.Equal(t, len(transactions), len(receipts))
+	require.Len(t, receipts, len(transactions))
 	inTxnHashes := make([]common.Hash, len(transactions))
 	for i, r := range receipts {
 		inTxnHashes[i] = r.TxnHash

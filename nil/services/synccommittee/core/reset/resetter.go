@@ -12,7 +12,8 @@ type BatchResetter interface {
 	// ResetBatchesRange resets Sync Committee's block processing progress
 	// to a point preceding batch with the specified ID.
 	ResetBatchesRange(
-		ctx context.Context, firstBatchToPurge scTypes.BatchId) (purgedBatches []scTypes.BatchId, err error)
+		ctx context.Context, firstBatchToPurge scTypes.BatchId,
+	) (purgedBatches []scTypes.BatchId, err error)
 
 	// ResetBatchesNotProved resets Sync Committee's progress for all not yet proved batches.
 	ResetBatchesNotProved(ctx context.Context) error

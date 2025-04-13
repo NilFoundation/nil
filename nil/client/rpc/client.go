@@ -80,6 +80,9 @@ const (
 	Debug_getBlockByNumber               = "debug_getBlockByNumber"
 	Debug_getContract                    = "debug_getContract"
 	Web3_clientVersion                   = "web3_clientVersion"
+	Dev_doPanicOnShard                   = "dev_doPanicOnShard"
+	Txpool_getTxpoolStatus               = "txpool_getTxpoolStatus"
+	Txpool_getTxpoolContent              = "txpool_getTxpoolContent"
 )
 
 const (
@@ -191,7 +194,7 @@ func RunContractBatch(ctx context.Context, client *Client, smartAccount types.Ad
 	// get hash of the latest message
 	rawTxn, ok := resp[len(resp)-1].(json.RawMessage)
 	if !ok {
-		return common.EmptyHash, errors.New("Result is not bytes")
+		return common.EmptyHash, errors.New("result is not bytes")
 	}
 
 	var txHash common.Hash
@@ -377,17 +380,10 @@ func (c *Client) GetCode(ctx context.Context, addr types.Address, blockId any) (
 	if err != nil {
 		return types.Code{}, err
 	}
-
-	raw, err := c.call(ctx, Eth_getCode, addr, blockNrOrHash)
+	codeHex, err := simpleCall[string](ctx, c, Eth_getCode, addr, blockNrOrHash)
 	if err != nil {
 		return types.Code{}, err
 	}
-
-	var codeHex string
-	if err := json.Unmarshal(raw, &codeHex); err != nil {
-		return types.Code{}, err
-	}
-
 	return hexutil.FromHex(codeHex), nil
 }
 
@@ -514,42 +510,15 @@ func (c *Client) SendTransaction(ctx context.Context, txn *types.ExternalTransac
 }
 
 func (c *Client) SendRawTransaction(ctx context.Context, data []byte) (common.Hash, error) {
-	res, err := c.call(ctx, Eth_sendRawTransaction, hexutil.Bytes(data))
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	var hash common.Hash
-	if err := json.Unmarshal(res, &hash); err != nil {
-		return common.EmptyHash, err
-	}
-	return hash, nil
+	return simpleCall[common.Hash](ctx, c, Eth_sendRawTransaction, hexutil.Bytes(data))
 }
 
 func (c *Client) GetInTransactionByHash(ctx context.Context, hash common.Hash) (*jsonrpc.RPCInTransaction, error) {
-	res, err := c.call(ctx, Eth_getInTransactionByHash, hash)
-	if err != nil {
-		return nil, err
-	}
-
-	var txn *jsonrpc.RPCInTransaction
-	if err := json.Unmarshal(res, &txn); err != nil {
-		return nil, err
-	}
-	return txn, nil
+	return simpleCall[*jsonrpc.RPCInTransaction](ctx, c, Eth_getInTransactionByHash, hash)
 }
 
 func (c *Client) GetInTransactionReceipt(ctx context.Context, hash common.Hash) (*jsonrpc.RPCReceipt, error) {
-	res, err := c.call(ctx, Eth_getInTransactionReceipt, hash)
-	if err != nil {
-		return nil, err
-	}
-
-	var receipt *jsonrpc.RPCReceipt
-	if err := json.Unmarshal(res, &receipt); err != nil {
-		return nil, err
-	}
-	return receipt, nil
+	return simpleCall[*jsonrpc.RPCReceipt](ctx, c, Eth_getInTransactionReceipt, hash)
 }
 
 func (c *Client) GetTransactionCount(ctx context.Context, address types.Address, blockId any) (types.Seqno, error) {
@@ -558,16 +527,8 @@ func (c *Client) GetTransactionCount(ctx context.Context, address types.Address,
 		return 0, err
 	}
 
-	res, err := c.call(ctx, Eth_getTransactionCount, address, transport.BlockNumberOrHash(blockNrOrHash))
-	if err != nil {
-		return 0, err
-	}
-
-	val, err := toUint64(res)
-	if err != nil {
-		return 0, err
-	}
-	return types.Seqno(val), nil
+	return simpleCallUint64[types.Seqno](
+		ctx, c, Eth_getTransactionCount, address, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
 func toString(raw json.RawMessage) string {
@@ -605,19 +566,11 @@ func (c *Client) getBlockTransactionCountByNumber(
 	shardId types.ShardId,
 	number transport.BlockNumber,
 ) (uint64, error) {
-	res, err := c.call(ctx, Eth_getBlockTransactionCountByNumber, shardId, number)
-	if err != nil {
-		return 0, err
-	}
-	return toUint64(res)
+	return simpleCallUint64[uint64](ctx, c, Eth_getBlockTransactionCountByNumber, shardId, number)
 }
 
 func (c *Client) getBlockTransactionCountByHash(ctx context.Context, hash common.Hash) (uint64, error) {
-	res, err := c.call(ctx, Eth_getBlockTransactionCountByHash, hash)
-	if err != nil {
-		return 0, err
-	}
-	return toUint64(res)
+	return simpleCallUint64[uint64](ctx, c, Eth_getBlockTransactionCountByHash, hash)
 }
 
 func (c *Client) GetBalance(ctx context.Context, address types.Address, blockId any) (types.Value, error) {
@@ -626,16 +579,10 @@ func (c *Client) GetBalance(ctx context.Context, address types.Address, blockId 
 		return types.Value{}, err
 	}
 
-	res, err := c.call(ctx, Eth_getBalance, address.String(), transport.BlockNumberOrHash(blockNrOrHash))
+	bigVal, err := simpleCall[hexutil.Big](ctx, c, Eth_getBalance, address, transport.BlockNumberOrHash(blockNrOrHash))
 	if err != nil {
 		return types.Value{}, err
 	}
-
-	bigVal := &hexutil.Big{}
-	if err := bigVal.UnmarshalJSON(res); err != nil {
-		return types.Value{}, err
-	}
-
 	return types.NewValueFromBigMust(bigVal.ToInt()), nil
 }
 
@@ -644,29 +591,11 @@ func (c *Client) GetTokens(ctx context.Context, address types.Address, blockId a
 	if err != nil {
 		return nil, err
 	}
-
-	res, err := c.call(ctx, Eth_getTokens, address.String(), transport.BlockNumberOrHash(blockNrOrHash))
-	if err != nil {
-		return nil, err
-	}
-
-	tokens := make(types.RPCTokensMap)
-	err = json.Unmarshal(res, &tokens)
-	return tokens, err
+	return simpleCall[types.TokensMap](ctx, c, Eth_getTokens, address, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
 func (c *Client) GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error) {
-	res, err := c.call(ctx, Eth_gasPrice, shardId)
-	if err != nil {
-		return types.Value{}, err
-	}
-
-	val := types.Value{}
-	if err := val.UnmarshalJSON(res); err != nil {
-		return types.Value{}, err
-	}
-
-	return val, nil
+	return simpleCall[types.Value](ctx, c, Eth_gasPrice, shardId)
 }
 
 func (c *Client) ChainId(ctx context.Context) (types.ChainId, error) {
@@ -683,25 +612,11 @@ func (c *Client) ChainId(ctx context.Context) (types.ChainId, error) {
 }
 
 func (c *Client) GetShardIdList(ctx context.Context) ([]types.ShardId, error) {
-	res, err := c.call(ctx, Eth_getShardIdList)
-	if err != nil {
-		return []types.ShardId{}, err
-	}
-
-	var shardIdList []types.ShardId
-	if err := json.Unmarshal(res, &shardIdList); err != nil {
-		return []types.ShardId{}, err
-	}
-	return shardIdList, nil
+	return simpleCall[[]types.ShardId](ctx, c, Eth_getShardIdList)
 }
 
 func (c *Client) GetNumShards(ctx context.Context) (uint64, error) {
-	res, err := c.call(ctx, Eth_getNumShards)
-	if err != nil {
-		return 0, err
-	}
-
-	return toUint64(res)
+	return simpleCallUint64[uint64](ctx, c, Eth_getNumShards)
 }
 
 func (c *Client) ClientVersion(ctx context.Context) (string, error) {
@@ -771,17 +686,7 @@ func (c *Client) Call(
 	if err != nil {
 		return nil, err
 	}
-
-	raw, err := c.call(ctx, Eth_call, args, blockNrOrHash, stateOverride)
-	if err != nil {
-		return nil, err
-	}
-
-	var res *jsonrpc.CallRes
-	if err := json.Unmarshal(raw, &res); err != nil {
-		return nil, err
-	}
-	return res, nil
+	return simpleCall[*jsonrpc.CallRes](ctx, c, Eth_call, args, blockNrOrHash, stateOverride)
 }
 
 func (c *Client) EstimateFee(
@@ -793,17 +698,7 @@ func (c *Client) EstimateFee(
 	if err != nil {
 		return nil, err
 	}
-
-	raw, err := c.call(ctx, Eth_estimateFee, args, blockNrOrHash)
-	if err != nil {
-		return nil, err
-	}
-
-	var res jsonrpc.EstimateFeeRes
-	if err := json.Unmarshal(raw, &res); err != nil {
-		return nil, err
-	}
-	return &res, nil
+	return simpleCall[*jsonrpc.EstimateFeeRes](ctx, c, Eth_estimateFee, args, blockNrOrHash)
 }
 
 func (c *Client) SetTokenName(
@@ -1042,16 +937,45 @@ func (c *Client) GetDebugContract(
 		return nil, err
 	}
 
-	request := c.newRequest(Debug_getContract, contractAddr, blockRef)
-	res, err := c.performRequest(ctx, request)
+	return simpleCall[*jsonrpc.DebugRPCContract](ctx, c, Debug_getContract, contractAddr, blockRef)
+}
+
+func (c *Client) DoPanicOnShard(ctx context.Context, shardId types.ShardId) (uint64, error) {
+	_, err := c.call(ctx, Dev_doPanicOnShard, shardId)
+	return 0, err
+}
+
+func simpleCall[ReturnType any](ctx context.Context, c *Client, method string, params ...any) (ReturnType, error) {
+	res, err := c.call(ctx, method, params...)
+	var result ReturnType
 	if err != nil {
-		return nil, err
+		return result, err
 	}
+	err = json.Unmarshal(res, &result)
+	return result, err
+}
 
-	var DebugRPCContract *jsonrpc.DebugRPCContract
-	if err := json.Unmarshal(res, &DebugRPCContract); err != nil {
-		return nil, err
+func simpleCallUint64[ReturnType ~uint64](
+	ctx context.Context,
+	c *Client,
+	method string,
+	params ...any,
+) (ReturnType, error) {
+	res, err := c.call(ctx, method, params...)
+	if err != nil {
+		return 0, err
 	}
+	result, err := toUint64(res)
+	if err != nil {
+		return 0, err
+	}
+	return ReturnType(result), err
+}
 
-	return DebugRPCContract, err
+func (c *Client) GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (jsonrpc.TxPoolStatus, error) {
+	return simpleCall[jsonrpc.TxPoolStatus](ctx, c, Txpool_getTxpoolStatus, shardId)
+}
+
+func (c *Client) GetTxpoolContent(ctx context.Context, shardId types.ShardId) (jsonrpc.TxPoolContent, error) {
+	return simpleCall[jsonrpc.TxPoolContent](ctx, c, Txpool_getTxpoolContent, shardId)
 }

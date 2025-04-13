@@ -27,14 +27,14 @@ func TestParseSocketUrl(t *testing.T) {
 
 		socketUrl, err := url.Parse("unix:///some/file/path.sock")
 		require.NoError(t, err)
-		require.EqualValues(t, "/some/file/path.sock", socketUrl.Host+socketUrl.EscapedPath())
+		require.Equal(t, "/some/file/path.sock", socketUrl.Host+socketUrl.EscapedPath())
 	})
 	t.Run("tcp", func(t *testing.T) {
 		t.Parallel()
 
 		socketUrl, err := url.Parse("tcp://localhost:1234")
 		require.NoError(t, err)
-		require.EqualValues(t, "localhost:1234", socketUrl.Host+socketUrl.EscapedPath())
+		require.Equal(t, "localhost:1234", socketUrl.Host+socketUrl.EscapedPath())
 	})
 }
 

@@ -2,7 +2,7 @@
 , stdenv
 , biome
 , callPackage
-, npmHooks
+, pnpm_10
 , nodejs
 , nil
 , enableTesting ? false
@@ -13,47 +13,44 @@ stdenv.mkDerivation rec {
   pname = "walletExtension";
   src = lib.sourceByRegex ./.. [
     "package.json"
-    "package-lock.json"
+    "pnpm-lock.yaml"
+    "pnpm-workspace.yaml"
+    ".npmrc"
     "^niljs(/.*)?$"
     "^smart-contracts(/.*)?$"
     "biome.json"
     "^wallet-extension(/.*)?$"
   ];
 
-  npmDeps = (callPackage ./npmdeps.nix { });
-
-  NODE_PATH = "$npmDeps";
+  pnpmDeps = (callPackage ./npmdeps.nix { });
 
   nativeBuildInputs = [
     nodejs
-    npmHooks.npmConfigHook
+    pnpm_10.configHook
+    pnpm_10
     biome
   ] ++ (if enableTesting then [ nil ] else [ ]);
 
-  dontConfigure = true;
 
   buildPhase = ''
-    patchShebangs wallet-extension/node_modules
-
-    (cd smart-contracts; npm run build)
-    (cd niljs; npm run build)
+    (cd smart-contracts; pnpm run build)
+    (cd niljs; pnpm run build)
 
     cd wallet-extension
-    npm run build
+    pnpm run build
   '';
 
   doCheck = enableTesting;
 
   checkPhase = ''
-    patchShebangs node_modules
     nohup nild run --http-port 8529 --collator-tick-ms=100 > nild.log 2>&1 & echo $! > nild_pid &
 
     export BIOME_BINARY=${biome}/bin/biome
 
     echo "Checking wallet extension"
 
-    npm run lint
-    npm run test:integration --cache=false
+    pnpm run lint
+    pnpm run test:integration --cache=false
 
     kill `cat nild_pid` && rm nild_pid
 

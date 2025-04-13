@@ -269,7 +269,7 @@ describe.sequential("the multisig smart account performs all operations internal
       //startMultiSigDeployment
       const hexKeys = [pkOne, pkTwo, pkThree].map((key) => getPublicKey(key));
 
-      const { address: multiSigSmartAccountAddress, hash: deploymentTransactionHash } =
+      const { address: multiSigSmartAccountAddress, tx: deploymentTransactionTx } =
         await smartAccount.deployContract({
           bytecode: MULTISIG_SMART_ACCOUNT_BYTECODE,
           abi: MULTISIG_SMART_ACCOUNT_ABI,
@@ -282,7 +282,7 @@ describe.sequential("the multisig smart account performs all operations internal
 
       const signer = new MultisigSigner([pkOne, pkTwo, pkThree].map((x) => hexToBytes(x)));
 
-      const receipts = await waitTillCompleted(client, deploymentTransactionHash);
+      const receipts = await deploymentTransactionTx.wait();
 
       //endMultiSigDeployment
 

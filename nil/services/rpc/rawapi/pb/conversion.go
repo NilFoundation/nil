@@ -286,7 +286,9 @@ func (rb *RawFullBlock) PackProtoMessage(block *types.RawBlockWithExtractedData)
 	*rb = RawFullBlock{
 		BlockSSZ:           block.Block,
 		InTransactionsSSZ:  block.InTransactions,
+		InTxCountsSSZ:      block.InTxCounts,
 		OutTransactionsSSZ: block.OutTransactions,
+		OutTxCountsSSZ:     block.OutTxCounts,
 		ReceiptsSSZ:        block.Receipts,
 		Errors:             packErrorMap(block.Errors),
 		ChildBlocks:        PackHashes(block.ChildBlocks),
@@ -320,7 +322,9 @@ func (rb *RawFullBlock) UnpackProtoMessage() (*types.RawBlockWithExtractedData, 
 	return &types.RawBlockWithExtractedData{
 		Block:           rb.BlockSSZ,
 		InTransactions:  rb.InTransactionsSSZ,
+		InTxCounts:      rb.InTxCountsSSZ,
 		OutTransactions: rb.OutTransactionsSSZ,
+		OutTxCounts:     rb.OutTxCountsSSZ,
 		Receipts:        rb.ReceiptsSSZ,
 		Errors:          unpackErrorMap(rb.Errors),
 		ChildBlocks:     UnpackHashes(rb.ChildBlocks),
@@ -643,33 +647,33 @@ func (c *Contract) PackProtoMessage(contract rpctypes.Contract) *Contract {
 	return c
 }
 
-func (a *CallArgs) PackProtoMessage(args rpctypes.CallArgs) *CallArgs {
-	a.Flags = uint32(args.Flags.Bits)
+func (x *CallArgs) PackProtoMessage(args rpctypes.CallArgs) *CallArgs {
+	x.Flags = uint32(args.Flags.Bits)
 	if args.From != nil {
-		a.From = new(Address).PackProtoMessage(*args.From)
+		x.From = new(Address).PackProtoMessage(*args.From)
 	}
-	a.To = new(Address).PackProtoMessage(args.To)
+	x.To = new(Address).PackProtoMessage(args.To)
 	if args.Fee.FeeCredit.Uint256 != nil {
-		a.FeeCredit = new(Uint256).PackProtoMessage(*args.Fee.FeeCredit.Uint256)
+		x.FeeCredit = new(Uint256).PackProtoMessage(*args.Fee.FeeCredit.Uint256)
 	}
 	if args.Fee.MaxFeePerGas.Uint256 != nil {
-		a.MaxFeePerGas = new(Uint256).PackProtoMessage(*args.Fee.MaxFeePerGas.Uint256)
+		x.MaxFeePerGas = new(Uint256).PackProtoMessage(*args.Fee.MaxFeePerGas.Uint256)
 	}
 	if args.Fee.MaxPriorityFeePerGas.Uint256 != nil {
-		a.MaxPriorityFeePerGas = new(Uint256).PackProtoMessage(*args.Fee.MaxPriorityFeePerGas.Uint256)
+		x.MaxPriorityFeePerGas = new(Uint256).PackProtoMessage(*args.Fee.MaxPriorityFeePerGas.Uint256)
 	}
 	if args.Value.Uint256 != nil {
-		a.Value = new(Uint256).PackProtoMessage(*args.Value.Uint256)
+		x.Value = new(Uint256).PackProtoMessage(*args.Value.Uint256)
 	}
-	a.Seqno = args.Seqno.Uint64()
+	x.Seqno = args.Seqno.Uint64()
 	if args.Data != nil {
-		a.Data = *args.Data
+		x.Data = *args.Data
 	}
 	if args.Transaction != nil {
-		a.Transaction = *args.Transaction
+		x.Transaction = *args.Transaction
 	}
-	a.ChainId = uint64(args.ChainId)
-	return a
+	x.ChainId = uint64(args.ChainId)
+	return x
 }
 
 func (o *StateOverrides) PackProtoMessage(overrides *rpctypes.StateOverrides) *StateOverrides {
@@ -762,30 +766,30 @@ func (cr *CallRequest) PackProtoMessage(
 	return nil
 }
 
-func (cr *CallArgs) UnpackProtoMessage() rpctypes.CallArgs {
+func (x *CallArgs) UnpackProtoMessage() rpctypes.CallArgs {
 	args := rpctypes.CallArgs{}
-	args.Flags = types.TransactionFlags{BitFlags: types.BitFlags[uint8]{Bits: uint8(cr.Flags)}}
-	if cr.From != nil {
-		a := cr.From.UnpackProtoMessage()
+	args.Flags = types.TransactionFlags{BitFlags: types.BitFlags[uint8]{Bits: uint8(x.Flags)}}
+	if x.From != nil {
+		a := x.From.UnpackProtoMessage()
 		args.From = &a
 	}
-	args.To = cr.To.UnpackProtoMessage()
+	args.To = x.To.UnpackProtoMessage()
 
-	args.Fee.FeeCredit = newValueFromUint256(cr.FeeCredit)
-	args.Fee.MaxFeePerGas = newValueFromUint256(cr.MaxFeePerGas)
-	args.Fee.MaxPriorityFeePerGas = newValueFromUint256(cr.MaxPriorityFeePerGas)
-	args.Value = newValueFromUint256(cr.Value)
-	args.Seqno = types.Seqno(cr.Seqno)
+	args.Fee.FeeCredit = newValueFromUint256(x.FeeCredit)
+	args.Fee.MaxFeePerGas = newValueFromUint256(x.MaxFeePerGas)
+	args.Fee.MaxPriorityFeePerGas = newValueFromUint256(x.MaxPriorityFeePerGas)
+	args.Value = newValueFromUint256(x.Value)
+	args.Seqno = types.Seqno(x.Seqno)
 
-	if cr.Data != nil {
-		args.Data = (*hexutil.Bytes)(&cr.Data)
+	if x.Data != nil {
+		args.Data = (*hexutil.Bytes)(&x.Data)
 	}
 
-	if cr.Transaction != nil {
-		args.Transaction = (*hexutil.Bytes)(&cr.Transaction)
+	if x.Transaction != nil {
+		args.Transaction = (*hexutil.Bytes)(&x.Transaction)
 	}
 
-	args.ChainId = types.ChainId(cr.ChainId)
+	args.ChainId = types.ChainId(x.ChainId)
 	return args
 }
 
@@ -1369,4 +1373,38 @@ func (r *SendTransactionRequest) PackProtoMessage(transactionSSZ []byte) error {
 
 func (r *SendTransactionRequest) UnpackProtoMessage() ([]byte, error) {
 	return r.TransactionSSZ, nil
+}
+
+func (txn *RawTxnsResponse) PackProtoMessage(txns []*types.Transaction, err error) error {
+	if err != nil {
+		txn.Result = &RawTxnsResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	var rawTxns RawTxns
+	rawTxns.Data, err = sszx.EncodeContainer[*types.Transaction](txns)
+	if err != nil {
+		return err
+	}
+	txn.Result = &RawTxnsResponse_Data{Data: &rawTxns}
+	return nil
+}
+
+func (txn *RawTxnsResponse) UnpackProtoMessage() ([]*types.Transaction, error) {
+	switch txn.Result.(type) {
+	case *RawTxnsResponse_Error:
+		return nil, txn.GetError().UnpackProtoMessage()
+
+	case *RawTxnsResponse_Data:
+		dataResult := txn.GetData()
+		if dataResult == nil {
+			return nil, errors.New("unexpected response")
+		}
+		data := dataResult.GetData()
+		if data == nil {
+			return []*types.Transaction{}, nil
+		}
+		return sszx.DecodeContainer[*types.Transaction](data)
+	}
+	return nil, errors.New("unexpected response type")
 }

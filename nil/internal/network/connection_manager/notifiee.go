@@ -134,9 +134,8 @@ func (n *notifiee) isBanned(pi *peerInfo) bool {
 func (n *notifiee) getReputationChange(reason reputationChangeReason) Reputation {
 	if value, ok := n.config.ReputationChangeSettings[reason]; ok {
 		return value
-	} else {
-		n.logger.Error().Str("reason", string(reason)).Msg("Unknown reputation change reason")
 	}
+	n.logger.Error().Str("reason", string(reason)).Msg("Unknown reputation change reason")
 	return 0
 }
 

@@ -3,12 +3,16 @@ package tracer
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"slices"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
@@ -22,11 +26,56 @@ import (
 type TracerMockClientTestSuite struct {
 	suite.Suite
 
-	cl           api.RpcClient
+	rpcClient    api.RpcClient
 	shardId      types.ShardId
 	accounts     map[types.Address]types.Code
 	smartAccount types.Address
 	inMsgs       []*types.Transaction
+}
+
+type dummyMptTracer struct {
+	accountCodes map[types.Address]types.Code
+	shardId      types.ShardId
+	rwTx         db.RwTx
+}
+
+var _ execution.IContractMPTRepository = (*dummyMptTracer)(nil)
+
+func newDummyMptTracer(
+	accountCodes map[types.Address]types.Code,
+	shardId types.ShardId,
+	rwTx db.RwTx,
+) (*dummyMptTracer, error) {
+	for _, code := range accountCodes {
+		if err := db.WriteCode(rwTx, shardId, code.Hash(), code); err != nil {
+			return nil, err
+		}
+	}
+	return &dummyMptTracer{
+		accountCodes,
+		shardId,
+		rwTx,
+	}, nil
+}
+
+func (t *dummyMptTracer) SetRootHash(root common.Hash) {}
+func (t *dummyMptTracer) GetContract(addr types.Address) (*types.SmartContract, error) {
+	code, ok := t.accountCodes[addr]
+	if !ok {
+		return nil, errors.New("no code for account found")
+	}
+	return &types.SmartContract{
+		Address:  addr,
+		CodeHash: code.Hash(),
+	}, nil
+}
+
+func (t *dummyMptTracer) UpdateContracts(contracts map[types.Address]*execution.AccountState) error {
+	panic("UpdateContracts")
+}
+
+func (t *dummyMptTracer) RootHash() common.Hash {
+	return common.EmptyHash
 }
 
 func TestTracerMockClientTestSuite(t *testing.T) {
@@ -41,10 +90,9 @@ func (s *TracerMockClientTestSuite) SetupSuite() {
 }
 
 func (s *TracerMockClientTestSuite) SetupTest() {
-	s.cl = s.makeClient()
-	s.accounts = map[types.Address]types.Code{
-		s.smartAccount: {},
-	}
+	s.rpcClient = s.makeClient()
+	s.accounts = map[types.Address]types.Code{}
+	s.accounts[s.smartAccount] = []byte{}
 	s.inMsgs = nil // remove transactions from previous test
 }
 
@@ -63,6 +111,25 @@ func (s *TracerMockClientTestSuite) addCallContractTransaction(addr types.Addres
 		},
 		From: s.smartAccount,
 	})
+}
+
+func (s *TracerMockClientTestSuite) getInTrasactionsRoot() common.Hash {
+	s.T().Helper()
+	if len(s.inMsgs) == 0 {
+		return common.EmptyHash
+	}
+
+	inTransactionTree := execution.NewTransactionTrie(mpt.NewInMemMPT())
+	inKeys := make([]types.TransactionIndex, 0, len(s.inMsgs))
+	inValues := make([]*types.Transaction, 0, len(s.inMsgs))
+	for i, tx := range s.inMsgs {
+		inKeys = append(inKeys, types.TransactionIndex(i))
+		inValues = append(inValues, tx)
+	}
+
+	err := inTransactionTree.UpdateBatch(inKeys, inValues)
+	s.Require().NoError(err)
+	return inTransactionTree.RootHash()
 }
 
 func (s *TracerMockClientTestSuite) makeClient() client.Client {
@@ -104,16 +171,29 @@ func (s *TracerMockClientTestSuite) makeClient() client.Client {
 		_ context.Context, shardId types.ShardId, blockId any, fullTx bool,
 	) (*jsonrpc.DebugRPCBlock, error) {
 		s.T().Helper()
+
+		blockNrOrHash, err := transport.AsBlockReference(blockId)
+		if err != nil {
+			return nil, err
+		}
+
+		if blockNrOrHash.BlockHash != nil {
+			blkNum := transport.BlockNumber(1)
+			blockNrOrHash.BlockNumber = &blkNum
+		}
+
 		block := &types.Block{
 			BlockData: types.BlockData{
-				Id:      1,
-				BaseFee: types.DefaultGasPrice,
+				Id:                 blockNrOrHash.BlockNumber.BlockNumber(),
+				BaseFee:            types.DefaultGasPrice,
+				SmartContractsRoot: common.EmptyHash,
+				InTransactionsRoot: s.getInTrasactionsRoot(),
 			},
 		}
 		blockWithData := &types.BlockWithExtractedData{
 			Block:          block,
 			InTransactions: s.inMsgs,
-			Config:         make(map[string][]byte),
+			Config:         make(map[string]hexutil.Bytes),
 		}
 		rawBlock, err := blockWithData.EncodeSSZ()
 		s.Require().NoError(err)
@@ -132,19 +212,65 @@ func (s *TracerMockClientTestSuite) makeClient() client.Client {
 	return cl
 }
 
-func (s *TracerMockClientTestSuite) simpleContractCallTrace(code []byte) *executionTracesImpl {
+func (s *TracerMockClientTestSuite) simpleContractCallTrace(code []byte) *ExecutionTraces {
 	s.T().Helper()
-	addr := types.BytesToAddress([]byte("abcd"))
+	addr := types.ShardAndHexToAddress(s.shardId, "0x1234")
 	s.addContract(addr, code)
 	s.addCallContractTransaction(addr)
-	tracer, err := NewRemoteTracer(s.cl, logging.NewLogger("tracer-test"))
+
+	prevBlock := types.BlockWithExtractedData{Block: &types.Block{BlockData: types.BlockData{Id: 1}}}
+	db, err := db.NewBadgerDbInMemory()
 	s.Require().NoError(err)
-	et := NewExecutionTraces()
-	err = tracer.GetBlockTraces(context.Background(), et, s.shardId, transport.BlockReference{})
+	chainConfig := jsonrpc.ChainConfig{}
+	rwTx, err := db.CreateRwTx(context.Background())
 	s.Require().NoError(err)
-	traceData, ok := et.(*executionTracesImpl)
-	s.Require().True(ok)
-	return traceData
+	configMap, err := chainConfig.ToMap()
+	s.Require().NoError(err)
+	configAccessor := config.NewConfigAccessorFromMap(configMap)
+
+	es, err := execution.NewExecutionState(
+		rwTx,
+		s.shardId,
+		execution.StateParams{
+			Block:          prevBlock.Block,
+			ConfigAccessor: configAccessor,
+		},
+	)
+	s.Require().NoError(err)
+
+	esTracer := NewEVMTracer(es)
+
+	mptTracer, err := newDummyMptTracer(s.accounts, s.shardId, rwTx)
+	s.Require().NoError(err)
+	es.ContractTree = mptTracer
+
+	es.EvmTracingHooks = esTracer.getTracingHooks()
+
+	tx := types.Transaction{
+		TransactionDigest: types.TransactionDigest{
+			Flags:     types.TransactionFlagsFromKind(true, types.ExecutionTransactionKind),
+			To:        types.ShardAndHexToAddress(s.shardId, "0x1234"),
+			FeeCredit: types.NewValueFromUint64(100500100500),
+		},
+		From: s.smartAccount,
+	}
+	esTracer.initTransactionTraceContext(tx.Hash())
+	es.AddInTransaction(&tx)
+
+	caller := (vm.AccountRef)(tx.From)
+	callData := tx.Data
+
+	gas := tx.FeeCredit.ToGas(types.NewValueFromUint64(20))
+	blockContext, err := execution.NewEVMBlockContext(es)
+	s.Require().NoError(err)
+	evm := vm.NewEVM(blockContext, es, tx.From, es.GasPrice, nil)
+	evm.Config.Tracer = es.EvmTracingHooks
+	_, _, err = evm.Call(caller, tx.To, callData, gas.Uint64(), tx.Value.Int())
+	s.Require().NoError(err)
+
+	err = esTracer.saveTransactionTraces()
+	s.Require().NoError(err)
+	return esTracer.Traces
 }
 
 func (s *TracerMockClientTestSuite) TestSinglePush() {
@@ -374,8 +500,8 @@ func (s *TracerMockClientTestSuite) TestKeccakOpCodeTracing() {
 
 	// check keccak tracer
 	s.Require().Len(traceData.KeccakTraces, 2)
-	s.EqualValues(dataToCopy, traceData.KeccakTraces[0].buf)
+	s.Equal(dataToCopy, traceData.KeccakTraces[0].buf)
 	s.EqualValues(expectedHash, traceData.KeccakTraces[0].hash)
-	s.EqualValues(dataToCopy, traceData.KeccakTraces[1].buf)
+	s.Equal(dataToCopy, traceData.KeccakTraces[1].buf)
 	s.EqualValues(expectedHash, traceData.KeccakTraces[1].hash)
 }

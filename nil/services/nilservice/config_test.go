@@ -20,7 +20,7 @@ func TestValidateInvalidMyShards(t *testing.T) {
 	cfg.MyShards = []uint{100}
 
 	err := cfg.Validate()
-	require.ErrorContains(t, err, "Shard 100 is out of range (nShards = 5)")
+	require.ErrorContains(t, err, "shard 100 is out of range (nShards = 5)")
 }
 
 func TestValidateInvalidNShards(t *testing.T) {

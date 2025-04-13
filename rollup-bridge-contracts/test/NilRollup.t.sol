@@ -4,8 +4,9 @@ pragma solidity 0.8.28;
 import { stdJson } from "forge-std/Test.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { BaseTest } from "./BaseTest.sol";
+import { INilRollup } from "../contracts/interfaces/INilRollup.sol";
 import { NilRollup } from "../contracts/NilRollup.sol";
-import { NilAccessControl } from "../contracts/NilAccessControl.sol";
+import { NilAccessControlUpgradeable } from "../contracts/NilAccessControlUpgradeable.sol";
 import { NilRollupMockBlob } from "./mocks/NilRollupMockBlob.sol";
 import { NilRollupMockBlobInvalidScenario } from "./mocks/NilRollupMockBlobInvalidScenario.sol";
 import { ITransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -86,6 +87,60 @@ contract NilRollupTest is BaseTest {
     NilRollupMockBlob(address(rollup)).verifyDataProof(blobVersionedHash, blobDataProof);
   }
 
+  function generateBatchData() public pure returns (BatchData memory) {
+    return
+      generateBatchData(
+        "batch_1",
+        hex"8de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91",
+        hex"9de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91"
+      );
+  }
+
+  function generateBatchData(
+    string memory batchId,
+    bytes32 oldStateRoot,
+    bytes32 newStateRoot
+  ) public pure returns (BatchData memory) {
+    // Sample data for BatchDataItem
+    uint256 sampleBlobCount = 3;
+    bytes[] memory sampleDataProofs = new bytes[](sampleBlobCount);
+    sampleDataProofs[
+      0
+    ] = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
+    sampleDataProofs[
+      1
+    ] = hex"5032ba36170ce8f5957c7b9b5c98cff9bfdc0062093425ebb2da17957ba6346822721dfdd37f178fcfb577498c4e85e057d2753c51e8bd5bb161cb508739a177a350664da50c5a83a835be57c4b977f2974cf634701824836998cf86e38a6fd5b12423942fe6c187b2349534ee0cdd2bb655e5f169399fdb697139142f9c138d4967a30dcd3f2bf477c0803bfc64273e9758066c69a7bd70fb019a04d4c3cca0";
+    sampleDataProofs[
+      2
+    ] = hex"1406153c5ae3f657c510f98f48ac88680fe9b756939cb31ace0a395758de5112325f12d0d874002f402a5377bd49c8cad264d3c2fe285b9330dcddd010b8c9ccb3015da0dd4bb3e45007d4ada808d43bc5102edce6d9559966edbbedfc4503b3beb9e5224d28e7d04e56f845421f5b91ab0be4b0566041038e74b27e05499011c0b02f064cb0763dab7da3285731bbd1ae0c007c45028b4fd289fc1af6a62cce";
+
+    bytes
+      memory sampleValidityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
+    bytes32 sampleL2ToL1Root = hex"01b8c86fa666387a77359ce7a28279db2e55c1e06772828ae65f26722b704862";
+    bytes32[] memory sampleVersionedHashes = new bytes32[](sampleBlobCount);
+    sampleVersionedHashes[0] = hex"01b8c86fa666387a77359ce7a28279db2e55c1e06772828ae65f26722b704862";
+    sampleVersionedHashes[1] = hex"01a1cf2318c1a60915f77b2b004241dfcddaf7a98971c6b087c93b04a3b4e638";
+    sampleVersionedHashes[2] = hex"01224624a9a635f1596717f628afc4a7e01e2afe21a6199e061dd9c7b14053b2";
+
+    // Create BatchDataItem with sample data
+    BatchDataItem memory batchDataItem = BatchDataItem({
+      batchId: batchId,
+      blobCount: sampleBlobCount,
+      dataProofs: sampleDataProofs,
+      newStateRoot: newStateRoot,
+      oldStateRoot: oldStateRoot,
+      validityProof: sampleValidityProof,
+      l2Tol1Root: sampleL2ToL1Root,
+      versionedHashes: sampleVersionedHashes
+    });
+
+    // Prepare BatchData struct which contains an array of BatchDataItems
+    BatchData memory batchData = BatchData({ batches: new BatchDataItem[](1) });
+    batchData.batches[0] = batchDataItem;
+
+    return batchData;
+  }
+
   /**
    * @notice Tests the `commitBatch` function to ensure it correctly commits a batch with test data.
    *
@@ -116,47 +171,6 @@ contract NilRollupTest is BaseTest {
     updateStateWithTestData(_proposer, batchData);
   }
 
-  function generateBatchData() public view returns (BatchData memory) {
-    // Sample data for BatchDataItem
-    string memory sampleBatchId = "batch_1";
-    uint256 sampleBlobCount = 3;
-    bytes[] memory sampleDataProofs = new bytes[](sampleBlobCount);
-    sampleDataProofs[
-      0
-    ] = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
-    sampleDataProofs[
-      1
-    ] = hex"5032ba36170ce8f5957c7b9b5c98cff9bfdc0062093425ebb2da17957ba6346822721dfdd37f178fcfb577498c4e85e057d2753c51e8bd5bb161cb508739a177a350664da50c5a83a835be57c4b977f2974cf634701824836998cf86e38a6fd5b12423942fe6c187b2349534ee0cdd2bb655e5f169399fdb697139142f9c138d4967a30dcd3f2bf477c0803bfc64273e9758066c69a7bd70fb019a04d4c3cca0";
-    sampleDataProofs[
-      2
-    ] = hex"1406153c5ae3f657c510f98f48ac88680fe9b756939cb31ace0a395758de5112325f12d0d874002f402a5377bd49c8cad264d3c2fe285b9330dcddd010b8c9ccb3015da0dd4bb3e45007d4ada808d43bc5102edce6d9559966edbbedfc4503b3beb9e5224d28e7d04e56f845421f5b91ab0be4b0566041038e74b27e05499011c0b02f064cb0763dab7da3285731bbd1ae0c007c45028b4fd289fc1af6a62cce";
-    bytes32 sampleNewStateRoot = hex"9de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91";
-    bytes32 sampleOldStateRoot = hex"8de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91";
-    bytes
-      memory sampleValidityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
-    bytes32[] memory sampleVersionedHashes = new bytes32[](sampleBlobCount);
-    sampleVersionedHashes[0] = hex"01b8c86fa666387a77359ce7a28279db2e55c1e06772828ae65f26722b704862";
-    sampleVersionedHashes[1] = hex"01a1cf2318c1a60915f77b2b004241dfcddaf7a98971c6b087c93b04a3b4e638";
-    sampleVersionedHashes[2] = hex"01224624a9a635f1596717f628afc4a7e01e2afe21a6199e061dd9c7b14053b2";
-
-    // Create BatchDataItem with sample data
-    BatchDataItem memory batchDataItem = BatchDataItem({
-      batchId: sampleBatchId,
-      blobCount: sampleBlobCount,
-      dataProofs: sampleDataProofs,
-      newStateRoot: sampleNewStateRoot,
-      oldStateRoot: sampleOldStateRoot,
-      validityProof: sampleValidityProof,
-      versionedHashes: sampleVersionedHashes
-    });
-
-    // Prepare BatchData struct which contains an array of BatchDataItems
-    BatchData memory batchData = BatchData({ batches: new BatchDataItem[](1) });
-    batchData.batches[0] = batchDataItem;
-
-    return batchData;
-  }
-
   /**
    * @notice Tests the `commitBatch` function to ensure it reverts when called by a non-proposer.
    *
@@ -174,7 +188,7 @@ contract NilRollupTest is BaseTest {
     NilRollupMockBlob(address(rollup)).setBlobVersionedHash(0, versionedHash);
 
     // Expect a revert due to the caller not being the proposer
-    vm.expectRevert(NilAccessControl.ErrorCallerIsNotProposer.selector);
+    vm.expectRevert(NilAccessControlUpgradeable.ErrorCallerIsNotProposer.selector);
 
     // Attempt to commit the batch, expecting a revert due to the caller not being the proposer
     rollup.commitBatch("BATCH_1", 1);
@@ -201,7 +215,7 @@ contract NilRollupTest is BaseTest {
     vm.startPrank(_proposer);
 
     // Expect a revert due to the invalid (empty) batch index
-    vm.expectRevert(NilRollup.ErrorInvalidBatchIndex.selector);
+    vm.expectRevert(INilRollup.ErrorInvalidBatchIndex.selector);
 
     // Attempt to commit the batch with the invalid batch index
     rollup.commitBatch("", 1);
@@ -234,7 +248,7 @@ contract NilRollupTest is BaseTest {
     vm.startPrank(_proposer);
 
     // Expect a revert due to the invalid versioned hash
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorInvalidVersionedHash.selector, batchIndex, 0));
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorInvalidVersionedHash.selector, batchIndex, 0));
 
     // Attempt to commit the batch with the invalid versioned hash
     rollup.commitBatch(batchIndex, blobCount);
@@ -273,12 +287,8 @@ contract NilRollupTest is BaseTest {
     assertTrue(rollup.isBatchCommitted(batchIndex));
     assertFalse(rollup.isBatchFinalized(batchIndex));
 
-    // Verify the last committed batch index
-    string memory lastCommittedBatchIndex = rollup.getLastCommittedBatchIndex();
-    assertEq(lastCommittedBatchIndex, batchIndex);
-
     // Expect a revert due to the batch already being committed
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorBatchAlreadyCommitted.selector, "BATCH_1"));
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorBatchAlreadyCommitted.selector, "BATCH_1"));
 
     // Attempt to commit the same batch again
     rollup.commitBatch(batchIndex, blobCount);
@@ -328,12 +338,17 @@ contract NilRollupTest is BaseTest {
     ] = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
     bytes
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
+    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: ZERO_STATE_ROOT,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
 
     // Update the state with the first batch's details
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
 
     // Expect a revert due to the batch already being finalized
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorBatchAlreadyFinalized.selector, "BATCH_1"));
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorBatchAlreadyFinalized.selector, "BATCH_1"));
     rollup.commitBatch(batchIndex, blobCount);
 
     // Stop the prank
@@ -382,7 +397,7 @@ contract NilRollupTest is BaseTest {
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
 
     // Expect a revert due to the invalid old state root
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorInvalidOldStateRoot.selector));
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorInvalidOldStateRoot.selector));
 
     // Attempt to update the state with the first batch's details
     rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
@@ -435,11 +450,19 @@ contract NilRollupTest is BaseTest {
     bytes
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
 
+    bytes32 l2Tol1Root = hex"01224624a9a635f1596717f628afc4a7e01e2afe21a6199e061dd9c7b14053b2";
+
+    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: l2Tol1Root,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
+
     // Expect a revert due to the old state root mismatch
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorOldStateRootMismatch.selector));
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorOldStateRootMismatch.selector));
 
     // Attempt to update the state with the first batch's details
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
 
     // Stop the prank
     vm.stopPrank();
@@ -487,7 +510,7 @@ contract NilRollupTest is BaseTest {
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
 
     // Expect a revert due to the invalid new state root
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorInvalidNewStateRoot.selector));
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorInvalidNewStateRoot.selector));
 
     // Attempt to update the state with the first batch's details
     rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
@@ -534,7 +557,7 @@ contract NilRollupTest is BaseTest {
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
 
     // Expect a revert due to the invalid data proof
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorEmptyDataProofs.selector));
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorEmptyDataProofs.selector));
 
     // Attempt to update the state with the first batch's details
     rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
@@ -587,14 +610,20 @@ contract NilRollupTest is BaseTest {
     ] = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
     bytes
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
+    bytes32 l2Tol1Root = hex"01224624a9a635f1596717f628afc4a7e01e2afe21a6199e061dd9c7b14053b2";
+    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: l2Tol1Root,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
 
     // Expect a revert due to the mismatch
     vm.expectRevert(
-      abi.encodeWithSelector(NilRollup.ErrorDataProofsAndBlobCountMismatch.selector, dataProofs.length, blobCount)
+      abi.encodeWithSelector(INilRollup.ErrorDataProofsAndBlobCountMismatch.selector, dataProofs.length, blobCount)
     );
 
     // Attempt to update the state with the first batch's details
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
 
     // Stop the prank
     vm.stopPrank();
@@ -639,12 +668,19 @@ contract NilRollupTest is BaseTest {
     ] = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
     bytes
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
+    bytes32 l2Tol1Root = hex"01224624a9a635f1596717f628afc4a7e01e2afe21a6199e061dd9c7b14053b2";
+
+    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: l2Tol1Root,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
 
     // Expect a revert due to the batch not being committed
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorBatchNotCommitted.selector, batchIndex));
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorBatchNotCommitted.selector, batchIndex));
 
     // Attempt to update the state with the first batch's details
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
 
     // Stop the prank
     vm.stopPrank();
@@ -687,12 +723,16 @@ contract NilRollupTest is BaseTest {
     dataProofs[0] = hex"";
     bytes
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
-
+    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: ZERO_STATE_ROOT,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
     // Expect a revert due to the invalid data proof
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorInvalidDataProofItem.selector, 0));
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorInvalidDataProofItem.selector, 0));
 
     // Attempt to update the state with the first batch's details
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
 
     // Stop the prank
     vm.stopPrank();
@@ -739,7 +779,7 @@ contract NilRollupTest is BaseTest {
     bytes memory validityProof = hex"";
 
     // Expect a revert due to the invalid validity proof
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorInvalidValidityProof.selector));
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorInvalidValidityProof.selector));
 
     // Attempt to update the state with the first batch's details
     rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
@@ -791,12 +831,24 @@ contract NilRollupTest is BaseTest {
     bytes
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
 
+    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: ZERO_STATE_ROOT,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
+
     // Update the state with the first batch's details
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
+
+    publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: ZERO_STATE_ROOT,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
 
     // Expect a revert due to the batch already being finalized
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorBatchAlreadyFinalized.selector, batchIndex));
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorBatchAlreadyFinalized.selector, batchIndex));
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
 
     // Stop the prank
     vm.stopPrank();
@@ -853,9 +905,15 @@ contract NilRollupTest is BaseTest {
     bytes
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
 
+    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: ZERO_STATE_ROOT,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
+
     // Expect a revert due to invalid public input proof
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorInvalidPublicInputForProof.selector));
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorInvalidPublicInputForProof.selector));
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
 
     // Stop the prank
     vm.stopPrank();
@@ -882,9 +940,14 @@ contract NilRollupTest is BaseTest {
     ] = hex"5c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
     bytes
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
+    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: ZERO_STATE_ROOT,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
 
-    vm.expectRevert(abi.encodeWithSelector(NilRollup.ErrorCallPointEvaluationPrecompileFailed.selector));
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorCallPointEvaluationPrecompileFailed.selector));
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
 
     vm.stopPrank();
   }
@@ -934,8 +997,14 @@ contract NilRollupTest is BaseTest {
     bytes
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
 
+    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: ZERO_STATE_ROOT,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
+
     // Update the state with the first batch's details
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
 
     // Clear the mock blob hashes
     NilRollupMockBlob(address(rollup)).clearMockBlobHashes();
@@ -955,11 +1024,17 @@ contract NilRollupTest is BaseTest {
     oldStateRoot = hex"9de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91";
     newStateRoot = hex"9de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91";
 
+    publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: ZERO_STATE_ROOT,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
+
     // Expect a revert due to the new state root already being finalized
     vm.expectRevert(
-      abi.encodeWithSelector(NilRollup.ErrorNewStateRootAlreadyFinalized.selector, batchIndex, newStateRoot)
+      abi.encodeWithSelector(INilRollup.ErrorNewStateRootAlreadyFinalized.selector, batchIndex, newStateRoot)
     );
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
 
     // Stop the prank
     vm.stopPrank();
@@ -1075,10 +1150,16 @@ contract NilRollupTest is BaseTest {
     bytes
       memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
 
+    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: ZERO_STATE_ROOT,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
+
     vm.startPrank(_defaultAdmin);
 
     // Update the state with the first batch's details
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfoMock);
+    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
 
     vm.stopPrank();
 
@@ -1087,6 +1168,97 @@ contract NilRollupTest is BaseTest {
     assertTrue(rollup.isBatchFinalized(batchIndex));
 
     // Stop the prank
+    vm.stopPrank();
+  }
+
+  // Helper function to simplify batch processing and state updating.
+  function setupAndProcessBatch(string memory batchID, bytes32 stateRoot, bytes32 newStateRoot) internal {
+    BatchData memory batchData = this.generateBatchData(batchID, stateRoot, newStateRoot);
+    commitBatchWithTestData(_proposer, batchData);
+    updateStateWithTestData(_proposer, batchData);
+  }
+
+  /**
+   * @notice Tests the `resetState` function to ensure it correctly resets the state root and removes subsequent entries.
+   *
+   * @dev This test follows these steps:
+   * 1. Commit several batches with corresponding state roots with proposer role.
+   * 2. Start a prank as the admin.
+   * 3. Call resetState to a specific earlier state root.
+   * 4. Verify that the history has been trimmed up to the specified state root.
+   */
+  function test_resetState_SuccessfullyResetsToSpecifiedStateRoot() external {
+    // Define common state roots and batch IDs
+    bytes32 initialRoot = hex"8de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91";
+    bytes32 root1 = hex"0000000000000000000000000000000000000000000000000000000000000001";
+    bytes32 root2 = hex"0000000000000000000000000000000000000000000000000000000000000002";
+    bytes32 root3 = hex"0000000000000000000000000000000000000000000000000000000000000003";
+
+    string memory batch1 = "BATCH_1";
+    string memory batch2 = "BATCH_2";
+    string memory batch3 = "BATCH_3";
+
+    // Setup initial batches and update state
+    setupAndProcessBatch(batch1, initialRoot, root1);
+    setupAndProcessBatch(batch2, root1, root2);
+    setupAndProcessBatch(batch3, root2, root3);
+
+    // Start a prank as the admin, call reset function
+    vm.startPrank(_defaultAdmin);
+
+    rollup.resetState(root1);
+
+    // Assertions to check the outcomes of resetState
+    assertEq(rollup.batchIndexOfRoot(root1), batch1);
+    assertEq(rollup.previousStateRoot(root1), initialRoot);
+    assertEq(rollup.getLastFinalizedBatchIndex(), batch1);
+    assertTrue(rollup.isBatchFinalized(batch1));
+    assertEq(rollup.isRootFinalized(root1), true);
+
+    // Check that subsequent batches and roots are not finalized nor present
+    assertEq(rollup.batchIndexOfRoot(root2), "");
+    assertEq(rollup.batchIndexOfRoot(root3), "");
+    assertEq(rollup.isBatchFinalized(batch2), false);
+    assertEq(rollup.isBatchCommitted(batch2), false);
+    assertEq(rollup.isRootFinalized(root2), false);
+    assertEq(rollup.isBatchFinalized(batch3), false);
+    assertEq(rollup.isBatchCommitted(batch3), false);
+    assertEq(rollup.isRootFinalized(root3), false);
+
+    vm.stopPrank();
+  }
+
+  /**
+   * @notice Tests the `resetState` function to ensure it reverts when attempting to reset to a non-existent state root.
+   *
+   * @dev This test follows these steps:
+   * 1. Start a prank as the admin.
+   * 2. Attempt to reset state to a non-existent state root, expecting a revert.
+   */
+  function test_resetState_toRevert_with_ResetStateRootNotFound() external {
+    vm.startPrank(_defaultAdmin);
+
+    // Attempt to reset state to a non-existent state root
+    vm.expectRevert(INilRollup.ErrorResetStateRootNotFound.selector);
+    rollup.resetState(hex"04");
+
+    vm.stopPrank();
+  }
+
+  /**
+   * @notice Tests the `resetState` function to ensure it reverts when attempting to reset to an invalid state root.
+   *
+   * @dev This test follows these steps:
+   * 1. Start a prank as the admin.
+   * 2. Attempt to reset state to a invalid state root, expecting a revert.
+   */
+  function test_resetState_toRevert_with_ResetStateInvalid() external {
+    vm.startPrank(_defaultAdmin);
+
+    // Attempt to reset state to a non-existent state root
+    vm.expectRevert(INilRollup.ErrorInvalidResetStateRoot.selector);
+    rollup.resetState(hex"");
+
     vm.stopPrank();
   }
 }

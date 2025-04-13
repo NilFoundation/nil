@@ -16,10 +16,10 @@ const (
 	testRoundTimeout = time.Second
 )
 
-var (
-	correctRoundMessage = newCorrectRoundMessage(0)
+var correctRoundMessage = newCorrectRoundMessage(0)
 
-	badRoundMessage = roundMessage{
+func newBadRoundMessage() roundMessage {
+	return roundMessage{
 		proposal: &proto.Proposal{
 			RawProposal: []byte("bad"),
 			Round:       100,
@@ -27,7 +27,7 @@ var (
 		hash: []byte("bad proposal hash"),
 		seal: []byte("bad seal"),
 	}
-)
+}
 
 func newCorrectRoundMessage(round uint64) roundMessage {
 	return roundMessage{

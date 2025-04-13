@@ -13,9 +13,9 @@ import (
 
 func GetInternalTransactionCommand() *cobra.Command {
 	var (
-		kind                   types.TransactionKind = types.ExecutionTransactionKind
+		kind                   = types.ExecutionTransactionKind
+		feeCredit              = types.NewValueFromUint64(100_000)
 		bounce                 bool
-		feeCredit              types.Value       = types.NewValueFromUint64(100_000)
 		forwardKind            types.ForwardKind = types.ForwardKindNone
 		to, refundTo, bounceTo types.Address
 		value                  types.Value

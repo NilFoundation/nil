@@ -242,18 +242,22 @@ func getParamImpl[T any, paramPtr IConfigParamPointer[T]](c ConfigAccessor) (*T,
 
 // setParamImpl sets the value of the specified config param.
 func setParamImpl[T any](c ConfigAccessor, obj *T) error {
-	if configParam, ok := any(obj).(IConfigParam); ok {
-		name := configParam.Name()
-		if marshaler, ok := any(obj).(ssz.Marshaler); ok {
-			data, err := marshaler.MarshalSSZ()
-			if err != nil {
-				return fmt.Errorf("failed to marshal config param %s: %w", name, err)
-			}
-			return c.SetParamData(name, data)
-		}
+	configParam, ok := any(obj).(IConfigParam)
+	if !ok {
+		return errors.New("type does not implement types.IConfigParam")
+	}
+
+	name := configParam.Name()
+	marshaler, ok := any(obj).(ssz.Marshaler)
+	if !ok {
 		return errors.New("type does not implement ssz.Marshaler")
 	}
-	return errors.New("type does not implement types.IConfigParam")
+
+	data, err := marshaler.MarshalSSZ()
+	if err != nil {
+		return fmt.Errorf("failed to marshal config param %s: %w", name, err)
+	}
+	return c.SetParamData(name, data)
 }
 
 func GetConfigTrie(tx db.RoTx, mainShardHash *common.Hash) (*mpt.Reader, error) {
@@ -286,23 +290,18 @@ func packSolidityImpl[T any](obj *T) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	var paramAbi abi.Arguments
-	if configParam, ok := any(new(T)).(IConfigParam); ok {
-		m, ok := precompileAbi.Methods[configParam.Name()]
-		if !ok {
-			return nil, errors.New("method not found")
-		}
-		paramAbi = m.Inputs
-	} else {
+
+	configParam, ok := any(new(T)).(IConfigParam)
+	if !ok {
 		return nil, errors.New("type does not implement types.IConfigParam")
 	}
 
-	data, err := paramAbi.Pack(obj)
-	if err != nil {
-		return nil, err
+	m, ok := precompileAbi.Methods[configParam.Name()]
+	if !ok {
+		return nil, errors.New("method not found")
 	}
 
-	return data, nil
+	return m.Inputs.Pack(obj)
 }
 
 // unpackSolidityImpl unpacks the given data into the specified config param.
@@ -311,19 +310,19 @@ func unpackSolidityImpl[T any](data []byte) (*T, error) {
 	if err != nil {
 		return nil, err
 	}
-	var paramAbi abi.Arguments
+
 	obj := new(T)
-	if configParam, ok := any(obj).(IConfigParam); ok {
-		m, ok := precompileAbi.Methods[configParam.Name()]
-		if !ok {
-			return nil, errors.New("method not found")
-		}
-		paramAbi = m.Inputs
-	} else {
+	configParam, ok := any(obj).(IConfigParam)
+	if !ok {
 		return nil, errors.New("type does not implement types.IConfigParam")
 	}
 
-	unpacked, err := paramAbi.Unpack(data)
+	m, ok := precompileAbi.Methods[configParam.Name()]
+	if !ok {
+		return nil, errors.New("method not found")
+	}
+
+	unpacked, err := m.Inputs.Unpack(data)
 	if err != nil {
 		return nil, err
 	}

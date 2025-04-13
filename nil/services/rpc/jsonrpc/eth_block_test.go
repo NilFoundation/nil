@@ -41,11 +41,11 @@ func (suite *SuiteEthBlock) SetupSuite() {
 			txn.Data = types.Code(strconv.FormatUint(uint64(j), 10))
 			txns = append(txns, txn)
 		}
-		suite.lastBlockHash = execution.GenerateBlockFromTransactionsWithoutExecution(suite.T(), suite.ctx,
+		suite.lastBlockHash = execution.GenerateBlockFromTransactionsWithoutExecution(suite.T(),
 			shardId, types.BlockNumber(i), suite.lastBlockHash, suite.db, txns...)
 	}
 
-	suite.api = NewTestEthAPI(suite.T(), suite.ctx, suite.db, 1)
+	suite.api = NewTestEthAPI(suite.ctx, suite.T(), suite.db, 1)
 }
 
 func (suite *SuiteEthBlock) TearDownSuite() {
@@ -144,7 +144,7 @@ func TestGetBlockByNumberOnEmptyBase(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := t.Context()
-	api := NewTestEthAPI(t, ctx, d, 1)
+	api := NewTestEthAPI(ctx, t, d, 1)
 
 	_, err = api.GetBlockByNumber(ctx, shardId, transport.EarliestBlockNumber, false)
 	require.ErrorIs(t, err, db.ErrKeyNotFound)

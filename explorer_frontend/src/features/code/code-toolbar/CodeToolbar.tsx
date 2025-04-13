@@ -1,6 +1,6 @@
 import type { FC, ReactNode } from "react";
 import { useStyletron } from "styletron-react";
-import { BackRouterNavigationButton, useMobile } from "../../shared";
+import { useMobile } from "../../shared";
 import { CompilerVersionButton } from "./CompilerVersionButton.tsx";
 import { HyperlinkButton } from "./HyperlinkButton";
 import { OpenProjectButton } from "./OpenProjectButton.tsx";
@@ -25,17 +25,6 @@ export const CodeToolbar: FC<CodeToolbarProps> = ({ disabled, extraToolbarButton
         flexGrow: 1,
       })}
     >
-      {!isMobile && (
-        <BackRouterNavigationButton
-          overrides={{
-            Root: {
-              style: {
-                marginRight: "auto",
-              },
-            },
-          }}
-        />
-      )}
       <QuestionButton />
       <HyperlinkButton disabled={disabled} />
       {extraToolbarButton === undefined && (

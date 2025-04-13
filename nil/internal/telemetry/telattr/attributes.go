@@ -6,7 +6,10 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
+
+const ServiceNameKey = string(semconv.ServiceNameKey)
 
 func ShardId(id types.ShardId) attribute.KeyValue {
 	return attribute.Int(logging.FieldShardId, int(id))

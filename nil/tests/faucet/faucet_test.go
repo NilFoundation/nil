@@ -29,8 +29,11 @@ func (s *SuiteFaucet) SetupSuite() {
 		CollatorTickPeriodMs: 200,
 	}, 10225)
 
-	s.DefaultClient, _ = s.StartRPCNode(tests.WithDhtBootstrapByValidators, nil)
-	s.faucetClient, _ = tests.StartFaucetService(s.T(), s.Context, &s.Wg, s.DefaultClient)
+	s.DefaultClient, _ = s.StartRPCNode(&tests.RpcNodeConfig{
+		WithDhtBootstrapByValidators: true,
+		ArchiveNodes:                 nil,
+	})
+	s.faucetClient, _ = tests.StartFaucetService(s.Context, s.T(), &s.Wg, s.DefaultClient)
 }
 
 func (s *SuiteFaucet) TearDownSuite() {
@@ -108,7 +111,7 @@ func (s *SuiteFaucet) TestDeployContractViaFaucet() {
 	balance, err := s.DefaultClient.GetBalance(s.Context, smartAccountAddr, "latest")
 	s.Require().NoError(err)
 	s.Require().Less(balance.Uint64(), value.Uint64())
-	s.Require().Positive(balance.Uint64())
+	s.Require().NotZero(balance.Uint64())
 	logging.GlobalLogger.Info().Msgf("Spent %s nil", value.Sub(balance))
 }
 

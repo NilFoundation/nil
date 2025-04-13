@@ -96,17 +96,17 @@ func (v *ValidatorKeysManager) InitKey() error {
 	}
 	if _, err := os.Stat(v.validatorKeyPath); err != nil {
 		if !os.IsNotExist(err) {
-			return fmt.Errorf("Error checking key file: %w", err)
+			return fmt.Errorf("error checking key file: %w", err)
 		}
 		Logger.Warn().Msgf("Key file not found, generating new key at path: %s", v.validatorKeyPath)
 		v.generateKey()
 		if err := v.dumpKey(); err != nil {
-			return fmt.Errorf("Error saving key: %w", err)
+			return fmt.Errorf("error saving key: %w", err)
 		}
 		return nil
 	}
 	if err := v.loadKey(); err != nil {
-		return fmt.Errorf("Error loading key: %w", err)
+		return fmt.Errorf("error loading key: %w", err)
 	}
 	return nil
 }

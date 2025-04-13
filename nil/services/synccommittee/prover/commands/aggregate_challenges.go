@@ -40,11 +40,11 @@ func (cmd *aggregateChallengesCmd) BeforeCommandExecuted(
 	for i, filename := range thetaPowerFiles {
 		bytes, err := os.ReadFile(filename)
 		if err != nil {
-			return fmt.Errorf("Cannot read theta power file: %w", err)
+			return fmt.Errorf("cannot read theta power file: %w", err)
 		}
 		num, err := strconv.Atoi(strings.TrimSpace(string(bytes)))
 		if err != nil {
-			return fmt.Errorf("Couldn't convert theta file content to integer: %w", err)
+			return fmt.Errorf("couldn't convert theta file content to integer: %w", err)
 		}
 		thetas[i] = num
 	}

@@ -39,7 +39,7 @@ func NewDbAPI(db db.ReadOnlyDB, logger logging.Logger) *DbAPIImpl {
 
 func (dbApi *DbAPIImpl) createRoTx(ctx context.Context) (db.RoTx, error) {
 	if dbApi.ts == nil {
-		return nil, errors.New("Timestamp is not initialized in DB API")
+		return nil, errors.New("timestamp is not initialized in DB API")
 	}
 	return dbApi.db.CreateRoTxAt(ctx, db.Timestamp(*dbApi.ts))
 }

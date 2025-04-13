@@ -272,8 +272,8 @@ func TestMessages_GetExtendedRCC(t *testing.T) {
 	t.Parallel()
 
 	var (
-		height uint64 = 0
-		quorum        = 5
+		height uint64
+		quorum = 5
 	)
 
 	messages := NewMessages()

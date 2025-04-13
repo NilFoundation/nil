@@ -52,7 +52,7 @@ func TestEncoderSimple(t *testing.T) {
 
 	deserializedBatch, err := ConvertFromProto(&unwrappedBatch)
 	require.NoError(t, err)
-	require.Len(t, deserializedBatch.Blocks, len(batch.ChildBlocks)+1)
+	require.Len(t, deserializedBatch.Blocks, len(batch.BlockIds()))
 	assert.Equal(t, batch.Id, deserializedBatch.BatchId)
 	assert.ElementsMatch(t, prunedBatch.Blocks, deserializedBatch.Blocks)
 }

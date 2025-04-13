@@ -109,7 +109,7 @@ func (s *SuiteRpcService) TestRpcDebugModules() {
 	s.Require().NoError(err)
 
 	s.Require().NotEmpty(block.Id)
-	s.Require().NotEqual(common.EmptyHash, block.Block.Hash(types.BaseShardId))
+	s.Require().NotEqual(common.EmptyHash, block.Hash(types.BaseShardId))
 	s.Require().NotEmpty(res.Content)
 
 	fullRes, err := s.Client.GetDebugBlock(s.Context, types.BaseShardId, "latest", true)
@@ -225,7 +225,7 @@ func (s *SuiteRpcService) TestRpcError() {
 }
 
 func (s *SuiteRpcService) TestBatch() {
-	apis := `{"db":"1.0","debug":"1.0","eth":"1.0","faucet":"1.0","rpc":"1.0","web3":"1.0"}`
+	apis := `{"db":"1.0","debug":"1.0","eth":"1.0","faucet":"1.0","rpc":"1.0","txpool":"1.0","web3":"1.0"}`
 	testcases := map[string]string{
 		"[]": `{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"empty batch"}}`,
 
@@ -291,6 +291,14 @@ func (s *SuiteRpcService) TestClientVersion() {
 	res, err := s.Client.ClientVersion(s.Context)
 	s.Require().NoError(err)
 	s.Require().Contains(res, "=;Nil")
+}
+
+func (s *SuiteRpcService) TestTxPoolApi() {
+	_, err := s.Client.GetTxpoolStatus(s.Context, types.BaseShardId)
+	s.Require().NoError(err)
+
+	_, err = s.Client.GetTxpoolContent(s.Context, types.BaseShardId)
+	s.Require().NoError(err)
 }
 
 func TestSuiteRpcService(t *testing.T) {

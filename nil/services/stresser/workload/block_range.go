@@ -31,9 +31,7 @@ func (w *BlockRange) Init(ctx context.Context, client *core.Helper, args *Worklo
 	return nil
 }
 
-func (w *BlockRange) Run(ctx context.Context, args *RunParams) (
-	[]*core.Transaction, error,
-) {
+func (w *BlockRange) Run(ctx context.Context, args *RunParams) error {
 	for shard := range w.params.NumShards {
 		block, err := w.client.Client.GetBlock(ctx, types.ShardId(shard), "latest", true)
 		if err != nil {
@@ -52,5 +50,5 @@ func (w *BlockRange) Run(ctx context.Context, args *RunParams) (
 		}
 	}
 
-	return w.txs, nil
+	return nil
 }

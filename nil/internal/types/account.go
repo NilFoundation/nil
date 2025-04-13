@@ -10,7 +10,6 @@ import (
 
 type SmartContract struct {
 	Address          Address
-	Initialised      bool
 	Balance          Value `ssz-size:"32"`
 	TokenRoot        common.Hash
 	StorageRoot      common.Hash
@@ -41,7 +40,7 @@ type TokenBalance struct {
 }
 
 func (token TokenBalance) Value() (driver.Value, error) {
-	return []interface{}{token.Token, token.Balance.ToBig()}, nil
+	return []any{token.Token, token.Balance.ToBig()}, nil
 }
 
 func TokenIdForAddress(a Address) *TokenId {

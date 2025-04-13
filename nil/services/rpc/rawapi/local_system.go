@@ -11,7 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-func (api *LocalShardApi) GasPrice(ctx context.Context) (types.Value, error) {
+func (api *localShardApiRo) GasPrice(ctx context.Context) (types.Value, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return types.Value{}, fmt.Errorf("cannot open tx: %w", err)
@@ -23,14 +23,14 @@ func (api *LocalShardApi) GasPrice(ctx context.Context) (types.Value, error) {
 		return types.Value{}, fmt.Errorf("cannot open config accessor: %w", err)
 	}
 	param, err := config.GetParamGasPrice(cfg)
-	if err != nil || len(param.Shards) <= int(api.ShardId) {
+	if err != nil || len(param.Shards) <= int(api.shardId()) {
 		return types.Value{}, fmt.Errorf("cannot get gas price: %w", err)
 	}
-	return types.Value{Uint256: &param.Shards[api.ShardId]}, nil
+	return types.Value{Uint256: &param.Shards[api.shardId()]}, nil
 }
 
-func (api *LocalShardApi) GetShardIdList(ctx context.Context) ([]types.ShardId, error) {
-	if api.ShardId != types.MainShardId {
+func (api *localShardApiRo) GetShardIdList(ctx context.Context) ([]types.ShardId, error) {
+	if api.shardId() != types.MainShardId {
 		return nil, errors.New("GetShardIdList is only supported for the main shard")
 	}
 
@@ -50,7 +50,7 @@ func (api *LocalShardApi) GetShardIdList(ctx context.Context) ([]types.ShardId, 
 	return treeShards.Keys()
 }
 
-func (api *LocalShardApi) GetNumShards(ctx context.Context) (uint64, error) {
+func (api *localShardApiRo) GetNumShards(ctx context.Context) (uint64, error) {
 	shards, err := api.GetShardIdList(ctx)
 	if err != nil {
 		return 0, err

@@ -41,7 +41,10 @@ export const createSmartAccountFx = accountConnectorDomain.createEffect<
     privateKey: Hex;
     rpcUrl: string;
   },
-  SmartAccountV1
+  {
+    smartAccount: SmartAccountV1;
+    rpcUrl: string;
+  }
 >();
 
 export const topUpSmartAccountBalanceFx = accountConnectorDomain.createEffect<
@@ -49,7 +52,7 @@ export const topUpSmartAccountBalanceFx = accountConnectorDomain.createEffect<
   bigint
 >();
 
-export const initilizeSmartAccount = createEvent();
+export const initilizeSmartAccount = createEvent<string>();
 
 export const regenrateAccountEvent = createEvent();
 

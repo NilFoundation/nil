@@ -32,7 +32,7 @@ jobs:
         run: nix develop -c make generated
 
       - name: golangci-lint
-        run: nix develop -c golangci-lint run
+        run: nix develop -c make golangci-lint
 
       - name: Run checklocks
         run: nix develop -c make checklocks

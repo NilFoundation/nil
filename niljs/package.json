@@ -37,7 +37,7 @@
     "lint:fix": "biome check --write .",
     "lint:types": "tsc --noEmit -p tsconfig.json",
     "lint:jsdoc": "eslint .",
-    "pub": "npm run build && npm publish"
+    "pub": "pnpm build && pnpm publish"
   },
   "license": "MIT",
   "devDependencies": {
@@ -51,9 +51,10 @@
     "rollup-plugin-esbuild": "6.1.1",
     "rollup-plugin-filesize": "^10.0.0",
     "solc-typed-ast": "^18.2.3",
-    "tsx": "^4.17.0",
+    "tsx": "4.17.0",
     "typescript": "^5.6.2",
-    "typescript-eslint": "^8.12.2"
+    "typescript-eslint": "^8.12.2",
+    "rimraf": "^6.0.1"
   },
   "publishConfig": {
     "access": "public",
@@ -62,7 +63,7 @@
   "dependencies": {
     "@chainsafe/persistent-merkle-tree": "^0.7.2",
     "@chainsafe/ssz": "^0.16.0",
-    "@nilfoundation/smart-contracts": "0.7.0",
+    "@nilfoundation/smart-contracts": "workspace:*",
     "@noble/curves": "^1.4.0",
     "@open-rpc/client-js": "^1.8.1",
     "@rollup/plugin-json": "^6.1.0",

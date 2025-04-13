@@ -13,7 +13,6 @@ import { useUnit } from "effector-react";
 import { playgroundRoute } from "../../../routing";
 import { explorerRoute } from "../../../routing/routes/explorerRoute";
 import { tutorialWithUrlStringRoute } from "../../../routing/routes/tutorialRoute";
-import { BackRouterNavigationButton } from "../BackRouterNavigationButton";
 
 const menuOverrides: MenuOverrides = {
   List: {
@@ -73,10 +72,6 @@ export const Navigation = () => {
       disabled: true,
     },
   ];
-
-  if (!isMainPage) {
-    return <BackRouterNavigationButton />;
-  }
 
   return <Menu items={items} size={MENU_SIZE.small} overrides={menuOverrides} />;
 };

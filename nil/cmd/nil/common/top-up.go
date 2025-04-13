@@ -57,7 +57,7 @@ func RunTopUp(
 		var ok bool
 		balance, ok = tokens[types.TokenId(faucetAddress)]
 		if !ok {
-			return fmt.Errorf("Token %s for %s %s is not found", faucetAddress, name, address)
+			return fmt.Errorf("token %s for %s %s is not found", faucetAddress, name, address)
 		}
 	}
 
