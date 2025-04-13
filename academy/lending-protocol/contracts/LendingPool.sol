@@ -4,385 +4,241 @@ pragma solidity ^0.8.28;
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
 
-/// @title LendingPool
-/// @dev The LendingPool contract facilitates lending and borrowing of tokens and handles collateral management.
-/// It interacts with other contracts such as GlobalLedger, InterestManager, and Oracle for tracking deposits, calculating interest, and fetching token prices.
+/// @title LendingPool (Shard Entry Point)
+/// @dev The LendingPool contract acts as a user interface on each shard.
+/// It forwards requests to the CentralLedger and interacts with Oracle and InterestManager.
 contract LendingPool is NilBase, NilTokenBase {
-    address public deployer;
-
-    address public globalLedger;
+    // Core contract addresses
+    address public centralLedger;
     address public interestManager;
     address public oracle;
     TokenId public usdt;
     TokenId public eth;
 
-    //Errors
-    error OnlyDeployer();
+    // Errors
     error InvalidToken();
-    error InvalidCaller();
-    error InvalidShardId();
-    error ExcessTransfer();
-    error InvalidPoolAddress();
-    error PoolAlreadyRegistered();
-    error InvalidTransferAmount();
-    error InsufficientCollateral();
-    error NoLendingPoolsRegistered();
-    error FailedToRetrieveCollateral();
     error InsufficientFunds(string message);
     error CrossShardCallFailed(string message);
 
-    /// @dev Mapping to track lending pools on different shards
-    mapping(uint256 => address) public lendingPoolsByShard;
-    address[] public lendingPools;
-    uint256 public lendingPoolCount;
+    // Events
+    event DepositInitiated(address indexed user, TokenId token, uint256 amount);
+    event LoanRequested(
+        address indexed borrower,
+        uint256 amount,
+        TokenId borrowToken,
+        TokenId collateralToken
+    );
+    event RepaymentInitiated(
+        address indexed borrower,
+        TokenId token,
+        uint256 amount
+    );
 
-    /// @dev Mapping to track active borrow requests to prevent multiple handling
-    mapping(bytes32 => bool) public activeBorrowRequests;
-
-    /// @dev Modifier to ensure only the deployer can call certain functions
-    modifier onlyDeployer() {
-        if (msg.sender != deployer) revert OnlyDeployer();
-        _;
-    }
-
-    /// @notice Constructor to initialize the LendingPool contract with addresses for dependencies.
-    /// @dev Sets the contract addresses for GlobalLedger, InterestManager, Oracle, USDT, and ETH tokens.
-    /// @param _globalLedger The address of the GlobalLedger contract.
-    /// @param _interestManager The address of the InterestManager contract.
-    /// @param _oracle The address of the Oracle contract.
-    /// @param _usdt The TokenId for USDT.
-    /// @param _eth The TokenId for ETH.
+    /// @notice Constructor to initialize the LendingPool shard contract.
     constructor(
-        address _globalLedger,
+        address _centralLedger,
         address _interestManager,
         address _oracle,
         TokenId _usdt,
         TokenId _eth
     ) {
-        globalLedger = _globalLedger;
+        centralLedger = _centralLedger;
         interestManager = _interestManager;
         oracle = _oracle;
         usdt = _usdt;
         eth = _eth;
-
-        deployer = msg.sender;
-
-        /// @notice Register the current contract as a lending pool
-        /// @dev This ensures that the current contract is recognized as a valid lending pool
-        registerLendingPool(address(this));
     }
 
-    /// @notice Register a new lending pool on a different shard
-    /// @dev Allows registration of other lending pools for cross-shard borrowing
-    /// @param poolAddress The address of the lending pool to register
-    function registerLendingPool(address poolAddress) public onlyDeployer {
-        if (poolAddress == address(0)) revert InvalidPoolAddress();
-
-        uint256 shardId = Nil.getShardId(poolAddress);
-        if (lendingPoolsByShard[shardId] != address(0))
-            revert PoolAlreadyRegistered();
-
-        lendingPoolsByShard[shardId] = poolAddress;
-        lendingPools.push(poolAddress);
-        lendingPoolCount++;
-    }
-
-    /// @notice Transfer liquidity to another shard
-    /// @dev Called by other shards to request liquidity,
-    /// @dev loan are to be sent directly to the borrower therefore we need to record the loan first
-    function transferCrossShardLiquidity(
-        address recipient,
-        TokenId token,
-        uint256 amount
-    ) public {
-        // Verify we have enough liquidity
-        if (Nil.tokenBalance(address(this), token) < amount) {
-            revert InsufficientFunds("Insufficient liquidity");
-        }
-
-        /// @notice Record the loan in GlobalLedger
-        /// @dev The loan details are recorded in the GlobalLedger contract.
-        bytes memory recordLoanCallData = abi.encodeWithSignature(
-            "recordLoan(address,address,uint256)",
-            recipient,
-            token,
-            amount
-        );
-
-        // First record the loan
-        Nil.asyncCall(globalLedger, address(this), 0, recordLoanCallData);
-
-        //then Transfer the tokens to the requesting pool
-        sendTokenInternal(recipient, token, amount);
-    }
-
-    /// @notice Get the balance of a specific token in the lending pool
-    /// @dev Used by other lending pools to check available liquidity
-    /// @param token The token to check balance for
-    /// @return uint256 The balance of the token
-    function getTokenBalance(TokenId token) public view returns (uint256) {
-        return Nil.tokenBalance(address(this), token);
-    }
-
-    /// @notice Deposit function to deposit tokens into the lending pool.
-    /// @dev The deposited tokens are recorded in the GlobalLedger via an asynchronous call.
+    /// @notice Deposit function to deposit tokens into the protocol via the CentralLedger.
     function deposit() public payable {
-        /// Retrieve the tokens being sent in the transaction
         Nil.Token[] memory tokens = Nil.txnTokens();
+        require(tokens.length == 1, "Only one token type per deposit");
 
-        /// @notice Encoding the call to the GlobalLedger to record the deposit
-        /// @dev The deposit details (user address, token type, and amount) are encoded for GlobalLedger.
-        /// @param callData The encoded call data for recording the deposit in GlobalLedger.
-        bytes memory callData = abi.encodeWithSignature(
-            "recordDeposit(address,address,uint256)",
-            msg.sender,
-            tokens[0].id, // The token being deposited (usdt or eth)
-            tokens[0].amount // The amount of the token being deposited
+        bytes memory callData = abi.encodeWithSelector(
+            bytes4(keccak256("handleDeposit(address)")),
+            msg.sender
         );
 
-        /// @notice Making an asynchronous call to the GlobalLedger to record the deposit
-        /// @dev This ensures that the user's deposit is recorded in GlobalLedger asynchronously.
-        Nil.asyncCall(globalLedger, address(this), 0, callData);
+        // Use Nil.asyncCallWithTokens, providing necessary arguments
+        Nil.asyncCallWithTokens(
+            centralLedger,
+            address(0), // refundTo (default)
+            address(this), // bounceTo
+            0, // feeCredit (default)
+            Nil.FORWARD_REMAINING, // forwardKind (default)
+            0, // value
+            tokens, // The deposit tokens
+            callData
+        );
+
+        emit DepositInitiated(msg.sender, tokens[0].id, tokens[0].amount);
     }
 
-    /// @notice Borrow function allows a user to borrow tokens (either USDT or ETH).
-    /// @dev Ensures sufficient liquidity, checks collateral, and processes the loan after fetching the price from the Oracle.
-    /// @param amount The amount of the token to borrow.
-    /// @param borrowToken The token the user wants to borrow (either USDT or ETH).
+    /// @notice Initiates a borrow request.
     function borrow(uint256 amount, TokenId borrowToken) public payable {
-        /// @notice Ensure the token being borrowed is either USDT or ETH
-        /// @dev Prevents invalid token types from being borrowed.
         if (borrowToken != usdt && borrowToken != eth) revert InvalidToken();
 
-        /// @notice Determine which collateral token will be used (opposite of the borrow token)
-        /// @dev Identifies the collateral token by comparing the borrow token.
         TokenId collateralToken = (borrowToken == usdt) ? eth : usdt;
 
-        /// @notice Prepare a call to the Oracle to get the price of the borrow token
-        /// @dev The price of the borrow token is fetched from the Oracle to calculate collateral.
-        /// @param callData The encoded data to fetch the price from the Oracle.
-        bytes memory callData = abi.encodeWithSignature(
+        bytes memory oracleCallData = abi.encodeWithSignature(
             "getPrice(address)",
             borrowToken
         );
 
-        /// @notice Check if there are any lending pools registered
-        /// @dev If there are no registered lending pools, revert with an error message
-        if (lendingPoolCount == 0) revert NoLendingPoolsRegistered();
+        bytes memory context = abi.encodeWithSelector(
+            this.processOracleResponse.selector,
+            msg.sender,
+            amount,
+            borrowToken,
+            collateralToken
+        );
 
-        /// @notice Iterate through all registered lending pools
-        /// @dev Check if any lending pool has sufficient balance of the borrow token
-        /// @notice we expect that the first lending pool has this contract in the array thereby checking local liquidity first
-        for (uint256 i = 0; i < lendingPools.length; i++) {
-            uint256 shardBalnce = Nil.tokenBalance(
-                lendingPools[i],
-                borrowToken
-            );
+        // Use Nil.sendRequest
+        Nil.sendRequest(oracle, 0, 11_000_000, context, oracleCallData);
 
-            if (shardBalnce >= amount) {
-                bytes memory context = abi.encodeWithSelector(
-                    this.processLoan.selector,
-                    msg.sender,
-                    amount,
-                    borrowToken,
-                    collateralToken,
-                    lendingPools[i]
-                );
-
-                /// @notice Send a request to the Oracle to get the price of the borrow token.
-                /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
-                Nil.sendRequest(oracle, 0, 9_000_000, context, callData);
-
-                /// @notice Break out of the loop after finding a sufficient balance
-                break;
-            }
-        }
+        emit LoanRequested(msg.sender, amount, borrowToken, collateralToken);
     }
 
-    /// @notice Callback function to process the loan after the price data is retrieved from Oracle.
-    /// @dev Ensures that the borrower has enough collateral, calculates the loan value, and initiates loan processing.
-    /// @param success Indicates if the Oracle call was successful.
-    /// @param returnData The price data returned from the Oracle.
-    /// @param context The context data containing borrower details, loan amount, and collateral token.
-    function processLoan(
+    /// @notice Callback after Oracle returns the price for a borrow request.
+    function processOracleResponse(
         bool success,
         bytes memory returnData,
         bytes memory context
     ) public payable {
-        /// @notice Ensure the Oracle call was successful
-        /// @dev Verifies that the price data was successfully retrieved from the Oracle.
-        if (!success) revert CrossShardCallFailed("Oracle call failed");
+        if (!success) revert CrossShardCallFailed("Oracle price call failed");
 
-        /// @notice Decode the context to extract borrower details, loan amount, and collateral token
-        /// @dev Decodes the context passed from the borrow function to retrieve necessary data.
         (
             address borrower,
             uint256 amount,
             TokenId borrowToken,
-            TokenId collateralToken,
-            address sourcePool
-        ) = abi.decode(context, (address, uint256, TokenId, TokenId, address));
+            TokenId collateralToken
+        ) = abi.decode(context, (address, uint256, TokenId, TokenId));
 
-        /// @notice Decode the price data returned from the Oracle
-        /// @dev The returned price data is used to calculate the loan value in USD.
         uint256 borrowTokenPrice = abi.decode(returnData, (uint256));
-        /// @notice Calculate the loan value in USD
-        /// @dev Multiplies the amount by the borrow token price to get the loan value in USD.
-        uint256 loanValueInUSD = amount * borrowTokenPrice;
-        /// @notice Calculate the required collateral (120% of the loan value)
-        /// @dev The collateral is calculated as 120% of the loan value to mitigate risk.
-        uint256 requiredCollateral = (loanValueInUSD * 120) / 100;
 
-        /// @notice Prepare a call to GlobalLedger to check the user's collateral balance
-        /// @dev Fetches the collateral balance from the GlobalLedger contract to ensure sufficient collateral.
+        uint256 loanValueInUSD = amount * borrowTokenPrice;
+        uint256 requiredCollateralValue = (loanValueInUSD * 120) / 100;
+
         bytes memory ledgerCallData = abi.encodeWithSignature(
-            "getDeposit(address,address)",
+            "getCollateralBalance(address,address)",
             borrower,
             collateralToken
         );
 
-        /// @notice Encoding the context to finalize the loan once the collateral is validated
-        /// @dev Once the collateral balance is validated, the loan is finalized and processed.
         bytes memory ledgerContext = abi.encodeWithSelector(
-            this.finalizeLoan.selector,
+            this.finalizeBorrow.selector,
             borrower,
             amount,
             borrowToken,
-            requiredCollateral,
-            sourcePool
+            requiredCollateralValue,
+            collateralToken
         );
 
-        /// @notice Send request to GlobalLedger to get the user's collateral
-        /// @dev The fee for this request is retained for processing the collateral validation response.
+        // Use Nil.sendRequest
         Nil.sendRequest(
-            globalLedger,
+            centralLedger,
             0,
-            6_000_000,
+            8_000_000,
             ledgerContext,
             ledgerCallData
         );
     }
 
-    /// @notice Finalize the loan by ensuring sufficient collateral and recording the loan in GlobalLedger.
-    /// @dev Verifies that the user has enough collateral, processes the loan, and sends the borrowed tokens to the borrower.
-    /// @param success Indicates if the collateral check was successful.
-    /// @param returnData The collateral balance returned from the GlobalLedger.
-    /// @param context The context containing loan details.
-    function finalizeLoan(
+    /// @notice Callback after CentralLedger returns the user's collateral balance.
+    function finalizeBorrow(
         bool success,
         bytes memory returnData,
         bytes memory context
     ) public payable {
-        /// @notice Ensure the collateral check was successful
-        /// @dev Verifies the collateral validation result from GlobalLedger.
         if (!success) revert CrossShardCallFailed("Collateral check failed");
 
-        /// @notice Decode the context to extract loan details
-        /// @dev Decodes the context passed from the processLoan function to retrieve loan data.
         (
             address borrower,
             uint256 amount,
             TokenId borrowToken,
-            uint256 requiredCollateral,
-            address sourcePool
-        ) = abi.decode(context, (address, uint256, TokenId, uint256, address));
+            uint256 requiredCollateralValue,
+            TokenId collateralToken
+        ) = abi.decode(context, (address, uint256, TokenId, uint256, TokenId));
 
-        /// @notice Decode the user's collateral balance from GlobalLedger
-        /// @dev Retrieves the user's collateral balance from the GlobalLedger to compare it with the required collateral.
-        uint256 userCollateral = abi.decode(returnData, (uint256));
+        uint256 userCollateralValue = abi.decode(returnData, (uint256));
 
-        /// @notice Check if the user has enough collateral to cover the loan
-        /// @dev Ensures the borrower has sufficient collateral before proceeding with the loan.
-        if (userCollateral < requiredCollateral)
-            revert InsufficientFunds("Insufficient collateral");
+        if (userCollateralValue < requiredCollateralValue)
+            revert InsufficientFunds("Insufficient collateral value");
 
-        if (sourcePool != address(this)) {
-            /// @notice Request the transfer from the source pool to the borrower
-            // Then request the transfer from source pool to borrower
-            bytes memory transferCallData = abi.encodeWithSignature(
-                "transferCrossShardLiquidity(address,address,uint256)",
-                borrower,
-                borrowToken,
-                amount
-            );
+        bytes memory centralLedgerCallData = abi.encodeWithSelector(
+            bytes4(
+                keccak256(
+                    "handleBorrowRequest(address,uint256,address,uint256,address)"
+                )
+            ),
+            borrower,
+            amount,
+            borrowToken,
+            requiredCollateralValue,
+            collateralToken
+        );
 
-            Nil.asyncCall(sourcePool, address(this), 0, transferCallData);
-        } else {
-            transferCrossShardLiquidity(borrower, borrowToken, amount);
-        }
+        // Use Nil.asyncCall (no tokens transferred here)
+        Nil.asyncCall(centralLedger, address(this), 0, centralLedgerCallData);
     }
 
-    /// @notice Repay loan function called by the borrower to repay their loan.
-    /// @dev Initiates the repayment process by retrieving the loan details from GlobalLedger.
+    /// @notice Initiates the loan repayment process.
     function repayLoan() public payable {
-        /// @notice Retrieve the tokens being sent in the transaction
-        /// @dev Retrieves the tokens involved in the repayment.
         Nil.Token[] memory tokens = Nil.txnTokens();
+        require(tokens.length == 1, "Only one token type per repayment");
+        TokenId repaidToken = tokens[0].id;
+        uint256 sentAmount = tokens[0].amount;
+        address borrower = msg.sender;
 
-        /// @notice Prepare to query the loan details from GlobalLedger
-        /// @dev Fetches the loan details of the borrower to proceed with repayment.
-        bytes memory callData = abi.encodeWithSignature(
+        bytes memory getLoanCallData = abi.encodeWithSignature(
             "getLoanDetails(address)",
-            msg.sender
+            borrower
         );
 
-        /// @notice Encoding the context to handle repayment after loan details are fetched
-        /// @dev Once the loan details are retrieved, the repayment amount is processed.
         bytes memory context = abi.encodeWithSelector(
-            this.handleRepayment.selector,
-            msg.sender,
-            tokens[0].amount
+            this.handleLoanDetailsForRepayment.selector,
+            borrower,
+            sentAmount,
+            repaidToken
         );
 
-        /// @notice Send request to GlobalLedger to fetch loan details
-        /// @dev Retrieves the borrower's loan details before proceeding with the repayment.
-        Nil.sendRequest(globalLedger, 0, 11_000_000, context, callData);
+        // Use Nil.sendRequest
+        Nil.sendRequest(centralLedger, 0, 8_000_000, context, getLoanCallData);
+
+        emit RepaymentInitiated(borrower, repaidToken, sentAmount);
     }
 
-    /// @notice Handle the loan repayment, calculate the interest, and update GlobalLedger.
-    /// @dev Calculates the total repayment (principal + interest) and updates the loan status in GlobalLedger.
-    /// @param success Indicates if the loan details retrieval was successful.
-    /// @param returnData The loan details returned from the GlobalLedger.
-    /// @param context The context containing borrower and repayment details.
-    function handleRepayment(
+    /// @notice Callback after fetching loan details for repayment.
+    function handleLoanDetailsForRepayment(
         bool success,
         bytes memory returnData,
         bytes memory context
     ) public payable {
-        /// @notice Ensure the GlobalLedger call was successful
-        /// @dev Verifies that the loan details were successfully retrieved from the GlobalLedger.
-        if (!success) revert CrossShardCallFailed("Ledger call failed");
+        if (!success) revert CrossShardCallFailed("Get loan details failed");
 
-        /// @notice Decode context and loan details
-        /// @dev Decodes the context and the return data to retrieve the borrower's loan details.
-        (address borrower, uint256 sentAmount) = abi.decode(
-            context,
-            (address, uint256)
-        );
-        (uint256 amount, TokenId token) = abi.decode(
+        (address borrower, uint256 sentAmount, TokenId repaidToken) = abi
+            .decode(context, (address, uint256, TokenId));
+        (uint256 loanAmount, TokenId loanToken) = abi.decode(
             returnData,
             (uint256, TokenId)
         );
 
-        /// @notice Ensure the borrower has an active loan
-        /// @dev Ensures the borrower has an outstanding loan before proceeding with repayment.
-        if (amount <= 0) revert InsufficientFunds("No active loan");
+        if (loanAmount == 0) revert InsufficientFunds("No active loan found");
+        if (loanToken != repaidToken) revert InvalidToken();
 
-        /// @notice Request the interest rate from the InterestManager
-        /// @dev Fetches the current interest rate for the loan from the InterestManager contract.
         bytes memory interestCallData = abi.encodeWithSignature(
             "getInterestRate()"
         );
+
         bytes memory interestContext = abi.encodeWithSelector(
-            this.processRepayment.selector,
+            this.processRepaymentCalculation.selector,
             borrower,
-            amount,
-            token,
+            loanAmount,
+            loanToken,
             sentAmount
         );
 
-        /// @notice Send request to InterestManager to fetch interest rate
-        /// @dev This request fetches the interest rate that will be used to calculate the total repayment.
+        // Use Nil.sendRequest
         Nil.sendRequest(
             interestManager,
             0,
@@ -392,156 +248,51 @@ contract LendingPool is NilBase, NilTokenBase {
         );
     }
 
-    /// @notice Process the repayment, calculate the total repayment including interest.
-    /// @dev Finalizes the loan repayment, ensuring the borrower has sent sufficient funds.
-    /// @param success Indicates if the interest rate call was successful.
-    /// @param returnData The interest rate returned from the InterestManager.
-    /// @param context The context containing repayment details.
-    function processRepayment(
+    /// @notice Callback after fetching the interest rate.
+    function processRepaymentCalculation(
         bool success,
         bytes memory returnData,
         bytes memory context
     ) public payable {
-        /// @notice Ensure the interest rate call was successful
-        /// @dev Verifies that the interest rate retrieval was successful.
         if (!success) revert CrossShardCallFailed("Interest rate call failed");
 
-        /// @notice Decode the repayment details and the interest rate
-        /// @dev Decodes the repayment context and retrieves the interest rate for loan repayment.
         (
             address borrower,
-            uint256 amount,
-            TokenId token,
+            uint256 loanAmount,
+            TokenId loanToken,
             uint256 sentAmount
         ) = abi.decode(context, (address, uint256, TokenId, uint256));
 
-        /// @notice Decode the interest rate from the response
-        /// @dev Decodes the interest rate received from the InterestManager contract.
         uint256 interestRate = abi.decode(returnData, (uint256));
-        /// @notice Calculate the total repayment amount (principal + interest)
-        /// @dev Adds the interest to the principal to calculate the total repayment due.
-        uint256 totalRepayment = amount + ((amount * interestRate) / 100);
 
-        /// @notice Ensure the borrower has sent sufficient funds for the repayment
-        /// @dev Verifies that the borrower has provided enough funds to repay the loan in full.
+        uint256 interestAmount = (loanAmount * interestRate) / 100;
+        uint256 totalRepayment = loanAmount + interestAmount;
+
         if (sentAmount < totalRepayment)
-            revert InsufficientFunds("Insufficient repayment amount");
+            revert InsufficientFunds("Insufficient amount sent for repayment");
 
-        /// @notice Clear the loan and release collateral
-        /// @dev Marks the loan as repaid and releases any associated collateral back to the borrower.
-        bytes memory clearLoanCallData = abi.encodeWithSignature(
-            "recordLoan(address,address,uint256)",
+        TokenId collateralToken = (loanToken == usdt) ? eth : usdt;
+
+        bytes memory processRepaymentCallData = abi.encodeWithSelector(
+            bytes4(keccak256("processRepayment(address,address,uint256)")),
             borrower,
-            token,
-            0 // Mark the loan as repaid
-        );
-        bytes memory releaseCollateralContext = abi.encodeWithSelector(
-            this.releaseCollateral.selector,
-            borrower,
-            token
+            collateralToken,
+            totalRepayment
         );
 
-        /// @notice Send request to GlobalLedger to update the loan status
-        /// @dev Updates the loan status to indicate repayment completion in the GlobalLedger.
-        Nil.sendRequest(
-            globalLedger,
-            0,
-            6_000_000,
-            releaseCollateralContext,
-            clearLoanCallData
+        Nil.Token[] memory tokensToForward = new Nil.Token[](1);
+        tokensToForward[0] = Nil.Token(loanToken, sentAmount);
+
+        // Use Nil.asyncCallWithTokens, providing necessary arguments
+        Nil.asyncCallWithTokens(
+            centralLedger,
+            address(0), // refundTo (default)
+            address(this), // bounceTo
+            0, // feeCredit (default)
+            Nil.FORWARD_REMAINING, // forwardKind (default)
+            0, // value
+            tokensToForward, // The repayment tokens
+            processRepaymentCallData
         );
-    }
-
-    /// @notice Release the collateral after the loan is repaid.
-    /// @dev Sends the collateral back to the borrower after confirming the loan is fully repaid.
-    /// @param success Indicates if the loan clearing was successful.
-    /// @param returnData The collateral data returned from the GlobalLedger.
-    /// @param context The context containing borrower and collateral token.
-    function releaseCollateral(
-        bool success,
-        bytes memory returnData,
-        bytes memory context
-    ) public payable {
-        /// @notice Ensure the loan clearing was successful
-        /// @dev Verifies the result of clearing the loan in the GlobalLedger.
-        if (!success) revert CrossShardCallFailed("Loan clearing failed");
-
-        /// @notice Silence unused variable warning
-        /// @dev A placeholder for unused variables to avoid compiler warnings.
-        returnData;
-
-        /// @notice Decode context for borrower and collateral token
-        /// @dev Decodes the context passed from the loan clearing function to retrieve the borrower's details.
-        (address borrower, TokenId borrowToken) = abi.decode(
-            context,
-            (address, TokenId)
-        );
-
-        /// @notice Determine the collateral token (opposite of borrow token)
-        /// @dev Identifies the token being used as collateral based on the borrow token.
-        TokenId collateralToken = (borrowToken == usdt) ? eth : usdt;
-
-        /// @notice Request collateral amount from GlobalLedger
-        /// @dev Retrieves the amount of collateral associated with the borrower from the GlobalLedger.
-        bytes memory getCollateralCallData = abi.encodeWithSignature(
-            "getDeposit(address,address)",
-            borrower,
-            collateralToken
-        );
-
-        /// @notice Context to send collateral to the borrower
-        /// @dev After confirming the collateral balance, it is returned to the borrower.
-        bytes memory sendCollateralContext = abi.encodeWithSelector(
-            this.sendCollateral.selector,
-            borrower,
-            collateralToken
-        );
-
-        /// @notice Send request to GlobalLedger to retrieve the collateral
-        /// @dev This request ensures that the correct collateral is available for release.
-        Nil.sendRequest(
-            globalLedger,
-            0,
-            3_50_000,
-            sendCollateralContext,
-            getCollateralCallData
-        );
-    }
-
-    /// @notice Send the collateral back to the borrower.
-    /// @dev Ensures there is enough collateral to release and then sends the funds back to the borrower.
-    /// @param success Indicates if the collateral retrieval was successful.
-    /// @param returnData The amount of collateral available.
-    /// @param context The context containing borrower and collateral token.
-    function sendCollateral(
-        bool success,
-        bytes memory returnData,
-        bytes memory context
-    ) public payable {
-        /// @notice Ensure the collateral retrieval was successful
-        /// @dev Verifies that the request to retrieve the collateral was successful.
-        if (!success)
-            revert CrossShardCallFailed("Collateral retrieval failed");
-
-        /// @notice Decode the collateral details
-        /// @dev Decodes the context passed from the releaseCollateral function to retrieve collateral details.
-        (address borrower, TokenId collateralToken) = abi.decode(
-            context,
-            (address, TokenId)
-        );
-        uint256 collateralAmount = abi.decode(returnData, (uint256));
-
-        /// @notice Ensure there's collateral to release
-        /// @dev Verifies that there is enough collateral to be released.
-        if (collateralAmount <= 0) revert FailedToRetrieveCollateral();
-
-        /// @notice Ensure sufficient balance in the LendingPool to send collateral
-        /// @dev Verifies that the LendingPool has enough collateral to send to the borrower.
-        if (Nil.tokenBalance(address(this), collateralToken) < collateralAmount)
-            revert InsufficientFunds("Insufficient collateral balance");
-
-        /// @notice Send the collateral tokens to the borrower
-        /// @dev Executes the transfer of collateral tokens back to the borrower.
-        sendTokenInternal(borrower, collateralToken, collateralAmount);
     }
 }
