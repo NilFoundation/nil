@@ -71,6 +71,11 @@ type BlocksRange struct {
 	End   types.BlockNumber
 }
 
+func NewBlocksRange(start types.BlockNumber, end types.BlockNumber) BlocksRange {
+	check.PanicIff(start > end, "start cannot be greater than end")
+	return BlocksRange{start, end}
+}
+
 // GetBlocksFetchingRange determines the range of blocks to fetch between the latest handled block
 // and the actual latest block.
 // latestHandled can be equal to:
@@ -112,6 +117,25 @@ func GetBlocksFetchingRange(
 	}
 
 	return &BlocksRange{blocksRange.Start, blocksRange.Start + types.BlockNumber(maxNumBlocks-1)}, nil
+}
+
+func (r *BlocksRange) SplitToChunks(chunkSize uint32) []BlocksRange {
+	check.PanicIff(chunkSize == 0, "chunkSize cannot be 0")
+
+	if r == nil {
+		return nil
+	}
+
+	var chunks []BlocksRange
+	for start := r.Start; start <= r.End; start += types.BlockNumber(chunkSize) {
+		end := start + types.BlockNumber(chunkSize) - 1
+		if end > r.End {
+			end = r.End
+		}
+		chunks = append(chunks, BlocksRange{Start: start, End: end})
+	}
+
+	return chunks
 }
 
 func (br *BlockRef) Equals(other *BlockRef) bool {
