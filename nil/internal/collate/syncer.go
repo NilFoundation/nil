@@ -126,6 +126,10 @@ type NodeVersion struct {
 	GenesisBlockHash common.Hash
 }
 
+func (v NodeVersion) String() string {
+	return fmt.Sprintf("[%s, %s]", v.ProtocolVersion, v.GenesisBlockHash)
+}
+
 func (s *Syncer) fetchRemoteVersion(ctx context.Context) (NodeVersion, error) {
 	var err error
 	for _, peer := range s.config.BootstrapPeers {

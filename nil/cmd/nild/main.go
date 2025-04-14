@@ -66,8 +66,13 @@ func main() {
 }
 
 func loadConfig() (*nildconfig.Config, error) {
+	c, err := nilservice.DefaultConfig(cobrax.GetChainFromArgs())
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := &nildconfig.Config{
-		Config: nilservice.NewDefaultConfig(),
+		Config: c,
 		DB:     db.NewDefaultBadgerDBOptions(),
 		ReadThrough: &nildconfig.ReadThroughOptions{
 			ForkMainAtBlock: transport.LatestBlockNumber,
@@ -112,6 +117,7 @@ func parseArgs() *nildconfig.Config {
 	}
 
 	cobrax.AddConfigFlag(rootCmd.PersistentFlags())
+	cobrax.AddChainFlag(rootCmd.PersistentFlags())
 
 	var logLevel, libp2pLogLevel string
 	cobrax.AddLogLevelFlag(rootCmd.PersistentFlags(), &logLevel)
