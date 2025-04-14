@@ -14,6 +14,10 @@ export type GetContractAtConfig = {
   externalMethods?: string[];
 };
 
+export type DeployContractConfig = {
+  shardId?: number;
+} & GetContractAtConfig;
+
 export type GetContractAtConfigWithSigner = GetContractAtConfig & {
   signer: ISigner;
 };
@@ -27,18 +31,24 @@ export declare function getContractAt(
   write: CommonWriteContractMethods;
 }>;
 
+export declare function deployContract(
+  contractName: string,
+  args: unknown[],
+  config?: DeployContractConfig,
+): Promise<{
+  read: CommonReadContractMethods;
+  write: CommonWriteContractMethods;
+}>;
+
 export type NilHelper = {
   provider: PublicClient;
   getPublicClient: () => PublicClient;
   getSmartAccount: () => Promise<SmartAccountInterface>;
   getContractAt: typeof getContractAt;
+  deployContract: typeof deployContract;
 };
 
 declare module "hardhat/types/runtime" {
-  interface NetworkUserConfig {
-    nil: boolean;
-  }
-
   interface HardhatRuntimeEnvironment {
     nil: NilHelper;
   }

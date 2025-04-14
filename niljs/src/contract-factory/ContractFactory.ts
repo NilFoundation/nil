@@ -627,7 +627,7 @@ export function getContract<
           return result;
         };
       }
-      throw new Error("No read method");
+      throw new Error("No read method: " + p.toString());
     },
   });
 

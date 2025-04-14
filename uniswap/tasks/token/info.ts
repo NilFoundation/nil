@@ -15,7 +15,6 @@ task("token-info", "Retrieve token name and ID")
       }),
     });
 
-    contract.
 
     // Retrieve the token's name
     const tokenName = await contract.read.getTokenName([]);
