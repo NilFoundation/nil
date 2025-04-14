@@ -21,14 +21,14 @@ func (c *sizeConstraint) Name() string {
 }
 
 func (c *sizeConstraint) Run(_ context.Context, batch *types.BlockBatch) (*CheckResult, error) {
-	blocksCount := batch.Blocks.BlocksCount()
+	blocksCount := uint32(batch.Blocks.BlocksCount())
 	maxBlockCount := c.constraints.MaxBlocksCount
 
 	switch {
 	case blocksCount > maxBlockCount:
 		return shouldBeDiscarded("batch size exceeded MaxBlocksCount (%d > %d)", blocksCount, maxBlockCount), nil
 
-	case blocksCount == c.constraints.MaxBlocksCount:
+	case blocksCount == maxBlockCount:
 		return shouldBeSealed("batch size is equal to MaxBlocksCount value (%d)", blocksCount), nil
 
 	default:

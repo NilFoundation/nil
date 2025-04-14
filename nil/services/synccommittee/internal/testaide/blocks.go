@@ -83,7 +83,7 @@ func NewBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
 
 	var parentId *scTypes.BatchId
 	for _, segments := range NewSegmentsSequence(batchesCount) {
-		batch, err := scTypes.NewBlockBatch(parentId).WithAddedBlocks(segments)
+		batch, err := scTypes.NewBlockBatch(parentId, Now).WithAddedBlocks(segments, Now)
 		check.PanicIfErr(err)
 		batches = append(batches, batch)
 		parentId = &batch.Id
@@ -124,7 +124,7 @@ func NewSegmentsSequence(count int) []scTypes.ChainSegments {
 
 func NewBlockBatch(shardCount int) *scTypes.BlockBatch {
 	segments := NewChainSegments(shardCount)
-	batch, err := scTypes.NewBlockBatch(nil).WithAddedBlocks(segments)
+	batch, err := scTypes.NewBlockBatch(nil, Now).WithAddedBlocks(segments, Now)
 	check.PanicIfErr(err)
 	return batch
 }
@@ -187,6 +187,12 @@ func NewProposalData(currentTime time.Time) *scTypes.ProposalData {
 		RandomHash(),
 		currentTime.Add(-time.Hour),
 	)
+}
+
+func NewDataProofs() scTypes.DataProofs {
+	return scTypes.DataProofs{
+		[]byte{10, 20, 30, 40}, []byte{11, 22, 33, 44}, []byte{12, 23, 34, 45}, []byte{13, 24, 35, 46},
+	}
 }
 
 func newRpcInTransactions(count int) []*jsonrpc.RPCInTransaction {

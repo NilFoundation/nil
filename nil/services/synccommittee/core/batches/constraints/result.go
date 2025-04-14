@@ -36,12 +36,9 @@ func (r *CheckResult) String() string {
 	return fmt.Sprintf("%s: %s", r.Type, r.Details)
 }
 
-func (r *CheckResult) Join(other *CheckResult) *CheckResult {
-	var joinedType CheckResultType
-	if severity[r.Type] >= severity[other.Type] {
-		joinedType = r.Type
-	} else {
-		joinedType = other.Type
+func (r *CheckResult) JoinWith(other *CheckResult) {
+	if severity[other.Type] > severity[r.Type] {
+		r.Type = other.Type
 	}
 
 	var joinedDetails string
@@ -54,13 +51,10 @@ func (r *CheckResult) Join(other *CheckResult) *CheckResult {
 		joinedDetails = r.Details + "; " + other.Details
 	}
 
-	return &CheckResult{
-		Type:    joinedType,
-		Details: joinedDetails,
-	}
+	r.Details = joinedDetails
 }
 
-func newCheckResult(resultType CheckResultType, format string, args ...interface{}) CheckResult {
+func newCheckResult(resultType CheckResultType, format string, args ...any) CheckResult {
 	return CheckResult{
 		Type:    resultType,
 		Details: fmt.Sprintf(format, args...),
@@ -72,12 +66,12 @@ func canBeExtended() *CheckResult {
 	return &result
 }
 
-func shouldBeSealed(format string, args ...interface{}) *CheckResult {
+func shouldBeSealed(format string, args ...any) *CheckResult {
 	result := newCheckResult(CheckResultTypeShouldBeSealed, format, args...)
 	return &result
 }
 
-func shouldBeDiscarded(format string, args ...interface{}) *CheckResult {
+func shouldBeDiscarded(format string, args ...any) *CheckResult {
 	result := newCheckResult(CheckResultTypeShouldBeDiscarded, format, args...)
 	return &result
 }

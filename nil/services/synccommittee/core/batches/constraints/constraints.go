@@ -8,13 +8,22 @@ type BatchConstraints struct {
 	SealingTimeout time.Duration
 
 	// MaxBlocksCount specifies the maximum number of blocks allowed
-	// to be included into a single batch.
+	// to be included in a single batch.
 	MaxBlocksCount uint32
 }
 
-func DefaultBatchConstraints() BatchConstraints {
+func NewBatchConstraints(
+	sealingTimeout time.Duration,
+	maxBlocksCount uint32,
+) BatchConstraints {
 	return BatchConstraints{
-		SealingTimeout: 10 * time.Minute,
-		MaxBlocksCount: 1000,
+		SealingTimeout: sealingTimeout,
+		MaxBlocksCount: maxBlocksCount,
 	}
+}
+
+func DefaultBatchConstraints() BatchConstraints {
+	const defaultSealingTimeout = 12 * time.Second
+	const defaultMaxBlocksCount = 100
+	return NewBatchConstraints(defaultSealingTimeout, defaultMaxBlocksCount)
 }

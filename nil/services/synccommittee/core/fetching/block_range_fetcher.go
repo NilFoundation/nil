@@ -35,22 +35,41 @@ func (bf *fetcher) GetBlockRef(
 		return nil, fmt.Errorf("error fetching block from shard %d: %w", shardId, err)
 	}
 	if block == nil {
-		return nil, fmt.Errorf("block not found in shard %d: %s", shardId, hash)
+		return nil, fmt.Errorf("%w: block not found in shard %d: %s", types.ErrBlockMismatch, shardId, hash)
 	}
 	blockRef := types.BlockToRef(block)
 	return &blockRef, nil
+}
+
+func (bf *fetcher) GetEarliestBlockRef(
+	ctx context.Context,
+	shardId coreTypes.ShardId,
+) (*types.BlockRef, error) {
+	return bf.getBlockRefByStrId(ctx, shardId, "earliest")
 }
 
 func (bf *fetcher) GetLatestBlockRef(
 	ctx context.Context,
 	shardId coreTypes.ShardId,
 ) (*types.BlockRef, error) {
-	block, err := bf.rpcClient.GetBlock(ctx, shardId, "latest", false)
+	return bf.getBlockRefByStrId(ctx, shardId, "latest")
+}
+
+func (bf *fetcher) getBlockRefByStrId(
+	ctx context.Context,
+	shardId coreTypes.ShardId,
+	strId string,
+) (*types.BlockRef, error) {
+	block, err := bf.rpcClient.GetBlock(ctx, shardId, strId, false)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching latest block, shardId=%d: %w", shardId, err)
+		return nil, fmt.Errorf(
+			"error fetching block, shardId=%d, id=%s: %w", shardId, strId, err,
+		)
 	}
 	if block == nil {
-		return nil, fmt.Errorf("%w: latest block not found in chain, shardId=%d", types.ErrBlockNotFound, shardId)
+		return nil, fmt.Errorf(
+			"%w: block not found in chain, shardId=%d, id=%s", types.ErrBlockNotFound, shardId, strId,
+		)
 	}
 	blockRef := types.BlockToRef(block)
 	return &blockRef, nil

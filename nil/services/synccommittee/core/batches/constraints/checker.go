@@ -49,7 +49,7 @@ func (c *checker) CheckConstraints(ctx context.Context, batch *types.BlockBatch)
 		if err != nil {
 			return nil, fmt.Errorf("failed to run batch constraint %s: %w", constraint.Name(), err)
 		}
-		batchResult = batchResult.Join(result)
+		batchResult.JoinWith(result)
 	}
 
 	if batchResult.Type == CheckResultTypeCanBeExtended {

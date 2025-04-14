@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/blob"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/constraints"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode"
 	v1 "github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode/v1"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
@@ -29,6 +30,11 @@ type AggregatorMetrics interface {
 	RecordBatchCreated(ctx context.Context, batch *types.BlockBatch)
 }
 
+type BatchConstraintChecker interface {
+	Constraints() constraints.BatchConstraints
+	CheckConstraints(ctx context.Context, batch *types.BlockBatch) (*constraints.CheckResult, error)
+}
+
 type AggregatorTaskStorage interface {
 	AddTaskEntries(ctx context.Context, tasks ...*types.TaskEntry) error
 }
@@ -38,7 +44,6 @@ type AggregatorBlockStorage interface {
 	TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error)
 	TryGetLatestBatch(ctx context.Context) (*types.BlockBatch, error)
 	PutBlockBatch(ctx context.Context, batch *types.BlockBatch) error
-	GetFreeSpaceBatchCount(ctx context.Context) (uint32, error)
 	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
 }
 
@@ -59,7 +64,8 @@ func NewDefaultAggregatorConfig() AggregatorConfig {
 }
 
 type aggregator struct {
-	rpcClient       RpcBlockFetcher
+	fetcher         *fetcher
+	batchChecker    BatchConstraintChecker
 	blockStorage    AggregatorBlockStorage
 	taskStorage     AggregatorTaskStorage
 	subgraphFetcher *subgraphFetcher
@@ -76,6 +82,7 @@ type aggregator struct {
 
 func NewAggregator(
 	rpcClient RpcBlockFetcher,
+	batchChecker BatchConstraintChecker,
 	blockStorage AggregatorBlockStorage,
 	taskStorage AggregatorTaskStorage,
 	resetter *reset.StateResetLauncher,
@@ -86,7 +93,8 @@ func NewAggregator(
 	config AggregatorConfig,
 ) *aggregator {
 	agg := &aggregator{
-		rpcClient:       rpcClient,
+		fetcher:         newFetcher(rpcClient, logger),
+		batchChecker:    batchChecker,
 		blockStorage:    blockStorage,
 		taskStorage:     taskStorage,
 		subgraphFetcher: newSubgraphFetcher(rpcClient, logger),
@@ -203,35 +211,146 @@ func (agg *aggregator) handleProcessingErr(ctx context.Context, err error) error
 		return err
 
 	default:
-		agg.logger.Error().Err(err).Msg("Error processing blocks")
+		agg.logger.Error().Err(err).Msg("Unexpected error during block aggregation")
 		return err
 	}
 }
 
-// processBlockRange handles the processing of new blocks for the main shard.
-// It fetches new blocks, updates the storage, and records relevant metrics.
+// processBlockRange handles the processing of new/pending blocks across all shards.
+// It fetches blocks, creates batches, and updates the storage.
 func (agg *aggregator) processBlockRange(ctx context.Context) error {
+	batch, err := agg.tryPrepareBatch(ctx)
+	if err != nil {
+		return fmt.Errorf("error preparing batch: %w", err)
+	}
+	if batch == nil {
+		agg.logger.Debug().Msg("Unable to prepare batch, skipping")
+		return nil
+	}
+
+	agg.logger.Debug().Stringer(logging.FieldBatchId, batch.Id).Msg("Extending batch with new blocks")
+
+	fetchingRange, err := agg.getFetchingRange(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting fetching range: %w", err)
+	}
+	if fetchingRange == nil {
+		return nil
+	}
+
+	result := agg.extendBatchWithRange(ctx, batch, *fetchingRange)
+	if result.err != nil {
+		return fmt.Errorf("error extending batch, batchId=%s: %w", batch.Id, result.err)
+	}
+
+	if result.extended.IsEmpty() {
+		agg.logger.Debug().Stringer(logging.FieldBatchId, result.extended.Id).Msg("Batch is empty, skipping")
+		return nil
+	}
+
+	if result.shouldBeSealed {
+		if err := agg.sealBatch(ctx, result.extended); err != nil {
+			return fmt.Errorf("error sealing batch, batchId=%s: %w", result.extended.Id, err)
+		}
+	} else {
+		// batch can be further extended, just putting in to the storage
+		if err := agg.blockStorage.PutBlockBatch(ctx, result.extended); err != nil {
+			return fmt.Errorf("error storing batch, batchId=%s: %w", result.extended.Id, err)
+		}
+	}
+
+	return nil
+}
+
+func (agg *aggregator) tryPrepareBatch(ctx context.Context) (*types.BlockBatch, error) {
+	latestBatch, err := agg.blockStorage.TryGetLatestBatch(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading latest batch from the storage: %w", err)
+	}
+
+	if latestBatch == nil {
+		agg.logger.Info().Msg("No batches found in storage, starting from scratch")
+		return agg.createAndPutNewBatch(ctx, nil)
+	}
+
+	if latestBatch.IsSealed {
+		agg.logger.Info().Msgf("Latest batch with id=%s is sealed, creating the next one", latestBatch.Id)
+		return agg.createAndPutNewBatch(ctx, &latestBatch.Id)
+	}
+
+	agg.logger.Debug().Msgf("Latest batch with id=%s is not sealed", latestBatch.Id)
+
+	checkResult, err := agg.batchChecker.CheckConstraints(ctx, latestBatch)
+	if err != nil {
+		return nil, fmt.Errorf("error checking batch constraints, batchId=%s: %w", latestBatch.Id, err)
+	}
+
+	switch checkResult.Type {
+	case constraints.CheckResultTypeShouldBeDiscarded:
+		agg.logger.Warn().
+			Stringer(logging.FieldBatchId, latestBatch.Id).
+			Msgf("Discarding latest batch due to constraint(s) violation: %s", checkResult.Details)
+
+		if err := agg.resetter.LaunchPartialResetWithSuspension(ctx, agg, latestBatch.Id); err != nil {
+			return nil, fmt.Errorf("error resetting progress for batch %s: %w", latestBatch.Id, err)
+		}
+
+		return nil, nil
+
+	case constraints.CheckResultTypeShouldBeSealed:
+		agg.logger.Info().
+			Stringer(logging.FieldBatchId, latestBatch.Id).
+			Msgf("Sealing batch: %s", checkResult.Details)
+
+		if err := agg.sealBatch(ctx, latestBatch); err != nil {
+			return nil, fmt.Errorf("error sealing batch: %w", err)
+		}
+
+		return nil, nil
+
+	case constraints.CheckResultTypeCanBeExtended:
+		return latestBatch, nil
+
+	default:
+		return nil, fmt.Errorf("unexpected batch check result type: %s, batchId=%s", checkResult.Type, latestBatch.Id)
+	}
+}
+
+func (agg *aggregator) createAndPutNewBatch(ctx context.Context, parentId *types.BatchId) (*types.BlockBatch, error) {
+	now := agg.clock.Now()
+	nextBatch := types.NewBlockBatch(parentId, now)
+
+	err := agg.blockStorage.PutBlockBatch(ctx, nextBatch)
+	switch {
+	case errors.Is(err, storage.ErrCapacityLimitReached):
+		return nil, fmt.Errorf("%w, cannot create new batch", err)
+
+	case errors.Is(err, context.Canceled):
+		return nil, err
+
+	case err != nil:
+		return nil, fmt.Errorf("error storing new batch, batchId=%s: %w", nextBatch.Id, err)
+
+	default:
+		return nextBatch, nil
+	}
+}
+
+func (agg *aggregator) getFetchingRange(ctx context.Context) (*types.BlocksRange, error) {
 	startingBlockRef, err := agg.getStartingBlockRef(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	latestBlockRef, err := agg.getLatestBlockRef(ctx)
+	latestBlockRef, err := agg.fetcher.GetLatestBlockRef(ctx, coreTypes.MainShardId)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	maxNumBatches, err := agg.blockStorage.GetFreeSpaceBatchCount(ctx)
+	rangeLimit := agg.batchChecker.Constraints().MaxBlocksCount
+	fetchingRange, err := types.GetBlocksFetchingRange(*startingBlockRef, *latestBlockRef, rangeLimit)
 	if err != nil {
-		return err
-	}
-	if maxNumBatches == 0 {
-		return fmt.Errorf("%w, cannot fetch blocks", storage.ErrCapacityLimitReached)
-	}
-
-	fetchingRange, err := types.GetBlocksFetchingRange(*startingBlockRef, *latestBlockRef, maxNumBatches)
-	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if fetchingRange == nil {
@@ -239,23 +358,9 @@ func (agg *aggregator) processBlockRange(ctx context.Context) error {
 			Stringer(logging.FieldShardId, coreTypes.MainShardId).
 			Stringer(logging.FieldBlockNumber, latestBlockRef.Number).
 			Msg("No new blocks to fetch")
-		return nil
 	}
 
-	return agg.fetchAndProcessBlocks(ctx, *fetchingRange)
-}
-
-// fetchLatestBlocks retrieves the latest block for main shard
-func (agg *aggregator) getLatestBlockRef(ctx context.Context) (*types.BlockRef, error) {
-	block, err := agg.rpcClient.GetBlock(ctx, coreTypes.MainShardId, "latest", false)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching latest block from shard %d: %w", coreTypes.MainShardId, err)
-	}
-	if block == nil {
-		return nil, fmt.Errorf("%w: latest main block not found in chain", types.ErrBlockNotFound)
-	}
-	blockRef := types.BlockToRef(block)
-	return &blockRef, nil
+	return fetchingRange, nil
 }
 
 // getStartingBlockRef retrieves the starting point for the next fetching iteration,
@@ -269,7 +374,7 @@ func (agg *aggregator) getStartingBlockRef(ctx context.Context) (*types.BlockRef
 	}
 	if mainRef := latestFetched.TryGetMain(); mainRef != nil {
 		// checking if `latestFetched` still exists on L2 side
-		if _, err := agg.getBlockRef(ctx, mainRef.ShardId, mainRef.Hash); err != nil {
+		if _, err := agg.fetcher.GetBlockRef(ctx, mainRef.ShardId, mainRef.Hash); err != nil {
 			return nil, fmt.Errorf("fetched block check error: %w", err)
 		}
 
@@ -286,118 +391,116 @@ func (agg *aggregator) getStartingBlockRef(ctx context.Context) (*types.BlockRef
 		return nil, storage.ErrStateRootNotInitialized
 	}
 
-	ref, err := agg.getBlockRef(ctx, coreTypes.MainShardId, *latestProvedRoot)
+	ref, err := agg.fetcher.GetBlockRef(ctx, coreTypes.MainShardId, *latestProvedRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proved block ref: %w", err)
 	}
 	return ref, nil
 }
 
-// getBlockRef retrieves the block reference to the specified block using the RPC client.
-// If block does not exist, method returns types.ErrBlockMismatch.
-func (agg *aggregator) getBlockRef(
-	ctx context.Context,
-	shard coreTypes.ShardId,
-	hash common.Hash,
-) (*types.BlockRef, error) {
-	rpcBlock, err := agg.rpcClient.GetBlock(ctx, shard, hash, false)
-	if err != nil {
-		return nil, fmt.Errorf("%w: error fetching block, shard=%d, hash=%s", err, shard, hash)
-	}
-	if rpcBlock == nil {
-		return nil, fmt.Errorf("%w: block not found in chain, shard=%d, hash=%s", types.ErrBlockMismatch, shard, hash)
-	}
-
-	ref := types.BlockToRef(rpcBlock)
-	return &ref, nil
+type batchExtensionResult struct {
+	extended       *types.BlockBatch
+	shouldBeSealed bool
+	err            error
 }
 
-// fetchAndProcessBlocks retrieves a range of blocks for a main shard, stores them, creates proof tasks
-func (agg *aggregator) fetchAndProcessBlocks(ctx context.Context, blocksRange types.BlocksRange) error {
-	shardId := coreTypes.MainShardId
-	const requestBatchSize = 20
-	mainShardBlocks, err := agg.rpcClient.GetBlocksRange(
-		ctx, shardId, blocksRange.Start, blocksRange.End+1, true, requestBatchSize,
-	)
-	if err != nil {
-		return fmt.Errorf(
-			"error fetching blocks from shard %d in range [%d, %d]: %w",
-			shardId, blocksRange.Start, blocksRange.End, err,
-		)
-	}
-
-	for _, mainShardBlock := range mainShardBlocks {
-		blockBatch, err := agg.createBlockBatch(ctx, mainShardBlock)
-		if err != nil {
-			return fmt.Errorf("error creating batch, mainHash=%s: %w", mainShardBlock.Hash, err)
-		}
-
-		if err := agg.handleBlockBatch(ctx, blockBatch); err != nil {
-			return fmt.Errorf("error handing batch, mainHash=%s: %w", mainShardBlock.Hash, err)
-		}
-	}
-
-	return nil
+func extensionErr(reason error) batchExtensionResult {
+	return batchExtensionResult{err: reason}
 }
 
-func (agg *aggregator) createBlockBatch(
+func (agg *aggregator) extendBatchWithRange(
 	ctx context.Context,
-	mainShardBlock *types.Block,
-) (*types.BlockBatch, error) {
-	latestBatch, err := agg.blockStorage.TryGetLatestBatch(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error reading latest batch: %w", err)
-	}
-	var latestBatchId *types.BatchId
-	if latestBatch != nil {
-		latestBatchId = &latestBatch.Id
-	}
-
+	batch *types.BlockBatch,
+	blocksRange types.BlocksRange,
+) batchExtensionResult {
 	latestFetched, err := agg.blockStorage.GetLatestFetched(ctx)
 	if err != nil {
-		return nil, err
+		return extensionErr(err)
 	}
 
+	const shardId = coreTypes.MainShardId
+	expendedBatch := batch
+	for mainShardBlock, err := range agg.fetcher.FetchBlocksSeq(ctx, shardId, blocksRange) {
+		if err != nil {
+			return extensionErr(fmt.Errorf("error fetching block from shard %d: %w", shardId, err))
+		}
+
+		result := agg.extendBatch(ctx, expendedBatch, mainShardBlock, latestFetched)
+		if result.err != nil || result.shouldBeSealed {
+			return result
+		}
+
+		expendedBatch = result.extended
+		for shard, ref := range expendedBatch.LatestRefs() {
+			latestFetched[shard] = ref
+		}
+	}
+
+	return batchExtensionResult{extended: expendedBatch, shouldBeSealed: false}
+}
+
+func (agg *aggregator) extendBatch(
+	ctx context.Context,
+	batch *types.BlockBatch,
+	mainShardBlock *types.Block,
+	latestFetched types.BlockRefs,
+) batchExtensionResult {
 	subgraph, err := agg.subgraphFetcher.FetchSubgraph(ctx, mainShardBlock, latestFetched)
 	if err != nil {
-		return nil, err
+		return extensionErr(err)
 	}
 
-	return types.NewBlockBatch(latestBatchId).WithAddedBlocks(subgraph)
+	now := agg.clock.Now()
+	extendedBatch, err := batch.WithAddedBlocks(subgraph, now)
+	if err != nil {
+		return extensionErr(fmt.Errorf("failed to add new blocks: %w", err))
+	}
+
+	checkResult, err := agg.batchChecker.CheckConstraints(ctx, extendedBatch)
+	if err != nil {
+		return extensionErr(fmt.Errorf("error checking batch constraints: %w", err))
+	}
+
+	switch checkResult.Type {
+	case constraints.CheckResultTypeCanBeExtended:
+		return batchExtensionResult{extended: extendedBatch, shouldBeSealed: false}
+
+	case constraints.CheckResultTypeShouldBeDiscarded:
+		return batchExtensionResult{extended: batch, shouldBeSealed: true}
+
+	case constraints.CheckResultTypeShouldBeSealed:
+		return batchExtensionResult{extended: extendedBatch, shouldBeSealed: true}
+
+	default:
+		return extensionErr(fmt.Errorf("unexpected batch check result type: %s", checkResult.Type))
+	}
 }
 
-// handleBlockBatch checks the validity of a block and stores it if valid.
-func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockBatch) error {
-	latestFetched, err := agg.blockStorage.GetLatestFetched(ctx)
-	if err != nil {
-		return fmt.Errorf("error reading latest fetched block from storage: %w", err)
-	}
-
-	mainRef := latestFetched.TryGetMain()
-	batchEarliestMain := batch.EarliestMainBlock()
-	if err := mainRef.ValidateNext(batchEarliestMain); err != nil {
-		return err
-	}
-
+// sealBatch handles the batch, preparing data proofs, committing to the rollup contract, and creating proof tasks.
+func (agg *aggregator) sealBatch(ctx context.Context, batch *types.BlockBatch) error {
 	sidecar, dataProofs, err := agg.prepareForBatchCommit(ctx, batch)
 	if err != nil {
 		return err
 	}
-	batch = batch.WithDataProofs(dataProofs)
 
-	if err := agg.blockStorage.PutBlockBatch(ctx, batch); err != nil {
-		return fmt.Errorf("error storing block batch, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
+	sealedBatch, err := batch.Seal(dataProofs, agg.clock.Now())
+	if err != nil {
+		return err
 	}
 
-	if err := agg.rollupContract.CommitBatch(ctx, sidecar, batch.Id.String()); err != nil {
-		return agg.handleCommitBatchError(ctx, batch, err)
+	if err := agg.blockStorage.PutBlockBatch(ctx, sealedBatch); err != nil {
+		return fmt.Errorf("error storing batch, batchId=%s: %w", batch.Id, err)
 	}
 
-	if err := agg.createProofTasks(ctx, batch); err != nil {
-		return fmt.Errorf("error creating proof tasks, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
+	if err := agg.rollupContract.CommitBatch(ctx, sidecar, sealedBatch.Id.String()); err != nil {
+		return agg.handleCommitBatchError(ctx, sealedBatch, err)
 	}
 
-	agg.metrics.RecordBatchCreated(ctx, batch)
+	if err := agg.createProofTasks(ctx, sealedBatch); err != nil {
+		return fmt.Errorf("error creating proof tasks, batchId=%s: %w", batch.Id, err)
+	}
+
+	agg.metrics.RecordBatchCreated(ctx, sealedBatch)
 	return nil
 }
 
@@ -433,16 +536,14 @@ func (agg *aggregator) createProofTasks(ctx context.Context, batch *types.BlockB
 	currentTime := agg.clock.Now()
 	proofTask, err := batch.CreateProofTask(currentTime)
 	if err != nil {
-		return fmt.Errorf("error creating proof tasks, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
+		return fmt.Errorf("error creating proof tasks: %w", err)
 	}
 
 	if err := agg.taskStorage.AddTaskEntries(ctx, proofTask); err != nil {
-		return fmt.Errorf("error adding task entries, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
+		return fmt.Errorf("error adding task entry: %w", err)
 	}
 
-	agg.logger.Debug().
-		Stringer(logging.FieldBatchId, batch.Id).
-		Msgf("Created proof task, latestMainHash=%s", batch.LatestMainBlock().Hash)
+	agg.logger.Debug().Stringer(logging.FieldBatchId, batch.Id).Msgf("Created proof task, batchId=%s", batch.Id)
 
 	return nil
 }
@@ -481,11 +582,11 @@ func (agg *aggregator) getLatestFinalizedRootFromL1(ctx context.Context) (common
 
 	agg.logger.Warn().
 		Msg("storage state root is not initialized, genesis state root will be used")
-	genesisBlock, err := agg.rpcClient.GetBlock(ctx, coreTypes.MainShardId, "earliest", false)
+	blockRef, err := agg.fetcher.GetEarliestBlockRef(ctx, coreTypes.MainShardId)
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	latestStateRoot = genesisBlock.Hash
+	latestStateRoot = blockRef.Hash
 
 	return latestStateRoot, nil
 }

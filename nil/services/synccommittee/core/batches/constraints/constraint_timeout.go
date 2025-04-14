@@ -32,9 +32,9 @@ func (c *timeoutConstraint) Run(_ context.Context, batch *types.BlockBatch) (*Ch
 	currentDuration := now.Sub(batch.CreatedAt)
 	sealingTimeout := c.constraint.SealingTimeout
 
-	if currentDuration < sealingTimeout {
-		return canBeExtended(), nil
-	} else {
-		return shouldBeSealed("sealing timeout is reached (%s >= %s)", sealingTimeout, currentDuration), nil
+	if currentDuration >= sealingTimeout {
+		return shouldBeSealed("sealing timeout is reached (%s >= %s)", currentDuration, sealingTimeout), nil
 	}
+
+	return canBeExtended(), nil
 }

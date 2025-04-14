@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -20,7 +21,9 @@ type ProvedBatchSetter interface {
 //go:generate bash ../internal/scripts/generate_mock.sh StateResetLauncher
 
 type StateResetLauncher interface {
-	LaunchPartialResetWithSuspension(ctx context.Context, failedBatchId types.BatchId) error
+	LaunchPartialResetWithSuspension(
+		ctx context.Context, caller reset.PausableComponent, failedBatchId types.BatchId,
+	) error
 }
 
 type taskStateChangeHandler struct {
@@ -75,7 +78,7 @@ func (h *taskStateChangeHandler) resetState(ctx context.Context, task *types.Tas
 	log.NewTaskResultEvent(h.logger, zerolog.WarnLevel, result).
 		Msg("task execution failed with critical error, state will be reset")
 
-	err := h.stateResetLauncher.LaunchPartialResetWithSuspension(ctx, task.BatchId)
+	err := h.stateResetLauncher.LaunchPartialResetWithSuspension(ctx, nil, task.BatchId)
 
 	switch {
 	case err == nil:
