@@ -35,7 +35,7 @@ func (bf *fetcher) GetBlockRef(
 		return nil, fmt.Errorf("error fetching block from shard %d: %w", shardId, err)
 	}
 	if block == nil {
-		return nil, fmt.Errorf("block not found in shard %d: %s", shardId, hash)
+		return nil, fmt.Errorf("%w: block not found in shard %d: %s", types.ErrBlockMismatch, shardId, hash)
 	}
 	blockRef := types.BlockToRef(block)
 	return &blockRef, nil

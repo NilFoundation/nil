@@ -230,9 +230,42 @@ func (s *BlockStorageTestSuite) Test_SetBatchAsProved_Multiple_Times() {
 	s.Require().NoError(err)
 }
 
+func (s *BlockStorageTestSuite) Test_PutBlockBatch_Initial_Empty() {
+	initialBatch := scTypes.NewBlockBatch(nil, testaide.Now)
+	err := s.bs.PutBlockBatch(s.ctx, initialBatch)
+	s.Require().NoError(err)
+
+	latestBatch, err := s.bs.TryGetLatestBatch(s.ctx)
+	s.Require().NoError(err)
+	s.Equal(initialBatch, latestBatch)
+
+	latestFetched, err := s.bs.GetLatestFetched(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Empty(latestFetched)
+}
+
+func (s *BlockStorageTestSuite) Test_PutBlockBatch_Next_Empty() {
+	initialBatch := testaide.NewBlockBatch(testaide.ShardsCount)
+	err := s.bs.PutBlockBatch(s.ctx, initialBatch)
+	s.Require().NoError(err)
+
+	nextBatch := scTypes.NewBlockBatch(&initialBatch.Id, testaide.Now)
+	err = s.bs.PutBlockBatch(s.ctx, nextBatch)
+	s.Require().NoError(err)
+
+	latestBatch, err := s.bs.TryGetLatestBatch(s.ctx)
+	s.Require().NoError(err)
+	s.Equal(nextBatch, latestBatch)
+
+	expectedLatest := initialBatch.LatestRefs()
+	latestFetched, err := s.bs.GetLatestFetched(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Equal(expectedLatest, latestFetched)
+}
+
 func (s *BlockStorageTestSuite) Test_PutBlockBatch_Update_Existing() {
 	blockSegments := testaide.NewSegmentsSequence(2)
-	batch, err := scTypes.NewBlockBatch(nil).WithAddedBlocks(blockSegments[0])
+	batch, err := scTypes.NewBlockBatch(nil, testaide.Now).WithAddedBlocks(blockSegments[0], testaide.Now)
 	s.Require().NoError(err)
 
 	err = s.bs.SetProvedStateRoot(s.ctx, batch.EarliestMainBlock().ParentHash)
@@ -241,7 +274,7 @@ func (s *BlockStorageTestSuite) Test_PutBlockBatch_Update_Existing() {
 	err = s.bs.PutBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
-	updatedBatch, err := batch.WithAddedBlocks(blockSegments[1])
+	updatedBatch, err := batch.WithAddedBlocks(blockSegments[1], testaide.Now)
 	s.Require().NoError(err)
 
 	err = s.bs.PutBlockBatch(s.ctx, updatedBatch)
@@ -495,8 +528,8 @@ func (s *BlockStorageTestSuite) Test_ResetBatchesRange() {
 		name                 string
 		firstBatchToPurgeIdx int
 	}{
-		{"First_Block_In_Chain", 0},
-		{"Latest_Fetched_Only", resetTestBatchesCount - 1},
+		{"First_Batch", 0},
+		{"Latest_Batch_Only", resetTestBatchesCount - 1},
 		{"Keep_Previous_Purge_Next", 5},
 	}
 

@@ -282,7 +282,7 @@ func NewBatchProofTaskEntry(
 	batchId BatchId, blockIds []BlockId, currentTime time.Time,
 ) (*TaskEntry, error) {
 	if len(blockIds) == 0 {
-		return nil, errors.New("no blocks for create proof batch task")
+		return nil, fmt.Errorf("batch with id=%s is empty, cannot create proof task", batchId)
 	}
 
 	task := Task{

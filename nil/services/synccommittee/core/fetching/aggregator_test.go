@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/constraints"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
@@ -52,11 +53,12 @@ func (s *AggregatorTestSuite) SetupSuite() {
 	s.taskStorage = storage.NewTaskStorage(s.db, clock, s.metrics, logger)
 	s.rpcClientMock = &client.ClientMock{}
 
-	s.aggregator = s.newTestAggregator(s.blockStorage)
+	s.aggregator = s.newTestAggregator(s.blockStorage, constraints.DefaultBatchConstraints())
 }
 
 func (s *AggregatorTestSuite) newTestAggregator(
 	blockStorage AggregatorBlockStorage,
+	batchConstraints constraints.BatchConstraints,
 ) *aggregator {
 	s.T().Helper()
 
@@ -70,8 +72,15 @@ func (s *AggregatorTestSuite) newTestAggregator(
 	contractWrapper, err := rollupcontract.NewWrapper(s.ctx, contractWrapperConfig, logger)
 	s.Require().NoError(err)
 
+	batchChecker := constraints.NewChecker(
+		batchConstraints,
+		clock,
+		logger,
+	)
+
 	return NewAggregator(
 		s.rpcClientMock,
+		batchChecker,
 		blockStorage,
 		s.taskStorage,
 		stateResetter,
@@ -100,8 +109,9 @@ func (s *AggregatorTestSuite) TearDownSuite() {
 }
 
 func (s *AggregatorTestSuite) Test_No_New_Blocks_To_Fetch() {
-	batch := testaide.NewBlockBatch(testaide.ShardsCount)
-	err := s.blockStorage.PutBlockBatch(s.ctx, batch)
+	batch, err := testaide.NewBlockBatch(testaide.ShardsCount).Seal(testaide.NewDataProofs(), testaide.Now)
+	s.Require().NoError(err)
+	err = s.blockStorage.PutBlockBatch(s.ctx, batch)
 	s.Require().NoError(err)
 
 	testaide.ClientMockSetBatches(s.rpcClientMock, []*scTypes.BlockBatch{batch})
@@ -124,11 +134,14 @@ func (s *AggregatorTestSuite) Test_Main_Parent_Hash_Mismatch() {
 	err := s.blockStorage.SetProvedStateRoot(s.ctx, batches[0].EarliestMainBlock().ParentHash)
 	s.Require().NoError(err)
 
-	// Set first 2 batches as proved
+	// Set first 2 batches as sealed and proved
 	for _, provedBatch := range batches[:2] {
-		err := s.blockStorage.PutBlockBatch(s.ctx, provedBatch)
+		sealedBatch, err := provedBatch.Seal(testaide.NewDataProofs(), testaide.Now)
 		s.Require().NoError(err)
-		err = s.blockStorage.SetBatchAsProved(s.ctx, provedBatch.Id)
+
+		err = s.blockStorage.PutBlockBatch(s.ctx, sealedBatch)
+		s.Require().NoError(err)
+		err = s.blockStorage.SetBatchAsProved(s.ctx, sealedBatch.Id)
 		s.Require().NoError(err)
 	}
 
@@ -164,24 +177,33 @@ func (s *AggregatorTestSuite) Test_Fetch_At_Zero_State() {
 
 	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
 
-	nextHandledBlock := batches[1].LatestMainBlock()
+	// batch is expected to be sealed
+	batchConstraints := constraints.DefaultBatchConstraints()
+	batchConstraints.MaxBlocksCount = batches[0].Blocks.BlocksCount() + batches[1].Blocks.BlocksCount() - 1
+	agg := s.newTestAggregator(s.blockStorage, batchConstraints)
 
-	err = s.aggregator.processBlocksAndHandleErr(s.ctx)
+	err = agg.processBlocksAndHandleErr(s.ctx)
 	s.Require().NoError(err)
-	s.requireMainBlockHandled(nextHandledBlock)
+	s.requireBatchHandled(batches[1])
 }
 
 func (s *AggregatorTestSuite) Test_Fetch_Next_Valid() {
 	batches := testaide.NewBatchesSequence(2)
-	err := s.blockStorage.PutBlockBatch(s.ctx, batches[0])
+
+	sealedBatch, err := batches[0].Seal(testaide.NewDataProofs(), testaide.Now)
 	s.Require().NoError(err)
-	nextMainBlock := batches[1].LatestMainBlock()
+	err = s.blockStorage.PutBlockBatch(s.ctx, sealedBatch)
+	s.Require().NoError(err)
 
 	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
 
-	err = s.aggregator.processBlocksAndHandleErr(s.ctx)
+	batchConstraints := constraints.DefaultBatchConstraints()
+	batchConstraints.MaxBlocksCount = batches[1].Blocks.BlocksCount()
+	agg := s.newTestAggregator(s.blockStorage, batchConstraints)
+
+	err = agg.processBlocksAndHandleErr(s.ctx)
 	s.Require().NoError(err)
-	s.requireMainBlockHandled(nextMainBlock)
+	s.requireBatchHandled(batches[1])
 }
 
 func (s *AggregatorTestSuite) Test_Block_Storage_Capacity_Exceeded() {
@@ -192,10 +214,13 @@ func (s *AggregatorTestSuite) Test_Block_Storage_Capacity_Exceeded() {
 	batches := testaide.NewBatchesSequence(2)
 	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
 
-	err := blockStorage.PutBlockBatch(s.ctx, batches[0])
+	// sealed batch cannot be further extended
+	sealedBatch, err := batches[0].Seal(testaide.NewDataProofs(), testaide.Now)
+	s.Require().NoError(err)
+	err = blockStorage.PutBlockBatch(s.ctx, sealedBatch)
 	s.Require().NoError(err)
 
-	agg := s.newTestAggregator(blockStorage)
+	agg := s.newTestAggregator(blockStorage, constraints.DefaultBatchConstraints())
 
 	latestFetchedBeforeNext, err := blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
@@ -256,7 +281,7 @@ func (s *AggregatorTestSuite) Test_Latest_Fetched_Does_Not_Exist_On_Chain() {
 
 	err = s.aggregator.processBlockRange(s.ctx)
 	s.Require().ErrorIs(err, scTypes.ErrBlockMismatch)
-	s.Require().ErrorContains(err, "block not found in chain")
+	s.Require().ErrorContains(err, "block not found in shard")
 }
 
 // requireNoNewTasks asserts that there are no new tasks available for execution
@@ -267,8 +292,9 @@ func (s *AggregatorTestSuite) requireNoNewTasks() {
 	s.Require().Nil(task, "expected no new tasks available for execution, but got one")
 }
 
-func (s *AggregatorTestSuite) requireMainBlockHandled(mainBlock *scTypes.Block) {
+func (s *AggregatorTestSuite) requireBatchHandled(batch *scTypes.BlockBatch) {
 	s.T().Helper()
+	mainBlock := batch.LatestMainBlock()
 
 	// latest fetched block was updated
 	latestFetched, err := s.blockStorage.GetLatestFetched(s.ctx)

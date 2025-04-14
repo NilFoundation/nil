@@ -20,8 +20,8 @@ const (
 // blockOp represents the set of operations related to individual blocks within the storage.
 type blockOp struct{}
 
-func (bs blockOp) getBlock(tx db.RoTx, id scTypes.BlockId, required bool) (*blockEntry, error) {
-	return bs.getBlockBytesId(tx, id.Bytes(), required)
+func (o blockOp) getBlock(tx db.RoTx, id scTypes.BlockId, required bool) (*blockEntry, error) {
+	return o.getBlockBytesId(tx, id.Bytes(), required)
 }
 
 func (blockOp) blockExists(tx db.RoTx, id scTypes.BlockId) (bool, error) {
@@ -55,15 +55,28 @@ func (blockOp) getBlockBytesId(tx db.RoTx, idBytes []byte, required bool) (*bloc
 	return entry, nil
 }
 
-func (blockOp) putBlockTx(tx db.RwTx, entry *blockEntry) error {
-	value, err := marshallEntry(entry)
+func (o blockOp) putBlockIfNotExist(tx db.RwTx, entry *blockEntry, logger logging.Logger) error {
+	blockId := scTypes.IdFromBlock(&entry.Block)
+
+	exists, err := o.blockExists(tx, blockId)
 	if err != nil {
-		return fmt.Errorf("%w, hash=%s", err, entry.Block.Hash)
+		return fmt.Errorf("failed to check if block exists, blockId=%s: %w", blockId, err)
+	}
+	if exists {
+		logger.Trace().
+			Stringer(logging.FieldShardId, blockId.ShardId).
+			Stringer(logging.FieldBlockHash, blockId.Hash).
+			Msg("Block already exists, skipping (putBlockIfNotExist)")
+		return nil
 	}
 
-	blockId := scTypes.IdFromBlock(&entry.Block)
+	value, err := marshallEntry(entry)
+	if err != nil {
+		return fmt.Errorf("%w, blockId=%s", err, blockId)
+	}
+
 	if err := tx.Put(blocksTable, blockId.Bytes(), value); err != nil {
-		return fmt.Errorf("failed to put block %s: %w", blockId.String(), err)
+		return fmt.Errorf("failed to put block, blockId=%s: %w", blockId, err)
 	}
 
 	return nil
@@ -83,7 +96,7 @@ func (blockOp) deleteBlock(tx db.RwTx, blockId scTypes.BlockId, logger logging.L
 		logger.Warn().Err(err).
 			Stringer(logging.FieldShardId, blockId.ShardId).
 			Stringer(logging.FieldBlockHash, blockId.Hash).
-			Msg("block is not found (deleteBlock)")
+			Msg("Block is not found (deleteBlock)")
 		return nil
 
 	default:

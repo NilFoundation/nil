@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
@@ -19,31 +18,31 @@ type batchEntry struct {
 	Id       scTypes.BatchId  `json:"batchId"`
 	ParentId *scTypes.BatchId `json:"parentBatchId,omitempty"`
 
-	ParentRefs          map[types.ShardId]*scTypes.BlockRef `json:"parentRefs"`
-	LatestMainBlockHash common.Hash                         `json:"latestMainBlockHash"`
-	BlockIds            []scTypes.BlockId                   `json:"blockIds"`
-	DataProofs          scTypes.DataProofs                  `json:"dataProofs"`
+	LatestRefs scTypes.BlockRefs                   `json:"latestRefs,omitempty"`
+	ParentRefs map[types.ShardId]*scTypes.BlockRef `json:"parentRefs,omitempty"`
+	BlockIds   []scTypes.BlockId                   `json:"blockIds"`
+	DataProofs scTypes.DataProofs                  `json:"dataProofs"`
 
+	IsSealed  bool      `json:"isSealed,omitempty"`
 	IsProved  bool      `json:"isProved,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-func newBatchEntry(batch *scTypes.BlockBatch, createdAt time.Time) *batchEntry {
-	parentRefs := batch.ParentRefs()
-	mainRef, ok := parentRefs[types.MainShardId]
-	check.PanicIfNotf(ok && mainRef != nil, "batch must have a parent ref for main shard, id=%s", batch.Id)
-
+func newBatchEntry(batch *scTypes.BlockBatch) *batchEntry {
 	return &batchEntry{
 		Id:       batch.Id,
 		ParentId: batch.ParentId,
 
-		ParentRefs:          batch.ParentRefs(),
-		LatestMainBlockHash: batch.LatestMainBlock().Hash,
-		BlockIds:            batch.BlockIds(),
-		DataProofs:          batch.DataProofs,
+		LatestRefs: batch.LatestRefs(),
+		ParentRefs: batch.ParentRefs(),
+		BlockIds:   batch.BlockIds(),
+		DataProofs: batch.DataProofs,
 
+		IsSealed:  batch.IsSealed,
 		IsProved:  false,
-		CreatedAt: createdAt,
+		CreatedAt: batch.CreatedAt,
+		UpdatedAt: batch.UpdatedAt,
 	}
 }
 
@@ -53,7 +52,23 @@ func (e *batchEntry) IsValidProposalCandidate(currentStateRoot common.Hash) bool
 		return false
 	}
 
+	if mainRef := e.LatestRefs.TryGetMain(); mainRef == nil {
+		return false
+	}
+
 	return e.IsProved && mainParentRef.Hash == currentStateRoot
+}
+
+func entryToBatch(entry *batchEntry, segments scTypes.ChainSegments) *scTypes.BlockBatch {
+	return scTypes.ExistingBlockBatch(
+		entry.Id,
+		entry.ParentId,
+		segments,
+		entry.DataProofs,
+		entry.IsSealed,
+		entry.CreatedAt,
+		entry.UpdatedAt,
+	)
 }
 
 type blockEntry struct {

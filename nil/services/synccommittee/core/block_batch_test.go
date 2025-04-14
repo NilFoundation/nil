@@ -21,7 +21,7 @@ func TestBlockBatchTestSuite(t *testing.T) {
 
 func (s *BlockBatchTestSuite) Test_Valid_Batch_Single_ChainSegments() {
 	blocks := testaide.NewChainSegments(testaide.ShardsCount)
-	batch, err := types.NewBlockBatch(nil).WithAddedBlocks(blocks)
+	batch, err := types.NewBlockBatch(nil, testaide.Now).WithAddedBlocks(blocks, testaide.Now)
 	s.Require().NoError(err)
 	s.Require().NotNil(batch)
 	s.Require().Equal(blocks, batch.Blocks)
@@ -30,11 +30,11 @@ func (s *BlockBatchTestSuite) Test_Valid_Batch_Single_ChainSegments() {
 func (s *BlockBatchTestSuite) Test_Valid_Batch_Multiple_ChainSegments() {
 	segments := testaide.NewSegmentsSequence(2)
 
-	batch, err := types.NewBlockBatch(nil).WithAddedBlocks(segments[0])
+	batch, err := types.NewBlockBatch(nil, testaide.Now).WithAddedBlocks(segments[0], testaide.Now)
 	s.Require().NoError(err)
 	s.Require().NotNil(batch)
 
-	updatedBatch, err := batch.WithAddedBlocks(segments[1])
+	updatedBatch, err := batch.WithAddedBlocks(segments[1], testaide.Now)
 	s.Require().NoError(err)
 	s.Require().NotNil(updatedBatch)
 
@@ -46,14 +46,14 @@ func (s *BlockBatchTestSuite) Test_Valid_Batch_Multiple_ChainSegments() {
 func (s *BlockBatchTestSuite) Test_Invalid_Sequencing() {
 	segments := testaide.NewChainSegments(testaide.ShardsCount)
 
-	batch, err := types.NewBlockBatch(nil).WithAddedBlocks(segments)
+	batch, err := types.NewBlockBatch(nil, testaide.Now).WithAddedBlocks(segments, testaide.Now)
 	s.Require().NoError(err)
 	s.Require().NotNil(batch)
 
 	// nextSegments has no connection with the first segments
 	nextSegments := testaide.NewChainSegments(testaide.ShardsCount)
 
-	updatedBatch, err := batch.WithAddedBlocks(nextSegments)
+	updatedBatch, err := batch.WithAddedBlocks(nextSegments, testaide.Now)
 	s.Require().ErrorIs(err, types.ErrBlockMismatch)
 	s.Require().Nil(updatedBatch)
 }

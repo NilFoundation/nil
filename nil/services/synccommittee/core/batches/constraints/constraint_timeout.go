@@ -35,6 +35,6 @@ func (c *timeoutConstraint) Run(_ context.Context, batch *types.BlockBatch) (*Ch
 	if currentDuration < sealingTimeout {
 		return canBeExtended(), nil
 	} else {
-		return shouldBeSealed("sealing timeout is reached (%s >= %s)", sealingTimeout, currentDuration), nil
+		return shouldBeSealed("sealing timeout is reached (%s >= %s)", currentDuration, sealingTimeout), nil
 	}
 }
