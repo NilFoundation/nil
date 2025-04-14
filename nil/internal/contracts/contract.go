@@ -21,6 +21,7 @@ const (
 	NameNilConfigAbi  = "NilConfigAbi"
 	NameL1BlockInfo   = "system/L1BlockInfo"
 	NameGovernance    = "system/Governance"
+	NameMessageQueue  = "system/MessageQueue"
 )
 
 var (

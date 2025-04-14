@@ -84,7 +84,7 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 
 	if cfg.ZeroState == nil {
 		var err error
-		cfg.ZeroState, err = execution.CreateDefaultZeroStateConfig(execution.MainPublicKey)
+		cfg.ZeroState, err = execution.CreateDefaultZeroStateConfig(execution.MainPublicKey, cfg.NShards)
 		s.Require().NoError(err)
 	}
 
