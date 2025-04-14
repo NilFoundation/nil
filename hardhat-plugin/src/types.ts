@@ -14,10 +14,6 @@ export type GetContractAtConfig = {
   externalMethods?: string[];
 };
 
-export type GetContractAtConfigWithSigner = GetContractAtConfig & {
-  signer: ISigner;
-};
-
 export declare function getContractAt(
   contractName: string,
   address: IAddress,
@@ -35,11 +31,10 @@ export type NilHelper = {
 };
 
 declare module "hardhat/types/runtime" {
-  interface NetworkUserConfig {
-    nil: boolean;
-  }
 
   interface HardhatRuntimeEnvironment {
     nil: NilHelper;
   }
 }
+
+

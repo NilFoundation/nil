@@ -16,24 +16,21 @@ export const getContractAt = async (
 
   if (config?.signer) {
     return getContract({
-    abi: contractArtifact.abi,
-    address,
-    client: publicClient,
-    smartAccount: smartAccount,
-    externalInterface: {
-      signer: config.signer,
-      methods: config?.externalMethods || contractArtifact.abi.filter(x => x.onlyExternal === true).map(x => x.name),
-    }
-  });
+      abi: contractArtifact.abi,
+      address,
+      client: publicClient,
+      smartAccount: smartAccount,
+      externalInterface: {
+        signer: config.signer,
+        methods: config?.externalMethods || [],
+      }
+    });
   }
 
   return getContract({
     abi: contractArtifact.abi,
     address,
     client: publicClient,
-    smartAccount: smartAccount,
-    externalInterface: {
-      methods: config?.externalMethods || contractArtifact.abi.filter(x => x.onlyExternal === true).map(x => x.name),
-    }
+    smartAccount: smartAccount
   });
 };
