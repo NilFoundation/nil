@@ -16,6 +16,7 @@ import { IL2Bridge } from "./interfaces/IL2Bridge.sol";
 import { IL2BridgeMessenger } from "./interfaces/IL2BridgeMessenger.sol";
 import { IL2BridgeRouter } from "./interfaces/IL2BridgeRouter.sol";
 import { L2BaseBridge } from "./L2BaseBridge.sol";
+import { NilEnshrinedToken } from "../../common/tokens/NilEnshrinedToken.sol";
 import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
@@ -97,12 +98,23 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
     }
 
     if (tokenMapping[l2Token] == address(0)) {
-      // TODO - check if the l1TokenAddress is a contract address
-      // TODO - check if the l2TokenAddress exists and is a contract
-      // TODO - if the L1Token address mapping doesnot exist
-      // TODO -    it means the L2Token is to be created (Factory to create the token)
-      // TODO -    decode additionalData to get the inputs for Factory call
-      // TODO - Mapping for L1TokenAddress to be set
+      // L1Token address mapping doesnot exist and L2Token is to be created (Factory to create the token)
+      // decode additionalData to get the inputs for Factory call
+      string memory tokenName = abi.decode(additionalData, (string));
+
+      bytes memory l2TokenCreationBytes = abi.encodePacked(type(NilEnshrinedToken).creationCode, abi.encode(tokenName));
+
+      uint256 salt = uint256(uint160(l1Token));
+
+      // TODO - convert this to use sendRequest to deploy the token
+      address l2EnshrinedTokenCreated = Nil.asyncDeploy(1, _msgSender(), 0, l2TokenCreationBytes, salt);
+
+      if (l2EnshrinedTokenCreated == address(0) || TokenId.wrap(l2EnshrinedTokenCreated) != l2Token) {
+        revert ErrorL2TokenCreationFailed();
+      }
+
+      // Mapping for L1TokenAddress to be set
+      tokenMapping[l2Token] = l1Token;
     }
 
     TokenId l1TokenId = TokenId.wrap(l1Token);
