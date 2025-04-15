@@ -375,27 +375,24 @@ func (bs *BlockStorage) setBatchAsProposedImpl(ctx context.Context, id scTypes.B
 	return bs.commit(tx)
 }
 
-// ResetBatchesRange resets the block storage state starting from the batch with given ID:
+// DiscardBatchesRange discards all batches in the range [firstBatchToPurge, latestBatch].
 //
-//  1. Picks first main shard block [B] from the batch with the given ID.
-//
-//  2. Sets the latest fetched block reference to the parent of the block [B].
-//     If the specified block is the first block in the chain, the new latest fetched value will be nil.
-//
-//  3. Deletes all main and corresponding exec shard blocks starting from the block [B].
-func (bs *BlockStorage) ResetBatchesRange(
+//  1. Iterates through the sequence of batches in reverse order, starting from the latest created batch.
+//  2. Deletes each batch from storage.
+//  3. Updates the latest fetched values (BlockRefs) and the latest batch ID.
+func (bs *BlockStorage) DiscardBatchesRange(
 	ctx context.Context,
 	firstBatchToPurge scTypes.BatchId,
 ) (purgedBatches []scTypes.BatchId, err error) {
 	err = bs.retryRunner.Do(ctx, func(ctx context.Context) error {
 		var err error
-		purgedBatches, err = bs.resetBatchesPartialImpl(ctx, firstBatchToPurge)
+		purgedBatches, err = bs.discardBatchesRange(ctx, firstBatchToPurge)
 		return err
 	})
 	return
 }
 
-func (bs *BlockStorage) resetBatchesPartialImpl(
+func (bs *BlockStorage) discardBatchesRange(
 	ctx context.Context,
 	firstBatchToPurge scTypes.BatchId,
 ) (purgedBatches []scTypes.BatchId, err error) {
@@ -463,18 +460,18 @@ func (bs *BlockStorage) unsetBlockBatch(tx db.RwTx, batch *batchEntry) error {
 	return bs.ops.putLatestBatchId(tx, batch.ParentId)
 }
 
-// ResetBatchesNotProved resets the block storage state:
+// DiscardAllBatches resets the block storage state:
 //
 //  1. Sets the latest fetched block reference to nil.
 //
-//  2. Deletes all main not yet proved blocks from the storage.
-func (bs *BlockStorage) ResetBatchesNotProved(ctx context.Context) error {
+//  2. Deletes all batches from the storage.
+func (bs *BlockStorage) DiscardAllBatches(ctx context.Context) error {
 	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
-		return bs.resetBatchesNotProvedImpl(ctx)
+		return bs.discardAllBatches(ctx)
 	})
 }
 
-func (bs *BlockStorage) resetBatchesNotProvedImpl(ctx context.Context) error {
+func (bs *BlockStorage) discardAllBatches(ctx context.Context) error {
 	tx, err := bs.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -485,12 +482,13 @@ func (bs *BlockStorage) resetBatchesNotProvedImpl(ctx context.Context) error {
 		return fmt.Errorf("failed to reset latest fetched block: %w", err)
 	}
 
+	if err := bs.ops.putLatestBatchId(tx, nil); err != nil {
+		return fmt.Errorf("failed to reset latest batch ID: %w", err)
+	}
+
 	for batch, err := range bs.ops.getStoredBatchesSeq(tx) {
 		if err != nil {
 			return err
-		}
-		if batch.IsProved {
-			continue
 		}
 
 		if err := bs.deleteBatchWithBlocks(tx, batch); err != nil {

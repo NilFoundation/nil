@@ -168,7 +168,7 @@ func (agg *aggregator) handleProcessingErr(ctx context.Context, err error) error
 
 	case errors.Is(err, types.ErrBlockMismatch):
 		agg.logger.Warn().Err(err).Msg("Block mismatch detected, resetting state")
-		if err := agg.resetter.ResetProgressNotProved(ctx); err != nil {
+		if err := agg.resetter.ResetProgressFull(ctx); err != nil {
 			return fmt.Errorf("error resetting state: %w", err)
 		}
 		return nil

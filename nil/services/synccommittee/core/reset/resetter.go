@@ -9,14 +9,15 @@ import (
 )
 
 type BatchResetter interface {
-	// ResetBatchesRange resets Sync Committee's block processing progress
+	// DiscardBatchesRange resets Sync Committee's local block processing progress
 	// to a point preceding batch with the specified ID.
-	ResetBatchesRange(
+	DiscardBatchesRange(
 		ctx context.Context, firstBatchToPurge scTypes.BatchId,
 	) (purgedBatches []scTypes.BatchId, err error)
 
-	// ResetBatchesNotProved resets Sync Committee's progress for all not yet proved batches.
-	ResetBatchesNotProved(ctx context.Context) error
+	// DiscardAllBatches removes all batches from the local storage
+	// and resets block processing to initial state.
+	DiscardAllBatches(ctx context.Context) error
 }
 
 type StateResetter struct {
@@ -36,7 +37,7 @@ func (r *StateResetter) ResetProgressPartial(ctx context.Context, failedBatchId 
 		Stringer(logging.FieldBatchId, failedBatchId).
 		Msg("Started partial progress reset")
 
-	purgedBatchIds, err := r.batchResetter.ResetBatchesRange(ctx, failedBatchId)
+	purgedBatchIds, err := r.batchResetter.DiscardBatchesRange(ctx, failedBatchId)
 	if err != nil {
 		return err
 	}
@@ -61,10 +62,10 @@ func (r *StateResetter) ResetProgressPartial(ctx context.Context, failedBatchId 
 	return nil
 }
 
-func (r *StateResetter) ResetProgressNotProved(ctx context.Context) error {
+func (r *StateResetter) ResetProgressFull(ctx context.Context) error {
 	r.logger.Info().Msg("Started not proven progress reset")
 
-	if err := r.batchResetter.ResetBatchesNotProved(ctx); err != nil {
+	if err := r.batchResetter.DiscardAllBatches(ctx); err != nil {
 		return fmt.Errorf("failed to reset progress for not proved batches: %w", err)
 	}
 
