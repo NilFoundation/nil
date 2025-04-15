@@ -20,7 +20,7 @@ Cypress.Commands.add("compileCounterContract", () => {
     cy.get('[role="textbox"]').invoke("text", counter);
   });
 
-  cy.get("[data-testid='compile-button']").click();
+  cy.get("[data-testid='compile-run-button']").click();
 });
 
 describe("playground page", () => {
@@ -41,7 +41,7 @@ describe("code field", () => {
       cy.get('[role="textbox"]').invoke("text", "nil is bad");
     });
 
-    cy.get("[data-testid=compile-button]").click();
+    cy.get("[data-testid=compile-run-button]").click();
     cy.contains("Compilation failed").should("exist");
   });
 

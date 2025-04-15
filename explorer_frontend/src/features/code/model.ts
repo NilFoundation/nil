@@ -1,12 +1,15 @@
 import { createDomain } from "effector";
-import { fetchCodeSnippet, setCodeSnippet } from "../../api/code";
-import type { App } from "./types";
+import { fetchProject, setProject } from "../../api/code";
+import type { App, Project } from "./types";
 
 export const codeDomain = createDomain("code");
 
 export const $code = codeDomain.createStore<string>("");
+export const $script = codeDomain.createStore<string>("");
 export const changeCode = codeDomain.createEvent<string>();
-export const compile = codeDomain.createEvent();
+export const changeScript = codeDomain.createEvent<string | null>();
+export const compileCode = codeDomain.createEvent();
+export const runScript = codeDomain.createEvent();
 export const $solidityVersion = codeDomain.createStore("v0.8.26+commit.8a97fa7a");
 export const $availableSolidityVersions = codeDomain.createStore([
   "v0.8.28+commit.7893614a",
@@ -18,18 +21,28 @@ export const $availableSolidityVersions = codeDomain.createStore([
 
 export const changeSolidityVersion = codeDomain.createEvent<string>();
 
-export const $error = codeDomain.createStore<
+export const $codeError = codeDomain.createStore<
   {
     message: string;
     line: number;
   }[]
 >([]);
-export const $warnings = codeDomain.createStore<
+export const $codeWarnings = codeDomain.createStore<
   {
     message: string;
     line: number;
   }[]
 >([]);
+
+export const $scriptErrors = codeDomain.createStore<{
+  message: string;
+  line: number;
+}[]>([]);
+
+export const $scriptWarnings = codeDomain.createStore<{
+  message: string;
+  line: number;
+}[]>([]);
 
 export const compileCodeFx = codeDomain.createEffect<
   {
@@ -45,21 +58,47 @@ export const compileCodeFx = codeDomain.createEffect<
   }
 >();
 
-export const $codeSnippetHash = codeDomain.createStore<string | null>(null);
-export const $shareCodeSnippetError = codeDomain.createStore<boolean>(false);
+export const runScriptFx = codeDomain.createEffect<
+  {
+    script: string;
+    contracts: App[];
+  },
+  {
+    script: string;
+    warnings: {
+      message: string;
+      line: number;
+    }[];
+  }
+>();
 
-export const setCodeSnippetEvent = codeDomain.createEvent();
-export const fetchCodeSnippetEvent = codeDomain.createEvent<string>();
+export const $projectHash = codeDomain.createStore<string | null>(null);
+export const $shareProjectError = codeDomain.createStore<boolean>(false);
 
-export const setCodeSnippetFx = codeDomain.createEffect<string, string>();
-export const fetchCodeSnippetFx = codeDomain.createEffect<string, string>();
+export const setProjectEvent = codeDomain.createEvent();
+export const fetchProjectEvent = codeDomain.createEvent<string>();
 
-setCodeSnippetFx.use((code) => {
-  return setCodeSnippet(code);
+export const triggerCustomConsoleLogEvent = codeDomain.createEvent<string>();
+export const triggerCustomConsoleWarnEvent = codeDomain.createEvent<string>();
+
+export const setProjectFx = codeDomain.createEffect<Project, string>();
+export const fetchProjectFx = codeDomain.createEffect<string, Project>();
+
+setProjectFx.use(({ code, script }) => {
+  return setProject(
+    {
+      "Code.sol": code,
+      "Script.ts": script || "",
+    }
+  );
 });
 
-fetchCodeSnippetFx.use((hash) => {
-  return fetchCodeSnippet(hash);
+fetchProjectFx.use(async (hash) => {
+  const res = await fetchProject(hash);
+  return {
+    code: res["Code.sol"] || "",
+    script: res["Script.ts"] || "",
+  }
 });
 
 export const loadedPlaygroundPage = codeDomain.createEvent();

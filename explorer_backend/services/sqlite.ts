@@ -10,26 +10,49 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS code (
     created_at TIMESTAMP,
     hash TEXT PRIMARY KEY,
-    code TEXT
+    code TEXT,
+    content TEXT
 );
 `);
 
-const getStmt = db.prepare("SELECT code FROM code WHERE hash = ?");
+db.exec(`
+  UPDATE code 
+  SET content = json_object('Code.sol', code) 
+  WHERE content IS NULL;
+  `
+);
 
-export const getCode = (hash: string): string | null => {
-  const result = getStmt.get(hash) as { code: string } | undefined;
-  return result?.code || null;
+const getStmt = db.prepare(`
+  SELECT content
+  FROM code
+  WHERE hash = ?
+  `
+);
+
+export const getCode = (hash: string): Record<string, string> => {
+  const result = getStmt.get(hash) as { content: string };
+  const jsonResult = JSON.parse(result.content) as Record<string, string>;
+  return jsonResult;
 };
 
-export const setCode = async (code: string): Promise<string> => {
-  const hash = createHash("sha256").update(code).digest("hex");
+export const setCode = async (project: Record<string, string>): Promise<string> => {
+  const projectString = JSON.stringify(project);
+  const hash = createHash("sha256").update(projectString).digest("hex");
   const res = await getCode(hash);
   if (res) {
     return hash;
   }
-  db.prepare("INSERT INTO code (hash, code, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)").run([
-    hash,
-    code,
-  ]);
+  const keys = Object.keys(project);
+  const jsonObjectArgs = keys.map(key => `'${key}', ?`).join(", ");
+
+  const sql = `
+    INSERT INTO code (hash, content, created_at)
+    VALUES (?, json_object(${jsonObjectArgs}), CURRENT_TIMESTAMP)
+  `;
+
+  const params = [hash, ...keys.map(key => project[key])];
+
+  db.prepare(sql).run(params);
+
   return hash;
 };
