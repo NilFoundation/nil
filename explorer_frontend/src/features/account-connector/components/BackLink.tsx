@@ -6,8 +6,8 @@ import {
   COLORS,
   LabelMedium,
 } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import type { FC } from "react";
-import { useStyletron } from "styletron-react";
 
 type BackLinkProps = {
   title: string;
@@ -16,7 +16,7 @@ type BackLinkProps = {
 };
 
 const BackLink: FC<BackLinkProps> = ({ title, goBackCb, disabled }) => {
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
 
   return (
     <div
@@ -38,6 +38,10 @@ const BackLink: FC<BackLinkProps> = ({ title, goBackCb, disabled }) => {
             style: {
               paddingLeft: 0,
               paddingRight: 0,
+              backgroundColor: theme.colors.backLinkBackgroundColor,
+              ":hover": {
+                backgroundColor: theme.colors.backLinkBackgroundHoverColor,
+              },
             },
           },
         }}

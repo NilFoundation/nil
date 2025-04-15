@@ -42,6 +42,7 @@ import {
   initializePrivateKey,
   initilizeSmartAccount,
   regenrateAccountEvent,
+  resetSmartAccount,
   resetTopUpError,
   setActiveComponent,
   setInitializingSmartAccountState,
@@ -350,6 +351,16 @@ sample({
   fn: (smartAccount) => smartAccount as SmartAccountV1,
   filter: (smartAccount) => smartAccount !== null,
   target: [fetchBalanceFx, fetchBalanceTokensFx],
+});
+
+sample({
+  clock: resetSmartAccount,
+  source: combine($privateKey, $rpcUrl),
+  fn: ([_, rpcUrl]) => {
+    const privateKey = generateRandomPrivateKey();
+    return { privateKey, rpcUrl };
+  },
+  target: createSmartAccountFx,
 });
 
 $initializingSmartAccountState.on(setInitializingSmartAccountState, (_, payload) => payload);

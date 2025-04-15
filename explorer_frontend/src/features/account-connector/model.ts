@@ -58,7 +58,9 @@ export const regenrateAccountEvent = createEvent();
 
 export const topUpEvent = createEvent();
 
-export const $activeComponent = createStore<ActiveComponent | null>(ActiveComponent.RpcUrl);
+export const $activeComponent = createStore<ActiveComponent | null>(
+  ActiveComponent.InfoAndBalances,
+);
 
 export const setActiveComponent = createEvent<ActiveComponent>();
 
@@ -95,6 +97,8 @@ export const $initializingSmartAccountState = accountConnectorDomain.createStore
 export const setInitializingSmartAccountState = accountConnectorDomain.createEvent<string>();
 
 export const $initializingSmartAccountError = accountConnectorDomain.createStore<string>("");
+
+export const resetSmartAccount = createEvent();
 
 export const resetTopUpError = createEvent();
 

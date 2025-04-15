@@ -3,7 +3,6 @@ import {
   Button,
   COLORS,
   CopyButton,
-  Input,
   LabelLarge,
   LabelMedium,
   LabelSmall,
@@ -20,7 +19,6 @@ import { formatEther } from "viem";
 import { $rpcIsHealthy } from "../../healthcheck/model";
 import { OverflowEllipsis, useMobile } from "../../shared";
 import { ActiveComponent } from "../ActiveComponent";
-import CheckmarkIcon from "../assets/checkmark.svg";
 import Linkicon from "../assets/link.svg";
 import {
   $balance,
@@ -33,6 +31,7 @@ import {
   setActiveComponent,
   topUpSmartAccountBalanceFx,
 } from "../model";
+import { AccountSettingsButton } from "./AccountSettingsButton";
 import { Token } from "./Token";
 import { styles } from "./styles";
 
@@ -114,13 +113,23 @@ const MainScreen = () => {
           display: "flex",
           flexDirection: "column",
           position: "sticky",
-          alignItems: "center",
-          gap: "24px",
+          alignItems: "start",
+          gap: "12px",
           top: 0,
           backgroundColor: theme.colors.backgroundSecondary,
         })}
       >
-        <LabelLarge>Smart Account</LabelLarge>
+        <div
+          className={css({
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+          })}
+        >
+          <LabelLarge>Smart Account</LabelLarge>
+          <AccountSettingsButton />
+        </div>
         {address !== null && (
           <div
             className={css({
@@ -134,63 +143,6 @@ const MainScreen = () => {
               <OverflowEllipsis>{address}</OverflowEllipsis>
             </LabelMedium>
             <CopyButton textToCopy={address} disabled={address === null} color={COLORS.gray200} />
-          </div>
-        )}
-        {rpcUrl !== null && (
-          <div
-            className={css({
-              display: "flex",
-              alignItems: "center",
-              width: "100%",
-              gap: "12px",
-            })}
-          >
-            {/* Read-Only Input */}
-            <Input
-              placeholder="Enter your RPC URL"
-              value={rpcUrl}
-              readOnly
-              overrides={{
-                Root: {
-                  style: {
-                    flex: 1,
-                    height: "48px",
-                    backgroundColor: theme.colors.rpcUrlBackgroundColor,
-                    ":hover": {
-                      backgroundColor: theme.colors.rpcUrlBackgroundHoverColor,
-                    },
-                    boxShadow: "none",
-                  },
-                },
-              }}
-            />
-            {/* Copy Button */}
-            <Button
-              kind={BUTTON_KIND.secondary}
-              onClick={handleCopy}
-              overrides={{
-                Root: {
-                  style: {
-                    width: "120px",
-                    padding: "0 12px",
-                    height: "48px",
-                    backgroundColor: COLORS.gray50,
-                    color: COLORS.gray800,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    ":hover": {
-                      backgroundColor: COLORS.gray100,
-                      color: COLORS.gray800,
-                    },
-                  },
-                },
-              }}
-            >
-              {copied ? <img src={CheckmarkIcon} alt="Copied" width={20} height={20} /> : null}
-              {copied ? "Copied!" : "Copy"}
-            </Button>
           </div>
         )}
       </div>

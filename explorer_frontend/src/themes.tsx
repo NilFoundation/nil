@@ -8,6 +8,7 @@ export const { theme } = createTheme(engine, {
   overrides: {
     colors: {
       backgroundSecondary: COLORS.gray800,
+      backgroundTertiary: COLORS.gray700,
       contractHeaderButtonBackgroundColor: "transparent",
       contractHeaderButtonBackgroundHoverColor: "transparent",
       tokenInputBackgroundColor: COLORS.gray700,
@@ -16,6 +17,10 @@ export const { theme } = createTheme(engine, {
       inputButtonAndDropdownOverrideBackgroundHoverColor: COLORS.gray700,
       rpcUrlBackgroundColor: COLORS.gray700,
       rpcUrlBackgroundHoverColor: COLORS.gray600,
+      accountSettingsButtonBackgroundColor: COLORS.gray700,
+      accountSettingsButtonBackgroundHoverColor: COLORS.gray600,
+      backLinkBackgroundColor: COLORS.gray700,
+      backLinkBackgroundHoverColor: COLORS.gray600,
     },
     sizes: {
       copyButton: "40px",
@@ -39,8 +44,12 @@ export const tutorialsTheme = createTheme(engine, {
       inputButtonAndDropdownOverrideBackgroundHoverColor: COLORS.blue700,
       tokenInputBackgroundColor: COLORS.blue800,
       tokenInputBackgroundHoverColor: COLORS.blue700,
-      rpcUrlBackgroundColor: COLORS.blue800,
-      rpcUrlBackgroundHoverColor: COLORS.blue700,
+      rpcUrlBackgroundColor: COLORS.blue700,
+      rpcUrlBackgroundHoverColor: COLORS.blue600,
+      accountSettingsButtonBackgroundColor: COLORS.blue800,
+      accountSettingsButtonBackgroundHoverColor: COLORS.blue700,
+      backLinkBackgroundColor: COLORS.blue700,
+      backLinkBackgroundHoverColor: COLORS.blue600,
     },
     sizes: {
       copyButton: "32px",
