@@ -11,4 +11,8 @@ declare module "hardhat/types/config" {
   }
 
   interface HardhatConfig extends NilHardhatUserConfig {} // Augmenting existing type
+
+  interface HttpNetworkUserConfig {
+    nil?: boolean;
+  }
 }

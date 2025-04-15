@@ -51,6 +51,7 @@ export type NilHelper = {
 };
 
 declare module "hardhat/types/runtime" {
+
   interface HardhatRuntimeEnvironment {
     nil: NilHelper;
   }

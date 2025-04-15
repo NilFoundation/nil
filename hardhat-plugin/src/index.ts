@@ -8,11 +8,37 @@ import {
 } from "@nilfoundation/niljs";
 import "./tasks/subtasks";
 import { generateRandomPrivateKey } from "@nilfoundation/niljs";
+import { fetchConfigIni } from "./config/config";
+import "./tasks/subtasks";
 import { getContractAt, deployContract } from "./internal/contracts";
 import { topUpSmartAccount } from "uniswap-v2-on-nil/tasks/basic/basic";
 import { createSmartAccount } from "./core/wallet";
 
 extendEnvironment((hre) => {
+  (hre as any).smartAccount = async (): Promise<SmartAccountV1> => {
+    const config = fetchConfigIni();
+    const signer = new LocalECDSAKeySigner({
+      // @ts-ignore
+      privateKey: config.privateKey,
+    });
+    const pubkey = signer.getPublicKey();
+
+    const publicClient = new PublicClient({
+      transport: new HttpTransport({
+        endpoint: config.rpcEndpoint,
+      }),
+      shardId: 1,
+    });
+
+    return new SmartAccountV1({
+      // @ts-ignore
+      address: config.address,
+      client: publicClient,
+      signer: signer,
+      shardId: 1,
+    });
+  };
+
   if ("nil" in hre.network.config && hre.network.config.nil) {
     if (!("url" in hre.network.config)) {
       throw new Error("Nil network config is missing url");
@@ -24,7 +50,7 @@ extendEnvironment((hre) => {
     const publicClient = new PublicClient({
       transport: nilProvider,
     });
-    const defaultSharId = hre.config.defaultShardId ?? 1;
+    const defaultSharId = 1;
 
     const pk = generateRandomPrivateKey();
     const signer = new LocalECDSAKeySigner({
