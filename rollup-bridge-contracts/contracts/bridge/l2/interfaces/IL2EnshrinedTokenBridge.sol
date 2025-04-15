@@ -20,6 +20,10 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
 
   error ErrorInvalidAmount();
 
+  error ErrorInvalidTokenCount();
+
+  error ErrorTokenBurnFailed();
+
   /*//////////////////////////////////////////////////////////////////////////
                              EVENTS   
     //////////////////////////////////////////////////////////////////////////*/
@@ -37,7 +41,7 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
   /// @param depositRecipient The address of recipient in L2.
   /// @param feeRefundRecipient The address of recipient for fee-refund on L2.
   /// @param data The optional calldata passed to recipient in L2.
-  event FinalizedDepositERC20(
+  event FinalisedDepositERC20(
     address indexed l1Token,
     TokenId indexed l2Token,
     address indexed depositor,

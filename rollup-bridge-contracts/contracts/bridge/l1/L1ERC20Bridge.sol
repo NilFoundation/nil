@@ -18,7 +18,9 @@ import { IBridge } from "../interfaces/IBridge.sol";
 import { IL1BridgeMessenger } from "./interfaces/IL1BridgeMessenger.sol";
 import { INilGasPriceOracle } from "./interfaces/INilGasPriceOracle.sol";
 import { L1BaseBridge } from "./L1BaseBridge.sol";
+import { NilEnshrinedToken } from "../../common/tokens/NilEnshrinedToken.sol";
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
 
 /// @title L1ERC20Bridge
 /// @notice The `L1ERC20Bridge` contract for ERC20Bridging in L1.
@@ -63,13 +65,14 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
     address adminAddress,
     address wethTokenAddress,
     address messengerAddress,
-    address nilGasPriceOracleAddress
+    address nilGasPriceOracleAddress,
+    uint256 shardId
   ) public initializer {
     if (!wethTokenAddress.isContract()) {
       revert ErrorInvalidWethToken();
     }
 
-    L1BaseBridge.__L1BaseBridge_init(ownerAddress, adminAddress, messengerAddress, nilGasPriceOracleAddress);
+    L1BaseBridge.__L1BaseBridge_init(ownerAddress, adminAddress, messengerAddress, nilGasPriceOracleAddress, shardId);
 
     wethToken = wethTokenAddress;
   }
@@ -242,7 +245,8 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
   }
 
   /// @dev Internal function to do all the deposit operations.
-  /// @param _depositMessageParams The struct with parameters needed to build the DepositMessage and further processing via BridgeMessenger
+  /// @param _depositMessageParams The struct with parameters needed to build the DepositMessage and further
+  /// processing via BridgeMessenger
   function _deposit(DepositMessageParams memory _depositMessageParams) internal virtual nonReentrant {
     if (_depositMessageParams.l1Token == address(0)) {
       revert ErrorInvalidTokenAddress();
@@ -266,10 +270,19 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
 
     _depositMessageParams.l2Token = tokenMapping[_depositMessageParams.l1Token];
 
-    if (_depositMessageParams.l2Token.isContract()) {
-      //TODO compute l2TokenAddress
-      //shardId, bytecode, salt, , ... -> l2TokenAddress
+    if (!_depositMessageParams.l2Token.isContract()) {
+      string memory tokenName = ERC20(_depositMessageParams.l1Token).name();
+
+      // get the bytecode of the NilTokenBase
+      // encode initialisation/constructor arguments for NilEnshrinedToken contract
+      bytes memory l2TokenCreationCode = abi.encodePacked(type(NilEnshrinedToken).creationCode, abi.encode(tokenName));
+
+      uint256 salt = uint256(uint160(_depositMessageParams.l1Token));
+
+      address l2TokenAddress = Nil.createAddress(shardId, l2TokenCreationCode, salt);
+
       // update the mapping
+      tokenMapping[_depositMessageParams.l1Token] = l2TokenAddress;
     }
 
     if (_depositMessageParams.l2Token == address(0)) {

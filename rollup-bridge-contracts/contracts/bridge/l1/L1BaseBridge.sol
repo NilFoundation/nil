@@ -64,6 +64,9 @@ abstract contract L1BaseBridge is
   /// @inheritdoc IL1Bridge
   address public override nilGasPriceOracle;
 
+  /// @inheritdoc IL1Bridge
+  uint256 public override shardId;
+
   /// @dev The storage slots for future usage.
   uint256[50] private __gap;
 
@@ -80,7 +83,8 @@ abstract contract L1BaseBridge is
     address ownerAddress,
     address adminAddress,
     address messengerAddress,
-    address nilGasPriceOracleAddress
+    address nilGasPriceOracleAddress,
+    uint256 shardIdValue
   ) internal onlyInitializing {
     // Validate input parameters
     if (ownerAddress == address(0)) {
@@ -122,6 +126,7 @@ abstract contract L1BaseBridge is
 
     _setMessenger(messengerAddress);
     _setNilGasPriceOracle(nilGasPriceOracleAddress);
+    _setShardId(shardIdValue);
   }
 
   /*//////////////////////////////////////////////////////////////////////////
@@ -147,8 +152,19 @@ abstract contract L1BaseBridge is
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc IL1Bridge
+  function setShardId(uint256 shardIdValue) external override onlyOwnerOrAdmin whenNotPaused {
+    _setShardId(shardIdValue);
+  }
+
+  function _setShardId(uint256 _shardId) internal {
+    uint256 oldShardId = shardId;
+    shardId = _shardId;
+    emit ShardIdSet(oldShardId, _shardId);
+  }
+
+  /// @inheritdoc IL1Bridge
   function setRouter(address routerAddress) external override onlyOwnerOrAdmin whenNotPaused {
-    router = routerAddress;
+    _setRouter(routerAddress);
   }
 
   function _setRouter(address routerAddress) internal {

@@ -146,16 +146,20 @@ contract L2ETHBridgeVault is
 
     ethAmountTracker = ethAmountTracker + depositAmount;
 
-    /// @notice Send a request to the depositRecipient to send the eth depositAmount.
-    Nil.asyncCall(
-      depositRecipient,
-      l2RefundRecipient,
-      address(this),
-      Nil.ASYNC_REQUEST_MIN_GAS,
-      Nil.FORWARD_REMAINING,
-      depositAmount,
-      "0x"
-    );
+    /// @notice Encoding the context to process the loan after the price is fetched
+    /// @dev The context contains the borrower’s details, loan amount, borrow token, and collateral token.
+    bytes memory ethTransferCallbackContext = abi.encodeWithSelector(this.handleETHTransferResponse.selector, "0x");
+
+    /// @notice Send a request to the token contract to get token minted.
+    /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
+    Nil.sendRequest(depositRecipient, depositAmount, Nil.ASYNC_REQUEST_MIN_GAS, ethTransferCallbackContext, "0x");
+  }
+
+  function handleETHTransferResponse(bool success, bytes memory returnData, bytes memory context) public {
+    /// @notice Ensure the ETH transfer call was successful
+    if (!success) {
+      revert ErrorETHTransferFailed();
+    }
   }
 
   function returnETHOnWithdrawal(uint256 amount) external payable override nonReentrant whenNotPaused {

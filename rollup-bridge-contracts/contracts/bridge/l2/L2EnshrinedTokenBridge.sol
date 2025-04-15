@@ -69,7 +69,8 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
 
   /**
    * @notice Finalizes an ERC20 deposit from L1 to L2.
-   * @dev Mints tokens to the current contract and initiates an async request to transfer them to the deposit recipient.
+   * @dev Mints tokens to the current contract and initiates an async request to transfer them to the deposit
+   * recipient.
    * @param l1Token The address of the ERC20 token on L1.
    * @param l2Token The address of the corresponding ERC20 token on L2.
    * @param depositor The address of the depositor on L1.
@@ -98,29 +99,73 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
     if (tokenMapping[l2Token] == address(0)) {
       // TODO - check if the l1TokenAddress is a contract address
       // TODO - check if the l2TokenAddress exists and is a contract
-      // TODO - if the L1Token address mapping doesnot exist, it means the L2Token is to be created
+      // TODO - if the L1Token address mapping doesnot exist
+      // TODO -    it means the L2Token is to be created (Factory to create the token)
+      // TODO -    decode additionalData to get the inputs for Factory call
       // TODO - Mapping for L1TokenAddress to be set
     }
+
+    TokenId l1TokenId = TokenId.wrap(l1Token);
+    address l2TokenAddress = TokenId.unwrap(l2Token);
 
     /// @notice Prepare a call to the token contract to mint the tokens
     bytes memory mintCallData = abi.encodeWithSignature("mintTokenInternal(uint256)", depositAmount);
     Nil.Token[] memory emptyTokens;
-    (bool success, bytes memory result) = Nil.syncCall(
-      TokenId.unwrap(l2Token),
-      gasleft(),
-      0,
-      emptyTokens,
-      mintCallData
-    );
+    (bool success, bytes memory result) = Nil.syncCall(l2TokenAddress, gasleft(), 0, emptyTokens, mintCallData);
 
     if (!success) {
       revert ErrorMintTokenFailed();
     }
 
-    //NilTokenBase.sendTokenInternal(depositRecipient, l2Token, depositAmount);
-
-    emit FinalizedDepositERC20(
+    /// @notice Send the mined tokens from L2EnshrinedTokenBridge to the depositRecipient
+    /// @dev Transfers the token amount to the depositRecipient's address after the mint is successful.
+    /// @notice Encoding the context to process the loan after the price is fetched
+    /// @dev The context contains the borrower’s details, loan amount, borrow token, and collateral token.
+    bytes memory eventEmissionContext = abi.encodeWithSelector(
+      this.handleTokenTransferResponse.selector,
       l1Token,
+      l2Token,
+      depositor,
+      depositAmount,
+      depositRecipient,
+      feeRefundRecipient,
+      additionalData
+    );
+
+    /// @notice Prepare a call to the token contract to mint the tokens
+    bytes memory transferCallData = abi.encodeWithSignature(
+      "sendTokenInternal(address,address,uint256)",
+      depositRecipient,
+      l2Token,
+      depositAmount
+    );
+
+    /// @notice Send a request to the token contract to get token minted.
+    /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
+    Nil.sendRequest(l2TokenAddress, 0, Nil.ASYNC_REQUEST_MIN_GAS, eventEmissionContext, transferCallData);
+  }
+
+  function handleTokenTransferResponse(bool success, bytes memory returnData, bytes memory context) public {
+    /// @notice Ensure the token-mint call was successful
+    /// @dev Verifies that the enshrined-token was minted successfully.
+    if (!success) {
+      revert ErrorTokenTransferFailed();
+    }
+
+    /// @notice Decode the context to extract deposit details and feeRefundRecipient
+    /// @dev Decodes the context passed from the handleTokenMintResponse function to retrieve necessary data.
+    (
+      TokenId l1Token,
+      TokenId l2Token,
+      address depositor,
+      uint256 depositAmount,
+      address depositRecipient,
+      address feeRefundRecipient,
+      bytes memory additionalData
+    ) = abi.decode(context, (TokenId, TokenId, address, uint256, address, address, bytes));
+
+    emit FinalisedDepositERC20(
+      TokenId.unwrap(l1Token),
       l2Token,
       depositor,
       depositAmount,
@@ -144,26 +189,55 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
     /// @notice Retrieve the tokens being sent in the transaction
     Nil.Token[] memory tokens = Nil.txnTokens();
 
+    if (tokens.length != 1) {
+      revert ErrorInvalidTokenCount();
+    }
+
+    address l1TokenAddress = tokenMapping[tokens[0].id];
+    address l2TokenAddress = TokenId.unwrap(tokens[0].id);
+
     // check if the l1Token exists for the TokenId in NilToken being withdrawn
-    if (tokenMapping[tokens[0].id] == address(0)) {
+    if (l1TokenAddress == address(0)) {
       revert ErrorNoL1TokenMapping();
     }
 
-    /// @dev declare an empty list of tokens (to be sent on to destination address)
-    Nil.Token[] memory tokenList;
-
-    Nil.syncCall(
-      TokenId.unwrap(tokens[0].id), // destination address
-      gasleft(), //gas
-      0, // value
-      tokenList, // empty token List
-      abi.encodeWithSignature("burnTokenInternal(uint256)", withdrawalAmount) // calldata
+    /// @notice Encoding the context to process the callback for burnTokenInternal's completion
+    bytes memory postTokenBurnCallbackContext = abi.encodeWithSelector(
+      this.handleTokenBurnResponse.selector,
+      l1TokenAddress,
+      l2TokenAddress,
+      _msgSender(),
+      l1WithdrawRecipient,
+      withdrawalAmount
     );
+
+    /// @notice Prepare a call to the token contract to burn the tokens
+    bytes memory burnInternalCallData = abi.encodeWithSignature("burnTokenInternal(uint256)", withdrawalAmount);
+
+    /// @notice Send a request to the token contract to get token burnt.
+    Nil.sendRequest(l2TokenAddress, 0, Nil.ASYNC_REQUEST_MIN_GAS, postTokenBurnCallbackContext, burnInternalCallData);
+  }
+
+  function handleTokenBurnResponse(bool success, bytes memory returnData, bytes memory context) public {
+    /// @notice Ensure the Token burn call was successful
+    if (!success) {
+      revert ErrorTokenBurnFailed();
+    }
+
+    /// @notice Decode the context to extract deposit details and feeRefundRecipient
+    /// @dev Decodes the context passed from the handleTokenMintResponse function to retrieve necessary data.
+    (
+      address l1Token,
+      address l2Token,
+      address withdrawerAddress,
+      address withdrawalRecipient,
+      uint256 withdrawalAmount
+    ) = abi.decode(context, (address, address, address, address, uint256));
 
     // Generate message to be executed on L1ETHBridge
     bytes memory message = abi.encodeCall(
       IL1ERC20Bridge.finaliseWithdrawERC20,
-      (TokenId.unwrap(tokens[0].id), tokenMapping[tokens[0].id], _msgSender(), l1WithdrawRecipient, withdrawalAmount)
+      (l1Token, l2Token, withdrawerAddress, withdrawalRecipient, withdrawalAmount)
     );
 
     // Send message to L2BridgeMessenger.

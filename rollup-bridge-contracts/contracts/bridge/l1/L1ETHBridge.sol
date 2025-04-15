@@ -68,7 +68,8 @@ contract L1ETHBridge is L1BaseBridge, IL1ETHBridge {
     address ownerAddress,
     address adminAddress,
     address messengerAddress,
-    address nilGasPriceOracleAddress
+    address nilGasPriceOracleAddress,
+    uint256 shardId
   ) public initializer {
     // Validate input parameters
     if (ownerAddress == address(0)) {
@@ -82,7 +83,7 @@ contract L1ETHBridge is L1BaseBridge, IL1ETHBridge {
     if (nilGasPriceOracleAddress == address(0)) {
       revert ErrorInvalidNilGasPriceOracle();
     }
-    L1BaseBridge.__L1BaseBridge_init(ownerAddress, adminAddress, messengerAddress, nilGasPriceOracleAddress);
+    L1BaseBridge.__L1BaseBridge_init(ownerAddress, adminAddress, messengerAddress, nilGasPriceOracleAddress, shardId);
   }
 
   /*//////////////////////////////////////////////////////////////////////////

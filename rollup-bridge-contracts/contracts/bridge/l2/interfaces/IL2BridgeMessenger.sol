@@ -107,20 +107,6 @@ interface IL2BridgeMessenger is IBridgeMessenger {
   /// @return The current withdrawal nonce.
   function withdrawalNonce() external view returns (uint256);
 
-  /// @notice Gets the next withdrawal nonce.
-  /// @return The next withdrawal nonce.
-  function getNextWithdrawalNonce() external view returns (uint256);
-
-  /// @notice Gets the withdrawal MessageType for a given message hash.
-  /// @param msgHash The hash of the withdrawal message.
-  /// @return messageType The type of the withdrawal message.
-  function getMessageType(bytes32 msgHash) external view returns (NilConstants.MessageType messageType);
-
-  /// @notice Gets the withdrawal message for a given message hash.
-  /// @param msgHash The hash of the withdrawal message.
-  /// @return withdrawalMessage The withdrawal message details.
-  function getWithdrawalMessage(bytes32 msgHash) external view returns (WithdrawalMessage memory withdrawalMessage);
-
   /*//////////////////////////////////////////////////////////////////////////
                          PUBLIC MUTATION FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/

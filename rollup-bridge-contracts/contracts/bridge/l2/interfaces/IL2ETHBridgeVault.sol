@@ -14,13 +14,13 @@ interface IL2ETHBridgeVault is IERC165 {
   /// @dev Invalid owner address.
   error ErrorInvalidOwner();
 
+  error ErrorETHTransferFailed();
+
   /// @dev Invalid default admin address.
   error ErrorInvalidDefaultAdmin();
 
   /// @dev Invalid address.
   error ErrorInvalidAddress();
-
-  error ErrorETHTransferFailed();
 
   error ErrorInvalidReturnAmount();
 
