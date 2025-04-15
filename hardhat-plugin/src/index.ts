@@ -9,6 +9,8 @@ import {
 import "./tasks/subtasks";
 import { generateRandomPrivateKey } from "@nilfoundation/niljs";
 import { getContractAt, deployContract } from "./internal/contracts";
+import { topUpSmartAccount } from "uniswap-v2-on-nil/tasks/basic/basic";
+import { createSmartAccount } from "./core/wallet";
 
 extendEnvironment((hre) => {
   if ("nil" in hre.network.config && hre.network.config.nil) {
@@ -58,7 +60,10 @@ extendEnvironment((hre) => {
       },
       deployContract: async (contractName, args, config) => {
         return deployContract(hre, contractName, args, config);
-      }
+      },
+      createSmartAccount: async () => {
+        return createSmartAccount(hre)
+      },
     };
   }
 });

@@ -61,20 +61,7 @@ export const deployContract = async (
   await tx.wait();
   console.log(`Deployed contract ${contractName} at address: ${address}, tx - ${tx.hash}`);
 
-  if (config?.signer) {
-    return getContract({
-      abi: contractArtifact.abi,
-      address,
-      client: publicClient,
-      smartAccount: smartAccount,
-      externalInterface: {
-        signer: config.signer,
-        methods: config?.externalMethods || contractArtifact.abi.filter(x => x.onlyExternal === true).map(x => x.name),
-      }
-    });
-  }
-
-  return getContract({
+  const contract = getContract({
     abi: contractArtifact.abi,
     address,
     client: publicClient,
@@ -83,4 +70,8 @@ export const deployContract = async (
       methods: config?.externalMethods || contractArtifact.abi.filter(x => x.onlyExternal === true).map(x => x.name),
     }
   });
+  return {
+    address: address,
+    ...contract
+  };
 };

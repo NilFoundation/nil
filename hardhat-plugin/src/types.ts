@@ -36,6 +36,7 @@ export declare function deployContract(
   args: unknown[],
   config?: DeployContractConfig,
 ): Promise<{
+  address: IAddress;
   read: CommonReadContractMethods;
   write: CommonWriteContractMethods;
 }>;
@@ -46,6 +47,7 @@ export type NilHelper = {
   getSmartAccount: () => Promise<SmartAccountInterface>;
   getContractAt: typeof getContractAt;
   deployContract: typeof deployContract;
+  createSmartAccount: () => Promise<SmartAccountInterface>;
 };
 
 declare module "hardhat/types/runtime" {
