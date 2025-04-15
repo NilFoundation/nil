@@ -5,8 +5,8 @@ task("deploy-token")
   .setAction(async (taskArgs, hre) => {
     console.log("Deploying token contract...");
 
-    const newAccount = await hre.nil.createSmartAccount();
-    const token = await hre.nil.deployContract("Token", []);
-    // TODO: complete to hh plugin
+    const token = await hre.nil.deployContract("Token", [
+      "USDT", BigInt(taskArgs.amount),
+    ]);
     console.log("Deployed Token contract at address: ", token.address);
   });
