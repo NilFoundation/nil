@@ -1,7 +1,7 @@
 import { COLORS, SPACE } from "@nilfoundation/ui-kit";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { StyleObject } from "styletron-react";
-import { getTabletStyles } from "../../../../styleHelpers";
+import { getMobileStyles } from "../../../../styleHelpers";
 
 const linkOutlineStyles = {
   borderRadius: "4px",
@@ -26,7 +26,7 @@ const container: StyleObject = {
 const content = {
   display: "grid",
   gridTemplateColumns: "180px 9fr 1fr",
-  ...getTabletStyles({ gridTemplateColumns: "1fr 6fr" }),
+  ...getMobileStyles({ gridTemplateColumns: "1fr 6fr" }),
   paddingTop: SPACE[48],
   gap: SPACE[32],
   width: "100%",
@@ -35,8 +35,6 @@ const content = {
 const navbar = {
   width: "100%",
   display: "grid",
-  gap: "8px",
-  gridTemplateColumns: "calc(66% + 8px) 33%", // 8px - width of resize handle
   gridTemplateRows: "1fr",
   height: "auto",
   ...expandProperty("padding", "16px 0"),
@@ -47,7 +45,6 @@ const logo = {
   alignItems: "start",
   marginRight: "auto",
   ...linkOutlineStyles,
-  marginLeft: "32px",
   flexDirection: "column",
 };
 
@@ -61,6 +58,13 @@ const tutorialText = {
   marginTop: "4px",
   fontSize: "12px",
   color: COLORS.blue400,
+  fontFamily: "Inter, sans-serif",
+};
+
+const playgroundText = {
+  marginTop: "4px",
+  fontSize: "12px",
+  color: COLORS.gray400,
   fontFamily: "Inter, sans-serif",
 };
 
@@ -88,11 +92,13 @@ export const styles = {
   content,
   navLink,
   tutorialText,
+  playgroundText,
 };
 
 export const mobileContainerStyle: StyleObject = {
   padding: "16px",
   display: "flex",
+  width: "100%",
   flexDirection: "column",
 };
 

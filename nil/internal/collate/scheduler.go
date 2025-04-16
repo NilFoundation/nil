@@ -75,11 +75,8 @@ func (s *Scheduler) Validator() *Validator {
 	return s.validator
 }
 
-func (s *Scheduler) Run(ctx context.Context, consensus Consensus) error {
+func (s *Scheduler) Run(ctx context.Context) error {
 	s.logger.Info().Msg("Starting collation...")
-
-	// Enable handler for blocks relaying
-	SetRequestHandler(ctx, s.networkManager, s.params.ShardId, s.txFabric, s.logger)
 
 	tickPeriodMs := s.params.CollatorTickPeriod.Milliseconds()
 	for {

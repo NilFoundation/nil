@@ -162,10 +162,10 @@ class ConfigManager {
     }
   }
 
-  public getConfigValue(section: string, key: string): string {
+  public getConfigValue(section: string, key: string, fallback?: string): string | undefined {
     const config = this.loadConfig();
     const sectionConfig = config[section] as Record<string, string>;
-    return sectionConfig?.[key];
+    return sectionConfig?.[key] ?? fallback;
   }
 
   public loadConfig(): Config {

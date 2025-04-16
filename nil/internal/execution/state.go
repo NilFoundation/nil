@@ -128,9 +128,6 @@ type ExecutionState struct {
 	// Pointer to currently executed VM
 	evm *vm.EVM
 
-	// wasAwaitCall is true if the VM execution ended with sending a awaitCall transaction
-	wasAwaitCall bool
-
 	configAccessor config.ConfigAccessor
 
 	// txnFeeCredit holds the total fee credit for the inbound transaction. It can be changed during execution, thus we
@@ -649,7 +646,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, transaction *types.Tr
 	}
 	acc.Seqno = transaction.Seqno
 
-	if err := es.newVm(transaction.IsInternal(), transaction.From, nil); err != nil {
+	if err := es.newVm(transaction.IsInternal(), transaction.From); err != nil {
 		return err
 	}
 	defer es.resetVm()
@@ -693,6 +690,17 @@ func (es *ExecutionState) SetState(addr types.Address, key common.Hash, val comm
 		return err
 	}
 	return acc.SetState(key, val)
+}
+
+func (es *ExecutionState) SetAsyncContext(
+	addr types.Address, index types.TransactionIndex, val *types.AsyncContext,
+) error {
+	acc, err := es.getOrNewAccount(addr)
+	if err != nil {
+		return err
+	}
+	acc.SetAsyncContext(index, val)
+	return nil
 }
 
 // SetStorage replaces the entire storage for the specified account with given
@@ -888,7 +896,6 @@ func (es *ExecutionState) AddOutRequestTransaction(
 	caller types.Address,
 	payload *types.InternalTransactionPayload,
 	responseProcessingGas types.Gas,
-	isAwait bool,
 ) (*types.Transaction, error) {
 	txn, err := es.AddOutTransaction(caller, payload)
 	if err != nil {
@@ -900,33 +907,10 @@ func (es *ExecutionState) AddOutRequestTransaction(
 
 	txn.RequestId = acc.FetchRequestId()
 
-	// Only await calls should inherit the request chain from the inbound transaction.
-	if isAwait {
-		// If an inbound transaction is also a request, we need to add a new record to the request chain.
-		inTxn := es.GetInTransaction()
-		if inTxn.IsRequest() {
-			txn.RequestChain = make([]*types.AsyncRequestInfo, len(es.GetInTransaction().RequestChain)+1)
-			copy(txn.RequestChain, inTxn.RequestChain)
-			txn.RequestChain[len(inTxn.RequestChain)] = &types.AsyncRequestInfo{
-				Id:     inTxn.RequestId,
-				Caller: inTxn.From,
-			}
-		} else if len(inTxn.RequestChain) != 0 {
-			// If inbound transaction is a response, we need to copy the request chain from it.
-			check.PanicIfNot(inTxn.IsResponse())
-			txn.RequestChain = inTxn.RequestChain
-		}
-
-		es.wasAwaitCall = true
-		// Stop vm execution and save its state after the current instruction (call of precompile) is finished.
-		es.evm.StopAndDumpState(responseProcessingGas)
-	} else {
-		acc.SetAsyncContext(types.TransactionIndex(txn.RequestId), &types.AsyncContext{
-			IsAwait:               false,
-			Data:                  payload.RequestContext,
-			ResponseProcessingGas: responseProcessingGas,
-		})
-	}
+	acc.SetAsyncContext(types.TransactionIndex(txn.RequestId), &types.AsyncContext{
+		Data:                  payload.RequestContext,
+		ResponseProcessingGas: responseProcessingGas,
+	})
 
 	return txn, nil
 }
@@ -1080,6 +1064,21 @@ func (es *ExecutionState) SendResponseTransaction(txn *types.Transaction, res *E
 	return nil
 }
 
+func (es *ExecutionState) AcceptInternalTransaction(tx *types.Transaction) error {
+	check.PanicIfNot(tx.IsInternal())
+
+	nextTxId := es.InTxCounts[tx.From.ShardId()]
+	if tx.TxId != nextTxId {
+		return types.NewError(types.ErrorTxIdGap)
+	}
+	es.InTxCounts[tx.From.ShardId()] = nextTxId + 1
+
+	if tx.IsDeploy() {
+		return ValidateDeployTransaction(tx)
+	}
+	return nil
+}
+
 func (es *ExecutionState) HandleTransaction(
 	ctx context.Context, txn *types.Transaction, payer Payer,
 ) (retError *ExecutionResult) {
@@ -1175,14 +1174,12 @@ func (es *ExecutionState) HandleTransaction(
 	responseWasSent := false
 	bounced := false
 	if txn.IsRequest() {
-		if !es.wasAwaitCall {
-			if err := es.SendResponseTransaction(txn, res); err != nil {
-				return NewExecutionResult().SetFatal(fmt.Errorf("SendResponseTransaction failed: %w", err))
-			}
-			bounced = true
-			responseWasSent = true
+		if err := es.SendResponseTransaction(txn, res); err != nil {
+			return NewExecutionResult().SetFatal(fmt.Errorf("SendResponseTransaction failed: %w", err))
 		}
-	} else if txn.IsResponse() && !es.wasAwaitCall && len(txn.RequestChain) > 0 {
+		bounced = true
+		responseWasSent = true
+	} else if txn.IsResponse() && len(txn.RequestChain) > 0 {
 		// There is pending requests in the chain, so we need to send response to them.
 		// But we don't send response if a new request was sent during the execution.
 		if err := es.SendResponseTransaction(txn, res); err != nil {
@@ -1251,7 +1248,7 @@ func (es *ExecutionState) handleDeployTransaction(_ context.Context, transaction
 		Stringer(logging.FieldTransactionTo, addr).
 		Msg("Handling deploy transaction...")
 
-	if err := es.newVm(transaction.IsInternal(), transaction.From, nil); err != nil {
+	if err := es.newVm(transaction.IsInternal(), transaction.From); err != nil {
 		return NewExecutionResult().SetFatal(err)
 	}
 	defer es.resetVm()
@@ -1282,60 +1279,48 @@ func (es *ExecutionState) handleDeployTransaction(_ context.Context, transaction
 
 func (es *ExecutionState) TryProcessResponse(
 	transaction *types.Transaction,
-) ([]byte, *vm.EvmRestoreData, *ExecutionResult) {
+) ([]byte, *ExecutionResult) {
 	if !transaction.IsResponse() {
-		return transaction.Data, nil, nil
+		return transaction.Data, nil
 	}
-	var restoreState *vm.EvmRestoreData
 	var callData []byte
 
 	check.PanicIfNot(transaction.RequestId != 0)
 	acc, err := es.GetAccount(transaction.To)
 	if err != nil {
-		return nil, nil, NewExecutionResult().SetFatal(err)
+		return nil, NewExecutionResult().SetFatal(err)
 	}
 	asyncContext, err := acc.GetAndRemoveAsyncContext(types.TransactionIndex(transaction.RequestId))
 	if err != nil {
-		return nil, nil, NewExecutionResult().SetFatal(fmt.Errorf("failed to get async context: %w", err))
+		return nil, NewExecutionResult().SetFatal(fmt.Errorf("failed to get async context: %w", err))
 	}
 
 	responsePayload := new(types.AsyncResponsePayload)
 	if err := responsePayload.UnmarshalSSZ(transaction.Data); err != nil {
-		return nil, nil, NewExecutionResult().SetFatal(
+		return nil, NewExecutionResult().SetFatal(
 			fmt.Errorf("AsyncResponsePayload unmarshal failed: %w", err))
 	}
 
 	es.txnFeeCredit = es.txnFeeCredit.Add(asyncContext.ResponseProcessingGas.ToValue(es.GasPrice))
 
-	if asyncContext.IsAwait {
-		// Restore VM state from the context
-		restoreState = new(vm.EvmRestoreData)
-		if err = restoreState.EvmState.UnmarshalSSZ(asyncContext.Data); err != nil {
-			return nil, nil, NewExecutionResult().SetFatal(fmt.Errorf("context unmarshal failed: %w", err))
-		}
-
-		restoreState.ReturnData = responsePayload.ReturnData
-		restoreState.Result = responsePayload.Success
-	} else {
-		if len(asyncContext.Data) < 4 {
-			return nil, nil, NewExecutionResult().SetError(
-				types.NewError(types.ErrorAwaitCallTooShortContextData))
-		}
-		contextData := asyncContext.Data[4:]
-		bytesTy, _ := abi.NewType("bytes", "", nil)
-		boolTy, _ := abi.NewType("bool", "", nil)
-		args := abi.Arguments{
-			abi.Argument{Name: "success", Type: boolTy},
-			abi.Argument{Name: "returnData", Type: bytesTy},
-			abi.Argument{Name: "context", Type: bytesTy},
-		}
-		if callData, err = args.Pack(responsePayload.Success, responsePayload.ReturnData, contextData); err != nil {
-			return nil, nil, NewExecutionResult().SetFatal(err)
-		}
-		callData = append(asyncContext.Data[:4], callData...)
+	if len(asyncContext.Data) < 4 {
+		return nil, NewExecutionResult().SetError(
+			types.NewError(types.ErrorTooShortContextData))
 	}
+	contextData := asyncContext.Data[4:]
+	bytesTy, _ := abi.NewType("bytes", "", nil)
+	boolTy, _ := abi.NewType("bool", "", nil)
+	args := abi.Arguments{
+		abi.Argument{Name: "success", Type: boolTy},
+		abi.Argument{Name: "returnData", Type: bytesTy},
+		abi.Argument{Name: "context", Type: bytesTy},
+	}
+	if callData, err = args.Pack(responsePayload.Success, responsePayload.ReturnData, contextData); err != nil {
+		return nil, NewExecutionResult().SetFatal(err)
+	}
+	callData = append(asyncContext.Data[:4], callData...)
 
-	return callData, restoreState, nil
+	return callData, nil
 }
 
 func (es *ExecutionState) handleExecutionTransaction(
@@ -1359,12 +1344,12 @@ func (es *ExecutionState) handleExecutionTransaction(
 
 	caller := (vm.AccountRef)(transaction.From)
 
-	callData, restoreState, res := es.TryProcessResponse(transaction)
+	callData, res := es.TryProcessResponse(transaction)
 	if res != nil && res.Failed() {
 		return res
 	}
 
-	if err := es.newVm(transaction.IsInternal(), transaction.From, restoreState); err != nil {
+	if err := es.newVm(transaction.IsInternal(), transaction.From); err != nil {
 		return NewExecutionResult().SetFatal(err)
 	}
 	defer es.resetVm()
@@ -1782,7 +1767,7 @@ func (es *ExecutionState) CallVerifyExternal(
 
 	calldata := append(methodSelector, argData...) //nolint:gocritic
 
-	if err := es.newVm(transaction.IsInternal(), transaction.From, nil); err != nil {
+	if err := es.newVm(transaction.IsInternal(), transaction.From); err != nil {
 		return NewExecutionResult().SetFatal(fmt.Errorf("newVm failed: %w", err))
 	}
 	defer es.resetVm()
@@ -1933,37 +1918,12 @@ func (es *ExecutionState) SetTokenTransfer(tokens []types.TokenBalance) {
 	es.evm.SetTokenTransfer(tokens)
 }
 
-func (es *ExecutionState) SaveVmState(state *types.EvmState, continuationGasCredit types.Gas) error {
-	outTransactions := es.OutTransactions[es.InTransactionHash]
-	check.PanicIfNot(len(outTransactions) > 0)
-
-	outTxn := outTransactions[len(outTransactions)-1]
-	check.PanicIfNot(outTxn.RequestId != 0)
-
-	data, err := state.MarshalSSZ()
-	if err != nil {
-		return err
-	}
-
-	acc, err := es.GetAccount(es.GetInTransaction().To)
-	check.PanicIfErr(err)
-
-	es.logger.Debug().Int("size", len(data)).Msg("Save vm state")
-
-	acc.SetAsyncContext(types.TransactionIndex(outTxn.RequestId), &types.AsyncContext{
-		IsAwait:               true,
-		Data:                  data,
-		ResponseProcessingGas: continuationGasCredit,
-	})
-	return nil
-}
-
-func (es *ExecutionState) newVm(internal bool, origin types.Address, state *vm.EvmRestoreData) error {
+func (es *ExecutionState) newVm(internal bool, origin types.Address) error {
 	blockContext, err := NewEVMBlockContext(es)
 	if err != nil {
 		return err
 	}
-	es.evm = vm.NewEVM(blockContext, es, origin, es.GasPrice, state)
+	es.evm = vm.NewEVM(blockContext, es, origin, es.GasPrice)
 	es.evm.IsAsyncCall = internal
 
 	es.evm.Config.Tracer = es.EvmTracingHooks

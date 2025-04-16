@@ -5,6 +5,7 @@ import (
 )
 
 type Manager interface {
+	ID() PeerID
 	PubSub() *PubSub
 	ProtocolVersion() string
 	GetPeerProtocolVersion(peer PeerID) (string, error)

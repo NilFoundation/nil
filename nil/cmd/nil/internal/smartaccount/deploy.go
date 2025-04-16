@@ -106,7 +106,7 @@ func runDeploy(cmd *cobra.Command, cmdArgs []string, cfg *common.Config, params 
 	var contractData *cometa.ContractData
 
 	if len(params.compileInput) != 0 {
-		contractData, err = cm.CompileContract(params.compileInput)
+		contractData, err = cm.CompileContract(cmd.Context(), params.compileInput)
 		if err != nil {
 			return fmt.Errorf("failed to compile the contract: %w", err)
 		}
@@ -168,7 +168,7 @@ https://ethereum.org/en/developers/tutorials/downsizing-contracts-to-fight-the-c
 	}
 
 	if len(params.compileInput) != 0 {
-		if err = cm.RegisterContractData(contractData, contractAddr); err != nil {
+		if err = cm.RegisterContractData(cmd.Context(), contractData, contractAddr); err != nil {
 			return fmt.Errorf("failed to register the contract: %w", err)
 		}
 	}

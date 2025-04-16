@@ -63,16 +63,20 @@ func NewSyncer(cfg *SyncerConfig, validator *Validator, db db.DB, networkManager
 	var waitForSync sync.WaitGroup
 	waitForSync.Add(1)
 
+	loggerCtx := logging.NewLogger(cfg.Name).With().
+		Stringer(logging.FieldShardId, cfg.ShardId)
+	if networkManager != nil {
+		loggerCtx = loggerCtx.Stringer(logging.FieldP2PIdentity, networkManager.ID())
+	}
+
 	return &Syncer{
 		config:         cfg,
 		topic:          topicShardBlocks(cfg.ShardId),
 		db:             db,
 		networkManager: networkManager,
-		logger: logging.NewLogger(cfg.Name).With().
-			Stringer(logging.FieldShardId, cfg.ShardId).
-			Logger(),
-		waitForSync: &waitForSync,
-		validator:   validator,
+		logger:         loggerCtx.Logger(),
+		waitForSync:    &waitForSync,
+		validator:      validator,
 	}, nil
 }
 
@@ -147,11 +151,6 @@ func (s *Syncer) fetchRemoteVersion(ctx context.Context) (NodeVersion, error) {
 }
 
 func (s *Syncer) fetchSnapshot(ctx context.Context) error {
-	if len(s.config.BootstrapPeers) == 0 {
-		s.logger.Warn().Msg("No bootstrap peers to fetch snapshot from")
-		return nil
-	}
-
 	var err error
 	for _, peer := range s.config.BootstrapPeers {
 		err = fetchSnapshot(ctx, s.networkManager, peer, s.db, s.logger)
@@ -167,6 +166,11 @@ func (s *Syncer) Init(ctx context.Context, allowDbDrop bool) error {
 		return nil
 	}
 
+	if len(s.config.BootstrapPeers) == 0 {
+		s.logger.Info().Msg("No bootstrap peers. Skipping initialization")
+		return nil
+	}
+
 	version, err := s.getLocalVersion(ctx)
 	if err != nil {
 		return err
@@ -174,10 +178,14 @@ func (s *Syncer) Init(ctx context.Context, allowDbDrop bool) error {
 
 	remoteVersion, err := s.fetchRemoteVersion(ctx)
 	if err != nil {
-		// todo: when all shards can handle the new protocol, we should return an error here
-		s.logger.Warn().Err(err).Msgf(
-			"Failed to fetch remote version. For now we assume that local version %s is up to date", version)
-		return nil
+		// Nodes with allowDbDrop are supposed to be secondary, so they must sync with some reliable peer.
+		// We need some nodes to start without fetching a remote version
+		// otherwise, the cluster won't ever start from scratch.
+		if !allowDbDrop {
+			s.logger.Warn().Err(err).Msg("Failed to fetch remote version. We'll assume that our version is up to date")
+			return nil
+		}
+		return err
 	}
 
 	if version.ProtocolVersion != remoteVersion.ProtocolVersion {
@@ -209,13 +217,13 @@ func (s *Syncer) Init(ctx context.Context, allowDbDrop bool) error {
 	return s.fetchSnapshot(ctx)
 }
 
+// SetHandlers sets the handlers for generic (shard-independent) protocols.
+// It must be called after the initial sync of ALL shards is completed.
+// It should be called once, e.g., by the main shard syncer.
+// (Subsequent calls do not have any side effects, but might return an error.)
 func (s *Syncer) SetHandlers(ctx context.Context) error {
 	if s.networkManager == nil {
 		return nil
-	}
-
-	if err := SetVersionHandler(ctx, s.networkManager, s.db); err != nil {
-		return fmt.Errorf("failed to set version handler: %w", err)
 	}
 
 	SetBootstrapHandler(ctx, s.networkManager, s.db)
@@ -228,10 +236,20 @@ func (s *Syncer) Run(ctx context.Context) error {
 		return nil
 	}
 
+	if s.config.ShardId.IsMainShard() {
+		if err := SetVersionHandler(ctx, s.networkManager, s.db); err != nil {
+			return fmt.Errorf("failed to set version handler: %w", err)
+		}
+	}
+
+	SetBlockRequestHandler(ctx, s.networkManager, s.config.ShardId, s.db, s.logger)
+
 	s.logger.Info().Msg("Starting sync...")
 
 	s.fetchBlocks(ctx)
 	s.waitForSync.Done()
+
+	s.logger.Info().Msg("Syncer initialization complete")
 
 	if ctx.Err() != nil {
 		return nil
@@ -352,7 +370,10 @@ func (s *Syncer) fetchBlocksRange(ctx context.Context) <-chan *types.BlockWithEx
 		"No last block found. If the syncers were correctly initialized, this should be impossible.")
 
 	for _, p := range peers {
-		s.logger.Trace().Msgf("Requesting blocks from %d from peer %s", lastBlock.Id+1, p)
+		logger := s.logger.With().
+			Stringer(logging.FieldPeerId, p).
+			Logger()
+		logger.Trace().Msgf("Requesting blocks from %d", lastBlock.Id+1)
 
 		blocksCh, err := RequestBlocks(ctx, s.networkManager, p, s.config.ShardId, lastBlock.Id+1, s.logger)
 		if err == nil {
@@ -360,11 +381,13 @@ func (s *Syncer) fetchBlocksRange(ctx context.Context) <-chan *types.BlockWithEx
 		}
 
 		if errors.As(err, &multistream.ErrNotSupported[network.ProtocolID]{}) {
-			s.logger.Debug().Err(err).Msgf("Peer %s does not support the block protocol with our shard", p)
+			logger.Debug().Err(err).Msg("Peer does not support the block protocol with our shard")
 		} else {
-			s.logger.Warn().Err(err).Msgf("Failed to request block from peer %s", p)
+			logger.Warn().Err(err).Msg("Failed to request block from peer")
 		}
 	}
+
+	s.logger.Warn().Msg("Failed to fetch blocks from all peers")
 
 	return nil
 }

@@ -32,6 +32,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/internal/vm/console"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
@@ -84,22 +85,21 @@ type SimplePrecompiledContract interface {
 }
 
 var (
-	SendRawTransactionAddress = types.BytesToAddress([]byte{0xfc})
-	AsyncCallAddress          = types.BytesToAddress([]byte{0xfd})
-	VerifySignatureAddress    = types.BytesToAddress([]byte{0xfe})
-	CheckIsInternalAddress    = types.BytesToAddress([]byte{0xff})
-	ManageTokenAddress        = types.BytesToAddress([]byte{0xd0})
-	TokenBalanceAddress       = types.BytesToAddress([]byte{0xd1})
-	SendTokensAddress         = types.BytesToAddress([]byte{0xd2})
-	TransactionTokensAddress  = types.BytesToAddress([]byte{0xd3})
-	GetGasPriceAddress        = types.BytesToAddress([]byte{0xd4})
-	PoseidonHashAddress       = types.BytesToAddress([]byte{0xd5})
-	AwaitCallAddress          = types.BytesToAddress([]byte{0xd6})
-	ConfigParamAddress        = types.BytesToAddress([]byte{0xd7})
-	SendRequestAddress        = types.BytesToAddress([]byte{0xd8})
-	CheckIsResponseAddress    = types.BytesToAddress([]byte{0xd9})
-	LogAddress                = types.BytesToAddress([]byte{0xda})
-	GovernanceAddress         = types.BytesToAddress([]byte{0xdb})
+	AsyncCallAddress         = types.BytesToAddress([]byte{0xfd})
+	VerifySignatureAddress   = types.BytesToAddress([]byte{0xfe})
+	CheckIsInternalAddress   = types.BytesToAddress([]byte{0xff})
+	ManageTokenAddress       = types.BytesToAddress([]byte{0xd0})
+	TokenBalanceAddress      = types.BytesToAddress([]byte{0xd1})
+	SendTokensAddress        = types.BytesToAddress([]byte{0xd2})
+	TransactionTokensAddress = types.BytesToAddress([]byte{0xd3})
+	GetGasPriceAddress       = types.BytesToAddress([]byte{0xd4})
+	PoseidonHashAddress      = types.BytesToAddress([]byte{0xd5})
+	ConfigParamAddress       = types.BytesToAddress([]byte{0xd7})
+	SendRequestAddress       = types.BytesToAddress([]byte{0xd8})
+	CheckIsResponseAddress   = types.BytesToAddress([]byte{0xd9})
+	LogAddress               = types.BytesToAddress([]byte{0xda})
+	GovernanceAddress        = types.BytesToAddress([]byte{0xdb})
+	ConsoleAddress           = types.HexToAddress("0x00000000000000000000000000000000000dEBa6")
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -126,22 +126,21 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	types.BytesToAddress([]byte{0x13}): &simple{&bls12381MapG2{}},
 
 	// NilFoundation precompiled contracts
-	SendRawTransactionAddress: &sendRawTransaction{},
-	AsyncCallAddress:          &asyncCall{},
-	VerifySignatureAddress:    &simple{&verifySignature{}},
-	CheckIsInternalAddress:    &checkIsInternal{},
-	ManageTokenAddress:        &manageToken{},
-	TokenBalanceAddress:       &tokenBalance{},
-	SendTokensAddress:         &sendTokenSync{},
-	TransactionTokensAddress:  &getTransactionTokens{},
-	GetGasPriceAddress:        &getGasPrice{},
-	PoseidonHashAddress:       &poseidonHash{},
-	AwaitCallAddress:          &awaitCall{},
-	ConfigParamAddress:        &configParam{},
-	SendRequestAddress:        &sendRequest{},
-	CheckIsResponseAddress:    &checkIsResponse{},
-	LogAddress:                &emitLog{},
-	GovernanceAddress:         &governance{},
+	AsyncCallAddress:         &asyncCall{},
+	VerifySignatureAddress:   &simple{&verifySignature{}},
+	CheckIsInternalAddress:   &checkIsInternal{},
+	ManageTokenAddress:       &manageToken{},
+	TokenBalanceAddress:      &tokenBalance{},
+	SendTokensAddress:        &sendTokenSync{},
+	TransactionTokensAddress: &getTransactionTokens{},
+	GetGasPriceAddress:       &getGasPrice{},
+	PoseidonHashAddress:      &poseidonHash{},
+	ConfigParamAddress:       &configParam{},
+	SendRequestAddress:       &sendRequest{},
+	CheckIsResponseAddress:   &checkIsResponse{},
+	LogAddress:               &emitLog{},
+	GovernanceAddress:        &governance{},
+	ConsoleAddress:           &consolePrecompile{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -200,20 +199,12 @@ func (a *simple) Run(
 	return a.contract.Run(input)
 }
 
-type sendRawTransaction struct{}
-
-var _ ReadWritePrecompiledContract = (*sendRawTransaction)(nil)
-
 const (
 	// TODO: Make this dynamically calculated based on the network conditions and current shard gas price
 	ForwardFee                   uint64    = 1_000
 	ExtraForwardFeeStep          uint64    = 100
 	MinGasReserveForAsyncRequest types.Gas = 50_000
 )
-
-func (c *sendRawTransaction) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
-	return ForwardFee, nil
-}
 
 func extractDstAddress(input []byte, methodName string, argNum int) (types.Address, error) {
 	if len(input) < 4 {
@@ -300,45 +291,6 @@ func getBytesArgCopy(arg any, methodName, paramName string) []byte {
 	return slices.Clone(bytes)
 }
 
-func (c *sendRawTransaction) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
-	payload := new(types.InternalTransactionPayload)
-	if err := payload.UnmarshalSSZ(input); err != nil {
-		return nil, types.NewWrapError(types.ErrorInvalidTransactionInputUnmarshalFailed, err)
-	}
-
-	cfgAccessor := state.GetConfigAccessor()
-	nShards, err := config.GetParamNShards(cfgAccessor)
-	if err != nil {
-		return nil, types.NewVmVerboseError(types.ErrorPrecompileConfigGetParamFailed, err.Error())
-	}
-
-	if uint32(payload.To.ShardId()) >= nShards {
-		return nil, ErrShardIdIsTooBig
-	}
-
-	if payload.To.ShardId().IsMainShard() {
-		return nil, ErrTransactionToMainShard
-	}
-
-	if err := withdrawFunds(state, caller.Address(), payload.Value); err != nil {
-		return []byte("sendRawTransaction: withdraw value failed"), err
-	}
-
-	if payload.ForwardKind == types.ForwardKindNone {
-		if err := withdrawFunds(state, caller.Address(), payload.FeeCredit); err != nil {
-			return []byte("sendRawTransaction: withdraw FeeCredit failed"), err
-		}
-	}
-
-	// TODO: We should consider non-refundable transactions
-	setRefundTo(&payload.RefundTo, state.GetInTransaction())
-	setBounceTo(&payload.BounceTo, state.GetInTransaction())
-
-	_, err = state.AddOutTransaction(caller.Address(), payload)
-
-	return nil, err
-}
-
 var gasScale = types.DefaultGasPrice.Div(types.Value100)
 
 // GetExtraGasForOutboundTransaction returns the extra gas required for sending a transaction to a shard
@@ -402,6 +354,12 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
 	}
 
+	cfgAccessor := state.GetConfigAccessor()
+	nShards, err := config.GetParamNShards(cfgAccessor)
+	if err != nil {
+		return nil, types.NewVmVerboseError(types.ErrorPrecompileConfigGetParamFailed, err.Error())
+	}
+
 	// Unpack arguments, skipping the first 4 bytes (function selector)
 	args, err := getPrecompiledMethod("precompileAsyncCall").Inputs.Unpack(input[4:])
 	if err != nil {
@@ -461,6 +419,10 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 		return []byte("asyncCall failed: attempt to send transaction to main shard"), ErrTransactionToMainShard
 	}
 
+	if uint32(dst.ShardId()) >= nShards {
+		return nil, ErrShardIdIsTooBig
+	}
+
 	if forwardKind == types.ForwardKindNone {
 		if err := withdrawFunds(state, caller.Address(), feeCredit); err != nil {
 			return []byte("asyncCall failed: withdrawFunds failed"), err
@@ -500,7 +462,7 @@ func estimateGasForAsyncRequest(input []byte, precompile string, argnum, argtota
 		return 0
 	}
 
-	// when running `awaitCall` / `sendRequest` the caller specifies exact amount of gas they want to reserve
+	// when running `sendRequest` the caller specifies exact amount of gas they want to reserve
 	// later this gas will be used for processing of response for particular request
 	method := getPrecompiledMethod(precompile)
 
@@ -517,74 +479,6 @@ func estimateGasForAsyncRequest(input []byte, precompile string, argnum, argtota
 
 	responseProcessingGas := extractUintParam(args[argnum], precompile, "responseProcessingGas")
 	return baseFee + responseProcessingGas.Uint64()
-}
-
-type awaitCall struct{}
-
-var _ EvmAccessedPrecompiledContract = (*awaitCall)(nil)
-
-func (c *awaitCall) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
-	dst, err := extractDstAddress(input, "precompileAwaitCall", 0)
-	if err != nil {
-		return math.MaxUint64, err
-	}
-	extraGas := GetExtraGasForOutboundTransaction(state, dst.ShardId())
-
-	return extraGas + estimateGasForAsyncRequest(input, "precompileAwaitCall", 1, 3), nil
-}
-
-func (a *awaitCall) Run(evm *EVM, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
-	if len(input) < 4 {
-		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
-	}
-
-	state := evm.StateDB
-
-	// Only top level functions are allowed to use awaitCall
-	if evm.GetDepth() > 1 {
-		return nil, types.NewVmError(types.ErrorAwaitCallCalledFromNotTopLevel)
-	}
-
-	args, err := precompiledArgs("precompileAwaitCall", input, 3)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get `dst` argument
-	dst, ok := args[0].(types.Address)
-	check.PanicIfNotf(ok, "awaitCall failed: dst argument is not an address")
-
-	// Get `responseProcessingGas` argument
-	responseProcessingGas := types.Gas(extractUintParam(args[1], "awaitCall", "responseProcessingGas").Uint64())
-	if responseProcessingGas < MinGasReserveForAsyncRequest {
-		logging.GlobalLogger.Error().Msgf(
-			"awaitCall failed: responseProcessingGas is too low (%d)", responseProcessingGas)
-		return nil, types.NewVmError(types.ErrorAwaitCallTooLowResponseProcessingGas)
-	}
-
-	// Get `callData` argument
-	callData := getBytesArgCopy(args[2], "awaitCall", "callData")
-
-	// Internal is required for the transaction
-	payload := types.InternalTransactionPayload{
-		Kind:        types.ExecutionTransactionKind,
-		FeeCredit:   types.NewZeroValue(),
-		ForwardKind: types.ForwardKindRemaining,
-		Value:       types.NewValue(value),
-		Token:       nil,
-		To:          dst,
-		BounceTo:    state.GetInTransaction().To,
-		Data:        callData,
-	}
-
-	setRefundTo(&payload.RefundTo, state.GetInTransaction())
-
-	if _, err = state.AddOutRequestTransaction(caller.Address(), &payload, responseProcessingGas, true); err != nil {
-		logging.GlobalLogger.Error().Msgf("AddOutRequestTransaction failed: %s", err)
-		return nil, types.NewVmVerboseError(types.ErrorPrecompileStateDbReturnedError, err.Error())
-	}
-
-	return nil, nil
 }
 
 type sendRequest struct{}
@@ -633,7 +527,7 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 	if responseProcessingGas < MinGasReserveForAsyncRequest {
 		logging.GlobalLogger.Error().Msgf(
 			"sendRequest failed: responseProcessingGas is too low (%d)", responseProcessingGas)
-		return nil, types.NewVmError(types.ErrorAwaitCallTooLowResponseProcessingGas)
+		return nil, types.NewVmError(types.ErrorTooLowResponseProcessingGas)
 	}
 
 	// Get `context` argument
@@ -661,7 +555,7 @@ func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, calle
 
 	setRefundTo(&payload.RefundTo, state.GetInTransaction())
 
-	if _, err = state.AddOutRequestTransaction(caller.Address(), &payload, responseProcessingGas, false); err != nil {
+	if _, err = state.AddOutRequestTransaction(caller.Address(), &payload, responseProcessingGas); err != nil {
 		logging.GlobalLogger.Error().Msgf("AddOutRequestTransaction failed: %s", err)
 		return nil, types.NewVmVerboseError(types.ErrorPrecompileStateDbReturnedError, err.Error())
 	}
@@ -1186,6 +1080,29 @@ func (e *emitLog) Run(state StateDB, input []byte, value *uint256.Int, caller Co
 	if err = state.AddDebugLog(debugLog); err != nil {
 		return nil, types.KeepOrWrapError(types.ErrorEmitDebugLogFailed, err)
 	}
+
+	res := make([]byte, 32)
+	res[31] = 1
+
+	return res, nil
+}
+
+var consoleLogger = logging.NewLogger("solidity")
+
+type consolePrecompile struct{}
+
+var _ EvmAccessedPrecompiledContract = (*consolePrecompile)(nil)
+
+func (g *consolePrecompile) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
+	return 100, nil
+}
+
+func (g *consolePrecompile) Run(evm *EVM, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
+	str, err := console.ProcessLog(input)
+	if err != nil {
+		return nil, types.NewVmVerboseError(types.ErrorConsoleParseInputFailed, err.Error())
+	}
+	consoleLogger.Info().Int(logging.FieldShardId, int(evm.StateDB.GetShardID())).Msg(str)
 
 	res := make([]byte, 32)
 	res[31] = 1

@@ -18,12 +18,13 @@ import (
 // @componentprop StateDiff stateDiff map true "Key-value pairs should be applied to account state."
 
 type Contract struct {
-	Seqno     *types.Seqno                 `json:"seqno"`
-	ExtSeqno  *types.Seqno                 `json:"extSeqno"`
-	Code      *hexutil.Bytes               `json:"code"`
-	Balance   *types.Value                 `json:"balance"`
-	State     *map[common.Hash]common.Hash `json:"state"`
-	StateDiff *map[common.Hash]common.Hash `json:"stateDiff"`
+	Seqno        *types.Seqno                                    `json:"seqno"`
+	ExtSeqno     *types.Seqno                                    `json:"extSeqno"`
+	Code         *hexutil.Bytes                                  `json:"code"`
+	Balance      *types.Value                                    `json:"balance"`
+	State        *map[common.Hash]common.Hash                    `json:"state"`
+	StateDiff    *map[common.Hash]common.Hash                    `json:"stateDiff"`
+	AsyncContext *map[types.TransactionIndex]*types.AsyncContext `json:"asyncContext"`
 }
 
 type StateOverrides map[types.Address]Contract
@@ -67,10 +68,18 @@ func (overrides *StateOverrides) Override(state *execution.ExecutionState) error
 				return err
 			}
 		}
-		// Apply state diff into specified contract.
+		// Apply state diff for a specified contract.
 		if account.StateDiff != nil {
 			for key, value := range *account.StateDiff {
 				if err := state.SetState(addr, key, value); err != nil {
+					return err
+				}
+			}
+		}
+		// Apply async context for a specified contract.
+		if account.AsyncContext != nil {
+			for key, value := range *account.AsyncContext {
+				if err := state.SetAsyncContext(addr, key, value); err != nil {
 					return err
 				}
 			}

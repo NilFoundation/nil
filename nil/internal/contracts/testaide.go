@@ -114,24 +114,11 @@ func GetCounterValue(t *testing.T, data []byte) int32 {
 	return val
 }
 
-func NewSmartAccountSendCallData(t *testing.T,
-	bytecode types.Code, gasLimit types.Gas, value types.Value,
-	tokens []types.TokenBalance, contractAddress types.Address, kind types.TransactionKind,
+func NewSmartAccountAsyncCallCallData(t *testing.T, bytecode types.Code,
+	value types.Value, tokens []types.TokenBalance, contractAddress types.Address,
 ) []byte {
 	t.Helper()
 
-	intTxn := &types.InternalTransactionPayload{
-		Data:        bytecode,
-		To:          contractAddress,
-		Value:       value,
-		FeeCredit:   gasLimit.ToValue(types.DefaultGasPrice),
-		ForwardKind: types.ForwardKindNone,
-		Token:       tokens,
-		Kind:        kind,
-	}
-
-	intTxnData, err := intTxn.MarshalSSZ()
-	require.NoError(t, err)
-
-	return NewCallDataT(t, NameSmartAccount, "send", intTxnData)
+	return NewCallDataT(t, NameSmartAccount, "asyncCall", contractAddress,
+		types.EmptyAddress, types.EmptyAddress, tokens, value, []byte(bytecode))
 }

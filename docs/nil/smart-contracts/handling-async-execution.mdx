@@ -33,45 +33,6 @@ To initiate an async call, the 'caller' contract must have sufficient funds to p
 
 :::
 
-## Retreiving values
-
-The `Nil.sol` contract also exposes the `awaitCall()` function.
-
-The function allows for calling another smart contract asynchronously and retrieving the result of the call. This is useful if the contract logic needs to mimick the typical `async`/`await` flow prevalent in programming languages other than Solidity. Note that the feature is currently experimental and may change in future releases.
-
-:::info[State]
-
-State is not persistent before and after `asyncCall`, and can be changed.
-
-:::
-
-Consider the following example of an `Awaiter` contract:
-
-```solidity showLineNumbers file=../../tests/Awaiter.sol start=startAwaiterContract end=endAwaiterContract
-```
-
-<PGButton name="AwaiterCounter.sol"/>
-
-The contract is designed to call [**the`Counter` contract**](../nil-101.mdx#flow-1) asynchronously and store the returned value inside the `result` variable.
-
-:::info
-
-When using `awaitCall` every call produces a new transaction that must be processed for the destination shard to retreive the necessary value. If many such calls are sent, execution will be halted for each call and only resumed after receiving a response. In contrast, many `asyncCalls` can be sent within the same block without halting execution.
-
-:::
-
-:::tip[Payment]
-
-The processing of sending a request transaction using `awaitCall` and receiving a response can only be paid by the transaction `value`.
-
-:::
-
-:::info
-
-As its second argument, `awaitCall()` accepts the amount of gas that will be reserved instantly and will later be used to process the received response.
-
-:::
-
 ## Examples
 
 Consider two contracts deployed on two different shards in =nil;:
@@ -99,12 +60,6 @@ Whenever the `call()` function is called inside Contract 1, a new outgoing trans
 ### Callback pattern
 
 In this pattern, Contract 1 defines a special callback function and then uses the `sendRequest()` method to perform an async request to another shard. Whenever the request executes, a response transaction is sent back to the caller. The callback function is then executed and the response value can be retrieved via the `responseData` argument.
-
-:::tip
-
-When using `sendRequest()`, the contract can continue execution without having to wait for the response. There are also no manipulations with the contract state in contrast to `awaitCall()`. This makes `sendRequest()` much cheaper compared to `awaitCall()`.
-
-:::
 
 :::info
 

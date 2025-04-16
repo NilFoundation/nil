@@ -248,8 +248,7 @@ func (s *ShardedSuite) start(
 		s.connectToInstances(shard.nm)
 	}
 
-	s.waitZerostate()
-	s.waitShardsTick(cfg.NShards)
+	s.waitShardsTick()
 }
 
 func (s *ShardedSuite) Start(cfg *nilservice.Config, port int, options ...network.Option) {
@@ -327,6 +326,7 @@ func (s *ShardedSuite) RunArchiveNode(params *ArchiveNodeConfig) (*nilservice.Co
 		HttpUrl:               rpc.GetSockPathService(s.T(), serviceName),
 		RunMode:               nilservice.ArchiveRunMode,
 		ZeroState:             s.Instances[0].Config.ZeroState,
+		CollatorTickPeriodMs:  s.Instances[0].Config.CollatorTickPeriodMs,
 		DisableConsensus:      params.DisableConsensus,
 		SyncTimeoutFactor:     params.SyncTimeoutFactor,
 		NetworkManagerFactory: params.NetworkManagerFactory,
@@ -464,7 +464,7 @@ func (s *ShardedSuite) checkNodeStart(nShards uint32, client client.Client) {
 	wg.Wait()
 }
 
-func (s *ShardedSuite) waitZerostate() {
+func (s *ShardedSuite) waitShardsTick() {
 	s.T().Helper()
 
 	var wg sync.WaitGroup
@@ -473,20 +473,12 @@ func (s *ShardedSuite) waitZerostate() {
 		go func() {
 			defer wg.Done()
 
-			for _, shard := range instance.Config.MyShards {
-				WaitZerostate(s.T(), instance.Client, types.ShardId(shard))
+			for shard := range instance.Config.NShards {
+				WaitShardTick(s.T(), instance.Client, types.ShardId(shard))
 			}
 		}()
 	}
 	wg.Wait()
-}
-
-func (s *ShardedSuite) waitShardsTick(nShards uint32) {
-	for _, instance := range s.Instances {
-		for shardId := range types.ShardId(nShards) {
-			WaitShardTick(s.T(), instance.Client, shardId)
-		}
-	}
 }
 
 func (s *ShardedSuite) LoadContract(path string, name string) (types.Code, abi.ABI) {

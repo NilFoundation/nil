@@ -11,8 +11,8 @@ import {
   SPACE,
   Spinner,
 } from "@nilfoundation/ui-kit";
+import { useStyletron } from "baseui";
 import { memo } from "react";
-import { useStyletron } from "styletron-react";
 import { $smartAccount } from "../../../account-connector/model";
 import { clickOnBackButton, compileCodeFx } from "../../../code/model";
 import { $rpcIsHealthy } from "../../../healthcheck/model";
@@ -30,7 +30,7 @@ export const Contracts = () => {
     $smartAccount,
     $rpcIsHealthy,
   ]);
-  const [css] = useStyletron();
+  const [css, theme] = useStyletron();
   const [isMobile] = useMobile();
   const smartAccountExists = smartAccount !== null;
 
@@ -85,6 +85,7 @@ export const Contracts = () => {
       <div
         className={css({
           height: "100%",
+          overflowY: "auto",
         })}
       >
         {!smartAccountExists && <MemoizedWarning />}

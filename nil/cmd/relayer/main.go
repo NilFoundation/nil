@@ -134,6 +134,13 @@ func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) error {
 	)
 
 	runCmd.Flags().StringVar(
+		&cfg.L2ContractConfig.PrivateKeyPath,
+		"l2-private-key-path",
+		cfg.L2ContractConfig.PrivateKeyPath,
+		"Path to private key file for L2 smart account",
+	)
+
+	runCmd.Flags().StringVar(
 		&cfg.L2ContractConfig.Endpoint, "l2-endpoint", "", "URL for nil L2 client",
 	)
 	runCmd.Flags().StringVar(

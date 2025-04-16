@@ -139,7 +139,7 @@ func (s *Service) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address,
 
 	var r *jsonrpc.RPCReceipt
 	for range 5 {
-		txnHash, err := s.faucetClient.TopUpViaFaucet(faucetAddress, contractAddressTo, amount)
+		txnHash, err := s.faucetClient.TopUpViaFaucet(s.ctx, faucetAddress, contractAddressTo, amount)
 		if err != nil {
 			return err
 		}

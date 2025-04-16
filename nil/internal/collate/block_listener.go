@@ -175,7 +175,7 @@ func unmarshalBlockSSZ(pbBlock *pb.RawFullBlock) (*types.BlockWithExtractedData,
 	return raw.DecodeSSZ()
 }
 
-func SetRequestHandler(
+func SetBlockRequestHandler(
 	ctx context.Context, networkManager network.Manager, shardId types.ShardId, database db.DB, logger logging.Logger,
 ) {
 	if networkManager == nil {

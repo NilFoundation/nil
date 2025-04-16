@@ -145,13 +145,13 @@ func (s *SuiteCometa) TestTwinContracts() {
 		types.BaseShardId, deployCode2, s.GasToValue(10_000_000))
 
 	err = s.cometaClient.RegisterContractFromFile(
-		"../../contracts/solidity/compile-smart-account.json", smartAccountAddr1)
+		s.Context, "../../contracts/solidity/compile-smart-account.json", smartAccountAddr1)
 	s.Require().NoError(err)
 
-	contract1, err := s.cometaClient.GetContractFields(smartAccountAddr1, []string{"Name", "InitCode"})
+	contract1, err := s.cometaClient.GetContractFields(s.Context, smartAccountAddr1, []string{"Name", "InitCode"})
 	s.Require().NoError(err)
 
-	contract2, err := s.cometaClient.GetContractFields(smartAccountAddr2, []string{"Name", "InitCode"})
+	contract2, err := s.cometaClient.GetContractFields(s.Context, smartAccountAddr2, []string{"Name", "InitCode"})
 	s.Require().NoError(err)
 
 	s.Require().Equal(contract1, contract2)
@@ -169,19 +169,19 @@ func (s *SuiteCometa) TestGeneratedCode() {
 	testAbi, err := contracts.GetAbi(contracts.NameTest)
 	s.Require().NoError(err)
 
-	contractData, err := s.cometaClient.CompileContract("../../contracts/solidity/tests/compile-test.json")
+	contractData, err := s.cometaClient.CompileContract(s.Context, "../../contracts/solidity/tests/compile-test.json")
 	s.Require().NoError(err)
 	deployCode := types.BuildDeployPayload(contractData.InitCode, common.EmptyHash)
 	testAddress, _ := s.DeployContractViaMainSmartAccount(types.BaseShardId, deployCode, s.GasToValue(10_000_000))
 
-	err = s.cometaClient.RegisterContractData(contractData, testAddress)
+	err = s.cometaClient.RegisterContractData(s.Context, contractData, testAddress)
 	s.Require().NoError(err)
 
 	data = []byte("invalid calldata")
 	receipt = s.SendExternalTransactionNoCheck(data, testAddress)
 	s.Require().False(receipt.AllSuccess())
 
-	loc, err = s.cometaClient.GetLocation(testAddress, uint64(receipt.FailedPc))
+	loc, err = s.cometaClient.GetLocation(s.Context, testAddress, uint64(receipt.FailedPc))
 	s.Require().NoError(err)
 	s.Require().Equal("Test.sol:7, function: #function_selector", loc.String())
 
@@ -190,7 +190,7 @@ func (s *SuiteCometa) TestGeneratedCode() {
 	s.Require().False(receipt.AllSuccess())
 	s.Require().NotZero(receipt.FailedPc)
 
-	loc, err = s.cometaClient.GetLocation(testAddress, uint64(receipt.FailedPc))
+	loc, err = s.cometaClient.GetLocation(s.Context, testAddress, uint64(receipt.FailedPc))
 	s.Require().NoError(err)
 	s.Require().Equal(
 		"#utility.yul:8, function: revert_error_dbdddcbe895c83990c08b3492a0e83918d802a52331272ac6fdb6a7c4aea3b1b",
@@ -204,11 +204,13 @@ func (s *SuiteCometa) TestMethodList() {
 	s.Require().NoError(err)
 
 	err = s.cometaClient.RegisterContractFromFile(
+		s.Context,
 		"../../contracts/solidity/compile-smart-account.json",
 		types.MainSmartAccountAddress)
 	s.Require().NoError(err)
 
-	err = s.cometaClient.RegisterContractFromFile("../../contracts/solidity/tests/compile-test.json", s.testAddress)
+	err = s.cometaClient.RegisterContractFromFile(
+		s.Context, "../../contracts/solidity/tests/compile-test.json", s.testAddress)
 	s.Require().NoError(err)
 
 	transactions := []cometa.TransactionInfo{
@@ -222,14 +224,14 @@ func (s *SuiteCometa) TestMethodList() {
 		},
 		{
 			Address: types.MainSmartAccountAddress,
-			FuncId:  hexutil.Encode(smartAccountAbi.Methods["send"].ID),
+			FuncId:  hexutil.Encode(smartAccountAbi.Methods["asyncCall"].ID),
 		},
 	}
-	res, err := s.cometaClient.DecodeTransactionsCallData(transactions)
+	res, err := s.cometaClient.DecodeTransactionsCallData(s.Context, transactions)
 	s.Require().NoError(err)
 	s.Require().Equal("makeFail(int32)", res[0])
 	s.Require().Empty(res[1])
-	s.Require().Equal("send(bytes)", res[2])
+	s.Require().Equal("asyncCall(address,address,address,(address,uint256)[],uint256,bytes)", res[2])
 
 	// Obviously wrong funcId, should return error
 	transactions = []cometa.TransactionInfo{
@@ -238,7 +240,7 @@ func (s *SuiteCometa) TestMethodList() {
 			FuncId:  "123",
 		},
 	}
-	_, err = s.cometaClient.DecodeTransactionsCallData(transactions)
+	_, err = s.cometaClient.DecodeTransactionsCallData(s.Context, transactions)
 	s.Require().Error(err)
 }
 

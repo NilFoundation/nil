@@ -1,10 +1,9 @@
 package nil_load_generator
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"sync/atomic"
 
@@ -29,7 +28,7 @@ func (c *Client) IsValid() bool {
 	return len(c.endpoint) > 0
 }
 
-func (c *Client) sendRequest(method string, params []any) (json.RawMessage, error) {
+func (c *Client) sendRequest(ctx context.Context, method string, params []any) (json.RawMessage, error) {
 	request := make(map[string]any)
 	request["jsonrpc"] = "2.0"
 	request["method"] = method
@@ -41,25 +40,12 @@ func (c *Client) sendRequest(method string, params []any) (json.RawMessage, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, c.endpoint, bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "nilloadgen/"+version.GetGitRevCount())
 
-	resp, err := c.httpClient.Do(req)
+	body, err := rpc.SendRequest(ctx, c.httpClient, c.endpoint, requestBody, map[string]string{
+		"User-Agent": "nilloadgen/" + version.GetGitRevCount(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, body)
 	}
 
 	var rpcResponse map[string]json.RawMessage
@@ -73,8 +59,8 @@ func (c *Client) sendRequest(method string, params []any) (json.RawMessage, erro
 	return rpcResponse["result"], nil
 }
 
-func (c *Client) GetHealthCheck() (bool, error) {
-	response, err := c.sendRequest("nilloadgen_healthCheck", []any{})
+func (c *Client) GetHealthCheck(ctx context.Context) (bool, error) {
+	response, err := c.sendRequest(ctx, "nilloadgen_healthCheck", []any{})
 	if err != nil {
 		return false, err
 	}
@@ -85,8 +71,8 @@ func (c *Client) GetHealthCheck() (bool, error) {
 	return res, nil
 }
 
-func (c *Client) GetSmartAccountsAddr() ([]types.Address, error) {
-	response, err := c.sendRequest("nilloadgen_smartAccountsAddr", []any{})
+func (c *Client) GetSmartAccountsAddr(ctx context.Context) ([]types.Address, error) {
+	response, err := c.sendRequest(ctx, "nilloadgen_smartAccountsAddr", []any{})
 	if err != nil {
 		return nil, err
 	}
@@ -97,8 +83,10 @@ func (c *Client) GetSmartAccountsAddr() ([]types.Address, error) {
 	return res, nil
 }
 
-func (c *Client) CallSwap(pairShard types.ShardId, amountOut1, amountOut2, swapAmount uint64) (common.Hash, error) {
-	response, err := c.sendRequest("nilloadgen_callSwap", []any{pairShard, amountOut1, amountOut2, swapAmount})
+func (c *Client) CallSwap(
+	ctx context.Context, pairShard types.ShardId, amountOut1, amountOut2, swapAmount uint64,
+) (common.Hash, error) {
+	response, err := c.sendRequest(ctx, "nilloadgen_callSwap", []any{pairShard, amountOut1, amountOut2, swapAmount})
 	if err != nil {
 		return common.EmptyHash, err
 	}

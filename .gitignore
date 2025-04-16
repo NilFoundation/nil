@@ -16,6 +16,9 @@ exporter.yaml
 *.bin
 *.abi
 
+# Ignore console.sol because it is generated and intended for internal debug only
+/smart-contracts/contracts/console.sol
+
 *.hash.json
 
 # SSZ encoding files

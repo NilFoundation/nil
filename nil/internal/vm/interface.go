@@ -94,7 +94,6 @@ type StateDB interface {
 		caller types.Address,
 		payload *types.InternalTransactionPayload,
 		responseProcessingGas types.Gas,
-		isAwait bool,
 	) (*types.Transaction, error)
 
 	// Get current transaction
@@ -102,9 +101,6 @@ type StateDB interface {
 
 	// Get execution context shard id
 	GetShardID() types.ShardId
-
-	// SaveVmState saves current VM state
-	SaveVmState(state *types.EvmState, continuationGasCredit types.Gas) error
 
 	GetConfigAccessor() config.ConfigAccessor
 

@@ -59,8 +59,8 @@ export const QuestionButton = () => {
     >
       <ButtonIcon
         className={css({
-          width: isMobile ? "32px" : "48px",
-          height: isMobile ? "32px" : "48px",
+          width: isMobile ? "32px" : "46px",
+          height: isMobile ? "32px" : "46px",
           flexShrink: 0,
         })}
         icon={<QuestionIcon />}

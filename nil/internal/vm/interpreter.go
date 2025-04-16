@@ -26,13 +26,6 @@ type ScopeContext struct {
 	Contract *Contract
 }
 
-type EvmRestoreData struct {
-	EvmState types.EvmState
-
-	ReturnData []byte
-	Result     bool
-}
-
 // MemoryData returns the underlying memory slice. Callers must not modify the contents
 // of the returned data.
 func (ctx *ScopeContext) MemoryData() []byte {
@@ -81,18 +74,13 @@ func (ctx *ScopeContext) Code() []byte {
 type EVMInterpreter struct {
 	evm   *EVM
 	table *JumpTable
-	// stopAndDumpState indicates that Interpreter should stop after current instruction and dump the state.
-	stopAndDumpState      bool
-	continuationGasCredit types.Gas
-	// restoredState is the state to restore the EVM from a specific point of execution.
-	restoredState *EvmRestoreData
 
 	readOnly   bool   // Whether to throw on stateful modifications
 	returnData []byte // Last CALL's return data for subsequent reuse
 }
 
-func NewEVMInterpreter(evm *EVM, state *EvmRestoreData) *EVMInterpreter {
-	return &EVMInterpreter{evm: evm, table: &CancunInstructionSet, restoredState: state}
+func NewEVMInterpreter(evm *EVM) *EVMInterpreter {
+	return &EVMInterpreter{evm: evm, table: &CancunInstructionSet}
 }
 
 // Run loops and evaluates the contract's code with the given input data and returns
@@ -143,37 +131,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		res       []byte // result of the opcode execution function
 		hasTracer = in.evm.Config.Tracer != nil
 	)
-
-	if in.restoredState != nil {
-		pc = in.restoredState.EvmState.Pc
-		memorySize := uint64(len(in.restoredState.EvmState.Memory))
-		mem.Resize(memorySize)
-		mem.Set(0, memorySize, in.restoredState.EvmState.Memory)
-		if err = callContext.Stack.FromBytes(in.restoredState.EvmState.Stack); err != nil {
-			return nil, err
-		}
-
-		// Push 1 to the stack to indicate that the EVM call instruction was successful
-		callContext.Stack.Data()[stack.len()-1].SetOne()
-
-		// Encode return data, which has the following layout:
-		// 1. Offset to the data (3. point)
-		// 2. Boolean flag indicating whether the call was successful
-		// 3. Length of the data
-		// 4. The data itself
-		length := uint256.NewInt(uint64(len(in.restoredState.ReturnData))).Bytes32()
-		offset := uint256.NewInt(64).Bytes32()
-		in.returnData = make([]byte, 0, len(in.restoredState.ReturnData)+64)
-		in.returnData = append(in.returnData, offset[:]...)
-		if in.restoredState.Result {
-			offset = uint256.NewInt(1).Bytes32()
-		} else {
-			offset = uint256.NewInt(0).Bytes32()
-		}
-		in.returnData = append(in.returnData, offset[:]...)
-		in.returnData = append(in.returnData, length[:]...)
-		in.returnData = append(in.returnData, in.restoredState.ReturnData...)
-	}
 
 	// Don't move this deferred function, it's placed before the OnOpcode-deferred method,
 	// so that it gets executed _after_: the OnOpcode needs the stacks before
@@ -252,19 +209,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 
 		// execute the operation
 		res, err = operation.execute(&pc, in, callContext)
-
-		if in.stopAndDumpState {
-			// Save current VM state
-			state := types.EvmState{
-				Memory: callContext.Memory.Data(),
-				Stack:  callContext.Stack.CopyToBytes(),
-				Pc:     pc + 1,
-			}
-			if err = in.evm.StateDB.SaveVmState(&state, in.continuationGasCredit); err != nil {
-				return nil, err
-			}
-			break
-		}
 		if err != nil {
 			break
 		}

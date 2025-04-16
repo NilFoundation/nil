@@ -1,6 +1,7 @@
 package debug
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -74,12 +75,12 @@ func NewDebugHandler(
 	}
 }
 
-func (d *DebugHandler) GetContract(address types.Address) (*cometa.Contract, error) {
+func (d *DebugHandler) GetContract(ctx context.Context, address types.Address) (*cometa.Contract, error) {
 	contract, ok := d.contractsCache[address]
 	if ok {
 		return contract, nil
 	}
-	contractData, err := d.CometaClient.GetContract(address)
+	contractData, err := d.CometaClient.GetContract(ctx, address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the contract data: %w", err)
 	}
@@ -106,10 +107,10 @@ func (d *DebugHandler) GetTransaction(receipt *jsonrpc.RPCReceipt) (*jsonrpc.RPC
 
 var txnIndex = 0
 
-func (d *DebugHandler) CollectReceipts(rootReceipt *jsonrpc.RPCReceipt) error {
+func (d *DebugHandler) CollectReceipts(ctx context.Context, rootReceipt *jsonrpc.RPCReceipt) error {
 	txnIndex = 0
 	var err error
-	d.RootReceipt, err = d.CollectReceiptsRec(nil, rootReceipt)
+	d.RootReceipt, err = d.CollectReceiptsRec(ctx, nil, rootReceipt)
 	if err != nil {
 		return fmt.Errorf("failed to collect receipts: %w", err)
 	}
@@ -117,10 +118,11 @@ func (d *DebugHandler) CollectReceipts(rootReceipt *jsonrpc.RPCReceipt) error {
 }
 
 func (d *DebugHandler) CollectReceiptsRec(
+	ctx context.Context,
 	parentReceipt *ReceiptInfo,
 	receipt *jsonrpc.RPCReceipt,
 ) (*ReceiptInfo, error) {
-	contract, err := d.GetContract(receipt.ContractAddress)
+	contract, err := d.GetContract(ctx, receipt.ContractAddress)
 	if err != nil {
 		contract = nil
 	}
@@ -136,7 +138,7 @@ func (d *DebugHandler) CollectReceiptsRec(
 	}
 	txnIndex++
 	for _, outReceipt := range receipt.OutReceipts {
-		if _, err = d.CollectReceiptsRec(receiptInfo, outReceipt); err != nil {
+		if _, err = d.CollectReceiptsRec(ctx, receiptInfo, outReceipt); err != nil {
 			return nil, err
 		}
 	}
@@ -386,7 +388,7 @@ func runCommand(cmd *cobra.Command, args []string, params *debugParams) error {
 		return errors.New("no receipt found for the transaction")
 	}
 
-	if err = debugHandler.CollectReceipts(receipt); err != nil {
+	if err = debugHandler.CollectReceipts(cmd.Context(), receipt); err != nil {
 		logger.Error().Err(err).Msg("Failed to collect the receipts")
 		return err
 	}

@@ -24,6 +24,7 @@ stdenv.mkDerivation rec {
     "biome.json"
     "^explorer_frontend(/.*)?$"
     "^explorer_backend(/.*)?$"
+    "VERSION"
   ];
 
   pnpmDeps = (callPackage ./npmdeps.nix { });
@@ -43,7 +44,10 @@ stdenv.mkDerivation rec {
     (cd smart-contracts; pnpm run build)
     (cd niljs; pnpm run build)
 
-    (cd explorer_frontend; pnpm run build)
+    export VITE_PLAYGROUND_VERSION=$( [ -f VERSION ] && cat VERSION || echo "" )
+    cd explorer_frontend
+    pnpm run build
+    cd -
 
     (cd explorer_backend; pnpm run build)
   '';

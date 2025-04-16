@@ -40,6 +40,7 @@ linters:
     - musttag
     - nakedret
     - nilerr
+    - noctx
     - nolintlint
     - nosprintfhostport
     - paralleltest

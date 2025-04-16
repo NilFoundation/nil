@@ -16,10 +16,12 @@ import {
   TutorialLayoutComponent,
   clickOnTutorialsBackButton,
   openTutorialText,
+  setActiveComponentTutorial,
   setSelectedTutorial,
   setTutorialChecksState,
 } from "./model";
 
+$activeComponentTutorial.on(setActiveComponentTutorial, (_, payload) => payload);
 $activeComponentTutorial.on(clickOnLogButton, () => TutorialLayoutComponent.Logs);
 $activeComponentTutorial.on(clickOnContractsButton, () => TutorialLayoutComponent.Contracts);
 $activeComponentTutorial.on(clickOnBackButton, () => TutorialLayoutComponent.Code);

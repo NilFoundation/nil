@@ -29,8 +29,7 @@ func TestAdminServer(t *testing.T) {
 
 	socketPath := t.TempDir() + "/admin_socket"
 	cfg := &ServerConfig{Enabled: true, UnixSocketPath: socketPath}
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
+	ctx := t.Context()
 	go func() {
 		err := StartAdminServer(ctx, cfg, logging.NewLogger("admin"))
 		assert.NoError(t, err)
@@ -38,7 +37,9 @@ func TestAdminServer(t *testing.T) {
 
 	client := createAdminSocketClient(socketPath)
 	require.Eventually(t, func() bool {
-		response, err := client.Post("http://unix/ping", "application/json", bytes.NewReader(nil))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://unix/ping", bytes.NewReader(nil))
+		require.NoError(t, err)
+		response, err := client.Do(req)
 		response.Body.Close()
 		return err == nil && response.StatusCode == http.StatusOK
 	}, 5*time.Second, 200*time.Millisecond)
@@ -49,7 +50,10 @@ func TestAdminServer(t *testing.T) {
 	check := func(t *testing.T, lvl string, rspCode int, expectedLvl zerolog.Level) {
 		t.Helper()
 
-		response, err := client.Post("http://unix/set_log_level?level="+lvl, "application/json", bytes.NewReader(nil))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+			"http://unix/set_log_level?level="+lvl, bytes.NewReader(nil))
+		require.NoError(t, err)
+		response, err := client.Do(req)
 		response.Body.Close()
 		require.NoError(t, err)
 		require.Equal(t, rspCode, response.StatusCode)

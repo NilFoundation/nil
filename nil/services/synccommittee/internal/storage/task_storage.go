@@ -23,6 +23,9 @@ const (
 	// TaskEntriesTable BadgerDB tables, TaskId is used as a key
 	taskEntriesTable db.TableName = "task_entries"
 
+	// FailedTaskEntriesTable BadgerDB tables, TaskId is used as a key
+	failedTaskEntriesTable db.TableName = "failed_task_entries"
+
 	// rescheduledTasksPerTxLimit defines the maximum number of tasks that can be rescheduled
 	// in a single transaction of TaskStorage.RescheduleHangingTasks.
 	rescheduledTasksPerTxLimit = 100
@@ -96,15 +99,34 @@ func (*TaskStorage) extractTaskEntry(tx db.RoTx, id types.TaskId) (*types.TaskEn
 	return entry, nil
 }
 
+// Helper to get and decode failed task entry from DB
+func (*TaskStorage) extractFailedTaskEntry(tx db.RoTx, id types.TaskId) (*types.TaskEntry, error) {
+	encoded, err := tx.Get(failedTaskEntriesTable, id.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	entry := &types.TaskEntry{}
+	if err = gob.NewDecoder(bytes.NewBuffer(encoded)).Decode(&entry); err != nil {
+		return nil, fmt.Errorf("%w: failed to decode task with id %v: %w", ErrSerializationFailed, id, err)
+	}
+	return entry, nil
+}
+
 // Helper to encode and put task entry into DB
-func (st *TaskStorage) putTaskEntry(tx db.RwTx, entry *types.TaskEntry) error {
+func (st *TaskStorage) putTaskEntry(tx db.RwTx, entry *types.TaskEntry, isFailedTask bool) error {
 	var inputBuffer bytes.Buffer
 	err := gob.NewEncoder(&inputBuffer).Encode(entry)
 	if err != nil {
 		return fmt.Errorf("%w: failed to encode task with id %s: %w", ErrSerializationFailed, entry.Task.Id, err)
 	}
 	key := st.makeTaskKey(entry)
-	if err := tx.Put(taskEntriesTable, key, inputBuffer.Bytes()); err != nil {
+
+	tableName := taskEntriesTable
+	if isFailedTask {
+		tableName = failedTaskEntriesTable
+	}
+	if err := tx.Put(tableName, key, inputBuffer.Bytes()); err != nil {
 		return fmt.Errorf("failed to put task with id %s: %w", entry.Task.Id, err)
 	}
 	return nil
@@ -153,7 +175,7 @@ func (st *TaskStorage) addSingleTaskEntryTx(tx db.RwTx, entry *types.TaskEntry) 
 		return fmt.Errorf("%w: taskId=%s", ErrTaskAlreadyExists, entry.Task.Id)
 	}
 
-	return st.putTaskEntry(tx, entry)
+	return st.putTaskEntry(tx, entry, false)
 }
 
 // TryGetTaskEntry Retrieve a task entry by its id. In case if task does not exist, method returns nil
@@ -166,7 +188,11 @@ func (st *TaskStorage) TryGetTaskEntry(ctx context.Context, id types.TaskId) (*t
 	entry, err := st.extractTaskEntry(tx, id)
 
 	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
+		// check in the failed task table
+		entry, err = st.extractFailedTaskEntry(tx, id)
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return nil, nil
+		}
 	}
 
 	return entry, err
@@ -224,7 +250,7 @@ func (st *TaskStorage) GetTaskTreeView(ctx context.Context, rootTaskId types.Tas
 
 		entry, err := st.extractTaskEntry(tx, taskId)
 
-		if errors.Is(err, db.ErrKeyNotFound) && taskId == rootTaskId {
+		if errors.Is(err, db.ErrKeyNotFound) {
 			return nil, nil
 		}
 
@@ -240,7 +266,9 @@ func (st *TaskStorage) GetTaskTreeView(ctx context.Context, rootTaskId types.Tas
 			if err != nil {
 				return nil, fmt.Errorf("failed to get task subtree with id=%s: %w", dependencyId, err)
 			}
-			tree.AddDependency(subtree)
+			if subtree != nil {
+				tree.AddDependency(subtree)
+			}
 		}
 
 		for _, result := range entry.Task.DependencyResults {
@@ -317,7 +345,7 @@ func (st *TaskStorage) requestTaskToExecuteImpl(
 	if err := taskEntry.Start(executor, currentTime); err != nil {
 		return nil, fmt.Errorf("failed to start task: %w", err)
 	}
-	if err := st.putTaskEntry(tx, taskEntry); err != nil {
+	if err := st.putTaskEntry(tx, taskEntry, false); err != nil {
 		return nil, fmt.Errorf("failed to update task entry: %w", err)
 	}
 	if err = st.commit(tx); err != nil {
@@ -388,16 +416,18 @@ func (st *TaskStorage) terminateTaskTx(tx db.RwTx, entry *types.TaskEntry, res *
 		return err
 	}
 
-	if res.IsSuccess() {
-		// We don't keep finished tasks in DB
-		log.NewTaskResultEvent(st.logger, zerolog.DebugLevel, res).
-			Msg("Task execution is completed successfully, removing it from the storage")
+	log.NewTaskResultEvent(st.logger, zerolog.DebugLevel, res).
+		Msgf("Task execution is completed with status %s, removing it from the storage", res.StatusStr())
 
-		if err := tx.Delete(taskEntriesTable, res.TaskId.Bytes()); err != nil {
+	// We don't keep finished tasks in DB
+	if err := tx.Delete(taskEntriesTable, res.TaskId.Bytes()); err != nil {
+		return err
+	}
+
+	if !res.IsSuccess() {
+		if err := st.putTaskEntry(tx, entry, true); err != nil {
 			return err
 		}
-	} else if err := st.putTaskEntry(tx, entry); err != nil {
-		return err
 	}
 
 	return st.updateDependentsTx(tx, entry, res, currentTime)
@@ -411,18 +441,21 @@ func (st *TaskStorage) updateDependentsTx(
 ) error {
 	for taskId := range entry.Dependents {
 		depEntry, err := st.extractTaskEntry(tx, taskId)
-		if err != nil {
-			return err
-		}
+		// skip update dependency if it was removed
+		if !errors.Is(err, db.ErrKeyNotFound) {
+			if err != nil {
+				return err
+			}
 
-		resultEntry := types.NewTaskResultDetails(res, entry, currentTime)
+			resultEntry := types.NewTaskResultDetails(res, entry, currentTime)
 
-		if err = depEntry.AddDependencyResult(*resultEntry); err != nil {
-			return fmt.Errorf("failed to add dependency result to task with id=%s: %w", depEntry.Task.Id, err)
-		}
-		err = st.putTaskEntry(tx, depEntry)
-		if err != nil {
-			return err
+			if err = depEntry.AddDependencyResult(*resultEntry); err != nil {
+				return fmt.Errorf("failed to add dependency result to task with id=%s: %w", depEntry.Task.Id, err)
+			}
+			err = st.putTaskEntry(tx, depEntry, false)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -511,11 +544,51 @@ func (st *TaskStorage) rescheduleTaskTx(
 		return fmt.Errorf("failed to reset task: %w", err)
 	}
 
-	if err := st.putTaskEntry(tx, entry); err != nil {
+	if err := st.putTaskEntry(tx, entry, false); err != nil {
 		return fmt.Errorf("failed to put rescheduled task: %w", err)
 	}
 
 	return nil
+}
+
+func (st *TaskStorage) CancelTasksByParentId(
+	ctx context.Context,
+	isActive func(context.Context, types.TaskId) (bool, error),
+) (uint, error) {
+	tx, err := st.database.CreateRwTx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	var count uint
+
+	for entry, err := range st.getStoredTasksSeq(tx) {
+		if err != nil {
+			return 0, err
+		}
+
+		if entry.Task.ParentTaskId != nil {
+			parentTaskIsActive, err := isActive(ctx, *entry.Task.ParentTaskId)
+			if err != nil {
+				return 0, err
+			}
+			if !parentTaskIsActive {
+				res := types.NewCancelTaskResult(entry.Task.Id, entry.Owner)
+				err = st.terminateTaskTx(tx, entry, res)
+				if err != nil {
+					return 0, err
+				}
+				count++
+			}
+		}
+	}
+
+	if err := st.commit(tx); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 func (*TaskStorage) getStoredTasksSeq(tx db.RoTx) iter.Seq2[*types.TaskEntry, error] {

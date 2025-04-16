@@ -89,44 +89,50 @@ abstract class BaseCommand extends Command {
     logger.info(`Using configuration file: ${cfgPath}`);
 
     this.configManager = new ConfigManager(cfgPath);
-    const cfg = this.configManager.loadConfig();
 
-    logger.trace("Loaded configuration:", this.cfg);
+    logger.trace("Loaded configuration:", this.configManager.loadConfig());
 
-    this.cfg = cfg.nil as Record<string, string>;
-
-    if (this.cfg[ConfigKeys.RpcEndpoint]) {
+    const rpcEndpoint = this.configManager.getConfigValue(ConfigKeys.NilSection, ConfigKeys.RpcEndpoint);
+    if (rpcEndpoint) {
       this.rpcClient = new PublicClient({
         transport: new HttpTransport({
-          endpoint: this.cfg[ConfigKeys.RpcEndpoint],
+          endpoint: rpcEndpoint,
         }),
       });
     }
 
-    if (this.cfg[ConfigKeys.FaucetEndpoint]) {
+    const faucetEndpoint = this.configManager.getConfigValue(ConfigKeys.NilSection, ConfigKeys.FaucetEndpoint, rpcEndpoint);
+    if (faucetEndpoint) {
       this.faucetClient = new FaucetClient({
         transport: new HttpTransport({
-          endpoint: this.cfg[ConfigKeys.FaucetEndpoint],
+          endpoint: faucetEndpoint,
         }),
       });
     }
 
-    if (this.cfg[ConfigKeys.CometaEndpoint]) {
+    const cometaEndpoint = this.configManager.getConfigValue(ConfigKeys.NilSection, ConfigKeys.CometaEndpoint, rpcEndpoint);
+    if (cometaEndpoint) {
       this.cometaClient = new CometaClient({
         transport: new HttpTransport({
-          endpoint: this.cfg[ConfigKeys.CometaEndpoint],
+          endpoint: cometaEndpoint,
         }),
       });
     }
   }
 
   protected async setupSmartAccount() {
-    const privateKey = this.cfg?.[ConfigKeys.PrivateKey] as Hex;
+    const privateKey = this.configManager?.getConfigValue(
+      ConfigKeys.NilSection,
+      ConfigKeys.PrivateKey,
+    ) as Hex;
     if (!privateKey) {
       this.error("Private key not found in config. Perhaps you need to run 'keygen new' first?");
     }
 
-    const smartAccountAddress = this.cfg?.[ConfigKeys.Address] as Hex;
+    const smartAccountAddress = this.configManager?.getConfigValue(
+      ConfigKeys.NilSection,
+      ConfigKeys.Address,
+    ) as Hex;
     if (!smartAccountAddress) {
       this.error("Address not found in config. Perhaps you need to run 'smart-account new' first?");
     }

@@ -191,7 +191,9 @@ func (p *proposer) handleL1Attributes(tx db.RoTx, mainShardHash common.Hash) err
 		}
 	}
 
-	txn, err := CreateL1BlockUpdateTransaction(block)
+	txId := p.executionState.InTxCounts[types.MainShardId]
+	p.executionState.InTxCounts[types.MainShardId] = txId + 1
+	txn, err := CreateL1BlockUpdateTransaction(block, txId)
 	if err != nil {
 		return fmt.Errorf("failed to create L1 block update transaction: %w", err)
 	}
@@ -224,7 +226,7 @@ func CreateRollbackCalldata(params *execution.RollbackParams) ([]byte, error) {
 	return calldata, nil
 }
 
-func CreateL1BlockUpdateTransaction(header *l1types.Header) (*types.Transaction, error) {
+func CreateL1BlockUpdateTransaction(header *l1types.Header, txId types.TransactionIndex) (*types.Transaction, error) {
 	abi, err := contracts.GetAbi(contracts.NameL1BlockInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get L1BlockInfo ABI: %w", err)
@@ -254,6 +256,7 @@ func CreateL1BlockUpdateTransaction(header *l1types.Header) (*types.Transaction,
 			MaxPriorityFeePerGas: types.Value0,
 			Data:                 calldata,
 		},
+		TxId: txId,
 		From: types.L1BlockInfoAddress,
 	}
 
@@ -442,7 +445,7 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 
 					txnHash := txn.Hash()
 
-					if err := p.executionState.ValidateInternalTransaction(txn); err != nil {
+					if err := p.executionState.AcceptInternalTransaction(txn); err != nil {
 						p.logger.Warn().Err(err).
 							Stringer(logging.FieldTransactionHash, txnHash).
 							Msg("Invalid internal transaction")

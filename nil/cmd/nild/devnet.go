@@ -203,9 +203,18 @@ func genDevnet(cmd *cobra.Command, args []string) error {
 
 	c := &cluster{spec: spec, baseDir: baseDir, validators: validators}
 
-	archiveBaseP2P := spec.NildP2PBaseTCPPort + len(validators)
-	archiveBaseProm := spec.NildPromBasePort + len(validators)
-	archiveBasePprof := spec.PprofBaseTCPPort + len(validators)
+	archiveBaseP2P := 0
+	if spec.NildP2PBaseTCPPort != 0 {
+		archiveBaseP2P = spec.NildP2PBaseTCPPort + len(validators)
+	}
+	archiveBaseProm := 0
+	if spec.NildPromBasePort != 0 {
+		archiveBaseProm = spec.NildPromBasePort + len(validators)
+	}
+	archiveBasePprof := 0
+	if spec.PprofBaseTCPPort != 0 {
+		archiveBasePprof = spec.PprofBaseTCPPort + len(validators)
+	}
 
 	c.archivers, err = spec.makeServers(spec.NilArchiveConfig,
 		archiveBaseP2P, archiveBaseProm, archiveBasePprof, 0,
@@ -362,7 +371,11 @@ func (c *cluster) writeServerConfig(instanceId int, srv server, only string) err
 				PrometheusPort: srv.promPort,
 			},
 		},
-		DB: db.NewDefaultBadgerDBOptions(),
+		DB: func() *db.BadgerDBOptions {
+			dbOptions := db.NewDefaultBadgerDBOptions()
+			dbOptions.Path = srv.workDir + "/database"
+			return dbOptions
+		}(),
 	}
 
 	var err error

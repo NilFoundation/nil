@@ -15,7 +15,7 @@ GOBUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build $(GO_FLAGS) -tags $(TAGS)
 GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TAGS),debug,assert,test,goexperiment.synctest $(GO_FLAGS) ./... -p 2
 
 SC_COMMANDS = sync_committee sync_committee_cli proof_provider prover nil_block_generator relayer
-COMMANDS += nild nil nil-load-generator indexer cometa faucet journald_forwarder relay stresser $(SC_COMMANDS)
+COMMANDS += nild nil nil-load-generator indexer cometa faucet journald_forwarder nil-relay stresser $(SC_COMMANDS)
 
 BINARY_NAMES := cometa=nil-cometa indexer=nil-indexer
 get_bin_name = $(if $(filter $(1)=%,$(BINARY_NAMES)),$(patsubst $(1)=%,%,$(filter $(1)=%,$(BINARY_NAMES))),$(1))
@@ -74,7 +74,14 @@ compile-bins:
 
 $(BIN_FILES): | compile-bins
 
-compile-contracts: $(BIN_FILES)
+# Solidity debug console
+CONSOLE_SOL := nil/contracts/solidity/lib/console.sol
+CONSOLE_GO  := nil/internal/vm/console/console_generated.go
+$(CONSOLE_SOL) $(CONSOLE_GO): nil/contracts/genlog.py
+	python3 nil/contracts/genlog.py $(CONSOLE_SOL) $(CONSOLE_GO)
+solidity_console: $(CONSOLE_SOL) $(CONSOLE_GO)
+
+compile-contracts: solidity_console $(BIN_FILES)
 
 golangci-lint: gen_rollup_contracts_bindings
 	golangci-lint run

@@ -153,18 +153,11 @@ func WaitZerostate(t *testing.T, client client.Client, shardId types.ShardId) {
 func WaitShardTick(t *testing.T, client client.Client, shardId types.ShardId) {
 	t.Helper()
 
-	block, err := client.GetBlock(t.Context(), shardId, "latest", false)
-	require.NoError(t, err)
-
-	require.Eventuallyf(
-		t,
-		func() bool {
-			block, err := client.GetBlock(t.Context(), shardId, transport.BlockNumber(block.Number+1), false)
-			return err == nil && block != nil
-		},
-		ShardTickWaitTimeout,
-		ShardTickPollInterval,
-		"Failed to wait for shard %d tick after block %d", shardId, block.Number)
+	require.Eventually(t, func() bool {
+		block, err := client.GetBlock(t.Context(), shardId, 1, false)
+		require.NoError(t, err)
+		return block != nil
+	}, ShardTickWaitTimeout, ShardTickPollInterval)
 }
 
 func GetBalance(t *testing.T, client client.Client, address types.Address) types.Value {

@@ -42,6 +42,14 @@ type TaskResult struct {
 	Data            TaskResultData      `json:"binaryData,omitempty"`
 }
 
+// StatusStr returns status as string.
+func (r *TaskResult) StatusStr() string {
+	if r.Error == nil {
+		return "Success"
+	}
+	return r.Error.Error()
+}
+
 // IsSuccess determines if the task result indicates success.
 func (r *TaskResult) IsSuccess() bool {
 	return r.Error == nil
@@ -59,6 +67,11 @@ func (r *TaskResult) ValidateForTask(entry *TaskEntry) error {
 		return fmt.Errorf("task result's taskId=%s does not match task entry's taskId=%s", r.TaskId, entry.Task.Id)
 	}
 
+	// Task can be cancelled in any status
+	if r.Error != nil && r.Error.ErrType == TaskErrCancelled {
+		return nil
+	}
+	// Otherwise, it should only be terminated by the current owner
 	if r.Sender == UnknownExecutorId || r.Sender != entry.Owner {
 		return fmt.Errorf(
 			"%w: taskId=%v, taskStatus=%v, taskOwner=%v, requestSenderId=%v",
@@ -129,12 +142,23 @@ func NewFailureProverTaskResult(
 	}
 }
 
+func NewCancelTaskResult(
+	taskId TaskId,
+	executorId TaskExecutorId,
+) *TaskResult {
+	return &TaskResult{
+		TaskId: taskId,
+		Sender: executorId,
+		Error:  NewTaskExecError(TaskErrCancelled, "task was cancelled"),
+	}
+}
+
 // TaskResultDetails represents the result of a task, extending TaskResult with additional task-specific metadata.
 type TaskResultDetails struct {
 	TaskResult
-	TaskType      TaskType      `json:"type"`
-	CircuitType   CircuitType   `json:"circuitType"`
-	ExecutionTime time.Duration `json:"executionTime"`
+	TaskType      TaskType       `json:"type"`
+	CircuitType   CircuitType    `json:"circuitType"`
+	ExecutionTime *time.Duration `json:"executionTime,omitempty"`
 }
 
 func NewTaskResultDetails(result *TaskResult, taskEntry *TaskEntry, currentTime time.Time) *TaskResultDetails {
@@ -142,6 +166,6 @@ func NewTaskResultDetails(result *TaskResult, taskEntry *TaskEntry, currentTime 
 		TaskResult:    *result,
 		TaskType:      taskEntry.Task.TaskType,
 		CircuitType:   taskEntry.Task.CircuitType,
-		ExecutionTime: *taskEntry.ExecutionTime(currentTime),
+		ExecutionTime: taskEntry.ExecutionTime(currentTime),
 	}
 }

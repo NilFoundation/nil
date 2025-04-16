@@ -36,9 +36,8 @@ message TokensResponse {
 }
 
 message AsyncContext {
-  bool isAwait = 1;
-  bytes data = 2;
-  uint64 responseProcessingGas = 3;
+  bytes data = 1;
+  uint64 responseProcessingGas = 2;
 }
 
 message RawContract {

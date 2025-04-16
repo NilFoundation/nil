@@ -47,7 +47,9 @@ func startRpcServer(
 	db db.ReadOnlyDB,
 	client client.Client,
 ) error {
-	logger := logging.NewLogger("RPC")
+	logger := logging.NewLogger("RPC").With().
+		Int(logging.FieldRpcPort, cfg.RPCPort).
+		Logger()
 
 	addr := cfg.HttpUrl
 	if addr == "" {
@@ -757,7 +759,7 @@ func createShards(
 					if err := consensus.Init(ctx); err != nil {
 						return err
 					}
-					if err := collator.Run(ctx, consensus); err != nil {
+					if err := collator.Run(ctx); err != nil {
 						logger.Error().
 							Err(err).
 							Stringer(logging.FieldShardId, shardId).

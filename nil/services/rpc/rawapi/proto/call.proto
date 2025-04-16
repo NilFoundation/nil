@@ -5,6 +5,7 @@ option go_package = "/pb";
 
 import "nil/services/rpc/rawapi/proto/common.proto";
 import "nil/services/rpc/rawapi/proto/transaction.proto";
+import "nil/services/rpc/rawapi/proto/account.proto";
 
 message CallArgs {
   uint32 flags = 1;
@@ -27,6 +28,7 @@ message Contract {
   optional Uint256 balance = 4;
   map<string, Hash> state = 5;
   map<string, Hash> stateDiff = 6;
+  map<uint64, AsyncContext> asyncContext = 7;
 }
 
 message StateOverrides {

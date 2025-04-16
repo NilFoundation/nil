@@ -17,7 +17,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with Erigon. If not, see <http://www.gnu.org/licenses/>.
 
-//nolint:goconst
 package abi
 
 import (
@@ -186,14 +185,14 @@ func (abi *ABI) UnmarshalJSON(data []byte) error {
 				field.Payable,
 				field.Inputs,
 				field.Outputs)
-		case "fallback":
+		case "fallback": //nolint:goconst
 			// New introduced function type in v0.6.0, check more detail
 			// here https://solidity.readthedocs.io/en/v0.6.0/contracts.html#fallback-function
 			if abi.HasFallback() {
 				return errors.New("only single fallback is allowed")
 			}
 			abi.Fallback = NewMethod("", "", Fallback, field.StateMutability, field.Constant, field.Payable, nil, nil)
-		case "receive":
+		case "receive": //nolint:goconst
 			// New introduced function type in v0.6.0, check more detail
 			// here https://solidity.readthedocs.io/en/v0.6.0/contracts.html#fallback-function
 			if abi.HasReceive() {

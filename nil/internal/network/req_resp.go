@@ -62,7 +62,9 @@ func (m *BasicManager) NewStream(ctx context.Context, peerId PeerID, protocolId 
 
 func (m *BasicManager) SetStreamHandler(ctx context.Context, protocolId ProtocolID, handler StreamHandler) {
 	protocolId = ProtocolID(m.withNetworkPrefix(string(protocolId)))
-	m.logger.Debug().Msgf("Setting stream handler for protocol %s", protocolId)
+	m.logger.Debug().
+		Str(logging.FieldProtocolID, string(protocolId)).
+		Msg("Setting stream handler")
 
 	m.host.SetStreamHandler(protocolId, func(stream Stream) {
 		defer stream.Close()

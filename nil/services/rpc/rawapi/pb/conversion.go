@@ -497,7 +497,6 @@ func (ac *AsyncContext) PackProtoMessage(context *types.AsyncContext) {
 		return
 	}
 
-	ac.IsAwait = context.IsAwait
 	ac.Data = context.Data
 	ac.ResponseProcessingGas = context.ResponseProcessingGas.Uint64()
 }
@@ -507,7 +506,6 @@ func (rc *AsyncContext) UnpackProtoMessage() types.AsyncContext {
 		return types.AsyncContext{}
 	}
 	return types.AsyncContext{
-		IsAwait:               rc.IsAwait,
 		Data:                  rc.Data,
 		ResponseProcessingGas: types.Gas(rc.ResponseProcessingGas),
 	}
@@ -611,40 +609,49 @@ func (rcr *RawContractResponse) UnpackProtoMessage() (*rawapitypes.SmartContract
 	return nil, errors.New("unexpected response type")
 }
 
-func (c *Contract) PackProtoMessage(contract rpctypes.Contract) *Contract {
+func (x *Contract) PackProtoMessage(contract rpctypes.Contract) *Contract {
 	if contract.Seqno != nil {
-		c.Seqno = (*uint64)(contract.Seqno)
+		x.Seqno = (*uint64)(contract.Seqno)
 	}
 	if contract.ExtSeqno != nil {
-		c.ExtSeqno = (*uint64)(contract.ExtSeqno)
+		x.ExtSeqno = (*uint64)(contract.ExtSeqno)
 	}
 	if contract.Code != nil {
-		c.Code = *contract.Code
+		x.Code = *contract.Code
 	}
 	if contract.Balance != nil {
 		balance := new(Uint256)
 		if contract.Balance.Uint256 != nil {
 			balance.PackProtoMessage(*contract.Balance.Uint256)
 		}
-		c.Balance = balance
+		x.Balance = balance
 	}
 	if contract.State != nil {
-		c.State = make(map[string]*Hash)
+		x.State = make(map[string]*Hash)
 		for k, v := range *contract.State {
 			kHex := k.Hex()
-			c.State[kHex] = &Hash{}
-			check.PanicIfErr(c.State[kHex].PackProtoMessage(v))
+			x.State[kHex] = &Hash{}
+			check.PanicIfErr(x.State[kHex].PackProtoMessage(v))
 		}
 	}
 	if contract.StateDiff != nil {
-		c.StateDiff = make(map[string]*Hash)
+		x.StateDiff = make(map[string]*Hash)
 		for k, v := range *contract.StateDiff {
 			kHex := k.Hex()
-			c.StateDiff[kHex] = &Hash{}
-			check.PanicIfErr(c.StateDiff[kHex].PackProtoMessage(v))
+			x.StateDiff[kHex] = &Hash{}
+			check.PanicIfErr(x.StateDiff[kHex].PackProtoMessage(v))
 		}
 	}
-	return c
+	if contract.AsyncContext != nil {
+		x.AsyncContext = make(map[uint64]*AsyncContext)
+		for k, v := range *contract.AsyncContext {
+			if v != nil {
+				x.AsyncContext[uint64(k)] = &AsyncContext{}
+				x.AsyncContext[uint64(k)].PackProtoMessage(v)
+			}
+		}
+	}
+	return x
 }
 
 func (x *CallArgs) PackProtoMessage(args rpctypes.CallArgs) *CallArgs {
@@ -793,24 +800,24 @@ func (x *CallArgs) UnpackProtoMessage() rpctypes.CallArgs {
 	return args
 }
 
-func (cr *Contract) UnpackProtoMessage() rpctypes.Contract {
+func (x *Contract) UnpackProtoMessage() rpctypes.Contract {
 	c := rpctypes.Contract{}
 
-	c.Seqno = (*types.Seqno)(cr.Seqno)
-	c.ExtSeqno = (*types.Seqno)(cr.ExtSeqno)
+	c.Seqno = (*types.Seqno)(x.Seqno)
+	c.ExtSeqno = (*types.Seqno)(x.ExtSeqno)
 
-	if len(cr.Code) > 0 {
-		c.Code = (*hexutil.Bytes)(&cr.Code)
+	if len(x.Code) > 0 {
+		c.Code = (*hexutil.Bytes)(&x.Code)
 	}
 
-	if cr.Balance != nil {
-		v := newValueFromUint256(cr.Balance)
+	if x.Balance != nil {
+		v := newValueFromUint256(x.Balance)
 		c.Balance = &v
 	}
 
-	if len(cr.State) > 0 {
+	if len(x.State) > 0 {
 		m := make(map[common.Hash]common.Hash)
-		for k, v := range cr.State {
+		for k, v := range x.State {
 			var err error
 			m[common.HexToHash(k)], err = v.UnpackProtoMessage()
 			check.PanicIfErr(err)
@@ -818,14 +825,27 @@ func (cr *Contract) UnpackProtoMessage() rpctypes.Contract {
 		c.State = &m
 	}
 
-	if len(cr.StateDiff) > 0 {
+	if len(x.StateDiff) > 0 {
 		m := make(map[common.Hash]common.Hash)
-		for k, v := range cr.StateDiff {
+		for k, v := range x.StateDiff {
 			var err error
 			m[common.HexToHash(k)], err = v.UnpackProtoMessage()
 			check.PanicIfErr(err)
 		}
 		c.StateDiff = &m
+	}
+
+	if len(x.AsyncContext) > 0 {
+		m := make(map[types.TransactionIndex]*types.AsyncContext)
+		for k, v := range x.AsyncContext {
+			var ac *types.AsyncContext
+			if v != nil {
+				v := v.UnpackProtoMessage()
+				ac = &v
+			}
+			m[types.TransactionIndex(k)] = ac
+		}
+		c.AsyncContext = &m
 	}
 
 	return c

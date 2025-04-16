@@ -34,7 +34,7 @@
             solc = solc;
             rollup-bridge-contracts = rollup-bridge-contracts;
           });
-          niljs = (pkgs.callPackage ./nix/niljs.nix { solc = solc; nil = nil; });
+          niljs = (pkgs.callPackage ./nix/niljs.nix { solc = solc; });
           clijs = (pkgs.callPackage ./nix/clijs.nix { nil = nil; });
           nilhardhat = (pkgs.callPackage ./nix/nilhardhat.nix { solc = solc; });
           nildocs = (pkgs.callPackage ./nix/nildocs.nix {
@@ -130,6 +130,8 @@
                 mkdir -p ./usr/share/${packages.nilexplorer.name}
                 mkdir -p ./usr/share/${packages.docsaibackend.name}
                 mkdir -p ./usr/share/${packages.rollup-bridge-contracts.name}
+
+                echo "${version}" > ./VERSION
 
                 cp -r ${pkg}/bin ./usr/
                 cp -r ${pkg}/share ./usr/

@@ -182,7 +182,10 @@ func (s *Validator) buildBlockHashByProposal(ctx context.Context, proposal *exec
 	}
 	defer gen.Rollback()
 
-	gasPrices := gen.CollectGasPrices(proposal.PrevBlockId)
+	gasPrices, err := gen.CollectGasPrices(proposal.PrevBlockId)
+	if err != nil {
+		return common.EmptyHash, fmt.Errorf("failed to collect gas prices: %w", err)
+	}
 	res, err := gen.BuildBlock(proposal, gasPrices)
 	if err != nil {
 		return common.EmptyHash, fmt.Errorf("failed to generate block: %w", err)

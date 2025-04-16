@@ -95,7 +95,7 @@ func confirmHTTPRequestYieldsStatusCode(t *testing.T, method, contentType, body 
 	ts := httptest.NewServer(NewServer(s, plantTextContentType, []string{plantTextContentType}))
 	defer ts.Close()
 
-	request, err := http.NewRequest(method, ts.URL+"?dummy", strings.NewReader(body))
+	request, err := http.NewRequestWithContext(t.Context(), method, ts.URL+"?dummy", strings.NewReader(body))
 	require.NoError(t, err, "failed to create a valid HTTP request")
 	if len(contentType) > 0 {
 		request.Header.Set("Content-Type", contentType)
@@ -124,7 +124,7 @@ func TestHTTPRespBodyUnlimited(t *testing.T) {
 	ts := httptest.NewServer(NewServer(s, plantTextContentType, []string{plantTextContentType}))
 	defer ts.Close()
 
-	request, err := http.NewRequest(http.MethodGet, ts.URL+"?dummy", strings.NewReader(""))
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL+"?dummy", strings.NewReader(""))
 	require.NoError(t, err, "failed to create a valid HTTP request")
 	request.Header.Set("Content-Type", plantTextContentType)
 	resp, err := http.DefaultClient.Do(request)

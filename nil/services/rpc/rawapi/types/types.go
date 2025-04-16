@@ -1,11 +1,15 @@
 package rawapitypes
 
 import (
+	"errors"
+
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
+
+var ErrShardNotFound = errors.New("shard API not found")
 
 type BlockReferenceType uint8
 

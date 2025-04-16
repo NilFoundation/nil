@@ -1,10 +1,9 @@
 package faucet
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"sync/atomic"
 
@@ -32,7 +31,7 @@ func (c *Client) IsValid() bool {
 	return len(c.endpoint) > 0
 }
 
-func (c *Client) sendRequest(method string, params []any) (json.RawMessage, error) {
+func (c *Client) sendRequest(ctx context.Context, method string, params []any) (json.RawMessage, error) {
 	request := make(map[string]any)
 	request["jsonrpc"] = "2.0"
 	request["method"] = method
@@ -44,25 +43,12 @@ func (c *Client) sendRequest(method string, params []any) (json.RawMessage, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, c.endpoint, bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "faucet/"+version.GetGitRevCount())
 
-	resp, err := c.httpClient.Do(req)
+	body, err := rpc_client.SendRequest(ctx, c.httpClient, c.endpoint, requestBody, map[string]string{
+		"User-Agent": "faucet/" + version.GetGitRevCount(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, body)
 	}
 
 	var rpcResponse map[string]json.RawMessage
@@ -77,11 +63,12 @@ func (c *Client) sendRequest(method string, params []any) (json.RawMessage, erro
 }
 
 func (c *Client) TopUpViaFaucet(
+	ctx context.Context,
 	faucetAddress types.Address,
 	contractAddressTo types.Address,
 	amount types.Value,
 ) (common.Hash, error) {
-	response, err := c.sendRequest("faucet_topUpViaFaucet", []any{faucetAddress, contractAddressTo, amount})
+	response, err := c.sendRequest(ctx, "faucet_topUpViaFaucet", []any{faucetAddress, contractAddressTo, amount})
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -92,9 +79,9 @@ func (c *Client) TopUpViaFaucet(
 	return hash, nil
 }
 
-func (c *Client) GetFaucets() (map[string]types.Address, error) {
+func (c *Client) GetFaucets(ctx context.Context) (map[string]types.Address, error) {
 	faucets := make(map[string]types.Address)
-	response, err := c.sendRequest("faucet_getFaucets", []any{})
+	response, err := c.sendRequest(ctx, "faucet_getFaucets", []any{})
 	if err != nil {
 		return faucets, err
 	}

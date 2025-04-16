@@ -81,7 +81,7 @@ func (s *NilLoadGeneratorRpc) TestSmartAccountBalanceModification() {
 	smartAccountsBalance := make([]types.Value, len(shardIdList))
 
 	s.Require().Eventually(func() bool {
-		resSmartAccounts, err = client.GetSmartAccountsAddr()
+		resSmartAccounts, err = client.GetSmartAccountsAddr(s.Context)
 		s.Require().NoError(err)
 		for i, addr := range resSmartAccounts {
 			smartAccountsBalance[i], err = s.Client.GetBalance(s.Context, addr, "latest")
@@ -100,7 +100,7 @@ func (s *NilLoadGeneratorRpc) TestSmartAccountBalanceModification() {
 		case <-testTimeout:
 			return
 		case <-ticker.C:
-			res, err := client.GetHealthCheck()
+			res, err := client.GetHealthCheck(s.Context)
 			s.Require().NoError(err)
 			s.Require().True(res)
 		case err := <-s.runErrCh:
