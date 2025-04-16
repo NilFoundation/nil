@@ -3,8 +3,8 @@ package smartaccount
 import (
 	"fmt"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/cmd/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/spf13/cobra"
@@ -50,25 +50,8 @@ func runEstimateFee(cmd *cobra.Command, args []string, cfg *common.Config, param
 		return err
 	}
 
-	kind := types.ExecutionTransactionKind
-	if params.deploy {
-		kind = types.DeployTransactionKind
-	}
-
-	intTxn := &types.InternalTransactionPayload{
-		Data:        calldata,
-		To:          address,
-		ForwardKind: types.ForwardKindRemaining,
-		Kind:        kind,
-		Value:       params.value,
-	}
-
-	intTxnData, err := intTxn.MarshalSSZ()
-	if err != nil {
-		return err
-	}
-
-	smartAccountCalldata, err := contracts.NewCallData(contracts.NameSmartAccount, "send", intTxnData)
+	smartAccountCalldata, err := client.CreateInternalTransactionPayload(
+		calldata, params.value, nil, address, params.deploy)
 	if err != nil {
 		return err
 	}

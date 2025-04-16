@@ -49,7 +49,10 @@ func (s *SuiteCliBase) SetupSuite() {
 		CollatorTickPeriodMs: 200,
 	}, s.basePort)
 
-	s.DefaultClient, s.endpoint = s.StartRPCNode(tests.WithDhtBootstrapByValidators, nil)
+	s.DefaultClient, s.endpoint = s.StartRPCNode(&tests.RpcNodeConfig{
+		WithDhtBootstrapByValidators: true,
+		ArchiveNodes:                 nil,
+	})
 	s.cometaEndpoint = rpc.GetSockPathService(s.T(), "cometa")
 
 	var fc *faucet.Client
@@ -594,7 +597,7 @@ func (s *SuiteCliExec) TestCliCometa() {
 		out := s.RunCliCfg("debug", txnHash)
 		result := parseCometaOutput(out)
 		s.Require().Len(result, 3)
-		s.Require().Equal("2bb1ae7c00", result[0]["CallData"][:10])
+		s.Require().Equal("0eec02cb00", result[0]["CallData"][:10])
 		s.Require().Contains(result[0]["Transaction"], txnHash)
 		s.Require().Equal("Counter", result[1]["Contract"])
 		s.Require().Equal("get()", result[1]["CallData"])

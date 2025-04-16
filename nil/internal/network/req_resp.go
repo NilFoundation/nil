@@ -39,7 +39,7 @@ func (s *stream) Close() error {
 	return s.Stream.Close()
 }
 
-func (m *Manager) NewStream(ctx context.Context, peerId PeerID, protocolId ProtocolID) (Stream, error) {
+func (m *BasicManager) NewStream(ctx context.Context, peerId PeerID, protocolId ProtocolID) (Stream, error) {
 	ctx, cancel := context.WithTimeout(ctx, streamOpenTimeout)
 	defer cancel()
 
@@ -60,9 +60,11 @@ func (m *Manager) NewStream(ctx context.Context, peerId PeerID, protocolId Proto
 	return &stream{s, measurer}, nil
 }
 
-func (m *Manager) SetStreamHandler(ctx context.Context, protocolId ProtocolID, handler StreamHandler) {
+func (m *BasicManager) SetStreamHandler(ctx context.Context, protocolId ProtocolID, handler StreamHandler) {
 	protocolId = ProtocolID(m.withNetworkPrefix(string(protocolId)))
-	m.logger.Debug().Msgf("Setting stream handler for protocol %s", protocolId)
+	m.logger.Debug().
+		Str(logging.FieldProtocolID, string(protocolId)).
+		Msg("Setting stream handler")
 
 	m.host.SetStreamHandler(protocolId, func(stream Stream) {
 		defer stream.Close()
@@ -81,7 +83,7 @@ func (m *Manager) SetStreamHandler(ctx context.Context, protocolId ProtocolID, h
 	})
 }
 
-func (m *Manager) SendRequestAndGetResponse(
+func (m *BasicManager) SendRequestAndGetResponse(
 	ctx context.Context,
 	peerId PeerID,
 	protocolId ProtocolID,
@@ -107,7 +109,7 @@ func (m *Manager) SendRequestAndGetResponse(
 	return io.ReadAll(stream)
 }
 
-func (m *Manager) SetRequestHandler(ctx context.Context, protocolId ProtocolID, handler RequestHandler) {
+func (m *BasicManager) SetRequestHandler(ctx context.Context, protocolId ProtocolID, handler RequestHandler) {
 	logger := m.logger.With().Str(logging.FieldProtocolID, m.withNetworkPrefix(string(protocolId))).Logger()
 
 	m.SetStreamHandler(ctx, protocolId, func(stream Stream) {

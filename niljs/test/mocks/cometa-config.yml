@@ -1,0 +1,4 @@
+use-badger: true
+db-path: cometa.db
+db-name: nil_db
+db-user: default

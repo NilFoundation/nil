@@ -10,7 +10,10 @@ export default class SmartAccountInfo extends BaseCommand {
   static override examples = ["<%= config.bin %> <%= command.id %>"];
 
   public async run(): Promise<{ PublicKey: Hex; Address: Hex }> {
-    const privateKey = this.cfg?.[ConfigKeys.PrivateKey] as Hex;
+    const privateKey = this.configManager?.getConfigValue(
+      ConfigKeys.NilSection,
+      ConfigKeys.PrivateKey,
+    ) as Hex;
     if (!privateKey) {
       throw new Error(
         "Private key not found in config. Perhaps you need to run 'keygen new' first?",
@@ -19,7 +22,10 @@ export default class SmartAccountInfo extends BaseCommand {
 
     const publicKey = getPublicKey(privateKey, true);
 
-    const address = this.cfg?.[ConfigKeys.Address] as Hex;
+    const address = this.configManager?.getConfigValue(
+      ConfigKeys.NilSection,
+      ConfigKeys.Address,
+    ) as Hex;
     if (!address) {
       throw new Error(
         "Address not found in config. Perhaps you need to run 'smart-account new' first?",

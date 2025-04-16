@@ -28,7 +28,10 @@ func (s *SuiteRpcNode) SetupTest() {
 		Port:               port + int(nShards),
 		WithBootstrapPeers: true,
 	})
-	s.DefaultClient, _ = s.StartRPCNode(tests.WithoutDhtBootstrapByValidators, network.AddrInfoSlice{archiveNodeAddr})
+	s.DefaultClient, _ = s.StartRPCNode(&tests.RpcNodeConfig{
+		WithDhtBootstrapByValidators: false,
+		ArchiveNodes:                 network.AddrInfoSlice{archiveNodeAddr},
+	})
 }
 
 func (s *SuiteRpcNode) TearDownTest() {

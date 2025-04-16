@@ -29,7 +29,7 @@
   "description": "Typescript library to interact with the Nil blockchain. Can be used in the browser or in Node.js.",
   "scripts": {
     "test:unit": "CI=true vitest -c ./test/vitest.config.ts",
-    "test:integration": "CI=true vitest -c ./test/vitest.integration.config.ts --isolate false",
+    "test:integration": "CI=true vitest -c ./test/vitest.integration.config.ts --isolate false --reporter=verbose",
     "test:coverage": "CI=true vitest -c ./test/vitest.config.ts --coverage",
     "test:examples": "ls ./examples | xargs -I {} tsx ./examples/{}",
     "build": "rimraf dist && rollup -c ./rollup/rollup.config.js --bundleConfigAsCjs",

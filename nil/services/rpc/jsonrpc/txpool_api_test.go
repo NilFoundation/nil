@@ -16,7 +16,7 @@ import (
 type SuiteTxnPoolApi struct {
 	SuiteAccountsBase
 	txnpoolApi *TxPoolAPIImpl
-	api        *rawapi.NodeApiOverShardApis
+	api        rawapi.NodeApi
 	pool       txnpool.Pool
 }
 
@@ -46,13 +46,9 @@ func (suite *SuiteTxnPoolApi) SetupSuite() {
 	suite.Require().NoError(err)
 	defer database.Close()
 
-	mainShardApi, err := rawapi.NewLocalRawApiAccessor(
-		types.MainShardId,
-		rawapi.NewLocalShardApi(types.MainShardId, database, suite.pool, false))
-	suite.Require().NoError(err)
-	localShardApis := map[types.ShardId]rawapi.ShardApi{types.MainShardId: mainShardApi}
-
-	suite.api = rawapi.NewNodeApiOverShardApis(localShardApis)
+	suite.api = rawapi.NodeApiBuilder(database, nil).
+		WithLocalShardApiRw(types.MainShardId, suite.pool).
+		BuildAndReset()
 	suite.txnpoolApi = NewTxPoolAPI(suite.api, logging.NewLogger("Test"))
 	suite.Require().NoError(err)
 }

@@ -231,7 +231,7 @@ func (h *Helper) CallAndWait(
 }
 
 func (h *Helper) TopUp(addr types.Address, value types.Value) error {
-	tx, err := h.faucet.TopUpViaFaucet(types.FaucetAddress, addr, value)
+	tx, err := h.faucet.TopUpViaFaucet(h.ctx, types.FaucetAddress, addr, value)
 	if err != nil {
 		return fmt.Errorf("failed to top up via faucet: %w", err)
 	}

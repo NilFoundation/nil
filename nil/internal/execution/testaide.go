@@ -97,6 +97,7 @@ func generateBlockFromTransactions(t *testing.T, execute bool,
 	es.BaseFee = types.DefaultGasPrice
 
 	for _, txn := range txns {
+		txn.TxId = es.InTxCounts[txn.From.ShardId()]
 		es.AddInTransaction(txn)
 
 		if !execute {
@@ -166,9 +167,8 @@ func NewSendMoneyTransaction(t *testing.T, to types.Address, seqno types.Seqno) 
 	t.Helper()
 
 	m := NewExecutionTransaction(types.MainSmartAccountAddress, types.MainSmartAccountAddress, seqno,
-		contracts.NewSmartAccountSendCallData(t, types.Code{},
-			DefaultGasLimit, DefaultSendValue,
-			[]types.TokenBalance{}, to, types.ExecutionTransactionKind))
+		contracts.NewSmartAccountAsyncCallCallData(t, types.Code{},
+			DefaultSendValue, []types.TokenBalance{}, to))
 	require.NoError(t, m.Sign(MainPrivateKey))
 
 	return m
@@ -190,6 +190,7 @@ func Deploy(t *testing.T, es *ExecutionState,
 func (es *ExecutionState) AddAndHandleTransaction(
 	ctx context.Context, txn *types.Transaction, payer Payer,
 ) *ExecutionResult {
+	txn.TxId = es.InTxCounts[txn.From.ShardId()]
 	es.AddInTransaction(txn)
 	return es.HandleTransaction(ctx, txn, payer)
 }

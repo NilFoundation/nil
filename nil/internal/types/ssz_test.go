@@ -72,7 +72,7 @@ func TestSszTransaction(t *testing.T) {
 	h, err := common.PoseidonSSZ(&transaction2)
 	require.NoError(t, err)
 
-	h2 := common.HexToHash("2d3efc5c6f1d6ade476e0ed2641cde7e863434f7eb2429d59cc1844a0144ff38")
+	h2 := common.HexToHash("1ac6e7d9fb17cc30dee4987c5d36f89ffa5db62ca1be63c788ce6be5d309c13f")
 	require.Equal(t, h2, h)
 }
 

@@ -263,7 +263,7 @@ func (s *TracerMockClientTestSuite) simpleContractCallTrace(code []byte) *Execut
 	gas := tx.FeeCredit.ToGas(types.NewValueFromUint64(20))
 	blockContext, err := execution.NewEVMBlockContext(es)
 	s.Require().NoError(err)
-	evm := vm.NewEVM(blockContext, es, tx.From, es.GasPrice, nil)
+	evm := vm.NewEVM(blockContext, es, tx.From, es.GasPrice)
 	evm.Config.Tracer = es.EvmTracingHooks
 	_, _, err = evm.Call(caller, tx.To, callData, gas.Uint64(), tx.Value.Int())
 	s.Require().NoError(err)

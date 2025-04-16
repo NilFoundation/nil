@@ -57,7 +57,7 @@ func execute() error {
 		Short: "Run nil L1<->L2 relayer",
 	}
 
-	logLevel := rootCmd.Flags().String("log-level", "info", "app log level")
+	logLevel := rootCmd.PersistentFlags().String("log-level", "info", "app log level")
 	rootCmd.PreRun = func(cmd *cobra.Command, args []string) {
 		logging.SetupGlobalLogger(*logLevel)
 	}
@@ -131,6 +131,13 @@ func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) error {
 		"l1-fetcher-poll-interval",
 		cfg.EventListenerConfig.PollInterval,
 		"Pause which l1 fetcher takes between fetching historical data batches",
+	)
+
+	runCmd.Flags().StringVar(
+		&cfg.L2ContractConfig.PrivateKeyPath,
+		"l2-private-key-path",
+		cfg.L2ContractConfig.PrivateKeyPath,
+		"Path to private key file for L2 smart account",
 	)
 
 	runCmd.Flags().StringVar(

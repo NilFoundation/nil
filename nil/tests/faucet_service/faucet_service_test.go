@@ -41,7 +41,7 @@ func (s *FaucetRpc) TearDownSuite() {
 func (s *FaucetRpc) topUpAndWait(faucetAddr, addr types.Address, amount types.Value) {
 	s.T().Helper()
 
-	hash, err := s.faucetClient.TopUpViaFaucet(faucetAddr, addr, amount)
+	hash, err := s.faucetClient.TopUpViaFaucet(s.Context, faucetAddr, addr, amount)
 	s.Require().NoError(err)
 
 	receipt := s.WaitForReceipt(hash)
@@ -53,7 +53,7 @@ func (s *FaucetRpc) TestDefaultToken() {
 		faucets := types.GetTokens()
 		s.Require().Equal(types.FaucetAddress, faucets["NIL"])
 
-		res, err := s.faucetClient.GetFaucets()
+		res, err := s.faucetClient.GetFaucets(s.Context)
 		s.Require().NoError(err)
 		s.Require().Equal(faucets, res)
 	})
@@ -76,7 +76,7 @@ func (s *FaucetRpc) TestDefaultToken() {
 	if !s.builtinFaucet {
 		s.Run("TopUpViaFaucet from another service", func() {
 			otherClient := faucet.NewClient(s.Config.HttpUrl)
-			viaFaucet, err := otherClient.TopUpViaFaucet(types.FaucetAddress,
+			viaFaucet, err := otherClient.TopUpViaFaucet(s.Context, types.FaucetAddress,
 				types.GenerateRandomAddress(types.BaseShardId), types.NewValueFromUint64(100))
 			s.Require().NoError(err)
 

@@ -42,7 +42,7 @@ type Scheduler struct {
 	consensus      Consensus
 	txFabric       db.DB
 	validator      *Validator
-	networkManager *network.Manager
+	networkManager network.Manager
 
 	params *Params
 
@@ -55,7 +55,7 @@ func NewScheduler(
 	validator *Validator,
 	txFabric db.DB,
 	consensus Consensus,
-	networkManager *network.Manager,
+	networkManager network.Manager,
 ) *Scheduler {
 	params := validator.params
 	return &Scheduler{
@@ -75,11 +75,8 @@ func (s *Scheduler) Validator() *Validator {
 	return s.validator
 }
 
-func (s *Scheduler) Run(ctx context.Context, consensus Consensus) error {
+func (s *Scheduler) Run(ctx context.Context) error {
 	s.logger.Info().Msg("Starting collation...")
-
-	// Enable handler for blocks relaying
-	SetRequestHandler(ctx, s.networkManager, s.params.ShardId, s.txFabric, s.logger)
 
 	tickPeriodMs := s.params.CollatorTickPeriod.Milliseconds()
 	for {

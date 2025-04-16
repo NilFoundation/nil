@@ -34,8 +34,16 @@ contract Caller is NilBounceable {
         );
     }
 
-    function sendTransaction(bytes calldata transaction) public payable {
-        Nil.sendTransaction(transaction);
+    function asyncCall(
+        address dst,
+        address refundTo,
+        address bounceTo,
+        uint feeCredit,
+        uint8 forwardKind,
+        uint value,
+        bytes memory callData
+    ) public payable {
+        Nil.asyncCall(dst, refundTo, bounceTo, feeCredit, forwardKind, value, callData);
     }
 
     function verifyExternal(

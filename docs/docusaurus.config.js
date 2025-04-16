@@ -153,7 +153,7 @@ const config = {
           {
             label: "Migration guides",
             position: "left",
-            to: "nil/migration-guides/march-1803-2025-release",
+            to: "nil/migration-guides/april-1604-2025-release",
           },
           {
             label: "Videos",
@@ -171,11 +171,11 @@ const config = {
               },
               {
                 label: "Playground",
-                href: "https://explore.nil.foundation/playground"
+                href: "https://explore.nil.foundation/playground",
               },
               {
                 label: "Interactive tutorials",
-                href: "https://explore.nil.foundation/tutorial/async-call"
+                href: "https://explore.nil.foundation/tutorial/async-call",
               },
               {
                 label: "Solidity extension",
@@ -184,6 +184,10 @@ const config = {
               {
                 label: "Client library",
                 href: "https://www.npmjs.com/package/@nilfoundation/niljs",
+              },
+              {
+                label: "Wallet extension",
+                href: "https://chromewebstore.google.com/detail/nil-wallet/kfiailmjchdbjmadbkkldiahpggcjffp?authuser=1&hl=en",
               },
             ],
           },

@@ -16,6 +16,9 @@ export const { theme } = createTheme(engine, {
       inputButtonAndDropdownOverrideBackgroundHoverColor: COLORS.gray700,
       rpcUrlBackgroundColor: COLORS.gray700,
       rpcUrlBackgroundHoverColor: COLORS.gray600,
+      primaryButtonBackgroundColor: "#EEEEEE",
+      primaryButtonBackgroundHoverColor: "#BDBDBD",
+      resourceTextColor: "#FFFFFF",
     },
     sizes: {
       copyButton: "40px",
@@ -41,6 +44,9 @@ export const tutorialsTheme = createTheme(engine, {
       tokenInputBackgroundHoverColor: COLORS.blue700,
       rpcUrlBackgroundColor: COLORS.blue800,
       rpcUrlBackgroundHoverColor: COLORS.blue700,
+      resourceTextColor: "#FFFFFF",
+      tabBackgroundColor: "#FFFFFF",
+      tabTextHoverColor: "#000000",
     },
     sizes: {
       copyButton: "32px",

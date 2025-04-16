@@ -64,7 +64,7 @@ func TestOpcodes(t *testing.T) {
 
 			require.NoError(t, state.SetCode(address, code))
 
-			require.NoError(t, state.newVm(true, address, nil))
+			require.NoError(t, state.newVm(true, address))
 			_, _, _ = state.evm.Call(vm.AccountRef(address), address, nil, 100000, new(uint256.Int))
 		}
 		_, err := state.Commit(types.BlockNumber(i), nil)
@@ -84,7 +84,7 @@ func TestPrecompiles(t *testing.T) {
 	// Test checks that precompiles are not crashed
 	// if called with an empty input data
 	check := func(i int) {
-		require.NoError(t, state.newVm(true, types.EmptyAddress, nil))
+		require.NoError(t, state.newVm(true, types.EmptyAddress))
 
 		callTransaction := types.NewEmptyTransaction()
 		callTransaction.Flags = types.NewTransactionFlags(types.TransactionFlagInternal)
@@ -256,8 +256,8 @@ func TestAsyncCall(t *testing.T) {
 	callTransaction.MaxFeePerGas = defaultMaxFeePerGas
 	callTransaction.Data = calldata
 	callTransaction.To = addrCaller
-	txnHash := callTransaction.Hash()
 	res := state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
+	txnHash := callTransaction.Hash()
 	require.False(t, res.Failed())
 
 	require.Len(t, state.OutTransactions, 1)
@@ -278,8 +278,8 @@ func TestAsyncCall(t *testing.T) {
 	require.NoError(t, err)
 
 	callTransaction.Data = calldata
-	txnHash = callTransaction.Hash()
 	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
+	txnHash = callTransaction.Hash()
 	require.False(t, res.Failed())
 
 	require.Len(t, state.OutTransactions, 2)
@@ -303,13 +303,13 @@ func TestSendTransaction(t *testing.T) {
 	state := newState(t)
 	defer state.tx.Rollback()
 
-	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/contracts/async_call.sol"))
+	compiled, err := solc.CompileSource(common.GetAbsolutePath("../../tests/contracts/async_call.sol"))
 	require.NoError(t, err)
 
-	smcCallee := contracts["Callee"]
+	smcCallee := compiled["Callee"]
 	addrCallee := deployContract(t, smcCallee, state, 0)
 
-	smcCaller := contracts["Caller"]
+	smcCaller := compiled["Caller"]
 	addrCaller := deployContract(t, smcCaller, state, 1)
 	require.NoError(t, state.SetBalance(addrCaller, types.NewValueFromUint64(20_000_000)))
 
@@ -317,16 +317,10 @@ func TestSendTransaction(t *testing.T) {
 	abiCalee := solc.ExtractABI(smcCallee)
 	calldata, err := abiCalee.Pack("add", int32(11))
 	require.NoError(t, err)
-	transactionToSend := &types.InternalTransactionPayload{
-		Data:      calldata,
-		To:        addrCallee,
-		FeeCredit: toGasCredit(100000),
-	}
-	calldata, err = transactionToSend.MarshalSSZ()
-	require.NoError(t, err)
 
 	abi := solc.ExtractABI(smcCaller)
-	calldata, err = abi.Pack("sendTransaction", calldata)
+	calldata, err = abi.Pack("asyncCall", addrCallee, types.EmptyAddress, types.EmptyAddress,
+		toGasCredit(100_000), uint8(types.ForwardKindRemaining), types.Value0, calldata)
 	require.NoError(t, err)
 
 	callTransaction := types.NewEmptyTransaction()
@@ -336,8 +330,8 @@ func TestSendTransaction(t *testing.T) {
 	callTransaction.Data = calldata
 	callTransaction.To = addrCaller
 	callTransaction.Seqno = 1
-	tx := callTransaction.Hash()
 	res := state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
+	tx := callTransaction.Hash()
 	require.False(t, res.Failed())
 	require.NotEmpty(t, state.Receipts)
 	require.True(t, state.Receipts[len(state.Receipts)-1].Success)

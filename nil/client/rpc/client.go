@@ -341,20 +341,20 @@ func (c *Client) performRequests(ctx context.Context, requests []*Request) ([]js
 	return results, nil
 }
 
-func (c *Client) PlainTextCall(ctx context.Context, requestBody []byte) (json.RawMessage, error) {
-	c.logger.Trace().RawJSON("request", requestBody).Send()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewBuffer(requestBody))
+func SendRequest(
+	ctx context.Context, client http.Client, endpoint string, requestBody []byte, headers map[string]string,
+) (json.RawMessage, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	for key, value := range c.headers {
+	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
 
-	resp, err := c.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToSendRequest, err)
 	}
@@ -369,6 +369,12 @@ func (c *Client) PlainTextCall(ctx context.Context, requestBody []byte) (json.Ra
 		return nil, fmt.Errorf("%w: %d: %s", ErrUnexpectedStatusCode, resp.StatusCode, body)
 	}
 	return body, nil
+}
+
+func (c *Client) PlainTextCall(ctx context.Context, requestBody []byte) (json.RawMessage, error) {
+	c.logger.Trace().RawJSON("request", requestBody).Send()
+
+	return SendRequest(ctx, c.client, c.endpoint, requestBody, c.headers)
 }
 
 func (c *Client) RawCall(ctx context.Context, method string, params ...any) (json.RawMessage, error) {
@@ -416,7 +422,7 @@ func (c *Client) getSendTransactionViaSmartContractRequest(ctx context.Context, 
 	bytecode types.Code, fee types.FeePack, value types.Value, tokens []types.TokenBalance,
 	contractAddress types.Address, pk *ecdsa.PrivateKey, isDeploy bool, id int,
 ) (*Request, error) {
-	calldataExt, err := client.CreateInternalTransactionPayload(ctx, bytecode, value, tokens, contractAddress, isDeploy)
+	calldataExt, err := client.CreateInternalTransactionPayload(bytecode, value, tokens, contractAddress, isDeploy)
 	if err != nil {
 		return nil, err
 	}

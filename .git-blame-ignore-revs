@@ -27,3 +27,6 @@
 
 # [GH-#] Limit the length of lines to 120 characters.
 6b4337b2c06b129966cf0f6546415cfed8cd49e9
+
+# [GH-776] Hiding RawAPI implementation details in the internal package.
+051275bc88c8e1b891c986c9fb865b4c52d82e68

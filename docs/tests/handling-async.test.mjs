@@ -1,6 +1,5 @@
 import TestHelper from "./TestHelper";
 import {
-  AWAITER_COMPILATION_COMMAND,
   CALLER_ASYNC_BP_COMPILATION_COMMAND,
   CALLER_ASYNC_COMPILATION_COMMAND,
   COUNTER_COMPILATION_COMMAND,
@@ -58,39 +57,5 @@ describe.sequential("compilation tests", async () => {
   test.sequential("the Validator contract is compiled successfully", async () => {
     const { stdout, stderr } = await exec(VALIDATOR_COMPILATION_COMMAND);
     expect(stderr).toMatch(RETAILER_COMPILATION_PATTERN);
-  });
-});
-
-describe.sequential("Awaiter tests", async () => {
-  test.sequential("compilation and deployment of Awaiter is successful", async () => {
-    let { stdout, stderr } = await exec(AWAITER_COMPILATION_COMMAND);
-    expect(stdout).toMatch(SUCCESSFUL_EXECUTION_PATTERN);
-    ({ stdout, stderr } = await exec(TEST_COMMANDS.AWAITER_DEPLOYMENT_COMMAND));
-    expect(stdout).toMatch(CONTRACT_ADDRESS_PATTERN);
-    const addressMatches = stdout.match(ADDRESS_PATTERN);
-    AWAITER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
-    await exec(`${NIL_GLOBAL} smart-account send-tokens ${AWAITER_ADDRESS} 5000000 ${CONFIG_FLAG}`);
-  });
-
-  test.sequential("Awaiter can call Counter successfully", async () => {
-    await exec(COUNTER_COMPILATION_COMMAND);
-    let { stdout, stderr } = await exec(TEST_COMMANDS.COUNTER_DEPLOYMENT_COMMAND);
-    expect(stdout).toMatch(CONTRACT_ADDRESS_PATTERN);
-    const addressMatches = stdout.match(ADDRESS_PATTERN);
-    COUNTER_ADDRESS = addressMatches.length > 1 ? addressMatches[1] : null;
-
-    await exec(
-      `${NIL_GLOBAL} smart-account send-transaction ${AWAITER_ADDRESS} call ${COUNTER_ADDRESS} --abi ./tests/Awaiter/Awaiter.abi ${CONFIG_FLAG}`,
-    );
-
-    ({ stdout, stderr } = await exec(
-      `${NIL_GLOBAL} contract call-readonly ${AWAITER_ADDRESS} getResult --abi ./tests/Awaiter/Awaiter.abi ${CONFIG_FLAG}`,
-    ));
-    const normalize = (str) => str.replace(/\r\n/g, "\n").trim();
-
-    const expectedOutput = "Success, result:\nuint256: 0";
-    const receivedOutput = normalize(stdout);
-
-    expect(receivedOutput).toBe(expectedOutput);
   });
 });

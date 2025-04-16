@@ -3,7 +3,7 @@ import { Flags } from "@oclif/core";
 import { BaseCommand } from "../../base.js";
 import { ConfigKeys } from "../../common/config.js";
 import { logger } from "../../logger.js";
-import { bigintFlag } from "../../types";
+import { bigintFlag } from "../../types.js";
 
 export const DefualtNewSmartAccountAmount = 1_000_000_000_000_000n;
 
@@ -60,7 +60,10 @@ export default class SmartAccountNew extends BaseCommand {
       flags.amount = DefualtNewSmartAccountAmount;
     }
 
-    const privateKey = this.cfg?.[ConfigKeys.PrivateKey];
+    const privateKey = this.configManager?.getConfigValue(
+      ConfigKeys.NilSection,
+      ConfigKeys.PrivateKey,
+    );
     if (!privateKey) {
       throw new Error(
         "Private key not found in config. Perhaps you need to run 'keygen new' first?",

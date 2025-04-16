@@ -1,0 +1,84 @@
+# Release 16.04.2025: migration guide
+
+This release of =nil; improves the output of several =nil; CLI commands and makes minor adjustments to types in `Nil.js`. It also provides several quality-of-life improvements to the Cometa service and the =nil; wallet extension.
+
+## Summary of key changes
+
+### General changes
+
+* The =nil; repository now uses PNPM instead of NPM, which improves the speed and stability of package management across all JS/TS projects in the repo. 
+* The =nil; wallet extension now allows for showing the private key associated with the currently active smart account.
+* The =nil; Playground can now import Solidity smart contracts from NPM packages.
+* The =nil; interactive tutorials now cache previously submitted solutions for completed tutorials. A cached solution is loaded automatically when a completed tutorial is opened.
+* It is now possible to specify the new `solcStandardJson` key inside the JSON task passed to the Cometa service:
+
+```json
+{
+  "contractName": "Test.sol:Foo",
+  "compilerVersion": "0.8.28",
+  "solcStandardJson": {
+    "language": "Solidity",
+    "sources": {
+      "Test.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity >= 0.8.17;\ncontract Foo { constructor() payable {}\n function bar() public pure returns (uint) { return 42; } }\n"
+      },
+      "TestLib.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity >= 0.8.17;\ncontract Bar { constructor() {}\n function foo() public pure returns (uint) { return 43; } }\n"
+      }
+    },
+...
+```
+
+* Several UI adjustments were made to the =nil; block explorer, the Playground and interactive tutorials.
+* It is now possible to specify custom RPC URLs (e.g., `http://localhost:8000`) inside the =nil; Playground. This change allows for using the Playground with a locally run cluster or a cluster deployed on another custom host.
+* The `AWAIT_CALL` precompile has been removed
+
+### `smart-contracts` package changes
+
+* The `awaitCall()` method has been removed from the `Nil.sol` contract
+* The `sendTransaction()` method has been removed from the `Nil.sol` contract
+* The `send()` method has been removed from the `SmartAccount.sol` contract
+
+### =nil; CLI changes
+
+* The output of the `nil debug` command now includes additional fields:
+  - `FeeCredit`
+  - `MaxFee`
+  - `GasPrice`
+  - `PriorityFee`
+
+* The `--log-level` flag is now persistent for the `nil debug` command. 
+* The `nil contract` command now also returns the contract hash and the contract storage root hash.
+
+### `Nil.js` changes
+
+* The `SmartAccount.sendTransaction()` method now returns an instance of the `Transaction` class instead of the transaction hash. 
+* An object of the `Transaction` class can now call the `waitTillCompleted()` method to await the transaction results.
+
+## Migration of smart contracts
+
+* Refactor and re-deploy contracts using the `Nil.awaitCall()`, `Nil.sendTransaction()` and the `SmartAccount.send()` methods.
+
+=nil; no longer supports awaiting the results of an async call. As a result, any smart contract using the `Nil.awaitCall()` method needs to be refactored and re-deployed. The same should be done for any contracts using the `Nil.sendTransaction()` and the `SmartAccount.send()` methods.
+
+## Migration of =nil; CLI commands
+
+* Remove repeated usages of the `--log-level` flag for the `nil debug` command.
+
+As this flag has been made persistent, there is no need to specify it with every repeated usage of the `nil debug` command.
+
+## Migration of `Nil.js` scripts
+
+* Adjust existing usages of the `SmartAccount.sendTransaction()` method.
+
+This method now returns a `Transaction` object rather than a transaction hash. In addition, the `waitTillCompleted()` method can now be called directly from a `Transaction` object:
+
+```ts showLineNumbers
+const tx = await wallet.sendTransaction({...});
+await tx.waitTillCompleted();
+```
+
+## Migration of Hardhat projects
+
+No specific changes have to be made to existing Hardhat projects.
+

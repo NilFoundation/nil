@@ -32,7 +32,7 @@ var _ Client = (*DirectClient)(nil)
 func NewEthClient(
 	ctx context.Context,
 	db db.ReadOnlyDB,
-	localApi *rawapi.NodeApiOverShardApis,
+	localApi rawapi.NodeApi,
 	logger logging.Logger,
 ) (*DirectClient, error) {
 	ethApi := jsonrpc.NewEthAPI(ctx, localApi, db, true, false)

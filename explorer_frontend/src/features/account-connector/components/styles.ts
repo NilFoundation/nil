@@ -8,8 +8,6 @@ export const styles = {
     justifyContent: "center",
     flexDirection: "column",
     alignItems: "center",
-    width: "100%",
-    height: "46px",
     backgroundColor: COLORS.gray800,
     ...expandProperty("borderRadius", "8px"),
     position: "relative",

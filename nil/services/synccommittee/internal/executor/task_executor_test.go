@@ -50,7 +50,7 @@ func newTaskRequestHandlerMock() *api.TaskRequestHandlerMock {
 		GetTaskFunc: func(_ context.Context, request *api.TaskRequest) (*types.Task, error) {
 			return testaide.NewTask(), nil
 		},
-		SetTaskResultFunc: func(ctx context.Context, result *types.TaskResult) error {
+		SetTaskResultFunc: func(_ context.Context, result *types.TaskResult) error {
 			return nil
 		},
 	}

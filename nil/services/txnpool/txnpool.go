@@ -41,7 +41,7 @@ type TxnPool struct {
 	// seqnoMap is a map of addresses to their current seqno. Seqno is updated when the transaction is committed.
 	seqnoMap map[types.Address]types.Seqno
 
-	networkManager *network.Manager
+	networkManager network.Manager
 
 	lock sync.Mutex
 
@@ -51,7 +51,7 @@ type TxnPool struct {
 	logger logging.Logger
 }
 
-func New(ctx context.Context, cfg Config, networkManager *network.Manager) (*TxnPool, error) {
+func New(ctx context.Context, cfg Config, networkManager network.Manager) (*TxnPool, error) {
 	logger := logging.NewLogger("txnpool").With().
 		Stringer(logging.FieldShardId, cfg.ShardId).
 		Logger()

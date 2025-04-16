@@ -1,7 +1,7 @@
 import type { Hex } from "@nilfoundation/niljs";
 import { Flags } from "@oclif/core";
 import { BaseCommand } from "../../base.js";
-import { bigintFlag, hexArg, tokenFlag } from "../../types";
+import { bigintFlag, hexArg, tokenFlag } from "../../types.js";
 
 export default class SmartAccountSendToken extends BaseCommand {
   static override summary = "Transfer tokens to a specific address";

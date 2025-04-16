@@ -5,8 +5,8 @@ import { addHexPrefix } from "@nilfoundation/niljs";
 import { Args, Flags } from "@oclif/core";
 import type { Abi } from "abitype";
 import { BaseCommand } from "../../base.js";
-import { readJsonFile } from "../../common/utils";
-import { bigintFlag } from "../../types";
+import { readJsonFile } from "../../common/utils.js";
+import { bigintFlag } from "../../types.js";
 
 export default class SmartAccountDeploy extends BaseCommand {
   static override summary = "Deploy a smart contract";
@@ -118,7 +118,7 @@ export default class SmartAccountDeploy extends BaseCommand {
       const compileInputPath = path.resolve(flags.compileInput);
       const compileInputContent = fs.readFileSync(compileInputPath, "utf8");
       contractData = await cometaClient.compileContract(compileInputContent);
-      bytecode = contractData.code;
+      bytecode = addHexPrefix(contractData.code);
       abi = contractData.abi as unknown as Abi;
     } else {
       const filename = args.filename;

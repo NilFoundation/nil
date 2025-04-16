@@ -10,8 +10,6 @@ contract RequestResponseTest is NilTokenBase {
     uint public intValue;
     string public strValue;
 
-    event awaitCallResult(bool result);
-
     function verifyExternal(
         uint256,
         bytes calldata
@@ -26,144 +24,12 @@ contract RequestResponseTest is NilTokenBase {
         strValue = "";
     }
 
-    /**
-     * Test sum of counters via awaitCall.
-     */
-    function sumCounters(address[] memory counters) public {
-        for (uint i = 0; i < counters.length; i++) {
-            bytes memory callData = abi.encodeWithSignature("get()");
-
-            (bytes memory returnData, bool success) = Nil.awaitCall(
-                counters[i],
-                60_000,
-                callData
-            );
-
-            require(success, "awaitCall failed");
-            int32 counterVal = abi.decode(returnData, (int32));
-            value += counterVal;
-        }
-    }
-
     function get() public view returns (int32) {
         return value;
     }
 
-    /**
-     * Test awaitCall for failed method.
-     */
-    function callFailed(address addr, bool fail) public {
-        bytes memory callData = abi.encodeWithSignature(
-            "checkFail(bool)",
-            fail
-        );
-        (, bool success) = Nil.awaitCall(
-            addr,
-            Nil.ASYNC_REQUEST_MIN_GAS,
-            callData
-        );
-        emit awaitCallResult(success);
-    }
-
     function checkFail(bool fail) public pure {
         require(!fail, "Test for failed transaction");
-    }
-
-    /**
-     * Test factorial implementation via awaitCall.
-     */
-    function factorial(int32 n) public {
-        value = factorialRec(n);
-    }
-
-    function factorialRec(int32 n) public returns (int32) {
-        if (n == 0) {
-            return 1;
-        }
-        bytes memory callData = abi.encodeWithSignature(
-            "factorialRec(int32)",
-            n - 1
-        );
-        (bytes memory returnData, bool success) = Nil.awaitCall(
-            address(this),
-            Nil.ASYNC_REQUEST_MIN_GAS,
-            callData
-        );
-        require(success, "awaitCall failed");
-        int32 prev = abi.decode(returnData, (int32));
-        return n * prev;
-    }
-
-    /**
-     * Test fibonacci implementation via awaitCall.
-     * Here we have two awaitCall in a row, so it should be properly handled by the system.
-     */
-    function fibonacci(int32 n) public returns(int32) {
-        value = fibonacciRec(n);
-        return value;
-    }
-
-    function fibonacciRec(int32 n) public returns (int32) {
-        if (n <= 1) {
-            return n;
-        }
-        bytes memory returnData;
-        bytes memory callData;
-        bool success;
-        callData = abi.encodeWithSignature("fibonacciRec(int32)", n - 1);
-        (returnData, success) = Nil.awaitCall(
-            address(this),
-            Nil.ASYNC_REQUEST_MIN_GAS,
-            callData
-        );
-        require(success, "awaitCall 1 failed");
-        int32 a = abi.decode(returnData, (int32));
-
-        callData = abi.encodeWithSignature("fibonacciRec(int32)", n - 2);
-        (returnData, success) = Nil.awaitCall(
-            address(this),
-            Nil.ASYNC_REQUEST_MIN_GAS,
-            callData
-        );
-        require(success, "awaitCall 2 failed");
-        int32 b = abi.decode(returnData, (int32));
-
-        return a + b;
-    }
-
-    /**
-     * Test nested sum of counters via awaitCall.
-     */
-    function sumCountersNested(
-        address[] memory tests,
-        address[] memory counters
-    ) public {
-        for (uint i = 0; i < tests.length; i++) {
-            bytes memory callData = abi.encodeWithSignature(
-                "awaitGet(address)",
-                counters[i]
-            );
-            (bytes memory returnData, bool success) = Nil.awaitCall(
-                tests[i],
-                Nil.ASYNC_REQUEST_MIN_GAS,
-                callData
-            );
-
-            require(success, "awaitCall failed");
-            int32 counterVal = abi.decode(returnData, (int32));
-            value += counterVal;
-        }
-    }
-
-    function awaitGet(address counter) public returns (int32) {
-        bytes memory callData = abi.encodeWithSignature("get()");
-        (bytes memory returnData, bool success) = Nil.awaitCall(
-            counter,
-            Nil.ASYNC_REQUEST_MIN_GAS,
-            callData
-        );
-        require(success, "awaitCall failed");
-        return abi.decode(returnData, (int32));
     }
 
     /**
@@ -265,33 +131,6 @@ contract RequestResponseTest is NilTokenBase {
             context,
             callData
         );
-    }
-
-    /**
-     * Nested awaitCall during sendRequest. Response to sendRequest should be sent after response to awaitCall is arrived.
-     */
-    function sendRequestWithNestedAwaitCall(
-        address callee
-    ) public {
-        bytes memory context = abi.encodeWithSelector(this.responseSendRequestWithNestedAwaitCall.selector);
-        bytes memory callData = abi.encodeWithSelector(this.fibonacci.selector, 3);
-        Nil.sendRequest(
-            callee,
-            0,
-            Nil.ASYNC_REQUEST_MIN_GAS,
-            context,
-            callData
-        );
-    }
-
-    function responseSendRequestWithNestedAwaitCall(
-        bool success,
-        bytes memory returnData,
-        bytes memory
-    ) public pure {
-        require(success, "Request failed");
-        int32 res = abi.decode(returnData, (int32));
-        require(res == 2, "Fibonacci(3) should be 2");
     }
 
     /**
@@ -444,13 +283,6 @@ contract RequestResponseTest is NilTokenBase {
             callData
         );
         require(false, "Expect fail");
-    }
-
-    /**
-     * Should fail because `awaitCall` can be used only in top-level functions.
-     */
-    function testNoneZeroCallDepth(address addr) public {
-        RequestResponseTest(addr).awaitGet(address(this));
     }
 
     /**

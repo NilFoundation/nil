@@ -131,6 +131,8 @@
                 mkdir -p ./usr/share/${packages.docsaibackend.name}
                 mkdir -p ./usr/share/${packages.rollup-bridge-contracts.name}
 
+                echo "${version}" > ./VERSION
+
                 cp -r ${pkg}/bin ./usr/
                 cp -r ${pkg}/share ./usr/
                 cp -r ${packages.nildocs.outPath}/* ./usr/share/${packages.nildocs.pname}

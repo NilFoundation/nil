@@ -109,7 +109,7 @@ func NewTaskTreeFromResult(result *types.TaskResultDetails) *TaskTreeView {
 			Type:        result.TaskType,
 			CircuitType: result.CircuitType,
 
-			ExecutionTime: &result.ExecutionTime,
+			ExecutionTime: result.ExecutionTime,
 			Owner:         result.Sender,
 			Status:        taskStatus,
 		},

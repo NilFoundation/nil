@@ -106,7 +106,9 @@ func newAccessorCache(
 type rawAccessorCache struct {
 	blocksLRU          *lru.Cache[common.Hash, []byte]
 	inTransactionsLRU  *lru.Cache[common.Hash, [][]byte]
+	inTxCountsLRU      *lru.Cache[common.Hash, [][]byte]
 	outTransactionsLRU *lru.Cache[common.Hash, [][]byte]
+	outTxCountsLRU     *lru.Cache[common.Hash, [][]byte]
 	receiptsLRU        *lru.Cache[common.Hash, [][]byte]
 }
 
@@ -122,7 +124,13 @@ func newRawAccessorCache(
 	outTransactionsLRU, err := lru.New[common.Hash, [][]byte](outTransactionsLRUSize)
 	check.PanicIfErr(err)
 
+	outTxCountsLRU, err := lru.New[common.Hash, [][]byte](outTransactionsLRUSize)
+	check.PanicIfErr(err)
+
 	inTransactionsLRU, err := lru.New[common.Hash, [][]byte](inTransactionsLRUSize)
+	check.PanicIfErr(err)
+
+	inTxCountsLRU, err := lru.New[common.Hash, [][]byte](inTransactionsLRUSize)
 	check.PanicIfErr(err)
 
 	receiptsLRU, err := lru.New[common.Hash, [][]byte](receiptsLRUSize)
@@ -131,13 +139,45 @@ func newRawAccessorCache(
 	return &rawAccessorCache{
 		blocksLRU:          blocksLRU,
 		inTransactionsLRU:  inTransactionsLRU,
+		inTxCountsLRU:      inTxCountsLRU,
 		outTransactionsLRU: outTransactionsLRU,
+		outTxCountsLRU:     outTxCountsLRU,
 		receiptsLRU:        receiptsLRU,
 	}
 }
 
 type shardAccessor struct {
 	*rawShardAccessor
+}
+
+func collectSszShardCounts(
+	block common.Hash, sa *rawShardAccessor, cache *lru.Cache[common.Hash, [][]byte],
+	tableName db.ShardedTableName, rootHash common.Hash, res *fieldAccessor[[][]byte],
+) {
+	if items, ok := cache.Get(block); ok {
+		*res = initWith(items)
+		return
+	}
+	root := mpt.NewDbReader(sa.tx, sa.shardId, tableName)
+	root.SetRootHash(rootHash)
+
+	items := make([][]byte, 0, 16)
+	for k, v := range root.Iterate() {
+		if len(k) != types.ShardIdSize {
+			continue
+		}
+		// FIXME: this is just byte swapping (shardId.Bytes is big endian)
+		shardId := types.BytesToShardId(k)
+		shardBytes := ssz.MarshalUint16([]byte{}, uint16(shardId))
+
+		item := make([]byte, 0, len(shardBytes)+len(v))
+		item = append(item, shardBytes...)
+		item = append(item, v...)
+		items = append(items, item)
+	}
+
+	*res = initWith(items)
+	cache.Add(block, items)
 }
 
 func collectSszBlockEntities(
@@ -229,7 +269,9 @@ func (s *rawShardAccessor) GetBlock() rawBlockAccessor {
 type rawBlockAccessorResult struct {
 	block           fieldAccessor[[]byte]
 	inTransactions  fieldAccessor[[][]byte]
+	inTxCounts      fieldAccessor[[][]byte]
 	outTransactions fieldAccessor[[][]byte]
+	outTxCounts     fieldAccessor[[][]byte]
 	receipts        fieldAccessor[[][]byte]
 	childBlocks     fieldAccessor[[]common.Hash]
 	dbTimestamp     fieldAccessor[uint64]
@@ -244,8 +286,16 @@ func (r rawBlockAccessorResult) InTransactions() [][]byte {
 	return r.inTransactions()
 }
 
+func (r rawBlockAccessorResult) InTxCounts() [][]byte {
+	return r.inTxCounts()
+}
+
 func (r rawBlockAccessorResult) OutTransactions() [][]byte {
 	return r.outTransactions()
+}
+
+func (r rawBlockAccessorResult) OutTxCounts() [][]byte {
+	return r.outTxCounts()
 }
 
 func (r rawBlockAccessorResult) Receipts() [][]byte {
@@ -340,7 +390,9 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 	res := rawBlockAccessorResult{
 		block:           initWith(rawBlock),
 		inTransactions:  notInitialized[[][]byte]("InTransactions"),
+		inTxCounts:      notInitialized[[][]byte]("InTxCounts"),
 		outTransactions: notInitialized[[][]byte]("OutTransactions"),
+		outTxCounts:     notInitialized[[][]byte]("OutTxCounts"),
 		receipts:        notInitialized[[][]byte]("Receipts"),
 		childBlocks:     notInitialized[[]common.Hash]("ChildBlocks"),
 		dbTimestamp:     notInitialized[uint64]("DbTimestamp"),
@@ -358,6 +410,10 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 		); err != nil {
 			return rawBlockAccessorResult{}, err
 		}
+		collectSszShardCounts(
+			hash, sa, sa.rawCache.inTxCountsLRU, db.TransactionTrieTable,
+			block.InTransactionsRoot, &res.inTxCounts,
+		)
 	}
 
 	if b.withOutTransactions {
@@ -371,6 +427,10 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 		); err != nil {
 			return rawBlockAccessorResult{}, err
 		}
+		collectSszShardCounts(
+			hash, sa, sa.rawCache.outTxCountsLRU, db.TransactionTrieTable,
+			block.OutTransactionsRoot, &res.outTxCounts,
+		)
 	}
 
 	if b.withReceipts {

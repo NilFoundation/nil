@@ -3,8 +3,8 @@ import type { Transaction } from "@nilfoundation/niljs";
 import { Args, Flags } from "@oclif/core";
 import type { Abi } from "abitype";
 import { BaseCommand } from "../../base.js";
-import { readJsonFile } from "../../common/utils";
-import { bigintFlag, hexArg, tokenFlag } from "../../types";
+import { readJsonFile } from "../../common/utils.js";
+import { bigintFlag, hexArg, tokenFlag } from "../../types.js";
 
 export default class SmartAccountSendTransaction extends BaseCommand {
   static override summary = "Send a transaction to a smart contract via the smart account";

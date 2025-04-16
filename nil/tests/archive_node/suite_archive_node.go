@@ -6,7 +6,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -50,8 +49,7 @@ func (s *SuiteArchiveNode) newDb() db.DB {
 func (s *SuiteArchiveNode) runArchiveNode(database db.DB) (*nilservice.Config, network.AddrInfo, chan error) {
 	s.DbInit = func() db.DB { return database }
 
-	ctx, cancel := context.WithCancel(
-		context.WithValue(s.Context, concurrent.RootContextNameLabel, "archive node lifecycle"))
+	ctx, cancel := context.WithCancel(s.Context)
 	s.cancel = cancel
 	return s.RunArchiveNode(&tests.ArchiveNodeConfig{
 		Ctx:                ctx,

@@ -8,7 +8,7 @@ export default class SmartAccountBalance extends BaseCommand {
   static override examples = ["<%= config.bin %> <%= command.id %>"];
 
   async run(): Promise<bigint> {
-    const address = this.cfg?.[ConfigKeys.Address];
+    const address = this.configManager?.getConfigValue(ConfigKeys.NilSection, ConfigKeys.Address);
     if (!address) {
       throw new Error("Invalid or missing smart account address in config.");
     }

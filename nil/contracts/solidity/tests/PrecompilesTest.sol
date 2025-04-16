@@ -25,10 +25,6 @@ contract PrecompilesTest is NilBase {
         );
     }
 
-    function testSendRawTxn(bytes memory callData) public {
-        Nil.sendTransaction(callData);
-    }
-
     function testTokenBalance(
         address addr,
         TokenId tokenId

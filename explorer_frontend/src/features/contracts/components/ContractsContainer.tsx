@@ -26,7 +26,7 @@ export const ContractsContainer = () => {
         Root: {
           style: {
             maxWidth: isMobile ? "calc(100vw - 20px)" : "none",
-            width: isMobile ? "100%" : "none",
+            width: isMobile ? "100%" : "100%",
             height: "100%",
             backgroundColor: theme.colors.backgroundPrimary,
             paddingRight: "0",
@@ -38,11 +38,10 @@ export const ContractsContainer = () => {
         Contents: {
           style: {
             height: "100%",
-            maxWidth: "none",
+            maxWidth: "100%",
             width: "100%",
             paddingRight: "24px",
             paddingLeft: "24px",
-            overflow: "auto",
             overscrollBehavior: "contain",
             ...getMobileStyles({
               height: "calc(100vh - 154px)",
@@ -53,7 +52,7 @@ export const ContractsContainer = () => {
           style: {
             height: "100%",
             width: "100%",
-            maxWidth: "none",
+            maxWidth: "100%",
           },
         },
       }}

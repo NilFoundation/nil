@@ -1,6 +1,8 @@
 package execution
 
 import (
+	"iter"
+
 	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -24,7 +26,7 @@ type BaseMPTReader[K any, V any, VPtr MPTValue[V]] struct {
 	*mpt.Reader
 
 	keyToBytes   func(k K) []byte
-	keyFromBytes func(bs []byte) (K, error)
+	keyFromBytes func(bs []byte) *K // returns nil if the bytes do not encode a key
 }
 
 type BaseMPT[K any, V any, VPtr MPTValue[V]] struct {
@@ -36,6 +38,7 @@ type BaseMPT[K any, V any, VPtr MPTValue[V]] struct {
 type (
 	ContractTrie     = BaseMPT[common.Hash, types.SmartContract, *types.SmartContract]
 	TransactionTrie  = BaseMPT[types.TransactionIndex, types.Transaction, *types.Transaction]
+	TxCountTrie      = BaseMPT[types.ShardId, types.TransactionIndex, *types.TransactionIndex]
 	ReceiptTrie      = BaseMPT[types.TransactionIndex, types.Receipt, *types.Receipt]
 	StorageTrie      = BaseMPT[common.Hash, types.Uint256, *types.Uint256]
 	TokenTrie        = BaseMPT[types.TokenId, types.Value, *types.Value]
@@ -44,6 +47,7 @@ type (
 
 	ContractTrieReader     = BaseMPTReader[common.Hash, types.SmartContract, *types.SmartContract]
 	TransactionTrieReader  = BaseMPTReader[types.TransactionIndex, types.Transaction, *types.Transaction]
+	TxCountTrieReader      = BaseMPTReader[types.ShardId, types.TransactionIndex, *types.TransactionIndex]
 	ReceiptTrieReader      = BaseMPTReader[types.TransactionIndex, types.Receipt, *types.Receipt]
 	StorageTrieReader      = BaseMPTReader[common.Hash, types.Uint256, *types.Uint256]
 	TokenTrieReader        = BaseMPTReader[types.TokenId, types.Value, *types.Value]
@@ -55,15 +59,37 @@ func NewContractTrieReader(parent *mpt.Reader) *ContractTrieReader {
 	return &ContractTrieReader{
 		parent,
 		func(k common.Hash) []byte { return k.Bytes() },
-		func(bs []byte) (common.Hash, error) { return common.BytesToHash(bs), nil },
+		func(bs []byte) *common.Hash { h := common.BytesToHash(bs); return &h },
 	}
 }
 
-func NewTransactionTrieReader(parent *mpt.Reader) *TransactionTrieReader {
+func newTransactionTrieReader(parent *mpt.Reader) *TransactionTrieReader {
 	return &TransactionTrieReader{
 		parent,
 		func(k types.TransactionIndex) []byte { return k.Bytes() },
-		func(bs []byte) (types.TransactionIndex, error) { return types.BytesToTransactionIndex(bs), nil },
+		func(bs []byte) *types.TransactionIndex {
+			// The key is decodable as a TransactionIndex iff it has the size of a TransactionIndex
+			if len(bs) != types.TransactionIndexSize {
+				return nil
+			}
+			idx := types.BytesToTransactionIndex(bs)
+			return &idx
+		},
+	}
+}
+
+func newTxCountTrieReader(parent *mpt.Reader) *TxCountTrieReader {
+	return &TxCountTrieReader{
+		parent,
+		func(k types.ShardId) []byte { return k.Bytes() },
+		func(bs []byte) *types.ShardId {
+			// The key is decodable as a ShardId iff it has the size of a ShardId
+			if len(bs) != types.ShardIdSize {
+				return nil
+			}
+			shard := types.BytesToShardId(bs)
+			return &shard
+		},
 	}
 }
 
@@ -71,7 +97,7 @@ func NewReceiptTrieReader(parent *mpt.Reader) *ReceiptTrieReader {
 	return &ReceiptTrieReader{
 		parent,
 		func(k types.TransactionIndex) []byte { return k.Bytes() },
-		func(bs []byte) (types.TransactionIndex, error) { return types.BytesToTransactionIndex(bs), nil },
+		func(bs []byte) *types.TransactionIndex { idx := types.BytesToTransactionIndex(bs); return &idx },
 	}
 }
 
@@ -79,15 +105,15 @@ func NewStorageTrieReader(parent *mpt.Reader) *StorageTrieReader {
 	return &StorageTrieReader{
 		parent,
 		func(k common.Hash) []byte { return k.Bytes() },
-		func(bs []byte) (common.Hash, error) { return common.BytesToHash(bs), nil },
+		func(bs []byte) *common.Hash { h := common.BytesToHash(bs); return &h },
 	}
 }
 
-func NewAsyncContextTrieReader(parent *mpt.Reader) *AsyncContextTrieReader {
+func newAsyncContextTrieReader(parent *mpt.Reader) *AsyncContextTrieReader {
 	return &AsyncContextTrieReader{
 		parent,
 		func(k types.TransactionIndex) []byte { return k.Bytes() },
-		func(bs []byte) (types.TransactionIndex, error) { return types.BytesToTransactionIndex(bs), nil },
+		func(bs []byte) *types.TransactionIndex { idx := types.BytesToTransactionIndex(bs); return &idx },
 	}
 }
 
@@ -95,10 +121,10 @@ func NewTokenTrieReader(parent *mpt.Reader) *TokenTrieReader {
 	return &TokenTrieReader{
 		parent,
 		func(k types.TokenId) []byte { return k[:] },
-		func(bs []byte) (types.TokenId, error) {
+		func(bs []byte) *types.TokenId {
 			var res types.TokenId
 			copy(res[:], bs)
-			return res, nil
+			return &res
 		},
 	}
 }
@@ -107,7 +133,7 @@ func NewShardBlocksTrieReader(parent *mpt.Reader) *ShardBlocksTrieReader {
 	return &ShardBlocksTrieReader{
 		parent,
 		func(k types.ShardId) []byte { return k.Bytes() },
-		func(bs []byte) (types.ShardId, error) { return types.BytesToShardId(bs), nil },
+		func(bs []byte) *types.ShardId { shard := types.BytesToShardId(bs); return &shard },
 	}
 }
 
@@ -120,7 +146,16 @@ func NewContractTrie(parent *mpt.MerklePatriciaTrie) *ContractTrie {
 
 func NewTransactionTrie(parent *mpt.MerklePatriciaTrie) *TransactionTrie {
 	return &TransactionTrie{
-		BaseMPTReader: NewTransactionTrieReader(parent.Reader),
+		BaseMPTReader: newTransactionTrieReader(parent.Reader),
+		rwTrie:        parent,
+	}
+}
+
+func NewTxCountTrie(parent *mpt.MerklePatriciaTrie) *TxCountTrie {
+	// TODO: in order to make life easier for the proof system,
+	// we will need to pad ShardId keys to the size of TransactionIndex.
+	return &TxCountTrie{
+		BaseMPTReader: newTxCountTrieReader(parent.Reader),
 		rwTrie:        parent,
 	}
 }
@@ -141,7 +176,7 @@ func NewStorageTrie(parent *mpt.MerklePatriciaTrie) *StorageTrie {
 
 func NewAsyncContextTrie(parent *mpt.MerklePatriciaTrie) *AsyncContextTrie {
 	return &AsyncContextTrie{
-		BaseMPTReader: NewAsyncContextTrieReader(parent.Reader),
+		BaseMPTReader: newAsyncContextTrieReader(parent.Reader),
 		rwTrie:        parent,
 	}
 }
@@ -165,7 +200,11 @@ func NewDbContractTrieReader(tx db.RoTx, shardId types.ShardId) *ContractTrieRea
 }
 
 func NewDbTransactionTrieReader(tx db.RoTx, shardId types.ShardId) *TransactionTrieReader {
-	return NewTransactionTrieReader(mpt.NewDbReader(tx, shardId, db.TransactionTrieTable))
+	return newTransactionTrieReader(mpt.NewDbReader(tx, shardId, db.TransactionTrieTable))
+}
+
+func NewDbTxCountTrieReader(tx db.RoTx, shardId types.ShardId) *TxCountTrieReader {
+	return newTxCountTrieReader(mpt.NewDbReader(tx, shardId, db.TransactionTrieTable))
 }
 
 func NewDbReceiptTrieReader(tx db.RoTx, shardId types.ShardId) *ReceiptTrieReader {
@@ -177,7 +216,7 @@ func NewDbStorageTrieReader(tx db.RoTx, shardId types.ShardId) *StorageTrieReade
 }
 
 func NewDbAsyncContextTrieReader(tx db.RoTx, shardId types.ShardId) *AsyncContextTrieReader {
-	return NewAsyncContextTrieReader(mpt.NewDbReader(tx, shardId, db.AsyncCallContextTable))
+	return newAsyncContextTrieReader(mpt.NewDbReader(tx, shardId, db.AsyncCallContextTable))
 }
 
 func NewDbTokenTrieReader(tx db.RoTx, shardId types.ShardId) *TokenTrieReader {
@@ -198,6 +237,10 @@ func NewDbContractTrie(tx db.RwTx, shardId types.ShardId) *ContractTrie {
 
 func NewDbTransactionTrie(tx db.RwTx, shardId types.ShardId) *TransactionTrie {
 	return NewTransactionTrie(mpt.NewDbMPT(tx, shardId, db.TransactionTrieTable))
+}
+
+func NewDbTxCountTrie(tx db.RwTx, shardId types.ShardId) *TxCountTrie {
+	return NewTxCountTrie(mpt.NewDbMPT(tx, shardId, db.TransactionTrieTable))
 }
 
 func NewDbReceiptTrie(tx db.RwTx, shardId types.ShardId) *ReceiptTrie {
@@ -239,12 +282,33 @@ func (m *BaseMPTReader[K, V, VPtr]) Fetch(key K) (VPtr, error) {
 	return v, nil
 }
 
+func (m *BaseMPTReader[K, V, VPtr]) Items() iter.Seq2[K, V] {
+	type Yield = func(K, V) bool
+	return func(yield Yield) {
+		for key, value := range m.Iterate() {
+			k := m.keyFromBytes(key)
+			if k == nil {
+				continue
+			}
+
+			v := m.newV()
+			if err := v.UnmarshalSSZ(value); err != nil {
+				panic(err)
+			}
+
+			if !yield(*k, *v) {
+				break
+			}
+		}
+	}
+}
+
 func (m *BaseMPTReader[K, V, VPtr]) Entries() ([]Entry[K, VPtr], error) {
 	res := make([]Entry[K, VPtr], 0)
 	for key, value := range m.Iterate() {
-		k, err := m.keyFromBytes(key)
-		if err != nil {
-			return nil, err
+		k := m.keyFromBytes(key)
+		if k == nil {
+			continue
 		}
 
 		v := m.newV()
@@ -252,7 +316,7 @@ func (m *BaseMPTReader[K, V, VPtr]) Entries() ([]Entry[K, VPtr], error) {
 			return nil, err
 		}
 
-		res = append(res, Entry[K, VPtr]{k, v})
+		res = append(res, Entry[K, VPtr]{*k, v})
 	}
 	return res, nil
 }
@@ -260,11 +324,11 @@ func (m *BaseMPTReader[K, V, VPtr]) Entries() ([]Entry[K, VPtr], error) {
 func (m *BaseMPTReader[K, V, VPtr]) Keys() ([]K, error) {
 	res := make([]K, 0)
 	for key := range m.Iterate() {
-		k, err := m.keyFromBytes(key)
-		if err != nil {
-			return nil, err
+		k := m.keyFromBytes(key)
+		if k == nil {
+			continue
 		}
-		res = append(res, k)
+		res = append(res, *k)
 	}
 	return res, nil
 }

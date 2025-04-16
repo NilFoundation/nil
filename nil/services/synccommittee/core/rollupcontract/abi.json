@@ -1,0 +1,1418 @@
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "AccessControlBadConfirmation",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "neededRole",
+        "type": "bytes32"
+      }
+    ],
+    "name": "AccessControlUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EnforcedPause",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+      "internalType": "string",
+      "name": "batchIndex",
+      "type": "string"
+    }],
+    "name": "ErrorBatchAlreadyCommitted",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+      "internalType": "string",
+      "name": "batchIndex",
+      "type": "string"
+    }],
+    "name": "ErrorBatchAlreadyFinalized",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+      "internalType": "string",
+      "name": "batchIndex",
+      "type": "string"
+    }],
+    "name": "ErrorBatchNotCommitted",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorCallEvaluationPrecompileFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorCallPointEvaluationPrecompileFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorCallerIsNotAdmin",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorCallerIsNotProposer",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorCallerNotAuthorised",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+        "internalType": "uint256",
+        "name": "dataProofCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "committedBlobCount",
+        "type": "uint256"
+      }
+    ],
+    "name": "ErrorDataProofsAndBlobCountMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorDuplicateL2ToL1Root",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorEmptyDataProofs",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorEvaluationPrecompileOutputWrong",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorIncorrectDataProofSize",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidAddress",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidBatchIndex",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidChainID",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+      "internalType": "uint256",
+      "name": "proofIndex",
+      "type": "uint256"
+    }],
+    "name": "ErrorInvalidDataProofItem",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidDefaultAdmin",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidL2ToL1Root",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidNewStateRoot",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidNilVerifier",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidOldStateRoot",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidPublicDataInfo",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidPublicInputForProof",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidResetStateRoot",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorInvalidValidityProof",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "blobIndex",
+        "type": "uint256"
+      }
+    ],
+    "name": "ErrorInvalidVersionedHash",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+        "internalType": "bytes32",
+        "name": "computedL1MessageHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "expectedL1MessageHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ErrorL1MessageHashMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "newStateRoot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ErrorNewStateRootAlreadyFinalized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorNilVerifierAddressNotChanged",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorOldStateRootMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorResetStateRootNotFound",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorUnexpectedPointEvaluationPrecompileOutput",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ExpectedPause",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidInitialization",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotInitializing",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "owner",
+      "type": "address"
+    }],
+    "name": "OwnableInvalidOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "account",
+      "type": "address"
+    }],
+    "name": "OwnableUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "caller",
+      "type": "address"
+    }],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{
+      "indexed": true,
+      "internalType": "string",
+      "name": "batchIndex",
+      "type": "string"
+    }],
+    "name": "BatchCommitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{
+      "indexed": false,
+      "internalType": "uint64",
+      "name": "version",
+      "type": "uint64"
+    }],
+    "name": "Initialized",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{
+      "indexed": false,
+      "internalType": "address",
+      "name": "account",
+      "type": "address"
+    }],
+    "name": "Paused",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "previousAdminRole",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "newAdminRole",
+        "type": "bytes32"
+      }
+    ],
+    "name": "RoleAdminChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "RoleGranted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "RoleRevoked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{
+      "indexed": false,
+      "internalType": "bytes32",
+      "name": "stateRoot",
+      "type": "bytes32"
+    }],
+    "name": "StateReset",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{
+        "indexed": true,
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "oldStateRoot",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "newStateRoot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "StateRootUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{
+      "indexed": false,
+      "internalType": "address",
+      "name": "account",
+      "type": "address"
+    }],
+    "name": "Unpaused",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "DEFAULT_ADMIN_ROLE",
+    "outputs": [{
+      "internalType": "bytes32",
+      "name": "",
+      "type": "bytes32"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "GENESIS_BATCH_INDEX",
+    "outputs": [{
+      "internalType": "string",
+      "name": "",
+      "type": "string"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "POINT_EVALUATION_PRECOMPILE_ADDR",
+    "outputs": [{
+      "internalType": "address",
+      "name": "",
+      "type": "address"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ZERO_STATE_ROOT",
+    "outputs": [{
+      "internalType": "bytes32",
+      "name": "",
+      "type": "bytes32"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "account",
+      "type": "address"
+    }],
+    "name": "addAdmin",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "bytes32",
+      "name": "stateRoot",
+      "type": "bytes32"
+    }],
+    "name": "batchIndexOfRoot",
+    "outputs": [{
+      "internalType": "string",
+      "name": "",
+      "type": "string"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "string",
+      "name": "",
+      "type": "string"
+    }],
+    "name": "batchInfoRecords",
+    "outputs": [{
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      },
+      {
+        "internalType": "bool",
+        "name": "isCommitted",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "isFinalized",
+        "type": "bool"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "oldStateRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "newStateRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "validityProof",
+        "type": "bytes"
+      },
+      {
+        "components": [{
+            "internalType": "bytes32",
+            "name": "l2Tol1Root",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "messageCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "l1MessageHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct INilRollup.PublicDataInfo",
+        "name": "publicDataInfo",
+        "type": "tuple"
+      },
+      {
+        "internalType": "uint256",
+        "name": "blobCount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "blobCount",
+        "type": "uint256"
+      }
+    ],
+    "name": "commitBatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "adminRole",
+        "type": "bytes32"
+      }
+    ],
+    "name": "createNewRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "string",
+      "name": "batchIndex",
+      "type": "string"
+    }],
+    "name": "finalizedStateRoots",
+    "outputs": [{
+      "internalType": "bytes32",
+      "name": "",
+      "type": "bytes32"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      },
+      {
+        "components": [{
+            "internalType": "bytes32",
+            "name": "l2Tol1Root",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "messageCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "l1MessageHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct INilRollup.PublicDataInfo",
+        "name": "publicDataInfo",
+        "type": "tuple"
+      }
+    ],
+    "name": "generatePublicInputForValidityProofVerification",
+    "outputs": [{
+      "internalType": "bytes",
+      "name": "",
+      "type": "bytes"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllAdmins",
+    "outputs": [{
+      "internalType": "address[]",
+      "name": "",
+      "type": "address[]"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllProposers",
+    "outputs": [{
+      "internalType": "address[]",
+      "name": "",
+      "type": "address[]"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "uint256",
+      "name": "index",
+      "type": "uint256"
+    }],
+    "name": "getBlobHash",
+    "outputs": [{
+      "internalType": "bytes32",
+      "name": "",
+      "type": "bytes32"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "string",
+      "name": "batchIndex",
+      "type": "string"
+    }],
+    "name": "getBlobVersionedHashes",
+    "outputs": [{
+      "internalType": "bytes32[]",
+      "name": "",
+      "type": "bytes32[]"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCurrentL2ToL1Root",
+    "outputs": [{
+      "internalType": "bytes32",
+      "name": "",
+      "type": "bytes32"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCurrentStateRoot",
+    "outputs": [{
+      "internalType": "bytes32",
+      "name": "",
+      "type": "bytes32"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getLastFinalizedBatchIndex",
+    "outputs": [{
+      "internalType": "string",
+      "name": "",
+      "type": "string"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getOwner",
+    "outputs": [{
+      "internalType": "address",
+      "name": "",
+      "type": "address"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "bytes32",
+      "name": "role",
+      "type": "bytes32"
+    }],
+    "name": "getRoleAdmin",
+    "outputs": [{
+      "internalType": "bytes32",
+      "name": "",
+      "type": "bytes32"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRoleMember",
+    "outputs": [{
+      "internalType": "address",
+      "name": "",
+      "type": "address"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "bytes32",
+      "name": "role",
+      "type": "bytes32"
+    }],
+    "name": "getRoleMemberCount",
+    "outputs": [{
+      "internalType": "uint256",
+      "name": "",
+      "type": "uint256"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "bytes32",
+      "name": "role",
+      "type": "bytes32"
+    }],
+    "name": "getRoleMembers",
+    "outputs": [{
+      "internalType": "address[]",
+      "name": "",
+      "type": "address[]"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "grantAccess",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "account",
+      "type": "address"
+    }],
+    "name": "grantProposerAccess",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "account",
+      "type": "address"
+    }],
+    "name": "grantProposerAdminRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "grantRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "hasRole",
+    "outputs": [{
+      "internalType": "bool",
+      "name": "",
+      "type": "bool"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "uint64",
+        "name": "_l2ChainId",
+        "type": "uint64"
+      },
+      {
+        "internalType": "address",
+        "name": "_owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_defaultAdmin",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_nilVerifierAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_proposer",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_genesisStateRoot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "initialize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "proposerArg",
+      "type": "address"
+    }],
+    "name": "isAProposer",
+    "outputs": [{
+      "internalType": "bool",
+      "name": "",
+      "type": "bool"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "adminArg",
+      "type": "address"
+    }],
+    "name": "isAnAdmin",
+    "outputs": [{
+      "internalType": "bool",
+      "name": "",
+      "type": "bool"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "ownerArg",
+      "type": "address"
+    }],
+    "name": "isAnOwner",
+    "outputs": [{
+      "internalType": "bool",
+      "name": "",
+      "type": "bool"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "string",
+      "name": "batchIndex",
+      "type": "string"
+    }],
+    "name": "isBatchCommitted",
+    "outputs": [{
+      "internalType": "bool",
+      "name": "",
+      "type": "bool"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "string",
+      "name": "batchIndex",
+      "type": "string"
+    }],
+    "name": "isBatchFinalized",
+    "outputs": [{
+      "internalType": "bool",
+      "name": "",
+      "type": "bool"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "bytes32",
+      "name": "stateRoot",
+      "type": "bytes32"
+    }],
+    "name": "isRootFinalized",
+    "outputs": [{
+      "internalType": "bool",
+      "name": "",
+      "type": "bool"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "l1BridgeMessenger",
+    "outputs": [{
+      "internalType": "contract IL1BridgeMessenger",
+      "name": "",
+      "type": "address"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "l1MessageHash",
+    "outputs": [{
+      "internalType": "bytes32",
+      "name": "",
+      "type": "bytes32"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "l2ChainId",
+    "outputs": [{
+      "internalType": "uint64",
+      "name": "",
+      "type": "uint64"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "lastFinalizedBatchIndex",
+    "outputs": [{
+      "internalType": "string",
+      "name": "",
+      "type": "string"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nilVerifierAddress",
+    "outputs": [{
+      "internalType": "address",
+      "name": "",
+      "type": "address"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [{
+      "internalType": "address",
+      "name": "",
+      "type": "address"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "paused",
+    "outputs": [{
+      "internalType": "bool",
+      "name": "",
+      "type": "bool"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "bytes32",
+      "name": "stateRoot",
+      "type": "bytes32"
+    }],
+    "name": "previousStateRoot",
+    "outputs": [{
+      "internalType": "bytes32",
+      "name": "",
+      "type": "bytes32"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "account",
+      "type": "address"
+    }],
+    "name": "removeAdmin",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "bytes32",
+      "name": "role",
+      "type": "bytes32"
+    }],
+    "name": "renounceAccess",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "callerConfirmation",
+        "type": "address"
+      }
+    ],
+    "name": "renounceRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "bytes32",
+      "name": "targetStateRoot",
+      "type": "bytes32"
+    }],
+    "name": "resetState",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "revokeAccess",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "account",
+      "type": "address"
+    }],
+    "name": "revokeProposerAccess",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "account",
+      "type": "address"
+    }],
+    "name": "revokeProposerAdminRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "revokeRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "l1BridgeMessengerAddress",
+      "type": "address"
+    }],
+    "name": "setL1BridgeMessenger",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "bool",
+      "name": "_status",
+      "type": "bool"
+    }],
+    "name": "setPause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "nilVerifier",
+      "type": "address"
+    }],
+    "name": "setVerifierAddress",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "bytes32",
+      "name": "",
+      "type": "bytes32"
+    }],
+    "name": "stateRootIndex",
+    "outputs": [{
+      "internalType": "string",
+      "name": "",
+      "type": "string"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "bytes4",
+      "name": "interfaceId",
+      "type": "bytes4"
+    }],
+    "name": "supportsInterface",
+    "outputs": [{
+      "internalType": "bool",
+      "name": "",
+      "type": "bool"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "newOwner",
+      "type": "address"
+    }],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+      "internalType": "address",
+      "name": "newOwner",
+      "type": "address"
+    }],
+    "name": "transferOwnershipRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "oldStateRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "newStateRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "dataProofs",
+        "type": "bytes[]"
+      },
+      {
+        "internalType": "bytes",
+        "name": "validityProof",
+        "type": "bytes"
+      },
+      {
+        "components": [{
+            "internalType": "bytes32",
+            "name": "l2Tol1Root",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "messageCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "l1MessageHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct INilRollup.PublicDataInfo",
+        "name": "publicDataInfo",
+        "type": "tuple"
+      }
+    ],
+    "name": "updateState",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{
+        "internalType": "bytes32",
+        "name": "blobVersionedHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "dataProof",
+        "type": "bytes"
+      }
+    ],
+    "name": "verifyDataProof",
+    "outputs": [],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

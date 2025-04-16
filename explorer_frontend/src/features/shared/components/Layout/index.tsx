@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useStyletron } from "styletron-react";
 import { useMobile } from "../../hooks/useMobile";
+import { Logo } from "./Logo";
 import { Navbar } from "./Navbar";
 import { mobileContainerStyle, mobileContentStyle, styles } from "./styles";
 
@@ -16,7 +17,7 @@ export const Layout = ({ children, sidebar, navbar }: LayoutProps) => {
 
   return (
     <div className={css(isMobile ? mobileContainerStyle : styles.container)}>
-      <Navbar>{navbar}</Navbar>
+      <Navbar logo={<Logo />}>{navbar}</Navbar>
       <div className={css(isMobile ? mobileContentStyle : styles.content)}>
         {sidebar}
         {children}

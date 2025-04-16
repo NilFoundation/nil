@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"slices"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
-	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -40,7 +38,7 @@ import (
 )
 
 // syncer will pull blocks actively if no blocks appear for 5 rounds
-const syncTimeoutFactor = 5
+const defaultSyncTimeoutFactor = 5
 
 func startRpcServer(
 	ctx context.Context,
@@ -49,7 +47,9 @@ func startRpcServer(
 	db db.ReadOnlyDB,
 	client client.Client,
 ) error {
-	logger := logging.NewLogger("RPC")
+	logger := logging.NewLogger("RPC").With().
+		Int(logging.FieldRpcPort, cfg.RPCPort).
+		Logger()
 
 	addr := cfg.HttpUrl
 	if addr == "" {
@@ -191,67 +191,48 @@ type ServiceInterop struct {
 
 func getRawApi(
 	cfg *Config,
-	networkManager *network.Manager,
+	networkManager network.Manager,
 	database db.DB,
 	txnPools map[types.ShardId]txnpool.Pool,
-) (*rawapi.NodeApiOverShardApis, error) {
-	var myShards []uint
+) rawapi.NodeApi {
+	nodeApiBuilder := rawapi.NodeApiBuilder(database, networkManager)
+
 	switch cfg.RunMode {
-	case BlockReplayRunMode:
-		txnPools = nil
-		fallthrough
-	case NormalRunMode, ArchiveRunMode:
-		myShards = cfg.GetMyShards()
 	case RpcRunMode:
-	case CollatorsOnlyRunMode:
-		return nil, nil
-	default:
-		panic("unsupported run mode for raw API")
-	}
+		for shardId := range types.ShardId(cfg.NShards) {
+			nodeApiBuilder.
+				WithNetworkShardApiClientRo(shardId).
+				WithNetworkShardApiClientRw(shardId).
+				WithNetworkShardApiClientDev(shardId)
+		}
 
-	shardApis := make(map[types.ShardId]rawapi.ShardApi)
-	for shardId := range types.ShardId(cfg.NShards) {
-		var err error
-		if slices.Contains(myShards, uint(shardId)) {
-			shardApis[shardId] = rawapi.NewLocalShardApi(shardId, database, txnPools[shardId], cfg.EnableDevApi)
-			if assert.Enable {
-				api, ok := shardApis[shardId].(*rawapi.LocalShardApi)
-				check.PanicIfNot(ok)
-				shardApis[shardId], err = rawapi.NewLocalRawApiAccessor(shardId, api)
+	case ArchiveRunMode:
+		for shardId := range types.ShardId(cfg.NShards) {
+			nodeApiBuilder.WithLocalShardApiRo(shardId)
+		}
+
+	case NormalRunMode:
+		for shardId := range types.ShardId(cfg.NShards) {
+			nodeApiBuilder.WithLocalShardApiRo(shardId)
+			if cfg.IsShardActive(shardId) {
+				nodeApiBuilder.WithLocalShardApiRw(shardId, txnPools[shardId])
 			}
-		} else {
-			shardApis[shardId], err = rawapi.NewNetworkRawApiAccessor(shardId, networkManager)
+			if cfg.EnableDevApi {
+				nodeApiBuilder.WithLocalShardApiDev(shardId)
+			}
 		}
-		if err != nil {
-			return nil, err
-		}
-	}
-	rawApi := rawapi.NewNodeApiOverShardApis(shardApis)
-	return rawApi, nil
-}
 
-func setP2pRequestHandlers(
-	ctx context.Context,
-	rawApi *rawapi.NodeApiOverShardApis,
-	networkManager *network.Manager,
-	readonly bool,
-	logger logging.Logger,
-) error {
-	if networkManager == nil {
+	case BlockReplayRunMode:
+		nodeApiBuilder.WithLocalShardApiRo(cfg.Replay.ShardId)
+
+	case CollatorsOnlyRunMode:
 		return nil
 	}
-	for shardId, api := range rawApi.Apis {
-		if err := rawapi.SetShardApiAsP2pRequestHandlersIfAllowed(
-			ctx, api, networkManager, readonly, logger,
-		); err != nil {
-			logger.Error().Err(err).Stringer(logging.FieldShardId, shardId).Msg("Failed to set raw API request handler")
-			return err
-		}
-	}
-	return nil
+
+	return nodeApiBuilder.BuildAndReset()
 }
 
-func validateArchiveNodeConfig(_ *Config, nm *network.Manager) error {
+func validateArchiveNodeConfig(_ *Config, nm network.Manager) error {
 	if nm == nil {
 		return errors.New("failed to start archive node without network configuration")
 	}
@@ -272,7 +253,7 @@ func initSyncers(ctx context.Context, syncers []*collate.Syncer, allowDbDrop boo
 
 func getSyncerConfig(name string, cfg *Config, shardId types.ShardId) *collate.SyncerConfig {
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
-	syncerTimeout := syncTimeoutFactor * collatorTickPeriod
+	syncerTimeout := collatorTickPeriod * time.Duration(cfg.SyncTimeoutFactor)
 
 	return &collate.SyncerConfig{
 		Name:                 name,
@@ -300,7 +281,7 @@ func createSyncers(
 	name string,
 	cfg *Config,
 	validators []*collate.Validator,
-	nm *network.Manager,
+	nm network.Manager,
 	database db.DB,
 	logger logging.Logger,
 ) (*syncersResult, error) {
@@ -351,6 +332,9 @@ func createSyncers(
 		func(ctx context.Context) error {
 			for _, syncer := range res.syncers {
 				if err := syncer.WaitComplete(ctx); err != nil {
+					if errors.Is(err, context.Canceled) {
+						return nil
+					}
 					return err
 				}
 			}
@@ -361,7 +345,7 @@ func createSyncers(
 }
 
 type Node struct {
-	NetworkManager *network.Manager
+	NetworkManager network.Manager
 	funcs          []concurrent.Task
 	logger         logging.Logger
 	ctx            context.Context
@@ -397,7 +381,7 @@ func runNormalOrCollatorsOnly(
 	funcs []concurrent.Task,
 	cfg *Config,
 	database db.DB,
-	networkManager *network.Manager,
+	networkManager network.Manager,
 	logger logging.Logger,
 ) ([]concurrent.Task, map[types.ShardId]txnpool.Pool, error) {
 	if err := cfg.LoadValidatorKeys(); err != nil {
@@ -477,6 +461,10 @@ func CreateNode(
 		cfg.CollatorTickPeriodMs = defaultCollatorTickPeriodMs
 	}
 
+	if cfg.SyncTimeoutFactor == 0 {
+		cfg.SyncTimeoutFactor = defaultSyncTimeoutFactor
+	}
+
 	if cfg.ZeroState == nil {
 		var err error
 		cfg.ZeroState, err = execution.CreateDefaultZeroStateConfig(nil)
@@ -486,9 +474,9 @@ func CreateNode(
 		}
 	}
 
-	var txnPools map[types.ShardId]txnpool.Pool
-	if cfg.Network != nil && cfg.RunMode != NormalRunMode {
-		cfg.Network.DHTMode = dht.ModeClient
+	createNetworkManager := cfg.NetworkManagerFactory
+	if createNetworkManager == nil {
+		createNetworkManager = CreateNetworkManager
 	}
 	networkManager, err := createNetworkManager(ctx, cfg, database)
 	if err != nil {
@@ -496,6 +484,7 @@ func CreateNode(
 		return nil, err
 	}
 
+	var txnPools map[types.ShardId]txnpool.Pool
 	var syncersResult *syncersResult
 	switch cfg.RunMode {
 	case NormalRunMode, CollatorsOnlyRunMode:
@@ -546,7 +535,7 @@ func CreateNode(
 		funcs = append(funcs, concurrent.MakeTask(
 			"connect to peers",
 			func(ctx context.Context) error {
-				network.ConnectToPeers(ctx, cfg.RpcNode.ArchiveNodeList, *networkManager, logger)
+				network.ConnectToPeers(ctx, cfg.RpcNode.ArchiveNodeList, networkManager, logger)
 				return nil
 			}))
 	default:
@@ -567,17 +556,11 @@ func CreateNode(
 			return nil
 		}))
 
-	rawApi, err := getRawApi(cfg, networkManager, database, txnPools)
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to create raw API")
-		return nil, err
-	}
-
+	rawApi := getRawApi(cfg, networkManager, database, txnPools)
 	funcs = addRpcServerWorkerIfEnabled(funcs, cfg, rawApi, syncersResult, database, logger)
 
 	if cfg.RunMode != CollatorsOnlyRunMode && cfg.RunMode != RpcRunMode {
-		readonly := cfg.RunMode != NormalRunMode
-		if err := setP2pRequestHandlers(ctx, rawApi, networkManager, readonly, logger); err != nil {
+		if err := rawApi.SetP2pRequestHandlers(ctx, networkManager, logger); err != nil {
 			return nil, err
 		}
 
@@ -599,7 +582,7 @@ func CreateNode(
 func addRpcServerWorkerIfEnabled(
 	tasks []concurrent.Task,
 	cfg *Config,
-	rawApi *rawapi.NodeApiOverShardApis,
+	rawApi rawapi.NodeApi,
 	syncersResult *syncersResult,
 	database db.DB,
 	logger logging.Logger,
@@ -668,7 +651,11 @@ func Run(
 	return 0
 }
 
-func createNetworkManager(ctx context.Context, cfg *Config, database db.DB) (*network.Manager, error) {
+func CreateNetworkManager(ctx context.Context, cfg *Config, database db.DB) (network.Manager, error) {
+	if cfg.Network != nil && cfg.RunMode != NormalRunMode {
+		cfg.Network.DHTMode = dht.ModeClient
+	}
+
 	if cfg.RunMode == RpcRunMode {
 		return network.NewClientManager(ctx, cfg.Network, database)
 	}
@@ -700,7 +687,7 @@ func createValidators(
 	ctx context.Context,
 	cfg *Config,
 	database db.DB,
-	networkManager *network.Manager,
+	networkManager network.Manager,
 ) ([]*collate.Validator, error) {
 	collatorTickPeriod := time.Millisecond * time.Duration(cfg.CollatorTickPeriodMs)
 
@@ -728,8 +715,10 @@ func createValidators(
 
 func createShards(
 	cfg *Config,
-	validators []*collate.Validator, syncers *syncersResult,
-	database db.DB, networkManager *network.Manager,
+	validators []*collate.Validator,
+	syncers *syncersResult,
+	database db.DB,
+	networkManager network.Manager,
 	logger logging.Logger,
 ) ([]concurrent.Task, error) {
 	funcs := make([]concurrent.Task, 0, cfg.NShards)
@@ -770,7 +759,7 @@ func createShards(
 					if err := consensus.Init(ctx); err != nil {
 						return err
 					}
-					if err := collator.Run(ctx, consensus); err != nil {
+					if err := collator.Run(ctx); err != nil {
 						logger.Error().
 							Err(err).
 							Stringer(logging.FieldShardId, shardId).

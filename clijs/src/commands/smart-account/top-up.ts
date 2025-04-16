@@ -1,6 +1,6 @@
 import { Args } from "@oclif/core";
 import { BaseCommand } from "../../base.js";
-import { bigintArg } from "../../types";
+import { bigintArg } from "../../types.js";
 
 export default class SmartAccountTopup extends BaseCommand {
   static override summary = "Top-up address with token";

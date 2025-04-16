@@ -85,7 +85,7 @@ func runCallReadonly(cmd *cobra.Command, args []string, cfg *common.Config, para
 	if len(params.AbiPath) > 0 {
 		contractAbi, abiErr = common.ReadAbiFromFile(params.AbiPath)
 	} else {
-		contractAbi, abiErr = common.FetchAbiFromCometa(address)
+		contractAbi, abiErr = common.FetchAbiFromCometa(cmd.Context(), address)
 	}
 	if abiErr != nil {
 		return fmt.Errorf("failed to fetch ABI: %w", abiErr)

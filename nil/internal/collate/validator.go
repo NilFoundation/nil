@@ -54,7 +54,7 @@ type Validator struct {
 
 	txFabric       db.DB
 	pool           TxnPool
-	networkManager *network.Manager      // +checklocksignore: thread safe
+	networkManager network.Manager       // +checklocksignore: thread safe
 	blockVerifier  *signer.BlockVerifier // +checklocksignore: thread safe
 
 	mutex         sync.RWMutex
@@ -70,7 +70,7 @@ type Validator struct {
 }
 
 func NewValidator(
-	params *Params, mainShardValidator *Validator, txFabric db.DB, pool TxnPool, nm *network.Manager,
+	params *Params, mainShardValidator *Validator, txFabric db.DB, pool TxnPool, nm network.Manager,
 ) (*Validator, error) {
 	metrics, err := NewMetricsHandler(params.ShardId)
 	if err != nil {
@@ -182,7 +182,10 @@ func (s *Validator) buildBlockHashByProposal(ctx context.Context, proposal *exec
 	}
 	defer gen.Rollback()
 
-	gasPrices := gen.CollectGasPrices(proposal.PrevBlockId)
+	gasPrices, err := gen.CollectGasPrices(proposal.PrevBlockId)
+	if err != nil {
+		return common.EmptyHash, fmt.Errorf("failed to collect gas prices: %w", err)
+	}
 	res, err := gen.BuildBlock(proposal, gasPrices)
 	if err != nil {
 		return common.EmptyHash, fmt.Errorf("failed to generate block: %w", err)

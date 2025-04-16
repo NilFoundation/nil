@@ -14,6 +14,10 @@ func (dp DeployPayload) Code() Code {
 	return Code(dp.bytes[:len(dp.bytes)-common.HashSize])
 }
 
+func (dp DeployPayload) Salt() common.Hash {
+	return common.Hash(dp.bytes[len(dp.bytes)-common.HashSize:])
+}
+
 func (dp DeployPayload) Bytes() []byte {
 	return dp.bytes
 }

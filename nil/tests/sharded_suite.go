@@ -35,7 +35,7 @@ type Instance struct {
 	RpcUrl     string
 	P2pAddress network.AddrInfo
 	Client     client.Client
-	nm         *network.Manager
+	nm         network.Manager
 	Config     *nilservice.Config
 }
 
@@ -55,13 +55,6 @@ type ShardedSuite struct {
 
 	Instances []Instance
 }
-
-type DhtBootstrapByValidators int
-
-const (
-	WithoutDhtBootstrapByValidators DhtBootstrapByValidators = iota
-	WithDhtBootstrapByValidators
-)
 
 func (s *ShardedSuite) Cancel() {
 	s.T().Helper()
@@ -118,16 +111,17 @@ func createOneShardOneValidatorCfg(
 	}
 
 	return &nilservice.Config{
-		NShards:              cfg.NShards,
-		MyShards:             myShards,
-		SplitShards:          true,
-		HttpUrl:              s.Instances[index].RpcUrl,
-		Topology:             cfg.Topology,
-		CollatorTickPeriodMs: cfg.CollatorTickPeriodMs,
-		Network:              netCfg,
-		ValidatorKeysPath:    validatorKeysPath,
-		ZeroState:            newZeroState(cfg.ZeroState, validators),
-		DisableConsensus:     cfg.DisableConsensus,
+		NShards:               cfg.NShards,
+		MyShards:              myShards,
+		SplitShards:           true,
+		HttpUrl:               s.Instances[index].RpcUrl,
+		Topology:              cfg.Topology,
+		CollatorTickPeriodMs:  cfg.CollatorTickPeriodMs,
+		Network:               netCfg,
+		ValidatorKeysPath:     validatorKeysPath,
+		ZeroState:             newZeroState(cfg.ZeroState, validators),
+		DisableConsensus:      cfg.DisableConsensus,
+		NetworkManagerFactory: cfg.NetworkManagerFactory,
 	}
 }
 
@@ -254,8 +248,7 @@ func (s *ShardedSuite) start(
 		s.connectToInstances(shard.nm)
 	}
 
-	s.waitZerostate()
-	s.waitShardsTick(cfg.NShards)
+	s.waitShardsTick()
 }
 
 func (s *ShardedSuite) Start(cfg *nilservice.Config, port int, options ...network.Option) {
@@ -270,7 +263,7 @@ func (s *ShardedSuite) StartShardAllValidators(cfg *nilservice.Config, port int)
 	s.start(cfg, port, createAllShardsAllValidatorsCfg)
 }
 
-func (s *ShardedSuite) connectToInstances(nm *network.Manager) {
+func (s *ShardedSuite) connectToInstances(nm network.Manager) {
 	s.T().Helper()
 
 	var wg sync.WaitGroup
@@ -291,13 +284,20 @@ func (s *ShardedSuite) GetNShards() uint32 {
 }
 
 type ArchiveNodeConfig struct {
-	Ctx                context.Context
-	Wg                 *sync.WaitGroup
-	AllowDbDrop        bool
-	Port               int
-	WithBootstrapPeers bool
-	DisableConsensus   bool
-	NetworkOptions     []network.Option
+	Ctx                   context.Context
+	Wg                    *sync.WaitGroup
+	AllowDbDrop           bool
+	Port                  int
+	WithBootstrapPeers    bool
+	DisableConsensus      bool
+	NetworkOptions        []network.Option
+	SyncTimeoutFactor     uint32
+	NetworkManagerFactory func(context.Context, *nilservice.Config, db.DB) (network.Manager, error)
+}
+
+type RpcNodeConfig struct {
+	WithDhtBootstrapByValidators bool
+	ArchiveNodes                 network.AddrInfoSlice
 }
 
 func (s *ShardedSuite) RunArchiveNode(params *ArchiveNodeConfig) (*nilservice.Config, network.AddrInfo, chan error) {
@@ -307,6 +307,8 @@ func (s *ShardedSuite) RunArchiveNode(params *ArchiveNodeConfig) (*nilservice.Co
 	if params.Ctx != nil {
 		ctx = params.Ctx
 	}
+	ctx = context.WithValue(ctx, concurrent.RootContextNameLabel, "archive node lifecycle")
+
 	wg := &s.Wg
 	if params.Wg != nil {
 		wg = params.Wg
@@ -318,15 +320,17 @@ func (s *ShardedSuite) RunArchiveNode(params *ArchiveNodeConfig) (*nilservice.Co
 	serviceName := fmt.Sprintf("archive-%d", params.Port)
 
 	cfg := &nilservice.Config{
-		AllowDbDrop:      params.AllowDbDrop,
-		NShards:          s.GetNShards(),
-		Network:          netCfg,
-		HttpUrl:          rpc.GetSockPathService(s.T(), serviceName),
-		RunMode:          nilservice.ArchiveRunMode,
-		ZeroState:        s.Instances[0].Config.ZeroState,
-		DisableConsensus: params.DisableConsensus,
+		AllowDbDrop:           params.AllowDbDrop,
+		NShards:               s.GetNShards(),
+		Network:               netCfg,
+		HttpUrl:               rpc.GetSockPathService(s.T(), serviceName),
+		RunMode:               nilservice.ArchiveRunMode,
+		ZeroState:             s.Instances[0].Config.ZeroState,
+		CollatorTickPeriodMs:  s.Instances[0].Config.CollatorTickPeriodMs,
+		DisableConsensus:      params.DisableConsensus,
+		SyncTimeoutFactor:     params.SyncTimeoutFactor,
+		NetworkManagerFactory: params.NetworkManagerFactory,
 	}
-
 	PatchConfigWithTestDefaults(cfg)
 
 	cfg.MyShards = slices.Collect(common.Range(0, uint(cfg.NShards)))
@@ -375,10 +379,7 @@ func (s *ShardedSuite) StartArchiveNode(params *ArchiveNodeConfig) (client.Clien
 	return s.EnsureArchiveNodeStarted(s.RunArchiveNode(params))
 }
 
-func (s *ShardedSuite) StartRPCNode(
-	dhtBootstrapByValidators DhtBootstrapByValidators,
-	archiveNodes network.AddrInfoSlice,
-) (client.Client, string) {
+func (s *ShardedSuite) StartRPCNode(params *RpcNodeConfig) (client.Client, string) {
 	s.T().Helper()
 
 	netCfg, _ := network.GenerateConfig(s.T(), 0)
@@ -393,14 +394,14 @@ func (s *ShardedSuite) StartRPCNode(
 		RpcNode: nilservice.NewDefaultRpcNodeConfig(),
 	}
 
-	if dhtBootstrapByValidators == WithDhtBootstrapByValidators {
+	if params.WithDhtBootstrapByValidators {
 		netCfg.DHTBootstrapPeers = slices.Collect(common.Transform(slices.Values(s.Instances), getShardAddress))
 	}
-	cfg.RpcNode.ArchiveNodeList = archiveNodes
+	cfg.RpcNode.ArchiveNodeList = params.ArchiveNodes
 
 	node, err := nilservice.CreateNode(s.Context, serviceName, cfg, s.DbInit(), nil)
 	s.Require().NoError(err)
-	if dhtBootstrapByValidators == WithDhtBootstrapByValidators {
+	if params.WithDhtBootstrapByValidators {
 		s.connectToInstances(node.NetworkManager)
 	}
 
@@ -463,7 +464,7 @@ func (s *ShardedSuite) checkNodeStart(nShards uint32, client client.Client) {
 	wg.Wait()
 }
 
-func (s *ShardedSuite) waitZerostate() {
+func (s *ShardedSuite) waitShardsTick() {
 	s.T().Helper()
 
 	var wg sync.WaitGroup
@@ -472,20 +473,12 @@ func (s *ShardedSuite) waitZerostate() {
 		go func() {
 			defer wg.Done()
 
-			for _, shard := range instance.Config.MyShards {
-				WaitZerostate(s.T(), instance.Client, types.ShardId(shard))
+			for shard := range instance.Config.NShards {
+				WaitShardTick(s.T(), instance.Client, types.ShardId(shard))
 			}
 		}()
 	}
 	wg.Wait()
-}
-
-func (s *ShardedSuite) waitShardsTick(nShards uint32) {
-	for _, instance := range s.Instances {
-		for shardId := range types.ShardId(nShards) {
-			WaitShardTick(s.T(), instance.Client, shardId)
-		}
-	}
 }
 
 func (s *ShardedSuite) LoadContract(path string, name string) (types.Code, abi.ABI) {

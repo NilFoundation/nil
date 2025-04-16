@@ -1,6 +1,5 @@
 nil/internal/execution
 nil/tests/archive_node
-nil/tests/async_await
 nil/tests/basic
 nil/tests/block_replay
 nil/tests/cli
@@ -20,6 +19,7 @@ nil/tests/multitoken
 nil/tests/nil_load_generator_service
 nil/tests/opcodes
 nil/tests/read_through
+nil/tests/request_response
 nil/tests/rpc_node
 nil/tests/rpc_service
 nil/tests/smart-account

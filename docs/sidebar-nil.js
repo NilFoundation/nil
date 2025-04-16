@@ -359,8 +359,21 @@ export default {
   migrationGuides: [
     {
       type: "category",
-      label: "March 2025 releases",
+      label: "April 2025 releases",
       collapsed: false,
+      collapsible: true,
+      items: [
+        {
+          type: "doc",
+          label: "03 April 2025 guide",
+          id: "migration-guides/april-1604-2025-release",
+        },
+      ],
+    },
+    {
+      type: "category",
+      label: "March 2025 releases",
+      collapsed: true,
       collapsible: true,
       items: [
         {

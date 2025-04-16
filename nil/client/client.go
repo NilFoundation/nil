@@ -3,7 +3,9 @@ package client
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -251,31 +253,22 @@ func sendExternalTransactionWithSeqnoRetry(
 	return common.EmptyHash, fmt.Errorf("failed to send transaction in 20 retries, getting %w", err)
 }
 
-func CreateInternalTransactionPayload(ctx context.Context, bytecode types.Code, value types.Value,
+func CreateInternalTransactionPayload(bytecode types.Code, value types.Value,
 	tokens []types.TokenBalance, contractAddress types.Address, isDeploy bool,
 ) (types.Code, error) {
-	var kind types.TransactionKind
+	var err error
+	var calldataExt types.Code
 	if isDeploy {
-		kind = types.DeployTransactionKind
+		dp := types.ParseDeployPayload(bytecode)
+		if dp == nil {
+			return types.Code{}, errors.New("failed to parse deploy payload")
+		}
+		calldataExt, err = contracts.NewCallData(contracts.NameSmartAccount, "asyncDeploy",
+			big.NewInt(int64(contractAddress.ShardId())), value.ToBig(), []byte(dp.Code()), dp.Salt().Big())
 	} else {
-		kind = types.ExecutionTransactionKind
+		calldataExt, err = contracts.NewCallData(contracts.NameSmartAccount, "asyncCall",
+			contractAddress, types.EmptyAddress, types.EmptyAddress, tokens, value, []byte(bytecode))
 	}
-
-	intTxn := &types.InternalTransactionPayload{
-		Data:        bytecode,
-		To:          contractAddress,
-		Value:       value,
-		ForwardKind: types.ForwardKindRemaining,
-		Token:       tokens,
-		Kind:        kind,
-	}
-
-	intTxnData, err := intTxn.MarshalSSZ()
-	if err != nil {
-		return types.Code{}, err
-	}
-
-	calldataExt, err := contracts.NewCallData(contracts.NameSmartAccount, "send", intTxnData)
 	if err != nil {
 		return types.Code{}, err
 	}
@@ -295,7 +288,7 @@ func SendTransactionViaSmartAccount(
 	pk *ecdsa.PrivateKey,
 	isDeploy bool,
 ) (common.Hash, error) {
-	calldataExt, err := CreateInternalTransactionPayload(ctx, bytecode, value, tokens, contractAddress, isDeploy)
+	calldataExt, err := CreateInternalTransactionPayload(bytecode, value, tokens, contractAddress, isDeploy)
 	if err != nil {
 		return common.EmptyHash, err
 	}

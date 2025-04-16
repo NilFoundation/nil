@@ -17,22 +17,19 @@ import { Prec } from "@codemirror/state";
 import { type EditorView, keymap } from "@codemirror/view";
 import { useStyletron } from "baseui";
 import { expandProperty } from "inline-style-expand-shorthand";
-import { type ReactNode, memo, useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
 import { SolidityCodeField } from "../shared/components/SolidityCodeField";
-import { CodeToolbar } from "./code-toolbar/CodeToolbar";
+import { CompileVersionButton } from "./code-toolbar/CompileVersionButton";
 import { useCompileButton } from "./hooks/useCompileButton";
 
 interface CodeProps {
   extraMobileButton?: ReactNode;
-  extraToolbarButton?: ReactNode;
 }
 
-const MemoizedCodeToolbar = memo(CodeToolbar);
-
-export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
+export const Code = ({ extraMobileButton }: CodeProps) => {
   const [isMobile] = useMobile();
   const [code, isDownloading, errors, fetchingCodeSnippet, compiling, warnings] = useUnit([
     $code,
@@ -127,43 +124,6 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
           height: "100%",
         })}
       >
-        <div
-          className={css({
-            display: "flex",
-            justifyContent: "flex-start",
-            gap: "8px",
-            paddingBottom: "8px",
-            ...getMobileStyles({
-              flexDirection: "column",
-              gap: "8px",
-            }),
-            zIndex: 2,
-            height: "auto",
-          })}
-        >
-          <MemoizedCodeToolbar disabled={isDownloading} extraToolbarButton={extraToolbarButton} />
-          {!isMobile && (
-            <Button
-              kind={BUTTON_KIND.primary}
-              isLoading={isDownloading || compiling}
-              size={BUTTON_SIZE.default}
-              onClick={() => compile()}
-              disabled={noCode}
-              overrides={{
-                Root: {
-                  style: {
-                    whiteSpace: "nowrap",
-                    lineHeight: 1,
-                    marginLeft: "auto",
-                  },
-                },
-              }}
-              data-testid="compile-button"
-            >
-              {btnTextContent}
-            </Button>
-          )}
-        </div>
         {fetchingCodeSnippet ? (
           <div
             className={css({
@@ -184,7 +144,7 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
           <div
             className={css({
               width: "100%",
-              height: `calc(100% - ${isMobile ? "32px - 8px - 8px - 48px - 8px - 48px - 8px" : "48px - 8px"})`,
+              height: `calc(100% - ${isMobile ? "32px - 8px - 8px - 48px - 8px - 48px - 8px" : "0px"})`,
               borderTopLeftRadius: "12px",
               borderTopRightRadius: "12px",
               borderBottomLeftRadius: "12px",
@@ -220,23 +180,14 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
               paddingTop: "8px",
             })}
           >
-            <Button
-              kind={BUTTON_KIND.primary}
+            <CompileVersionButton
               isLoading={isDownloading || compiling}
               onClick={() => compile()}
               disabled={noCode}
-              overrides={{
-                Root: {
-                  style: {
-                    lineHeight: 1,
-                    gridColumn: "1 / 3",
-                  },
-                },
-              }}
-              data-testid="compile-button"
-            >
-              {btnTextContent}
-            </Button>
+              content={btnTextContent}
+            />
+            {isMobile && extraMobileButton && extraMobileButton}
+
             <Button
               overrides={{
                 Root: {
@@ -277,8 +228,6 @@ export const Code = ({ extraMobileButton, extraToolbarButton }: CodeProps) => {
             >
               Contracts
             </Button>
-            {isMobile && extraMobileButton && extraMobileButton}
-            {isMobile && extraToolbarButton && extraToolbarButton}
           </div>
         )}
       </div>

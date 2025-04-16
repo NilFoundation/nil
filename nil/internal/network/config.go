@@ -3,6 +3,7 @@ package network
 import (
 	cm "github.com/NilFoundation/nil/nil/internal/network/connection_manager"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
@@ -30,7 +31,8 @@ type Config struct {
 	ConnectionManagerConfig *cm.Config `yaml:"connectionManager,omitempty"`
 
 	// Test-only
-	Reachability network.Reachability `yaml:"-"`
+	Reachability  network.Reachability `yaml:"-"`
+	PubSubOptions []pubsub.Option      `yaml:"-"`
 }
 
 type Option func(cfg *Config) error

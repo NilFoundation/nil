@@ -47,7 +47,10 @@ func (s *SuiteCliTestCall) SetupSuite() {
 		ZeroState:            zeroState,
 	}, 10525)
 
-	s.client, s.endpoint = s.StartRPCNode(tests.WithDhtBootstrapByValidators, nil)
+	s.client, s.endpoint = s.StartRPCNode(&tests.RpcNodeConfig{
+		WithDhtBootstrapByValidators: true,
+		ArchiveNodes:                 nil,
+	})
 
 	iniDataTmpl := `[nil]
 rpc_endpoint = {{ .HttpUrl }}

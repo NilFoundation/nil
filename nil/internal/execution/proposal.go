@@ -130,7 +130,7 @@ func SplitOutTransactions(
 	})
 }
 
-func ConvertTxnRefs(refs []*InternalTxnReference, parentBlocks []*ParentBlock) ([]*types.Transaction, error) {
+func convertTxnRefs(refs []*InternalTxnReference, parentBlocks []*ParentBlock) ([]*types.Transaction, error) {
 	res := make([]*types.Transaction, len(refs))
 	for i, ref := range refs {
 		if ref.ParentBlockIndex >= uint32(len(parentBlocks)) {
@@ -158,11 +158,11 @@ func ConvertProposal(proposal *ProposalSSZ) (*Proposal, error) {
 		parentBlocks[i] = converted
 	}
 
-	internalTxns, err := ConvertTxnRefs(proposal.InternalTxnRefs, parentBlocks)
+	internalTxns, err := convertTxnRefs(proposal.InternalTxnRefs, parentBlocks)
 	if err != nil {
 		return nil, fmt.Errorf("invalid internal transactions: %w", err)
 	}
-	forwardTxns, err := ConvertTxnRefs(proposal.ForwardTxnRefs, parentBlocks)
+	forwardTxns, err := convertTxnRefs(proposal.ForwardTxnRefs, parentBlocks)
 	if err != nil {
 		return nil, fmt.Errorf("invalid forward transactions: %w", err)
 	}

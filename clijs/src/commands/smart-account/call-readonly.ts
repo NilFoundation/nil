@@ -2,8 +2,8 @@ import type { CallRes, Hex } from "@nilfoundation/niljs";
 import { Args, Flags } from "@oclif/core";
 import type { Abi } from "abitype";
 import { BaseCommand } from "../../base.js";
-import { readJsonFile } from "../../common/utils";
-import { hexArg } from "../../types";
+import { readJsonFile } from "../../common/utils.js";
+import { hexArg } from "../../types.js";
 
 export default class SmartAccountCallReadOnly extends BaseCommand {
   static override summary = "Call view method of field of a smart account";

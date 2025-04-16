@@ -1,5 +1,12 @@
 .PHONY: pb_rawapi
-pb_rawapi: nil/services/rpc/rawapi/pb/account.pb.go nil/services/rpc/rawapi/pb/block.pb.go nil/services/rpc/rawapi/pb/transaction.pb.go nil/services/rpc/rawapi/pb/call.pb.go nil/services/rpc/rawapi/pb/common.pb.go nil/services/rpc/rawapi/pb/send.pb.go nil/services/rpc/rawapi/pb/system.pb.go
+pb_rawapi: \
+	nil/services/rpc/rawapi/pb/account.pb.go \
+	nil/services/rpc/rawapi/pb/block.pb.go \
+	nil/services/rpc/rawapi/pb/transaction.pb.go \
+	nil/services/rpc/rawapi/pb/call.pb.go \
+	nil/services/rpc/rawapi/pb/common.pb.go \
+	nil/services/rpc/rawapi/pb/send.pb.go \
+	nil/services/rpc/rawapi/pb/system.pb.go
 
 nil/services/rpc/rawapi/pb/account.pb.go: nil/services/rpc/rawapi/proto/account.proto
 	protoc --go_out=nil/services/rpc/rawapi/ nil/services/rpc/rawapi/proto/account.proto

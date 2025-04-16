@@ -3,7 +3,7 @@ package core
 import (
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rollupcontract"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
 )
 
 const (

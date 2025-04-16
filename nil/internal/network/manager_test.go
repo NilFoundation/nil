@@ -28,7 +28,7 @@ func (s *networkSuite) TearDownTest() {
 	s.ctxCancel()
 }
 
-func (s *networkSuite) newManagerWithBaseConfig(conf *Config) *Manager {
+func (s *networkSuite) newManagerWithBaseConfig(conf *Config) *BasicManager {
 	s.T().Helper()
 
 	conf = common.CopyPtr(conf)
@@ -41,7 +41,7 @@ func (s *networkSuite) newManagerWithBaseConfig(conf *Config) *Manager {
 	return NewTestManagerWithBaseConfig(s.context, s.T(), conf)
 }
 
-func (s *networkSuite) newManager() *Manager {
+func (s *networkSuite) newManager() *BasicManager {
 	s.T().Helper()
 
 	return s.newManagerWithBaseConfig(&Config{})

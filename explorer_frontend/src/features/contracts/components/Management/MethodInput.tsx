@@ -32,6 +32,13 @@ const MethodInput: FC<MethodInputProps> = ({
   const { type, name } = input;
   const [css, theme] = useStyletron();
 
+  const extractInputValue = (val: unknown) => {
+    if (typeof val === "object" && val !== null && "value" in val) {
+      return val.value;
+    }
+    return val;
+  };
+
   return (
     <div>
       {isAbiParameterTuple(input) ? (
@@ -94,7 +101,7 @@ const MethodInput: FC<MethodInputProps> = ({
                 },
               },
             }}
-            value={params?.[paramName] ? String(params[paramName]) : ""}
+            value={params?.[paramName] ? String(extractInputValue(params[paramName])) : ""}
             onChange={(e) => {
               const value = e.target.value;
               paramsHandler({ functionName: methodName, paramName, value });

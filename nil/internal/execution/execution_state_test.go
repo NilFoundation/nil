@@ -391,8 +391,16 @@ func (s *SuiteExecutionState) TestTransactionStatus() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
+	cfgAccessor, err := config.NewConfigAccessorTx(tx, nil)
+	s.Require().NoError(err)
+
+	defGP := *types.NewUint256(10)
+	s.Require().NoError(config.SetParamGasPrice(cfgAccessor, &config.ParamGasPrice{
+		Shards: []types.Uint256{defGP, defGP, defGP, defGP, defGP},
+	}))
+
 	es, err := NewExecutionState(tx, shardId, StateParams{
-		ConfigAccessor: config.GetStubAccessor(),
+		ConfigAccessor: cfgAccessor,
 	})
 	s.Require().NoError(err)
 	es.BaseFee = types.DefaultGasPrice
@@ -444,6 +452,20 @@ func (s *SuiteExecutionState) TestTransactionStatus() {
 		txn.From = faucetAddr
 		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
 		s.Equal(types.ErrorTransactionToMainShard, res.Error.Code())
+		s.Require().ErrorAs(res.Error, &vmErrStub)
+	})
+
+	s.Run("Call non-existing shard", func() {
+		txn := types.NewEmptyTransaction()
+		txn.To = faucetAddr
+		txn.Data = contracts.NewFaucetWithdrawToCallData(s.T(),
+			types.GenerateRandomAddress(shardId+1), types.NewValueFromUint64(1_000))
+		txn.Seqno = 1
+		txn.FeeCredit = toGasCredit(100_000)
+		txn.MaxFeePerGas = types.MaxFeePerGasDefault
+		txn.From = faucetAddr
+		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
+		s.Equal(types.ErrorShardIdIsTooBig, res.Error.Code())
 		s.Require().ErrorAs(res.Error, &vmErrStub)
 	})
 
@@ -565,54 +587,6 @@ func (s *SuiteExecutionState) TestPrecompiles() {
 		s.Equal(types.ErrorInsufficientBalance, res.Error.Code())
 	})
 
-	payload := &types.InternalTransactionPayload{
-		To: testAddr,
-	}
-
-	s.Run("testSendRawTxn: invalid transaction", func() {
-		txn.Data, err = abi.Pack("testSendRawTxn", []byte{1, 2})
-		s.Require().NoError(err)
-		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
-		s.True(res.Failed())
-		s.Equal(types.ErrorInvalidTransactionInputUnmarshalFailed, res.Error.Code())
-	})
-
-	s.Run("testSendRawTxn: send to main shard", func() {
-		payload.To = types.GenerateRandomAddress(0)
-		data, err := payload.MarshalSSZ()
-		s.Require().NoError(err)
-		txn.Data, err = abi.Pack("testSendRawTxn", data)
-		s.Require().NoError(err)
-		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
-		s.True(res.Failed())
-		s.Equal(types.ErrorTransactionToMainShard, res.Error.Code())
-		payload.To = testAddr
-	})
-
-	s.Run("testSendRawTxn: withdraw value failed", func() {
-		payload.Value = types.NewValueFromUint64(1_000_000_000_000_000)
-		data, err := payload.MarshalSSZ()
-		s.Require().NoError(err)
-		txn.Data, err = abi.Pack("testSendRawTxn", data)
-		s.Require().NoError(err)
-		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
-		s.True(res.Failed())
-		s.Equal(types.ErrorInsufficientBalance, res.Error.Code())
-	})
-
-	s.Run("testSendRawTxn: withdraw feeCredit failed", func() {
-		payload.Value = types.NewZeroValue()
-		payload.FeeCredit = types.NewValueFromUint64(1_000_000_000_000_000)
-		payload.ForwardKind = types.ForwardKindNone
-		data, err := payload.MarshalSSZ()
-		s.Require().NoError(err)
-		txn.Data, err = abi.Pack("testSendRawTxn", data)
-		s.Require().NoError(err)
-		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
-		s.True(res.Failed())
-		s.Equal(types.ErrorInsufficientBalance, res.Error.Code())
-	})
-
 	s.Run("testTokenBalance: cross shard", func() {
 		txn.Data, err = abi.Pack("testTokenBalance", types.GenerateRandomAddress(0),
 			types.TokenId(types.HexToAddress("0x0a")))
@@ -663,8 +637,8 @@ func (s *SuiteExecutionState) TestPanic() {
 
 	// Check normal execution is ok
 	txn := NewExecutionTransaction(types.MainSmartAccountAddress, types.MainSmartAccountAddress, 1,
-		contracts.NewSmartAccountSendCallData(s.T(), []byte(""), types.Gas(500_000), types.Value0, nil,
-			types.MainSmartAccountAddress, types.ExecutionTransactionKind))
+		contracts.NewSmartAccountAsyncCallCallData(s.T(), []byte(""), types.Value0, nil,
+			types.MainSmartAccountAddress))
 	execResult := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
 	s.False(execResult.Failed())
 

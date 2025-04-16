@@ -35,14 +35,6 @@ contract SmartAccount is NilTokenBase {
     }
 
     /**
-     * @dev Sends raw transaction.
-     * @param transaction The raw transaction to send.
-     */
-    function send(bytes calldata transaction) public onlyExternal {
-        Nil.sendTransaction(transaction);
-    }
-
-    /**
      * @dev Deploys a contract asynchronously.
      * @param shardId The shard ID where to deploy contract.
      * @param value The value to send.

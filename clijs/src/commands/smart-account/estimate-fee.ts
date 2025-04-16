@@ -2,8 +2,8 @@ import type { EstimateFeeResult, Hex } from "@nilfoundation/niljs";
 import { Args, Flags } from "@oclif/core";
 import type { Abi } from "abitype";
 import { BaseCommand } from "../../base.js";
-import { readJsonFile } from "../../common/utils";
-import { bigintFlag, hexArg } from "../../types";
+import { readJsonFile } from "../../common/utils.js";
+import { bigintFlag, hexArg } from "../../types.js";
 
 export default class SmartAccountEstimateFee extends BaseCommand {
   static override summary = "Get the recommended fees";

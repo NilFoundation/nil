@@ -751,16 +751,9 @@ func (s *SuiteEconomy) TestGasForwardingInSendTransaction() {
 		Add(s.GetBalance(s.smartAccountAddress))
 
 	runTest := func(feeCredit types.Value, forwardKind types.ForwardKind) {
-		intTxn := &types.InternalTransactionPayload{
-			Data:        s.AbiPack(s.abiTest, "stub", big.NewInt(1)),
-			To:          s.testAddress2,
-			FeeCredit:   feeCredit,
-			ForwardKind: forwardKind,
-		}
-		intTxnData, err := intTxn.MarshalSSZ()
-		s.Require().NoError(err)
-
-		data := s.AbiPack(s.abiTest, "testForwardingInSendRawTransaction", intTxnData)
+		calldata := s.AbiPack(s.abiTest, "stub", big.NewInt(1))
+		data := s.AbiPack(s.abiTest, "testForwardingInAsyncCall", s.testAddress2, feeCredit.ToBig(),
+			uint8(forwardKind), calldata)
 		receipt := s.SendExternalTransaction(data, s.testAddress1)
 		info := s.AnalyzeReceipt(receipt, s.namesMap)
 		s.Require().True(info.AllSuccess())

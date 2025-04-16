@@ -124,24 +124,24 @@ func (s *ProposerTestSuite) TestCollator() {
 
 	balance := s.getMainBalance()
 	txnValue := execution.DefaultSendValue
-	feeCredit := execution.DefaultGasCredit
 
 	m1 := execution.NewSendMoneyTransaction(s.T(), to, 0)
 	m2 := execution.NewSendMoneyTransaction(s.T(), to, 1)
+	var r1, r2 *types.Receipt
 
 	s.Run("SendTokens", func() {
 		pool.Reset()
 		pool.Add(m1, m2)
 
 		proposal := generateBlock()
-		r1 := s.checkReceipt(shardId, m1)
-		r2 := s.checkReceipt(shardId, m2)
+		r1 = s.checkReceipt(shardId, m1)
+		r2 = s.checkReceipt(shardId, m2)
 		s.Equal(pool.Txns, proposal.ExternalTxns)
 
 		// Each transaction subtracts its value + actual gas used from the balance.
 		balance = balance.
-			Sub(txnValue).Sub(r1.GasUsed.ToValue(types.DefaultGasPrice)).Sub(feeCredit).
-			Sub(txnValue).Sub(r2.GasUsed.ToValue(types.DefaultGasPrice)).Sub(feeCredit)
+			Sub(txnValue).Sub(r1.GasUsed.ToValue(types.DefaultGasPrice)).Sub(r1.Forwarded).
+			Sub(txnValue).Sub(r2.GasUsed.ToValue(types.DefaultGasPrice)).Sub(r2.Forwarded)
 		s.Equal(balance, s.getMainBalance())
 		s.Equal(types.Value{}, s.getBalance(shardId, to))
 	})
@@ -158,7 +158,7 @@ func (s *ProposerTestSuite) TestCollator() {
 	s.Run("ProcessRefundTransactions", func() {
 		generateBlock()
 
-		balance = balance.Add(feeCredit).Add(feeCredit)
+		balance = balance.Add(r1.Forwarded).Add(r2.Forwarded)
 		s.Equal(balance, s.getMainBalance())
 
 		s.checkSeqno(shardId)

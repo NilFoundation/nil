@@ -3,6 +3,7 @@
 pragma solidity ^0.8.9;
 
 import "../lib/NilTokenBase.sol";
+import "../lib/console.sol";
 
 contract TokensTest is NilTokenBase {
     // Perform sync call to send tokens to the destination address. Without calling any function.
@@ -103,6 +104,14 @@ contract TokensTest is NilTokenBase {
         uint256 balance
     ) public view {
         require(Nil.tokenBalance(addr, id) == balance, "Balance mismatch");
+    }
+
+    function testConsole() public pure {
+        console.log("test console.log: int=%_, str=%_, addr=%_",
+            1234567890,
+            "Simple string",
+            address(0xabcdef)
+        );
     }
 
     function verifyExternal(

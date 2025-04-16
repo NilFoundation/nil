@@ -106,10 +106,13 @@ contract Test is NilBase {
         }
     }
 
-    function testForwardingInSendRawTransaction(
-        bytes memory transaction
+    function testForwardingInAsyncCall(
+        address dst,
+        uint feeCredit,
+        uint8 forwardKind,
+        bytes memory callData
     ) public payable {
-        Nil.sendTransaction(transaction);
+        Nil.asyncCall(dst, address(0), address(0), feeCredit, forwardKind, 0, callData);
     }
 
     function stub(uint n) public payable {
@@ -175,19 +178,6 @@ contract Test is NilBase {
         return Nil.createAddress2(shardId, addr, salt, codeHash);
     }
 
-    // Currently, functions below are used for manual testing of the Cometa service.
-    function callUnknown() public {
-        bytes memory returnData;
-        bool success;
-        bytes memory callData = abi.encodeWithSignature("nonexistent()");
-        (returnData, success) = Nil.awaitCall(
-            address(this),
-            Nil.ASYNC_REQUEST_MIN_GAS,
-            callData
-        );
-        require(success, "awaitCall failed");
-    }
-
     function twoCalls(address addr1, address addr2) public {
         bytes memory context = abi.encodeWithSelector(
             this.responseCounterGet.selector
@@ -204,45 +194,6 @@ contract Test is NilBase {
     ) public {
         require(success, "Request failed");
         internalValue = uint32(abi.decode(returnData, (int32)));
-    }
-
-    function fibonacciWithFail(int32 n, int32 failN) public returns (int32) {
-        if (n == failN) {
-            revert("Fail because of `n == failN`");
-        }
-        if (n <= 1) {
-            return n;
-        }
-        bytes memory returnData;
-        bytes memory callData;
-        bool success;
-        callData = abi.encodeWithSignature(
-            "fibonacciWithFail(int32,int32)",
-            n - 1,
-            failN
-        );
-        (returnData, success) = Nil.awaitCall(
-            address(this),
-            Nil.ASYNC_REQUEST_MIN_GAS,
-            callData
-        );
-        require(success, "awaitCall 1 failed");
-        int32 a = abi.decode(returnData, (int32));
-
-        callData = abi.encodeWithSignature(
-            "fibonacciWithFail(int32,int32)",
-            n - 2,
-            failN
-        );
-        (returnData, success) = Nil.awaitCall(
-            address(this),
-            Nil.ASYNC_REQUEST_MIN_GAS,
-            callData
-        );
-        require(success, "awaitCall 2 failed");
-        int32 b = abi.decode(returnData, (int32));
-
-        return a + b;
     }
 
     /**

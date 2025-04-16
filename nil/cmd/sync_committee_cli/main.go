@@ -38,10 +38,14 @@ func execute() error {
 	if err != nil {
 		return err
 	}
+	resetContractCmd, err := buildResetContractCmd(executorParams, logger)
+	if err != nil {
+		return err
+	}
 
 	decodeBatchCmd := buildDecodeBatchCmd(executorParams, logger)
 	versionCmd := cobrax.VersionCmd(appTitle)
-	rootCmd.AddCommand(getTaskTreeCmd, decodeBatchCmd, versionCmd)
+	rootCmd.AddCommand(getTaskTreeCmd, decodeBatchCmd, resetContractCmd, versionCmd)
 	return rootCmd.Execute()
 }
 
@@ -134,6 +138,52 @@ func buildDecodeBatchCmd(_ *commands.ExecutorParams, logger logging.Logger) *cob
 	cmd.Flags().StringVar(&params.OutputFile, "output-file", "", "target file to keep decoded batch data")
 
 	return cmd
+}
+
+func buildResetContractCmd(_ *commands.ExecutorParams, logger logging.Logger) (*cobra.Command, error) {
+	params := &commands.ResetStateParams{}
+
+	cmd := &cobra.Command{
+		Use:   "reset-state",
+		Short: "Reset L1 state to specified root",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return commands.ResetState(context.Background(), params, logger)
+		},
+	}
+
+	endpointFlag := "l1-endpoint"
+	cmd.Flags().StringVar(
+		&params.Endpoint,
+		endpointFlag,
+		params.Endpoint,
+		"L1 endpoint")
+	privateKeyFlag := "l1-private-key"
+	cmd.Flags().StringVar(
+		&params.PrivateKeyHex,
+		privateKeyFlag,
+		params.PrivateKeyHex,
+		"L1 account private key")
+	addressFlag := "l1-contract-address"
+	cmd.Flags().StringVar(
+		&params.ContractAddressHex,
+		addressFlag,
+		params.ContractAddressHex,
+		"L1 update state contract address")
+	targetRootFlag := "target-root"
+	cmd.Flags().StringVar(
+		&params.TargetStateRoot,
+		"target-root",
+		params.TargetStateRoot,
+		"target state root in HEX")
+
+	// make all flags required
+	for _, flagId := range []string{endpointFlag, privateKeyFlag, addressFlag, targetRootFlag} {
+		if err := cmd.MarkFlagRequired(flagId); err != nil {
+			return nil, err
+		}
+	}
+
+	return cmd, nil
 }
 
 func addCommonFlags(cmd *cobra.Command, params *commands.ExecutorParams) {

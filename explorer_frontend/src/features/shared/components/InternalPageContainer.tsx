@@ -1,6 +1,5 @@
 import type { FC, ReactNode } from "react";
 import { useStyletron } from "styletron-react";
-import { useMobile } from "../hooks/useMobile";
 
 type InternalPageContainerProps = {
   children: ReactNode;

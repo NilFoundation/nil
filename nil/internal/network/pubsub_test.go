@@ -44,7 +44,7 @@ func (s *PubSubSuite) ensureSkipped(sub *Subscription, ch <-chan PubSubMessage, 
 	}
 }
 
-func (s *PubSubSuite) listPeers(manager *Manager, topic string) []PeerID {
+func (s *PubSubSuite) listPeers(manager *BasicManager, topic string) []PeerID {
 	s.T().Helper()
 
 	t, err := manager.PubSub().getTopic(topic)
@@ -100,7 +100,7 @@ func (s *PubSubSuite) TestComplexScenario() {
 	const n = 5
 	const centralHost = 3
 
-	managers := make([]*Manager, n)
+	managers := make([]*BasicManager, n)
 	for i := range n {
 		managers[i] = s.newManager()
 	}

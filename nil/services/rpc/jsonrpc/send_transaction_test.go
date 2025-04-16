@@ -11,7 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/txnpool"
 	"github.com/stretchr/testify/suite"
 )
@@ -93,7 +93,7 @@ func (suite *SuiteSendTransaction) TestInvalidShard() {
 	suite.Require().NoError(err)
 
 	_, err = suite.api.SendRawTransaction(context.Background(), data)
-	suite.Require().ErrorContains(err, rawapi.ErrShardNotFound.Error())
+	suite.Require().ErrorContains(err, rawapitypes.ErrShardNotFound.Error())
 }
 
 func TestSuiteSendTransaction(t *testing.T) {

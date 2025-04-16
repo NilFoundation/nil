@@ -10,11 +10,11 @@ sync_committee_targets: \
 
 .PHONY: sync_committee_contract_abi
 sync_committee_contract_abi: \
-	$(root_sc)/internal/rollupcontract/rollupcontract_abi_generated.go
+	$(root_sc)/core/rollupcontract/rollupcontract_abi_generated.go
 
-$(root_sc)/internal/rollupcontract/rollupcontract_abi_generated.go: \
-	$(root_sc)/internal/rollupcontract/abi.json
-	go generate $(root_sc)/internal/rollupcontract/generate.go
+$(root_sc)/core/rollupcontract/rollupcontract_abi_generated.go: \
+	$(root_sc)/core/rollupcontract/abi.json
+	go generate $(root_sc)/core/rollupcontract/generate.go
 
 .PHONY: sync_committee_types_stringer
 sync_committee_types_stringer: \
@@ -45,7 +45,7 @@ sync_committee_generate_mocks: \
 	$(root_sc)/internal/api/task_request_handler_generated_mock.go \
 	$(root_sc)/core/state_reset_launcher_generated_mock.go \
 	$(root_sc)/internal/scheduler/task_scheduler_generated_mock.go \
-	$(root_sc)/internal/rollupcontract/eth_client_generated_mock.go \
+	$(root_sc)/core/rollupcontract/eth_client_generated_mock.go \
 	$(root_sc)/internal/srv/worker_generated_mock.go \
 	$(root_sc)/internal/test_utils/op_context_generated_mock.go \
 	$(root_sc)/prover/tracer/storage_getter_setter_generated_mock.go
@@ -85,9 +85,9 @@ $(root_sc)/internal/srv/worker_generated_mock.go: \
 	$(root_sc)/internal/srv/worker.go
 	go generate $(root_sc)/internal/srv/worker.go
 
-$(root_sc)/internal/rollupcontract/eth_client_generated_mock.go: \
-	$(root_sc)/internal/rollupcontract/eth_client.go
-	go generate $(root_sc)/internal/rollupcontract
+$(root_sc)/core/rollupcontract/eth_client_generated_mock.go: \
+	$(root_sc)/core/rollupcontract/eth_client.go
+	go generate $(root_sc)/core/rollupcontract
 
 $(root_sc)/internal/test_utils/op_context_generated_mock.go: \
 	./nil/internal/tracing/hooks.go

@@ -19,22 +19,28 @@ import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 contract Caller {
     using Nil for address;
 
+    uint256 public result;
+
+    function callback(
+        bool success,
+        bytes memory returnData,
+        bytes memory
+    ) public {
+        require(success == true, "Result not true");
+        result = abi.decode(returnData, (uint256));
+    }
+
     // Sends an async request to the Counter contract to invoke the increment method
     // It's guaranteed by the system that either response or error will be returned
-    function call(address dst) public returns (uint256) {
-        bytes memory val;
-        bool ok;
-        (val, ok) = Nil.awaitCall(
+    function call(address dst) public {
+        bytes memory context = abi.encodeWithSelector(this.callback.selector);
+        Nil.sendRequest(
             dst, // Address of the destination contract (Counter)
+            0, // Amount of value to send
             Nil.ASYNC_REQUEST_MIN_GAS, // Amount of gas reserved to process the response
+            context, // Context for the callback function
             abi.encodeWithSignature("increment()") // Encoded signature of the increment function
         );
-
-        // the request can fail on the destination contract (e.g. because OutOfGas error)
-        require(ok == true, "Failed to perform an async request");
-
-        // extract returned value if the request was successful
-        return abi.decode(val, (uint256));
     }
 }
 

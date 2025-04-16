@@ -1,10 +1,9 @@
 package cometa
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,7 +34,7 @@ func (c *Client) IsValid() bool {
 	return len(c.endpoint) > 0
 }
 
-func (c *Client) sendRequest(method string, params []any) (json.RawMessage, error) {
+func (c *Client) sendRequest(ctx context.Context, method string, params []any) (json.RawMessage, error) {
 	request := make(map[string]any)
 	request["jsonrpc"] = "2.0"
 	request["method"] = method
@@ -47,25 +46,12 @@ func (c *Client) sendRequest(method string, params []any) (json.RawMessage, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, c.endpoint, bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "cometa/"+version.GetGitRevCount())
 
-	resp, err := c.httpClient.Do(req)
+	body, err := rpc_client.SendRequest(ctx, c.httpClient, c.endpoint, requestBody, map[string]string{
+		"User-Agent": "cometa/" + version.GetGitRevCount(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, body)
 	}
 
 	var rpcResponse map[string]json.RawMessage
@@ -79,8 +65,8 @@ func (c *Client) sendRequest(method string, params []any) (json.RawMessage, erro
 	return rpcResponse["result"], nil
 }
 
-func (c *Client) GetContract(address types.Address) (*ContractData, error) {
-	response, err := c.sendRequest("cometa_getContract", []any{address})
+func (c *Client) GetContract(ctx context.Context, address types.Address) (*ContractData, error) {
+	response, err := c.sendRequest(ctx, "cometa_getContract", []any{address})
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +77,8 @@ func (c *Client) GetContract(address types.Address) (*ContractData, error) {
 	return &contract, nil
 }
 
-func (c *Client) GetContractFields(address types.Address, fieldNames []string) ([]any, error) {
-	response, err := c.sendRequest("cometa_getContractFields", []any{address, fieldNames})
+func (c *Client) GetContractFields(ctx context.Context, address types.Address, fieldNames []string) ([]any, error) {
+	response, err := c.sendRequest(ctx, "cometa_getContractFields", []any{address, fieldNames})
 	if err != nil {
 		return nil, err
 	}
@@ -103,8 +89,8 @@ func (c *Client) GetContractFields(address types.Address, fieldNames []string) (
 	return res, nil
 }
 
-func (c *Client) GetLocation(address types.Address, pc uint64) (*Location, error) {
-	response, err := c.sendRequest("cometa_getLocation", []any{address, pc})
+func (c *Client) GetLocation(ctx context.Context, address types.Address, pc uint64) (*Location, error) {
+	response, err := c.sendRequest(ctx, "cometa_getLocation", []any{address, pc})
 	if err != nil {
 		return nil, err
 	}
@@ -115,8 +101,8 @@ func (c *Client) GetLocation(address types.Address, pc uint64) (*Location, error
 	return &loc, nil
 }
 
-func (c *Client) GetAbi(address types.Address) (abi.ABI, error) {
-	response, err := c.sendRequest("cometa_getAbi", []any{address})
+func (c *Client) GetAbi(ctx context.Context, address types.Address) (abi.ABI, error) {
+	response, err := c.sendRequest(ctx, "cometa_getAbi", []any{address})
 	if err != nil {
 		return abi.ABI{}, err
 	}
@@ -130,7 +116,7 @@ func (c *Client) GetAbi(address types.Address) (abi.ABI, error) {
 	return abi.JSON(strings.NewReader(*str))
 }
 
-func (c *Client) CompileContract(inputJsonFile string) (*ContractData, error) {
+func (c *Client) CompileContract(ctx context.Context, inputJsonFile string) (*ContractData, error) {
 	inputJson, err := os.ReadFile(inputJsonFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read input json: %w", err)
@@ -147,7 +133,7 @@ func (c *Client) CompileContract(inputJsonFile string) (*ContractData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal input json: %w", err)
 	}
-	response, err := c.sendRequest("cometa_compileContract", []any{string(normInputJson)})
+	response, err := c.sendRequest(ctx, "cometa_compileContract", []any{string(normInputJson)})
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +144,7 @@ func (c *Client) CompileContract(inputJsonFile string) (*ContractData, error) {
 	return &contractData, nil
 }
 
-func (c *Client) RegisterContractFromFile(inputJsonFile string, address types.Address) error {
+func (c *Client) RegisterContractFromFile(ctx context.Context, inputJsonFile string, address types.Address) error {
 	inputJson, err := os.ReadFile(inputJsonFile)
 	if err != nil {
 		return fmt.Errorf("failed to read input json: %w", err)
@@ -175,22 +161,22 @@ func (c *Client) RegisterContractFromFile(inputJsonFile string, address types.Ad
 		return fmt.Errorf("failed to marshal input json: %w", err)
 	}
 
-	_, err = c.sendRequest("cometa_registerContract", []any{string(inputJson), address})
+	_, err = c.sendRequest(ctx, "cometa_registerContract", []any{string(inputJson), address})
 	return err
 }
 
-func (c *Client) RegisterContract(inputJson string, address types.Address) error {
-	_, err := c.sendRequest("cometa_registerContract", []any{inputJson, address})
+func (c *Client) RegisterContract(ctx context.Context, inputJson string, address types.Address) error {
+	_, err := c.sendRequest(ctx, "cometa_registerContract", []any{inputJson, address})
 	return err
 }
 
-func (c *Client) RegisterContractData(contractData *ContractData, address types.Address) error {
-	_, err := c.sendRequest("cometa_registerContractData", []any{contractData, address})
+func (c *Client) RegisterContractData(ctx context.Context, contractData *ContractData, address types.Address) error {
+	_, err := c.sendRequest(ctx, "cometa_registerContractData", []any{contractData, address})
 	return err
 }
 
-func (c *Client) DecodeTransactionsCallData(transactions []TransactionInfo) ([]string, error) {
-	response, err := c.sendRequest("cometa_decodeTransactionsCallData", []any{transactions})
+func (c *Client) DecodeTransactionsCallData(ctx context.Context, transactions []TransactionInfo) ([]string, error) {
+	response, err := c.sendRequest(ctx, "cometa_decodeTransactionsCallData", []any{transactions})
 	if err != nil {
 		return nil, err
 	}

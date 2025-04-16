@@ -3,6 +3,7 @@ package common
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -147,12 +148,12 @@ func ReadAbiFromFile(abiPath string) (abi.ABI, error) {
 	return abi.JSON(bytes.NewReader(abiFile))
 }
 
-func FetchAbiFromCometa(addr types.Address) (abi.ABI, error) {
+func FetchAbiFromCometa(ctx context.Context, addr types.Address) (abi.ABI, error) {
 	client := GetCometaRpcClient()
 	if client == nil {
 		return abi.ABI{}, errors.New("cometa client is not initialized")
 	}
-	res, err := client.GetAbi(addr)
+	res, err := client.GetAbi(ctx, addr)
 	if err != nil {
 		return abi.ABI{}, fmt.Errorf("failed to fetch contract from cometa: %w", err)
 	}

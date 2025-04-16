@@ -16,6 +16,7 @@
 , gopls
 , protoc-gen-go
 , protobuf
+, python3
 , rollup-bridge-contracts
 }:
 let inherit (lib) optional;
@@ -79,6 +80,9 @@ buildGo124Module rec {
     golangci-lint
     (overrideBuildGoModule delve)
     (overrideBuildGoModule protoc-gen-go)
+    (python3.withPackages (ps: with ps; [
+      safe-pysha3
+    ]))
   ];
 
   packageName = "github.com/NilFoundation/nil";
