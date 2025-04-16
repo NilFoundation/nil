@@ -4,13 +4,13 @@ import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-ignition-ethers";
 import "@typechain/hardhat";
 import * as dotenv from "dotenv";
-import type { HardhatUserConfig } from "hardhat/config";
+import type { HardhatConfig } from "hardhat/config";
 
 import "./task/deploy_and_test_tokensplitter";
 
 dotenv.config();
 
-const config: HardhatUserConfig = {
+const config: HardhatConfig = {
   ignition: {
     requiredConfirmations: 1,
   },

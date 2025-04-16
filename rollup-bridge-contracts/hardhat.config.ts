@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-import { HardhatUserConfig } from "hardhat/config";
+import { HardhatConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-preprocessor";
 import "hardhat-deploy";
@@ -22,7 +22,7 @@ const remappings = getRemappings();
 console.log("Remappings:", remappings);
 
 
-const config: HardhatUserConfig = {
+const config: HardhatConfig = {
   ignition: {
     requiredConfirmations: 1,
   },

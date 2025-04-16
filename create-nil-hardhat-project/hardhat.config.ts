@@ -1,11 +1,11 @@
 import "@nomicfoundation/hardhat-toolbox";
 import * as dotenv from "dotenv";
-import type { HardhatUserConfig } from "hardhat/config";
+import type { HardhatConfig } from "hardhat/config";
 import "./tasks/deploy-incrementer";
 
 dotenv.config();
 
-const config: HardhatUserConfig = {
+const config: HardhatConfig = {
   ignition: {
     requiredConfirmations: 1,
   },
