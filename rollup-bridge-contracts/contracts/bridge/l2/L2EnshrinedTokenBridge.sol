@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -17,8 +19,6 @@ import { IL2BridgeMessenger } from "./interfaces/IL2BridgeMessenger.sol";
 import { IL2BridgeRouter } from "./interfaces/IL2BridgeRouter.sol";
 import { L2BaseBridge } from "./L2BaseBridge.sol";
 import { NilEnshrinedToken } from "../../common/tokens/NilEnshrinedToken.sol";
-import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
-import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBase, NilTokenBase {
   using AddressChecker for address;
@@ -93,11 +93,13 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
       revert ErrorInvalidL1TokenAddress();
     }
 
-    if (tokenMapping[l2Token] != address(0) && l1Token != tokenMapping[l2Token]) {
+    address l1TokenFromMapping = tokenMapping[l2Token];
+
+    if (l1TokenFromMapping != address(0) && l1Token != l1TokenFromMapping) {
       revert ErrorL1TokenAddressMismatch();
     }
 
-    if (tokenMapping[l2Token] == address(0)) {
+    if (l1TokenFromMapping == address(0)) {
       // L1Token address mapping doesnot exist and L2Token is to be created (Factory to create the token)
       // decode additionalData to get the inputs for Factory call
       string memory tokenName = abi.decode(additionalData, (string));

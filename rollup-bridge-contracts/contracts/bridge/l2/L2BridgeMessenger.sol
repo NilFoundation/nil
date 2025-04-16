@@ -4,7 +4,6 @@ pragma solidity 0.8.28;
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { AccessControlEnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
@@ -221,7 +220,7 @@ contract L2BridgeMessenger is
       revert ErrorInvalidMessageType();
     }
 
-    bytes32 messageHash = computeMessageHash(messageSender, messageTarget, messageNonce, message);
+    bytes32 messageHash = computeDepositMessageHash(messageSender, messageTarget, messageNonce, message);
 
     if (relayedMessageHashStore.contains(messageHash)) {
       revert ErrorDuplicateMessageRelayed(messageHash);
@@ -251,7 +250,18 @@ contract L2BridgeMessenger is
   }
 
   /// @inheritdoc IL2BridgeMessenger
-  function computeMessageHash(
+  function computeDepositMessageHash(
+    address messageSender,
+    address messageTarget,
+    uint256 messageNonce,
+    bytes memory message
+  ) public pure override returns (bytes32) {
+    // TODO - convert keccak256 to precompile call for realkeccak256 in nil-shard
+    return keccak256(abi.encode(messageSender, messageTarget, messageNonce, message));
+  }
+
+  /// @inheritdoc IL2BridgeMessenger
+  function computeWithdrawalMessageHash(
     address messageSender,
     address messageTarget,
     uint256 messageNonce,
@@ -279,7 +289,12 @@ contract L2BridgeMessenger is
     //////////////////////////////////////////////////////////////////////////*/
 
   function _sendMessage(SendMessageParams memory params) internal nonReentrant returns (bytes32) {
-    bytes32 messageHash = computeMessageHash(_msgSender(), params.messageTarget, withdrawalNonce, params.message);
+    bytes32 messageHash = computeWithdrawalMessageHash(
+      _msgSender(),
+      params.messageTarget,
+      withdrawalNonce,
+      params.message
+    );
 
     if (withdrawalMessageHashStore.contains(messageHash)) {
       revert ErrorDuplicateWithdrawalMessage(messageHash);
@@ -289,12 +304,13 @@ contract L2BridgeMessenger is
 
     // append messageHash as leaf to the NilMessageTree
     // all withdrawalMessageHashes must be appended to the merkleTree
-    INilMessageTree(nilMessageTree).appendMessage(messageHash);
+    (uint256 merkleTreeLeafIndex, bytes32 merkleRoot) = INilMessageTree(nilMessageTree).appendMessage(messageHash);
 
     emit MessageSent(
       _msgSender(),
       params.messageTarget,
       withdrawalNonce,
+      merkleTreeLeafIndex,
       params.message,
       messageHash,
       params.messageType,

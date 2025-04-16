@@ -1,4 +1,5 @@
 [profile.default]
+optimizer = true 
 remappings = [
   "hardhat/=node_modules/hardhat/",
   "forge-std/=lib/forge-std/src/",
@@ -29,6 +30,7 @@ wrap_comments = true
 
 # Test the optimized contracts without re-compiling them
 [profile.test-optimized]
+optimizer = true
 src = "tests"
 
 # Speed up compilation and tests during development

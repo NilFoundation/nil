@@ -114,6 +114,10 @@ contract L2ETHBridge is L2BaseBridge, IL2ETHBridge {
       message
     );
 
+    if (messageHash == bytes32(0)) {
+      revert ErrorInvalidMessageHash();
+    }
+
     emit WithdrawnETH(messageHash, l1WithdrawalRecipient, withdrawalAmount);
   }
 

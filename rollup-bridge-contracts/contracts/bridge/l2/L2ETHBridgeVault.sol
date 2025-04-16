@@ -163,6 +163,7 @@ contract L2ETHBridgeVault is
   }
 
   function returnETHOnWithdrawal(uint256 amount) external payable override nonReentrant whenNotPaused {
+    // amount being returned by wallet during withdrawal cannot exceed the eth-amount in the account-book
     if (amount == 0 || amount > ethAmountTracker) {
       revert ErrorInvalidReturnAmount();
     }

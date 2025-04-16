@@ -69,6 +69,7 @@ interface IL2BridgeMessenger is IBridgeMessenger {
   /// @param messageSender The address of the message sender.
   /// @param messageTarget The address of the message recipient which can be an account/smartcontract.
   /// @param messageNonce The nonce of the message.
+  /// @param merkleTreeLeafIndex The index of the leaf in the merkleTree.
   /// @param message The encoded message data.
   /// @param messageHash The hash of the message.
   /// @param messageType The type of the withdrawalMessage.
@@ -78,6 +79,7 @@ interface IL2BridgeMessenger is IBridgeMessenger {
     address indexed messageSender,
     address indexed messageTarget,
     uint256 indexed messageNonce,
+    uint256 merkleTreeLeafIndex,
     bytes message,
     bytes32 messageHash,
     NilConstants.MessageType messageType,
@@ -96,7 +98,14 @@ interface IL2BridgeMessenger is IBridgeMessenger {
 
   function isFullyInitialised() external view returns (bool);
 
-  function computeMessageHash(
+  function computeDepositMessageHash(
+    address messageSender,
+    address messageTarget,
+    uint256 messageNonce,
+    bytes memory message
+  ) external pure returns (bytes32);
+
+  function computeWithdrawalMessageHash(
     address messageSender,
     address messageTarget,
     uint256 messageNonce,

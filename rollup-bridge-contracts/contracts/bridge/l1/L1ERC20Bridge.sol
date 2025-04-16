@@ -164,6 +164,7 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
   /// @inheritdoc IL1Bridge
   function claimFailedDeposit(
     bytes32 messageHash,
+    uint256 merkleTreeLeafIndex,
     bytes32[] memory claimProof
   ) public override nonReentrant whenNotPaused {
     IL1BridgeMessenger.DepositMessage memory depositMessage = IL1BridgeMessenger(messenger).getDepositMessage(
@@ -175,7 +176,7 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
     }
 
     // L1BridgeMessenger to verify if the deposit can be claimed
-    IL1BridgeMessenger(messenger).claimFailedDeposit(messageHash, claimProof);
+    IL1BridgeMessenger(messenger).claimFailedDeposit(messageHash, merkleTreeLeafIndex, claimProof);
 
     // refund the deposit-amount
     ERC20(depositMessage.tokenAddress).safeTransfer(depositMessage.depositorAddress, depositMessage.depositAmount);
@@ -194,7 +195,19 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
     address l2Withdrawer,
     address l1WithdrawRecipient,
     uint256 withdrawalAmount
-  ) public {}
+  ) public nonReentrant {
+    if (l2Token == address(0) || l1Token == address(0)) {
+      revert ErrorInvalidTokenAddress();
+    }
+
+    if (l1Token != tokenMapping[l2Token]) {
+      revert ErrorTokenNotSupported();
+    }
+
+    ERC20(l1Token).safeTransfer(l1WithdrawRecipient, withdrawalAmount);
+
+    emit FinalisedERC20Withdrawal(l1Token, l2Token, l1WithdrawRecipient, withdrawalAmount);
+  }
 
   /*//////////////////////////////////////////////////////////////////////////
                          RESTRICTED FUNCTIONS

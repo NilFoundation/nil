@@ -163,7 +163,7 @@ interface IL1BridgeRouter {
 
   function cancelDeposit(bytes32 messageHash) external payable;
 
-  function claimFailedDeposit(bytes32 messageHash, bytes32[] memory claimProof) external;
+  function claimFailedDeposit(bytes32 messageHash, uint256 merkleTreeLeafIndex, bytes32[] memory claimProof) external;
 
   /**
    * @notice Pauses or unpauses the contract.

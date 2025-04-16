@@ -307,15 +307,15 @@ contract L1BridgeRouter is
     }
 
     /// @inheritdoc IL1BridgeRouter
-    function claimFailedDeposit(bytes32 messageHash, bytes32[] memory claimProof) external override whenNotPaused {
+    function claimFailedDeposit(bytes32 messageHash, uint256 merkleTreeLeafIndex, bytes32[] memory claimProof) external override whenNotPaused {
         // Get the deposit message from the messenger
         NilConstants.MessageType messageType = messenger.getMessageType(messageHash);
 
         // Route the cancellation request based on the deposit type
         if (messageType == NilConstants.MessageType.DEPOSIT_ERC20) {
-            IL1ERC20Bridge(erc20Bridge).claimFailedDeposit(messageHash, claimProof);
+            IL1ERC20Bridge(erc20Bridge).claimFailedDeposit(messageHash, merkleTreeLeafIndex, claimProof);
         } else if (messageType == NilConstants.MessageType.DEPOSIT_ETH) {
-            IL1ETHBridge(ethBridge).claimFailedDeposit(messageHash, claimProof);
+            IL1ETHBridge(ethBridge).claimFailedDeposit(messageHash, merkleTreeLeafIndex, claimProof);
         } else {
             revert ErrorInvalidMessageType();
         }

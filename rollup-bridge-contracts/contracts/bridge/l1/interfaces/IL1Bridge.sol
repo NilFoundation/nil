@@ -74,7 +74,7 @@ interface IL1Bridge is IBridge {
    * @param messageHash The hash of the deposit message.
    * @param claimProof The Merkle proof as an array of bytes32.
    */
-  function claimFailedDeposit(bytes32 messageHash, bytes32[] memory claimProof) external;
+  function claimFailedDeposit(bytes32 messageHash, uint256 merkleTreeLeafIndex, bytes32[] memory claimProof) external;
 
   /*//////////////////////////////////////////////////////////////////////////
                              PUBLIC CONSTANT FUNCTIONS
