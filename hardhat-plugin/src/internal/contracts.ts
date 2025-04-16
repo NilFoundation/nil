@@ -1,4 +1,4 @@
-import { type IAddress, getContract } from "@nilfoundation/niljs";
+import { type IAddress, getContract, waitTillCompleted } from "@nilfoundation/niljs";
 import type { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployContractConfig, GetContractAtConfig } from "../types";
 import type { Abi } from "viem";
@@ -48,6 +48,7 @@ export const deployContract = async (
     artifacts.readArtifact(contractName),
   ]);
 
+  console.log("Deploying contract", contractName, "with args", args);
   const { tx, address } = await smartAccount.deployContract({
     shardId: config?.shardId ?? smartAccount.shardId,
     args: args,
@@ -56,6 +57,13 @@ export const deployContract = async (
     salt: BigInt(Math.floor(Math.random() * 10000)),
   });
   await tx.wait();
+  const receipts = await waitTillCompleted(publicClient, tx.hash);
+  if (!receipts) {
+    throw new Error("Transaction failed: receipts not found");
+  }
+  if (!receipts[0].success) {
+    throw new Error(`Transaction failed: ${receipts[0].errorMessage}`);
+  }
   console.log(`Deployed contract ${contractName} at address: ${address}, tx - ${tx.hash}`);
 
   const contract = getContract({

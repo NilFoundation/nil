@@ -1,7 +1,5 @@
-import { getContract } from "@nilfoundation/niljs";
 import type { Address } from "abitype";
 import { task } from "hardhat/config";
-import { createSmartAccount } from "../basic/basic";
 import { mintAndSendToken } from "../util/token-utils";
 
 task(
@@ -10,7 +8,7 @@ task(
 )
   .addParam("token", "The contract address of the first token")
   .addParam("amount", "The amount of token to mint and send")
-  .setAction(async (taskArgs, _) => {
+  .setAction(async (taskArgs, hre) => {
     const smartAccountAddress = process.env.SMART_ACCOUNT_ADDR as
       | Address
       | undefined;
@@ -19,7 +17,7 @@ task(
       throw new Error("SMART_ACCOUNT_ADDR is not set in environment variables");
     }
 
-    const smartAccount = await createSmartAccount();
+    const smartAccount = await hre.nil.createSmartAccount();
 
     // Destructure parameters for clarity
     const mintAmount = BigInt(taskArgs.amount);
@@ -30,23 +28,14 @@ task(
     );
     // Mint and send token for both contracts using the refactored utility function
     await mintAndSendToken({
-      smartAccount: smartAccount,
+      hre,
+      recipientAddress: smartAccount.address,
       contractAddress: tokenAddress,
-      smartAccountAddress,
       mintAmount,
     });
 
     const TokenJson = require("../../artifacts/contracts/Token.sol/Token.json");
-    const contract = getContract({
-      abi: TokenJson.abi,
-      address: tokenAddress,
-      client: smartAccount.client,
-      smartAccount: smartAccount,
-      externalInterface: {
-        signer: smartAccount.signer,
-        methods: [],
-      },
-    });
+    const contract = await hre.nil.getContractAt("Token", tokenAddress, {});
 
     // Verify recipient balances
     const balance = await contract.read.getTokenBalanceOf([

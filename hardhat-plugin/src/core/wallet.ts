@@ -5,10 +5,12 @@ import {
   SmartAccountV1,
   convertEthToWei,
   generateRandomPrivateKey,
+  topUp,
 } from "@nilfoundation/niljs";
 import type { Address } from "viem";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { topUpSmartAccount } from "uniswap-v2-on-nil/tasks/basic/basic";
+import { CreateSmartAccountConfig } from "../types";
+import { HttpNetworkConfig } from "hardhat/src/types/config";
 
 export async function deployWallet(
   signer: LocalECDSAKeySigner,
@@ -44,7 +46,10 @@ export async function deployWallet(
   return smartAccount;
 }
 
-export async function createSmartAccount(hre: HardhatRuntimeEnvironment): Promise<SmartAccountV1> {
+export async function createSmartAccount(
+  hre: HardhatRuntimeEnvironment,
+  config: CreateSmartAccountConfig,
+): Promise<SmartAccountV1> {
   const client = hre.nil.getPublicClient();
   const pk = generateRandomPrivateKey();
   const signer = new LocalECDSAKeySigner({
@@ -58,9 +63,22 @@ export async function createSmartAccount(hre: HardhatRuntimeEnvironment): Promis
     salt: BigInt(Math.round(Math.random() * 1000000)),
   });
 
-  await topUpSmartAccount(smartAccount.address)
+  if (config.topUp !== false) {
+    await topUpSmartAccount(smartAccount.address, (hre.network.config as HttpNetworkConfig).url);
+  }
 
   await smartAccount.selfDeploy(true);
   console.log("SmartAccount created successfully: " + smartAccount.address);
   return smartAccount;
+}
+
+export async function topUpSmartAccount(
+  address: Address,
+  rpc: string,
+) {
+  await topUp({
+    address: address,
+    faucetEndpoint: rpc,
+    rpcEndpoint: rpc
+  });
 }

@@ -3,6 +3,7 @@ import type { XOR } from "ts-essentials";
 import type { Hex } from "../types/Hex.js";
 import type { Token } from "../types/Token.js";
 import type { Transaction } from "../utils/transaction.js";
+import type { DeployParams } from "./SmartAccountV1/types.js";
 
 export type SendBaseTransactionParams = {
   to: Address | Uint8Array;
@@ -52,4 +53,23 @@ export interface SmartAccountInterface {
     tokens,
     chainId,
   }: SendTransactionParams): Promise<Transaction>;
+
+  deployContract({
+                   shardId,
+                   bytecode,
+                   abi,
+                   args,
+                   salt,
+                   value,
+                   feeCredit,
+                   maxPriorityFeePerGas,
+                   maxFeePerGas,
+                   seqno,
+                   chainId,
+                 }: DeployParams
+  ): Promise<{ tx: Transaction; address: Hex }>;
+
+  shardId: number;
+  address: Address;
+  getBalance(): Promise<bigint>;
 }

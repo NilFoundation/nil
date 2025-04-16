@@ -1,20 +1,9 @@
-import type { Abi } from "abitype";
 import { task } from "hardhat/config";
-import { createSmartAccount } from "../../basic/basic";
-import { deployNilContract } from "../../util/deploy";
 
-task("deploy-factory").setAction(async (taskArgs, _) => {
-  const smartAccount = await createSmartAccount();
+task("deploy-factory").setAction(async (taskArgs, hre) => {
 
-  const FactoryJson = require("../../../artifacts/contracts/UniswapV2Factory.sol/UniswapV2Factory.json");
+  const smartAccount = await hre.nil.getSmartAccount();
 
-  const { contract, address } = await deployNilContract(
-    smartAccount,
-    FactoryJson.abi as Abi,
-    FactoryJson.bytecode,
-    [smartAccount.address],
-    smartAccount.shardId,
-    [],
-  );
+  const { contract, address } = await hre.nil.deployContract("UniswapV2Factory", [smartAccount.address], {});
   console.log("Uniswap factory contract deployed at address: " + address);
 });

@@ -26,11 +26,11 @@ import "./tasks/uniswap/factory/deploy-factory";
 // Demo Tasks
 import "./tasks/uniswap/demo-router";
 import "./tasks/uniswap/demo-router-sync";
-import { NilHardhatUserConfig } from "hardhat/types/config";
+import { HardhatConfig } from "hardhat/types";
 
 dotenv.config();
 
-const config: NilHardhatUserConfig = {
+const config: HardhatConfig = {
   ignition: {
     requiredConfirmations: 1,
   },
@@ -52,7 +52,6 @@ const config: NilHardhatUserConfig = {
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
   },
-  walletAddress: process.env.SMART_ACCOUNT_ADDR,
   defaultShardId: 1,
 };
 
