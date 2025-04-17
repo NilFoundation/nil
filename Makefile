@@ -84,7 +84,7 @@ solidity_console: $(CONSOLE_SOL) $(CONSOLE_GO)
 compile-contracts: solidity_console $(BIN_FILES)
 
 golangci-lint: gen_rollup_contracts_bindings
-	golangci-lint run
+	golangci-lint run --verbose --print-resources-usage
 
 format: generated
 	GOPROXY= go mod tidy
