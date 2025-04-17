@@ -44,8 +44,6 @@ import {
 } from "./contractInteraction.js";
 import type { WriteOptions } from "./contractInteraction.js";
 
-abstract class AbstractContract {}
-
 export type LogTopic = Hex | Hex[] | null;
 
 export type ContractFunctionName<
@@ -536,6 +534,24 @@ export function getContract<
     : CommonWriteContractMethods;
 };
 
+export function getContract<
+  A extends Abi | unknown[],
+  C extends PublicClient,
+  W extends SmartAccountInterface,
+  K extends string,
+>(params: {
+  abi: A;
+  client: C;
+  smartAccount: W;
+  address: Address;
+  externalInterface?: { methods: K[] };
+}): {
+  read: A extends Abi ? ReadContractsMethod<A, "view" | "pure"> : CommonReadContractMethods;
+  write: A extends Abi
+    ? WriteContractsMethod<A, "payable" | "nonpayable">
+    : CommonWriteContractMethods;
+};
+
 export function getContract<A extends Abi | unknown[], C extends PublicClient>(params: {
   abi: A;
   client: C;
@@ -560,7 +576,7 @@ export function getContract<
   client: C;
   smartAccount?: W;
   address: Address;
-  externalInterface?: { signer: ISigner; methods: K[] };
+  externalInterface?: { signer?: ISigner; methods: K[] };
 }) {
   const parseResult = AbiZod.safeParse(abi);
   if (parseResult.error) {
@@ -671,7 +687,7 @@ export function getContract<
     },
   });
 
-  if (!externalInterface) {
+  if (!externalInterface || !externalInterface.signer) {
     return {
       read: readProxy as unknown,
       write: writeProxy as unknown,
@@ -688,6 +704,7 @@ export function getContract<
         : CommonWriteContractMethods;
     };
   }
+  const signer = externalInterface.signer;
 
   const writeExternalMethods = {} as A extends Abi
     ? Partial<ArrayToObject<A, "nonpayable" | "payable">>
@@ -722,7 +739,7 @@ export function getContract<
         return async (args: unknown[], options: WriteOptions) => {
           return writeExternalContract({
             client,
-            signer: externalInterface.signer,
+            signer,
             abi,
             // @ts-ignore
             functionName: property,

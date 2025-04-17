@@ -2,6 +2,7 @@ import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomicfoundation/hardhat-ignition-ethers";
 import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-ignition-ethers";
+import "@nilfoundation/hardhat-nil-plugin";
 import "@typechain/hardhat";
 import * as dotenv from "dotenv";
 import type { HardhatUserConfig } from "hardhat/config";
@@ -46,6 +47,7 @@ const config: HardhatUserConfig = {
   },
   networks: {
     nil: {
+      nil: true,
       url: process.env.NIL_RPC_ENDPOINT,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
