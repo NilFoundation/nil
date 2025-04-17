@@ -14,7 +14,11 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@test/*": ["./tests/*"]
+    }
   },
   "include": ["src", "tests", "typings.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]

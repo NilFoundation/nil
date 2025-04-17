@@ -1,4 +1,4 @@
-# Release 16.04.2025: migration guide
+# Release 17.04.2025: migration guide
 
 This release of =nil; improves the output of several =nil; CLI commands and makes minor adjustments to types in `Nil.js`. It also provides several quality-of-life improvements to the Cometa service and the =nil; wallet extension.
 
@@ -54,6 +54,11 @@ This release of =nil; improves the output of several =nil; CLI commands and make
 
 * The `SmartAccount.sendTransaction()` method now returns an instance of the `Transaction` class instead of the transaction hash. 
 * An object of the `Transaction` class can now call the `waitTillCompleted()` method to await the transaction results.
+* The `CometaClient.compileContract()` and `CometaClient.registerContract()` methods now can accept an object representing the Cometa JSON input.
+* The `CometaClient` class now supports three new methods:
+  - `CometaClient.getAbi()`
+  - `CometaClient.getSourceCode()`
+  - `CometaClient.decodeTransactionCallData()`  
 
 ## Migration of smart contracts
 

@@ -18,7 +18,6 @@ export type ClickhouseTransactionElem = {
   value: string;
   method: string;
   flags: number;
-  timestamp: string;
   outgoing: boolean;
   token: [string, string][];
 };
@@ -44,7 +43,6 @@ export const TransactionElemSchema = z.object({
   value: z.string(),
   method: z.string(),
   flags: z.number(),
-  timestamp: z.string(),
   outgoing: z.boolean(),
 });
 
@@ -62,7 +60,6 @@ export const TransactionFullSchema = z.object({
   value: z.string(),
   method: z.string(),
   flags: z.number(),
-  timestamp: z.string(),
   outgoing: z.boolean(),
   token: z.array(TokenSchema),
 });
@@ -84,7 +81,6 @@ gas_used,
 seqno,
 value,
 fee_credit,
-timestamp,
 substring(arrayStringConcat(arrayMap(x -> hex(x), data)), 1, 8) as method`;
 
 const fieldsFull = `hex(hash) as hash,
@@ -100,7 +96,6 @@ gas_used,
 seqno,
 value,
 fee_credit,
-timestamp,
 arrayStringConcat(arrayMap(x -> hex(x), data)) as method,
 arrayMap(x -> tuple(hex(tupleElement(x, 1)), tupleElement(x, 2)), token) as token`;
 
@@ -119,7 +114,6 @@ export const getTransactionsByBlockHash = async (hash: string): Promise<Transact
         ${fieldsElem}
         FROM transactions WHERE block_hash = {hash: String}
         ORDER BY
-          timestamp DESC,
           block_id DESC,
           transaction_index ASC,
           seqno DESC,
@@ -146,7 +140,6 @@ export const getTransactionsByBlock = async (
         ${fieldsElem}
         FROM transactions WHERE block_id = {id: Int32} AND shard_id = {shard: Int32}
         ORDER BY
-          timestamp DESC,
           block_id DESC,
           transaction_index ASC,
           seqno DESC,
@@ -176,7 +169,7 @@ export const getTransactionsByAddress = async (address: string, offset: number, 
   console.log(`SELECT
         ${fieldsElem}
         FROM transactions
-        WHERE from = {address: String} OR to = {address: String} ORDER BY timestamp DESC LIMIT {limit: Int32} OFFSET {offset: Int32}
+        WHERE from = {address: String} OR to = {address: String} ORDER BY block_id DESC LIMIT {limit: Int32} OFFSET {offset: Int32}
         `);
   const query = await client.query({
     query: `SELECT
@@ -184,7 +177,6 @@ export const getTransactionsByAddress = async (address: string, offset: number, 
         FROM transactions
         WHERE from = {address: String} OR to = {address: String}
         ORDER BY
-          timestamp DESC,
           block_id DESC,
           seqno DESC,
           outgoing ASC
@@ -255,7 +247,6 @@ export const getChildTransactionsByHash = async (hash: string) => {
     incoming.seqno as seqno,
     incoming.value as value,
     incoming.fee_credit as fee_credit,
-    incoming.timestamp as timestamp,
     substring(arrayStringConcat(arrayMap(x -> hex(x), incoming.data)), 1, 8) as method
 FROM transactions as outgoing
 LEFT OUTER JOIN transactions as incoming

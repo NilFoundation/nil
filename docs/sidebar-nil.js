@@ -366,7 +366,7 @@ export default {
         {
           type: "doc",
           label: "03 April 2025 guide",
-          id: "migration-guides/april-1604-2025-release",
+          id: "migration-guides/april-1704-2025-release",
         },
       ],
     },
