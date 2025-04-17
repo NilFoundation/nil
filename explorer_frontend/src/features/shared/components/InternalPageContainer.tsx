@@ -7,7 +7,6 @@ type InternalPageContainerProps = {
 
 export const InternalPageContainer: FC<InternalPageContainerProps> = ({ children }) => {
   const [css] = useStyletron();
-  const [isMobile] = useMobile();
 
   return (
     <div
