@@ -21,7 +21,7 @@ import { $block } from "../../features/block/models/model";
 import { blockDetailsRoute, blockRoute } from "../../features/routing/routes/blockRoute";
 import { Meta, formatShard, useMobile } from "../../features/shared";
 import { InternalPageContainer } from "../../features/shared";
-import { Layout } from "../../features/shared/components/Layout";
+import { Layout } from "../../features/shared";
 import { TransactionList } from "../../features/transaction-list";
 
 const secondary = TAB_KIND.secondary;

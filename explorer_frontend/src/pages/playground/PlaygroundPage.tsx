@@ -21,7 +21,6 @@ export const PlaygroundPage = () => {
   const [isDownloading, isRPCHealthy] = useUnit([fetchSolidityCompiler.pending, $rpcIsHealthy]);
   const [css] = useStyletron();
   const [isMobile] = useMobile();
-  const playgroundVersion = import.meta.env.VITE_PLAYGROUND_VERSION;
 
   useEffect(() => {
     loadedPlaygroundPage();
@@ -34,7 +33,7 @@ export const PlaygroundPage = () => {
   return (
     <div className={css(isMobile ? mobileContainerStyle : styles.container)}>
       {!isRPCHealthy && <NetworkErrorNotification />}
-      <Navbar showCodeInteractionButtons={true}>
+      <Navbar>
         <AccountPane />
       </Navbar>
       <div

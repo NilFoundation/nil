@@ -1,61 +1,81 @@
 import { renderWithLayout } from "@test/unit/renderWithLayout";
 import { screen } from "@testing-library/react";
 import * as effectorReact from "effector-react";
-import { describe, it, vi } from "vitest";
+import { describe, it } from "vitest";
 import { measure } from "../../shared/utils/measure";
 import { AccountInfo } from "./AccountInfo";
+import { fork, type Scope, type TypeOfSource } from "effector";
+import {
+  $account,
+  $accountCometaInfo,
+  loadAccountCometaInfoFx,
+  loadAccountStateFx,
+} from "../model";
+import { $cometaClient } from "../../cometa/model";
+import "../init.ts";
+import { router, addressRoute } from "../../routing";
+import { RouterProvider } from "atomic-router-react";
 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-const getUseUnitReturnedValue = (args: any = {}): any => {
-  return [
-    args.account ?? { address: "0x123", balance: "1000" },
-    args.accountCometaInfo ?? null,
-    args.isLoading ?? false,
-    args.isLoadingCometaInfo ?? false,
-    args.params ?? { address: "0x123" },
-    args.cometa ?? null,
-  ];
+const initScope = (args?: {
+  account?: Partial<TypeOfSource<typeof $account>>;
+  accountCometaInfo?: Partial<TypeOfSource<typeof $accountCometaInfo>>;
+  isLoading?: boolean;
+  isLoadingCometaInfo?: boolean;
+  params?: Partial<TypeOfSource<typeof addressRoute.$params>>;
+  cometa?: Partial<TypeOfSource<typeof $cometaClient>>;
+}): Scope => {
+  return fork({
+    values: [
+      [$account, args?.account ?? { address: "0x123", balance: "1000" }],
+      [$accountCometaInfo, args?.accountCometaInfo ?? null],
+      [loadAccountStateFx.pending, args?.isLoading ?? false],
+      [loadAccountCometaInfoFx.pending, args?.isLoadingCometaInfo ?? false],
+      [addressRoute.$params, args?.params ?? { address: "0x123" }],
+      [addressRoute.$isOpened, true],
+      [$cometaClient, args?.cometa ?? null],
+    ],
+  });
 };
 
-vi.mock("../../routing", () => ({
-  addressRoute: {
-    $params: { getState: () => ({ address: "0x123" }) },
-    $isOpened: { getState: () => true },
-  },
-}));
-
-vi.mock("effector-react");
-const mockUseUnit = vi.mocked(effectorReact.useUnit);
-
 describe("AccountInfo", () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("renders without crashing", () => {
-    mockUseUnit.mockReturnValue(getUseUnitReturnedValue());
-
-    renderWithLayout(<AccountInfo />);
+    const scope = initScope();
+    renderWithLayout(
+      <effectorReact.Provider value={scope}>
+        <RouterProvider router={router}>
+          <AccountInfo />
+        </RouterProvider>
+      </effectorReact.Provider>,
+    );
 
     expect(screen.getByTestId("vitest-unit--account-container")).toBeInTheDocument();
   });
 
   it("renders skeleton when loading", () => {
-    mockUseUnit.mockReturnValue(getUseUnitReturnedValue({ account: null, isLoading: true }));
-
-    renderWithLayout(<AccountInfo />);
+    const scope = initScope({ isLoading: true });
+    renderWithLayout(
+      <effectorReact.Provider value={scope}>
+        <RouterProvider router={router}>
+          <AccountInfo />
+        </RouterProvider>
+      </effectorReact.Provider>,
+    );
 
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
   });
 
   it("renders account information when loaded", () => {
-    mockUseUnit.mockReturnValue(
-      getUseUnitReturnedValue({
-        account: { address: "0x123", balance: "1000", tokens: [] },
-      }),
-    );
+    const scope = initScope({
+      account: { balance: "1000", tokens: [] },
+    });
 
-    renderWithLayout(<AccountInfo />);
+    renderWithLayout(
+      <effectorReact.Provider value={scope}>
+        <RouterProvider router={router}>
+          <AccountInfo />
+        </RouterProvider>
+      </effectorReact.Provider>,
+    );
 
     expect(screen.getByText("Address")).toBeInTheDocument();
     expect(screen.getByText("0x123")).toBeInTheDocument();
@@ -67,26 +87,38 @@ describe("AccountInfo", () => {
   });
 
   it("renders fallback UI when source code is not available", () => {
-    mockUseUnit.mockReturnValue(
-      getUseUnitReturnedValue({
-        accountCometaInfo: { sourceCode: { Compiled_Contracts: "" } },
-      }),
-    );
+    const scope = initScope({
+      accountCometaInfo: {
+        sourceCode: {
+          Compiled_Contracts: "",
+        },
+      },
+    });
 
-    renderWithLayout(<AccountInfo />);
+    renderWithLayout(
+      <effectorReact.Provider value={scope}>
+        <RouterProvider router={router}>
+          <AccountInfo />
+        </RouterProvider>
+      </effectorReact.Provider>,
+    );
 
     expect(screen.getByText("Source code")).toBeInTheDocument();
     expect(screen.getByText("Not available")).toBeInTheDocument();
   });
 
   it("shows spinner when cometa info is loading", () => {
-    mockUseUnit.mockReturnValue(
-      getUseUnitReturnedValue({
-        isLoadingCometaInfo: true,
-      }),
-    );
+    const scope = initScope({
+      isLoadingCometaInfo: true,
+    });
 
-    renderWithLayout(<AccountInfo />);
+    renderWithLayout(
+      <effectorReact.Provider value={scope}>
+        <RouterProvider router={router}>
+          <AccountInfo />
+        </RouterProvider>
+      </effectorReact.Provider>,
+    );
 
     expect(screen.getByTestId("vitest-unit--loading-cometa-info-spinner")).toBeInTheDocument();
   });

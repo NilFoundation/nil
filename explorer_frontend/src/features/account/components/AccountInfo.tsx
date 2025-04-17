@@ -24,6 +24,7 @@ import {
   loadAccountCometaInfoFx,
   loadAccountStateFx,
 } from "../model";
+import { isHexString } from "@nilfoundation/niljs";
 
 const AccountLoading = () => {
   const [css] = useStyletron();
@@ -50,7 +51,9 @@ export const AccountInfo = () => {
 
   useEffect(() => {
     loadAccountStateFx(params.address);
-    loadAccountCometaInfoFx({ address: params.address, cometaClient: cometa });
+    if (cometa && isHexString(params.address)) {
+      loadAccountCometaInfoFx({ address: params.address, cometaClient: cometa });
+    }
   }, [params.address, cometa]);
 
   if (isLoading) return <AccountLoading />;
@@ -67,7 +70,7 @@ export const AccountInfo = () => {
           <Info
             label="Source code"
             value={
-              sourceCode?.length > 0 ? (
+              sourceCode?.length ? (
                 <SolidityCodeField
                   code={sourceCode}
                   className={css({ marginTop: "1ch" })}
