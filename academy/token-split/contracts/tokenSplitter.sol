@@ -45,7 +45,7 @@ contract TokenSplitter is NilBase, NilTokenBase, Ownable, ReentrancyGuard {
         if (_recipients.length == 0) revert NoRecipientsSpecified();
         if (_recipients.length != _amounts.length) revert ArrayLengthMismatch();
 
-        Nil.Token[] memory tokens = Nil.txnTokens();
+        Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it
 
         uint256 totalAmountToSend = 0;
         for (uint256 i = 0; i < _amounts.length; i++) {

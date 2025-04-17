@@ -46,6 +46,23 @@ contract TokenManager {
         emit TokenMinted(msg.sender, token, amount);
     }
 
+    function transfer(
+        address dst,
+        Nil.Token[] memory tokens
+    ) public {
+        require(Nil.getShardId(address(msg.sender)) == Nil.getShardId(address(dst)), "Shard ID mismatch");
+        for (uint i = 0; i < tokens.length; i++) {
+            address token = TokenId.unwrap(tokens[i].id);
+
+            uint256 oldValue = IterableMapping.get(tokensMap[msg.sender], token);
+            require(oldValue >= tokens[i].amount, "Insufficient token balance");
+            IterableMapping.set(tokensMap[msg.sender], token, oldValue - tokens[i].amount);
+
+            uint256 oldValueDst = IterableMapping.get(tokensMap[dst], token);
+            IterableMapping.set(tokensMap[dst], token, oldValueDst + tokens[i].amount);
+        }
+    }
+
     function totalSupply(address token) view external returns (uint256) {
         return totalSupplyMap[token];
     }
@@ -59,5 +76,9 @@ contract TokenManager {
             tokens[i] = Nil.Token({id: TokenId.wrap(token), amount: amount});
         }
         return tokens;
+    }
+
+    function getToken(address account, address token) external view returns (uint256) {
+        return IterableMapping.get(tokensMap[account], token);
     }
 }
