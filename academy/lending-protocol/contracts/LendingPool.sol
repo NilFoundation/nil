@@ -40,7 +40,7 @@ contract LendingPool is NilBase, NilTokenBase, NilAwaitable {
     /// @dev The deposited tokens are recorded in the GlobalLedger via an asynchronous call.
     function deposit() public payable {
         /// Retrieve the tokens being sent in the transaction
-        Nil.Token[] memory tokens = Nil.txnTokens();
+        Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it
 
         /// @notice Encoding the call to the GlobalLedger to record the deposit
         /// @dev The deposit details (user address, token type, and amount) are encoded for GlobalLedger.
@@ -215,7 +215,7 @@ contract LendingPool is NilBase, NilTokenBase, NilAwaitable {
     function repayLoan() public payable {
         /// @notice Retrieve the tokens being sent in the transaction
         /// @dev Retrieves the tokens involved in the repayment.
-        Nil.Token[] memory tokens = Nil.txnTokens();
+        Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it
 
         /// @notice Prepare to query the loan details from GlobalLedger
         /// @dev Fetches the loan details of the borrower to proceed with repayment.

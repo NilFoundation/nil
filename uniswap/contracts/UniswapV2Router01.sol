@@ -18,7 +18,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
     }
 
     function addLiquidity(address pair, address to) public override {
-        Nil.Token[] memory tokens = Nil.txnTokens();
+        Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it
         if (tokens.length != 2) {
             revert("Send only 2 tokens to add liquidity");
         }
@@ -33,7 +33,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
         uint amountAMin,
         uint amountBMin
     ) public override sameShard(pair) returns (uint amountA, uint amountB) {
-        Nil.Token[] memory tokens = Nil.txnTokens();
+        Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it
         if (tokens.length != 2) {
             revert("Send only 2 tokens to add liquidity");
         }
@@ -121,7 +121,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
 
     // **** REMOVE LIQUIDITY ****
     function removeLiquidity(address pair, address to) public override {
-        Nil.Token[] memory tokens = Nil.txnTokens();
+        Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it
         if (tokens.length != 1) {
             revert("UniswapV2Router: should contains only pair token");
         }
@@ -134,7 +134,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
         uint /*amountAMin*/,
         uint /*amountBMin*/
     ) public override sameShard(pair) returns (uint amountA, uint amountB) {
-        Nil.Token[] memory tokens = Nil.txnTokens();
+        Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it
         if (tokens.length != 1) {
             revert("UniswapV2Router: should contains only pair token");
         }
@@ -156,7 +156,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
         uint amount0Out,
         uint amount1Out
     ) public override {
-        Nil.Token[] memory tokens = Nil.txnTokens();
+        Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it
         if (tokens.length != 1) {
             revert("UniswapV2Router: should contains only pair token");
         }
@@ -177,7 +177,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
         uint amountOutMin,
         address to
     ) external override sameShard(pair) returns (uint amount) {
-        Nil.Token[] memory tokens = Nil.txnTokens();
+        Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it  
         if (tokens.length != 1) {
             revert("UniswapV2Router: should contains only pair token");
         }

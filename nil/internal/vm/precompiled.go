@@ -128,7 +128,6 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	CheckIsInternalAddress:   &checkIsInternal{},
 	ManageTokenAddress:       &manageToken{},
 	TokenBalanceAddress:      &tokenBalance{},
-	SendTokensAddress:        &sendTokenSync{},
 	TransactionTokensAddress: &getTransactionTokens{},
 	GetGasPriceAddress:       &getGasPrice{},
 	ConfigParamAddress:       &configParam{},
@@ -189,7 +188,7 @@ func (a *simple) Run(
 	_ StateDBReadOnly, /* state */
 	input []byte,
 	_ *uint256.Int, /* value */
-	_ ContractRef, /* caller */
+	_ ContractRef,  /* caller */
 ) ([]byte, error) {
 	return a.contract.Run(input)
 }
@@ -747,51 +746,6 @@ func (a *tokenBalance) Run(
 		b := r.Bytes32()
 		return b[:], nil
 	}
-
-	return res, nil
-}
-
-type sendTokenSync struct{}
-
-var _ ReadWritePrecompiledContract = (*sendTokenSync)(nil)
-
-func (c *sendTokenSync) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
-	return 10, nil
-}
-
-func (c *sendTokenSync) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
-	if len(input) < 4 {
-		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
-	}
-
-	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := getPrecompiledMethod("precompileSendTokens").Inputs.Unpack(input[4:])
-	if err != nil {
-		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
-	}
-	if len(args) != 2 {
-		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
-	}
-
-	// Get destination address
-	addr, ok := args[0].(types.Address)
-	check.PanicIfNotf(ok, "sendTokenSync failed: addr argument is not an address")
-
-	if caller.Address().ShardId() != addr.ShardId() {
-		return nil, fmt.Errorf("sendTokenSync: %w: %s -> %s",
-			ErrCrossShardTransaction, caller.Address().ShardId(), addr.ShardId())
-	}
-
-	// Get tokens
-	tokens, err := extractTokens(args[1])
-	if err != nil {
-		return nil, types.NewVmVerboseError(types.ErrorPrecompileInvalidTokenArray, "sendTokenSync")
-	}
-
-	state.SetTokenTransfer(tokens)
-
-	res := make([]byte, 32)
-	res[31] = 1
 
 	return res, nil
 }

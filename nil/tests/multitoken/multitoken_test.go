@@ -241,7 +241,6 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 		})
 	})
 
-
 	s.Run("TestDeployWithToken", func() {
 		tokens := []types.TokenBalance{{Token: *token1.id, Balance: types.NewValueFromUint64(10)}}
 		contractCode, _ := s.LoadContract(common.GetAbsolutePath("../contracts/increment.sol"), "Incrementer")
@@ -346,6 +345,9 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 
 	tokenTest1 := CreateTokenId(&s.testAddress1_0)
 	tokenTest2 := CreateTokenId(&s.testAddress1_1)
+	tokenToSend := types.NewValueFromUint64(5000)
+	tokenInitial := types.NewValueFromUint64(1_000_000)
+	defaultFee := types.NewFeePackFromGas(100_000)
 
 	s.Run("Create tokens for test addresses", func() {
 		s.createTokenForTestContract(tokenTest1, types.NewValueFromUint64(1_000_000), "testToken1")
@@ -353,12 +355,13 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	})
 
 	s.Run("Call testCallWithTokensSync of testAddress1_0", func() {
+
 		data, err := s.abiTest.Pack("testCallWithTokensSync", s.testAddress1_1,
-			[]types.TokenBalance{{Token: *tokenTest1.id, Balance: types.NewValueFromUint64(5000)}})
+			[]types.TokenBalance{{Token: *tokenTest1.id, Balance: tokenToSend}})
 		s.Require().NoError(err)
 
 		hash, err := s.Client.SendExternalTransaction(
-			s.Context, data, s.testAddress1_0, nil, types.NewFeePackFromGas(100_000))
+			s.Context, data, s.testAddress1_0, nil, defaultFee)
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().True(receipt.Success)
@@ -366,11 +369,13 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 		s.Run("Check token is debited from testAddress1_0", func() {
 			tokens, err := s.Client.GetTokens(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
-			s.Equal(types.NewValueFromUint64(1_000_000-5000), tokens[*tokenTest1.id])
+			s.Equal(tokenInitial.Sub(tokenToSend), tokens[*tokenTest1.id])
 
 			// Check balance via `Nil.tokenBalance` Solidity method
+			newBalance := tokenInitial.ToBig()
+			newBalance.Sub(newBalance, tokenToSend.ToBig())
 			data, err := s.abiTest.Pack(
-				"checkTokenBalance", types.EmptyAddress, tokenTest1.id, big.NewInt(1_000_000-5000))
+				"checkTokenBalance", s.testAddress1_0, tokenTest1.id, newBalance)
 			s.Require().NoError(err)
 			receipt := s.SendExternalTransactionNoCheck(data, s.testAddress1_0)
 			s.Require().True(receipt.Success)
@@ -379,7 +384,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 		s.Run("Check token is credited to testAddress1_1", func() {
 			tokens, err := s.Client.GetTokens(s.Context, s.testAddress1_1, "latest")
 			s.Require().NoError(err)
-			s.Equal(types.NewValueFromUint64(5000), tokens[*tokenTest1.id])
+			s.Equal(tokenToSend, tokens[*tokenTest1.id])
 		})
 	})
 
@@ -388,7 +393,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	s.Run("Try to call with non-existent token", func() {
 		data, err := s.abiTest.Pack("testCallWithTokensSync", s.testAddress1_1,
 			[]types.TokenBalance{
-				{Token: *tokenTest1.id, Balance: types.NewValueFromUint64(5000)},
+				{Token: *tokenTest1.id, Balance: tokenToSend},
 				{Token: invalidId, Balance: types.NewValueFromUint64(1)},
 			})
 		s.Require().NoError(err)
@@ -402,23 +407,23 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 		s.Run("Check token of testAddress1_0", func() {
 			tokens, err := s.Client.GetTokens(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
-			s.Equal(types.NewValueFromUint64(1_000_000-5000), tokens[*tokenTest1.id])
+			s.Equal(tokenInitial.Sub(tokenToSend), tokens[*tokenTest1.id])
 		})
 
 		s.Run("Check token of testAddress1_1", func() {
 			tokens, err := s.Client.GetTokens(s.Context, s.testAddress1_1, "latest")
 			s.Require().NoError(err)
-			s.Equal(types.NewValueFromUint64(5000), tokens[*tokenTest1.id])
+			s.Equal(tokenToSend, tokens[*tokenTest1.id])
 		})
 	})
 
 	s.Run("Call testCallWithTokensAsync of testAddress1_0", func() {
 		data, err := s.abiTest.Pack("testCallWithTokensAsync", s.testAddress1_1,
-			[]types.TokenBalance{{Token: *tokenTest1.id, Balance: types.NewValueFromUint64(5000)}})
+			[]types.TokenBalance{{Token: *tokenTest1.id, Balance: tokenToSend}})
 		s.Require().NoError(err)
 
 		hash, err := s.Client.SendExternalTransaction(
-			s.Context, data, s.testAddress1_0, nil, types.NewFeePackFromGas(100_000))
+			s.Context, data, s.testAddress1_0, nil, defaultFee)
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().True(receipt.Success)
@@ -428,26 +433,26 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 		s.Run("Check token is debited from testAddress1_0", func() {
 			tokens, err := s.Client.GetTokens(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
-			s.Equal(types.NewValueFromUint64(1_000_000-5000-5000), tokens[*tokenTest1.id])
+			s.Equal(tokenInitial.Sub(tokenToSend).Sub(tokenToSend), tokens[*tokenTest1.id])
 		})
 
 		s.Run("Check token is credited to testAddress1_1", func() {
 			tokens, err := s.Client.GetTokens(s.Context, s.testAddress1_1, "latest")
 			s.Require().NoError(err)
-			s.Equal(types.NewValueFromUint64(5000+5000), tokens[*tokenTest1.id])
+			s.Equal(tokenToSend.Add(tokenToSend), tokens[*tokenTest1.id])
 		})
 	})
 
 	s.Run("Try to call with non-existent token", func() {
 		data, err := s.abiTest.Pack("testCallWithTokensAsync", s.testAddress1_1,
 			[]types.TokenBalance{
-				{Token: *tokenTest1.id, Balance: types.NewValueFromUint64(5000)},
+				{Token: *tokenTest1.id, Balance: tokenToSend},
 				{Token: invalidId, Balance: types.NewValueFromUint64(1)},
 			})
 		s.Require().NoError(err)
 
 		hash, err := s.Client.SendExternalTransaction(
-			s.Context, data, s.testAddress1_0, nil, types.NewFeePackFromGas(100_000))
+			s.Context, data, s.testAddress1_0, nil, defaultFee)
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().False(receipt.Success)
@@ -456,13 +461,13 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 		s.Run("Check token of testAddress1_0", func() {
 			tokens, err := s.Client.GetTokens(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
-			s.Equal(types.NewValueFromUint64(1_000_000-5000-5000), tokens[*tokenTest1.id])
+			s.Equal(tokenInitial.Sub(tokenToSend).Sub(tokenToSend), tokens[*tokenTest1.id])
 		})
 
 		s.Run("Check token of testAddress1_1", func() {
 			tokens, err := s.Client.GetTokens(s.Context, s.testAddress1_1, "latest")
 			s.Require().NoError(err)
-			s.Equal(types.NewValueFromUint64(5000+5000), tokens[*tokenTest1.id])
+			s.Equal(tokenToSend.Add(tokenToSend), tokens[*tokenTest1.id])
 		})
 	})
 
@@ -470,11 +475,11 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	amountTest2 := s.getTokenBalance(&s.testAddress1_1, tokenTest1)
 
 	s.Run("Call testSendTokensSync", func() {
-		data, err := s.abiTest.Pack("testSendTokensSync", s.testAddress1_1, big.NewInt(5000), false)
+		data, err := s.abiTest.Pack("testSendTokensSync", s.testAddress1_1, tokenToSend.ToBig(), false)
 		s.Require().NoError(err)
 
 		hash, err := s.Client.SendExternalTransaction(
-			s.Context, data, s.testAddress1_0, nil, types.NewFeePackFromGas(100_000))
+			s.Context, data, s.testAddress1_0, nil, defaultFee)
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().True(receipt.Success)
@@ -495,11 +500,11 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	})
 
 	s.Run("Call testSendTokensSync with fail flag", func() {
-		data, err := s.abiTest.Pack("testSendTokensSync", s.testAddress1_1, big.NewInt(5000), true)
+		data, err := s.abiTest.Pack("testSendTokensSync", s.testAddress1_1, tokenToSend.ToBig(), true)
 		s.Require().NoError(err)
 
 		hash, err := s.Client.SendExternalTransaction(
-			s.Context, data, s.testAddress1_0, nil, types.NewFeePackFromGas(100_000))
+			s.Context, data, s.testAddress1_0, nil, defaultFee)
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().False(receipt.Success)
@@ -507,24 +512,24 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 		s.Run("Check token of testAddress1_0", func() {
 			tokens, err := s.Client.GetTokens(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
-			s.Equal(amountTest1.Sub64(5000), tokens[*tokenTest1.id])
+			s.Equal(amountTest1.Sub(tokenToSend), tokens[*tokenTest1.id])
 		})
 
 		s.Run("Check token of testAddress1_1", func() {
 			tokens, err := s.Client.GetTokens(s.Context, s.testAddress1_1, "latest")
 			s.Require().NoError(err)
-			s.Equal(amountTest2.Add64(5000), tokens[*tokenTest1.id])
+			s.Equal(amountTest2.Add(tokenToSend), tokens[*tokenTest1.id])
 		})
 	})
 
 	///////////////////////////////////////////////////////////////////////////
 	// Call `testSendTokensSync` for address in different shard - should fail
 	s.Run("Fail call testSendTokensSync for address in different shard", func() {
-		data, err := s.abiTest.Pack("testSendTokensSync", s.smartAccountAddress3, big.NewInt(5000), false)
+		data, err := s.abiTest.Pack("testSendTokensSync", s.smartAccountAddress3, tokenToSend.ToBig(), false)
 		s.Require().NoError(err)
 
 		hash, err := s.Client.SendExternalTransaction(
-			s.Context, data, s.testAddress1_0, nil, types.NewFeePackFromGas(100_000))
+			s.Context, data, s.testAddress1_0, nil, defaultFee)
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().False(receipt.Success)
@@ -532,7 +537,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 		s.Run("Check token of testAddress1_0", func() {
 			tokens, err := s.Client.GetTokens(s.Context, s.testAddress1_0, "latest")
 			s.Require().NoError(err)
-			s.Require().Equal(amountTest1.Sub64(5000), tokens[*tokenTest1.id])
+			s.Require().Equal(amountTest1.Add(tokenToSend), tokens[*tokenTest1.id])
 		})
 	})
 }

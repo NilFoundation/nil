@@ -198,9 +198,7 @@ library Nil {
         Token[] memory tokens,
         bytes memory callData
     ) internal returns(bool, bytes memory) {
-        if (tokens.length > 0) {
-            __Precompile__(SEND_TOKEN_SYNC).precompileSendTokens(dst, tokens);
-        }
+        TokenManager(Nil.getTokenManagerAddress()).transfer(dst, tokens);
         (bool success, bytes memory returnData) = dst.call{gas: gas, value: value}(callData);
         return (success, returnData);
     }
@@ -243,7 +241,7 @@ library Nil {
      * @return Balance of the token.
      */
     function tokenBalance(address addr, TokenId id) internal view returns(uint256) {
-        return __Precompile__(GET_TOKEN_BALANCE).precompileGetTokenBalance(id, addr);
+        return TokenManager(Nil.getTokenManagerAddress()).getToken(addr, TokenId.unwrap(id));
     }
 
     /**
@@ -251,7 +249,9 @@ library Nil {
      * @return Array of tokens from the current transaction.
      */
     function txnTokens() internal returns(Token[] memory) {
-        return __Precompile__(GET_TRANSACTION_TOKENS).precompileGetTransactionTokens();
+        Token[] memory tokens;
+        require(false, "This function is not implemented");
+        return tokens;
     }
 
     /**
@@ -447,11 +447,7 @@ abstract contract NilBounceable is NilBase {
 // WARNING: User should never use this contract directly.
 contract __Precompile__ {
     // if mint flag is set to false, token will be burned instead
-    function precompileManageToken(uint256 amount, bool mint, TokenId token) public returns(bool) {}
-    function precompileGetTokenBalance(TokenId id, address addr) public view returns(uint256) {}
     function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory, uint256, uint) public payable returns(bool) {}
-    function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
-    function precompileGetTransactionTokens() public returns(Nil.Token[] memory) {}
     function precompileGetGasPrice(uint id) public returns(uint256) {}
     function precompileConfigParam(bool isSet, string calldata name, bytes calldata data) public returns(bytes memory) {}
     function precompileLog(string memory transaction, int[] memory data) public returns(bool) {}
