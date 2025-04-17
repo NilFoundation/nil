@@ -121,7 +121,7 @@ func (api *localShardApi) CallGetter(
 	ctx context.Context,
 	address types.Address,
 	calldata []byte,
-) ([]byte, error){
+) ([]byte, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -148,10 +148,10 @@ func (api *localShardApi) CallGetter(
 	}
 
 	extTxn := &types.ExternalTransaction{
-		FeeCredit: types.GasToValue(types.DefaultMaxGasInBlock.Uint64()),
+		FeeCredit:    types.GasToValue(types.DefaultMaxGasInBlock.Uint64()),
 		MaxFeePerGas: types.MaxFeePerGasDefault,
-		To: address,
-		Data: calldata,
+		To:           address,
+		Data:         calldata,
 	}
 
 	txn := extTxn.ToTransaction()
@@ -167,6 +167,90 @@ func (api *localShardApi) CallGetter(
 }
 
 func (api *localShardApi) GetTokens1(
+	ctx context.Context,
+	address types.Address,
+	blockReference rawapitypes.BlockReference,
+) (map[types.TokenId]types.Value, error) {
+	abi, err := contracts.GetAbi(contracts.NameTokenManager)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get ABI: %w", err)
+	}
+
+	calldata, err := abi.Pack("getTokens", address)
+	if err != nil {
+		return nil, fmt.Errorf("cannot pack calldata: %w", err)
+	}
+
+	tokenManagerAddr := types.ShardAndHexToAddress(address.ShardId(), types.TokenManagerPureAddress)
+
+	ret, err := api.CallGetter(ctx, tokenManagerAddr, calldata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call getter: %w", err)
+	}
+
+	var tokens []token
+	err = abi.UnpackIntoInterface(&tokens, "getTokens", ret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unpack response: %w", err)
+	}
+
+	res := make(map[types.TokenId]types.Value)
+	for t := range tokens {
+		res[types.TokenId(tokens[t].Token)] = types.NewValueFromBigMust(tokens[t].Balance)
+	}
+	return res, nil
+}
+
+func (api *LocalShardApi) CallGetter(
+	ctx context.Context,
+	address types.Address,
+	calldata []byte,
+) ([]byte, error) {
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	block, _, err := db.ReadLastBlock(tx, address.ShardId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to read last block: %w", err)
+	}
+
+	cfgAccessor, err := config.NewConfigReader(tx, &block.MainShardHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create config accessor: %w", err)
+	}
+
+	es, err := execution.NewExecutionState(tx, address.ShardId(), execution.StateParams{
+		Block:          block,
+		ConfigAccessor: cfgAccessor,
+		Mode:           execution.ModeReadOnly,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	extTxn := &types.ExternalTransaction{
+		FeeCredit:    types.GasToValue(types.DefaultMaxGasInBlock.Uint64()),
+		MaxFeePerGas: types.MaxFeePerGasDefault,
+		To:           address,
+		Data:         calldata,
+	}
+
+	txn := extTxn.ToTransaction()
+
+	payer := execution.NewDummyPayer()
+
+	es.AddInTransaction(txn)
+	res := es.HandleTransaction(ctx, txn, payer)
+	if res.Failed() {
+		return nil, fmt.Errorf("transaction failed: %w", res.GetError())
+	}
+	return res.ReturnData, nil
+}
+
+func (api *LocalShardApi) GetTokens1(
 	ctx context.Context,
 	address types.Address,
 	blockReference rawapitypes.BlockReference,
