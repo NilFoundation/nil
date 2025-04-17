@@ -2,7 +2,6 @@ package contracts
 
 import (
 	"bytes"
-
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
@@ -21,7 +20,8 @@ const (
 	NameNilConfigAbi  = "NilConfigAbi"
 	NameL1BlockInfo   = "system/L1BlockInfo"
 	NameGovernance    = "system/Governance"
-	NameTokenManager  = "TokenManager"
+	NameTokenManager  = "NilTokenManager"
+	NameRelayer       = "Relayer"
 )
 
 var (

@@ -145,7 +145,6 @@ library Nil {
      * @dev Makes an asynchronous call to a contract with tokens.
      * @param dst Destination address of the call.
      * @param refundTo Address to refund if the call fails.
-     * @param bounceTo Address to bounce to if the call fails.
      * @param feeCredit Fee credit for the call.
      * @param forwardKind Kind of forwarding for the gas.
      * @param value Value to be sent with the call.
@@ -155,30 +154,30 @@ library Nil {
     function asyncCallWithTokens(
         address dst,
         address refundTo,
-        address bounceTo,
+        address /*bounceTo*/,
         uint feeCredit,
         uint8 forwardKind,
         uint value,
         Token[] memory tokens,
         bytes memory callData
     ) internal {
-        Relayer(getRelayerAddress()).sendTx(dst, refundTo, feeCredit, forwardKind, value, tokens, callData);
+        Relayer(getRelayerAddress()).sendTx{value: value}(dst, refundTo, feeCredit, forwardKind, value, tokens, callData);
     }
 
     function getRelayerAddress() internal view returns (address) {
-        uint160 addr = uint160(getShardId(address(this))) << (18 * 8);
+        uint160 addr = uint160(getCurrentShardId()) << (18 * 8);
         addr |= uint160(0x333333333333333333333333333333333333);
         return address(addr);
     }
 
-    function getRelayerAddress(uint shardId) internal view returns (address) {
+    function getRelayerAddress(uint shardId) internal pure returns (address) {
         uint160 addr = uint160(shardId) << (18 * 8);
         addr |= uint160(0x333333333333333333333333333333333333);
         return address(addr);
     }
 
     function getTokenManagerAddress() internal view returns (address) {
-        uint160 addr = uint160(getShardId(address(this))) << (18 * 8);
+        uint160 addr = uint160(getCurrentShardId()) << (18 * 8);
         addr |= uint160(0x444444444444444444444444444444444444);
         return address(addr);
     }
@@ -200,9 +199,8 @@ library Nil {
         Token[] memory tokens,
         bytes memory callData
     ) internal returns(bool, bytes memory) {
-        TokenManager(Nil.getTokenManagerAddress()).transfer(dst, tokens);
-        (bool success, bytes memory returnData) = dst.call{gas: gas, value: value}(callData);
-        return (success, returnData);
+        bytes memory returnData = NilTokenManager(Nil.getTokenManagerAddress()).transferCall(dst, gas, value, tokens, callData);
+        return (true, returnData);
     }
 
     /**
@@ -284,17 +282,15 @@ library Nil {
      * @return Balance of the token.
      */
     function tokenBalance(address addr, TokenId id) internal view returns(uint256) {
-        return TokenManager(Nil.getTokenManagerAddress()).getToken(addr, TokenId.unwrap(id));
+        return NilTokenManager(Nil.getTokenManagerAddress()).getBalance(addr, TokenId.unwrap(id));
     }
 
     /**
      * @dev Returns tokens from the current transaction.
      * @return Array of tokens from the current transaction.
      */
-    function txnTokens() internal returns(Token[] memory) {
-        Token[] memory tokens;
-        require(false, "This function is not implemented");
-        return tokens;
+    function txnTokens() internal view returns(Token[] memory) {
+        return NilTokenManager(getTokenManagerAddress()).getTxTokens();
     }
 
     /**
@@ -304,6 +300,15 @@ library Nil {
      */
     function getShardId(address addr) internal pure returns(uint256) {
         return uint256(uint160(addr)) >> (18 * 8);
+    }
+
+    function getCurrentShardId() internal view returns(uint256) {
+        return getShardId(address(this));
+    }
+
+    function getAddressForShard(address addr, uint shardId) internal pure returns(address) {
+        uint160 addrUint = uint160(addr) & (1 << 18 * 8) - 1;
+        return address(uint160(addrUint | (shardId << (18 * 8))));
     }
 
     /**
@@ -493,13 +498,11 @@ contract NilBase {
 }
 
 abstract contract NilBounceable is NilBase {
-    function bounce(string calldata err) virtual payable external;
+    function bounce(bytes memory returnData) virtual payable external;
 }
 
 // WARNING: User should never use this contract directly.
 contract __Precompile__ {
-    // if mint flag is set to false, token will be burned instead
-    function precompileManageToken(uint256 amount, bool mint, TokenId token) public returns(bool) {}
     function precompileGetTokenBalance(TokenId id, address addr) public view returns(uint256) {}
     function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
     function precompileSendRequest(address, Nil.Token[] memory, uint, bytes memory, bytes memory) public payable returns(bool) {}

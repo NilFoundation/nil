@@ -36,6 +36,13 @@ var (
 	TokenManagerPureAddress = "444444444444444444444444444444444444"
 )
 
+func GetRelayerAddress(shardId ShardId) Address {
+	return ShardAndHexToAddress(shardId, RelayerPureAddress)
+}
+
+func GetTokenManagerAddress(shardId ShardId) Address {
+	return ShardAndHexToAddress(shardId, TokenManagerPureAddress)
+}
 func GetTokenName(addr TokenId) string {
 	switch Address(addr) {
 	case FaucetAddress:

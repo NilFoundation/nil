@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
 	"sort"
@@ -29,7 +30,7 @@ import (
 )
 
 const (
-	TraceBlocksEnabled                    = true
+	TraceBlocksEnabled                    = false
 	ExternalTransactionVerificationMaxGas = types.Gas(100_000)
 
 	ModeReadOnly     = "read-only"
@@ -311,6 +312,11 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		l = l.Str("mode", params.Mode)
 	}
 	logger := l.Logger()
+
+	// FIXME: remove
+	if params.Mode != "proposal" {
+		logger = logging.NewLoggerWithWriter("", io.Discard)
+	}
 
 	feeCalculator := params.FeeCalculator
 	if feeCalculator == nil {
@@ -1180,14 +1186,16 @@ func (es *ExecutionState) HandleTransaction(
 		if txn.IsBounce() {
 			es.logger.Error().Err(res.Error).Msg("VM returns error during bounce transaction processing")
 		} else {
-			es.logger.Debug().Err(res.Error).Msg("execution txn failed")
-			if txn.IsInternal() {
-				var bounceErr error
-				if bounced, bounceErr = es.sendBounceTransaction(txn, res); bounceErr != nil {
-					es.logger.Error().Err(bounceErr).Msg("Bounce transaction sent failed")
-					return res.SetFatal(bounceErr)
-				}
-			}
+			// FIXME: Now we do BOUNCE in Relayer
+			//
+			//es.logger.Debug().Err(res.Error).Msg("execution txn failed")
+			//if txn.IsInternal() {
+			//	var bounceErr error
+			//	if bounced, bounceErr = es.sendBounceTransaction(txn, res); bounceErr != nil {
+			//		es.logger.Error().Err(bounceErr).Msg("Bounce transaction sent failed")
+			//		return res.SetFatal(bounceErr)
+			//	}
+			//}
 		}
 	} else {
 		availableGas := es.txnFeeCredit.Sub(res.CoinsUsed())
@@ -1340,7 +1348,6 @@ func (es *ExecutionState) handleExecutionTransaction(
 	es.revertId = es.Snapshot()
 
 	gas, exceedBlockLimit := es.calcGasLimit(es.txnFeeCredit.ToGas(es.GasPrice))
-	es.evm.SetTokenTransfer(transaction.Token)
 	ret, leftOver, err := es.evm.Call(caller, addr, callData, gas.Uint64(), transaction.Value.Int())
 
 	if exceedBlockLimit && types.IsOutOfGasError(err) {
@@ -1784,92 +1791,6 @@ func (es *ExecutionState) CallVerifyExternal(
 	return res
 }
 
-func (es *ExecutionState) AddToken(addr types.Address, tokenId types.TokenId, amount types.Value) error {
-	es.logger.Debug().
-		Stringer("addr", addr).
-		Stringer("amount", amount).
-		Stringer("id", tokenId).
-		Msg("Add token")
-
-	acc, err := es.GetAccount(addr)
-	if err != nil {
-		return err
-	}
-	if acc == nil {
-		return fmt.Errorf("destination account %v not found", addr)
-	}
-
-	balance := acc.GetTokenBalance(tokenId)
-	if balance == nil {
-		balance = &types.Value{}
-	}
-	newBalance := balance.Add(amount)
-	// Amount can be negative(token burning). So, if the new balance is negative, set it to 0
-	if newBalance.Cmp(types.Value{}) < 0 {
-		newBalance = types.Value{}
-	}
-	acc.SetTokenBalance(tokenId, newBalance)
-
-	return nil
-}
-
-func (es *ExecutionState) SubToken(addr types.Address, tokenId types.TokenId, amount types.Value) error {
-	es.logger.Debug().
-		Stringer("addr", addr).
-		Stringer("amount", amount).
-		Stringer("id", tokenId).
-		Msg("Sub token")
-
-	acc, err := es.GetAccount(addr)
-	if err != nil {
-		return err
-	}
-	if acc == nil {
-		return fmt.Errorf("destination account %v not found", addr)
-	}
-
-	balance := acc.GetTokenBalance(tokenId)
-	if balance == nil {
-		balance = &types.Value{}
-	}
-	if balance.Cmp(amount) < 0 {
-		return fmt.Errorf("%w: %s < %s, token %s",
-			vm.ErrInsufficientBalance, balance, amount, tokenId)
-	}
-	acc.SetTokenBalance(tokenId, balance.Sub(amount))
-
-	return nil
-}
-
-func (es *ExecutionState) GetTokens(addr types.Address) map[types.TokenId]types.Value {
-	acc, err := es.GetAccountReader(addr)
-	if err != nil {
-		es.logger.Error().Err(err).Msg("failed to get account")
-		return nil
-	}
-	if acc == nil {
-		return nil
-	}
-
-	res := make(map[types.TokenId]types.Value)
-	for k, v := range acc.TokenTrieReader.Iterate() {
-		var c types.TokenBalance
-		c.Token = types.TokenId(k)
-		if err := c.Balance.UnmarshalSSZ(v); err != nil {
-			es.logger.Error().Err(err).Msg("failed to unmarshal token balance")
-			continue
-		}
-		res[c.Token] = c.Balance
-	}
-	// If some token was changed during execution, we need to set it to the result. It will probably rewrite values
-	// fetched from the storage above.
-	for id, balance := range *acc.Tokens {
-		res[id] = balance
-	}
-
-	return res
-}
-
 func (es *ExecutionState) GetGasPrice(shardId types.ShardId) (types.Value, error) {
 	prices, err := config.GetParamGasPrice(es.GetConfigAccessor())
 	if err != nil {
@@ -1892,10 +1813,6 @@ func (es *ExecutionState) Rollback(counter, patchLevel uint32, mainBlock uint64)
 
 func (es *ExecutionState) GetRollback() *RollbackParams {
 	return es.rollback
-}
-
-func (es *ExecutionState) SetTokenTransfer(tokens []types.TokenBalance) {
-	es.evm.SetTokenTransfer(tokens)
 }
 
 func (es *ExecutionState) newVm(internal bool, origin types.Address) error {

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./Nil.sol";
+import "./NilTokenManager.sol";
 
 /**
  * @title NilTokenBase
@@ -11,16 +12,27 @@ import "./Nil.sol";
  * They are virtual, so the main contract can disable them by overriding them. Then only logic of the contract can use
  * internal methods.
  */
-abstract contract NilTokenBase is NilBase {
+abstract contract NilTokenBase is NilBase, NilTokenHook {
     uint totalSupply;
     string tokenName;
+
+    modifier onlyTokenManger() {
+        require(msg.sender == Nil.getTokenManagerAddress(), "Only TokenManager can call this function");
+        _;
+    }
+
+    function sendHook(address from, address to, address token, uint256 amount) external override virtual onlyTokenManger {
+    }
+
+    function receiveHook(address from, address to, address token, uint256 amount) external override virtual onlyTokenManger {
+    }
 
     /**
      * @dev Returns the total supply of the token.
      * @return The total supply of the token.
      */
     function getTokenTotalSupply() public view returns(uint) {
-        return TokenManager(Nil.getTokenManagerAddress()).totalSupply(address(this));
+        return NilTokenManager(Nil.getTokenManagerAddress()).totalSupply(address(this));
     }
 
     /**
@@ -44,7 +56,7 @@ abstract contract NilTokenBase is NilBase {
      * @return The name of the token.
      */
     function getTokenName() public view returns(string memory) {
-        return tokenName;
+        return NilTokenManager(Nil.getTokenManagerAddress()).getTokenName();
     }
 
     /**
@@ -52,7 +64,7 @@ abstract contract NilTokenBase is NilBase {
      * @param name The name of the token.
      */
     function setTokenName(string memory name) onlyExternal virtual public {
-        tokenName = name;
+        NilTokenManager(Nil.getTokenManagerAddress()).setTokenName(name);
     }
 
     /**
@@ -88,8 +100,7 @@ abstract contract NilTokenBase is NilBase {
      * @param amount The amount of token to mint.
      */
     function mintTokenInternal(uint256 amount) internal {
-        TokenManager(Nil.getTokenManagerAddress()).mint(address(this), amount);
-        totalSupply += amount;
+        NilTokenManager(Nil.getTokenManagerAddress()).mint(amount);
     }
 
     /**
@@ -98,8 +109,7 @@ abstract contract NilTokenBase is NilBase {
      * @param amount The amount of token to mint.
      */
     function burnTokenInternal(uint256 amount) internal {
-        TokenManager(Nil.getTokenManagerAddress()).burn(address(this), amount);
-        totalSupply -= amount;
+        NilTokenManager(Nil.getTokenManagerAddress()).burn(amount);
     }
 
     /**

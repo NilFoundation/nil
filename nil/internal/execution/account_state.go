@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
@@ -13,23 +12,6 @@ import (
 )
 
 type AccountStateReader struct {
-	// Tokens is a pointer to map of token in Account. This map holds token that is changed during execution.
-	Tokens *map[types.TokenId]types.Value
-	// TokenTrieReader is a reader for token from the storage. If Tokens doesn't have some token, it will
-	// be fetched from TokenTrieReader.
-	TokenTrieReader *TokenTrieReader
-}
-
-func (asr *AccountStateReader) GetTokenBalance(id types.TokenId) types.Value {
-	if res, ok := (*asr.Tokens)[id]; ok {
-		return res
-	}
-	res, err := asr.TokenTrieReader.Fetch(id)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return types.Value{}
-	}
-	check.PanicIfErr(err)
-	return *res
 }
 
 type IAccountExecutionState interface {
@@ -47,7 +29,6 @@ type AccountState struct {
 	Seqno       types.Seqno
 	ExtSeqno    types.Seqno
 	StorageTree *StorageTrie
-	TokenTree   *TokenTrie
 	// AsyncContextTree is a trie that stores the context for each request sent from this account.
 	AsyncContextTree *AsyncContextTrie
 	// requestId is a current request id. It is used to generate unique number for each request.
@@ -56,8 +37,6 @@ type AccountState struct {
 	State               Storage
 	AsyncContext        map[types.TransactionIndex]*types.AsyncContext
 	AsyncContextRemoved []types.TransactionIndex
-	// Tokens holds the token changed during execution. If execution fails, these changes will be dropped.
-	Tokens map[types.TokenId]types.Value
 
 	// Flag whether the account was marked as self-destructed. The self-destructed
 	// account is still accessible in the scope of same transaction.
@@ -80,10 +59,7 @@ func (as *AccountState) FetchRequestId() uint64 {
 }
 
 func NewAccountStateReader(account *AccountState) *AccountStateReader {
-	return &AccountStateReader{
-		Tokens:          &account.Tokens,
-		TokenTrieReader: account.TokenTree.BaseMPTReader,
-	}
+	return &AccountStateReader{}
 }
 
 func NewAccountState(
@@ -97,19 +73,16 @@ func NewAccountState(
 	accountState := &AccountState{
 		db:               es,
 		address:          addr,
-		TokenTree:        NewDbTokenTrie(es.GetRwTx(), shardId),
 		StorageTree:      NewDbStorageTrie(es.GetRwTx(), shardId),
 		AsyncContextTree: NewDbAsyncContextTrie(es.GetRwTx(), shardId),
 
 		State:        make(Storage),
 		AsyncContext: make(map[types.TransactionIndex]*types.AsyncContext),
-		Tokens:       make(map[types.TokenId]types.Value),
 		logger:       logger,
 	}
 
 	if account != nil {
 		accountState.Balance = account.Balance
-		accountState.TokenTree.SetRootHash(account.TokenRoot)
 		accountState.StorageTree.SetRootHash(account.StorageRoot)
 		accountState.CodeHash = account.CodeHash
 		accountState.AsyncContextTree.SetRootHash(account.AsyncContextRoot)
@@ -188,45 +161,6 @@ func (as *AccountState) SetBalance(amount types.Value) {
 
 func (as *AccountState) setBalance(amount types.Value) {
 	as.Balance = amount
-}
-
-func (as *AccountState) SetTokenBalance(id types.TokenId, amount types.Value) {
-	prev := as.GetTokenBalance(id)
-	change := tokenChange{
-		account: &as.address,
-		id:      id,
-	}
-	if prev != nil {
-		change.prev = *prev
-	}
-	as.db.AppendToJournal(change)
-	as.setTokenBalance(id, amount)
-}
-
-func (as *AccountState) setTokenBalance(id types.TokenId, amount types.Value) {
-	as.Tokens[id] = amount
-	as.logger.Debug().
-		Stringer("address", as.address).
-		Hex("id", id[:]).
-		Stringer("amount", amount).
-		Msg("Set balance token")
-}
-
-func (as *AccountState) GetTokenBalance(id types.TokenId) *types.Value {
-	if value, exists := as.Tokens[id]; exists {
-		return &value
-	}
-
-	prev, err := as.TokenTree.Fetch(id)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil
-	}
-	check.PanicIfErr(err)
-
-	if prev != nil {
-		as.Tokens[id] = *prev
-	}
-	return prev
 }
 
 func (as *AccountState) SetSeqno(seqno types.Seqno) {
@@ -366,27 +300,10 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 		}
 	}
 
-	// Remove tokens with zero value
-	for k, v := range as.Tokens {
-		if v.IsZero() {
-			// We ignore `db.ErrKeyNotFound` error because there is a possibility that the token was created during
-			// execution of the current transaction, and it is not in the trie.
-			if err := as.TokenTree.Delete(k); err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-				return nil, err
-			}
-			delete(as.Tokens, k)
-		}
-	}
-
-	if err := UpdateFromMap(as.TokenTree, as.Tokens, func(val types.Value) *types.Value { return &val }); err != nil {
-		return nil, err
-	}
-
 	acc := &types.SmartContract{
 		Address:          as.address,
 		Balance:          as.Balance,
 		StorageRoot:      as.StorageTree.RootHash(),
-		TokenRoot:        as.TokenTree.RootHash(),
 		AsyncContextRoot: as.AsyncContextTree.RootHash(),
 		CodeHash:         as.CodeHash,
 		ExtSeqno:         as.ExtSeqno,

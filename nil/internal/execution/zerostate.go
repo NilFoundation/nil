@@ -86,13 +86,13 @@ func AddRelayersToZeroStateConfig(zeroStateConfig *ZeroStateConfig, shardsNum in
 		zeroStateConfig.Contracts = append(zeroStateConfig.Contracts, &ContractDescr{
 			Name:     fmt.Sprintf("Relayer_%d", i),
 			Contract: "Relayer",
-			Address:  types.ShardAndHexToAddress(types.ShardId(i), types.RelayerPureAddress),
+			Address:  types.GetRelayerAddress(types.ShardId(i)),
 			Value:    types.Value0,
 		})
 		zeroStateConfig.Contracts = append(zeroStateConfig.Contracts, &ContractDescr{
 			Name:     fmt.Sprintf("TokenManager_%d", i),
-			Contract: "TokenManager",
-			Address:  types.ShardAndHexToAddress(types.ShardId(i), types.TokenManagerPureAddress),
+			Contract: contracts.NameTokenManager,
+			Address:  types.GetTokenManagerAddress(types.ShardId(i)),
 			Value:    types.Value0,
 		})
 	}
