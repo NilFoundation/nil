@@ -11,14 +11,15 @@ import { calculateOutputAmount } from "../util/math";
 import { mintAndSendToken } from "../util/token-utils";
 
 task("demo-router", "Run demo with Uniswap Router").setAction(
-  async (taskArgs, _) => {
+  async (taskArgs, hre) => {
     const shardId = 1;
     const mintAmount = BigInt(100000);
     const mintToken0Amount = 10000;
     const mintToken1Amount = 10000;
     const swapAmount = 1000;
 
-    const smartAccount = await createSmartAccount();
+    const smartAccount = await hre.nil.getSmartAccount();
+    const client = await hre.nil.getPublicClient();
 
     const TokenJson = require("../../artifacts/contracts/Token.sol/Token.json");
     const FactoryJson = require("../../artifacts/contracts/UniswapV2Factory.sol/UniswapV2Factory.json");

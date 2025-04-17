@@ -1,4 +1,4 @@
-import { scope, task } from "hardhat/config";
+import { scope } from "hardhat/config";
 import type { HardhatRuntimeEnvironment } from "hardhat/types";
 
 const walletTask = scope("wallet", "Wallet tasks");
@@ -10,7 +10,6 @@ walletTask
 
     console.log("Current wallet:");
     console.log(`  address: ${smartAccount.address}`);
-    console.log(`  privateKey: ${smartAccount.privateKey}`);
   });
 
 walletTask

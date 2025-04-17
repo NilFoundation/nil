@@ -1,8 +1,4 @@
-import {
-  type SmartAccountV1,
-  getContract,
-  waitTillCompleted,
-} from "@nilfoundation/niljs";
+import { waitTillCompleted } from "@nilfoundation/niljs";
 import type { Address } from "abitype";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 

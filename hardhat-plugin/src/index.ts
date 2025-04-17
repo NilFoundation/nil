@@ -3,7 +3,7 @@ import "./tasks/wallet";
 import { HttpTransport, LocalECDSAKeySigner, PublicClient, SmartAccountV1, } from "@nilfoundation/niljs";
 import "./tasks/subtasks";
 import { deployContract, getContractAt } from "./internal/contracts";
-import { createSmartAccount } from "./core/wallet";
+import { createSmartAccount, topUpSmartAccount } from "./core/wallet";
 
 extendEnvironment((hre) => {
   if ("nil" in hre.network.config && hre.network.config.nil) {
@@ -52,4 +52,6 @@ extendEnvironment((hre) => {
     };
   }
 });
+
 export type * from "./types";
+export { topUpSmartAccount } from "./core/wallet";

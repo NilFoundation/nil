@@ -1,28 +1,20 @@
 import { waitTillCompleted } from "@nilfoundation/niljs";
-import { getContract } from "@nilfoundation/niljs";
 import type { Address } from "abitype";
 import { task } from "hardhat/config";
-import { createSmartAccount } from "../../basic/basic";
 
 task("swap", "Swap token0 for token1 in the Uniswap pair")
   .addParam("pair", "The address of the Uniswap pair contract")
   .addParam("amount", "The amount of token0 to swap")
-  .setAction(async (taskArgs, _) => {
-    const smartAccount = await createSmartAccount();
+  .setAction(async (taskArgs, hre) => {
+    const smartAccount = await hre.nil.getSmartAccount();
+    const client = await hre.nil.getPublicClient();
 
     // Destructure parameters for clarity
     const pairAddress = taskArgs.pair as Address;
     const swapAmount = BigInt(taskArgs.amount);
 
-    const TokenJson = require("../../artifacts/contracts/Token.sol/Token.json");
-    const PairJson = require("../../artifacts/contracts/UniswapV2Pair.sol/UniswapV2Pair.json");
 
-    const pair = getContract({
-      abi: PairJson.abi,
-      address: pairAddress,
-      client: smartAccount.client,
-      smartAccount: smartAccount,
-    });
+    const pair = await hre.nil.getContractAt("UniswapV2Pair", pairAddress, {});
 
     // Retrieve token addresses from the pair contract
     const token0Address = (await pair.read.token0Id([])) as Address;
@@ -32,18 +24,8 @@ task("swap", "Swap token0 for token1 in the Uniswap pair")
     console.log("Token 1 Address:", token1Address);
 
     // Attach to the Token contracts
-    const token0 = getContract({
-      abi: TokenJson.abi,
-      address: token0Address,
-      client: smartAccount.client,
-      smartAccount: smartAccount,
-    });
-    const token1 = getContract({
-      abi: TokenJson.abi,
-      address: token1Address,
-      client: smartAccount.client,
-      smartAccount: smartAccount,
-    });
+    const token0 = await hre.nil.getContractAt("Token", token0Address, {});
+    const token1 = await hre.nil.getContractAt("Token", token1Address, {});
 
     // Retrieve reserves from the pair
     const reserves = await pair.read.getReserves([]);
@@ -95,7 +77,7 @@ task("swap", "Swap token0 for token1 in the Uniswap pair")
       },
     );
 
-    await waitTillCompleted(smartAccount.client, hash);
+    await waitTillCompleted(client, hash);
 
     console.log("Swap executed successfully.");
 

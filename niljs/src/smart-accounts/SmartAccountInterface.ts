@@ -4,6 +4,7 @@ import type { Hex } from "../types/Hex.js";
 import type { Token } from "../types/Token.js";
 import type { Transaction } from "../utils/transaction.js";
 import type { DeployParams } from "./SmartAccountV1/types.js";
+import type { ISigner } from "../signers/types/ISigner.js";
 
 export type SendBaseTransactionParams = {
   to: Address | Uint8Array;
@@ -71,5 +72,6 @@ export interface SmartAccountInterface {
 
   shardId: number;
   address: Address;
+  signer: ISigner;
   getBalance(): Promise<bigint>;
 }
