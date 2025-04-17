@@ -1,6 +1,6 @@
 {
   "name": "@nilfoundation/smart-contracts",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Nil smart-contracts implementations",
   "sideEffects": false,
   "files": [

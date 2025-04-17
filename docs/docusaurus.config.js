@@ -153,7 +153,7 @@ const config = {
           {
             label: "Migration guides",
             position: "left",
-            to: "nil/migration-guides/april-1604-2025-release",
+            to: "nil/migration-guides/april-1704-2025-release",
           },
           {
             label: "Videos",

@@ -14,7 +14,8 @@
     "serve": "serve -s dist -l 3000",
     "test:e2e": "wait-on http://localhost:3000 && cypress open",
     "test:e2e:ci": "wait-on http://localhost:3000 && cypress run --headless",
-    "test:tutorials": "vitest ./tests/tutorials"
+    "test:tutorials": "vitest ./tests/tutorials",
+    "test:unit": "CI=true vitest -c ./tests/vitest.config.ts"
   },
   "author": "",
   "license": "ISC",
@@ -68,13 +69,16 @@
     "vite": "^6.0.3"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.3.0",
     "@types/loadable__component": "^5.13.6",
     "cypress": "^13.17.0",
+    "jsdom": "26.1.0",
     "serve": "^14.2.4",
     "solc": "^0.8.29",
     "vite-bundle-visualizer": "^1.1.0",
     "vite-plugin-string": "^1.2.3",
-    "vitest": "^3.0.9",
+    "vitest": "^3.1.1",
     "wait-on": "^8.0.1"
   }
 }

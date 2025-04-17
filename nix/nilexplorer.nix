@@ -59,7 +59,11 @@ stdenv.mkDerivation rec {
     export BIOME_BINARY=${biome}/bin/biome
 
     echo "Checking explorer frontend"
-    (cd explorer_frontend; pnpm run lint; bash run_tutorial_tests.sh;)
+    cd explorer_frontend
+    pnpm run lint
+    pnpm run test:unit
+    bash run_tutorial_tests.sh
+    cd -
 
     echo "Checking explorer backend"
     (cd explorer_backend; pnpm run lint;)

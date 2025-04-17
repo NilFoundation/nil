@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 /// <reference types="cypress" />
+/// <reference types="@testing-library/jest-dom" />
 
 declare module "*.sol" {
   const content: string;

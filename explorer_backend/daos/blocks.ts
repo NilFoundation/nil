@@ -8,7 +8,6 @@ hex(${prefix ? `${prefix}.` : ""}prev_block) as prev_block,
 hex(${prefix ? `${prefix}.` : ""}main_chain_hash) as master_chain_hash,
 ${prefix ? `${prefix}.` : ""}out_transaction_num as out_txn_num,
 ${prefix ? `${prefix}.` : ""}in_txn_num as in_txn_num,
-${prefix ? `${prefix}.` : ""}timestamp as timestamp,
 ${prefix ? `${prefix}.` : ""}id as id`;
 
 export type BlockListElement = {
@@ -18,7 +17,6 @@ export type BlockListElement = {
   master_chain_hash: string;
   out_txn_num: string;
   in_txn_num: string;
-  timestamp: string;
   id: string;
 };
 
@@ -29,7 +27,6 @@ export const BlockListElementScheme = z.object({
   master_chain_hash: z.string(),
   out_txn_num: z.string(),
   in_txn_num: z.string(),
-  timestamp: z.string(),
   id: z.string(),
 });
 

@@ -27,7 +27,7 @@ export default defineConfig({
           // Add defer attribute to the script tag and append it to the end of the body
           newHtml = newHtml.replace(
             "</body>",
-            `${scriptTag[0].replace("<script", "<script defer")}</body>`,
+            `${scriptTag[0].replace("<script", "<script defer")}</body>`
           );
         }
 

@@ -8,7 +8,7 @@ import (
 
 const (
 	MaxRequestContentLength  = 1024 * 1024 * 32 // 32MB
-	minSupportedRevision     = 771
+	minSupportedRevision     = 1185
 	minSupportedNiljsVersion = "0.24.0"
 	niljsClientVersionPrefix = "niljs/"
 )

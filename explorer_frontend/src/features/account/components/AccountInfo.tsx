@@ -57,7 +57,7 @@ export const AccountInfo = () => {
 
   if (account) {
     return (
-      <div>
+      <div data-testid="vitest-unit--account-container">
         <InfoBlock>
           <Info label="Address" value={params.address} />
           <Info label="Balance" value={measure(account.balance)} />
@@ -79,6 +79,7 @@ export const AccountInfo = () => {
                 />
               ) : isLoadingCometaInfo ? (
                 <div
+                  data-testid="vitest-unit--loading-cometa-info-spinner"
                   className={css({
                     display: "flex",
                     justifyContent: "center",
@@ -117,6 +118,5 @@ export const AccountInfo = () => {
     );
   }
 
-  // default
   return <AccountLoading />;
 };

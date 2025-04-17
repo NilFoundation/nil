@@ -55,7 +55,7 @@ REPO_DIR=$(readlink -f $(dirname $0)/../)
 
 pushd $REPO_DIR
 
-npm run install:clean
+pnpm install
 
 echo -e "${COLOR_GREEN}Lock-file generated${COLOR_END}"
 
