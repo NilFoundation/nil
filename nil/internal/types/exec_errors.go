@@ -171,6 +171,11 @@ const (
 	// ErrorAsyncDeployMustNotHaveToken is returned when the async deploy transaction contains custom token. It is not
 	// allowed to transfer custom tokens within async deploy transaction.
 	ErrorAsyncDeployMustNotHaveToken
+	// ErrorResponseForDeploy is returned when the response processing is specified for deploy request.
+	ErrorResponseForDeploy
+	// ErrorResponseProcessingGasWithoutResponse is returned when the response processing gas is specified at pure
+	// async message without response.
+	ErrorResponseProcessingGasWithoutResponse
 
 	// ErrorEmitLogFailed is returned when the execution state fails to add a log. Probably the limit of logs is
 	// reached.

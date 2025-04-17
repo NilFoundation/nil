@@ -70,7 +70,9 @@ contract TokensTest is NilTokenBase {
             address(this),
             feeCredit,
             tokens,
-            bytes.concat(code, bytes32(salt))
+            bytes.concat(code, bytes32(salt)),
+            "",
+            0
         );
         return contractAddress;
     }

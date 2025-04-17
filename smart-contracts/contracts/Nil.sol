@@ -23,7 +23,6 @@ library Nil {
     address private constant GET_TRANSACTION_TOKENS = address(0xd3);
     address private constant GET_GAS_PRICE = address(0xd4);
     address private constant CONFIG_PARAM = address(0xd7);
-    address private constant SEND_REQUEST = address(0xd8);
     address public constant IS_RESPONSE_TRANSACTION = address(0xd9);
     address public constant LOG = address(0xda);
     address public constant GOVERNANCE = address(0xdb);
@@ -40,7 +39,7 @@ library Nil {
     uint8 public constant FORWARD_VALUE = 2;
     // Do not forward gas from inbound transaction, take gas from the account instead.
     uint8 public constant FORWARD_NONE = 3;
-    // Minimal amount of gas reserved by SEND_REQUEST
+    // Minimal amount of gas reserved by asyncCall with response processing.
     uint public constant ASYNC_REQUEST_MIN_GAS = 50_000;
 
     // Token is a struct that represents a token with an id and amount.
@@ -94,7 +93,7 @@ library Nil {
         Token[] memory tokens;
         address contractAddress = Nil.createAddress(shardId, code, salt);
         __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(true, forwardKind, contractAddress, refundTo,
-            bounceTo, feeCredit, tokens, bytes.concat(code, bytes32(salt)));
+            bounceTo, feeCredit, tokens, bytes.concat(code, bytes32(salt)), "", 0);
         return contractAddress;
     }
 
@@ -160,7 +159,7 @@ library Nil {
         bytes memory callData
     ) internal {
         __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(false, forwardKind, dst, refundTo,
-            bounceTo, feeCredit, tokens, callData);
+            bounceTo, feeCredit, tokens, callData, "", 0);
     }
 
     /**
@@ -204,7 +203,8 @@ library Nil {
         bytes memory callData
     ) internal {
         Token[] memory tokens;
-        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, responseProcessingGas, context, callData);
+        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(false, FORWARD_REMAINING, dst, address(0),
+            address(0), 0, tokens, callData, context, responseProcessingGas);
     }
 
     /**
@@ -225,7 +225,8 @@ library Nil {
         bytes memory context,
         bytes memory callData
     ) internal {
-        __Precompile__(SEND_REQUEST).precompileSendRequest{value: value}(dst, tokens, responseProcessingGas, context, callData);
+        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(false, FORWARD_REMAINING, dst, address(0),
+            address(0), 0, tokens, callData, context, responseProcessingGas);
     }
 
     /**
@@ -472,8 +473,7 @@ contract __Precompile__ {
     // if mint flag is set to false, token will be burned instead
     function precompileManageToken(uint256 amount, bool mint) public returns(bool) {}
     function precompileGetTokenBalance(TokenId id, address addr) public view returns(uint256) {}
-    function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory) public payable returns(bool) {}
-    function precompileSendRequest(address, Nil.Token[] memory, uint, bytes memory, bytes memory) public payable returns(bool) {}
+    function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory, bytes memory, uint) public payable returns(bool) {}
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
     function precompileGetTransactionTokens() public returns(Nil.Token[] memory) {}
     function precompileGetGasPrice(uint id) public returns(uint256) {}

@@ -19,7 +19,6 @@ package vm
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"reflect"
 	"slices"
@@ -94,7 +93,6 @@ var (
 	TransactionTokensAddress = types.BytesToAddress([]byte{0xd3})
 	GetGasPriceAddress       = types.BytesToAddress([]byte{0xd4})
 	ConfigParamAddress       = types.BytesToAddress([]byte{0xd7})
-	SendRequestAddress       = types.BytesToAddress([]byte{0xd8})
 	CheckIsResponseAddress   = types.BytesToAddress([]byte{0xd9})
 	LogAddress               = types.BytesToAddress([]byte{0xda})
 	GovernanceAddress        = types.BytesToAddress([]byte{0xdb})
@@ -134,7 +132,6 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	TransactionTokensAddress: &getTransactionTokens{},
 	GetGasPriceAddress:       &getGasPrice{},
 	ConfigParamAddress:       &configParam{},
-	SendRequestAddress:       &sendRequest{},
 	CheckIsResponseAddress:   &checkIsResponse{},
 	LogAddress:               &emitLog{},
 	GovernanceAddress:        &governance{},
@@ -313,6 +310,30 @@ type asyncCall struct{}
 
 var _ ReadWritePrecompiledContract = (*asyncCall)(nil)
 
+func estimateGasForAsyncRequest(input []byte, precompile string, argnum, argtotal int) uint64 {
+	if len(input) < 4 {
+		return 0
+	}
+
+	// when running `asyncCall` the caller specifies exact amount of gas they want to reserve
+	// later this gas will be used for processing of response for particular request
+	method := getPrecompiledMethod(precompile)
+
+	// particular const value will be adjusted later
+	baseFee := 4000 + ForwardFee
+
+	// Unpack arguments, skipping the first 4 bytes (function selector)
+	args, err := method.Inputs.Unpack(input[4:])
+	// We don't need to tackle somehow any unpacking errors, cause running the contract with
+	// wrong argument will fail anyway (inside `Run` function)
+	if err != nil || len(args) != argtotal {
+		return baseFee
+	}
+
+	responseProcessingGas := extractUintParam(args[argnum], precompile, "responseProcessingGas")
+	return baseFee + responseProcessingGas.Uint64()
+}
+
 func (c *asyncCall) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
 	dst, err := extractDstAddress(input, "precompileAsyncCall", 3)
 	if err != nil {
@@ -321,7 +342,7 @@ func (c *asyncCall) RequiredGas(input []byte, state StateDBReadOnly) (uint64, er
 
 	extraGas := GetExtraGasForOutboundTransaction(state, dst.ShardId())
 
-	return ForwardFee + extraGas, nil
+	return extraGas + estimateGasForAsyncRequest(input, "precompileAsyncCall", 9, 10), nil
 }
 
 func extractTokens(arg any) ([]types.TokenBalance, error) {
@@ -363,7 +384,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	if err != nil {
 		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
 	}
-	if len(args) != 8 {
+	if len(args) != 10 {
 		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
 	}
 
@@ -403,10 +424,30 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	// Get `input` argument
 	input = getBytesArgCopy(args[7], "asyncCall", "input")
 
+	// Get `context` argument
+	context := getBytesArgCopy(args[8], "asyncCall", "context")
+
+	// Get `responseProcessingGas` argument
+	responseProcessingGas := types.Gas(extractUintParam(args[9], "asyncCall", "responseProcessingGas").Uint64())
+	if len(context) > 0 && responseProcessingGas < MinGasReserveForAsyncRequest {
+		logging.GlobalLogger.Error().Msgf(
+			"asyncCall failed: responseProcessingGas is too low (%d)", responseProcessingGas)
+		return nil, types.NewVmError(types.ErrorTooLowResponseProcessingGas)
+	}
+	if len(context) == 0 && responseProcessingGas > 0 {
+		return nil, types.NewVmError(types.ErrorResponseProcessingGasWithoutResponse)
+	}
+	if 0 < len(context) && len(context) < 4 {
+		return nil, types.NewVmError(types.ErrorTooShortContextData)
+	}
+
 	var kind types.TransactionKind
 	if deploy {
 		if len(tokens) != 0 {
 			return nil, types.NewVmError(types.ErrorAsyncDeployMustNotHaveToken)
+		}
+		if len(context) > 0 {
+			return nil, types.NewVmError(types.ErrorResponseForDeploy)
 		}
 		kind = types.DeployTransactionKind
 	} else {
@@ -437,131 +478,23 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 
 	// Internal is required for the transaction
 	payload := types.InternalTransactionPayload{
-		Kind:        kind,
-		FeeCredit:   feeCredit,
-		ForwardKind: types.ForwardKind(forwardKind),
-		Value:       types.NewValue(value),
-		Token:       tokens,
-		To:          dst,
-		RefundTo:    refundTo,
-		BounceTo:    bounceTo,
-		Data:        input,
+		Kind:           kind,
+		FeeCredit:      feeCredit,
+		ForwardKind:    types.ForwardKind(forwardKind),
+		Value:          types.NewValue(value),
+		Token:          tokens,
+		To:             dst,
+		RefundTo:       refundTo,
+		BounceTo:       bounceTo,
+		Data:           input,
+		RequestContext: context,
 	}
 	res = make([]byte, 32)
 	res[31] = 1
 
-	_, err = state.AddOutTransaction(caller.Address(), &payload)
+	_, err = state.AddOutTransaction(caller.Address(), &payload, responseProcessingGas)
 
 	return res, err
-}
-
-func estimateGasForAsyncRequest(input []byte, precompile string, argnum, argtotal int) uint64 {
-	if len(input) < 4 {
-		return 0
-	}
-
-	// when running `sendRequest` the caller specifies exact amount of gas they want to reserve
-	// later this gas will be used for processing of response for particular request
-	method := getPrecompiledMethod(precompile)
-
-	// particular const value will be adjusted later
-	baseFee := 4000 + ForwardFee
-
-	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := method.Inputs.Unpack(input[4:])
-	// We don't need to tackle somehow any unpacking errors, cause running the contract with
-	// wrong argument will fail anyway (inside `Run` function)
-	if err != nil || len(args) != argtotal {
-		return baseFee
-	}
-
-	responseProcessingGas := extractUintParam(args[argnum], precompile, "responseProcessingGas")
-	return baseFee + responseProcessingGas.Uint64()
-}
-
-type sendRequest struct{}
-
-var _ ReadWritePrecompiledContract = (*sendRequest)(nil)
-
-func (*sendRequest) RequiredGas(input []byte, state StateDBReadOnly) (uint64, error) {
-	dst, err := extractDstAddress(input, "precompileSendRequest", 0)
-	if err != nil {
-		return math.MaxUint64, err
-	}
-	extraGas := GetExtraGasForOutboundTransaction(state, dst.ShardId())
-
-	return extraGas + estimateGasForAsyncRequest(input, "precompileSendRequest", 2, 5), nil
-}
-
-func (a *sendRequest) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
-	if len(input) < 4 {
-		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
-	}
-
-	method := getPrecompiledMethod("precompileSendRequest")
-
-	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := method.Inputs.Unpack(input[4:])
-	if err != nil {
-		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
-	}
-	if len(args) != 5 {
-		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
-	}
-
-	// Get `dst` argument
-	dst, ok := args[0].(types.Address)
-	check.PanicIfNotf(ok, "sendRequest failed: dst argument is not an address")
-
-	// Get `tokens` argument, which is a slice of `TokenBalance`
-	tokens, err := extractTokens(args[1])
-	if err != nil {
-		logging.GlobalLogger.Error().Err(err).Msg("tokens is not a slice of TokenBalance")
-		return nil, types.NewVmVerboseError(types.ErrorPrecompileInvalidTokenArray, err.Error())
-	}
-
-	// Get `responseProcessingGas` argument
-	responseProcessingGas := types.Gas(extractUintParam(args[2], "sendRequest", "responseProcessingGas").Uint64())
-	if responseProcessingGas < MinGasReserveForAsyncRequest {
-		logging.GlobalLogger.Error().Msgf(
-			"sendRequest failed: responseProcessingGas is too low (%d)", responseProcessingGas)
-		return nil, types.NewVmError(types.ErrorTooLowResponseProcessingGas)
-	}
-
-	// Get `context` argument
-	context := getBytesArgCopy(args[3], "sendRequest", "context")
-
-	// Get `callData` argument
-	callData := getBytesArgCopy(args[4], "sendRequest", "callData")
-
-	if err := withdrawFunds(state, caller.Address(), types.NewValue(value)); err != nil {
-		return []byte("sendRequest failed: withdrawFunds failed"), err
-	}
-
-	// Internal is required for the transaction
-	payload := types.InternalTransactionPayload{
-		Kind:           types.ExecutionTransactionKind,
-		FeeCredit:      types.NewZeroValue(),
-		ForwardKind:    types.ForwardKindRemaining,
-		Value:          types.NewValue(value),
-		Token:          tokens,
-		To:             dst,
-		BounceTo:       state.GetInTransaction().To,
-		Data:           callData,
-		RequestContext: context,
-	}
-
-	setRefundTo(&payload.RefundTo, state.GetInTransaction())
-
-	if _, err = state.AddOutRequestTransaction(caller.Address(), &payload, responseProcessingGas); err != nil {
-		logging.GlobalLogger.Error().Msgf("AddOutRequestTransaction failed: %s", err)
-		return nil, types.NewVmVerboseError(types.ErrorPrecompileStateDbReturnedError, err.Error())
-	}
-
-	res := make([]byte, 32)
-	res[31] = 1
-
-	return res, nil
 }
 
 type verifySignature struct{}

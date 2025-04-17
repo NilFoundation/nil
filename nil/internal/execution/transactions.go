@@ -67,7 +67,7 @@ func (m transactionPayer) AddBalance(delta types.Value) error {
 		Kind:  types.RefundTransactionKind,
 		To:    m.transaction.RefundTo,
 		Value: delta,
-	}); err != nil {
+	}, 0); err != nil {
 		sharedLogger.Error().
 			Err(err).
 			Stringer(logging.FieldTransactionHash, m.transaction.Hash()).

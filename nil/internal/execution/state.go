@@ -892,32 +892,10 @@ func (es *ExecutionState) AppendForwardTransaction(txn *types.Transaction) {
 	es.OutTransactions[parentHash] = append(es.OutTransactions[parentHash], outTxn)
 }
 
-func (es *ExecutionState) AddOutRequestTransaction(
-	caller types.Address,
-	payload *types.InternalTransactionPayload,
-	responseProcessingGas types.Gas,
-) (*types.Transaction, error) {
-	txn, err := es.AddOutTransaction(caller, payload)
-	if err != nil {
-		return nil, err
-	}
-
-	acc, err := es.GetAccount(caller)
-	check.PanicIfErr(err)
-
-	txn.RequestId = acc.FetchRequestId()
-
-	acc.SetAsyncContext(types.TransactionIndex(txn.RequestId), &types.AsyncContext{
-		Data:                  payload.RequestContext,
-		ResponseProcessingGas: responseProcessingGas,
-	})
-
-	return txn, nil
-}
-
 func (es *ExecutionState) AddOutTransaction(
 	caller types.Address,
 	payload *types.InternalTransactionPayload,
+	responseProcessingGas types.Gas,
 ) (*types.Transaction, error) {
 	seqno, err := es.GetSeqno(caller)
 	if err != nil {
@@ -979,6 +957,17 @@ func (es *ExecutionState) AddOutTransaction(
 	outTxn := &types.OutboundTransaction{Transaction: txn, TxnHash: txnHash, ForwardKind: payload.ForwardKind}
 	es.OutTransactions[es.InTransactionHash] = append(es.OutTransactions[es.InTransactionHash], outTxn)
 
+	if len(payload.RequestContext) > 0 {
+		acc, err := es.GetAccount(caller)
+		check.PanicIfErr(err)
+
+		txn.RequestId = acc.FetchRequestId()
+		acc.SetAsyncContext(types.TransactionIndex(txn.RequestId), &types.AsyncContext{
+			Data:                  payload.RequestContext,
+			ResponseProcessingGas: responseProcessingGas,
+		})
+	}
+
 	return txn, nil
 }
 
@@ -1010,7 +999,7 @@ func (es *ExecutionState) sendBounceTransaction(txn *types.Transaction, execResu
 		Data:      data,
 		FeeCredit: toReturn,
 	}
-	if _, err = es.AddOutTransaction(txn.To, bounceTxn); err != nil {
+	if _, err = es.AddOutTransaction(txn.To, bounceTxn, 0); err != nil {
 		return false, err
 	}
 	es.logger.Debug().
@@ -1056,7 +1045,7 @@ func (es *ExecutionState) SendResponseTransaction(txn *types.Transaction, res *E
 
 	// TODO: need to pay for response here
 	// we pay for mem during VM execution, so likely big response isn't a problem
-	responseTxn, err := es.AddOutTransaction(txn.To, responsePayload)
+	responseTxn, err := es.AddOutTransaction(txn.To, responsePayload, 0)
 	if err != nil {
 		return err
 	}
