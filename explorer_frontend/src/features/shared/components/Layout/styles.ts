@@ -1,7 +1,7 @@
 import { COLORS, SPACE } from "@nilfoundation/ui-kit";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { StyleObject } from "styletron-react";
-import { getMobileStyles } from "../../../../styleHelpers";
+import { getMobileStyles, getTabletStyles } from "../../../../styleHelpers";
 
 const linkOutlineStyles = {
   borderRadius: "4px",
