@@ -21,6 +21,8 @@ import (
 type ProposerStorage interface {
 	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
 
+	TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error)
+
 	TryGetNextProposalData(ctx context.Context) (*scTypes.ProposalData, error)
 
 	SetBatchAsProposed(ctx context.Context, id scTypes.BatchId) error
@@ -44,11 +46,14 @@ type proposer struct {
 
 type ProposerConfig struct {
 	ProposingInterval time.Duration
+	DisableL1         *bool
 }
 
 func NewDefaultProposerConfig() ProposerConfig {
+	disableL1 := false
 	return ProposerConfig{
 		ProposingInterval: 10 * time.Second,
+		DisableL1:         &disableL1,
 	}
 }
 
@@ -106,16 +111,28 @@ func (p *proposer) updateStoredStateRootFromContract(ctx context.Context) error 
 	}
 
 	if latestStateRoot == common.EmptyHash {
-		p.logger.Warn().
-			Err(err).
-			Stringer("latestStateRoot", latestStateRoot).
-			Msg("L1 state root is not initialized, genesis state root will be used")
-
-		genesisBlock, err := p.rpcClient.GetBlock(ctx, types.MainShardId, "earliest", false)
+		stored, err := p.storage.TryGetProvedStateRoot(ctx)
 		if err != nil {
 			return err
 		}
-		latestStateRoot = genesisBlock.Hash
+		if stored != nil && *p.config.DisableL1 {
+			p.logger.Warn().
+				Stringer("latestStoredStateRoot", *stored).
+				Msg("L1 connection is disabled, using local stored value of state root")
+
+			latestStateRoot = *stored
+		} else {
+			p.logger.Warn().
+				Err(err).
+				Stringer("latestStateRoot", latestStateRoot).
+				Msg("L1 state root is not initialized, genesis state root will be used")
+
+			genesisBlock, err := p.rpcClient.GetBlock(ctx, types.MainShardId, "earliest", false)
+			if err != nil {
+				return err
+			}
+			latestStateRoot = genesisBlock.Hash
+		}
 	}
 
 	if err := p.storage.SetProvedStateRoot(ctx, latestStateRoot); err != nil {
