@@ -23,21 +23,37 @@ export const App = () => {
   const [css] = useStyletron();
 
   return (
-    <main className={css(styles.main)}>
-      <ErrorBoundary
-        fallback={
-          <ErrorPage
-            errorDescription="Something went wrong... Please reload the page or try again later."
-            errorCode={500}
-            redirectPath="/"
-            redirectTitle="Explorer page"
-          />
-        }
-      >
-        <RouterProvider router={router}>
-          <RoutesView />
-        </RouterProvider>
-      </ErrorBoundary>
-    </main>
+    <>
+      <style>
+        {`
+          * {
+            scrollbar-width: none;
+            scrollbar-color: #8A8A8A #f1f1f1;
+            cursor: pointer !important;
+            border-radius: 10px;
+          }
+
+          *:hover {
+            scrollbar-width: thin;
+          }
+        `}
+      </style>
+      <main className={css(styles.main)}>
+        <ErrorBoundary
+          fallback={
+            <ErrorPage
+              errorDescription="Something went wrong... Please reload the page or try again later."
+              errorCode={500}
+              redirectPath="/"
+              redirectTitle="Explorer page"
+            />
+          }
+        >
+          <RouterProvider router={router}>
+            <RoutesView />
+          </RouterProvider>
+        </ErrorBoundary>
+      </main>
+    </>
   );
 };
