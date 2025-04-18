@@ -17,7 +17,6 @@ type SmartContract struct {
 	AsyncContextRoot common.Hash
 	Seqno            Seqno
 	ExtSeqno         Seqno
-	RequestId        uint64
 }
 
 type TokenId Address

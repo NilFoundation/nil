@@ -957,13 +957,11 @@ func (es *ExecutionState) AddOutTransaction(
 	outTxn := &types.OutboundTransaction{Transaction: txn, TxnHash: txnHash, ForwardKind: payload.ForwardKind}
 	es.OutTransactions[es.InTransactionHash] = append(es.OutTransactions[es.InTransactionHash], outTxn)
 
-	if len(payload.RequestContext) > 0 {
+	if txn.RequestId != 0 {
 		acc, err := es.GetAccount(caller)
 		check.PanicIfErr(err)
 
-		txn.RequestId = acc.FetchRequestId()
 		acc.SetAsyncContext(types.TransactionIndex(txn.RequestId), &types.AsyncContext{
-			Data:                  payload.RequestContext,
 			ResponseProcessingGas: responseProcessingGas,
 		})
 	}
@@ -1281,7 +1279,8 @@ func (es *ExecutionState) TryProcessResponse(
 	}
 	asyncContext, err := acc.GetAndRemoveAsyncContext(types.TransactionIndex(transaction.RequestId))
 	if err != nil {
-		return nil, NewExecutionResult().SetFatal(fmt.Errorf("failed to get async context: %w", err))
+		return nil, NewExecutionResult().SetFatal(fmt.Errorf("failed to get async context %s (%d): %w",
+			transaction.To, transaction.RequestId, err))
 	}
 
 	responsePayload := new(types.AsyncResponsePayload)
@@ -1292,24 +1291,26 @@ func (es *ExecutionState) TryProcessResponse(
 
 	es.txnFeeCredit = es.txnFeeCredit.Add(asyncContext.ResponseProcessingGas.ToValue(es.GasPrice))
 
-	if len(asyncContext.Data) < 4 {
-		return nil, NewExecutionResult().SetError(
-			types.NewError(types.ErrorTooShortContextData))
-	}
-	contextData := asyncContext.Data[4:]
-	bytesTy, _ := abi.NewType("bytes", "", nil)
+	methodSignature := "onFallback(uint256,bool,bytes)"
+	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
+
+	uint256Ty, _ := abi.NewType("uint256", "", nil)
 	boolTy, _ := abi.NewType("bool", "", nil)
+	bytesTy, _ := abi.NewType("bytes", "", nil)
 	args := abi.Arguments{
+		abi.Argument{Name: "answer_id", Type: uint256Ty},
 		abi.Argument{Name: "success", Type: boolTy},
-		abi.Argument{Name: "returnData", Type: bytesTy},
-		abi.Argument{Name: "context", Type: bytesTy},
+		abi.Argument{Name: "response", Type: bytesTy},
 	}
-	if callData, err = args.Pack(responsePayload.Success, responsePayload.ReturnData, contextData); err != nil {
+
+	if callData, err = args.Pack(
+		types.NewUint256(transaction.RequestId),
+		responsePayload.Success,
+		responsePayload.ReturnData,
+	); err != nil {
 		return nil, NewExecutionResult().SetFatal(err)
 	}
-	callData = append(asyncContext.Data[:4], callData...)
-
-	return callData, nil
+	return append(methodSelector, callData...), nil
 }
 
 func (es *ExecutionState) handleExecutionTransaction(

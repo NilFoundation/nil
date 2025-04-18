@@ -14,7 +14,7 @@ using {
 } for TokenId global;
 
 library Nil {
-    address private constant ASYNC_CALL = address(0xfd);
+    address public constant ASYNC_CALL = address(0xfd);
     address public constant VERIFY_SIGNATURE = address(0xfe);
     address public constant IS_INTERNAL_TRANSACTION = address(0xff);
     address public constant MANAGE_TOKEN = address(0xd0);
@@ -93,7 +93,7 @@ library Nil {
         Token[] memory tokens;
         address contractAddress = Nil.createAddress(shardId, code, salt);
         __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(true, forwardKind, contractAddress, refundTo,
-            bounceTo, feeCredit, tokens, bytes.concat(code, bytes32(salt)), "", 0);
+            bounceTo, feeCredit, tokens, bytes.concat(code, bytes32(salt)), 0, 0);
         return contractAddress;
     }
 
@@ -159,7 +159,7 @@ library Nil {
         bytes memory callData
     ) internal {
         __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(false, forwardKind, dst, refundTo,
-            bounceTo, feeCredit, tokens, callData, "", 0);
+            bounceTo, feeCredit, tokens, callData, 0, 0);
     }
 
     /**
@@ -184,49 +184,6 @@ library Nil {
         }
         (bool success, bytes memory returnData) = dst.call{gas: gas, value: value}(callData);
         return (success, returnData);
-    }
-
-    /**
-     * @dev Sends a request to a contract.
-     * @param dst Destination address of the request.
-     * @param value Value to be sent with the request.
-     * @param responseProcessingGas Amount of gas is being bought and reserved to process the response.
-     *        Should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `sendRequest` will fail.
-     * @param context Context data that is preserved in order to be available in the response method.
-     * @param callData Calldata for the request.
-     */
-    function sendRequest(
-        address dst,
-        uint256 value,
-        uint responseProcessingGas,
-        bytes memory context,
-        bytes memory callData
-    ) internal {
-        Token[] memory tokens;
-        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(false, FORWARD_REMAINING, dst, address(0),
-            address(0), 0, tokens, callData, context, responseProcessingGas);
-    }
-
-    /**
-     * @dev Sends a request to a contract with tokens.
-     * @param dst Destination address of the request.
-     * @param value Value to be sent with the request.
-     * @param tokens Array of tokens to be sent with the request.
-     * @param responseProcessingGas Amount of gas is being bought and reserved to process the response.
-     *        should be >= `ASYNC_REQUEST_MIN_GAS` to make a call, otherwise `sendRequest` will fail.
-     * @param context Context data that is preserved in order to be available in the response method.
-     * @param callData Calldata for the request.
-     */
-    function sendRequestWithTokens(
-        address dst,
-        uint256 value,
-        Token[] memory tokens,
-        uint responseProcessingGas,
-        bytes memory context,
-        bytes memory callData
-    ) internal {
-        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(false, FORWARD_REMAINING, dst, address(0),
-            address(0), 0, tokens, callData, context, responseProcessingGas);
     }
 
     /**
@@ -473,7 +430,7 @@ contract __Precompile__ {
     // if mint flag is set to false, token will be burned instead
     function precompileManageToken(uint256 amount, bool mint) public returns(bool) {}
     function precompileGetTokenBalance(TokenId id, address addr) public view returns(uint256) {}
-    function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory, bytes memory, uint) public payable returns(bool) {}
+    function precompileAsyncCall(bool, uint8, address, address, address, uint, Nil.Token[] memory, bytes memory, uint256, uint) public payable returns(bool) {}
     function precompileSendTokens(address, Nil.Token[] memory) public returns(bool) {}
     function precompileGetTransactionTokens() public returns(Nil.Token[] memory) {}
     function precompileGetGasPrice(uint id) public returns(uint256) {}

@@ -2,9 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "../lib/Nil.sol";
+import "../lib/NilAwaitable.sol";
 
 // Common test contract. Can be used in any test.
-contract Test is NilBase {
+contract Test is NilBase, NilAwaitable {
     event stubCalled(uint32 v);
     event testEvent(uint indexed a, uint indexed b);
     event newContract(address);
@@ -174,12 +175,9 @@ contract Test is NilBase {
     }
 
     function twoCalls(address addr1, address addr2) public {
-        bytes memory context = abi.encodeWithSelector(
-            this.responseCounterGet.selector
-        );
         bytes memory callData = abi.encodeWithSignature("get()");
-        Nil.sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
-        Nil.sendRequest(addr2, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
+        sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, responseCounterGet);
+        sendRequest(addr2, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, responseCounterGet);
     }
 
     function responseCounterGet(

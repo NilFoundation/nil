@@ -497,7 +497,6 @@ func (ac *AsyncContext) PackProtoMessage(context *types.AsyncContext) {
 		return
 	}
 
-	ac.Data = context.Data
 	ac.ResponseProcessingGas = context.ResponseProcessingGas.Uint64()
 }
 
@@ -506,7 +505,6 @@ func (rc *AsyncContext) UnpackProtoMessage() types.AsyncContext {
 		return types.AsyncContext{}
 	}
 	return types.AsyncContext{
-		Data:                  rc.GetData(),
 		ResponseProcessingGas: types.Gas(rc.GetResponseProcessingGas()),
 	}
 }

@@ -218,18 +218,17 @@ type ExternalTransaction struct {
 }
 
 type InternalTransactionPayload struct {
-	Kind           TransactionKind `json:"kind,omitempty" ch:"kind"`
-	Bounce         bool            `json:"bounce,omitempty" ch:"bounce"`
-	FeeCredit      Value           `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
-	ForwardKind    ForwardKind     `json:"forwardKind,omitempty" ch:"forward_kind"`
-	To             Address         `json:"to,omitempty" ch:"to"`
-	RefundTo       Address         `json:"refundTo,omitempty" ch:"refund_to"`
-	BounceTo       Address         `json:"bounceTo,omitempty" ch:"bounce_to"`
-	Token          []TokenBalance  `json:"token,omitempty" ch:"token" ssz-max:"256"`
-	Value          Value           `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Data           Code            `json:"data,omitempty" ch:"data" ssz-max:"24576"`
-	RequestId      uint64          `json:"requestId,omitempty" ch:"request_id"`
-	RequestContext Code            `json:"context,omitempty" ch:"context" ssz-max:"24576"`
+	Kind        TransactionKind `json:"kind,omitempty" ch:"kind"`
+	Bounce      bool            `json:"bounce,omitempty" ch:"bounce"`
+	FeeCredit   Value           `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
+	ForwardKind ForwardKind     `json:"forwardKind,omitempty" ch:"forward_kind"`
+	To          Address         `json:"to,omitempty" ch:"to"`
+	RefundTo    Address         `json:"refundTo,omitempty" ch:"refund_to"`
+	BounceTo    Address         `json:"bounceTo,omitempty" ch:"bounce_to"`
+	Token       []TokenBalance  `json:"token,omitempty" ch:"token" ssz-max:"256"`
+	Value       Value           `json:"value,omitempty" ch:"value" ssz-size:"32"`
+	Data        Code            `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	RequestId   uint64          `json:"requestId,omitempty" ch:"request_id"`
 }
 
 type FeePack struct {
@@ -277,6 +276,7 @@ type AsyncResponsePayload struct {
 // AsyncContext contains the context of the request. For await requests, it contains the VM state, which will be
 // restored upon receiving the response. For callback requests, it contains captured variables.
 type AsyncContext struct {
+	// TODO: HOW TO REMOVE "DATA"???
 	Data                  []byte `ssz-max:"10000000" json:"data"`
 	ResponseProcessingGas Gas    `json:"gas"`
 }

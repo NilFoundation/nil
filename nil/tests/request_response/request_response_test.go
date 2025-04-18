@@ -55,7 +55,7 @@ func (s *SuiteRequestResponse) SetupSuite() {
 	nShards := uint32(3)
 	port := 10425
 
-	smartAccountValue, err := types.NewValueFromDecimal("100000000000000")
+	smartAccountValue, err := types.NewValueFromDecimal("10000000000000000")
 	s.Require().NoError(err)
 	zeroState := &execution.ZeroStateConfig{
 		Contracts: []*execution.ContractDescr{
@@ -196,13 +196,6 @@ func (s *SuiteRequestResponse) TestTwoRequests() {
 	value, ok := nameRes[0].(int32)
 	s.Require().True(ok)
 	s.Require().EqualValues(11+456, value)
-}
-
-func (s *SuiteRequestResponse) TestInvalidContext() {
-	data := s.AbiPack(s.abiTest, "makeInvalidContext", s.counterAddress0)
-	receipt := s.SendExternalTransactionNoCheck(data, s.testAddress0)
-	s.Require().False(receipt.Success)
-	s.Require().Equal("TooShortContextData", receipt.Status)
 }
 
 func (s *SuiteRequestResponse) TestInvalidSendRequest() {

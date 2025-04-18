@@ -170,7 +170,6 @@ func smartContractFromProto(pbSmartContract *pb.SmartContract) *types.SmartContr
 		AsyncContextRoot: common.HexToHash(pbSmartContract.GetAsyncContextRoot()),
 		Seqno:            types.Seqno(pbSmartContract.GetSeqno()),
 		ExtSeqno:         types.Seqno(pbSmartContract.GetExtSeqno()),
-		RequestId:        pbSmartContract.GetRequestId(),
 	}
 }
 
@@ -193,7 +192,6 @@ func smartContractToProto(smartContract *types.SmartContract) *pb.SmartContract 
 		AsyncContextRoot: smartContract.AsyncContextRoot.Hex(),
 		Seqno:            uint64(smartContract.Seqno),
 		ExtSeqno:         uint64(smartContract.ExtSeqno),
-		RequestId:        smartContract.RequestId,
 	}
 }
 

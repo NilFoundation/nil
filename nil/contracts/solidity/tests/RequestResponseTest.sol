@@ -2,9 +2,11 @@
 pragma solidity ^0.8.9;
 
 import "../lib/NilTokenBase.sol";
+import "../lib/NilAwaitable.sol";
 import "./Counter.sol";
+import "../lib/console.sol";
 
-contract RequestResponseTest is NilTokenBase {
+contract RequestResponseTest is NilTokenBase, NilAwaitable {
     int32 public value;
     int32 public counterValue;
     uint public intValue;
@@ -40,18 +42,16 @@ contract RequestResponseTest is NilTokenBase {
         uint intContext,
         string memory strContext
     ) public {
-        bytes memory context = abi.encodeWithSelector(
-            this.responseCounterGet.selector,
-            intContext,
-            strContext
-        );
+        console.log("======================== CONSOLE requestCounterGet %_", counter);
+        bytes memory context = abi.encode(intContext, strContext);
         bytes memory callData = abi.encodeWithSignature("get()");
-        Nil.sendRequest(
+        sendRequest(
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
             context,
-            callData
+            callData,
+            responseCounterGet
         );
     }
 
@@ -60,7 +60,10 @@ contract RequestResponseTest is NilTokenBase {
         bytes memory returnData,
         bytes memory context
     ) public {
+        console.log("======================== CONSOLE responseCounterGet %_", success);
         require(success, "Request failed");
+        console.log("======================== CONSOLE responseCounterGet context %_", context.length);
+        console.log("======================== CONSOLE responseCounterGet returnData %_", returnData.length);
         (intValue, strValue) = abi.decode(context, (uint, string));
         counterValue = abi.decode(returnData, (int32));
     }
@@ -72,14 +75,15 @@ contract RequestResponseTest is NilTokenBase {
         address callee,
         address counter
     ) public {
-        bytes memory context = abi.encodeWithSelector(this.responseNestedRequest.selector);
+        console.log("======================== CONSOLE nestedRequest %_", counter);
         bytes memory callData = abi.encodeWithSelector(this.requestCounterGet.selector, counter, 123, "test");
-        Nil.sendRequest(
+        sendRequest(
             callee,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
-            context,
-            callData
+            "",
+            callData,
+            responseNestedRequest
         );
     }
 
@@ -98,14 +102,15 @@ contract RequestResponseTest is NilTokenBase {
     function sendRequestFromCallback(
         address counter
     ) public {
-        bytes memory context = abi.encodeWithSelector(this.responseSendRequestFromCallback.selector, int32(5), counter);
+        bytes memory context = abi.encode(int32(5), counter);
         bytes memory callData = abi.encodeWithSignature("add(int32)", 5);
-        Nil.sendRequest(
+        sendRequest(
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
             context,
-            callData
+            callData,
+            responseSendRequestFromCallback
         );
     }
 
@@ -122,14 +127,15 @@ contract RequestResponseTest is NilTokenBase {
 
         sendNext -= 1;
 
-        context = abi.encodeWithSelector(this.responseSendRequestFromCallback.selector, sendNext, counter);
+        context = abi.encode(sendNext, counter);
         bytes memory callData = abi.encodeWithSignature("add(int32)", sendNext);
-        Nil.sendRequest(
+        sendRequest(
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
             context,
-            callData
+            callData,
+            responseSendRequestFromCallback
         );
     }
 
@@ -137,19 +143,17 @@ contract RequestResponseTest is NilTokenBase {
      * Test Counter's add method. No context and empty return data.
      */
     function requestCounterAdd(address counter, int32 valueToAdd) public {
-        bytes memory context = abi.encodeWithSelector(
-            this.responseCounterAdd.selector
-        );
         bytes memory callData = abi.encodeWithSignature(
             "add(int32)",
             valueToAdd
         );
-        Nil.sendRequest(
+        sendRequest(
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
-            context,
-            callData
+            "",
+            callData,
+            responseCounterAdd
         );
     }
 
@@ -167,20 +171,19 @@ contract RequestResponseTest is NilTokenBase {
      * Test failure with value.
      */
     function requestCheckFail(address addr, bool fail) public {
-        bytes memory context = abi.encodeWithSelector(
-            this.responseCheckFail.selector,
-            uint(11111)
-        );
+        bytes memory context = abi.encode(uint(11111));
         bytes memory callData = abi.encodeWithSignature(
             "checkFail(bool)",
             fail
         );
-        Nil.sendRequest(
+        console.log("requestCheckFail %_", fail);
+        sendRequest(
             addr,
             1000000000,
             Nil.ASYNC_REQUEST_MIN_GAS,
             context,
-            callData
+            callData,
+            responseCheckFail
         );
     }
 
@@ -189,6 +192,7 @@ contract RequestResponseTest is NilTokenBase {
         bytes memory /*returnData*/,
         bytes memory context
     ) public payable {
+        console.log("responseCheckFail %_ %_", success, context.length);
         require(!success, "Request should be failed");
         uint ctxValue = abi.decode(context, (uint));
         require(ctxValue == uint(11111), "Context value should be the same");
@@ -198,17 +202,15 @@ contract RequestResponseTest is NilTokenBase {
      * Test out of gas failure.
      */
     function requestOutOfGasFailure(address counter) public {
-        bytes memory context = abi.encodeWithSelector(
-            this.responseOutOfGasFailure.selector,
-            uint(1234567890)
-        );
+        bytes memory context = abi.encode(uint(1234567890));
         bytes memory callData = abi.encodeWithSignature("outOfGasFailure()");
-        Nil.sendRequest(
+        sendRequest(
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
             context,
-            callData
+            callData,
+            responseOutOfGasFailure
         );
     }
 
@@ -236,21 +238,19 @@ contract RequestResponseTest is NilTokenBase {
      * Test token sending.
      */
     function requestSendToken(address addr, uint256 amount) public {
-        bytes memory context = abi.encodeWithSelector(
-            this.responseSendToken.selector,
-            uint(11111)
-        );
+        bytes memory context = abi.encode(uint(11111));
         bytes memory callData = abi.encodeWithSignature("get()");
         Nil.Token[] memory tokens = new Nil.Token[](1);
         TokenId id = TokenId.wrap(address(this));
         tokens[0] = Nil.Token(id, amount);
-        Nil.sendRequestWithTokens(
+        sendRequestWithTokens(
             addr,
             0,
             tokens,
             Nil.ASYNC_REQUEST_MIN_GAS,
             context,
-            callData
+            callData,
+            responseSendToken
         );
     }
 
@@ -269,18 +269,15 @@ contract RequestResponseTest is NilTokenBase {
      * Fail during request sending. Context storage should not be changed.
      */
     function failDuringRequestSending(address counter) public {
-        bytes memory context = abi.encodeWithSelector(
-            this.responseCounterGet.selector,
-            intValue,
-            strValue
-        );
+        bytes memory context = abi.encode(intValue, strValue);
         bytes memory callData = abi.encodeWithSignature("get()");
-        Nil.sendRequest(
+        sendRequest(
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
             context,
-            callData
+            callData,
+            responseCounterGet
         );
         require(false, "Expect fail");
     }
@@ -289,12 +286,9 @@ contract RequestResponseTest is NilTokenBase {
      * Test two consecutive requests.
      */
     function makeTwoRequests(address addr1, address addr2) public {
-        bytes memory context = abi.encodeWithSelector(
-            this.makeTwoRequestsResponse.selector
-        );
         bytes memory callData = abi.encodeWithSignature("get()");
-        Nil.sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
-        Nil.sendRequest(addr2, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
+        sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, makeTwoRequestsResponse);
+        sendRequest(addr2, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, makeTwoRequestsResponse);
     }
 
     function makeTwoRequestsResponse(
@@ -304,12 +298,6 @@ contract RequestResponseTest is NilTokenBase {
     ) public {
         require(success, "Request failed");
         value += abi.decode(returnData, (int32));
-    }
-
-    function makeInvalidContext(address addr1) public {
-        bytes memory context = new bytes(1);
-        bytes memory callData = new bytes(1);
-        Nil.sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, context, callData);
     }
 
     function makeInvalidSendRequest() public view {
