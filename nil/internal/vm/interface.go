@@ -87,10 +87,7 @@ type StateDB interface {
 	AddDebugLog(*types.DebugLog) error
 
 	// AddOutTransaction adds internal out transaction for current transaction
-	AddOutTransaction(caller types.Address, payload *types.InternalTransactionPayload) (*types.Transaction, error)
-
-	// AddOutRequestTransaction adds outbound request transaction for current transaction
-	AddOutRequestTransaction(
+	AddOutTransaction(
 		caller types.Address,
 		payload *types.InternalTransactionPayload,
 		responseProcessingGas types.Gas,
