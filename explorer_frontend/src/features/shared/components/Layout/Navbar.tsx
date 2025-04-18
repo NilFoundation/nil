@@ -40,6 +40,8 @@ export const Navbar = ({ children, showCodeInteractionButtons }: NavbarProps) =>
         className={css({
           gridColumn: "1 / 2",
           display: "flex",
+          flexGrow: 1,
+          width: "100%",
           alignItems: "center",
         })}
       >

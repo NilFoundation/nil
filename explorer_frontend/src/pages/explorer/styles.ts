@@ -1,6 +1,6 @@
 import { SPACE } from "@nilfoundation/ui-kit";
 import type { StyleObject } from "styletron-react";
-import { getMobileStyles } from "../../styleHelpers";
+import { getMobileStyles, getTabletStyles } from "../../styleHelpers";
 
 const container: StyleObject = {
   display: "grid",
@@ -32,6 +32,7 @@ const shards: StyleObject = {
   gridColumn: "1 / 3",
   gridRow: "3 / 4",
   ...getMobileStyles({ gridColumn: "1 / 3", gridRow: "3 / 4" }),
+  ...getTabletStyles({ overflowX: "hidden" }),
 };
 
 const blocks = {

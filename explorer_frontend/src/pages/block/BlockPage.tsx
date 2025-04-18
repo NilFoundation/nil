@@ -23,6 +23,7 @@ import { Meta, formatShard, useMobile } from "../../features/shared";
 import { InternalPageContainer } from "../../features/shared";
 import { Layout } from "../../features/shared/components/Layout";
 import { TransactionList } from "../../features/transaction-list";
+import { explorerContainer } from "../../styleHelpers";
 
 const secondary = TAB_KIND.secondary;
 
@@ -59,124 +60,126 @@ export const BlockPage = () => {
     alignItems: "center",
   });
   return (
-    <Layout>
-      <Meta title="Block" description="zkSharding for Ethereum" />
-      <InternalPageContainer>
-        <div
-          className={css({
-            display: "flex",
-            flexDirection: "row",
-            justifyContent: "space-between",
-            justifyItems: "flex-start",
-            alignItems: "flex-start",
-          })}
-        >
-          <HeadingXLarge className={css({ marginBottom: isMobile ? SPACE[24] : SPACE[32] })}>
-            Block {formatShard(params.shard || "", params.id || "")}
-          </HeadingXLarge>
+    <div className={css(explorerContainer)}>
+      <Layout>
+        <Meta title="Block" description="zkSharding for Ethereum" />
+        <InternalPageContainer>
           <div
             className={css({
-              display: isMobile ? "none" : "flex",
+              display: "flex",
               flexDirection: "row",
-              rowGap: SPACE[8],
-              alignItems: "flex-start",
+              justifyContent: "space-between",
               justifyItems: "flex-start",
+              alignItems: "flex-start",
             })}
           >
-            {+params.id > 0 ? (
+            <HeadingXLarge className={css({ marginBottom: isMobile ? SPACE[24] : SPACE[32] })}>
+              Block {formatShard(params.shard || "", params.id || "")}
+            </HeadingXLarge>
+            <div
+              className={css({
+                display: isMobile ? "none" : "flex",
+                flexDirection: "row",
+                rowGap: SPACE[8],
+                alignItems: "flex-start",
+                justifyItems: "flex-start",
+              })}
+            >
+              {+params.id > 0 ? (
+                <Link
+                  to={key === "overview" ? blockRoute : blockDetailsRoute}
+                  params={{ shard: params.shard, id: (+params.id - 1).toString(), details: key }}
+                >
+                  <Button
+                    kind={BUTTON_KIND.tertiary}
+                    size={BUTTON_SIZE.default}
+                    startEnhancer={<ArrowLeft />}
+                  >
+                    Previous block
+                  </Button>
+                </Link>
+              ) : null}
               <Link
                 to={key === "overview" ? blockRoute : blockDetailsRoute}
-                params={{ shard: params.shard, id: (+params.id - 1).toString(), details: key }}
+                params={{ shard: params.shard, id: (+params.id + 1).toString(), details: key }}
               >
                 <Button
                   kind={BUTTON_KIND.tertiary}
                   size={BUTTON_SIZE.default}
-                  startEnhancer={<ArrowLeft />}
+                  endEnhancer={<ArrowRight />}
                 >
-                  Previous block
+                  Next block
                 </Button>
               </Link>
-            ) : null}
-            <Link
-              to={key === "overview" ? blockRoute : blockDetailsRoute}
-              params={{ shard: params.shard, id: (+params.id + 1).toString(), details: key }}
-            >
-              <Button
-                kind={BUTTON_KIND.tertiary}
-                size={BUTTON_SIZE.default}
-                endEnhancer={<ArrowRight />}
-              >
-                Next block
-              </Button>
-            </Link>
+            </div>
           </div>
-        </div>
-        <Tabs activeKey={key} overrides={tabsOverrides}>
-          <Tab
-            key={"overview"}
-            kind={secondary}
-            title="Overview"
-            onClick={() =>
-              blockRoute.navigate({ params: { shard: params.shard, id: params.id }, query: {} })
-            }
-          >
-            <BlockInfo />
-          </Tab>
-          <Tab
-            key={"incoming"}
-            kind={secondary}
-            title={
-              <span className={tabContentCn}>
-                {isMobile ? "Incoming" : "Incoming transactions"}
-                <Tag>
-                  <ParagraphXSmall>
-                    {block ? block.in_txn_num.padStart(3, "0") : "000"}
-                  </ParagraphXSmall>
-                </Tag>
-              </span>
-            }
-            onClick={() => {
-              blockDetailsRoute.navigate({
-                params: { shard: params.shard, id: params.id, details: "incoming" },
-                query: {},
-              });
-            }}
-          >
-            <TransactionList
-              type="block"
-              identifier={`${params.shard}:${params.id}`}
-              view="incoming"
-            />
-          </Tab>
-          <Tab
-            key={"outgoing"}
-            kind={secondary}
-            title={
-              <span className={tabContentCn}>
-                {isMobile ? "Outgoing" : "Outgoing transactions"}
-                <Tag>
-                  <ParagraphXSmall>
-                    {block ? block.out_txn_num.padStart(3, "0") : "000"}
-                  </ParagraphXSmall>
-                </Tag>
-              </span>
-            }
-            onClick={() => {
-              blockDetailsRoute.navigate({
-                params: { shard: params.shard, id: params.id, details: "outgoing" },
-                query: {},
-              });
-            }}
-          >
-            <TransactionList
-              type="block"
-              identifier={`${params.shard}:${params.id}`}
-              view="outgoing"
-            />
-          </Tab>
-        </Tabs>
-      </InternalPageContainer>
-    </Layout>
+          <Tabs activeKey={key} overrides={tabsOverrides}>
+            <Tab
+              key={"overview"}
+              kind={secondary}
+              title="Overview"
+              onClick={() =>
+                blockRoute.navigate({ params: { shard: params.shard, id: params.id }, query: {} })
+              }
+            >
+              <BlockInfo />
+            </Tab>
+            <Tab
+              key={"incoming"}
+              kind={secondary}
+              title={
+                <span className={tabContentCn}>
+                  {isMobile ? "Incoming" : "Incoming transactions"}
+                  <Tag>
+                    <ParagraphXSmall>
+                      {block ? block.in_txn_num.padStart(3, "0") : "000"}
+                    </ParagraphXSmall>
+                  </Tag>
+                </span>
+              }
+              onClick={() => {
+                blockDetailsRoute.navigate({
+                  params: { shard: params.shard, id: params.id, details: "incoming" },
+                  query: {},
+                });
+              }}
+            >
+              <TransactionList
+                type="block"
+                identifier={`${params.shard}:${params.id}`}
+                view="incoming"
+              />
+            </Tab>
+            <Tab
+              key={"outgoing"}
+              kind={secondary}
+              title={
+                <span className={tabContentCn}>
+                  {isMobile ? "Outgoing" : "Outgoing transactions"}
+                  <Tag>
+                    <ParagraphXSmall>
+                      {block ? block.out_txn_num.padStart(3, "0") : "000"}
+                    </ParagraphXSmall>
+                  </Tag>
+                </span>
+              }
+              onClick={() => {
+                blockDetailsRoute.navigate({
+                  params: { shard: params.shard, id: params.id, details: "outgoing" },
+                  query: {},
+                });
+              }}
+            >
+              <TransactionList
+                type="block"
+                identifier={`${params.shard}:${params.id}`}
+                view="outgoing"
+              />
+            </Tab>
+          </Tabs>
+        </InternalPageContainer>
+      </Layout>
+    </div>
   );
 };
 
