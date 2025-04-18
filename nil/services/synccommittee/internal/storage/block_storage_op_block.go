@@ -8,6 +8,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/types"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
@@ -19,6 +20,21 @@ const (
 
 // blockOp represents the set of operations related to individual blocks within the storage.
 type blockOp struct{}
+
+func (bs blockOp) getBlocksAsSegments(tx db.RoTx, ids []scTypes.BlockId) (scTypes.ChainSegments, error) {
+	blocks := make(map[types.ShardId][]*scTypes.Block)
+	for _, blockId := range ids {
+		bEntry, err := bs.getBlock(tx, blockId, true)
+		if err != nil {
+			return nil, err
+		}
+
+		shardBlocks := blocks[blockId.ShardId]
+		blocks[blockId.ShardId] = append(shardBlocks, &bEntry.Block)
+	}
+
+	return scTypes.NewChainSegments(blocks)
+}
 
 func (bs blockOp) getBlock(tx db.RoTx, id scTypes.BlockId, required bool) (*blockEntry, error) {
 	return bs.getBlockBytesId(tx, id.Bytes(), required)

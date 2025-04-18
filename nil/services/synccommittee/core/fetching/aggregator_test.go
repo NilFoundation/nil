@@ -121,7 +121,7 @@ func (s *AggregatorTestSuite) Test_No_New_Blocks_To_Fetch() {
 func (s *AggregatorTestSuite) Test_Main_Parent_Hash_Mismatch() {
 	batches := testaide.NewBatchesSequence(3)
 	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
-	err := s.blockStorage.SetProvedStateRoot(s.ctx, batches[0].FirstMainBlock().ParentHash)
+	err := s.blockStorage.SetProvedStateRoot(s.ctx, batches[0].EarliestMainBlock().ParentHash)
 	s.Require().NoError(err)
 
 	// Set first 2 batches as proved

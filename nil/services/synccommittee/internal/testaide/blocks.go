@@ -10,6 +10,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -58,12 +59,17 @@ func RandomShardId() types.ShardId {
 func NewRpcInTransaction() *jsonrpc.RPCInTransaction {
 	return &jsonrpc.RPCInTransaction{
 		Transaction: jsonrpc.Transaction{
-			Flags: types.NewTransactionFlags(types.TransactionFlagInternal, types.TransactionFlagRefund),
-			Seqno: 10,
-			From:  types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e71"),
-			To:    types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e72"),
-			Value: types.NewValue(uint256.NewInt(1000)),
-			Data:  []byte{10, 20, 30, 40},
+			Flags:                types.NewTransactionFlags(types.TransactionFlagInternal, types.TransactionFlagRefund),
+			Seqno:                10,
+			From:                 types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e71"),
+			To:                   types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e72"),
+			Value:                types.NewValue(uint256.NewInt(1000)),
+			Data:                 []byte{10, 20, 30, 40},
+			FeeCredit:            types.NewValue(uint256.NewInt(100)),
+			MaxPriorityFeePerGas: types.NewValue(uint256.NewInt(10)),
+			MaxFeePerGas:         types.NewValue(uint256.NewInt(20)),
+			ChainID:              1234,
+			Signature:            hexutil.Bytes{10, 20, 30, 40},
 		},
 	}
 }
@@ -73,57 +79,74 @@ func NewBatchesSequence(batchesCount int) []*scTypes.BlockBatch {
 		log.Panicf("batchesCount must be positive, got=%d", batchesCount)
 	}
 
-	firstBatch := NewBlockBatch(ShardsCount)
-	firstBatch.Subgraphs[0].Main.Number = 1
-	for _, segment := range firstBatch.Subgraphs[0].Children {
+	batches := make([]*scTypes.BlockBatch, 0, batchesCount)
+
+	var parentId *scTypes.BatchId
+	for _, segments := range NewSegmentsSequence(batchesCount) {
+		batch, err := scTypes.NewBlockBatch(parentId).WithAddedBlocks(segments)
+		check.PanicIfErr(err)
+		batches = append(batches, batch)
+		parentId = &batch.Id
+	}
+
+	return batches
+}
+
+func NewSegmentsSequence(count int) []scTypes.ChainSegments {
+	if count <= 0 {
+		log.Panicf("count must be positive, got=%d", count)
+	}
+
+	firstSegments := NewChainSegments(ShardsCount)
+
+	for _, segment := range firstSegments {
 		segment[0].Number = 1
 		segment[0].ParentHash = GenesisBlockHash
 	}
 
-	batches := make([]*scTypes.BlockBatch, 1, batchesCount)
-	batches[0] = firstBatch
+	segments := make([]scTypes.ChainSegments, 1, count)
+	segments[0] = firstSegments
 
-	for range batchesCount - 1 {
-		nextBatch := NewBlockBatch(ShardsCount)
-		subgraph := nextBatch.Subgraphs[0]
+	for range count - 1 {
+		nextSegments := NewChainSegments(ShardsCount)
+		prevSegments := segments[len(segments)-1]
 
-		prevBatch := batches[len(batches)-1]
-		prevSubgraph := prevBatch.Subgraphs[0]
-
-		nextBatch.ParentId = &prevBatch.Id
-		subgraph.Main.ParentHash = prevSubgraph.Main.Hash
-		subgraph.Main.Number = prevSubgraph.Main.Number + 1
-
-		for shard, segment := range nextBatch.Subgraphs[0].Children {
-			prevSegmentTail := prevSubgraph.Children[shard].Latest()
+		for shard, segment := range nextSegments {
+			prevSegmentTail := prevSegments[shard].Latest()
 			segment[0].ParentHash = prevSegmentTail.Hash
 			segment[0].Number = prevSegmentTail.Number + 1
 		}
 
-		batches = append(batches, nextBatch)
+		segments = append(segments, nextSegments)
 	}
-	return batches
+	return segments
 }
 
-func NewBlockBatch(childBlocksCount int) *scTypes.BlockBatch {
+func NewBlockBatch(shardCount int) *scTypes.BlockBatch {
+	segments := NewChainSegments(shardCount)
+	batch, err := scTypes.NewBlockBatch(nil).WithAddedBlocks(segments)
+	check.PanicIfErr(err)
+	return batch
+}
+
+func NewChainSegments(shardCount int) scTypes.ChainSegments {
 	mainBlock := NewMainShardBlock()
 	mainBlock.ChildBlocks = nil
 
-	children := make(map[types.ShardId]scTypes.ShardChainSegment)
-	for i := range childBlocksCount {
+	blocks := make(map[types.ShardId][]*scTypes.Block, shardCount)
+
+	blocks[types.MainShardId] = []*scTypes.Block{mainBlock}
+
+	for i := range shardCount {
 		block := NewExecutionShardBlock()
 		block.ShardId = types.ShardId(i + 1)
 		mainBlock.ChildBlocks = append(mainBlock.ChildBlocks, block.Hash)
-		children[block.ShardId] = []*scTypes.Block{block}
+		blocks[block.ShardId] = []*scTypes.Block{block}
 	}
 
-	subgraph, err := scTypes.NewSubgraph(mainBlock, children)
+	segments, err := scTypes.NewChainSegments(blocks)
 	check.PanicIfErr(err)
-
-	batch, err := scTypes.NewBlockBatch(nil, *subgraph)
-	check.PanicIfErr(err)
-
-	return batch
+	return segments
 }
 
 func NewMainShardBlock() *scTypes.Block {
@@ -140,6 +163,7 @@ func NewMainShardBlock() *scTypes.Block {
 		Hash:                RandomHash(),
 		ParentHash:          RandomHash(),
 		Transactions:        newRpcInTransactions(ShardsCount),
+		BaseFee:             types.NewValue(uint256.NewInt(30)),
 	}
 }
 
@@ -151,10 +175,11 @@ func NewExecutionShardBlock() *scTypes.Block {
 		MainShardHash: RandomHash(),
 		ParentHash:    RandomHash(),
 		Transactions:  newRpcInTransactions(ShardsCount),
+		BaseFee:       types.NewValue(uint256.NewInt(30)),
 	}
 }
 
-func NewProposalData(txCount int, currentTime time.Time) *scTypes.ProposalData {
+func NewProposalData(currentTime time.Time) *scTypes.ProposalData {
 	return scTypes.NewProposalData(
 		scTypes.NewBatchId(),
 		scTypes.DataProofs{},

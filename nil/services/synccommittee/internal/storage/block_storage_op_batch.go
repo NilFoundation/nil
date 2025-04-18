@@ -32,7 +32,7 @@ func (batchOp) putBatch(tx db.RwTx, entry *batchEntry) error {
 	return nil
 }
 
-func (batchOp) getBatch(tx db.RoTx, id scTypes.BatchId) (*batchEntry, error) {
+func (batchOp) getBatchEntry(tx db.RoTx, id scTypes.BatchId) (*batchEntry, error) {
 	idBytes := id.Bytes()
 	value, err := tx.Get(batchesTable, idBytes)
 
@@ -63,7 +63,7 @@ func (t batchOp) getBatchesSeqReversed(
 	tx db.RoTx, from scTypes.BatchId, to scTypes.BatchId,
 ) iter.Seq2[*batchEntry, error] {
 	return func(yield func(*batchEntry, error) bool) {
-		startBatch, err := t.getBatch(tx, from)
+		startBatch, err := t.getBatchEntry(tx, from)
 		if err != nil {
 			yield(nil, err)
 			return
@@ -87,7 +87,7 @@ func (t batchOp) getBatchesSeqReversed(
 			}
 			seenBatches[*nextBatchId] = true
 
-			nextBatchEntry, err := t.getBatch(tx, *nextBatchId)
+			nextBatchEntry, err := t.getBatchEntry(tx, *nextBatchId)
 			if err != nil {
 				yield(nil, err)
 				return
