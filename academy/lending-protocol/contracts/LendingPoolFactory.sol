@@ -5,7 +5,7 @@ import "./LendingPool.sol";
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 /// @title LendingPoolFactory
-/// @dev Handles deployment of LendingPool contracts across different shards and registers them with the GlobalLedger
+/// @dev Deploys LendingPool contracts across shards and registers them in GlobalLedger
 contract LendingPoolFactory {
     address public globalLedger;
     uint8 public globalLedgerShardId;
@@ -13,10 +13,9 @@ contract LendingPoolFactory {
     address public oracle;
     TokenId public usdt;
     TokenId public eth;
-    uint8 public shardCounter;
 
-    /// @dev Nil precompile interface for async deploy/call
-    Nil constant nil = Nil(0x0000000000000000000000000000000000008003);
+    uint8 public shardCounter;
+    uint256 public saltCounter; //added for uniqueness in deployments
 
     event LendingPoolDeployed(address pool, uint8 shardId, address owner);
 
@@ -35,6 +34,7 @@ contract LendingPoolFactory {
         usdt = _usdt;
         eth = _eth;
         shardCounter = 0;
+        saltCounter = 0;
     }
 
     function deployLendingPool() external {
@@ -52,7 +52,8 @@ contract LendingPoolFactory {
             constructorArgs
         );
 
-        address poolAddress = nil.asyncDeploy(
+        // Deploy the LendingPool contract to the next shard using salt for uniqueness
+        address poolAddress = Nil.asyncDeploy(
             shardCounter,
             msg.sender,
             address(0),
@@ -60,12 +61,15 @@ contract LendingPoolFactory {
             0,
             0,
             bytecode,
-            0
+            saltCounter //dynamic salt value
         );
 
-        require(poolAddress != address(0), "Deployment failed");
+        //increment salt counter to avoid reuse
+        unchecked {
+            saltCounter++;
+        }
 
-        bool success = nil.asyncCall(
+        Nil.asyncCall(
             globalLedgerShardId,
             address(0),
             globalLedger,
@@ -79,10 +83,8 @@ contract LendingPoolFactory {
             0
         );
 
-        require(success, "asyncCall to GlobalLedger failed");
-
         emit LendingPoolDeployed(poolAddress, shardCounter, msg.sender);
 
-        shardCounter = (shardCounter + 1) % 4;
+        shardCounter = (shardCounter + 1) % 4; // Cycle through 4 shards
     }
 }
