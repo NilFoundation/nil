@@ -100,7 +100,8 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		logger,
 	)
 
-	syncCommittee.Service = srv.NewService(
+	syncCommittee.Service = srv.NewServiceWithHeartbeat(
+		metricsHandler,
 		logger,
 		prop, agg, lagTracker, taskScheduler, taskListener,
 	)

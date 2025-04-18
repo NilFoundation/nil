@@ -31,7 +31,6 @@ type TaskCancelChecker struct {
 	requestHandler api.TaskRequestHandler
 	taskSource     TaskSource
 	executorId     types.TaskExecutorId
-	logger         logging.Logger
 	config         TaskCancelCheckerConfig
 }
 
@@ -39,6 +38,7 @@ func NewTaskCancelChecker(
 	requestHandler api.TaskRequestHandler,
 	taskSource TaskSource,
 	executorId types.TaskExecutorId,
+	metrics srv.WorkerMetrics,
 	logger logging.Logger,
 ) *TaskCancelChecker {
 	checker := &TaskCancelChecker{
@@ -48,15 +48,13 @@ func NewTaskCancelChecker(
 		config:         MakeDefaultCheckerConfig(),
 	}
 
-	checker.WorkerLoop = srv.NewWorkerLoop("task_cancel_checker", checker.config.UpdateInterval, checker.runIteration)
-	checker.logger = srv.WorkerLogger(logger, checker)
+	loopConfig := srv.NewWorkerLoopConfig(
+		"task_cancel_checker",
+		checker.config.UpdateInterval,
+		checker.processRunningTasks,
+	)
+	checker.WorkerLoop = srv.NewWorkerLoop(loopConfig, metrics, logger)
 	return checker
-}
-
-func (c *TaskCancelChecker) runIteration(ctx context.Context) {
-	if err := c.processRunningTasks(ctx); err != nil {
-		c.logger.Error().Err(err).Msg("failed to check cancelled tasks")
-	}
 }
 
 func (c *TaskCancelChecker) processRunningTasks(ctx context.Context) error {
@@ -65,9 +63,9 @@ func (c *TaskCancelChecker) processRunningTasks(ctx context.Context) error {
 		return fmt.Errorf("failed to cancel dead tasks: %w", err)
 	}
 	if canceledCounter == 0 {
-		c.logger.Debug().Msg("no task canceled")
+		c.Logger.Debug().Msg("no task canceled")
 	} else {
-		c.logger.Warn().Msgf("canceled %d dead tasks", canceledCounter)
+		c.Logger.Warn().Msgf("canceled %d dead tasks", canceledCounter)
 	}
 	return nil
 }

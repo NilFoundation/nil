@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
@@ -55,66 +54,61 @@ type Storage interface {
 	RescheduleHangingTasks(ctx context.Context, taskExecutionTimeout time.Duration) error
 }
 
-type Metrics interface {
-	metrics.BasicMetrics
-}
-
 func New(
 	storage Storage,
 	stateHandler api.TaskStateChangeHandler,
-	metrics Metrics,
+	metrics srv.WorkerMetrics,
 	logger logging.Logger,
 ) TaskScheduler {
-	scheduler := &taskSchedulerImpl{
+	scheduler := &taskScheduler{
 		storage:      storage,
 		stateHandler: stateHandler,
 		config:       DefaultConfig(),
-		metrics:      metrics,
 	}
 
-	scheduler.WorkerLoop = srv.NewWorkerLoop(
-		"task_scheduler", scheduler.config.taskCheckInterval, scheduler.runIteration)
-	scheduler.logger = srv.WorkerLogger(logger, scheduler)
+	loopConfig := srv.NewWorkerLoopConfig("task_scheduler", scheduler.config.taskCheckInterval, scheduler.runIteration)
+	scheduler.WorkerLoop = srv.NewWorkerLoop(loopConfig, metrics, logger)
 	return scheduler
 }
 
-type taskSchedulerImpl struct {
+type taskScheduler struct {
 	srv.WorkerLoop
 
 	storage      Storage
 	stateHandler api.TaskStateChangeHandler
 	config       Config
-	metrics      Metrics
-	logger       logging.Logger
 }
 
-func (s *taskSchedulerImpl) runIteration(ctx context.Context) {
+func (s *taskScheduler) runIteration(ctx context.Context) error {
 	err := s.storage.RescheduleHangingTasks(ctx, s.config.taskExecutionTimeout)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to reschedule hanging tasks")
-		s.recordError(ctx)
+	if err == nil || errors.Is(err, context.Canceled) {
+		return err
 	}
+
+	return fmt.Errorf("failed to reschedule hanging tasks: %w", err)
 }
 
-func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskRequest) (*types.Task, error) {
-	s.logger.Debug().Stringer(logging.FieldTaskExecutorId, request.ExecutorId).Msg("received new task request")
+func (s *taskScheduler) GetTask(ctx context.Context, request *api.TaskRequest) (*types.Task, error) {
+	s.Logger.Debug().Stringer(logging.FieldTaskExecutorId, request.ExecutorId).Msg("received new task request")
 
 	task, err := s.storage.RequestTaskToExecute(ctx, request.ExecutorId)
-	if err != nil {
-		s.logger.Error().
+	switch {
+	case errors.Is(err, context.Canceled):
+		return nil, err
+	case err != nil:
+		s.Logger.Error().
 			Err(err).
 			Stringer(logging.FieldTaskExecutorId, request.ExecutorId).
 			Msg("failed to request task to execute")
-		s.recordError(ctx)
 		return nil, err
 	}
 
 	if task != nil {
-		log.NewTaskEvent(s.logger, zerolog.DebugLevel, task).
+		log.NewTaskEvent(s.Logger, zerolog.DebugLevel, task).
 			Stringer(logging.FieldTaskExecutorId, request.ExecutorId).
 			Msg("task successfully requested from the storage")
 	} else {
-		s.logger.Debug().
+		s.Logger.Debug().
 			Stringer(logging.FieldTaskExecutorId, request.ExecutorId).
 			Stringer(logging.FieldTaskId, nil).
 			Msg("no tasks available for execution")
@@ -123,20 +117,20 @@ func (s *taskSchedulerImpl) GetTask(ctx context.Context, request *api.TaskReques
 	return task, nil
 }
 
-func (s *taskSchedulerImpl) CheckIfTaskExists(ctx context.Context, request *api.TaskCheckRequest) (bool, error) {
-	s.logger.Debug().Stringer(logging.FieldTaskId, request.TaskId).Msg("received new check task request")
+func (s *taskScheduler) CheckIfTaskExists(ctx context.Context, request *api.TaskCheckRequest) (bool, error) {
+	s.Logger.Debug().Stringer(logging.FieldTaskId, request.TaskId).Msg("received new check task request")
 
 	taskEntry, err := s.storage.TryGetTaskEntry(ctx, request.TaskId)
 	if err != nil {
-		s.logger.Error().Err(err).Stringer(logging.FieldTaskId, request.TaskId).Msg("can't check if task exists")
+		s.Logger.Error().Err(err).Stringer(logging.FieldTaskId, request.TaskId).Msg("can't check if task exists")
 		return false, err
 	}
 	if taskEntry == nil {
-		s.logger.Debug().Stringer(logging.FieldTaskId, request.TaskId).Msg("task not exists")
+		s.Logger.Debug().Stringer(logging.FieldTaskId, request.TaskId).Msg("task not exists")
 		return false, nil
 	}
 	if taskEntry.Owner != request.ExecutorId {
-		s.logger.Debug().Stringer(logging.FieldTaskId, request.TaskId).
+		s.Logger.Debug().Stringer(logging.FieldTaskId, request.TaskId).
 			Msgf("task has unexpected executor id %d, expected %d", taskEntry.Owner, request.ExecutorId)
 		return false, nil
 	}
@@ -144,36 +138,36 @@ func (s *taskSchedulerImpl) CheckIfTaskExists(ctx context.Context, request *api.
 	return true, nil
 }
 
-func (s *taskSchedulerImpl) SetTaskResult(ctx context.Context, result *types.TaskResult) error {
-	log.NewTaskResultEvent(s.logger, zerolog.DebugLevel, result).Msgf("received task result update")
+func (s *taskScheduler) SetTaskResult(ctx context.Context, result *types.TaskResult) error {
+	log.NewTaskResultEvent(s.Logger, zerolog.DebugLevel, result).Msgf("received task result update")
 
 	entry, err := s.storage.TryGetTaskEntry(ctx, result.TaskId)
 	if err != nil {
-		return s.onTaskResultError(ctx, err, result)
+		return s.onTaskResultError(err, result)
 	}
 
 	if entry == nil {
-		log.NewTaskResultEvent(s.logger, zerolog.WarnLevel, result).
+		log.NewTaskResultEvent(s.Logger, zerolog.WarnLevel, result).
 			Msg("received task result update for unknown task id")
 		return nil
 	}
 
 	if err := result.ValidateForTask(entry); err != nil {
-		return s.onTaskResultError(ctx, err, result)
+		return s.onTaskResultError(err, result)
 	}
 
 	if err := s.stateHandler.OnTaskTerminated(ctx, &entry.Task, result); err != nil {
-		return s.onTaskResultError(ctx, err, result)
+		return s.onTaskResultError(err, result)
 	}
 
 	if err := s.storage.ProcessTaskResult(ctx, result); err != nil {
-		return s.onTaskResultError(ctx, err, result)
+		return s.onTaskResultError(err, result)
 	}
 
 	return nil
 }
 
-func (s *taskSchedulerImpl) GetTasks(
+func (s *taskScheduler) GetTasks(
 	ctx context.Context,
 	request *public.TaskDebugRequest,
 ) ([]*public.TaskView, error) {
@@ -191,14 +185,14 @@ func (s *taskSchedulerImpl) GetTasks(
 
 	err = s.storage.GetTaskViews(ctx, maxHeap, predicate)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("failed to get tasks from the storage (GetTaskViews)")
+		s.Logger.Error().Err(err).Msg("failed to get tasks from the storage (GetTaskViews)")
 		return nil, err
 	}
 
 	return maxHeap.PopAllSorted(), nil
 }
 
-func (s *taskSchedulerImpl) getPredicate(request *public.TaskDebugRequest) func(*public.TaskView) bool {
+func (s *taskScheduler) getPredicate(request *public.TaskDebugRequest) func(*public.TaskView) bool {
 	return func(task *public.TaskView) bool {
 		if request.Status != types.TaskStatusNone && request.Status != task.Status {
 			return false
@@ -213,7 +207,7 @@ func (s *taskSchedulerImpl) getPredicate(request *public.TaskDebugRequest) func(
 	}
 }
 
-func (s *taskSchedulerImpl) getComparator(request *public.TaskDebugRequest) (func(i, j *public.TaskView) int, error) {
+func (s *taskScheduler) getComparator(request *public.TaskDebugRequest) (func(i, j *public.TaskView) int, error) {
 	var orderSign int
 	if request.Ascending {
 		orderSign = 1
@@ -257,16 +251,11 @@ func (s *taskSchedulerImpl) getComparator(request *public.TaskDebugRequest) (fun
 	}
 }
 
-func (s *taskSchedulerImpl) GetTaskTree(ctx context.Context, taskId types.TaskId) (*public.TaskTreeView, error) {
+func (s *taskScheduler) GetTaskTree(ctx context.Context, taskId types.TaskId) (*public.TaskTreeView, error) {
 	return s.storage.GetTaskTreeView(ctx, taskId)
 }
 
-func (s *taskSchedulerImpl) onTaskResultError(ctx context.Context, cause error, result *types.TaskResult) error {
-	log.NewTaskResultEvent(s.logger, zerolog.ErrorLevel, result).Err(cause).Msg("Failed to process task result")
-	s.recordError(ctx)
+func (s *taskScheduler) onTaskResultError(cause error, result *types.TaskResult) error {
+	log.NewTaskResultEvent(s.Logger, zerolog.ErrorLevel, result).Err(cause).Msg("Failed to process task result")
 	return fmt.Errorf("%w: %w", ErrFailedToProcessTaskResult, cause)
-}
-
-func (s *taskSchedulerImpl) recordError(ctx context.Context) {
-	s.metrics.RecordError(ctx, s.Name())
 }
