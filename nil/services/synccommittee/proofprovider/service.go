@@ -56,7 +56,7 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 
 	taskRpcClient := rpc.NewTaskRequestRpcClient(config.SyncCommitteeRpcEndpoint, logger)
 	taskResultStorage := storage.NewTaskResultStorage(database, logger)
-	taskResultSender := scheduler.NewTaskResultSender(taskRpcClient, taskResultStorage, logger)
+	taskResultSender := scheduler.NewTaskResultSender(taskRpcClient, taskResultStorage, metricsHandler, logger)
 
 	taskStorage := storage.NewTaskStorage(database, clock, metricsHandler, logger)
 
@@ -86,11 +86,13 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 		taskRpcClient,
 		taskStorage,
 		taskExecutor.Id(),
+		metricsHandler,
 		logger,
 	)
 
 	return &ProofProvider{
-		Service: srv.NewService(
+		Service: srv.NewServiceWithHeartbeat(
+			metricsHandler,
 			logger,
 			taskExecutor, taskScheduler, taskListener, taskCancelChecker, taskResultSender,
 		),

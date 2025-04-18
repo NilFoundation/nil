@@ -259,7 +259,7 @@ func (t *TaskEntry) HasHigherPriorityThan(other *TaskEntry) bool {
 		return true
 	}
 
-	if t.Created != other.Created {
+	if !t.Created.Equal(other.Created) {
 		return t.Created.Before(other.Created)
 	}
 	return t.Task.TaskType < other.Task.TaskType

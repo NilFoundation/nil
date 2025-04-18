@@ -13,7 +13,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
@@ -27,7 +26,7 @@ type ProposerStorage interface {
 }
 
 type ProposerMetrics interface {
-	metrics.BasicMetrics
+	srv.WorkerMetrics
 	RecordStateUpdated(ctx context.Context, proposalData *scTypes.ProposalData)
 }
 
@@ -86,11 +85,13 @@ func (p *proposer) Run(ctx context.Context, started chan<- struct{}) error {
 
 	concurrent.RunTickerLoop(ctx, p.config.ProposingInterval,
 		func(ctx context.Context) {
-			if err := p.updateStateIfReady(ctx); err != nil {
-				p.logger.Error().Err(err).Msg("error during proved batches proposing")
-				p.metrics.RecordError(ctx, p.Name())
+			err := p.updateStateIfReady(ctx)
+			if err == nil || errors.Is(err, context.Canceled) {
 				return
 			}
+
+			p.logger.Error().Err(err).Msg("Error during proved batches proposing (updateStateIfReady)")
+			p.metrics.RecordError(ctx, p.Name())
 		},
 	)
 

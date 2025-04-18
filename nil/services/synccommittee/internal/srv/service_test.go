@@ -145,7 +145,7 @@ func (s *ServiceTestSuite) Test_Cancel_Worker_With_Long_Startup() {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			// Emulating long-running startup
+			// Emulating a long-running startup
 			case <-time.After(time.Minute):
 			}
 
@@ -382,6 +382,8 @@ func (s *ServiceTestSuite) Test_Stop_Service() {
 }
 
 func (s *ServiceTestSuite) runInBackground(ctx context.Context, workers ...Worker) <-chan error {
+	s.T().Helper()
+
 	service := NewService(s.logger, workers...)
 	errorCh := make(chan error, 1)
 	go func() {
