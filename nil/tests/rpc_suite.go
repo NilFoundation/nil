@@ -87,6 +87,7 @@ func (s *RpcSuite) Start(cfg *nilservice.Config) {
 		cfg.ZeroState, err = execution.CreateDefaultZeroStateConfig(execution.MainPublicKey)
 		s.Require().NoError(err)
 	}
+	execution.AddRelayersToZeroStateConfig(cfg.ZeroState, int(s.ShardsNum))
 
 	var serviceInterop chan nilservice.ServiceInterop
 	if cfg.RunMode == nilservice.CollatorsOnlyRunMode {

@@ -11,7 +11,6 @@ import (
 // ContractRef is a reference to the contract's backing object
 type ContractRef interface {
 	Address() types.Address
-	Token() []types.TokenBalance
 }
 
 // AccountRef implements ContractRef.
@@ -50,7 +49,6 @@ type Contract struct {
 
 	Gas   uint64
 	value *uint256.Int
-	token []types.TokenBalance
 }
 
 // NewContract returns a new contract environment for the execution of EVM.
@@ -59,9 +57,8 @@ func NewContract(
 	object ContractRef,
 	value *uint256.Int,
 	gas uint64,
-	token []types.TokenBalance,
 ) *Contract {
-	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object, token: token}
+	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object}
 
 	if parent, ok := caller.(*Contract); ok {
 		// Reuse JUMPDEST analysis from parent context if available.
@@ -136,7 +133,6 @@ func (c *Contract) AsDelegate() *Contract {
 
 	c.CallerAddress = parent.CallerAddress
 	c.value = parent.value
-	c.token = parent.token
 
 	return c
 }
@@ -158,9 +154,6 @@ func (c *Contract) Caller() types.Address {
 	return c.CallerAddress
 }
 
-func (c *Contract) Token() []types.TokenBalance {
-	return c.token
-}
 
 // UseGas attempts to use gas and subtracts it and returns true on success
 func (c *Contract) UseGas(gas uint64, logger *tracing.Hooks, reason tracing.GasChangeReason) (ok bool) {

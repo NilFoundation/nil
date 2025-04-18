@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
+	"math/big"
 )
 
 var errBlockNotFound = errors.New("block not found")
@@ -75,42 +76,93 @@ func (api *localShardApiRo) GetCode(
 	return code, nil
 }
 
+type token struct {
+	Token   types.Address
+	Balance *big.Int
+}
+
 func (api *localShardApiRo) GetTokens(
 	ctx context.Context,
 	address types.Address,
 	blockReference rawapitypes.BlockReference,
 ) (map[types.TokenId]types.Value, error) {
-	shardId := address.ShardId()
-	if shardId != api.shardId() {
-		return nil, fmt.Errorf("address is not in the shard %d", api.shard)
+	abi, err := contracts.GetAbi(contracts.NameTokenManager)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get ABI: %w", err)
 	}
 
+	calldata, err := abi.Pack("getTokens", address)
+	if err != nil {
+		return nil, fmt.Errorf("cannot pack calldata: %w", err)
+	}
+
+	tokenManagerAddr := types.GetTokenManagerAddress(address.ShardId())
+
+	ret, err := api.CallGetter(ctx, tokenManagerAddr, calldata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call getter: %w", err)
+	}
+
+	var tokens []token
+	err = abi.UnpackIntoInterface(&tokens, "getTokens", ret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unpack response: %w", err)
+	}
+
+	res := make(map[types.TokenId]types.Value)
+	for t := range tokens {
+		res[types.TokenId(tokens[t].Token)] = types.NewValueFromBigMust(tokens[t].Balance)
+	}
+	return res, nil
+}
+
+func (api *localShardApiRo) CallGetter(
+	ctx context.Context,
+	address types.Address,
+	calldata []byte,
+) ([]byte, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open tx to find account: %w", err)
+		return nil, err
 	}
 	defer tx.Rollback()
 
-	acc, err := api.getSmartContract(tx, address, blockReference)
+	block, _, err := db.ReadLastBlock(tx, address.ShardId())
 	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return nil, nil
-		}
+		return nil, fmt.Errorf("failed to read last block: %w", err)
+	}
+
+	cfgAccessor, err := config.NewConfigReader(tx, &block.MainShardHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create config accessor: %w", err)
+	}
+
+	es, err := execution.NewExecutionState(tx, address.ShardId(), execution.StateParams{
+		Block:          block,
+		ConfigAccessor: cfgAccessor,
+		Mode:           execution.ModeReadOnly,
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	tokenReader := execution.NewDbTokenTrieReader(tx, shardId)
-	tokenReader.SetRootHash(acc.TokenRoot)
-	entries, err := tokenReader.Entries()
-	if err != nil {
-		return nil, err
+	extTxn := &types.ExternalTransaction{
+		FeeCredit:    types.GasToValue(types.DefaultMaxGasInBlock.Uint64()),
+		MaxFeePerGas: types.MaxFeePerGasDefault,
+		To:           address,
+		Data:         calldata,
 	}
 
-	return common.SliceToMap(
-		entries,
-		func(_ int, kv execution.Entry[types.TokenId, *types.Value]) (types.TokenId, types.Value) {
-			return kv.Key, *kv.Val
-		}), nil
+	txn := extTxn.ToTransaction()
+
+	payer := execution.NewDummyPayer()
+
+	es.AddInTransaction(txn)
+	res := es.HandleTransaction(ctx, txn, payer)
+	if res.Failed() {
+		return nil, fmt.Errorf("transaction failed: %w", res.GetError())
+	}
+	return res.ReturnData, nil
 }
 
 func (api *localShardApiRo) GetContract(

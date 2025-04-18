@@ -30,7 +30,7 @@ Example:
 
 ```solidity
 function deposit() public payable {
-    Nil.Token[] memory tokens = Nil.txnTokens();
+    Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it  
     bytes memory callData = abi.encodeWithSignature(
         "recordDeposit(address,address,uint256)",
         msg.sender,

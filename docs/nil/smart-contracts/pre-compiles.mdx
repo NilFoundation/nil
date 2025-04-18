@@ -122,10 +122,10 @@ The function shows how many tokens with the given `id` are held by the contract 
 
 ## `GET_TRANSACTION_TOKENS`
 
-`GET_TRANSACTION_TOKENS` is the pre-compile used in the `txnTokens()` function.
+`GET_TRANSACTION_TOKENS` is the pre-compile used in the `txnTokens()` function.  // TODO: [PoC] Tokens remove it
 
 ```solidity showLineNumbers
-function txnTokens() internal returns(Token[] memory)
+function txnTokens() internal returns(Token[] memory)  // TODO: [PoC] Tokens remove it
 ```
 
 The function returns the list of tokens for the current transaction.
