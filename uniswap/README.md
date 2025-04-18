@@ -106,7 +106,7 @@ const hash1 = await contract.external.mintToken([mintAmount]);
 
 ## 🎯 Hardhat tasks
 
-The project also provides two Hardhat tasks that showcase the full full lifecycle from deployment to execution. These tasks cover deploying and initializing all necessary contracts as well as minting, swapping, and burning
+The project also provides two Hardhat tasks that showcase the full lifecycle from deployment to execution. These tasks cover deploying and initializing all necessary contracts as well as minting, swapping, and burning
 
 ### Demo Tasks
 
