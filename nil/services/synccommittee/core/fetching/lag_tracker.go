@@ -2,18 +2,18 @@ package fetching
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
 type LagTrackerMetrics interface {
-	metrics.BasicMetrics
+	srv.WorkerMetrics
 	RecordFetchingLag(ctx context.Context, shardId coreTypes.ShardId, blocksCount int64)
 }
 
@@ -37,7 +37,6 @@ type lagTracker struct {
 	fetcher *Fetcher
 	storage LagTrackerStorage
 	metrics LagTrackerMetrics
-	logger  logging.Logger
 	config  LagTrackerConfig
 }
 
@@ -55,27 +54,29 @@ func NewLagTracker(
 		config:  config,
 	}
 
-	tracker.WorkerLoop = srv.NewWorkerLoop("lag_tracker", tracker.config.CheckInterval, tracker.runIteration)
-	tracker.logger = srv.WorkerLogger(logger, tracker)
+	loopConfig := srv.NewWorkerLoopConfig("lag_tracker", tracker.config.CheckInterval, tracker.runIteration)
+	tracker.WorkerLoop = srv.NewWorkerLoop(loopConfig, metrics, logger)
 	return tracker
 }
 
-func (t *lagTracker) runIteration(ctx context.Context) {
-	t.logger.Debug().Msg("running lag tracker iteration")
+func (t *lagTracker) runIteration(ctx context.Context) error {
+	t.Logger.Debug().Msg("running lag tracker iteration")
 
 	lagPerShard, err := t.getLagForAllShards(ctx)
-	if err != nil {
-		t.logger.Error().Err(err).Msg("failed to fetch lag per shard")
-		t.metrics.RecordError(ctx, t.Name())
-		return
+	switch {
+	case errors.Is(err, context.Canceled):
+		return err
+	case err != nil:
+		return fmt.Errorf("failed to fetch lag per shard: %w", err)
 	}
 
 	for shardId, blocksCount := range lagPerShard {
 		t.metrics.RecordFetchingLag(ctx, shardId, blocksCount)
-		t.logger.Trace().Stringer(logging.FieldShardId, shardId).Msgf("lag in shard %s: %d", shardId, blocksCount)
+		t.Logger.Trace().Stringer(logging.FieldShardId, shardId).Msgf("lag in shard %s: %d", shardId, blocksCount)
 	}
 
-	t.logger.Debug().Msg("lag tracker iteration completed")
+	t.Logger.Debug().Msg("lag tracker iteration completed")
+	return nil
 }
 
 func (t *lagTracker) getLagForAllShards(ctx context.Context) (map[coreTypes.ShardId]int64, error) {

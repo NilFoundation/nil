@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -109,5 +110,5 @@ func (s *TaskResultSenderSuite) Test_Send_And_Delete_Result() {
 
 func (s *TaskResultSenderSuite) newTestTaskResultSender(handler api.TaskRequestHandler) *TaskResultSender {
 	s.T().Helper()
-	return NewTaskResultSender(handler, s.resultStorage, s.logger)
+	return NewTaskResultSender(handler, s.resultStorage, srv.NewNoopWorkerMetrics(), s.logger)
 }

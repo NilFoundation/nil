@@ -140,17 +140,11 @@ func (s *TaskCancelCheckerSuite) Test_Check_Dead_Task() {
 
 func (s *TaskCancelCheckerSuite) newTestTaskCancelChecker(handler api.TaskRequestHandler) *TaskCancelChecker {
 	s.T().Helper()
-	checker := &TaskCancelChecker{
-		requestHandler: handler,
-		taskSource:     s.taskStorage,
-		config:         MakeDefaultCheckerConfig(),
-	}
-
-	checker.WorkerLoop = srv.NewWorkerLoop(
-		"task_cancel_checker_test",
-		checker.config.UpdateInterval,
-		checker.runIteration,
+	return NewTaskCancelChecker(
+		handler,
+		s.taskStorage,
+		testaide.RandomExecutorId(),
+		srv.NewNoopWorkerMetrics(),
+		s.logger,
 	)
-	checker.logger = srv.WorkerLogger(s.logger, checker)
-	return checker
 }

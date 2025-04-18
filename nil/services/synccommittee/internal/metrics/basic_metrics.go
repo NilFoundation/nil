@@ -9,14 +9,11 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-type BasicMetrics interface {
-	RecordError(ctx context.Context, origin string)
-}
-
 type basicMetricsHandler struct {
 	attributes metric.MeasurementOption
 
 	totalErrorsEncountered telemetry.Counter
+	heartbeat              telemetry.Counter
 }
 
 func (h *basicMetricsHandler) init(attributes metric.MeasurementOption, meter telemetry.Meter) error {
@@ -24,6 +21,10 @@ func (h *basicMetricsHandler) init(attributes metric.MeasurementOption, meter te
 	var err error
 
 	if h.totalErrorsEncountered, err = meter.Int64Counter(namespace + "total_errors_encountered"); err != nil {
+		return err
+	}
+
+	if h.heartbeat, err = meter.Int64Counter(namespace + "heartbeat"); err != nil {
 		return err
 	}
 
@@ -36,4 +37,8 @@ func (h *basicMetricsHandler) RecordError(ctx context.Context, origin string) {
 	)
 
 	h.totalErrorsEncountered.Add(ctx, 1, h.attributes, errorAttributes)
+}
+
+func (h *basicMetricsHandler) Heartbeat(ctx context.Context) {
+	h.heartbeat.Add(ctx, 1, h.attributes)
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
@@ -26,7 +25,7 @@ type ProposerStorage interface {
 }
 
 type ProposerMetrics interface {
-	metrics.BasicMetrics
+	srv.WorkerMetrics
 	RecordStateUpdated(ctx context.Context, proposalData *scTypes.ProposalData)
 }
 
@@ -97,9 +96,9 @@ func (p *proposer) Pause(ctx context.Context) error {
 		return err
 	}
 	if paused {
-		p.logger.Info().Msg("proposer paused")
+		p.logger.Info().Msg("Proposer paused")
 	} else {
-		p.logger.Warn().Msg("trying to pause proser, but it's already paused")
+		p.logger.Warn().Msg("Trying to pause proposer, but it's already paused")
 	}
 	return nil
 }
@@ -110,18 +109,22 @@ func (p *proposer) Resume(ctx context.Context) error {
 		return err
 	}
 	if resumed {
-		p.logger.Info().Msg("proposer resumed")
+		p.logger.Info().Msg("Proposer resumed")
 	} else {
-		p.logger.Warn().Msg("trying to resume proser, but it's already resumed")
+		p.logger.Warn().Msg("Trying to resume proposer, but it's already resumed")
 	}
 	return nil
 }
 
 func (p *proposer) runIteration(ctx context.Context) {
-	if err := p.updateStateIfReady(ctx); err != nil {
-		p.logger.Error().Err(err).Msg("error during proved batches proposing")
-		p.metrics.RecordError(ctx, p.Name())
+	err := p.updateStateIfReady(ctx)
+
+	if err == nil || errors.Is(err, context.Canceled) {
+		return
 	}
+
+	p.logger.Error().Err(err).Msg("Error during proved batches proposing (updateStateIfReady)")
+	p.metrics.RecordError(ctx, p.Name())
 }
 
 // updateStateIfReady checks if there is new proved state root is ready to be submitted to L1 and

@@ -35,6 +35,17 @@ func NewService(logger logging.Logger, workers ...Worker) Service {
 	}
 }
 
+func NewServiceWithHeartbeat(
+	metrics HeartbeatSenderMetrics,
+	logger logging.Logger,
+	workers ...Worker,
+) Service {
+	return NewService(
+		logger,
+		append(workers, NewHeartbeatSender(metrics, DefaultHeartbeatSenderConfig(), logger))...,
+	)
+}
+
 type workerControl struct {
 	cancel  context.CancelFunc
 	started chan struct{}

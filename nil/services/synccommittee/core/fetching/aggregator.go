@@ -17,7 +17,6 @@ import (
 	v1 "github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode/v1"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -26,7 +25,7 @@ import (
 )
 
 type AggregatorMetrics interface {
-	metrics.BasicMetrics
+	srv.WorkerMetrics
 	RecordBatchCreated(ctx context.Context, batch *types.BlockBatch)
 }
 
@@ -157,9 +156,12 @@ func (agg *aggregator) Resume(ctx context.Context) error {
 
 func (agg *aggregator) runIteration(ctx context.Context) {
 	err := agg.processBlocksAndHandleErr(ctx)
-	if err != nil {
-		agg.metrics.RecordError(ctx, agg.Name())
+
+	if err == nil || errors.Is(err, context.Canceled) {
+		return
 	}
+
+	agg.metrics.RecordError(ctx, agg.Name())
 }
 
 // processBlocksAndHandleErr fetches and processes new blocks for all shards.
