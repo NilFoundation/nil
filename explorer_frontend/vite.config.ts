@@ -1,6 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import vitePluginString from "vite-plugin-string";
+import circleDependency from "vite-plugin-circular-dependency";
+
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -13,6 +15,7 @@ export default defineConfig({
       include: ["**/*.sol", "**/*.md"],
       compress: false,
     }),
+    circleDependency(),
     {
       name: "custom-script-tag",
       enforce: "post",
