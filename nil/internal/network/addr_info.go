@@ -46,6 +46,16 @@ func (a *AddrInfo) UnmarshalText(text []byte) error {
 
 type AddrInfoSlice = common.PValueSlice[*AddrInfo, AddrInfo]
 
+func AddrInfoSliceFromStrings(s []string) (AddrInfoSlice, error) {
+	res := make(AddrInfoSlice, len(s))
+	for i, str := range s {
+		if err := res[i].Set(str); err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
 func ToLibP2pAddrInfoSlice(s AddrInfoSlice) []peer.AddrInfo {
 	res := make([]peer.AddrInfo, len(s))
 	for i, a := range s {

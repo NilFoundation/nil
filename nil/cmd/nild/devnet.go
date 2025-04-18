@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/NilFoundation/nil/nil/cmd/nild/nildconfig"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/internal/cobrax"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	nilcrypto "github.com/NilFoundation/nil/nil/internal/crypto"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -44,6 +46,7 @@ type clusterSpec struct {
 	NilRPCHost             string   `yaml:"nil_rpc_host"`
 	NilRPCPort             int      `yaml:"nil_rpc_port"`
 	EnableRPCOnValidators  bool     `yaml:"nil_rpc_enable_on_validators"`
+	Relays                 []string `yaml:"relays"`
 	ClickhouseHost         string   `yaml:"clickhouse_host"`
 	ClickhousePort         int      `yaml:"clickhouse_port"`
 	ClickhouseLogin        string   `yaml:"clickhouse_login"`
@@ -69,6 +72,7 @@ type server struct {
 	service         string
 	name            string
 	identity        string
+	relays          []string
 	p2pPort         int
 	promPort        int
 	pprofPort       int
@@ -169,6 +173,45 @@ func ensurePublicKey(keyPath string) ([]byte, error) {
 	return publicKey, nil
 }
 
+func validateClusterSpec(spec *clusterSpec, defaults *nilservice.ChainDefaults) error {
+	if defaults == nil {
+		return nil
+	}
+
+	for _, r := range defaults.RelayAddresses {
+		if !slices.Contains(spec.Relays, r) {
+			return fmt.Errorf("relay address %s not found in spec", r)
+		}
+	}
+
+	return nil
+}
+
+func validateCluster(c *cluster, defaults *nilservice.ChainDefaults) error {
+	if defaults == nil {
+		return nil
+	}
+
+	haveIdentity := func(servers []server, id string) bool {
+		for _, srv := range servers {
+			if srv.identity == id {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, p := range defaults.BootstrapPeers {
+		id := p.ID.String()
+		if !haveIdentity(c.validators, id) &&
+			!haveIdentity(c.archivers, id) {
+			return fmt.Errorf("bootstrap peer %s not found in validators or archivers", id)
+		}
+	}
+
+	return nil
+}
+
 func genDevnet(cmd *cobra.Command, args []string) error {
 	baseDir, err := cmd.Flags().GetString("basedir")
 	if err != nil {
@@ -190,12 +233,22 @@ func genDevnet(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't parse devnet spec %s: %w", specFile, err)
 	}
 
+	chainName := cobrax.GetChainFromArgs()
+	chainDefaults := nilservice.DefaultsByChainName[chainName]
+	if chainDefaults == nil && chainName != "" {
+		return fmt.Errorf("unknown chain name: %s", chainName)
+	}
+
+	if err := validateClusterSpec(spec, chainDefaults); err != nil {
+		return err
+	}
+
 	validatorRPCBasePort := 0
 	if spec.EnableRPCOnValidators {
 		validatorRPCBasePort = spec.NilRPCPort + len(spec.NilRPCConfig)
 	}
 	validators, err := spec.makeServers(spec.NilConfig,
-		spec.NildP2PBaseTCPPort, spec.NildPromBasePort, spec.PprofBaseTCPPort, validatorRPCBasePort,
+		spec.NildP2PBaseTCPPort, spec.NildPromBasePort, spec.PprofBaseTCPPort, validatorRPCBasePort, spec.Relays,
 		"nil", baseDir, false)
 	if err != nil {
 		return fmt.Errorf("failed to setup validator nodes: %w", err)
@@ -217,7 +270,7 @@ func genDevnet(cmd *cobra.Command, args []string) error {
 	}
 
 	c.archivers, err = spec.makeServers(spec.NilArchiveConfig,
-		archiveBaseP2P, archiveBaseProm, archiveBasePprof, 0,
+		archiveBaseP2P, archiveBaseProm, archiveBasePprof, 0, spec.Relays,
 		"nil-archive", baseDir, false)
 	if err != nil {
 		return fmt.Errorf("failed to setup archive nodes: %w", err)
@@ -226,10 +279,14 @@ func genDevnet(cmd *cobra.Command, args []string) error {
 	rpcBasePprof := spec.PprofBaseTCPPort + len(validators) + len(c.archivers)
 
 	c.rpcNodes, err = spec.makeServers(spec.NilRPCConfig,
-		0, 0, rpcBasePprof, spec.NilRPCPort,
+		0, 0, rpcBasePprof, spec.NilRPCPort, nil,
 		"nil-rpc", baseDir, true)
 	if err != nil {
 		return fmt.Errorf("failed to setup rpc nodes: %w", err)
+	}
+
+	if err := validateCluster(c, chainDefaults); err != nil {
+		return err
 	}
 
 	only, err := cmd.Flags().GetString("only")
@@ -277,12 +334,14 @@ func (spec *clusterSpec) makeServers(
 	basePromPort int,
 	basePprofPort int,
 	baseHTTPPort int,
+	relays []string,
 	service string,
 	baseDir string,
 	logClientEvents bool,
 ) ([]server, error) {
 	servers := make([]server, len(nodeSpecs))
 	for i, nodeSpec := range nodeSpecs {
+		servers[i].relays = relays
 		servers[i].service = service
 		servers[i].name = fmt.Sprintf("%s-%d", service, i)
 		servers[i].nodeSpec = nodeSpec
@@ -333,7 +392,10 @@ func (spec *clusterSpec) EnsureIdentity(srv server) (string, error) {
 		return "", fmt.Errorf("failed to load or generate keys: %w", err)
 	}
 	_, _, identity, err := network.SerializeKeys(privKey)
-	return identity.String(), err
+	if err != nil {
+		return "", fmt.Errorf("failed to serialize keys: %w", err)
+	}
+	return identity.String(), nil
 }
 
 func (c *cluster) writeServerConfig(instanceId int, srv server, only string) error {

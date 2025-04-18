@@ -14,11 +14,29 @@ func AddConfigFlag(fset *pflag.FlagSet) {
 	fset.StringP("config", "c", "", "config file")
 }
 
+// AddChainFlag adds a flag to the flag set to specify a chain name.
+// It doesn't attach the flag to any variable because normally GetChainFromArgs is used.
+func AddChainFlag(fset *pflag.FlagSet) {
+	fset.String("chain", "",
+		"use defaults for the specified chain name; possible values: \"devnet\", empty")
+}
+
 // GetConfigNameFromArgs searches for a config file name in the command line arguments.
 // Generally, it should be called before argument parsing because the latter depends on the config (default values).
 func GetConfigNameFromArgs() string {
 	for i, f := range os.Args[:len(os.Args)-1] {
 		if f == "--config" || f == "-c" {
+			return os.Args[i+1]
+		}
+	}
+	return ""
+}
+
+// GetChainFromArgs searches for a chain name in the command line arguments.
+// Generally, it should be called before argument parsing because the latter depends on the chain name (default values).
+func GetChainFromArgs() string {
+	for i, f := range os.Args[:len(os.Args)-1] {
+		if f == "--chain" {
 			return os.Args[i+1]
 		}
 	}
