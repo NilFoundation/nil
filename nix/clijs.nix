@@ -56,11 +56,28 @@ stdenv.mkDerivation rec {
 
     pnpm run lint
 
-    ./dist/clijs | grep -q "The CLI tool for interacting with the =nil; cluster" || {
-      echo "Error: Output does not contain the expected substring!" >&2
+    env NODE_NO_WARNINGS=1 ./dist/clijs util list-commands > bundled_cli_commands
+
+    cp -r dist bundled_cli
+
+    pnpm run build
+    node ./bin/run.js util list-commands > non_bundled_cli_commands
+
+    rm -r dist
+    mv bundled_cli dist
+
+    diff bundled_cli_commands non_bundled_cli_commands > /dev/null || {
+      echo "have you added new command to the `sea.ts` file?"
+      echo "bundlied cli command list:"
+      cat bundled_cli_commands
+      echo "non-bundlied cli command list:"
+      cat non_bundled_cli_commands
+      rm bundled_cli_commands non_bundled_cli_commands
       exit 1
     }
+
     echo "smoke check passed"
+
 
     nohup nild run --http-port 8529 --collator-tick-ms=100 > nild.log 2>&1 & echo $! > nild_pid &
 

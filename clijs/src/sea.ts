@@ -25,6 +25,8 @@ import SystemCommand from "./commands/system";
 import ChainId from "./commands/system/chain-id";
 import GasPrice from "./commands/system/gas-price";
 import Shards from "./commands/system/shards";
+import UtilCommand from "./commands/util";
+import ListCommands from "./commands/util/list-commands";
 
 export const COMMANDS: Record<string, Command.Class> = {
   abi: AbiCommand,
@@ -53,6 +55,9 @@ export const COMMANDS: Record<string, Command.Class> = {
   "system:chain-id": ChainId,
   "system:gas-price": GasPrice,
   "system:shards": Shards,
+
+  util: UtilCommand,
+  "util:list-commands": ListCommands,
 };
 
 export async function run() {
