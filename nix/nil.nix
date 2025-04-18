@@ -17,7 +17,6 @@
 , protoc-gen-go
 , protobuf
 , python3
-, rollup-bridge-contracts
 }:
 let inherit (lib) optional;
   overrideBuildGoModule = pkg: pkg.override { buildGoModule = buildGo124Module; };
@@ -27,10 +26,6 @@ buildGo124Module rec {
   pname = "nil";
 
   preBuild = ''
-    mkdir -p nil/services/rollup-bridge-contracts-compiled
-    ln -sf ${rollup-bridge-contracts.outPath}/artifacts/contracts nil/services/rollup-bridge-contracts-compiled
-    chmod -R u+w nil/services/rollup-bridge-contracts-compiled
-
     make -j$NIX_BUILD_CORES generated rpcspec gen_rollup_contracts_bindings
     export HOME="$TMPDIR"
     mkdir -p ~/.gsolc-select/artifacts/solc-0.8.28
@@ -53,6 +48,7 @@ buildGo124Module rec {
     "^nil(/.*)?$"
     "^smart-contracts(/.*)?$"
     "^uniswap(/.*)?$"
+    "^rollup-bridge-contracts(/.*)?$"
   ];
 
   # to obtain run `nix build` with vendorHash = "";
@@ -131,10 +127,6 @@ buildGo124Module rec {
     export GOMODCACHE=/tmp/${vendorHash}/go/mod/cache
     chmod -R u+w vendor
     mkdir -p ~/.solc-select/artifacts/solc-0.8.28
-    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.28/solc-0.8.28
-
-    mkdir -p nil/services/rollup-bridge-contracts-compiled
-    ln -sf ${rollup-bridge-contracts.outPath}/artifacts/contracts nil/services/rollup-bridge-contracts-compiled
-    chmod -R u+w nil/services/rollup-bridge-contracts-compiled
+    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.28/solc-0.8.28  
   '';
 }

@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { L1BridgeMessengerEvents } from "../../libraries/L1BridgeMessengerEvents.sol";
 
 interface INilGasPriceOracle is IERC165 {
   /// @dev Invalid owner address.
@@ -11,13 +12,6 @@ interface INilGasPriceOracle is IERC165 {
   error ErrorInvalidDefaultAdmin();
 
   error ErrorNotAuthorised();
-
-  struct FeeCreditData {
-    uint256 nilGasLimit;
-    uint256 maxFeePerGas;
-    uint256 maxPriorityFeePerGas;
-    uint256 feeCredit;
-  }
 
   function getImplementation() external view returns (address);
 
@@ -43,5 +37,5 @@ interface INilGasPriceOracle is IERC165 {
     uint256 gasLimit,
     uint256 userMaxFeePerGas,
     uint256 userMaxPriorityFeePerGas
-  ) external view returns (FeeCreditData memory);
+  ) external view returns (L1BridgeMessengerEvents.FeeCreditData memory);
 }

@@ -8,6 +8,7 @@ root_rollup = nil/services/rollup
 
 .PHONY: gen_rollup_contracts_bindings
 gen_rollup_contracts_bindings: \
+	$(root_relayer)/compile_abi \
 	$(root_relayer)/embed_l1_abi \
 	$(root_relayer)/generate_l1_abi \
 	$(root_relayer)/embed_l2_abi \

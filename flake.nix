@@ -32,7 +32,6 @@
           rollup-bridge-contracts = (pkgs.callPackage ./nix/rollup-bridge-contracts.nix { });
           nil = (pkgs.callPackage ./nix/nil.nix {
             solc = solc;
-            rollup-bridge-contracts = rollup-bridge-contracts;
           });
           niljs = (pkgs.callPackage ./nix/niljs.nix { solc = solc; });
           clijs = (pkgs.callPackage ./nix/clijs.nix { nil = nil; });
@@ -61,7 +60,6 @@
             enableRaceDetector = true;
             enableTesting = true;
             solc = packages.solc;
-            rollup-bridge-contracts = packages.rollup-bridge-contracts;
           });
 
           # split tests into groups

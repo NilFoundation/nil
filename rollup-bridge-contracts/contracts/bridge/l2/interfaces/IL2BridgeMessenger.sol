@@ -3,12 +3,13 @@ pragma solidity 0.8.28;
 
 import { IBridgeMessenger } from "../../interfaces/IBridgeMessenger.sol";
 import { NilConstants } from "../../../common/libraries/NilConstants.sol";
+import { IRelayMessage } from "IRelayMessage.sol";
 
 /// @title IL2BridgeMessenger
 /// @notice Interface for the L2BridgeMessenger contract which handles cross-chain messaging between L1 and L2.
 /// @dev This interface defines the functions and events for finalizing deposit messages, sending messages to L1, and
 /// initiating withdrawals
-interface IL2BridgeMessenger is IBridgeMessenger {
+interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage {
   /*//////////////////////////////////////////////////////////////////////////
                              ERRORS
     //////////////////////////////////////////////////////////////////////////*/
@@ -124,22 +125,6 @@ interface IL2BridgeMessenger is IBridgeMessenger {
   /*//////////////////////////////////////////////////////////////////////////
                          PUBLIC MUTATION FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
-
-  /// @notice receive realyedMessage originated from L1BridgeMessenger via Relayer
-  /// @dev only authorized smart-account on nil-shard can relayMessage to Bridge on NilShard
-  /// @param messageSender The address of the sender of the message.
-  /// @param messageTarget The address of the recipient of the message.
-  /// @param messageNonce The nonce of the message to avoid replay attack.
-  /// @param message The content of the message.
-  /// @param messageExpiryTime The expiryTime of message queued on L1.
-  function relayMessage(
-    address messageSender,
-    address messageTarget,
-    NilConstants.MessageType messageType,
-    uint256 messageNonce,
-    bytes calldata message,
-    uint256 messageExpiryTime
-  ) external;
 
   /// @notice Send cross chain message Nil to L1.
   /// @param messageType The type of withdrawalMessage.

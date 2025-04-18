@@ -20,6 +20,7 @@ import { INilRollup } from "../../interfaces/INilRollup.sol";
 import { INilGasPriceOracle } from "./interfaces/INilGasPriceOracle.sol";
 import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
 import { IL2BridgeMessenger } from "../l2/interfaces/IL2BridgeMessenger.sol";
+import { L1BridgeMessengerEvents } from "../libraries/L1BridgeMessengerEvents.sol";
 
 contract L1BridgeMessenger is
   OwnableUpgradeable,
@@ -57,7 +58,7 @@ contract L1BridgeMessenger is
   EnumerableSet.AddressSet private authorizedBridges;
 
   // Add this mapping to store deposit messages by their message hash
-  mapping(bytes32 => DepositMessage) public depositMessages;
+  mapping(bytes32 => L1BridgeMessengerEvents.DepositMessage) public depositMessages;
 
   /// @notice The nonce for deposit messages.
   uint256 public override depositNonce;
@@ -168,7 +169,7 @@ contract L1BridgeMessenger is
   }
 
   /// @inheritdoc IL1BridgeMessenger
-  function getDepositMessage(bytes32 msgHash) public view override returns (DepositMessage memory depositMessage) {
+  function getDepositMessage(bytes32 msgHash) public view override returns (L1BridgeMessengerEvents.DepositMessage memory depositMessage) {
     return depositMessages[msgHash];
   }
 
@@ -289,10 +290,10 @@ contract L1BridgeMessenger is
     uint256 depositAmount,
     address l1DepositRefundAddress,
     address l2FeeRefundAddress,
-    INilGasPriceOracle.FeeCreditData memory feeCreditData
+    L1BridgeMessengerEvents.FeeCreditData memory feeCreditData
   ) external payable override whenNotPaused onlyAuthorizedL1Bridge {
     _sendMessage(
-      SendMessageParams({
+      L1BridgeMessengerEvents.SendMessageParams({
         messageType: messageType,
         messageTarget: messageTarget,
         message: message,
@@ -309,7 +310,7 @@ contract L1BridgeMessenger is
   /// @inheritdoc IL1BridgeMessenger
   function cancelDeposit(bytes32 messageHash) public override whenNotPaused onlyAuthorizedL1Bridge {
     // Check if the deposit message exists
-    DepositMessage storage depositMessage = depositMessages[messageHash];
+    L1BridgeMessengerEvents.DepositMessage storage depositMessage = depositMessages[messageHash];
     if (depositMessage.expiryTime == 0) {
       revert DepositMessageDoesNotExist(messageHash);
     }
@@ -363,7 +364,7 @@ contract L1BridgeMessenger is
 
   /// @inheritdoc IL1BridgeMessenger
   function claimFailedDeposit(bytes32 messageHash, bytes32[] memory claimProof) public override whenNotPaused {
-    DepositMessage storage depositMessage = depositMessages[messageHash];
+    L1BridgeMessengerEvents.DepositMessage storage depositMessage = depositMessages[messageHash];
     if (depositMessage.expiryTime == 0) {
       revert DepositMessageDoesNotExist(messageHash);
     }
@@ -390,8 +391,8 @@ contract L1BridgeMessenger is
                              INTERNAL FUNCTIONS   
     //////////////////////////////////////////////////////////////////////////*/
 
-  function _sendMessage(SendMessageParams memory params) internal nonReentrant {
-    DepositMessage memory depositMessage = _createDepositMessage(params);
+  function _sendMessage(L1BridgeMessengerEvents.SendMessageParams memory params) internal nonReentrant {
+    L1BridgeMessengerEvents.DepositMessage memory depositMessage = _createDepositMessage(params);
     bytes32 messageHash = computeMessageHash(_msgSender(), params.messageTarget, depositMessage.nonce, params.message);
 
     if (depositMessages[messageHash].expiryTime != 0) {
@@ -401,23 +402,17 @@ contract L1BridgeMessenger is
     depositMessages[messageHash] = depositMessage;
     messageQueue.pushBack(messageHash);
 
-    emit MessageSent(
-      _msgSender(),
-      params.messageTarget,
-      depositMessage.nonce,
-      params.message,
+    L1BridgeMessengerEvents.emitMessage(
+      params,
+      depositMessage,
       messageHash,
-      params.messageType,
-      block.timestamp,
-      depositMessage.expiryTime,
-      params.l2FeeRefundAddress,
-      params.feeCreditData
+      _msgSender()
     );
   }
 
-  function _createDepositMessage(SendMessageParams memory params) internal returns (DepositMessage memory) {
+  function _createDepositMessage(L1BridgeMessengerEvents.SendMessageParams memory params) internal returns (L1BridgeMessengerEvents.DepositMessage memory) {
     return
-      DepositMessage({
+      L1BridgeMessengerEvents.DepositMessage({
         sender: _msgSender(),
         target: params.messageTarget,
         nonce: depositNonce++,
