@@ -331,6 +331,7 @@ func estimateGasForAsyncRequest(input []byte, precompile string, argnum, argtota
 	}
 
 	responseProcessingGas := extractUintParam(args[argnum], precompile, "responseProcessingGas")
+	fmt.Println("baseFee + responseProcessingGas.Uint64()", baseFee+responseProcessingGas.Uint64())
 	return baseFee + responseProcessingGas.Uint64()
 }
 
@@ -424,21 +425,18 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	// Get `input` argument
 	input = getBytesArgCopy(args[7], "asyncCall", "input")
 
-	// Get `context` argument
-	context := getBytesArgCopy(args[8], "asyncCall", "context")
+	// Get `awaitId` argument
+	awaitId := extractUintParam(args[8], "asyncCall", "awaitId")
 
 	// Get `responseProcessingGas` argument
 	responseProcessingGas := types.Gas(extractUintParam(args[9], "asyncCall", "responseProcessingGas").Uint64())
-	if len(context) > 0 && responseProcessingGas < MinGasReserveForAsyncRequest {
+	if !awaitId.IsZero() && responseProcessingGas < MinGasReserveForAsyncRequest {
 		logging.GlobalLogger.Error().Msgf(
 			"asyncCall failed: responseProcessingGas is too low (%d)", responseProcessingGas)
 		return nil, types.NewVmError(types.ErrorTooLowResponseProcessingGas)
 	}
-	if len(context) == 0 && responseProcessingGas > 0 {
+	if awaitId.IsZero() && responseProcessingGas > 0 {
 		return nil, types.NewVmError(types.ErrorResponseProcessingGasWithoutResponse)
-	}
-	if 0 < len(context) && len(context) < 4 {
-		return nil, types.NewVmError(types.ErrorTooShortContextData)
 	}
 
 	var kind types.TransactionKind
@@ -446,7 +444,7 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 		if len(tokens) != 0 {
 			return nil, types.NewVmError(types.ErrorAsyncDeployMustNotHaveToken)
 		}
-		if len(context) > 0 {
+		if !awaitId.IsZero() {
 			return nil, types.NewVmError(types.ErrorResponseForDeploy)
 		}
 		kind = types.DeployTransactionKind
@@ -478,16 +476,16 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 
 	// Internal is required for the transaction
 	payload := types.InternalTransactionPayload{
-		Kind:           kind,
-		FeeCredit:      feeCredit,
-		ForwardKind:    types.ForwardKind(forwardKind),
-		Value:          types.NewValue(value),
-		Token:          tokens,
-		To:             dst,
-		RefundTo:       refundTo,
-		BounceTo:       bounceTo,
-		Data:           input,
-		RequestContext: context,
+		Kind:        kind,
+		FeeCredit:   feeCredit,
+		ForwardKind: types.ForwardKind(forwardKind),
+		Value:       types.NewValue(value),
+		Token:       tokens,
+		To:          dst,
+		RefundTo:    refundTo,
+		BounceTo:    bounceTo,
+		Data:        input,
+		RequestId:   awaitId.Uint64(),
 	}
 	res = make([]byte, 32)
 	res[31] = 1

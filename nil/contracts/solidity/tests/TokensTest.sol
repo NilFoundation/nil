@@ -62,7 +62,7 @@ contract TokensTest is NilTokenBase {
     ) public onlyExternal returns (address) {
         address contractAddress = Nil.createAddress(shardId, code, salt);
         // 0xfd == Nil.ASYNC_CALL
-        __Precompile__(address(0xfd)).precompileAsyncCall{value: value}(
+        __Precompile__(address(Nil.ASYNC_CALL)).precompileAsyncCall{value: value}(
             true,
             Nil.FORWARD_REMAINING,
             contractAddress,
@@ -71,7 +71,7 @@ contract TokensTest is NilTokenBase {
             feeCredit,
             tokens,
             bytes.concat(code, bytes32(salt)),
-            "",
+            0,
             0
         );
         return contractAddress;

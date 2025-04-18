@@ -106,7 +106,6 @@ message SmartContract {
     string async_context_root = 6;
     uint64 seqno = 7;
     uint64 ext_seqno = 8;
-    uint64 request_id = 9;
 }
 
 // StorageEntry is a key-value pair representing a single piece of storage data

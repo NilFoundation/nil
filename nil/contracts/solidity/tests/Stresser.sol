@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import "../lib/NilTokenBase.sol";
+import "../lib/NilAwaitable.sol";
 
 contract StresserFactory {
 
@@ -23,7 +23,7 @@ contract StresserFactory {
     }
 }
 
-contract Stresser {
+contract Stresser is NilAwaitable {
 
     uint256 public value;
     uint256[1024*1024] array;
@@ -67,15 +67,15 @@ contract Stresser {
     }
 
     function sendRequests(address[] memory addresses, uint256 v) public {
-        bytes memory context = abi.encodeWithSelector(this.sendRequestsResponse.selector);
         bytes memory callData = abi.encodeWithSignature("gasConsumer(uint256)", v);
         for (uint256 i = 0; i < addresses.length; i++) {
-            Nil.sendRequest(
+            sendRequest(
                 addresses[i],
                 0,
                 Nil.ASYNC_REQUEST_MIN_GAS,
-                context,
-                callData
+                "",
+                callData,
+                sendRequestsResponse
             );
         }
     }

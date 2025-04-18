@@ -84,8 +84,7 @@ func calculateStateChange(
 						asyncContextHasUpdates = true
 						break
 					}
-					if !bytes.Equal(value.Data, oldVal.Data) ||
-						(value.ResponseProcessingGas != oldVal.ResponseProcessingGas) {
+					if value.ResponseProcessingGas != oldVal.ResponseProcessingGas {
 						asyncContextHasUpdates = true
 						break
 					}

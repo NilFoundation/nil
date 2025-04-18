@@ -50,8 +50,6 @@ type AccountState struct {
 	TokenTree   *TokenTrie
 	// AsyncContextTree is a trie that stores the context for each request sent from this account.
 	AsyncContextTree *AsyncContextTrie
-	// requestId is a current request id. It is used to generate unique number for each request.
-	requestId uint64
 
 	State               Storage
 	AsyncContext        map[types.TransactionIndex]*types.AsyncContext
@@ -71,12 +69,6 @@ type AccountState struct {
 	NewContract bool
 
 	logger logging.Logger
-}
-
-// FetchRequestId returns unique request id.
-func (as *AccountState) FetchRequestId() uint64 {
-	as.requestId++
-	return as.requestId
 }
 
 func NewAccountStateReader(account *AccountState) *AccountStateReader {
@@ -120,7 +112,6 @@ func NewAccountState(
 		}
 		accountState.ExtSeqno = account.ExtSeqno
 		accountState.Seqno = account.Seqno
-		accountState.requestId = account.RequestId
 	}
 
 	return accountState, nil
@@ -261,6 +252,7 @@ func (as *AccountState) SetAsyncContext(index types.TransactionIndex, ctx *types
 		requestId: index,
 	})
 	as.AsyncContext[index] = ctx
+	fmt.Println("================ SetAsyncContext", index, as.address, as.AsyncContext)
 }
 
 func (as *AccountState) GetAsyncContext(index types.TransactionIndex) (*types.AsyncContext, error) {
@@ -272,11 +264,18 @@ func (as *AccountState) GetAsyncContext(index types.TransactionIndex) (*types.As
 }
 
 func (as *AccountState) GetAndRemoveAsyncContext(index types.TransactionIndex) (*types.AsyncContext, error) {
+	fmt.Println("GetAndRemoveAsyncContext", index, as.address, as.AsyncContext)
 	ctx, exists := as.AsyncContext[index]
 	if exists {
+		// TODO?
+		delete(as.AsyncContext, index)
 		return ctx, nil
 	}
 	as.AsyncContextRemoved = append(as.AsyncContextRemoved, index)
+
+	fmt.Println(as.AsyncContextTree.Entries())
+	fmt.Println("as.AsyncContextTree.RootHash() = ", as.AsyncContextTree.RootHash())
+
 	return as.AsyncContextTree.Fetch(index)
 }
 
@@ -366,6 +365,10 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 		}
 	}
 
+	data, err := as.AsyncContextTree.Entries()
+	fmt.Println("as.AsyncContextTree.Entries() after delete = ", as.address, data, err)
+	fmt.Println("as.AsyncContextTree.RootHash() = ", as.address, as.AsyncContextTree.RootHash())
+
 	// Remove tokens with zero value
 	for k, v := range as.Tokens {
 		if v.IsZero() {
@@ -391,7 +394,6 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 		CodeHash:         as.CodeHash,
 		ExtSeqno:         as.ExtSeqno,
 		Seqno:            as.Seqno,
-		RequestId:        as.requestId,
 	}
 
 	if err := db.WriteCode(as.db.GetRwTx(), as.address.ShardId(), as.CodeHash, as.Code); err != nil {
