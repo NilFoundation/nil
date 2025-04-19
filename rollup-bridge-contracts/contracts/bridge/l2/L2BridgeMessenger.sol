@@ -10,7 +10,6 @@ import { AccessControlEnumerableUpgradeable } from "@openzeppelin/contracts-upgr
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
-import { NilMerkleTree } from "./libraries/NilMerkleTree.sol";
 import { ErrorInvalidMessageType } from "../../common/NilErrorConstants.sol";
 import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
 import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
