@@ -10,11 +10,11 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
@@ -32,15 +32,15 @@ type ProposerMetrics interface {
 }
 
 type proposer struct {
-	storage   ProposerStorage
-	rpcClient fetching.RpcBlockFetcher
-
+	storage               ProposerStorage
+	resetter              *reset.StateResetLauncher
 	rollupContractWrapper rollupcontract.Wrapper
-	config                ProposerConfig
-
-	metrics ProposerMetrics
-	logger  logging.Logger
+	workerAction          *concurrent.Suspendable
+	metrics               ProposerMetrics
+	logger                logging.Logger
 }
+
+var _ reset.PausableComponent = (*proposer)(nil)
 
 type ProposerConfig struct {
 	ProposingInterval time.Duration
@@ -57,18 +57,18 @@ func NewProposer(
 	config ProposerConfig,
 	storage ProposerStorage,
 	contractWrapper rollupcontract.Wrapper,
-	rpcClient fetching.RpcBlockFetcher,
+	resetter *reset.StateResetLauncher,
 	metrics ProposerMetrics,
 	logger logging.Logger,
 ) (*proposer, error) {
 	p := &proposer{
 		storage:               storage,
 		rollupContractWrapper: contractWrapper,
-		rpcClient:             rpcClient,
-		config:                config,
+		resetter:              resetter,
 		metrics:               metrics,
 	}
 
+	p.workerAction = concurrent.NewSuspendable(p.runIteration, config.ProposingInterval)
 	p.logger = srv.WorkerLogger(logger, p)
 
 	return p, nil
@@ -79,59 +79,60 @@ func (*proposer) Name() string {
 }
 
 func (p *proposer) Run(ctx context.Context, started chan<- struct{}) error {
-	if err := p.updateStoredStateRootFromContract(ctx); err != nil {
-		return fmt.Errorf("initial proved state root update failed: %w", err)
+	p.logger.Info().Msg("starting proposer")
+
+	err := p.workerAction.Run(ctx, started)
+
+	if err == nil || errors.Is(err, context.Canceled) {
+		p.logger.Info().Msg("proposer stopped")
+	} else {
+		p.logger.Error().Err(err).Msg("error running proposer, stopped")
 	}
-	close(started)
 
-	concurrent.RunTickerLoop(ctx, p.config.ProposingInterval,
-		func(ctx context.Context) {
-			if err := p.updateStateIfReady(ctx); err != nil {
-				p.logger.Error().Err(err).Msg("error during proved batches proposing")
-				p.metrics.RecordError(ctx, p.Name())
-				return
-			}
-		},
-	)
-
-	return nil
+	return err
 }
 
-func (p *proposer) updateStoredStateRootFromContract(ctx context.Context) error {
-	p.logger.Info().Msg("updating stored state root from L1")
-
-	latestStateRoot, err := p.getLatestProvedStateRoot(ctx)
+func (p *proposer) Pause(ctx context.Context) error {
+	paused, err := p.workerAction.Pause(ctx)
 	if err != nil {
 		return err
 	}
-
-	if latestStateRoot == common.EmptyHash {
-		p.logger.Warn().
-			Err(err).
-			Stringer("latestStateRoot", latestStateRoot).
-			Msg("L1 state root is not initialized, genesis state root will be used")
-
-		genesisBlock, err := p.rpcClient.GetBlock(ctx, types.MainShardId, "earliest", false)
-		if err != nil {
-			return err
-		}
-		latestStateRoot = genesisBlock.Hash
+	if paused {
+		p.logger.Info().Msg("proposer paused")
+	} else {
+		p.logger.Warn().Msg("trying to pause proser, but it's already paused")
 	}
-
-	if err := p.storage.SetProvedStateRoot(ctx, latestStateRoot); err != nil {
-		return fmt.Errorf("failed set proved state root: %w", err)
-	}
-
-	p.logger.Info().
-		Stringer("stateRoot", latestStateRoot).
-		Msg("stored state root updated")
 	return nil
+}
+
+func (p *proposer) Resume(ctx context.Context) error {
+	resumed, err := p.workerAction.Resume(ctx)
+	if err != nil {
+		return err
+	}
+	if resumed {
+		p.logger.Info().Msg("proposer resumed")
+	} else {
+		p.logger.Warn().Msg("trying to resume proser, but it's already resumed")
+	}
+	return nil
+}
+
+func (p *proposer) runIteration(ctx context.Context) {
+	if err := p.updateStateIfReady(ctx); err != nil {
+		p.logger.Error().Err(err).Msg("error during proved batches proposing")
+		p.metrics.RecordError(ctx, p.Name())
+	}
 }
 
 // updateStateIfReady checks if there is new proved state root is ready to be submitted to L1 and
 // creates L1 transaction if so.
 func (p *proposer) updateStateIfReady(ctx context.Context) error {
 	data, err := p.storage.TryGetNextProposalData(ctx)
+	if errors.Is(err, storage.ErrStateRootNotInitialized) {
+		p.logger.Warn().Msg("state root has not been initialized yet, awaiting initialization by the aggregator")
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("failed get next proposal data: %w", err)
 	}
@@ -147,10 +148,8 @@ func (p *proposer) updateStateIfReady(ctx context.Context) error {
 		}
 
 		// another actor has already sent an update for this batch, we need to refetch state from contract
-		p.logger.Warn().Msg("batch is already finalized, skipping UpdateState tx")
-		if err := p.updateStoredStateRootFromContract(ctx); err != nil {
-			return err
-		}
+		p.logger.Warn().Msg("batch is already finalized, skipping UpdateState tx, syncing state with L1")
+		return p.resetter.LaunchResetToL1WithSuspension(ctx, p)
 	}
 
 	err = p.storage.SetBatchAsProposed(ctx, data.BatchId)
@@ -158,15 +157,6 @@ func (p *proposer) updateStateIfReady(ctx context.Context) error {
 		return fmt.Errorf("failed set batch with id=%s as proposed: %w", data.BatchId, err)
 	}
 	return nil
-}
-
-func (p *proposer) getLatestProvedStateRoot(ctx context.Context) (common.Hash, error) {
-	finalizedBatchIndex, err := p.rollupContractWrapper.FinalizedBatchIndex(ctx)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	return p.rollupContractWrapper.FinalizedStateRoot(ctx, finalizedBatchIndex)
 }
 
 func (p *proposer) updateState(

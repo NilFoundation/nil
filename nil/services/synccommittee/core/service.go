@@ -42,10 +42,6 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		database, storage.DefaultBlockStorageConfig(), clock, metricsHandler, logger)
 	taskStorage := storage.NewTaskStorage(database, clock, metricsHandler, logger)
 
-	// todo: add reset logic to TaskStorage (implement StateResetter interface)
-	//  and pass it here in https://github.com/NilFoundation/nil/pull/419
-	stateResetter := reset.NewStateResetter(logger, blockStorage)
-
 	rollupContractWrapper, err := rollupcontract.NewWrapper(
 		ctx,
 		cfg.ContractWrapperConfig,
@@ -55,11 +51,18 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		return nil, fmt.Errorf("error initializing rollup contract wrapper: %w", err)
 	}
 
+	// todo: add reset logic to TaskStorage (implement StateResetter interface)
+	//  and pass it here in https://github.com/NilFoundation/nil/pull/419
+	stateResetter := reset.NewStateResetter(logger, blockStorage, rollupContractWrapper)
+
+	syncCommittee := &SyncCommittee{}
+	resetLauncher := reset.NewResetLauncher(stateResetter, syncCommittee, logger)
+
 	agg := fetching.NewAggregator(
 		client,
 		blockStorage,
 		taskStorage,
-		stateResetter,
+		resetLauncher,
 		rollupContractWrapper,
 		clock,
 		logger,
@@ -71,11 +74,11 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		client, blockStorage, metricsHandler, fetching.NewDefaultLagTrackerConfig(), logger,
 	)
 
-	prop, err := NewProposer(
+	proposer, err := NewProposer(
 		cfg.ProposerParams,
 		blockStorage,
 		rollupContractWrapper,
-		client,
+		resetLauncher,
 		metricsHandler,
 		logger,
 	)
@@ -83,9 +86,8 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		return nil, fmt.Errorf("failed to create proposer: %w", err)
 	}
 
-	syncCommittee := &SyncCommittee{}
-
-	resetLauncher := reset.NewResetLauncher(agg, stateResetter, syncCommittee, logger)
+	resetLauncher.AddPausableComponent(agg)
+	resetLauncher.AddPausableComponent(proposer)
 
 	taskScheduler := scheduler.New(
 		taskStorage,
@@ -102,7 +104,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 
 	syncCommittee.Service = srv.NewService(
 		logger,
-		prop, agg, lagTracker, taskScheduler, taskListener,
+		proposer, agg, lagTracker, taskScheduler, taskListener,
 	)
 
 	return syncCommittee, nil

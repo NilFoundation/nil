@@ -56,12 +56,11 @@ func (s *AggregatorTestSuite) SetupSuite() {
 }
 
 func (s *AggregatorTestSuite) newTestAggregator(
-	blockStorage AggregatorBlockStorage,
+	blockStorage *storage.BlockStorage,
 ) *aggregator {
 	s.T().Helper()
 
 	logger := logging.NewLogger("aggregator_test")
-	stateResetter := reset.NewStateResetter(logger, s.blockStorage)
 	clock := clockwork.NewRealClock()
 
 	contractWrapperConfig := rollupcontract.WrapperConfig{
@@ -70,11 +69,15 @@ func (s *AggregatorTestSuite) newTestAggregator(
 	contractWrapper, err := rollupcontract.NewWrapper(s.ctx, contractWrapperConfig, logger)
 	s.Require().NoError(err)
 
+	stateResetter := reset.NewStateResetter(logger, s.blockStorage, contractWrapper)
+	// syncCommittee := &core.SyncCommittee{}
+	resetLauncher := reset.NewResetLauncher(stateResetter, nil, logger)
+
 	return NewAggregator(
 		s.rpcClientMock,
 		blockStorage,
 		s.taskStorage,
-		stateResetter,
+		resetLauncher,
 		contractWrapper,
 		clock,
 		logger,
@@ -221,9 +224,6 @@ func (s *AggregatorTestSuite) Test_Block_Storage_Capacity_Exceeded() {
 }
 
 func (s *AggregatorTestSuite) Test_State_Root_Is_Not_Initialized() {
-	batches := testaide.NewBatchesSequence(3)
-	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
-
 	err := s.aggregator.processBlockRange(s.ctx)
 	s.Require().ErrorIs(err, storage.ErrStateRootNotInitialized)
 

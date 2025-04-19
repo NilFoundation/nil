@@ -39,6 +39,7 @@ type AggregatorBlockStorage interface {
 	TryGetLatestBatchId(ctx context.Context) (*types.BatchId, error)
 	SetBlockBatch(ctx context.Context, batch *types.BlockBatch) error
 	GetFreeSpaceBatchCount(ctx context.Context) (uint32, error)
+	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
 }
 
 type AggregatorConfig struct {
@@ -65,7 +66,7 @@ type aggregator struct {
 	batchEncoder    encode.BatchEncoder
 	blobBuilder     blob.Builder
 	rollupContract  rollupcontract.Wrapper
-	resetter        *reset.StateResetter
+	resetter        *reset.StateResetLauncher
 	clock           clockwork.Clock
 	metrics         AggregatorMetrics
 	config          AggregatorConfig
@@ -77,7 +78,7 @@ func NewAggregator(
 	rpcClient RpcBlockFetcher,
 	blockStorage AggregatorBlockStorage,
 	taskStorage AggregatorTaskStorage,
-	resetter *reset.StateResetter,
+	resetter *reset.StateResetLauncher,
 	rollupContractWrapper rollupcontract.Wrapper,
 	clock clockwork.Clock,
 	logger logging.Logger,
@@ -110,7 +111,20 @@ func (agg *aggregator) Name() string {
 func (agg *aggregator) Run(ctx context.Context, started chan<- struct{}) error {
 	agg.logger.Info().Msg("Starting block fetching")
 
-	err := agg.workerAction.Run(ctx, started)
+	latestStateRoot, err := agg.blockStorage.TryGetProvedStateRoot(ctx)
+	if err != nil {
+		return err
+	}
+	if latestStateRoot == nil {
+		// root not initialized in current database
+		agg.logger.Warn().
+			Msg("L1 state root is not initialized, trying to use storage state root")
+		if err := agg.syncLatestFinalizedRoot(ctx); err != nil {
+			return fmt.Errorf("failed to set proved state root: %w", err)
+		}
+	}
+
+	err = agg.workerAction.Run(ctx, started)
 
 	if err == nil || errors.Is(err, context.Canceled) {
 		agg.logger.Info().Msg("Block fetching stopped")
@@ -168,13 +182,16 @@ func (agg *aggregator) handleProcessingErr(ctx context.Context, err error) error
 
 	case errors.Is(err, types.ErrBlockMismatch):
 		agg.logger.Warn().Err(err).Msg("Block mismatch detected, resetting state")
-		if err := agg.resetter.ResetProgressNotProved(ctx); err != nil {
+		if err := agg.resetter.LaunchResetToL1WithSuspension(ctx, agg); err != nil {
 			return fmt.Errorf("error resetting state: %w", err)
 		}
 		return nil
 
 	case errors.Is(err, storage.ErrStateRootNotInitialized):
-		agg.logger.Warn().Err(err).Msg("State root not initialized, skipping")
+		agg.logger.Warn().Err(err).Msg("State root not initialized, trying to fetch it from L1")
+		if err := agg.syncLatestFinalizedRoot(ctx); err != nil {
+			return fmt.Errorf("failed to set proved state root: %w", err)
+		}
 		return nil
 
 	case errors.Is(err, storage.ErrCapacityLimitReached):
@@ -372,7 +389,7 @@ func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 	}
 
 	if err := agg.rollupContract.CommitBatch(ctx, sidecar, batch.Id.String()); err != nil {
-		return fmt.Errorf("error committing batch, latestMainHash=%s: %w", batch.LatestMainBlock().Hash, err)
+		return agg.handleCommitBatchError(ctx, batch, err)
 	}
 
 	if err := agg.createProofTasks(ctx, batch); err != nil {
@@ -380,6 +397,34 @@ func (agg *aggregator) handleBlockBatch(ctx context.Context, batch *types.BlockB
 	}
 
 	agg.metrics.RecordBatchCreated(ctx, batch)
+	return nil
+}
+
+func (agg *aggregator) handleCommitBatchError(ctx context.Context, batch *types.BlockBatch, err error) error {
+	switch {
+	case errors.Is(err, rollupcontract.ErrBatchAlreadyCommitted) ||
+		errors.Is(err, rollupcontract.ErrBatchAlreadyFinalized):
+		// for some reason, we attempted to prove a batch that has already been proved,
+		// sync the latest proved root with the L1 contract.
+		agg.logger.Warn().Stringer(logging.FieldBatchId, batch.Id).
+			Err(err).Msg("batch is already committed, resetting state with L1")
+		if err := agg.resetter.LaunchResetToL1WithSuspension(ctx, agg); err != nil {
+			return fmt.Errorf("error resetting state from L1, latestMainHash=%s: %w",
+				batch.LatestMainBlock().Hash, err)
+		}
+	case errors.Is(err, rollupcontract.ErrInvalidBatchIndex) ||
+		errors.Is(err, rollupcontract.ErrInvalidVersionedHash):
+		// data was corrupted or initially created in a wrong way
+		// NOTE: this shouldn't happen in prod setting
+		agg.logger.Warn().Stringer(logging.FieldBatchId, batch.Id).
+			Err(err).Msg("data was corrupted or initially created in a wrong way")
+		if err := agg.resetter.LaunchResetToL1WithSuspension(ctx, agg); err != nil {
+			return fmt.Errorf("error resetting state from L1, latestMainHash=%s: %w",
+				batch.LatestMainBlock().Hash, err)
+		}
+	default:
+		return err
+	}
 	return nil
 }
 
@@ -417,4 +462,42 @@ func (agg *aggregator) prepareForBatchCommit(
 	}
 
 	return agg.rollupContract.PrepareBlobs(ctx, blobs)
+}
+
+// getLatestFinalizedRootFromL1 attempts to retrieve the finalized root from the following sources,
+// in order of priority:
+// 1. L1 contract
+// 2. Genesis block (fallback)
+func (agg *aggregator) getLatestFinalizedRootFromL1(ctx context.Context) (common.Hash, error) {
+	agg.logger.Info().Msg("syncing state with L1")
+
+	latestStateRoot, err := agg.rollupContract.LatestFinalizedStateRoot(ctx)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+	if latestStateRoot != common.EmptyHash {
+		return latestStateRoot, nil
+	}
+
+	agg.logger.Warn().
+		Msg("storage state root is not initialized, genesis state root will be used")
+	genesisBlock, err := agg.rpcClient.GetBlock(ctx, coreTypes.MainShardId, "earliest", false)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+	latestStateRoot = genesisBlock.Hash
+
+	return latestStateRoot, nil
+}
+
+func (agg *aggregator) syncLatestFinalizedRoot(ctx context.Context) error {
+	latestStateRoot, err := agg.getLatestFinalizedRootFromL1(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get latest finalized state root: %w", err)
+	}
+	if err := agg.blockStorage.SetProvedStateRoot(ctx, latestStateRoot); err != nil {
+		return fmt.Errorf("failed to set proved state root: %w", err)
+	}
+	agg.logger.Warn().Msg("Proved state root set")
+	return nil
 }

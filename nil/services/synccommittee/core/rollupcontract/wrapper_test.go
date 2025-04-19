@@ -1,6 +1,7 @@
 package rollupcontract
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"math/big"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/blob"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethereum "github.com/ethereum/go-ethereum"
@@ -117,33 +119,19 @@ func (s *WrapperTestSuite) TearDownSuite() {
 	s.cancellation()
 }
 
-// Test FinalizedStateRoot functionality
-func (s *WrapperTestSuite) TestFinalizedStateRoot() {
-	// Setup expected return for finalizedStateRoots call
+// Test LatestFinalizedStateRoot functionality
+func (s *WrapperTestSuite) TestFinalizedBatchIndex() {
+	// Setup expected return
 	expectedRoot := common.HexToHash("1234")
+	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", "42")
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", expectedRoot)
 
 	// Call method
-	root, err := s.wrapper.FinalizedStateRoot(s.ctx, "testBatchIndex")
+	root, err := s.wrapper.LatestFinalizedStateRoot(s.ctx)
 
 	// Assert
 	s.Require().NoError(err)
 	s.Equal(expectedRoot, root)
-	s.Require().NoError(s.callContractMock.EverythingCalled())
-}
-
-// Test FinalizedBatchIndex functionality
-func (s *WrapperTestSuite) TestFinalizedBatchIndex() {
-	// Setup expected return
-	expectedIndex := "42"
-	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", expectedIndex)
-
-	// Call method
-	index, err := s.wrapper.FinalizedBatchIndex(s.ctx)
-
-	// Assert
-	s.Require().NoError(err)
-	s.Equal(expectedIndex, index)
 	s.Require().NoError(s.callContractMock.EverythingCalled())
 }
 
@@ -159,6 +147,7 @@ func (s *WrapperTestSuite) TestUpdateState_Success() {
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
 	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", "41")
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", oldStateRoot)
+	s.callContractMock.AddExpectedCall("updateState", testaide.NoValue{})
 
 	// Create public data inputs
 	publicDataInputs := INilRollupPublicDataInfo{
@@ -281,10 +270,11 @@ func (s *WrapperTestSuite) TestUpdateState_EmptyStateRoot() {
 // Test CommitBatch - success case
 func (s *WrapperTestSuite) TestCommitBatch_Success() {
 	batchIndex := "42"
-	sidecar := &ethtypes.BlobTxSidecar{}
+	sidecar := s.getSampleSidecar()
 
 	// Mock the batch committed check
 	s.callContractMock.AddExpectedCall("isBatchCommitted", false)
+	s.callContractMock.AddExpectedCall("commitBatch", testaide.NoValue{})
 
 	// Call method
 	err := s.wrapper.CommitBatch(s.ctx, sidecar, batchIndex)
@@ -300,8 +290,7 @@ func (s *WrapperTestSuite) TestCommitBatch_Success() {
 // Test CommitBatch - already committed
 func (s *WrapperTestSuite) TestCommitBatch_AlreadyCommitted() {
 	batchIndex := "42"
-	// blobs := []kzg4844.Blob{{}, {}, {}} // Sample empty blobs
-	sidecar := &ethtypes.BlobTxSidecar{}
+	sidecar := s.getSampleSidecar()
 
 	// Mock the batch committed check to return true
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
@@ -377,17 +366,27 @@ func (s *WrapperTestSuite) TestNoopWrapper() {
 	)
 	s.Require().NoError(err)
 
-	// Test FinalizedStateRoot
-	root, err := noopWrapper.FinalizedStateRoot(s.ctx, "42")
-	s.Require().NoError(err)
-	s.Equal(common.Hash{}, root)
-
 	// Test FinalizedBatchIndex
-	index, err := noopWrapper.FinalizedBatchIndex(s.ctx)
+	index, err := noopWrapper.LatestFinalizedStateRoot(s.ctx)
 	s.Require().NoError(err)
 	s.Empty(index)
 
 	// Test CommitBatch
 	err = noopWrapper.CommitBatch(s.ctx, nil, "42")
 	s.Require().NoError(err)
+}
+
+func (s *WrapperTestSuite) getSampleSidecar() *ethtypes.BlobTxSidecar {
+	s.T().Helper()
+
+	blobBuilder := blob.NewBuilder()
+	blobs, err := blobBuilder.MakeBlobs(bytes.NewReader([]byte("hello, world")), 1)
+	s.Require().NoError(err)
+
+	// Mock successful verifications
+	s.callContractMock.AddExpectedCall("verifyDataProof", testaide.NoValue{})
+
+	sidecar, _, err := s.wrapper.PrepareBlobs(s.ctx, blobs)
+	s.Require().NoError(err)
+	return sidecar
 }

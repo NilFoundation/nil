@@ -463,18 +463,18 @@ func (bs *BlockStorage) unsetBlockBatch(tx db.RwTx, batch *batchEntry) error {
 	return bs.ops.putLatestBatchId(tx, batch.ParentId)
 }
 
-// ResetBatchesNotProved resets the block storage state:
+// ResetAllBatches resets the block storage state:
 //
 //  1. Sets the latest fetched block reference to nil.
 //
-//  2. Deletes all main not yet proved blocks from the storage.
-func (bs *BlockStorage) ResetBatchesNotProved(ctx context.Context) error {
+//  2. Deletes all main blocks from the storage.
+func (bs *BlockStorage) ResetAllBatches(ctx context.Context) error {
 	return bs.retryRunner.Do(ctx, func(ctx context.Context) error {
-		return bs.resetBatchesNotProvedImpl(ctx)
+		return bs.resetAllBatchesImpl(ctx)
 	})
 }
 
-func (bs *BlockStorage) resetBatchesNotProvedImpl(ctx context.Context) error {
+func (bs *BlockStorage) resetAllBatchesImpl(ctx context.Context) error {
 	tx, err := bs.database.CreateRwTx(ctx)
 	if err != nil {
 		return err
@@ -485,11 +485,19 @@ func (bs *BlockStorage) resetBatchesNotProvedImpl(ctx context.Context) error {
 		return fmt.Errorf("failed to reset latest fetched block: %w", err)
 	}
 
+	if err := bs.deleteBatches(tx, func(batch *batchEntry) bool { return false }); err != nil {
+		return fmt.Errorf("failed to delete all batches: %w", err)
+	}
+
+	return bs.commit(tx)
+}
+
+func (bs *BlockStorage) deleteBatches(tx db.RwTx, skipFilter func(batch *batchEntry) bool) error {
 	for batch, err := range bs.ops.getStoredBatchesSeq(tx) {
 		if err != nil {
 			return err
 		}
-		if batch.IsProved {
+		if skipFilter(batch) {
 			continue
 		}
 
@@ -497,8 +505,7 @@ func (bs *BlockStorage) resetBatchesNotProvedImpl(ctx context.Context) error {
 			return err
 		}
 	}
-
-	return bs.commit(tx)
+	return nil
 }
 
 func (bs *BlockStorage) putBatchWithBlocks(tx db.RwTx, batch *scTypes.BlockBatch) error {

@@ -554,7 +554,7 @@ func (s *BlockStorageTestSuite) testResetBatchesRange(firstBatchToPurgeIdx int) 
 	s.Require().Equal(batches[firstBatchToPurgeIdx].ParentId, actualLatestBatchId)
 }
 
-func (s *BlockStorageTestSuite) Test_ResetBatchesNotProved() {
+func (s *BlockStorageTestSuite) Test_ResetAllBatches() {
 	batches := testaide.NewBatchesSequence(resetTestBatchesCount)
 
 	for _, batch := range batches {
@@ -569,23 +569,21 @@ func (s *BlockStorageTestSuite) Test_ResetBatchesNotProved() {
 		s.Require().NoError(err)
 	}
 
-	err := s.bs.ResetBatchesNotProved(s.ctx)
+	err := s.bs.ResetAllBatches(s.ctx)
 	s.Require().NoError(err)
 
 	latestFetched, err := s.bs.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
 	s.Require().Empty(latestFetched)
 
-	for _, provedBatch := range provedBatches {
-		s.requireBatch(provedBatch, false)
-	}
-
-	for _, notProvenBatch := range batches[provedBatchesCount:] {
-		s.requireBatch(notProvenBatch, true)
+	for _, batch := range batches {
+		fromStorage, err := s.bs.TryGetBlock(s.ctx, scTypes.IdFromBlock(batch.LatestMainBlock()))
+		s.Require().NoError(err)
+		s.Require().Nil(fromStorage)
 	}
 }
 
-func (s *BlockStorageTestSuite) Test_ResetBatchesNotProved_1K_Batches_To_Purge() {
+func (s *BlockStorageTestSuite) Test_ResetAllBatches_1K_Batches_To_Purge() {
 	capacityLimit := uint32(1_000)
 	config := NewBlockStorageConfig(capacityLimit)
 	storage := s.newTestBlockStorage(config)
@@ -598,7 +596,7 @@ func (s *BlockStorageTestSuite) Test_ResetBatchesNotProved_1K_Batches_To_Purge()
 		s.Require().NoError(err)
 	}
 
-	err := storage.ResetBatchesNotProved(s.ctx)
+	err := storage.ResetAllBatches(s.ctx)
 	s.Require().NoError(err)
 
 	latestFetched, err := storage.GetLatestFetched(s.ctx)

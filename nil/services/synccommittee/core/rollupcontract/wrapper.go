@@ -12,11 +12,13 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 type Wrapper interface {
@@ -28,8 +30,7 @@ type Wrapper interface {
 		validityProof []byte,
 		publicDataInputs INilRollupPublicDataInfo,
 	) error
-	FinalizedStateRoot(ctx context.Context, finalizedBatchIndex string) (common.Hash, error)
-	FinalizedBatchIndex(ctx context.Context) (string, error)
+	LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
 	CommitBatch(
 		ctx context.Context,
 		sidecar *ethtypes.BlobTxSidecar,
@@ -60,9 +61,11 @@ func NewDefaultWrapperConfig() WrapperConfig {
 type wrapperImpl struct {
 	rollupContract  *Rollupcontract
 	contractAddress ethcommon.Address
+	senderAddress   ethcommon.Address
 	privateKey      *ecdsa.PrivateKey
 	chainID         *big.Int
 	ethClient       EthClient
+	abi             *abi.ABI
 	logger          logging.Logger
 }
 
@@ -111,21 +114,39 @@ func NewWrapperWithEthClient(
 		return nil, fmt.Errorf("failed to retrieve chain ID: %w", err)
 	}
 
+	abi, err := RollupcontractMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("getting ABI: %w", err)
+	}
+
+	publicKeyECDSA, ok := privateKeyECDSA.Public().(*ecdsa.PublicKey)
+	if !ok {
+		return nil, errors.New("error casting public key to ECDSA")
+	}
+	senderAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+
 	return &wrapperImpl{
 		rollupContract:  rollupContract,
 		contractAddress: contactAddress,
+		senderAddress:   senderAddress,
 		privateKey:      privateKeyECDSA,
 		chainID:         chainID,
 		ethClient:       ethClient,
+		abi:             abi,
 		logger:          logger,
 	}, nil
 }
 
-func (r *wrapperImpl) FinalizedStateRoot(ctx context.Context, finalizedBatchIndex string) (common.Hash, error) {
-	return r.rollupContract.FinalizedStateRoots(r.getEthCallOpts(ctx), finalizedBatchIndex)
+func (r *wrapperImpl) LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error) {
+	latestFinalizedBatchIndex, err := r.latestFinalizedBatchIndex(ctx)
+	if err != nil {
+		return common.EmptyHash, err
+	}
+
+	return r.rollupContract.FinalizedStateRoots(r.getEthCallOpts(ctx), latestFinalizedBatchIndex)
 }
 
-func (r *wrapperImpl) FinalizedBatchIndex(ctx context.Context) (string, error) {
+func (r *wrapperImpl) latestFinalizedBatchIndex(ctx context.Context) (string, error) {
 	return r.rollupContract.GetLastFinalizedBatchIndex(r.getEthCallOpts(ctx))
 }
 
@@ -239,6 +260,55 @@ func (r *wrapperImpl) ResetState(ctx context.Context, targetRoot common.Hash) er
 	return err
 }
 
+type contractError struct {
+	MethodName string
+	Args       map[string]any
+}
+
+func (e contractError) Error() string {
+	return fmt.Sprintf("contract error: %s with args %v", e.MethodName, e.Args)
+}
+
+func (r *wrapperImpl) decodeContractError(err error) error {
+	revertData, errorDecoded := ethclient.RevertErrorData(err)
+	if !errorDecoded {
+		return fmt.Errorf("error couldn't be decoded: %w", err)
+	}
+
+	if len(revertData) < 4 {
+		return errors.New("not enough data to unparse error")
+	}
+	var selector [4]byte
+	copy(selector[:], revertData[:4])
+
+	errorMethod, err := r.abi.ErrorByID(selector)
+	if err != nil {
+		return err
+	}
+
+	args := make(map[string]any)
+	err = errorMethod.Inputs.UnpackIntoMap(args, revertData[4:])
+	if err != nil {
+		return fmt.Errorf("args upack error: %w", err)
+	}
+
+	return contractError{errorMethod.Name, args}
+}
+
+// simulateTx simulates transaction using `eth_call` method, tries to decode error
+func (r *wrapperImpl) simulateTx(ctx context.Context, tx *ethtypes.Transaction, blockNumber *big.Int) error {
+	_, err := r.ethClient.CallContract(ctx, ethereum.CallMsg{
+		From: r.senderAddress,
+		To:   tx.To(),
+		Data: tx.Data(),
+	}, blockNumber)
+	if err != nil {
+		return r.decodeContractError(err)
+	}
+
+	return nil
+}
+
 type noopWrapper struct {
 	logger logging.Logger
 }
@@ -257,14 +327,9 @@ func (w *noopWrapper) UpdateState(
 	return nil
 }
 
-func (w *noopWrapper) FinalizedStateRoot(ctx context.Context, finalizedBatchIndex string) (common.Hash, error) {
+func (w *noopWrapper) LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error) {
 	w.logger.Debug().Msg("FinalizedStateRoot noop wrapper method called")
 	return common.Hash{}, nil
-}
-
-func (w *noopWrapper) FinalizedBatchIndex(ctx context.Context) (string, error) {
-	w.logger.Debug().Msg("FinalizedBatchIndex noop wrapper method called")
-	return "", nil
 }
 
 func (w *noopWrapper) PrepareBlobs(

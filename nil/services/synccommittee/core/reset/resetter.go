@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
@@ -15,28 +16,39 @@ type BatchResetter interface {
 		ctx context.Context, firstBatchToPurge scTypes.BatchId,
 	) (purgedBatches []scTypes.BatchId, err error)
 
-	// ResetBatchesNotProved resets Sync Committee's progress for all not yet proved batches.
-	ResetBatchesNotProved(ctx context.Context) error
+	// ResetAllBatches resets Sync Committee's progress for all batches.
+	ResetAllBatches(ctx context.Context) error
+
+	// SetProvedStateRoot sets the last proved state root during full reset
+	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
+}
+
+type FinalizedStateRootGetter interface {
+	LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
 }
 
 type StateResetter struct {
-	batchResetter BatchResetter
-	logger        logging.Logger
+	batchResetter            BatchResetter
+	finalizedStateRootGetter FinalizedStateRootGetter
+	logger                   logging.Logger
 }
 
-func NewStateResetter(logger logging.Logger, batchResetter BatchResetter) *StateResetter {
+func NewStateResetter(
+	logger logging.Logger, batchResetter BatchResetter, finalizedStateRootGetter FinalizedStateRootGetter,
+) *StateResetter {
 	return &StateResetter{
-		batchResetter: batchResetter,
-		logger:        logger,
+		batchResetter:            batchResetter,
+		finalizedStateRootGetter: finalizedStateRootGetter,
+		logger:                   logger,
 	}
 }
 
-func (r *StateResetter) ResetProgressPartial(ctx context.Context, failedBatchId scTypes.BatchId) error {
+func (r *StateResetter) ResetProgressPartial(ctx context.Context, fromBatchId scTypes.BatchId) error {
 	r.logger.Info().
-		Stringer(logging.FieldBatchId, failedBatchId).
+		Stringer(logging.FieldBatchId, fromBatchId).
 		Msg("Started partial progress reset")
 
-	purgedBatchIds, err := r.batchResetter.ResetBatchesRange(ctx, failedBatchId)
+	purgedBatchIds, err := r.batchResetter.ResetBatchesRange(ctx, fromBatchId)
 	if err != nil {
 		return err
 	}
@@ -44,7 +56,7 @@ func (r *StateResetter) ResetProgressPartial(ctx context.Context, failedBatchId 
 	for _, batchId := range purgedBatchIds {
 		// Tasks associated with the failed batch should not be cancelled at this point,
 		// they will be marked as failed later
-		if batchId == failedBatchId {
+		if batchId == fromBatchId {
 			continue
 		}
 
@@ -55,19 +67,27 @@ func (r *StateResetter) ResetProgressPartial(ctx context.Context, failedBatchId 
 	}
 
 	r.logger.Info().
-		Stringer(logging.FieldBatchId, failedBatchId).
+		Stringer(logging.FieldBatchId, fromBatchId).
 		Msg("Finished partial progress reset")
 
 	return nil
 }
 
-func (r *StateResetter) ResetProgressNotProved(ctx context.Context) error {
-	r.logger.Info().Msg("Started not proven progress reset")
+func (r *StateResetter) ResetProgressToL1(ctx context.Context) error {
+	r.logger.Info().Msg("Started all progress reset")
 
-	if err := r.batchResetter.ResetBatchesNotProved(ctx); err != nil {
-		return fmt.Errorf("failed to reset progress for not proved batches: %w", err)
+	if err := r.batchResetter.ResetAllBatches(ctx); err != nil {
+		return fmt.Errorf("failed to reset progress for all batches: %w", err)
 	}
 
-	r.logger.Info().Msg("Finished not proven progress reset")
+	latestStateRoot, err := r.finalizedStateRootGetter.LatestFinalizedStateRoot(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get the latest finalized state root: %w", err)
+	}
+	if err := r.batchResetter.SetProvedStateRoot(ctx, latestStateRoot); err != nil {
+		return fmt.Errorf("failed to set the latest finalized state root: %w", err)
+	}
+
+	r.logger.Info().Msg("Finished all progress reset")
 	return nil
 }
