@@ -181,12 +181,13 @@ contract L1BridgeMessenger is
   }
 
   function computeDepositMessageHash(
+    NilConstants.MessageType messageType,
     address messageSender,
     address messageTarget,
     uint256 messageNonce,
     bytes memory message
   ) public view override returns (bytes32) {
-    return keccak256(abi.encode(messageSender, messageTarget, messageNonce, message));
+    return keccak256(abi.encode(messageType, messageSender, messageTarget, messageNonce, message));
   }
 
   /*//////////////////////////////////////////////////////////////////////////
@@ -380,6 +381,13 @@ contract L1BridgeMessenger is
       revert DepositMessageAlreadyClaimed();
     }
 
+    if (
+      depositMessage.messageType != NilConstants.MessageType.DEPOSIT_ERC20 &&
+      depositMessage.messageType != NilConstants.MessageType.DEPOSIT_ETH
+    ) {
+      revert ErrorInvalidMessageType();
+    }
+
     // Check if the message hash is not in the queue
     if (messageQueue.contains(messageHash)) {
       revert DepositMessageStillInQueue();
@@ -394,7 +402,13 @@ contract L1BridgeMessenger is
   }
 
   function claimWithdrawal(WithdrawalRequestParams calldata withdrawalRequestParams) external override {
-    // validate address values in withdrawal params
+    if (
+      withdrawalRequestParams.messageType != NilConstants.MessageType.WITHDRAW_ENSHRINED_TOKEN &&
+      withdrawalRequestParams.messageType != NilConstants.MessageType.WITHDRAW_ETH
+    ) {
+      revert ErrorInvalidMessageType();
+    }
+
     if (withdrawalRequestParams.messageSender == address(0)) {
       revert ErrorInvalidMessageSender();
     }
@@ -408,6 +422,7 @@ contract L1BridgeMessenger is
 
     // compute withdrawal-messageHash
     bytes32 withdrawalMessageHash = computeWithdrawalMessageHash(
+      withdrawalRequestParams.messageType,
       withdrawalRequestParams.messageSender,
       withdrawalRequestParams.messageTarget,
       withdrawalRequestParams.messageNonce,
@@ -456,12 +471,13 @@ contract L1BridgeMessenger is
   }
 
   function computeWithdrawalMessageHash(
+    NilConstants.MessageType messageType,
     address messageSender,
     address messageTarget,
     uint256 messageNonce,
     bytes memory message
   ) public view override returns (bytes32) {
-    return keccak256(abi.encode(messageSender, messageTarget, messageNonce, message));
+    return keccak256(abi.encode(messageType, messageSender, messageTarget, messageNonce, message));
   }
 
   /*//////////////////////////////////////////////////////////////////////////
@@ -471,6 +487,7 @@ contract L1BridgeMessenger is
   function _sendMessage(SendMessageParams memory params) internal nonReentrant {
     DepositMessage memory depositMessage = _createDepositMessage(params);
     bytes32 messageHash = computeDepositMessageHash(
+      params.messageType,
       _msgSender(),
       params.messageTarget,
       depositMessage.nonce,

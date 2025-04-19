@@ -99,6 +99,7 @@ interface IL2BridgeMessenger is IBridgeMessenger {
   function isFullyInitialised() external view returns (bool);
 
   function computeDepositMessageHash(
+    NilConstants.MessageType messageType,
     address messageSender,
     address messageTarget,
     uint256 messageNonce,
@@ -106,6 +107,7 @@ interface IL2BridgeMessenger is IBridgeMessenger {
   ) external pure returns (bytes32);
 
   function computeWithdrawalMessageHash(
+    NilConstants.MessageType messageType,
     address messageSender,
     address messageTarget,
     uint256 messageNonce,

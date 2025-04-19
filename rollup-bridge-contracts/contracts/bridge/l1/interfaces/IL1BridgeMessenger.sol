@@ -69,6 +69,8 @@ interface IL1BridgeMessenger is IBridgeMessenger {
 
   error ErrorFailedWithdrawalClaim();
 
+  error ErrorInvalidMessageType();
+
   /*//////////////////////////////////////////////////////////////////////////
                              EVENTS
     //////////////////////////////////////////////////////////////////////////*/
@@ -182,6 +184,7 @@ interface IL1BridgeMessenger is IBridgeMessenger {
   function getAuthorizedBridges() external view returns (address[] memory);
 
   function computeWithdrawalMessageHash(
+    NilConstants.MessageType messageType,
     address messageSender,
     address messageTarget,
     uint256 messageNonce,
@@ -189,6 +192,7 @@ interface IL1BridgeMessenger is IBridgeMessenger {
   ) external view returns (bytes32);
 
   function computeDepositMessageHash(
+    NilConstants.MessageType messageType,
     address messageSender,
     address messageTarget,
     uint256 messageNonce,

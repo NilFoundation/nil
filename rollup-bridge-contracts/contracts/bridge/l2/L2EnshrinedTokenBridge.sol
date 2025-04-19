@@ -108,10 +108,13 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
 
       uint256 salt = uint256(uint160(l1Token));
 
-      // TODO - convert this to use sendRequest to deploy the token
       address l2EnshrinedTokenCreated = Nil.asyncDeploy(1, _msgSender(), 0, l2TokenCreationBytes, salt);
 
-      if (l2EnshrinedTokenCreated == address(0) || TokenId.wrap(l2EnshrinedTokenCreated) != l2Token) {
+      if (
+        l2EnshrinedTokenCreated.code.length == 0 ||
+        l2EnshrinedTokenCreated == address(0) ||
+        TokenId.wrap(l2EnshrinedTokenCreated) != l2Token
+      ) {
         revert ErrorL2TokenCreationFailed();
       }
 

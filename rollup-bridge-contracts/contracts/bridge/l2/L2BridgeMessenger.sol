@@ -213,14 +213,11 @@ contract L2BridgeMessenger is
     bytes memory message,
     uint256 messageExpiryTime
   ) external override onlyRelayer whenNotPaused {
-    if (
-      messageType != NilConstants.MessageType.WITHDRAW_ENSHRINED_TOKEN &&
-      messageType != NilConstants.MessageType.WITHDRAW_ETH
-    ) {
+    if (messageType != NilConstants.MessageType.DEPOSIT_ERC20 && messageType != NilConstants.MessageType.DEPOSIT_ETH) {
       revert ErrorInvalidMessageType();
     }
 
-    bytes32 messageHash = computeDepositMessageHash(messageSender, messageTarget, messageNonce, message);
+    bytes32 messageHash = computeDepositMessageHash(messageType, messageSender, messageTarget, messageNonce, message);
 
     if (relayedMessageHashStore.contains(messageHash)) {
       revert ErrorDuplicateMessageRelayed(messageHash);
@@ -251,24 +248,24 @@ contract L2BridgeMessenger is
 
   /// @inheritdoc IL2BridgeMessenger
   function computeDepositMessageHash(
+    NilConstants.MessageType messageType,
     address messageSender,
     address messageTarget,
     uint256 messageNonce,
     bytes memory message
   ) public pure override returns (bytes32) {
-    // TODO - convert keccak256 to precompile call for realkeccak256 in nil-shard
-    return keccak256(abi.encode(messageSender, messageTarget, messageNonce, message));
+    return keccak256(abi.encode(messageType, messageSender, messageTarget, messageNonce, message));
   }
 
   /// @inheritdoc IL2BridgeMessenger
   function computeWithdrawalMessageHash(
+    NilConstants.MessageType messageType,
     address messageSender,
     address messageTarget,
     uint256 messageNonce,
     bytes memory message
   ) public pure override returns (bytes32) {
-    // TODO - convert keccak256 to precompile call for realkeccak256 in nil-shard
-    return keccak256(abi.encode(messageSender, messageTarget, messageNonce, message));
+    return keccak256(abi.encode(messageType, messageSender, messageTarget, messageNonce, message));
   }
 
   /*//////////////////////////////////////////////////////////////////////////
@@ -290,6 +287,7 @@ contract L2BridgeMessenger is
 
   function _sendMessage(SendMessageParams memory params) internal nonReentrant returns (bytes32) {
     bytes32 messageHash = computeWithdrawalMessageHash(
+      params.messageType,
       _msgSender(),
       params.messageTarget,
       withdrawalNonce,
