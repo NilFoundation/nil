@@ -3,23 +3,21 @@ pragma solidity 0.8.28;
 
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { AccessControlEnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { ErrorInvalidMessageType } from "../../common/NilErrorConstants.sol";
+import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
+import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 import { IL2BridgeMessenger } from "./interfaces/IL2BridgeMessenger.sol";
 import { IBridgeMessenger } from "../interfaces/IBridgeMessenger.sol";
 import { IL2Bridge } from "./interfaces/IL2Bridge.sol";
 import { IBridge } from "../interfaces/IBridge.sol";
-import { NilMerkleTree } from "./libraries/NilMerkleTree.sol";
-import { ErrorInvalidMessageType } from "../../common/NilErrorConstants.sol";
-import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
-import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
+import { INilMessageTree } from "../../interfaces/INilMessageTree.sol";
 
 /// @title L2BridgeMessenger
 /// @notice The `L2BridgeMessenger` contract can:
@@ -45,10 +43,9 @@ contract L2BridgeMessenger is
   /// @notice address of the bridgeMessenger from counterpart (L1) chain
   address public counterpartyBridgeMessenger;
 
-  uint256 public messageExpiryDelta;
+  address public nilMessageTree;
 
-  /// @notice Mapping from L2 message hash to the timestamp when the message is sent.
-  mapping(bytes32 => uint256) public l2MessageSentTimestamp;
+  uint256 public messageExpiryDelta;
 
   /// @notice  Holds the addresses of authorised bridges that can interact to send messages.
   EnumerableSet.AddressSet private authorisedBridges;
@@ -56,18 +53,9 @@ contract L2BridgeMessenger is
   /// @notice EnumerableSet for messageHash of the message relayed by relayer on behalf of L1BridgeMessenger
   EnumerableSet.Bytes32Set private relayedMessageHashStore;
 
-  /// @notice EnumerableSet for messageHash of relayed-messages which failed execution in Nil-Shard
-  EnumerableSet.Bytes32Set private failedMessageHashStore;
-
-  /// @notice the nonce of the depositMessage which is last processed by the L2BridgeMessenger
-  /// @dev depositNonce is to be updated irrespective of the successful or failed completion of deposit execution.
-  uint256 public lastProcessedDepositNonce;
-
-  /// @notice EnumerableSet for messageHash of the withdrawal-messages sent from L2BridgeMessenger for further relay to L1 via Relayer
+  /// @notice EnumerableSet for messageHash of the withdrawal-messages sent from L2BridgeMessenger for further relay
+  /// to L1 via Relayer
   EnumerableSet.Bytes32Set private withdrawalMessageHashStore;
-
-  // Add this mapping to store deposit messages by their message hash
-  mapping(bytes32 => WithdrawalMessage) public withdrawalMessages;
 
   /// @notice The nonce for withdraw messages.
   uint256 public override withdrawalNonce;
@@ -75,10 +63,6 @@ contract L2BridgeMessenger is
   /// @notice the aggregated hash for all message-hash values received by the l2BridgeMessenger
   /// @dev initialize with the genesis state Hash during the contract initialisation
   bytes32 public l1MessageHash;
-
-  /// @notice merkleRoot of the merkleTree with messageHash of the relayed messages with failedExecution and
-  /// withdrawalMessages sent from messenger.
-  bytes32 public l2Tol1Root;
 
   /// @dev The storage slots for future usage.
   uint256[50] private __gap;
@@ -100,6 +84,7 @@ contract L2BridgeMessenger is
     address ownerAddress,
     address adminAddress,
     address relayerAddress,
+    address nilMessageTreeAddress,
     uint256 messageExpiryDeltaValue
   ) public initializer {
     // Validate input parameters
@@ -109,6 +94,10 @@ contract L2BridgeMessenger is
 
     if (adminAddress == address(0)) {
       revert ErrorInvalidDefaultAdmin();
+    }
+
+    if (nilMessageTreeAddress == address(0)) {
+      revert ErrorInvalidAddress();
     }
 
     // Initialize the Ownable contract with the owner address
@@ -146,6 +135,7 @@ contract L2BridgeMessenger is
       _grantRole(NilConstants.RELAYER_ROLE, relayerAddress);
     }
 
+    nilMessageTree = nilMessageTreeAddress;
     messageExpiryDelta = messageExpiryDeltaValue;
   }
 
@@ -200,27 +190,6 @@ contract L2BridgeMessenger is
   }
 
   /*//////////////////////////////////////////////////////////////////////////
-                             PUBLIC CONSTANT FUNCTIONS   
-    //////////////////////////////////////////////////////////////////////////*/
-
-  /// @inheritdoc IL2BridgeMessenger
-  function getNextWithdrawalNonce() public view override returns (uint256) {
-    return withdrawalNonce + 1;
-  }
-
-  /// @inheritdoc IL2BridgeMessenger
-  function getMessageType(bytes32 msgHash) public view override returns (NilConstants.MessageType messageType) {
-    return withdrawalMessages[msgHash].messageType;
-  }
-
-  /// @inheritdoc IL2BridgeMessenger
-  function getWithdrawalMessage(
-    bytes32 msgHash
-  ) public view override returns (WithdrawalMessage memory withdrawalMessage) {
-    return withdrawalMessages[msgHash];
-  }
-
-  /*//////////////////////////////////////////////////////////////////////////
                          PUBLIC MUTATION FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
@@ -243,83 +212,70 @@ contract L2BridgeMessenger is
     bytes memory message,
     uint256 messageExpiryTime
   ) external override onlyRelayer whenNotPaused {
-    if (
-      messageType != NilConstants.MessageType.WITHDRAW_ENSHRINED_TOKEN &&
-      messageType != NilConstants.MessageType.WITHDRAW_ETH
-    ) {
+    if (messageType != NilConstants.MessageType.DEPOSIT_ERC20 && messageType != NilConstants.MessageType.DEPOSIT_ETH) {
       revert ErrorInvalidMessageType();
     }
 
-    bytes32 _l1MessageHash = computeMessageHash(messageSender, messageTarget, messageNonce, message);
+    bytes32 messageHash = computeDepositMessageHash(messageType, messageSender, messageTarget, messageNonce, message);
 
-    if (relayedMessageHashStore.contains(_l1MessageHash)) {
-      revert ErrorDuplicateMessageRelayed(_l1MessageHash);
+    if (relayedMessageHashStore.contains(messageHash)) {
+      revert ErrorDuplicateMessageRelayed(messageHash);
     }
 
-    relayedMessageHashStore.add(_l1MessageHash);
+    relayedMessageHashStore.add(messageHash);
 
     if (l1MessageHash == bytes32(0)) {
-      l1MessageHash = _l1MessageHash;
+      l1MessageHash = messageHash;
     } else {
-      l1MessageHash = keccak256(abi.encode(_l1MessageHash, l1MessageHash));
+      l1MessageHash = keccak256(abi.encode(messageHash, l1MessageHash));
     }
 
-    lastProcessedDepositNonce = messageNonce;
-
     if (messageExpiryTime < block.timestamp + messageExpiryDelta) {
-      failedMessageHashStore.add(_l1MessageHash);
-
-      // re-generate the merkle-tree
-      bytes32 merkleRoot = NilMerkleTree.computeMerkleRoot(failedMessageHashStore.values());
-
-      emit MessageExecutionFailed(_l1MessageHash);
+      INilMessageTree(nilMessageTree).appendMessage(messageHash);
+      emit MessageExecutionFailed(messageHash);
     } else {
-      bool isExecutionSuccessful = _executeMessage(messageSender, messageTarget, message);
+      bool isExecutionSuccessful = _executeMessage(messageTarget, message);
 
       if (!isExecutionSuccessful) {
-        failedMessageHashStore.add(_l1MessageHash);
-
-        // add messageHash as leaf to the merkleTree represented by l2Tol1Root
-        // re-generate the merkle-tree
-        bytes32 merkleRoot = NilMerkleTree.computeMerkleRoot(failedMessageHashStore.values());
-
-        // merkleRoot must change from the existing root in messenger-contract storage
-        if (l2Tol1Root == merkleRoot || merkleRoot == bytes32(0)) {
-          revert ErrorInvalidMerkleRoot();
-        }
-
-        emit MessageExecutionFailed(_l1MessageHash);
+        INilMessageTree(nilMessageTree).appendMessage(messageHash);
+        emit MessageExecutionFailed(messageHash);
       } else {
-        emit MessageExecutionSuccessful(_l1MessageHash);
+        emit MessageExecutionSuccessful(messageHash);
       }
     }
   }
 
   /// @inheritdoc IL2BridgeMessenger
-  function computeMessageHash(
-    address _messageSender,
-    address _messageTarget,
-    uint256 _messageNonce,
-    bytes memory _message
+  function computeDepositMessageHash(
+    NilConstants.MessageType messageType,
+    address messageSender,
+    address messageTarget,
+    uint256 messageNonce,
+    bytes memory message
   ) public pure override returns (bytes32) {
-    // TODO - convert keccak256 to precompile call for realkeccak256 in nil-shard
-    return keccak256(abi.encode(_messageSender, _messageTarget, _messageNonce, _message));
+    return keccak256(abi.encode(messageType, messageSender, messageTarget, messageNonce, message));
+  }
+
+  /// @inheritdoc IL2BridgeMessenger
+  function computeWithdrawalMessageHash(
+    NilConstants.MessageType messageType,
+    address messageSender,
+    address messageTarget,
+    uint256 messageNonce,
+    bytes memory message
+  ) public pure override returns (bytes32) {
+    return keccak256(abi.encode(messageType, messageSender, messageTarget, messageNonce, message));
   }
 
   /*//////////////////////////////////////////////////////////////////////////
                          INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
-  function _executeMessage(
-    address _messageSender,
-    address _messageTarget,
-    bytes memory _message
-  ) internal returns (bool) {
+  function _executeMessage(address _messageTarget, bytes memory _message) internal returns (bool) {
     // @note check `_messageTarget` address to avoid attack in the future when we add more gateways.
     if (!isAuthorisedBridge(_messageTarget)) {
       revert ErrorBridgeNotAuthorised();
     }
-    // TODO this will be replaced by Nil.SyncCall
     (bool isSuccessful, ) = (_messageTarget).call(_message);
     return isSuccessful;
   }
@@ -329,18 +285,13 @@ contract L2BridgeMessenger is
     //////////////////////////////////////////////////////////////////////////*/
 
   function _sendMessage(SendMessageParams memory params) internal nonReentrant returns (bytes32) {
-    WithdrawalMessage memory withdrawalMessage = _createWithdrawalMessage(params);
-    bytes32 messageHash = computeMessageHash(
+    bytes32 messageHash = computeWithdrawalMessageHash(
+      params.messageType,
       _msgSender(),
       params.messageTarget,
-      withdrawalMessage.nonce,
+      withdrawalNonce,
       params.message
     );
-
-    if (withdrawalMessages[messageHash].creationTime != 0) {
-      revert ErrorWithdrawalAlreadyInitiated();
-    }
-    withdrawalMessages[messageHash] = withdrawalMessage;
 
     if (withdrawalMessageHashStore.contains(messageHash)) {
       revert ErrorDuplicateWithdrawalMessage(messageHash);
@@ -348,38 +299,24 @@ contract L2BridgeMessenger is
 
     withdrawalMessageHashStore.add(messageHash);
 
-    // add messageHash as leaf to the merkleTree represented by l2Tol1Root
-    // re-generate the merkle-tree
-    bytes32 merkleRoot = NilMerkleTree.computeMerkleRoot(withdrawalMessageHashStore.values());
-
-    // merkleRoot must change from the existing root in messenger-contract storage
-    if (l2Tol1Root == merkleRoot || merkleRoot == bytes32(0)) {
-      revert ErrorInvalidMerkleRoot();
-    }
+    // append messageHash as leaf to the NilMessageTree
+    // all withdrawalMessageHashes must be appended to the merkleTree
+    (uint256 merkleTreeLeafIndex, bytes32 merkleRoot) = INilMessageTree(nilMessageTree).appendMessage(messageHash);
 
     emit MessageSent(
       _msgSender(),
       params.messageTarget,
-      withdrawalMessage.nonce,
+      withdrawalNonce,
+      merkleTreeLeafIndex,
       params.message,
       messageHash,
       params.messageType,
       block.timestamp
     );
 
-    return messageHash;
-  }
+    withdrawalNonce = withdrawalNonce + 1;
 
-  function _createWithdrawalMessage(SendMessageParams memory params) internal returns (WithdrawalMessage memory) {
-    return
-      WithdrawalMessage({
-        sender: _msgSender(),
-        target: params.messageTarget,
-        nonce: withdrawalNonce++,
-        creationTime: block.timestamp,
-        messageType: params.messageType,
-        message: params.message
-      });
+    return messageHash;
   }
 
   /*//////////////////////////////////////////////////////////////////////////

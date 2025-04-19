@@ -15,6 +15,7 @@ import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 import { IL2ETHBridgeVault } from "./interfaces/IL2ETHBridgeVault.sol";
 import { IL2ETHBridge } from "./interfaces/IL2ETHBridge.sol";
 import { IBridge } from "../interfaces/IBridge.sol";
+import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract L2ETHBridgeVault is
   OwnableUpgradeable,
@@ -123,37 +124,46 @@ contract L2ETHBridgeVault is
 
   /// @inheritdoc IL2ETHBridgeVault
   function transferETHOnDepositFinalisation(
-    address payable recipient,
-    uint256 amount
+    address depositRecipient,
+    address l2RefundRecipient,
+    uint256 depositAmount
   ) public override nonReentrant whenNotPaused {
     if (msg.sender != address(l2ETHBridge)) {
       revert ErrorCallerNotL2ETHBridge();
     }
 
-    if (recipient == address(0)) {
+    if (depositRecipient == address(0)) {
       revert ErrorInvalidRecipientAddress();
     }
 
-    if (amount == 0) {
+    if (depositAmount == 0) {
       revert ErrorInvalidTransferAmount();
     }
 
-    if (address(this).balance < amount) {
+    if (address(this).balance < depositAmount) {
       revert ErrorInsufficientVaultBalance();
     }
 
-    ethAmountTracker = ethAmountTracker + amount;
+    ethAmountTracker = ethAmountTracker + depositAmount;
 
-    uint256 initialBalance = address(this).balance;
+    /// @notice Encoding the context to process the loan after the price is fetched
+    /// @dev The context contains the borrower’s details, loan amount, borrow token, and collateral token.
+    bytes memory ethTransferCallbackContext = abi.encodeWithSelector(this.handleETHTransferResponse.selector, "0x");
 
-    (bool success, ) = recipient.call{ value: amount }("");
+    /// @notice Send a request to the token contract to get token minted.
+    /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
+    Nil.sendRequest(depositRecipient, depositAmount, Nil.ASYNC_REQUEST_MIN_GAS, ethTransferCallbackContext, "0x");
+  }
 
-    if (!success || initialBalance - address(this).balance != amount) {
+  function handleETHTransferResponse(bool success, bytes memory returnData, bytes memory context) public {
+    /// @notice Ensure the ETH transfer call was successful
+    if (!success) {
       revert ErrorETHTransferFailed();
     }
   }
 
   function returnETHOnWithdrawal(uint256 amount) external payable override nonReentrant whenNotPaused {
+    // amount being returned by wallet during withdrawal cannot exceed the eth-amount in the account-book
     if (amount == 0 || amount > ethAmountTracker) {
       revert ErrorInvalidReturnAmount();
     }

@@ -14,13 +14,13 @@ interface IL2ETHBridgeVault is IERC165 {
   /// @dev Invalid owner address.
   error ErrorInvalidOwner();
 
+  error ErrorETHTransferFailed();
+
   /// @dev Invalid default admin address.
   error ErrorInvalidDefaultAdmin();
 
   /// @dev Invalid address.
   error ErrorInvalidAddress();
-
-  error ErrorETHTransferFailed();
 
   error ErrorInvalidReturnAmount();
 
@@ -35,9 +35,13 @@ interface IL2ETHBridgeVault is IERC165 {
   function setL2ETHBridge(address l2EthBridgeAddress) external;
 
   /// @notice Transfers ETH to a recipient, only callable by the L2ETHBridge contract
-  /// @param recipient The address of the recipient
-  /// @param amount The amount of ETH to transfer
-  function transferETHOnDepositFinalisation(address payable recipient, uint256 amount) external;
+  /// @param depositRecipient The address of the recipient
+  /// @param depositAmount The amount of ETH to transfer
+  function transferETHOnDepositFinalisation(
+    address depositRecipient,
+    address feeRefundRecipient,
+    uint256 depositAmount
+  ) external;
 
   function returnETHOnWithdrawal(uint256 amount) external payable;
 

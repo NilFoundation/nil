@@ -17,6 +17,8 @@ interface IL1Bridge is IBridge {
 
   event NilGasPriceOracleSet(address indexed nilGasPriceOracle, address indexed newNilGasPriceOracle);
 
+  event ShardIdSet(uint256 indexed oldShardId, uint256 indexed newShardId);
+
   /**
    * @notice Emitted when a deposit is claimed.
    * @param messageHash The hash of the deposit message.
@@ -37,23 +39,29 @@ interface IL1Bridge is IBridge {
 
   /**
    * @notice Sets the router address.
-   * @param _router The address of the router.
+   * @param router The address of the router.
    */
-  function setRouter(address _router) external;
+  function setRouter(address router) external;
 
   /**
    * @notice Sets the messenger address.
-   * @param _messenger The address of the messenger.
+   * @param messenger The address of the messenger.
    */
-  function setMessenger(address _messenger) external;
+  function setMessenger(address messenger) external;
 
   function setCounterpartyBridge(address counterpartyBridgeAddress) external;
 
   /**
-   * @notice Sets the NilGasPriceOracle address.
-   * @param _nilGasPriceOracle The address of the NilGasPriceOracle.
+   * @notice Sets the shardId for L2 contracts.
+   * @param shardId The shardId for the L2 contracts.
    */
-  function setNilGasPriceOracle(address _nilGasPriceOracle) external;
+  function setShardId(uint256 shardId) external;
+
+  /**
+   * @notice Sets the NilGasPriceOracle address.
+   * @param nilGasPriceOracle The address of the NilGasPriceOracle.
+   */
+  function setNilGasPriceOracle(address nilGasPriceOracle) external;
 
   /**
    * @notice Cancels a deposit.
@@ -66,11 +74,14 @@ interface IL1Bridge is IBridge {
    * @param messageHash The hash of the deposit message.
    * @param claimProof The Merkle proof as an array of bytes32.
    */
-  function claimFailedDeposit(bytes32 messageHash, bytes32[] memory claimProof) external;
+  function claimFailedDeposit(bytes32 messageHash, uint256 merkleTreeLeafIndex, bytes32[] memory claimProof) external;
 
   /*//////////////////////////////////////////////////////////////////////////
                              PUBLIC CONSTANT FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
+
+  /// @notice The shardId of the NilChain where L2 Contracts are deployed. default is 1.
+  function shardId() external view returns (uint256);
 
   /// @notice The address of L1BridgeRouter/L2BridgeRouter contract.
   function router() external view returns (address);

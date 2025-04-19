@@ -1,4 +1,40 @@
 [profile.default]
+optimizer = true 
+remappings = [
+  "hardhat/=node_modules/hardhat/",
+  "forge-std/=lib/forge-std/src/",
+  "ds-test/=lib/ds-test/src/",
+  "solmate/=lib/solmate/src/",
+  "@openzeppelin/=node_modules/@openzeppelin/",
+  "@nilfoundation/=node_modules/@nilfoundation/",
+] 
+script = "script" 
+sender = '0x7580E71C10e5023a46DD11F21116471dcd60C400' # the address of `msg.sender` in tests
+solc = "0.8.28" 
+solc_version = '0.8.28' # override for the solc version (setting this ignores `auto_detect_solc`)
+src = "contracts" 
+test = "/build/source/rollup-bridge-contracts/test" 
+tx_origin = '0x7580E71C10e5023a46DD11F21116471dcd60C400' # the address of `tx.origin` in tests
+verbosity = 2 # the verbosity of tests
+via_ir = true 
+
+[fmt]
+bracket_spacing = true
+int_types = "long"
+line_length = 120
+multiline_func_header = "all"
+number_underscore = "thousands"
+quote_style = "double"
+tab_width = 4
+wrap_comments = true
+
+# Test the optimized contracts without re-compiling them
+[profile.test-optimized]
+optimizer = true
+src = "tests"
+
+# Speed up compilation and tests during development
+[profile.lite]
 auto_detect_solc = false 
 block_base_fee_per_gas = 0 # the base fee (in wei) in tests
 block_coinbase = '0x0000000000000000000000000000000000000000' # the address of `block.coinbase` in tests
@@ -23,38 +59,4 @@ initial_balance = '0xffffffffffffffffffffffff' # the initial balance of the test
 libs = ["lib"] 
 optimizer = true 
 optimizer_runs = 1000 
-out = "out" 
-remappings = [
-  "hardhat/=node_modules/hardhat/",
-  "forge-std/=lib/forge-std/src/",
-  "ds-test/=lib/ds-test/src/",
-  "solmate/=lib/solmate/src/",
-  "@openzeppelin/=node_modules/@openzeppelin/",
-] 
-script = "script" 
-sender = '0x7580E71C10e5023a46DD11F21116471dcd60C400' # the address of `msg.sender` in tests
-solc = "0.8.28" 
-solc_version = '0.8.28' # override for the solc version (setting this ignores `auto_detect_solc`)
-src = "contracts" 
-test = "/build/source/rollup-bridge-contracts/test" 
-tx_origin = '0x7580E71C10e5023a46DD11F21116471dcd60C400' # the address of `tx.origin` in tests
-verbosity = 2 # the verbosity of tests
-via_ir = true 
-
-[fmt]
-bracket_spacing = true
-int_types = "long"
-line_length = 120
-multiline_func_header = "all"
-number_underscore = "thousands"
-quote_style = "double"
-tab_width = 4
-wrap_comments = true
-
-# Test the optimized contracts without re-compiling them
-[profile.test-optimized]
-src = "tests"
-
-# Speed up compilation and tests during development
-[profile.lite]
-optimizer = false
+out = "out"

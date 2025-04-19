@@ -6,8 +6,8 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { AccessControlEnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { NilMerkleProofVerifier } from "../../common/libraries/NilMerkleProofVerifier.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
 import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
 import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
@@ -58,6 +58,9 @@ contract L1BridgeMessenger is
 
   // Add this mapping to store deposit messages by their message hash
   mapping(bytes32 => DepositMessage) public depositMessages;
+
+  // Mapping to track if a withdrawalMessageHash exists
+  mapping(bytes32 => bool) private withdrawalMessageHashes;
 
   /// @notice The nonce for deposit messages.
   uint256 public override depositNonce;
@@ -177,13 +180,14 @@ contract L1BridgeMessenger is
     return authorizedBridges.values();
   }
 
-  function computeMessageHash(
+  function computeDepositMessageHash(
+    NilConstants.MessageType messageType,
     address messageSender,
     address messageTarget,
     uint256 messageNonce,
     bytes memory message
-  ) public pure override returns (bytes32) {
-    return keccak256(abi.encode(messageSender, messageTarget, messageNonce, message));
+  ) public view override returns (bytes32) {
+    return keccak256(abi.encode(messageType, messageSender, messageTarget, messageNonce, message));
   }
 
   /*//////////////////////////////////////////////////////////////////////////
@@ -362,7 +366,11 @@ contract L1BridgeMessenger is
   }
 
   /// @inheritdoc IL1BridgeMessenger
-  function claimFailedDeposit(bytes32 messageHash, bytes32[] memory claimProof) public override whenNotPaused {
+  function claimFailedDeposit(
+    bytes32 messageHash,
+    uint256 merkleTreeLeafNonce,
+    bytes32[] memory claimProof
+  ) public override whenNotPaused {
     DepositMessage storage depositMessage = depositMessages[messageHash];
     if (depositMessage.expiryTime == 0) {
       revert DepositMessageDoesNotExist(messageHash);
@@ -373,17 +381,103 @@ contract L1BridgeMessenger is
       revert DepositMessageAlreadyClaimed();
     }
 
+    if (
+      depositMessage.messageType != NilConstants.MessageType.DEPOSIT_ERC20 &&
+      depositMessage.messageType != NilConstants.MessageType.DEPOSIT_ETH
+    ) {
+      revert ErrorInvalidMessageType();
+    }
+
     // Check if the message hash is not in the queue
     if (messageQueue.contains(messageHash)) {
       revert DepositMessageStillInQueue();
     }
 
     bytes32 l2Tol1Root = INilRollup(l1NilRollup).getCurrentL2ToL1Root();
-    if (!MerkleProof.verify(claimProof, l2Tol1Root, messageHash)) {
+    if (!NilMerkleProofVerifier.verifyMerkleProof(l2Tol1Root, messageHash, merkleTreeLeafNonce, claimProof)) {
       revert ErrorInvalidClaimProof();
     }
 
     depositMessage.isClaimed = true;
+  }
+
+  function claimWithdrawal(WithdrawalRequestParams calldata withdrawalRequestParams) external override {
+    if (
+      withdrawalRequestParams.messageType != NilConstants.MessageType.WITHDRAW_ENSHRINED_TOKEN &&
+      withdrawalRequestParams.messageType != NilConstants.MessageType.WITHDRAW_ETH
+    ) {
+      revert ErrorInvalidMessageType();
+    }
+
+    if (withdrawalRequestParams.messageSender == address(0)) {
+      revert ErrorInvalidMessageSender();
+    }
+
+    if (
+      withdrawalRequestParams.messageTarget == address(0) ||
+      !authorizedBridges.contains(withdrawalRequestParams.messageTarget)
+    ) {
+      revert ErrorInvalidMessageTarget();
+    }
+
+    // compute withdrawal-messageHash
+    bytes32 withdrawalMessageHash = computeWithdrawalMessageHash(
+      withdrawalRequestParams.messageType,
+      withdrawalRequestParams.messageSender,
+      withdrawalRequestParams.messageTarget,
+      withdrawalRequestParams.messageNonce,
+      withdrawalRequestParams.message
+    );
+
+    // verify if the messageHashGenerated is identical to input withdrawalMessageHash
+    if (withdrawalMessageHash != withdrawalRequestParams.messageHash) {
+      revert ErrorInvalidMessageHash();
+    }
+
+    // verify if the withdrawalMessageHash is not claimed yet
+    if (withdrawalMessageHashes[withdrawalMessageHash]) {
+      revert ErrorDuplicateWithdrawalClaim();
+    }
+
+    // Query NilRollup contract to get the latest root
+    bytes32 l2Tol1Root = INilRollup(l1NilRollup).getCurrentL2ToL1Root();
+
+    // verify if the proof of inclusion for withdrawalMessageHash is valid with l2Tol1Root (merkleRoot)
+    if (
+      !NilMerkleProofVerifier.verifyMerkleProof(
+        l2Tol1Root,
+        withdrawalRequestParams.messageHash,
+        withdrawalRequestParams.merkleLeafIndex,
+        withdrawalRequestParams.withdrawalProof
+      )
+    ) {
+      revert ErrorInvalidClaimProof();
+    }
+
+    // make low-level call on the messageTarget
+    (bool isSuccessful, ) = (withdrawalRequestParams.messageTarget).call(withdrawalRequestParams.message);
+
+    // verify if the call is successful. if the call is failed, then revert the transaction
+    if (!isSuccessful) {
+      revert ErrorFailedWithdrawalClaim();
+    }
+
+    // emit event if the token/eth transfer low-level call was successful (emit ClaimWithdrawalSuccessful)
+    emit WithdrawalClaimed(
+      withdrawalRequestParams.messageHash,
+      withdrawalRequestParams.messageNonce,
+      withdrawalRequestParams.merkleLeafIndex
+    );
+  }
+
+  function computeWithdrawalMessageHash(
+    NilConstants.MessageType messageType,
+    address messageSender,
+    address messageTarget,
+    uint256 messageNonce,
+    bytes memory message
+  ) public view override returns (bytes32) {
+    return keccak256(abi.encode(messageType, messageSender, messageTarget, messageNonce, message));
   }
 
   /*//////////////////////////////////////////////////////////////////////////
@@ -392,7 +486,13 @@ contract L1BridgeMessenger is
 
   function _sendMessage(SendMessageParams memory params) internal nonReentrant {
     DepositMessage memory depositMessage = _createDepositMessage(params);
-    bytes32 messageHash = computeMessageHash(_msgSender(), params.messageTarget, depositMessage.nonce, params.message);
+    bytes32 messageHash = computeDepositMessageHash(
+      params.messageType,
+      _msgSender(),
+      params.messageTarget,
+      depositMessage.nonce,
+      params.message
+    );
 
     if (depositMessages[messageHash].expiryTime != 0) {
       revert DepositMessageAlreadyExist(messageHash);

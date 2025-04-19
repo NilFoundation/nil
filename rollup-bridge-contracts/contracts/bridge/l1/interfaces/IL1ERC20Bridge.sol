@@ -82,6 +82,13 @@ interface IL1ERC20Bridge is IL1Bridge {
     uint256 amount
   );
 
+  event FinalisedERC20Withdrawal(
+    address l1Token,
+    address l2Token,
+    address l1WithdrawRecipient,
+    uint256 withdrawalAmount
+  );
+
   /*//////////////////////////////////////////////////////////////////////////
                              PUBLIC CONSTANT FUNCTIONS   
     //////////////////////////////////////////////////////////////////////////*/
@@ -128,4 +135,19 @@ interface IL1ERC20Bridge is IL1Bridge {
   ) external payable;
 
   function setTokenMapping(address l1TokenAddress, address l2EnshrinedTokenAddress) external;
+
+  /// @notice finalise ERC20 withdraw from Nil to L1 and send tokens to recipient's account in L1.
+  /// @dev The function should only be called by L1ScrollMessenger.
+  /// @param l1Token The address of L1 token.
+  /// @param l2Token The address of NilToken
+  /// @param l2Withdrawer The address of account who withdraw the token in L2.
+  /// @param l1WithdrawRecipient The address of recipient in L1 to receive the token.
+  /// @param withdrawalAmount The amount of the token to withdraw.
+  function finaliseWithdrawERC20(
+    address l1Token,
+    address l2Token,
+    address l2Withdrawer,
+    address l1WithdrawRecipient,
+    uint256 withdrawalAmount
+  ) external;
 }

@@ -69,6 +69,7 @@ interface IL2BridgeMessenger is IBridgeMessenger {
   /// @param messageSender The address of the message sender.
   /// @param messageTarget The address of the message recipient which can be an account/smartcontract.
   /// @param messageNonce The nonce of the message.
+  /// @param merkleTreeLeafIndex The index of the leaf in the merkleTree.
   /// @param message The encoded message data.
   /// @param messageHash The hash of the message.
   /// @param messageType The type of the withdrawalMessage.
@@ -78,6 +79,7 @@ interface IL2BridgeMessenger is IBridgeMessenger {
     address indexed messageSender,
     address indexed messageTarget,
     uint256 indexed messageNonce,
+    uint256 merkleTreeLeafIndex,
     bytes message,
     bytes32 messageHash,
     NilConstants.MessageType messageType,
@@ -96,7 +98,16 @@ interface IL2BridgeMessenger is IBridgeMessenger {
 
   function isFullyInitialised() external view returns (bool);
 
-  function computeMessageHash(
+  function computeDepositMessageHash(
+    NilConstants.MessageType messageType,
+    address messageSender,
+    address messageTarget,
+    uint256 messageNonce,
+    bytes memory message
+  ) external pure returns (bytes32);
+
+  function computeWithdrawalMessageHash(
+    NilConstants.MessageType messageType,
     address messageSender,
     address messageTarget,
     uint256 messageNonce,
@@ -106,20 +117,6 @@ interface IL2BridgeMessenger is IBridgeMessenger {
   /// @notice Gets the current withdrawal nonce.
   /// @return The current withdrawal nonce.
   function withdrawalNonce() external view returns (uint256);
-
-  /// @notice Gets the next withdrawal nonce.
-  /// @return The next withdrawal nonce.
-  function getNextWithdrawalNonce() external view returns (uint256);
-
-  /// @notice Gets the withdrawal MessageType for a given message hash.
-  /// @param msgHash The hash of the withdrawal message.
-  /// @return messageType The type of the withdrawal message.
-  function getMessageType(bytes32 msgHash) external view returns (NilConstants.MessageType messageType);
-
-  /// @notice Gets the withdrawal message for a given message hash.
-  /// @param msgHash The hash of the withdrawal message.
-  /// @return withdrawalMessage The withdrawal message details.
-  function getWithdrawalMessage(bytes32 msgHash) external view returns (WithdrawalMessage memory withdrawalMessage);
 
   /*//////////////////////////////////////////////////////////////////////////
                          PUBLIC MUTATION FUNCTIONS
