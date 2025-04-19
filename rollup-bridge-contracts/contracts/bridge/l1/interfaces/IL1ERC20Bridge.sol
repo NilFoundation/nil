@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { IL1Bridge } from "./IL1Bridge.sol";
 import { IL2EnshrinedTokenBridge } from "../../l2/interfaces/IL2EnshrinedTokenBridge.sol";
 import { INilGasPriceOracle } from "./INilGasPriceOracle.sol";
+import { L1BridgeMessengerEvents } from "../../libraries/L1BridgeMessengerEvents.sol";
 
 /// @title IL1ERC20Bridge
 /// @author Nil
@@ -19,7 +20,7 @@ interface IL1ERC20Bridge is IL1Bridge {
     address l2DepositRecipient;
     address l2FeeRefundAddress;
     bytes data;
-    INilGasPriceOracle.FeeCreditData feeCreditData;
+    L1BridgeMessengerEvents.FeeCreditData feeCreditData;
   }
 
   struct DepositMessageParams {
@@ -34,7 +35,7 @@ interface IL1ERC20Bridge is IL1Bridge {
     uint256 userMaxPriorityFeePerGas;
     bytes message;
     bytes additionalData;
-    INilGasPriceOracle.FeeCreditData feeCreditData;
+    L1BridgeMessengerEvents.FeeCreditData feeCreditData;
   }
 
   /*//////////////////////////////////////////////////////////////////////////
