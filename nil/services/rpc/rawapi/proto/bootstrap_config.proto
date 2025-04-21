@@ -1,0 +1,20 @@
+syntax = "proto3";
+package rawapi;
+
+option go_package = "/pb";
+
+import "nil/services/rpc/rawapi/proto/common.proto";
+
+message BootstrapConfig {
+  uint32 NShards = 1;
+  string ZeroStateConfigYaml = 2;
+  repeated string DhtBootstrapPeers = 3;
+  repeated string BootstrapPeers = 4;
+}
+
+message BootstrapConfigResponse {
+  oneof result {
+    Error error = 1;
+    BootstrapConfig data = 2;
+  }
+}

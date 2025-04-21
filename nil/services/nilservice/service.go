@@ -33,8 +33,10 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 	"github.com/NilFoundation/nil/nil/services/txnpool"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	libp2pnetwork "github.com/libp2p/go-libp2p/core/network"
 )
 
 // syncer will pull blocks actively if no blocks appear for 5 rounds
@@ -189,6 +191,23 @@ type ServiceInterop struct {
 	TxnPools map[types.ShardId]txnpool.Pool
 }
 
+func makeBootstrapConfig(cfg *Config, networkManager network.Manager) *rpctypes.BootstrapConfig {
+	// TODO: read from config?
+	publicRelayAddress := "/ip4/127.0.0.1/tcp/3333/p2p/16Uiu2HAm5ejNVEoLQF6tUiNqCPKPvaMfo5mdhJYtvj8PR1pHqzWM"
+	var selfRelayedAddress network.AddrInfo
+	// TODO: check Set result
+	err := selfRelayedAddress.Set(publicRelayAddress + "/p2p-circuit/p2p/" + networkManager.ID().String())
+	if err != nil {
+		panic(err)
+	}
+	return &rpctypes.BootstrapConfig{
+		NShards:           cfg.NShards,
+		ZeroStateConfig:   cfg.ZeroState,
+		DhtBootstrapPeers: network.AddrInfoSlice{selfRelayedAddress},
+		BootstrapPeers:    network.AddrInfoSlice{selfRelayedAddress},
+	}
+}
+
 func getRawApi(
 	cfg *Config,
 	networkManager network.Manager,
@@ -207,13 +226,15 @@ func getRawApi(
 		}
 
 	case ArchiveRunMode:
+		bootstrapConfig := makeBootstrapConfig(cfg, networkManager)
 		for shardId := range types.ShardId(cfg.NShards) {
-			nodeApiBuilder.WithLocalShardApiRo(shardId)
+			nodeApiBuilder.WithLocalShardApiRo(shardId, bootstrapConfig)
 		}
 
 	case NormalRunMode:
+		bootstrapConfig := makeBootstrapConfig(cfg, networkManager)
 		for shardId := range types.ShardId(cfg.NShards) {
-			nodeApiBuilder.WithLocalShardApiRo(shardId)
+			nodeApiBuilder.WithLocalShardApiRo(shardId, bootstrapConfig)
 			if cfg.IsShardActive(shardId) {
 				nodeApiBuilder.WithLocalShardApiRw(shardId, txnPools[shardId])
 			}
@@ -223,7 +244,7 @@ func getRawApi(
 		}
 
 	case BlockReplayRunMode:
-		nodeApiBuilder.WithLocalShardApiRo(cfg.Replay.ShardId)
+		nodeApiBuilder.WithLocalShardApiRo(cfg.Replay.ShardId, nil)
 
 	case CollatorsOnlyRunMode:
 		return nil
@@ -305,7 +326,9 @@ func createSyncers(
 				if err := res.Wait(); err != nil { // Wait for syncers initialization
 					return err
 				}
-				if err := syncer.Run(ctx); err != nil {
+				if err := syncer.Run(
+					libp2pnetwork.WithAllowLimitedConn(ctx, "allow working through relay with traffic proxying"),
+				); err != nil {
 					logger.Error().
 						Err(err).
 						Stringer(logging.FieldShardId, shardId).
@@ -322,7 +345,11 @@ func createSyncers(
 				res.result = err
 				res.wgInit.Done()
 			}()
-			if err = initSyncers(ctx, res.syncers, cfg.AllowDbDrop); err != nil {
+			if err = initSyncers(
+				libp2pnetwork.WithAllowLimitedConn(ctx, "allow working through relay with traffic proxying"),
+				res.syncers,
+				cfg.AllowDbDrop,
+			); err != nil {
 				logger.Error().Err(err).Msg("Failed to initialize syncers")
 			}
 			return

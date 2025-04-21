@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
 type DebugAPI interface {
@@ -26,6 +27,7 @@ type DebugAPI interface {
 		contractAddr types.Address,
 		blockNrOrHash transport.BlockNumberOrHash,
 	) (*DebugRPCContract, error)
+	GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error)
 }
 
 type DebugAPIImpl struct {
@@ -120,4 +122,8 @@ func (api *DebugAPIImpl) GetContract(
 		Tokens:       contract.Tokens,
 		AsyncContext: contract.AsyncContext,
 	}, nil
+}
+
+func (api *DebugAPIImpl) GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error) {
+	return api.rawApi.GetBootstrapConfig(ctx)
 }

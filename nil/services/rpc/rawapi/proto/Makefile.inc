@@ -2,6 +2,7 @@
 pb_rawapi: \
 	nil/services/rpc/rawapi/pb/account.pb.go \
 	nil/services/rpc/rawapi/pb/block.pb.go \
+	nil/services/rpc/rawapi/pb/bootstrap_config.pb.go \
 	nil/services/rpc/rawapi/pb/transaction.pb.go \
 	nil/services/rpc/rawapi/pb/call.pb.go \
 	nil/services/rpc/rawapi/pb/common.pb.go \
@@ -13,6 +14,9 @@ nil/services/rpc/rawapi/pb/account.pb.go: nil/services/rpc/rawapi/proto/account.
 
 nil/services/rpc/rawapi/pb/block.pb.go: nil/services/rpc/rawapi/proto/block.proto
 	protoc --go_out=nil/services/rpc/rawapi/ nil/services/rpc/rawapi/proto/block.proto
+
+nil/services/rpc/rawapi/pb/bootstrap_config.pb.go: nil/services/rpc/rawapi/proto/bootstrap_config.proto
+	protoc --go_out=nil/services/rpc/rawapi/ nil/services/rpc/rawapi/proto/bootstrap_config.proto
 
 nil/services/rpc/rawapi/pb/transaction.pb.go: nil/services/rpc/rawapi/proto/transaction.proto
 	protoc --go_out=nil/services/rpc/rawapi/ nil/services/rpc/rawapi/proto/transaction.proto

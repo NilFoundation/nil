@@ -77,7 +77,7 @@ func TestDebugGetBlock(t *testing.T) {
 
 	api := NewDebugAPI(
 		rawapi.NodeApiBuilder(database, nil).
-			WithLocalShardApiRo(types.MainShardId).
+			WithLocalShardApiRo(types.MainShardId, nil).
 			BuildAndReset(),
 		logging.GlobalLogger)
 
@@ -157,7 +157,7 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 
 	suite.debugApi = NewDebugAPI(
 		rawapi.NodeApiBuilder(suite.db, nil).
-			WithLocalShardApiRo(shardId).
+			WithLocalShardApiRo(shardId, nil).
 			BuildAndReset(),
 		logging.NewLogger("Test"))
 	suite.Require().NoError(err)

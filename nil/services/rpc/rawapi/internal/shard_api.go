@@ -59,6 +59,8 @@ type shardApiRo interface {
 	GetNumShards(ctx context.Context) (uint64, error)
 
 	ClientVersion(ctx context.Context) (string, error)
+
+	GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error)
 }
 
 const apiNameRw = "rawapi_rw"

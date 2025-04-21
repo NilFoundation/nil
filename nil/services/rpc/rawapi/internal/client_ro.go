@@ -126,3 +126,7 @@ func (api *shardApiClientRo) GetNumShards(ctx context.Context) (uint64, error) {
 func (api *shardApiClientRo) ClientVersion(ctx context.Context) (string, error) {
 	return sendRequestAndGetResponseWithCallerMethodName[string](ctx, api, "ClientVersion")
 }
+
+func (api *shardApiClientRo) GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[*rpctypes.BootstrapConfig](ctx, api, "GetBootstrapConfig")
+}

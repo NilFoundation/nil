@@ -16,12 +16,12 @@ import (
 )
 
 type ContractDescr struct {
-	Name     string        `yaml:"name"`
-	Address  types.Address `yaml:"address,omitempty"`
-	Value    types.Value   `yaml:"value"`
-	Shard    types.ShardId `yaml:"shard,omitempty"`
-	Contract string        `yaml:"contract"`
-	CtorArgs []any         `yaml:"ctorArgs,omitempty"`
+	Name     string        `yaml:"name" json:"name"`
+	Address  types.Address `yaml:"address,omitempty" json:"address,omitempty"`
+	Value    types.Value   `yaml:"value" json:"value"`
+	Shard    types.ShardId `yaml:"shard,omitempty" json:"shard,omitempty"`
+	Contract string        `yaml:"contract" json:"contract"`
+	CtorArgs []any         `yaml:"ctorArgs,omitempty" json:"ctorArgs,omitempty"`
 }
 
 type MainKeys struct {
@@ -30,13 +30,13 @@ type MainKeys struct {
 }
 
 type ConfigParams struct {
-	Validators config.ParamValidators `yaml:"validators,omitempty"`
-	GasPrice   config.ParamGasPrice   `yaml:"gasPrice"`
+	Validators config.ParamValidators `yaml:"validators,omitempty" json:"validators,omitempty"`
+	GasPrice   config.ParamGasPrice   `yaml:"gasPrice" json:"gasPrice"`
 }
 
 type ZeroStateConfig struct {
-	ConfigParams ConfigParams     `yaml:"config,omitempty"`
-	Contracts    []*ContractDescr `yaml:"contracts"`
+	ConfigParams ConfigParams     `yaml:"config,omitempty" json:"config,omitempty"`
+	Contracts    []*ContractDescr `yaml:"contracts" json:"contracts"`
 }
 
 func CreateDefaultZeroStateConfig(mainPublicKey []byte) (*ZeroStateConfig, error) {

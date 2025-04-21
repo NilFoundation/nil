@@ -62,6 +62,8 @@ type NodeApi interface {
 	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 	GetNumShards(ctx context.Context) (uint64, error)
 
+	GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error)
+
 	ClientVersion(ctx context.Context) (string, error)
 
 	GetTxpoolStatus(ctx context.Context, shardId types.ShardId) (uint64, error)

@@ -302,6 +302,20 @@ func (api *nodeApiOverShardApis) SendTransaction(
 	return result, nil
 }
 
+func (api *nodeApiOverShardApis) GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error) {
+	methodName := methodNameChecked("GetBootstrapConfig")
+	shardId := types.MainShardId
+	shardApi, ok := api.apisRo[shardId]
+	if !ok {
+		return nil, makeShardNotFoundError(methodName, shardId)
+	}
+	result, err := shardApi.GetBootstrapConfig(ctx)
+	if err != nil {
+		return nil, makeCallError(methodName, shardId, err)
+	}
+	return result, nil
+}
+
 func (api *nodeApiOverShardApis) ClientVersion(ctx context.Context) (string, error) {
 	methodName := methodNameChecked("ClientVersion")
 	shardId := types.MainShardId

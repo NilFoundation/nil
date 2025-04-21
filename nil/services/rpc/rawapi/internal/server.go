@@ -38,6 +38,8 @@ type NetworkTransportProtocolRo interface {
 	GetNumShards() pb.Uint64Response
 
 	ClientVersion() pb.StringResponse
+
+	GetBootstrapConfig() pb.BootstrapConfigResponse
 }
 
 type NetworkTransportProtocolRw interface {

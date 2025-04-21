@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
 
 type localShardApiRo struct {
@@ -16,19 +17,26 @@ type localShardApiRo struct {
 	accessor *execution.StateAccessor
 	shard    types.ShardId
 
+	bootstrapConfig *rpctypes.BootstrapConfig
+
 	nodeApi NodeApi
 	logger  logging.Logger
 }
 
 var _ shardApiRo = (*localShardApiRo)(nil)
 
-func newLocalShardApiRo(shardId types.ShardId, db db.ReadOnlyDB) *localShardApiRo {
+func newLocalShardApiRo(
+	shardId types.ShardId,
+	db db.ReadOnlyDB,
+	bootstrapConfig *rpctypes.BootstrapConfig,
+) *localShardApiRo {
 	stateAccessor := execution.NewStateAccessor()
 	return &localShardApiRo{
-		db:       db,
-		accessor: stateAccessor,
-		shard:    shardId,
-		logger:   logging.NewLogger("local_api"),
+		bootstrapConfig: bootstrapConfig,
+		db:              db,
+		accessor:        stateAccessor,
+		shard:           shardId,
+		logger:          logging.NewLogger("local_api"),
 	}
 }
 
