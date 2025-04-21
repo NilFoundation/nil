@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity ^0.8.28;
 
 import { DSTestPlus } from "solmate/test/utils/DSTestPlus.sol";
 import { stdJson } from "forge-std/Test.sol";

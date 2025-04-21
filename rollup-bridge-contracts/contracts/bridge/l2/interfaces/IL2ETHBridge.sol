@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity ^0.8.28;
 
 import { IL2Bridge } from "./IL2Bridge.sol";
 import { IL1ETHBridge } from "../../l1/interfaces/IL1ETHBridge.sol";

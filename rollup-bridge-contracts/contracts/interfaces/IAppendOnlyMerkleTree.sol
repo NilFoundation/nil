@@ -1,4 +1,4 @@
-pragma solidity 0.8.28;
+pragma solidity ^0.8.28;
 
 interface IAppendOnlyMerkleTree {
   function messageRoot() external view returns (bytes32);
