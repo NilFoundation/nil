@@ -75,7 +75,6 @@ stdenv.mkDerivation rec {
   doCheck = enableTesting;
   checkPhase = ''
     source .env
-<<<<<<< HEAD
 
     export FOUNDRY_ROOT=$(realpath ../)
     export FOUNDRY_SOLC=$(command -v solc)
@@ -92,36 +91,28 @@ stdenv.mkDerivation rec {
     ln -s ${dsTest}/* lib/ds-test
 
     eval forge test --remappings hardhat/=/build/source/node_modules/hardhat/ --remappings forge-std/=rollup-bridge-contracts/lib/forge-std/src/ --remappings ds-test/=rollup-bridge-contracts/lib/ds-test/src/ --remappings solmate/=rollup-bridge-contracts/lib/solmate/src/ --remappings @openzeppelin/=/build/source/node_modules/@openzeppelin/ --remappings @solady/=/build/source/node_modules/solady/src/
-=======
-    echo "Starting go-ethereum in background..."
+
+    echo "Second Test\nStarting go-ethereum in background..."
     ${lib.getExe pkgs.go-ethereum} \
       --http.vhosts "'*,localhost,host.docker.internal'" \
       --http --http.api admin,debug,web3,eth,txpool,miner,net,dev,personal \
       --http.corsdomain "*" --http.addr "0.0.0.0" --nodiscover \
       --maxpeers 0 --mine --networkid 1337 \
       --dev --allow-insecure-unlock --rpc.allow-unprotected-txs --dev.gaslimit 200000000 &
-
-    ts-node ./scripts/wallet/fund-wallet.ts
-
     geth_pid=$!
 
-    echo "Waiting for go-ethereum to start..."
-    for i in {1..10}; do
-      if curl --silent --fail http://localhost:8545 > /dev/null; then
-        echo "go-ethereum is up!"
-        break
-      fi
-      echo "Still waiting..."
-      sleep 1
-    done
+    npx hardhat run scripts/wiring/clear-deployments.ts --network geth
+    npx hardhat run scripts/wiring/set-deployer-config.ts --network geth
+    ts-node ./scripts/wallet/fund-wallet.ts
+    npx hardhat deploy --network geth --tags DeployL1Mock
+    npx hardhat deploy --network geth --tags DeployL1Master
+    npx hardhat run scripts/wiring/wiring-master.ts --network geth
 
-    echo "Deploying contracts..."
-    npx hardhat deploy --network geth --tags NilContracts
+    # TODO add checks here
 
     echo "Stopping go-ethereum..."
     kill $geth_pid
     wait $geth_pid || true
->>>>>>> 2c3e4cb1 (implement basic geth test)
   '';
 
   installPhase = ''
