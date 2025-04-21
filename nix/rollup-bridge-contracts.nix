@@ -26,7 +26,15 @@ stdenv.mkDerivation rec {
   pnpmDeps = (callPackage ./npmdeps.nix { });
 
   nativeBuildInputs =
-    [ nodejs pkgs.foundry pkgs.solc pkgs.bash pnpm_10.configHook pnpm_10 ];
+    [
+      nodejs
+      pkgs.nodePackages.ts-node
+      pkgs.foundry
+      pkgs.solc
+      pkgs.bash
+      pnpm_10.configHook
+      pnpm_10
+    ];
 
   soljson26 = builtins.fetchurl {
     url =
