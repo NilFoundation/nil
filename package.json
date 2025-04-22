@@ -48,20 +48,8 @@
       "yarn"
     ],
     "onlyBuiltDependencies": [
-      "better-sqlite3",
       "@biomejs/biome"
-    ],
-    "overrides": {
-      "rollup": "npm:@rollup/wasm-node@^4.0.0"
-    }
-  },
-  "overrides": {
-    "whatwg-url": "13.0.0",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "@types/react": "18.3.1",
-    "rollup": "npm:@rollup/wasm-node@^4.0.0",
-    "@types/node": "18.19.80"
+    ]
   },
   "engines": {
     "node": ">=22.0.0",
