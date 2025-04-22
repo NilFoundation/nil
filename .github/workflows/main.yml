@@ -19,7 +19,7 @@ jobs:
         check: ["ibft", "heavy", "nil", "nildocs", "niljs", "nilexplorer", "uniswap", "rollup-bridge-contracts", "clijs", "walletextension", "nilhardhat"]
     steps:
       - name: checkout local actions
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
