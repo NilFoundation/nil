@@ -4,10 +4,10 @@
   "version": "0.26.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NilFoundation/nil.js.git"
+    "url": "git+https://github.com/NilFoundation/nil.git"
   },
-  "homepage": "https://github.com/NilFoundation/nil.js.git#README.md",
-  "bugs": "https://github.com/NilFoundation/nil.js/issues",
+  "homepage": "https://github.com/NilFoundation/nil.git#README.md",
+  "bugs": "https://github.com/NilFoundation/nil/issues",
   "engines": {
     "node": ">=18.0.0"
   },
@@ -32,7 +32,7 @@
     "test:integration": "CI=true vitest -c ./test/vitest.integration.config.ts --isolate false --reporter=verbose",
     "test:coverage": "CI=true vitest -c ./test/vitest.config.ts --coverage",
     "test:examples": "ls ./examples | xargs -I {} tsx ./examples/{}",
-    "build": "rimraf dist && rollup -c ./rollup/rollup.config.js --bundleConfigAsCjs",
+    "build": "rollup -c ./rollup.config.mjs",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "lint:types": "tsc --noEmit -p tsconfig.json",
@@ -41,13 +41,17 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/wasm-node": "^4.28.0",
     "@vitest/coverage-v8": "^1.6.0",
     "dotenv": "^16.4.7",
     "eslint": "^9.13.0",
     "eslint-plugin-jsdoc": "^50.4.3",
     "rimraf": "^6.0.1",
     "rollup": "^4.17.2",
+    "rollup-plugin-circular-dependencies": "1.1.2",
+    "rollup-plugin-delete": "3.0.1",
     "rollup-plugin-dts": "6.1.1",
     "rollup-plugin-esbuild": "6.1.1",
     "rollup-plugin-filesize": "^10.0.0",
@@ -67,7 +71,6 @@
     "@noble/curves": "^1.4.0",
     "@noble/hashes": "1.7.2",
     "@open-rpc/client-js": "^1.8.1",
-    "@rollup/plugin-json": "^6.1.0",
     "@scure/bip39": "^1.3.0",
     "@types/isomorphic-fetch": "^0.0.39",
     "abitype": "^1.0.2",
