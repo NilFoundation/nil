@@ -10,17 +10,17 @@ import (
 )
 
 type subgraphFetcher struct {
-	rpcClient RpcBlockFetcher
-	logger    logging.Logger
+	fetcher *Fetcher
+	logger  logging.Logger
 }
 
 func newSubgraphFetcher(
-	rpcClient RpcBlockFetcher,
+	fetcher *Fetcher,
 	logger logging.Logger,
 ) *subgraphFetcher {
 	return &subgraphFetcher{
-		rpcClient: rpcClient,
-		logger:    logger,
+		fetcher: fetcher,
+		logger:  logger,
 	}
 }
 
@@ -104,15 +104,17 @@ func (f *subgraphFetcher) fetchShardChainSegment(
 			fetchStartingNumber, latestSubBlock.Number, latestInSubgraph.ShardId,
 		)
 
-	const requestBatchSize = 20
-	blocks, err := f.rpcClient.GetBlocksRange(
-		ctx, latestInSubgraph.ShardId, fetchStartingNumber, latestSubBlock.Number, true, requestBatchSize,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching chain segment from shard %d: %w", latestInSubgraph.ShardId, err)
+	blocksRange := types.NewBlocksRange(fetchStartingNumber, latestSubBlock.Number)
+
+	blocks := make([]*types.Block, 0, blocksRange.Size())
+
+	for block, err := range f.fetcher.FetchBlocksSeq(ctx, latestInSubgraph.ShardId, blocksRange) {
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, block)
 	}
 
-	blocks = append(blocks, latestSubBlock)
 	segment, err := types.NewChainSegment(blocks...)
 	if err != nil {
 		return nil, fmt.Errorf("error creating chain segment: %w", err)
@@ -122,7 +124,7 @@ func (f *subgraphFetcher) fetchShardChainSegment(
 }
 
 func (f *subgraphFetcher) getBlockById(ctx context.Context, id types.BlockId) (*types.Block, error) {
-	latestChild, err := f.rpcClient.GetBlock(ctx, id.ShardId, id.Hash, false)
+	latestChild, err := f.fetcher.TryGetBlockByHash(ctx, id.ShardId, id.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching latest child block from shard %d: %w", id.ShardId, err)
 	}

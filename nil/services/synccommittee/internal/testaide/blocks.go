@@ -179,6 +179,15 @@ func NewExecutionShardBlock() *scTypes.Block {
 	}
 }
 
+func NewGenesisBlock(shardId types.ShardId) *scTypes.Block {
+	block := NewExecutionShardBlock()
+	block.ShardId = shardId
+	block.Number = 0
+	block.Hash = GenesisBlockHash
+	block.ParentHash = GenesisBlockHash
+	return block
+}
+
 func NewProposalData(currentTime time.Time) *scTypes.ProposalData {
 	return scTypes.NewProposalData(
 		scTypes.NewBatchId(),

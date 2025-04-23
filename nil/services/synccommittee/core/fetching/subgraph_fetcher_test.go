@@ -35,7 +35,8 @@ func (s *SubgraphFetcherTestSuite) SetupSuite() {
 
 func (s *SubgraphFetcherTestSuite) SetupTest() {
 	s.rpcClientMock = &client.ClientMock{}
-	s.fetcher = newSubgraphFetcher(s.rpcClientMock, s.logger)
+	fetcher := NewFetcher(s.rpcClientMock, s.logger)
+	s.fetcher = newSubgraphFetcher(fetcher, s.logger)
 }
 
 func (s *SubgraphFetcherTestSuite) TearDownSuite() {

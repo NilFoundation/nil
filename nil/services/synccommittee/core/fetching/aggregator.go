@@ -44,7 +44,6 @@ type AggregatorBlockStorage interface {
 	TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error)
 	TryGetLatestBatch(ctx context.Context) (*types.BlockBatch, error)
 	PutBlockBatch(ctx context.Context, batch *types.BlockBatch) error
-	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
 }
 
 type AggregatorConfig struct {
@@ -64,7 +63,7 @@ func NewDefaultAggregatorConfig() AggregatorConfig {
 }
 
 type aggregator struct {
-	fetcher         *fetcher
+	fetcher         *Fetcher
 	batchChecker    BatchConstraintChecker
 	blockStorage    AggregatorBlockStorage
 	taskStorage     AggregatorTaskStorage
@@ -81,7 +80,7 @@ type aggregator struct {
 }
 
 func NewAggregator(
-	rpcClient RpcBlockFetcher,
+	fetcher *Fetcher,
 	batchChecker BatchConstraintChecker,
 	blockStorage AggregatorBlockStorage,
 	taskStorage AggregatorTaskStorage,
@@ -93,11 +92,11 @@ func NewAggregator(
 	config AggregatorConfig,
 ) *aggregator {
 	agg := &aggregator{
-		fetcher:         newFetcher(rpcClient, logger),
+		fetcher:         fetcher,
 		batchChecker:    batchChecker,
 		blockStorage:    blockStorage,
 		taskStorage:     taskStorage,
-		subgraphFetcher: newSubgraphFetcher(rpcClient, logger),
+		subgraphFetcher: newSubgraphFetcher(fetcher, logger),
 		batchEncoder:    v1.NewEncoder(logger),
 		blobBuilder:     blob.NewBuilder(),
 		rollupContract:  rollupContractWrapper,
@@ -119,20 +118,7 @@ func (agg *aggregator) Name() string {
 func (agg *aggregator) Run(ctx context.Context, started chan<- struct{}) error {
 	agg.logger.Info().Msg("Starting block fetching")
 
-	latestStateRoot, err := agg.blockStorage.TryGetProvedStateRoot(ctx)
-	if err != nil {
-		return err
-	}
-	if latestStateRoot == nil {
-		// root not initialized in current database
-		agg.logger.Warn().
-			Msg("L1 state root is not initialized, trying to use storage state root")
-		if err := agg.syncLatestFinalizedRoot(ctx); err != nil {
-			return fmt.Errorf("failed to set proved state root: %w", err)
-		}
-	}
-
-	err = agg.workerAction.Run(ctx, started)
+	err := agg.workerAction.Run(ctx, started)
 
 	if err == nil || errors.Is(err, context.Canceled) {
 		agg.logger.Info().Msg("Block fetching stopped")
@@ -195,11 +181,8 @@ func (agg *aggregator) handleProcessingErr(ctx context.Context, err error) error
 		}
 		return nil
 
-	case errors.Is(err, storage.ErrStateRootNotInitialized):
-		agg.logger.Warn().Err(err).Msg("State root not initialized, trying to fetch it from L1")
-		if err := agg.syncLatestFinalizedRoot(ctx); err != nil {
-			return fmt.Errorf("failed to set proved state root: %w", err)
-		}
+	case errors.Is(err, types.ErrStateRootNotInitialized):
+		agg.logger.Warn().Err(err).Msg("Local state root not initialized, skipping")
 		return nil
 
 	case errors.Is(err, storage.ErrCapacityLimitReached):
@@ -365,7 +348,7 @@ func (agg *aggregator) getFetchingRange(ctx context.Context) (*types.BlocksRange
 
 // getStartingBlockRef retrieves the starting point for the next fetching iteration,
 // prioritizing the latest fetched main shard block if available.
-// If `latestFetched` value is not defined, method uses `latestProvedStateRoot`.
+// If the `latestFetched` value is not defined, method uses `latestProvedStateRoot`.
 // If neither of the two values is defined, method returns an error.
 func (agg *aggregator) getStartingBlockRef(ctx context.Context) (*types.BlockRef, error) {
 	latestFetched, err := agg.blockStorage.GetLatestFetched(ctx)
@@ -373,9 +356,9 @@ func (agg *aggregator) getStartingBlockRef(ctx context.Context) (*types.BlockRef
 		return nil, fmt.Errorf("error reading latest fetched block for the main shard: %w", err)
 	}
 	if mainRef := latestFetched.TryGetMain(); mainRef != nil {
-		// checking if `latestFetched` still exists on L2 side
-		if _, err := agg.fetcher.GetBlockRef(ctx, mainRef.ShardId, mainRef.Hash); err != nil {
-			return nil, fmt.Errorf("fetched block check error: %w", err)
+		// checking if `latestFetched` still exists on the L2 side
+		if err := agg.checkIfExistsOnL2(ctx, mainRef); err != nil {
+			return nil, err
 		}
 
 		return mainRef, nil
@@ -388,14 +371,30 @@ func (agg *aggregator) getStartingBlockRef(ctx context.Context) (*types.BlockRef
 		return nil, fmt.Errorf("error reading latest proved state root: %w", err)
 	}
 	if latestProvedRoot == nil {
-		return nil, storage.ErrStateRootNotInitialized
+		return nil, types.ErrStateRootNotInitialized
 	}
 
-	ref, err := agg.fetcher.GetBlockRef(ctx, coreTypes.MainShardId, *latestProvedRoot)
+	ref, err := agg.fetcher.TryGetBlockRef(ctx, coreTypes.MainShardId, *latestProvedRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proved block ref: %w", err)
 	}
+	if ref == nil {
+		return nil, fmt.Errorf("proved block ref not found, stateRoot=%s", latestProvedRoot)
+	}
 	return ref, nil
+}
+
+func (agg *aggregator) checkIfExistsOnL2(ctx context.Context, mainRef *types.BlockRef) error {
+	blockRef, err := agg.fetcher.TryGetBlockRef(ctx, mainRef.ShardId, mainRef.Hash)
+	if err != nil {
+		return fmt.Errorf("fetched block check error: %w", err)
+	}
+	if blockRef == nil {
+		return fmt.Errorf(
+			"%w: fetched block not found on L2 side, blockRef=%s", types.ErrBlockMismatch, mainRef,
+		)
+	}
+	return nil
 }
 
 type batchExtensionResult struct {
@@ -563,42 +562,4 @@ func (agg *aggregator) prepareForBatchCommit(
 	}
 
 	return agg.rollupContract.PrepareBlobs(ctx, blobs)
-}
-
-// getLatestFinalizedRootFromL1 attempts to retrieve the finalized root from the following sources,
-// in order of priority:
-// 1. L1 contract
-// 2. Genesis block (fallback)
-func (agg *aggregator) getLatestFinalizedRootFromL1(ctx context.Context) (common.Hash, error) {
-	agg.logger.Info().Msg("syncing state with L1")
-
-	latestStateRoot, err := agg.rollupContract.LatestFinalizedStateRoot(ctx)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-	if latestStateRoot != common.EmptyHash {
-		return latestStateRoot, nil
-	}
-
-	agg.logger.Warn().
-		Msg("storage state root is not initialized, genesis state root will be used")
-	blockRef, err := agg.fetcher.GetEarliestBlockRef(ctx, coreTypes.MainShardId)
-	if err != nil {
-		return common.EmptyHash, err
-	}
-	latestStateRoot = blockRef.Hash
-
-	return latestStateRoot, nil
-}
-
-func (agg *aggregator) syncLatestFinalizedRoot(ctx context.Context) error {
-	latestStateRoot, err := agg.getLatestFinalizedRootFromL1(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get latest finalized state root: %w", err)
-	}
-	if err := agg.blockStorage.SetProvedStateRoot(ctx, latestStateRoot); err != nil {
-		return fmt.Errorf("failed to set proved state root: %w", err)
-	}
-	agg.logger.Warn().Msg("Proved state root set")
-	return nil
 }
