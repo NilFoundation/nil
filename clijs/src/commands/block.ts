@@ -31,17 +31,28 @@ export default class BlockCommand extends BaseCommand {
       throw new Error("RPC client is not initialized");
     }
 
+    let block: Block<boolean>;
+
     if (/^0x[0-9a-fA-F]+$/.test(args.blockId)) {
-      return await this.rpcClient.getBlockByHash(args.blockId as Hex);
+      block = await this.rpcClient.getBlockByHash(args.blockId as Hex);
       // biome-ignore lint/style/noUselessElse: <explanation>
     } else if (validBlockTags.includes(args.blockId as BlockTag)) {
-      return await this.rpcClient.getBlockByNumber(
+      block = await this.rpcClient.getBlockByNumber(
         args.blockId as BlockTag,
         undefined,
         flags.shardId,
       );
+    } else {
+      block = await this.rpcClient.getBlockByNumber(toHex(args.blockId), undefined, flags.shardId);
     }
-    return await this.rpcClient.getBlockByNumber(toHex(args.blockId), undefined, flags.shardId);
+
+    if (flags.quiet) {
+      this.log(block as unknown as string);
+    } else {
+      this.log("Block:", block);
+    }
+
+    return block;
   }
 }
 

@@ -191,7 +191,14 @@ abstract class BaseCommand extends Command {
   }
 
   protected async finally(err: Error | undefined): Promise<unknown> {
+    this.closeConnection();
     return super.finally(err);
+  }
+
+  protected closeConnection() {
+    this.rpcClient?.closeConnection();
+    this.cometaClient?.closeConnection();
+    this.faucetClient?.closeConnection();
   }
 }
 

@@ -36,6 +36,13 @@ class BaseClient {
   }
 
   /**
+   * Closes the connection to the network.
+   */
+  public closeConnection() {
+    this.transport.closeConnection();
+  }
+
+  /**
    * Sends a request.
    * @param requestObject The request object. It contains the request method and parameters.
    * @returns The response.

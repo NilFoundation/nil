@@ -29,6 +29,7 @@ async function createTempDir() {
 
 interface CliTestFixture {
   cfgPath: string;
+  configManager: ConfigManager;
 
   runCommand: (args: string[]) => Promise<{
     error?: Error & Partial<Errors.CLIError>;
@@ -47,7 +48,7 @@ interface CliTestFixture {
 }
 
 export const CliTest = test.extend<CliTestFixture>({
-  cfgPath: async ({ privateKey }, use) => {
+  cfgPath: async ({ privateKey, smartAccount }, use) => {
     const { cfgDir, cfgPath } = await createTempDir();
     const configManager = new ConfigManager(cfgPath);
     configManager.updateConfig(ConfigKeys.NilSection, ConfigKeys.RpcEndpoint, testEnv.endpoint);
@@ -62,20 +63,24 @@ export const CliTest = test.extend<CliTestFixture>({
       testEnv.faucetServiceEndpoint,
     );
     configManager.updateConfig(ConfigKeys.NilSection, ConfigKeys.PrivateKey, privateKey);
+    configManager.updateConfig(ConfigKeys.NilSection, ConfigKeys.Address, smartAccount.address);
 
     await use(cfgPath);
 
     fs.rmSync(cfgDir, { recursive: true, force: true });
   },
 
+  configManager: async ({ cfgPath }, use) => {
+    const configManager = new ConfigManager(cfgPath);
+    await use(configManager);
+  },
+
   runCommand: async ({ cfgPath }, use) => {
     await use(async (cmdArgs: string[]) => {
       const args = cmdArgs.concat(["-c", cfgPath]);
-      console.log("Running command:", args, "with root", path.join(__dirname, ".."));
       const res = await runCommand(args, {
         root: path.join(__dirname, ".."),
       });
-      console.log("Command result:", res);
       return res;
     });
   },
@@ -98,7 +103,11 @@ export const CliTest = test.extend<CliTestFixture>({
     }),
   }),
 
-  privateKey: generateRandomPrivateKey(),
+  // biome-ignore lint/correctness/noEmptyPattern:
+  privateKey: async ({}, use) => {
+    const key = generateRandomPrivateKey();
+    await use(key);
+  },
 
   signer: async ({ privateKey }, use) => {
     const signer = new LocalECDSAKeySigner({
@@ -107,7 +116,7 @@ export const CliTest = test.extend<CliTestFixture>({
     await use(signer);
   },
 
-  smartAccount: async ({ rpcClient, signer }, use) => {
+  smartAccount: async ({ rpcClient, faucetClient, signer }, use) => {
     const smartAccount = new SmartAccountV1({
       pubkey: signer.getPublicKey(),
       salt: 100n,
@@ -115,6 +124,18 @@ export const CliTest = test.extend<CliTestFixture>({
       client: rpcClient,
       signer: signer,
     });
+
+    const faucets = await faucetClient.getAllFaucets();
+    await faucetClient.topUpAndWaitUntilCompletion(
+      {
+        faucetAddress: faucets.NIL,
+        smartAccountAddress: smartAccount.address,
+        amount: 1_000_000_000_000_000_000n,
+      },
+      rpcClient,
+    );
+
+    smartAccount.selfDeploy(true);
     await use(smartAccount);
   },
 });
