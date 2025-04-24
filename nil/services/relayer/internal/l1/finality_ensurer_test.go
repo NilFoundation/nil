@@ -169,7 +169,7 @@ func (s *FinalityEnsurerTestSuite) advanceFinalizedBlockNumberTo(n uint64) {
 		return common.WaitFor(
 			ctx, time.Second, time.Millisecond,
 			func(_ context.Context) bool {
-				if blk, ok := s.ensurer.getLatestFinalizedBlock(); ok && blk.BlockNumber == n {
+				if blk, ok := s.ensurer.GetLatestFinalizedBlock(); ok && blk.BlockNumber == n {
 					return true
 				}
 				return false

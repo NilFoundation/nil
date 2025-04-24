@@ -117,7 +117,7 @@ wait_for_http_service "http://127.0.0.1:8527"
 echo "Starting relayer"
 $RELAYER_BIN run \
     --db-path=/tmp/relayer.db \
-    --readiness-port=7777 \
+    --debug-rpc-endpoint=tcp://127.0.0.1:7777 \
     --l1-endpoint=$GETH_DATA_DIR/geth.ipc \
     --l1-contract-addr=$l1_contract_addr \
     --l2-endpoint=http://127.0.0.1:8529 \

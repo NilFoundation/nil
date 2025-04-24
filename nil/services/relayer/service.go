@@ -3,12 +3,11 @@ package relayer
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/relayer/internal/debug"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l1"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l2"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/storage"
@@ -22,7 +21,7 @@ type RelayerConfig struct {
 	TransactionSenderConfig *l2.TransactionSenderConfig
 	L2ContractConfig        *l2.ContractConfig
 	TelemetryConfig         *telemetry.Config
-	ReadinessPort           int
+	DebugAPIConfig          *debug.Config
 }
 
 func DefaultRelayerConfig() *RelayerConfig {
@@ -34,7 +33,7 @@ func DefaultRelayerConfig() *RelayerConfig {
 		TelemetryConfig: &telemetry.Config{
 			ServiceName: "relayer",
 		},
-		ReadinessPort: 7777,
+		DebugAPIConfig: debug.DegaultConfig(),
 	}
 }
 
@@ -44,6 +43,7 @@ type RelayerService struct {
 	L1EventListener     *l1.EventListener
 	L1FinalityEnsurer   *l1.FinalityEnsurer
 	L2TransactionSender *l2.TransactionSender
+	DebugListener       *debug.RPCListener
 }
 
 func New(
@@ -171,6 +171,15 @@ func New(
 		return nil, err
 	}
 
+	rs.DebugListener = debug.NewRPCListener(
+		config.DebugAPIConfig,
+		l1Storage,
+		l2Storage,
+		rs.L1FinalityEnsurer,
+		clock,
+		rs.Logger,
+	)
+
 	return rs, nil
 }
 
@@ -196,19 +205,10 @@ func (rs *RelayerService) Run(ctx context.Context) error {
 	<-finalityEnsurerStarted
 	<-transactionSenderStarted
 
-	readinessServer := &http.Server{
-		Addr:              fmt.Sprintf("0.0.0.0:%d", rs.Config.ReadinessPort),
-		ReadHeaderTimeout: time.Second,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("OK"))
-		}),
-	}
-	defer readinessServer.Close()
-
+	// start debug api after all other services are up and running
 	eg.Go(func() error {
-		rs.Logger.Info().Int("listen_port", rs.Config.ReadinessPort).Msg("Service is ready")
-		return readinessServer.ListenAndServe()
+		started := make(chan struct{})
+		return rs.DebugListener.Run(gCtx, started)
 	})
 
 	return eg.Wait()
