@@ -5,12 +5,14 @@ import (
 	"database/sql/driver"
 	"encoding"
 	"encoding/json"
+	"io"
 	"math/big"
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
 )
 
@@ -24,6 +26,8 @@ var (
 	_ driver.Valuer                = (*Uint256)(nil)
 	_ encoding.TextMarshaler       = (*Uint256)(nil)
 	_ encoding.TextUnmarshaler     = (*Uint256)(nil)
+	_ rlp.Encoder                  = (*Uint256)(nil)
+	_ rlp.Decoder                  = (*Uint256)(nil)
 )
 
 type Uint256 uint256.Int
@@ -75,6 +79,21 @@ func (u *Uint256) ToBig() *big.Int {
 
 func (u *Uint256) SetFromBig(b *big.Int) bool {
 	return (*uint256.Int)(u).SetFromBig(b)
+}
+
+// EncodeRLP rlp marshals the Uint256 object to a target array
+func (u Uint256) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, u.safeInt())
+}
+
+// DecodeRLP rlp unmarshals the Uint256 object
+func (u *Uint256) DecodeRLP(r *rlp.Stream) error {
+	var tmp uint256.Int
+	if err := r.Decode(&tmp); err != nil {
+		return err
+	}
+	*u = Uint256(tmp)
+	return nil
 }
 
 // MarshalSSZ ssz marshals the Uint256 object

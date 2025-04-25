@@ -8,7 +8,29 @@ SSZ_TARGETS = \
     nil/internal/types/receipt_encoding.go \
     nil/internal/types/version_info_encoding.go
 
+RLP_TARGETS = \
+    nil/internal/types/signature_rlp_encoding.go \
+    nil/internal/types/log_rlp_encoding.go \
+    nil/internal/types/debug_log_rlp_encoding.go \
+    nil/internal/types/receipt_rlp_encoding.go \
+    nil/internal/types/transaction_rlp_encoding.go \
+    nil/internal/types/external_transaction_rlp_encoding.go \
+    nil/internal/types/internal_transaction_payload_rlp_encoding.go \
+    nil/internal/types/transaction_digest_rlp_encoding.go \
+    nil/internal/types/transaction_flags_rlp_encoding.go \
+    nil/internal/types/async_context_rlp_encoding.go \
+    nil/internal/types/async_response_payload_rlp_encoding.go \
+    nil/internal/types/block_data_rlp_encoding.go \
+    nil/internal/types/block_rlp_encoding.go \
+    nil/internal/types/neighbor_rlp_encoding.go \
+    nil/internal/types/collator_state_rlp_encoding.go \
+    nil/internal/types/account_rlp_encoding.go \
+    nil/internal/types/token_balance_rlp_encoding.go \
+    nil/internal/types/version_info_rlp_encoding.go
+
 SSZGEN := cd nil/internal/types && go run github.com/NilFoundation/fastssz/sszgen
+
+RLPGEN := cd nil/internal/types && go run ../../cmd/rlpgen
 
 .PHONY: ssz_types
 ssz_types: $(SSZ_TARGETS) nil/internal/types/error_string.go
@@ -39,3 +61,60 @@ nil/internal/types/account_encoding.go: nil/internal/types/account.go nil/common
 
 nil/internal/types/version_info_encoding.go: nil/internal/types/version_info.go nil/common/hash.go nil/common/length.go
 	$(SSZGEN) --path version_info.go -include ../../common/hash.go,../../common/length.go --objs VersionInfo
+
+.PHONY: rlp_types
+rlp_types: $(RLP_TARGETS) ssz_types
+
+nil/internal/types/signature_rlp_encoding.go: nil/internal/types/signature.go $(SSZ_TARGETS)
+	$(RLPGEN) -type BlsAggregateSignature -out signature_rlp_encoding.go -decoder
+
+nil/internal/types/log_rlp_encoding.go: nil/internal/types/log.go $(SSZ_TARGETS)
+	$(RLPGEN) -type Log -out log_rlp_encoding.go -decoder
+
+nil/internal/types/debug_log_rlp_encoding.go: nil/internal/types/log.go $(SSZ_TARGETS)
+	$(RLPGEN) -type DebugLog -out debug_log_rlp_encoding.go -decoder
+
+nil/internal/types/receipt_rlp_encoding.go: nil/internal/types/receipt.go $(SSZ_TARGETS)
+	$(RLPGEN) -type Receipt -out receipt_rlp_encoding.go -decoder
+
+nil/internal/types/transaction_rlp_encoding.go: nil/internal/types/transaction.go $(SSZ_TARGETS)
+	$(RLPGEN) -type Transaction -out transaction_rlp_encoding.go -decoder
+
+nil/internal/types/external_transaction_rlp_encoding.go: nil/internal/types/transaction.go $(SSZ_TARGETS)
+	$(RLPGEN) -type ExternalTransaction -out external_transaction_rlp_encoding.go -decoder
+
+nil/internal/types/internal_transaction_payload_rlp_encoding.go: nil/internal/types/transaction.go $(SSZ_TARGETS)
+	$(RLPGEN) -type InternalTransactionPayload -out internal_transaction_payload_rlp_encoding.go -decoder
+
+nil/internal/types/transaction_digest_rlp_encoding.go: nil/internal/types/transaction.go $(SSZ_TARGETS)
+	$(RLPGEN) -type TransactionDigest -out transaction_digest_rlp_encoding.go -decoder
+
+nil/internal/types/transaction_flags_rlp_encoding.go: nil/internal/types/transaction.go $(SSZ_TARGETS)
+	$(RLPGEN) -type TransactionFlags -out transaction_flags_rlp_encoding.go -decoder
+
+nil/internal/types/async_context_rlp_encoding.go: nil/internal/types/transaction.go $(SSZ_TARGETS)
+	$(RLPGEN) -type AsyncContext -out async_context_rlp_encoding.go -decoder
+
+nil/internal/types/async_response_payload_rlp_encoding.go: nil/internal/types/transaction.go $(SSZ_TARGETS)
+	$(RLPGEN) -type AsyncResponsePayload -out async_response_payload_rlp_encoding.go -decoder
+
+nil/internal/types/block_data_rlp_encoding.go: nil/internal/types/block.go $(SSZ_TARGETS)
+	$(RLPGEN) -type BlockData -out block_data_rlp_encoding.go -decoder
+
+nil/internal/types/block_rlp_encoding.go: nil/internal/types/block.go $(SSZ_TARGETS)
+	$(RLPGEN) -type Block -out block_rlp_encoding.go -decoder
+
+nil/internal/types/neighbor_rlp_encoding.go: nil/internal/types/collator.go $(SSZ_TARGETS)
+	$(RLPGEN) -type Neighbor -out neighbor_rlp_encoding.go -decoder
+
+nil/internal/types/collator_state_rlp_encoding.go: nil/internal/types/collator.go $(SSZ_TARGETS)
+	$(RLPGEN) -type CollatorState -out collator_state_rlp_encoding.go -decoder
+
+nil/internal/types/account_rlp_encoding.go: nil/internal/types/account.go $(SSZ_TARGETS)
+	$(RLPGEN) -type SmartContract -out account_rlp_encoding.go -decoder
+
+nil/internal/types/token_balance_rlp_encoding.go: nil/internal/types/account.go $(SSZ_TARGETS)
+	$(RLPGEN) -type TokenBalance -out token_balance_rlp_encoding.go -decoder
+
+nil/internal/types/version_info_rlp_encoding.go: nil/internal/types/version_info.go $(SSZ_TARGETS)
+	$(RLPGEN) -type VersionInfo -out version_info_rlp_encoding.go -decoder

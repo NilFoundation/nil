@@ -10,6 +10,7 @@ import (
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -207,7 +208,7 @@ type Transaction struct {
 	RequestChain []*AsyncRequestInfo `json:"response,omitempty" ch:"response" ssz-max:"4096"`
 
 	// This field should always be at the end of the structure for easy signing
-	Signature Signature `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
+	Signature hexutil.Bytes `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
 }
 
 type OutboundTransaction struct {
@@ -219,11 +220,11 @@ type OutboundTransaction struct {
 type ExternalTransaction struct {
 	Kind TransactionKind `json:"kind,omitempty" ch:"kind"`
 	FeePack
-	To       Address   `json:"to,omitempty" ch:"to"`
-	ChainId  ChainId   `json:"chainId" ch:"chainId"`
-	Seqno    Seqno     `json:"seqno,omitempty" ch:"seqno"`
-	Data     Code      `json:"data,omitempty" ch:"data" ssz-max:"24576"`
-	AuthData Signature `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
+	To       Address       `json:"to,omitempty" ch:"to"`
+	ChainId  ChainId       `json:"chainId" ch:"chainId"`
+	Seqno    Seqno         `json:"seqno,omitempty" ch:"seqno"`
+	Data     Code          `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	AuthData hexutil.Bytes `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
 }
 
 func (tx *ExternalTransaction) UnmarshalNil(buf []byte) error {
@@ -336,7 +337,7 @@ func NewEmptyTransaction() *Transaction {
 		},
 		Value:        NewZeroValue(),
 		Token:        make([]TokenBalance, 0),
-		Signature:    make(Signature, 0),
+		Signature:    make(hexutil.Bytes, 0),
 		RequestChain: make([]*AsyncRequestInfo, 0),
 	}
 }
@@ -543,7 +544,7 @@ func (m *ExternalTransaction) Sign(key *ecdsa.PrivateKey) error {
 		return err
 	}
 
-	m.AuthData = Signature(sig)
+	m.AuthData = hexutil.Bytes(sig)
 
 	return nil
 }
