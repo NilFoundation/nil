@@ -24,7 +24,7 @@ get_bin_name = $(if $(filter $(1)=%,$(BINARY_NAMES)),$(patsubst $(1)=%,%,$(filte
 all: $(COMMANDS)
 
 .PHONY: generated
-generated: ssz pb compile-contracts generate_mocks sync_committee_targets
+generated: ssz pb compile-contracts generate_mocks sync_committee_targets rlp
 
 .PHONY: test
 test: generated
@@ -56,6 +56,9 @@ include nil/Makefile.inc
 
 .PHONY: ssz
 ssz: ssz_sszx ssz_db ssz_mpt ssz_types ssz_config ssz_execution
+
+.PHONY: rlp
+rlp: rlp_types
 
 .PHONY: pb
 pb: pb_rawapi pb_ibft

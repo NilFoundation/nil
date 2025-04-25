@@ -44,7 +44,7 @@ type Transaction struct {
 	Value     types.Value            `json:"value"`
 	Token     []types.TokenBalance   `json:"token,omitempty"`
 	ChainID   types.ChainId          `json:"chainId,omitempty"`
-	Signature types.Signature        `json:"signature"`
+	Signature hexutil.Bytes          `json:"signature"`
 }
 
 // @component RPCInTransaction rpcInTransaction object "The transaction whose information is requested."
