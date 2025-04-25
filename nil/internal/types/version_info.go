@@ -4,19 +4,12 @@ import (
 	"fmt"
 	"reflect"
 
-	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 )
 
 type VersionInfo struct {
 	Version common.Hash `json:"version,omitempty"`
 }
-
-// interfaces
-var (
-	_ fastssz.Marshaler   = new(VersionInfo)
-	_ fastssz.Unmarshaler = new(VersionInfo)
-)
 
 var SchemesInsideDb = []any{
 	SmartContract{},

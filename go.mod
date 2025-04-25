@@ -63,6 +63,7 @@ require (
 	go.dedis.ch/kyber/v3 v3.1.0
 	golang.org/x/term v0.31.0
 	golang.org/x/text v0.24.0
+	golang.org/x/tools v0.32.0
 )
 
 require (
@@ -241,7 +242,6 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
-	golang.org/x/tools v0.32.0 // indirect
 	gonum.org/v1/gonum v0.16.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250428153025-10db94c68c34 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250428153025-10db94c68c34 // indirect
@@ -272,6 +272,7 @@ require (
 tool (
 	github.com/NilFoundation/fastssz/sszgen
 	github.com/ethereum/go-ethereum/cmd/abigen
+	github.com/ethereum/go-ethereum/rlp/rlpgen
 	github.com/matryer/moq
 	gvisor.dev/gvisor/tools/checklocks/cmd/checklocks
 )

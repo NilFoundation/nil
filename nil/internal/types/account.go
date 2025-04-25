@@ -3,7 +3,6 @@ package types
 import (
 	"database/sql/driver"
 
-	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 )
@@ -49,10 +48,8 @@ func TokenIdForAddress(a Address) *TokenId {
 
 // interfaces
 var (
-	_ driver.Valuer       = new(TokenBalance)
-	_ common.Hashable     = new(SmartContract)
-	_ fastssz.Marshaler   = new(Block)
-	_ fastssz.Unmarshaler = new(Block)
+	_ driver.Valuer   = new(TokenBalance)
+	_ common.Hashable = new(SmartContract)
 )
 
 func (s *SmartContract) Hash() common.Hash {

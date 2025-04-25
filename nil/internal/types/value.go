@@ -1,10 +1,12 @@
 package types
 
 import (
+	"io"
 	"math/big"
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
 )
 
@@ -167,6 +169,21 @@ func (v *Value) HashTreeRootWith(hh ssz.HashWalker) (err error) {
 
 func (v *Value) GetTree() (*ssz.Node, error) {
 	return ssz.ProofTree(v)
+}
+
+// EncodeRLP rlp marshals the Value object to a target array
+func (v Value) EncodeRLP(w io.Writer) error {
+	return v.Uint256.EncodeRLP(w)
+}
+
+// DecodeRLP rlp unmarshals the Value object
+func (v *Value) DecodeRLP(r *rlp.Stream) error {
+	var u Uint256
+	if err := u.DecodeRLP(r); err != nil {
+		return err
+	}
+	v.Uint256 = &u
+	return nil
 }
 
 func (v *Value) UnmarshalJSON(input []byte) error {
