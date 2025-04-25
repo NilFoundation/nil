@@ -140,7 +140,6 @@ func (s *ProposerTestSuite) TestSendProofCommittedBatch() {
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
 	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", "testingFinalizedBatchIndex")
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", s.testData.OldProvedStateRoot)
-	s.callContractMock.AddExpectedCall("updateState", testaide.NoValue{})
 
 	err := s.proposer.updateState(s.ctx, s.testData)
 	s.Require().NoError(err, "failed to send proof")
@@ -182,9 +181,8 @@ func (s *ProposerTestSuite) TestStorageProposalDataRemoved() {
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
 	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", "testingFinalizedBatchIndex")
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", s.testData.OldProvedStateRoot)
-	s.callContractMock.AddExpectedCall("updateState", testaide.NoValue{})
 
-	batch := testaide.NewBlockBatch(testaide.ShardsCount)
+	batch := testaide.NewBlockBatch(testaide.ShardsCount).WithDataProofs(scTypes.DataProofs{[]byte{}})
 	batch.Id = s.testData.BatchId
 	mainBlock := batch.Blocks[types.MainShardId].Latest()
 	mainBlock.ParentHash = s.testData.OldProvedStateRoot
@@ -216,7 +214,7 @@ func (s *ProposerTestSuite) TestProposerResetToL1State() {
 	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", "testingFinalizedBatchIndex")
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", l1FinalizedStateRoot)
 
-	batch := testaide.NewBlockBatch(testaide.ShardsCount)
+	batch := testaide.NewBlockBatch(testaide.ShardsCount).WithDataProofs(scTypes.DataProofs{[]byte{}})
 	batch.Blocks[types.MainShardId].Earliest().ParentHash = s.testData.OldProvedStateRoot
 	batch.Id = s.testData.BatchId
 

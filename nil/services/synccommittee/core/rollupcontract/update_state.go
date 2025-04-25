@@ -25,22 +25,29 @@ func (r *wrapperImpl) UpdateState(
 ) error {
 	// go-ethereum states not all RPC nodes support EVM errors parsing
 	// explicitly check possible error in advance
+	if len(batchIndex) == 0 {
+		return ErrInvalidBatchIndex
+	}
 	if oldStateRoot.Empty() {
-		return errors.New("old state root is empty")
+		return ErrInvalidOldStateRoot
 	}
 	if newStateRoot.Empty() {
-		return errors.New("new state root is empty")
+		return ErrInvalidNewStateRoot
+	}
+	if len(validityProof) == 0 {
+		return ErrInvalidValidityProof
+	}
+	if len(dataProofs) == 0 {
+		return ErrEmptyDataProofs
 	}
 
 	batchState, err := r.getBatchState(ctx, batchIndex)
 	if err != nil {
 		return err
 	}
-
 	if batchState.IsFinalized {
 		return fmt.Errorf("%w: batchId=%s", ErrBatchAlreadyFinalized, batchIndex)
 	}
-
 	if !batchState.IsCommitted {
 		return fmt.Errorf("%w: batchId=%s", ErrBatchNotCommitted, batchIndex)
 	}
@@ -49,17 +56,17 @@ func (r *wrapperImpl) UpdateState(
 	if err != nil {
 		return err
 	}
-
 	if !bytes.Equal(latestFinalizedStateRoot[:], oldStateRoot.Bytes()) {
-		return fmt.Errorf("last finalized state root (%s) and oldStateRoot (%s) differ, batchId=%s",
-			latestFinalizedStateRoot, oldStateRoot, batchIndex)
+		return fmt.Errorf("%w: latestFinalizedRoot=%s batchOldStateRoot=%s, batchId=%s",
+			ErrOldStateRootMismatch, latestFinalizedStateRoot, oldStateRoot, batchIndex)
 	}
 
-	// sumilate tx before submission
+	// The transaction will be simulated (via eth_estimateGas) before submission,
+	// but there is still a chance it may fail on-chain if the state changes
+	// between simulation and actual inclusion in a block.
 	var tx *ethtypes.Transaction
 	if err := r.transactWithCtx(ctx, func(opts *bind.TransactOpts) error {
 		var err error
-		opts.NoSend = true
 		tx, err = r.rollupContract.UpdateState(
 			opts,
 			batchIndex,
@@ -72,26 +79,6 @@ func (r *wrapperImpl) UpdateState(
 		return err
 	}); err != nil {
 		return fmt.Errorf("simulation transaction creation failed: %w", err)
-	}
-	err = r.simulateTx(ctx, tx, nil)
-	if err != nil {
-		return fmt.Errorf("UpdateState simulation failed: %w", err)
-	}
-
-	if err := r.transactWithCtx(ctx, func(opts *bind.TransactOpts) error {
-		var err error
-		tx, err = r.rollupContract.UpdateState(
-			opts,
-			batchIndex,
-			oldStateRoot,
-			newStateRoot,
-			dataProofs,
-			validityProof,
-			publicDataInputs,
-		)
-		return err
-	}); err != nil {
-		return fmt.Errorf("UpdateState transaction failed: %w", err)
 	}
 
 	r.logger.Info().
@@ -106,7 +93,14 @@ func (r *wrapperImpl) UpdateState(
 	}
 	r.logReceiptDetails(receipt)
 	if receipt.Status != ethtypes.ReceiptStatusSuccessful {
-		return errors.New("UpdateState tx failed")
+		// Re-simulate the transaction on top of the block it originally failed in.
+		// Note: The execution order of transactions in the block is not preserved during simulation,
+		// so results may differ — but we attempt to identify the cause of failure anyway.
+		err = r.simulateTx(ctx, tx, receipt.BlockNumber)
+		if err != nil {
+			return r.errorByName(fmt.Errorf("post-submition simulation: %w", err))
+		}
+		return errors.New("UpdateState tx failed, can't identify the reason")
 	}
 
 	return err
