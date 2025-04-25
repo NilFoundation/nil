@@ -6,9 +6,9 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import { AccessControlEnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
+import { L2AccessControlUpgradeable } from "../../L2AccessControlUpgradeable.sol";
+import { AccessControlEnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
 import { IRelayMessage } from "./interfaces/IRelayMessage.sol";
 import { ErrorInvalidMessageType } from "../../common/NilErrorConstants.sol";
@@ -28,8 +28,8 @@ import { INilMessageTree } from "../../interfaces/INilMessageTree.sol";
 contract L2BridgeMessenger is
   OwnableUpgradeable,
   PausableUpgradeable,
-  NilAccessControlUpgradeable,
   ReentrancyGuardUpgradeable,
+  L2AccessControlUpgradeable,
   IL2BridgeMessenger
 {
   using EnumerableSet for EnumerableSet.AddressSet;
@@ -72,10 +72,9 @@ contract L2BridgeMessenger is
                                     CONSTRUCTOR
     //////////////////////////////////////////////////////////////////////////*/
 
-  /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor() {
-    _disableInitializers();
-  }
+  // constructor() {
+  //   _disableInitializers();
+  // }
 
   /*//////////////////////////////////////////////////////////////////////////
                                     INITIALIZER

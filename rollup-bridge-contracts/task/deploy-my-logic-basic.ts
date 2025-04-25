@@ -15,12 +15,12 @@ import {
 import { loadNilSmartAccount } from "./nil-smart-account";
 import { decodeFunctionResult, encodeFunctionData } from "viem";
 
-// npx hardhat deploy-my-logic
-task("deploy-my-logic", "Deploys MyLogic contract on Nil Chain")
+// npx hardhat deploy-my-logic-basic
+task("deploy-my-logic-basic", "Deploys MyLogic contract on Nil Chain")
     .setAction(async (taskArgs) => {
 
         // Dynamically load artifacts
-        const MyLogicJson = await import("../artifacts/contracts/bridge/l2/MyLogic.sol/MyLogic.json");
+        const MyLogicJson = await import("../artifacts/contracts/bridge/l2/MyLogicBasic.sol/MyLogicBasic.json");
         const TransparentUpgradeableProxy = await import("../artifacts/contracts/common/TransparentUpgradeableProxy.sol/MyTransparentUpgradeableProxy.json");
         const ProxyAdmin = await import("../artifacts/node_modules/@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json");
 
@@ -44,7 +44,7 @@ task("deploy-my-logic", "Deploys MyLogic contract on Nil Chain")
 
         const { address: myLogicImplementationAddress, hash: myLogicImplementationDeploymentTxHash } = await deployerAccount.deployContract({
             shardId: 1,
-            bytecode: MyLogicJson.default.bytecode,
+            bytecode: MyLogicJson.default.bytecode as `0x${string}`,
             abi: MyLogicJson.default.abi,
             args: [],
             salt: BigInt(Math.floor(Math.random() * 10000)),
@@ -53,7 +53,7 @@ task("deploy-my-logic", "Deploys MyLogic contract on Nil Chain")
 
         console.log(`address from deployment is: ${myLogicImplementationAddress}`);
         await waitTillCompleted(deployerAccount.client, myLogicImplementationDeploymentTxHash);
-        console.log("✅ Logic Contract deployed at:", myLogicImplementationDeploymentTxHash);
+        console.log("✅ Logic Contract deployed at:", myLogicImplementationAddress);
 
         if (!myLogicImplementationDeploymentTxHash) {
             throw Error(`Invalid transaction output from deployContract call for myLogic Contract`);
@@ -63,13 +63,12 @@ task("deploy-my-logic", "Deploys MyLogic contract on Nil Chain")
             throw Error(`Invalid address output from deployContract call for myLogic Contract`);
         }
 
-        console.log(`NilMessageTree contract deployed at address: ${myLogicImplementationAddress} and with transactionHash: ${myLogicImplementationDeploymentTxHash}`);
-
+        console.log(`MyLogicImplementation contract deployed at address: ${myLogicImplementationAddress} and with transactionHash: ${myLogicImplementationDeploymentTxHash}`);
 
         const initData = encodeFunctionData({
             abi: MyLogicJson.default.abi,
             functionName: "initialize",
-            args: [999],
+            args: [deployerAccount.address, deployerAccount.address, 999],
         });
 
         const { address: addressProxy, hash: hashProxy } = await deployerAccount.deployContract({
@@ -86,18 +85,28 @@ task("deploy-my-logic", "Deploys MyLogic contract on Nil Chain")
         console.log("Waiting 5 seconds...");
         await new Promise((res) => setTimeout(res, 10000));
 
-        console.log(`abi is: ${JSON.stringify(MyLogicJson.default.abi)}`);
-
         const myLogicContractInstance = getContract({
+            client: deployerAccount.client,
             abi: MyLogicJson.default.abi,
             address: addressProxy,
-            client: deployerAccount.client,
-            smartAccount: deployerAccount,
         });
 
         console.log("Properties of myLogicContractInstance:", Object.keys(myLogicContractInstance.read));
 
-        const value = await myLogicContractInstance.read.getImplementation();
+        const implementationAddress = await myLogicContractInstance.read.getImplementation();
+        const value = await myLogicContractInstance.read.getValue();
+        const owner = await myLogicContractInstance.read.owner();
+        const storval = await myLogicContractInstance.read.getSimpleStorageValue();
+        console.log(`deployerAccount address is: ${deployerAccount.address}`);
+        const hasOwnerRoleBool = await myLogicContractInstance.read.hasOwnerRole([deployerAccount.address]);
+        const allOwners = await myLogicContractInstance.read.getAllOwners();
+        const allAdmins = await myLogicContractInstance.read.getAllAdmins();
 
+        console.log(`implementationAddress from MyLogic is: ${implementationAddress}`);
         console.log(`value from MyLogic is: ${value}`);
+        console.log(`owner from MyLogic is: ${owner}`);
+        console.log(`storval: ${storval}`)
+        console.log(`hasOwnerRoleBool is: ${hasOwnerRoleBool}`);
+        console.log(`allOwners are: ${allOwners}`);
+        console.log(`allAdmins are: ${allAdmins}`);
     });

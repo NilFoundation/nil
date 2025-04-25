@@ -6,6 +6,7 @@ import {
     LocalECDSAKeySigner,
     PublicClient,
     SmartAccountV1,
+    getContract,
     convertEthToWei,
     Transaction,
     generateRandomPrivateKey,
@@ -99,73 +100,14 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
         await new Promise((res) => setTimeout(res, 5000));
 
 
-        const getNilMessageTreeCallData = encodeFunctionData({
+        const messengerContractInstance = getContract({
+            client: deployerAccount.client,
             abi: L2BridgeMessengerJson.default.abi,
-            functionName: "nilMessageTree",
-            args: [],
-        });
-        const getNilMessageTreeCallResult = await deployerAccount.client.call({
-            to: addressProxy,
-            from: deployerAccount.address,
-            data: getNilMessageTreeCallData,
-        }, "latest");
-
-        console.log(`getNilMessageTreeCallResult is: ${JSON.stringify(getNilMessageTreeCallResult)}`);
-
-        const result = decodeFunctionResult({
-            abi: L2BridgeMessengerJson.default.abi,
-            functionName: "nilMessageTree",
-            data: getNilMessageTreeCallResult.data,
-        });
-        console.log("✅ NilMessageTree value in L2BridgeMessenger contract:", result);
-
-
-        const getImplementationCallData = encodeFunctionData({
-            abi: L2BridgeMessengerJson.default.abi,
-            functionName: "getImplementation",
-            args: [],
+            address: addressProxy,
         });
 
-        const getImplementationResult = await deployerAccount.client.call({
-            to: addressProxy,
-            data: getImplementationCallData,
-            from: deployerAccount.address,
-        }, "latest");
+        console.log("Properties of messengerContractInstance:", Object.keys(messengerContractInstance.read));
 
-        console.log(`L2BridgeMessengerProxy has get-implementation-result: ${JSON.stringify(getImplementationResult)}`);
-
-        const proxyImplementationAddress = decodeFunctionResult({
-            abi: L2BridgeMessengerJson.default.abi,
-            functionName: "getImplementation",
-            data: getImplementationResult.data,
-        }) as string;
-
-        console.log("✅ proxyImplementationAddress Address:", proxyImplementationAddress);
-
-        const fetchAdminCall = encodeFunctionData({
-            abi: TransparentUpgradeableProxy.default.abi,
-            functionName: "fetchAdmin",
-            args: [],
-        });
-
-        const adminResult = await deployerAccount.client.call({
-            to: addressProxy,
-            data: fetchAdminCall,
-            from: deployerAccount.address,
-        }, "latest");
-
-        console.log(`L2BridgeMessengerProxy has admin-result: ${JSON.stringify(adminResult)}`);
-
-        const proxyAdminAddress = decodeFunctionResult({
-            abi: TransparentUpgradeableProxy.default.abi,
-            functionName: "fetchAdmin",
-            data: adminResult.data,
-        }) as string;
-
-        console.log("✅ ProxyAdmin Address:", proxyAdminAddress);
-
-        l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.proxyAdmin = proxyAdminAddress;
-
-        // Save the updated config
-        saveNilNetworkConfig(networkName, l2NetworkConfig);
+        const implementationAddress = await messengerContractInstance.read.getImplementation();
+        console.log(`implementationAddress from MyLogic is: ${implementationAddress}`);
     });
