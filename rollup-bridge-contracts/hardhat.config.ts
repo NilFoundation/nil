@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-import { HardhatConfig } from "hardhat/config";
+import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-preprocessor";
 import "hardhat-deploy";
@@ -27,9 +27,9 @@ import "./task/deploy-l2-bridge-messenger";
 import "./task/deploy-l2-eth-bridge";
 import "./task/deploy-l2-eth-bridge-vault";
 import "./task/deploy-l2-enshrined-token-bridge";
-import "./task/deploy-my-logic";
+import "./task/deploy-my-logic-basic";
 
-const config: HardhatConfig = {
+const config: HardhatUserConfig = {
   ignition: {
     requiredConfirmations: 1,
   },
