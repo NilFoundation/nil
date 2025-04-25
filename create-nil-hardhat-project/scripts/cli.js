@@ -54,5 +54,8 @@ function copyFile(srcFilePath, destFilePath) {
 createPackageJson(templatePath, projectPath);
 copyFile('.env.example', '.env');
 copyFile('contracts/Incrementer.sol', 'contracts/Incrementer.sol');
+copyFile('tasks/deploy-incrementer.ts', 'tasks/deploy-incrementer.ts');
+copyFile('hardhat.config.ts', 'hardhat.config.ts');
+copyFile('tsconfig.json', 'tsconfig.json');
 
 console.log('Project setup complete!');

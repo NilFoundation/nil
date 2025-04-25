@@ -39,12 +39,11 @@ pnpm install
 
 1. Create a `.env` file in the root directory based on the given `.env.example` file.
 2. Update the `.env` file with the RPC URL. The default value corresponds to a locally running =nil; node.
-3. Generate a private key and a new smart account using the =nil; CLI:
+3. Generate a private key and a new smart account using the hardhat default task
 
-   ```bash
-   nil keygen new
-   nil smart-account new
-   ```
+```bash
+  npx hardhat wallet create
+```
 
 4. Update the `.env` file with the private key and the smart account address.
 
@@ -54,31 +53,24 @@ pnpm install
 To compile all smart contracts:
 
 ```bash
-npx run compile
+  npx hardhat compile
 ```
 
 Create a task for deploying the `Incrementer.sol` contract in `./tasks/deploy-incrementer.ts`:
 
 ```ts
-import type { Abi } from "abitype";
 import { task } from "hardhat/config";
-import { createSmartAccount } from "../src/smart-account";
-import { deployNilContract } from "../src/deploy";
 
-task("deploy-incrementer").setAction(async (taskArgs, _) => {
-  const smartAccount = await createSmartAccount();
+task("deploy-incrementer").setAction(async (taskArgs, hre) => {
+   const contract = await hre.nil.deployContract("Incrementer", []);
 
-  const IncrementerJson = require("../artifacts/contracts/Incrementer.sol/Incrementer.json");
+   console.log("Incrementer contract deployed at address: " + contract.address);
 
-  const { contract, address } = await deployNilContract(
-    smartAccount,
-    IncrementerJson.abi as Abi,
-    IncrementerJson.bytecode,
-    [],
-    smartAccount.shardId,
-    [],
-  );
-  console.log("Incrementer factory contract deployed at address: " + address);
+   await contract.write.increment([]);
+
+   const value = await contract.read.getValue([]);
+
+   console.log("Incrementer contract value: " + value);
 });
 ```
 
@@ -91,13 +83,63 @@ import "./tasks/deploy-incrementer";
 To deploy the contract:
 
 ```bash
-npx hardhat deploy-incrementer
+  npx hardhat deploy-incrementer
 ```
 
 To run all tests:
 
 ```bash
-npm run tests
+  npm run tests
+```
+
+## Methods
+
+Get default client:
+
+```typescript
+const client = await hre.nil.getPublicClient();
+```
+
+Get default smart account:
+
+```typescript
+const smartAccount = await hre.nil.getSmartAccount();
+```
+
+Create new smart account:
+
+```typescript
+const smartAccount = await hre.nil.createSmartAccount({
+  topUp: true, // top up the account with tokens
+});
+```
+
+Contact deployment with params:
+
+```typescript
+const contract = await hre.nil.deployContract("Incrementer", [0n], {
+  shardId: 1, // optionally set shard manually
+  feeCredits: 100_000_000n, // optionally set max fee credits
+});
+```
+
+Get and call deployed contract:
+
+```typescript
+import { waitTillCompleted } from "./receipt";
+
+const tokenContract = await hre.nil.getContractAt("Token", token0Address, {
+  smartAccount: smartAccount, // optionally set smart account for method calls
+});
+
+const txHash = await tokenContract.write.sendToken(["<to_addr", 1000n]);
+
+// wait for the transaction to be completed
+await waitTillCompleted(client, tx, {
+  waitTillMainShard: true, // wait for the main shard (useful for cross-shard transactions)
+});
+
+const balanace: bigint = await tokenContract.read.getTokenBalanceOf(["<address>"]);
 ```
 
 ## 💪 Contributing
