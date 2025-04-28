@@ -419,8 +419,7 @@ func (s *SuiteExecutionState) TestTransactionStatus() {
 		txn.To = counterAddr
 		txn.Data = contracts.NewCounterAddCallData(s.T(), 47)
 		txn.Seqno = 1
-		txn.FeeCredit = toGasCredit(0)
-		txn.MaxFeePerGas = types.MaxFeePerGasDefault
+		txn.FeePack = types.NewFeePackFromGas(0)
 		txn.From = counterAddr
 		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
 		s.Equal(types.ErrorOutOfGas, res.Error.Code())
@@ -432,8 +431,7 @@ func (s *SuiteExecutionState) TestTransactionStatus() {
 		txn.To = counterAddr
 		txn.Data = []byte("wrong calldata")
 		txn.Seqno = 1
-		txn.FeeCredit = toGasCredit(1_000_000)
-		txn.MaxFeePerGas = types.MaxFeePerGasDefault
+		txn.FeePack = types.NewFeePackFromGas(1_000_000)
 		txn.From = counterAddr
 		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
 		fmt.Println(res.Error.Error())
@@ -447,8 +445,7 @@ func (s *SuiteExecutionState) TestTransactionStatus() {
 		txn.Data = contracts.NewFaucetWithdrawToCallData(s.T(),
 			types.GenerateRandomAddress(types.MainShardId), types.NewValueFromUint64(1_000))
 		txn.Seqno = 1
-		txn.FeeCredit = toGasCredit(100_000)
-		txn.MaxFeePerGas = types.MaxFeePerGasDefault
+		txn.FeePack = types.NewFeePackFromGas(100_000)
 		txn.From = faucetAddr
 		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
 		s.Equal(types.ErrorTransactionToMainShard, res.Error.Code())
@@ -461,8 +458,7 @@ func (s *SuiteExecutionState) TestTransactionStatus() {
 		txn.Data = contracts.NewFaucetWithdrawToCallData(s.T(),
 			types.GenerateRandomAddress(shardId+1), types.NewValueFromUint64(1_000))
 		txn.Seqno = 1
-		txn.FeeCredit = toGasCredit(100_000)
-		txn.MaxFeePerGas = types.MaxFeePerGasDefault
+		txn.FeePack = types.NewFeePackFromGas(100_000)
 		txn.From = faucetAddr
 		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
 		s.Equal(types.ErrorShardIdIsTooBig, res.Error.Code())
@@ -496,15 +492,14 @@ func (s *SuiteExecutionState) TestTransactionStatus() {
 		txn.To = dstAddr
 		txn.Data = contracts.NewFaucetWithdrawToCallData(s.T(), dstAddr, types.NewValueFromUint64(1_000))
 		txn.Seqno = 1
-		txn.FeeCredit = toGasCredit(100_000)
-		txn.MaxFeePerGas = types.MaxFeePerGasDefault
+		txn.FeePack = types.NewFeePackFromGas(100_000)
 		txn.From = faucetAddr
 		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
 		s.False(res.Failed())
 
 		txn = NewDeployTransaction(deployPayload, shardId, faucetAddr, 2, types.Value{})
 		txn.Flags = types.NewTransactionFlags(types.TransactionFlagDeploy)
-		txn.FeeCredit = toGasCredit(100_000_000_000_000)
+		txn.FeePack = types.NewFeePackFromGas(100_000_000_000_000)
 
 		acc, err := es.GetAccount(txn.To)
 		s.Require().NoError(err)
@@ -542,8 +537,7 @@ func (s *SuiteExecutionState) TestPrecompiles() {
 	txn.To = testAddr
 	txn.Data = []byte("wrong calldata")
 	txn.Seqno = 1
-	txn.FeeCredit = toGasCredit(1_000_000)
-	txn.MaxFeePerGas = types.MaxFeePerGasDefault
+	txn.FeePack = types.NewFeePackFromGas(1_000_000)
 	txn.From = testAddr
 
 	s.Run("testAsyncCall: success", func() {

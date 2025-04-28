@@ -47,5 +47,3 @@ func NewVersionInfo() *VersionInfo {
 	}
 	return &VersionInfo{Version: common.KeccakHash(res)}
 }
-
-//go:generate go run github.com/NilFoundation/fastssz/sszgen --path version_info.go -include ../../common/hash.go,../../common/length.go --objs VersionInfo

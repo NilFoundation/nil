@@ -178,13 +178,11 @@ func CreateExternalTransaction(
 
 	// Create the transaction with the bytecode to run
 	extTxn := &types.ExternalTransaction{
-		To:                   contractAddress,
-		Data:                 bytecode,
-		Seqno:                seqno,
-		Kind:                 kind,
-		FeeCredit:            fee.FeeCredit,
-		MaxPriorityFeePerGas: fee.MaxPriorityFeePerGas,
-		MaxFeePerGas:         fee.MaxFeePerGas,
+		To:      contractAddress,
+		Data:    bytecode,
+		Seqno:   seqno,
+		Kind:    kind,
+		FeePack: fee,
 	}
 
 	if fee.FeeCredit.IsZero() {

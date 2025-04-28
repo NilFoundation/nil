@@ -138,12 +138,11 @@ func NewDeployTransaction(payload types.DeployPayload,
 ) *types.Transaction {
 	return &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
-			Flags:        types.NewTransactionFlags(types.TransactionFlagInternal, types.TransactionFlagDeploy),
-			Data:         payload.Bytes(),
-			Seqno:        seqno,
-			FeeCredit:    types.GasToValue(10_000_000),
-			To:           types.CreateAddress(shardId, payload),
-			MaxFeePerGas: types.MaxFeePerGasDefault,
+			Flags:   types.NewTransactionFlags(types.TransactionFlagInternal, types.TransactionFlagDeploy),
+			Data:    payload.Bytes(),
+			Seqno:   seqno,
+			FeePack: types.NewFeePackFromGas(10_000_000),
+			To:      types.CreateAddress(shardId, payload),
 		},
 		From:  from,
 		Value: value,
@@ -153,11 +152,10 @@ func NewDeployTransaction(payload types.DeployPayload,
 func NewExecutionTransaction(from, to types.Address, seqno types.Seqno, callData []byte) *types.Transaction {
 	return &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
-			To:           to,
-			Data:         callData,
-			Seqno:        seqno,
-			FeeCredit:    DefaultGasCredit,
-			MaxFeePerGas: types.MaxFeePerGasDefault,
+			To:      to,
+			Data:    callData,
+			Seqno:   seqno,
+			FeePack: types.NewFeePackFromFeeCredit(DefaultGasCredit),
 		},
 		From: from,
 	}

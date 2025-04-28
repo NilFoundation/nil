@@ -77,14 +77,12 @@ func (args CallArgs) ToTransaction() (*types.Transaction, error) {
 	}
 	return &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
-			Flags:                args.Flags,
-			ChainId:              types.DefaultChainId,
-			Seqno:                args.Seqno,
-			FeeCredit:            args.Fee.FeeCredit,
-			To:                   args.To,
-			Data:                 data,
-			MaxPriorityFeePerGas: args.Fee.MaxPriorityFeePerGas,
-			MaxFeePerGas:         args.Fee.MaxFeePerGas,
+			Flags:   args.Flags,
+			ChainId: types.DefaultChainId,
+			Seqno:   args.Seqno,
+			FeePack: args.Fee,
+			To:      args.To,
+			Data:    data,
 		},
 		From:  txnFrom,
 		Value: args.Value,

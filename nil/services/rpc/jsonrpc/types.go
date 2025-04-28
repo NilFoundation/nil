@@ -31,22 +31,20 @@ type (
 // @componentprop Value value string true "The transaction value."
 // @componentprop Token value array true "Token values."
 type Transaction struct {
-	Flags                types.TransactionFlags `json:"flags"`
-	RequestId            uint64                 `json:"requestId"`
-	Data                 hexutil.Bytes          `json:"data"`
-	From                 types.Address          `json:"from"`
-	FeeCredit            types.Value            `json:"feeCredit,omitempty"`
-	MaxPriorityFeePerGas types.Value            `json:"maxPriorityFeePerGas,omitempty"`
-	MaxFeePerGas         types.Value            `json:"maxFeePerGas,omitempty"`
-	Hash                 common.Hash            `json:"hash"`
-	Seqno                hexutil.Uint64         `json:"seqno"`
-	To                   types.Address          `json:"to"`
-	RefundTo             types.Address          `json:"refundTo"`
-	BounceTo             types.Address          `json:"bounceTo"`
-	Value                types.Value            `json:"value"`
-	Token                []types.TokenBalance   `json:"token,omitempty"`
-	ChainID              types.ChainId          `json:"chainId,omitempty"`
-	Signature            types.Signature        `json:"signature"`
+	types.FeePack
+	Flags     types.TransactionFlags `json:"flags"`
+	RequestId uint64                 `json:"requestId"`
+	Data      hexutil.Bytes          `json:"data"`
+	From      types.Address          `json:"from"`
+	Hash      common.Hash            `json:"hash"`
+	Seqno     hexutil.Uint64         `json:"seqno"`
+	To        types.Address          `json:"to"`
+	RefundTo  types.Address          `json:"refundTo"`
+	BounceTo  types.Address          `json:"bounceTo"`
+	Value     types.Value            `json:"value"`
+	Token     []types.TokenBalance   `json:"token,omitempty"`
+	ChainID   types.ChainId          `json:"chainId,omitempty"`
+	Signature types.Signature        `json:"signature"`
 }
 
 // @component RPCInTransaction rpcInTransaction object "The transaction whose information is requested."
@@ -321,22 +319,20 @@ func (re *RPCReceipt) IsCommitted() bool {
 
 func NewTransaction(transaction *types.Transaction) *Transaction {
 	return &Transaction{
-		Flags:                transaction.Flags,
-		RequestId:            transaction.RequestId,
-		Data:                 hexutil.Bytes(transaction.Data),
-		From:                 transaction.From,
-		FeeCredit:            transaction.FeeCredit,
-		MaxPriorityFeePerGas: transaction.MaxPriorityFeePerGas,
-		MaxFeePerGas:         transaction.MaxFeePerGas,
-		Hash:                 transaction.Hash(),
-		Seqno:                hexutil.Uint64(transaction.Seqno),
-		To:                   transaction.To,
-		RefundTo:             transaction.RefundTo,
-		BounceTo:             transaction.BounceTo,
-		Value:                transaction.Value,
-		Token:                transaction.Token,
-		ChainID:              transaction.ChainId,
-		Signature:            transaction.Signature,
+		Flags:     transaction.Flags,
+		RequestId: transaction.RequestId,
+		Data:      hexutil.Bytes(transaction.Data),
+		From:      transaction.From,
+		FeePack:   transaction.FeePack,
+		Hash:      transaction.Hash(),
+		Seqno:     hexutil.Uint64(transaction.Seqno),
+		To:        transaction.To,
+		RefundTo:  transaction.RefundTo,
+		BounceTo:  transaction.BounceTo,
+		Value:     transaction.Value,
+		Token:     transaction.Token,
+		ChainID:   transaction.ChainId,
+		Signature: transaction.Signature,
 	}
 }
 

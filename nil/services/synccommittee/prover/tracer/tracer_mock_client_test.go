@@ -105,9 +105,11 @@ func (s *TracerMockClientTestSuite) addContract(addr types.Address, code []byte)
 func (s *TracerMockClientTestSuite) addCallContractTransaction(addr types.Address) {
 	s.inMsgs = append(s.inMsgs, &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
-			To:           addr,
-			FeeCredit:    types.GasToValue(1000000),
-			MaxFeePerGas: types.DefaultGasPrice,
+			To: addr,
+			FeePack: types.FeePack{
+				FeeCredit:    types.GasToValue(1000000),
+				MaxFeePerGas: types.DefaultGasPrice,
+			},
 		},
 		From: s.smartAccount,
 	})
@@ -248,9 +250,9 @@ func (s *TracerMockClientTestSuite) simpleContractCallTrace(code []byte) *Execut
 
 	tx := types.Transaction{
 		TransactionDigest: types.TransactionDigest{
-			Flags:     types.TransactionFlagsFromKind(true, types.ExecutionTransactionKind),
-			To:        types.ShardAndHexToAddress(s.shardId, "0x1234"),
-			FeeCredit: types.NewValueFromUint64(100500100500),
+			Flags:   types.TransactionFlagsFromKind(true, types.ExecutionTransactionKind),
+			To:      types.ShardAndHexToAddress(s.shardId, "0x1234"),
+			FeePack: types.NewFeePackFromGas(100500100500),
 		},
 		From: s.smartAccount,
 	}

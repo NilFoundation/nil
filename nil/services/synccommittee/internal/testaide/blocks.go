@@ -59,17 +59,19 @@ func RandomShardId() types.ShardId {
 func NewRpcInTransaction() *jsonrpc.RPCInTransaction {
 	return &jsonrpc.RPCInTransaction{
 		Transaction: jsonrpc.Transaction{
-			Flags:                types.NewTransactionFlags(types.TransactionFlagInternal, types.TransactionFlagRefund),
-			Seqno:                10,
-			From:                 types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e71"),
-			To:                   types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e72"),
-			Value:                types.NewValue(uint256.NewInt(1000)),
-			Data:                 []byte{10, 20, 30, 40},
-			FeeCredit:            types.NewValue(uint256.NewInt(100)),
-			MaxPriorityFeePerGas: types.NewValue(uint256.NewInt(10)),
-			MaxFeePerGas:         types.NewValue(uint256.NewInt(20)),
-			ChainID:              1234,
-			Signature:            hexutil.Bytes{10, 20, 30, 40},
+			Flags: types.NewTransactionFlags(types.TransactionFlagInternal, types.TransactionFlagRefund),
+			Seqno: 10,
+			From:  types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e71"),
+			To:    types.HexToAddress("0x0002F09EC9F5cCA264eba822BB887f5c900c6e72"),
+			Value: types.NewValue(uint256.NewInt(1000)),
+			Data:  []byte{10, 20, 30, 40},
+			FeePack: types.FeePack{
+				FeeCredit:            types.NewValue(uint256.NewInt(100)),
+				MaxPriorityFeePerGas: types.NewValue(uint256.NewInt(10)),
+				MaxFeePerGas:         types.NewValue(uint256.NewInt(20)),
+			},
+			ChainID:   1234,
+			Signature: hexutil.Bytes{10, 20, 30, 40},
 		},
 	}
 }

@@ -159,13 +159,11 @@ func (s *SuiteRegression) TestInsufficientFundsIncExtSeqno() {
 	fee := types.NewFeePackFromGas(100_000_000_000_000_000)
 
 	txn := &types.ExternalTransaction{
-		Kind:                 types.ExecutionTransactionKind,
-		To:                   s.testAddress,
-		Data:                 calldata,
-		Seqno:                seqno,
-		FeeCredit:            fee.FeeCredit,
-		MaxFeePerGas:         fee.MaxFeePerGas,
-		MaxPriorityFeePerGas: fee.MaxPriorityFeePerGas,
+		Kind:    types.ExecutionTransactionKind,
+		To:      s.testAddress,
+		Data:    calldata,
+		Seqno:   seqno,
+		FeePack: fee,
 	}
 
 	txHash, err := s.Client.SendTransaction(s.T().Context(), txn)
@@ -211,13 +209,11 @@ func (s *SuiteRegression) TestInsufficientFundsDeploy() {
 
 	fee := types.NewFeePackFromGas(100_000_000_000_000_000)
 	txn := &types.ExternalTransaction{
-		Kind:                 types.DeployTransactionKind,
-		To:                   addr,
-		Data:                 deployPayload.Bytes(),
-		Seqno:                0,
-		FeeCredit:            fee.FeeCredit,
-		MaxFeePerGas:         fee.MaxFeePerGas,
-		MaxPriorityFeePerGas: fee.MaxPriorityFeePerGas,
+		Kind:    types.DeployTransactionKind,
+		To:      addr,
+		Data:    deployPayload.Bytes(),
+		Seqno:   0,
+		FeePack: fee,
 	}
 
 	txHash, err = s.Client.SendTransaction(s.T().Context(), txn)
@@ -254,13 +250,11 @@ func (s *SuiteRegression) TestUnsuccessfulDeployWithGasUsed() {
 
 	fee := types.NewFeePackFromGas(1_000)
 	txn := &types.ExternalTransaction{
-		Kind:                 types.DeployTransactionKind,
-		To:                   addr,
-		Data:                 deployPayload.Bytes(),
-		Seqno:                0,
-		FeeCredit:            fee.FeeCredit,
-		MaxFeePerGas:         fee.MaxFeePerGas,
-		MaxPriorityFeePerGas: fee.MaxPriorityFeePerGas,
+		Kind:    types.DeployTransactionKind,
+		To:      addr,
+		Data:    deployPayload.Bytes(),
+		Seqno:   0,
+		FeePack: fee,
 	}
 
 	txHash, err = s.Client.SendTransaction(s.T().Context(), txn)

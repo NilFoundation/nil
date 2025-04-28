@@ -127,6 +127,6 @@ buildGo124Module rec {
     export GOMODCACHE=/tmp/${vendorHash}/go/mod/cache
     chmod -R u+w vendor
     mkdir -p ~/.solc-select/artifacts/solc-0.8.28
-    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.28/solc-0.8.28  
+    ln -f -s ${solc}/bin/solc ~/.solc-select/artifacts/solc-0.8.28/solc-0.8.28
   '';
 }

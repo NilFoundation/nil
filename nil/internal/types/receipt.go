@@ -24,5 +24,3 @@ type Receipt struct {
 func (r *Receipt) Hash() common.Hash {
 	return ToShardedHash(common.MustKeccakSSZ(r), ShardIdFromHash(r.TxnHash))
 }
-
-//go:generate go run github.com/NilFoundation/fastssz/sszgen --path receipt.go -include ../../common/hexutil/bytes.go,../../common/length.go,address.go,gas.go,value.go,block.go,bloom.go,log.go,transaction.go,exec_errors.go,../../common/hash.go,uint256.go --objs Receipt
