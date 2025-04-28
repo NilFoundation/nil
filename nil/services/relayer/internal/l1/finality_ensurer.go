@@ -228,7 +228,7 @@ func (fe *FinalityEnsurer) pendingEventPoller(ctx context.Context, started chan 
 }
 
 func (fe *FinalityEnsurer) forwardFinalizedEvents(ctx context.Context) error {
-	finalizedBlock, hasFinalizedBlock := fe.getLatestFinalizedBlock()
+	finalizedBlock, hasFinalizedBlock := fe.GetLatestFinalizedBlock()
 	if !hasFinalizedBlock {
 		fe.logger.Debug().Msg("no finalized block number received from L1")
 		return nil
@@ -390,7 +390,7 @@ func (fe *FinalityEnsurer) getBlockHeader(ctx context.Context, blkNum uint64) (*
 	return ret, nil
 }
 
-func (fe *FinalityEnsurer) getLatestFinalizedBlock() (ProcessedBlock, bool) {
+func (fe *FinalityEnsurer) GetLatestFinalizedBlock() (ProcessedBlock, bool) {
 	fe.finalizedBlockLock.RLock()
 	defer fe.finalizedBlockLock.RUnlock()
 	if fe.finalizedBlock == nil {

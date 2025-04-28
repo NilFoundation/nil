@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/relayer/internal/debug"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l1"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l2"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/storage"
@@ -20,6 +21,7 @@ type RelayerConfig struct {
 	TransactionSenderConfig *l2.TransactionSenderConfig
 	L2ContractConfig        *l2.ContractConfig
 	TelemetryConfig         *telemetry.Config
+	DebugAPIConfig          *debug.Config
 }
 
 func DefaultRelayerConfig() *RelayerConfig {
@@ -31,14 +33,17 @@ func DefaultRelayerConfig() *RelayerConfig {
 		TelemetryConfig: &telemetry.Config{
 			ServiceName: "relayer",
 		},
+		DebugAPIConfig: debug.DegaultConfig(),
 	}
 }
 
 type RelayerService struct {
 	Logger              logging.Logger
+	Config              *RelayerConfig
 	L1EventListener     *l1.EventListener
 	L1FinalityEnsurer   *l1.FinalityEnsurer
 	L2TransactionSender *l2.TransactionSender
+	DebugListener       *debug.RPCListener
 }
 
 func New(
@@ -50,6 +55,7 @@ func New(
 ) (*RelayerService, error) {
 	rs := &RelayerService{
 		Logger: logging.NewLogger("relayer"),
+		Config: config,
 	}
 
 	if err := telemetry.Init(ctx, config.TelemetryConfig); err != nil {
@@ -165,6 +171,15 @@ func New(
 		return nil, err
 	}
 
+	rs.DebugListener = debug.NewRPCListener(
+		config.DebugAPIConfig,
+		l1Storage,
+		l2Storage,
+		rs.L1FinalityEnsurer,
+		clock,
+		rs.Logger,
+	)
+
 	return rs, nil
 }
 
@@ -184,6 +199,16 @@ func (rs *RelayerService) Run(ctx context.Context) error {
 	transactionSenderStarted := make(chan struct{})
 	eg.Go(func() error {
 		return rs.L2TransactionSender.Run(ctx, transactionSenderStarted)
+	})
+
+	<-eventListenerStarted
+	<-finalityEnsurerStarted
+	<-transactionSenderStarted
+
+	// start debug api after all other services are up and running
+	eg.Go(func() error {
+		started := make(chan struct{})
+		return rs.DebugListener.Run(gCtx, started)
 	})
 
 	return eg.Wait()

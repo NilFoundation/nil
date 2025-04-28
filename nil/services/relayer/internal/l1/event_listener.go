@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -62,6 +63,8 @@ type EventListener struct {
 		currentBlockHash   ethcommon.Hash
 	}
 
+	initialized sync.Once
+
 	logger logging.Logger
 }
 
@@ -98,7 +101,7 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 		return err
 	}
 
-	close(started)
+	el.initialized = sync.Once{}
 
 	retrier := common.NewRetryRunner(
 		common.RetryConfig{
@@ -111,11 +114,11 @@ func (el *EventListener) Run(ctx context.Context, started chan<- struct{}) error
 	// event listener has to be interrupted in case of subscription is broken
 	return retrier.Do(ctx, func(ctx context.Context) error {
 		el.logger.Info().Msg("initializing component")
-		return el.run(ctx)
+		return el.run(ctx, started)
 	})
 }
 
-func (el *EventListener) run(ctx context.Context) error {
+func (el *EventListener) run(ctx context.Context, started chan<- struct{}) error {
 	var (
 		oldEventCh = make(chan *L1MessageSent, el.config.BatchSize)
 		// large buffer to keep accumulating new events while fetching last (eth Client anyway uses large internal buf)
@@ -128,7 +131,7 @@ func (el *EventListener) run(ctx context.Context) error {
 	eg, gCtx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return el.subscriber(gCtx, newEventCh)
+		return el.subscriber(gCtx, newEventCh, started)
 	})
 
 	eg.Go(func() error {
@@ -152,7 +155,7 @@ func (el *EventListener) EventReceived() <-chan struct{} {
 // Routine responsible for:
 // - subscription to the contract events
 // - tracking of the subscription status
-func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1MessageSent) error {
+func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1MessageSent, started chan<- struct{}) error {
 	defer close(eventCh)
 
 	el.logger.Info().Msg("started subscriber")
@@ -166,6 +169,10 @@ func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1Messa
 		return err
 	}
 	defer sub.Unsubscribe()
+
+	el.initialized.Do(func() {
+		close(started)
+	})
 
 	el.logger.Info().
 		Str("contract_addr", el.config.BridgeMessengerContractAddress).
