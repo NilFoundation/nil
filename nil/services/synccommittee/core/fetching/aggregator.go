@@ -414,9 +414,8 @@ func (agg *aggregator) handleCommitBatchError(ctx context.Context, batch *types.
 		}
 	case errors.Is(err, rollupcontract.ErrInvalidBatchIndex) ||
 		errors.Is(err, rollupcontract.ErrInvalidVersionedHash):
-		// data was corrupted or initially created in a wrong way
 		// NOTE: this shouldn't happen in prod setting
-		agg.logger.Warn().Stringer(logging.FieldBatchId, batch.Id).
+		agg.logger.Error().Stringer(logging.FieldBatchId, batch.Id).
 			Err(err).Msg("data was corrupted or initially created in a wrong way")
 		if err := agg.resetter.LaunchResetToL1WithSuspension(ctx, agg); err != nil {
 			return fmt.Errorf("error resetting state from L1, latestMainHash=%s: %w",

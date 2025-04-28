@@ -182,7 +182,23 @@ func (r *wrapperImpl) transactWithCtx(ctx context.Context, transactFunc contract
 		return err
 	}
 
-	return transactFunc(transactOpts)
+	// Any execution-level error (e.g., reverts, failed require statements) would have been triggered
+	// during eth_estimateGas, which is implicitly called before sending the transaction.
+	// Such errors can be parsed similarly to those from eth_call, and in those cases,
+	// the transaction is never broadcast to the network.
+	if err := transactFunc(transactOpts); err != nil {
+		return r.decodeContractError(err)
+	}
+	return nil
+}
+
+func (r *wrapperImpl) signTx(tx *ethtypes.Transaction) (*ethtypes.Transaction, error) {
+	keyedTransactor, err := r.getKeyedTransactor()
+	if err != nil {
+		return nil, err
+	}
+
+	return keyedTransactor.Signer(r.senderAddress, tx)
 }
 
 // waitForReceipt repeatedly tries to get tx receipt, retrying on `NotFound` error (tx not mined yet).
@@ -293,6 +309,41 @@ func (r *wrapperImpl) decodeContractError(err error) error {
 	}
 
 	return contractError{errorMethod.Name, args}
+}
+
+// abigen doesn't generate error types, have to specify them manually
+var contractErrorMap = map[string]error{
+	"ErrorInvalidBatchIndex":                         ErrInvalidBatchIndex,
+	"ErrorInvalidOldStateRoot":                       ErrInvalidOldStateRoot,
+	"ErrorInvalidNewStateRoot":                       ErrInvalidNewStateRoot,
+	"ErrorInvalidValidityProof":                      ErrInvalidValidityProof,
+	"ErrorEmptyDataProofs":                           ErrEmptyDataProofs,
+	"ErrorBatchNotCommitted":                         ErrBatchNotCommitted,
+	"ErrorBatchAlreadyFinalized":                     ErrBatchAlreadyFinalized,
+	"ErrorBatchAlreadyCommitted":                     ErrBatchAlreadyCommitted,
+	"ErrorDataProofsAndBlobCountMismatch":            ErrDataProofsAndBlobCountMismatch,
+	"ErrorNewStateRootAlreadyFinalized":              ErrNewStateRootAlreadyFinalized,
+	"ErrorOldStateRootMismatch":                      ErrOldStateRootMismatch,
+	"ErrorIncorrectDataProofSize":                    ErrIncorrectDataProofSize,
+	"ErrorInvalidPublicDataInfo":                     ErrInvalidPublicDataInfo,
+	"ErrorL1MessageHashMismatch":                     ErrL1MessageHashMismatch,
+	"ErrorInvalidDataProofItem":                      ErrInvalidDataProofItem,
+	"ErrorInvalidPublicInputForProof":                ErrInvalidPublicInputForProof,
+	"ErrorCallPointEvaluationPrecompileFailed":       ErrCallPointEvaluationPrecompileFailed,
+	"ErrorUnexpectedPointEvaluationPrecompileOutput": ErrUnexpectedPointEvaluationPrecompileOutput,
+	"ErrorInvalidVersionedHash":                      ErrInvalidVersionedHash,
+}
+
+// errorByName looks for specific error type by its name, returns it if found, otherwise, returns
+// the initial error.
+func (r *wrapperImpl) errorByName(err error) error {
+	var cerr contractError
+	if errors.As(err, &cerr) {
+		if mappedErr, ok := contractErrorMap[cerr.MethodName]; ok {
+			return mappedErr
+		}
+	}
+	return err
 }
 
 // simulateTx simulates transaction using `eth_call` method, tries to decode error

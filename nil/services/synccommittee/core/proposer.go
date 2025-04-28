@@ -141,15 +141,8 @@ func (p *proposer) updateStateIfReady(ctx context.Context) error {
 		return nil
 	}
 
-	err = p.updateState(ctx, data)
-	if err != nil {
-		if !errors.Is(err, rollupcontract.ErrBatchAlreadyFinalized) {
-			return fmt.Errorf("failed to send proof to L1 for batch with id=%s: %w", data.BatchId, err)
-		}
-
-		// another actor has already sent an update for this batch, we need to refetch state from contract
-		p.logger.Warn().Msg("batch is already finalized, skipping UpdateState tx, syncing state with L1")
-		return p.resetter.LaunchResetToL1WithSuspension(ctx, p)
+	if err := p.updateState(ctx, data); err != nil {
+		return p.handleUpdateStateError(ctx, data.BatchId, err)
 	}
 
 	err = p.storage.SetBatchAsProposed(ctx, data.BatchId)
@@ -192,5 +185,46 @@ func (p *proposer) updateState(
 
 	p.metrics.RecordStateUpdated(ctx, proposalData)
 
+	return nil
+}
+
+func (p *proposer) handleUpdateStateError(ctx context.Context, batchId scTypes.BatchId, err error) error {
+	switch {
+	case errors.Is(err, rollupcontract.ErrBatchAlreadyFinalized) ||
+		errors.Is(err, rollupcontract.ErrBatchNotCommitted) ||
+		errors.Is(err, rollupcontract.ErrOldStateRootMismatch) ||
+		errors.Is(err, rollupcontract.ErrL1MessageHashMismatch):
+		// for some reason, we attempted to submit the data in which some parts are not what contract
+		// expects (already proved batch, submitted old root doesn't match the one in contract, etc),
+		// sync the latest proved root with the L1 contract.
+		p.logger.Warn().Stringer(logging.FieldBatchId, batchId).
+			Err(err).Msg("proposed data seems outdated, resetting state with L1")
+		if err := p.resetter.LaunchResetToL1WithSuspension(ctx, p); err != nil {
+			return fmt.Errorf("error resetting state from L1, batchId=%s: %w",
+				batchId, err)
+		}
+	case errors.Is(err, rollupcontract.ErrInvalidBatchIndex) ||
+		errors.Is(err, rollupcontract.ErrInvalidVersionedHash) ||
+		errors.Is(err, rollupcontract.ErrInvalidOldStateRoot) ||
+		errors.Is(err, rollupcontract.ErrInvalidNewStateRoot) ||
+		errors.Is(err, rollupcontract.ErrInvalidValidityProof) ||
+		errors.Is(err, rollupcontract.ErrEmptyDataProofs) ||
+		errors.Is(err, rollupcontract.ErrDataProofsAndBlobCountMismatch) ||
+		errors.Is(err, rollupcontract.ErrIncorrectDataProofSize) ||
+		errors.Is(err, rollupcontract.ErrInvalidPublicDataInfo) ||
+		errors.Is(err, rollupcontract.ErrInvalidDataProofItem) ||
+		errors.Is(err, rollupcontract.ErrInvalidPublicInputForProof) ||
+		errors.Is(err, rollupcontract.ErrCallPointEvaluationPrecompileFailed) ||
+		errors.Is(err, rollupcontract.ErrUnexpectedPointEvaluationPrecompileOutput):
+		// NOTE: this shouldn't happen in prod setting
+		p.logger.Error().Stringer(logging.FieldBatchId, batchId).
+			Err(err).Msg("data was corrupted or initially created in a wrong way")
+		if err := p.resetter.LaunchResetToL1WithSuspension(ctx, p); err != nil {
+			return fmt.Errorf("error resetting state from L1, batchId=%s: %w",
+				batchId, err)
+		}
+	default:
+		return err
+	}
 	return nil
 }

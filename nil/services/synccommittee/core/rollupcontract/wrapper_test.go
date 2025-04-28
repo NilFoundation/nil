@@ -147,7 +147,6 @@ func (s *WrapperTestSuite) TestUpdateState_Success() {
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
 	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", "41")
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", oldStateRoot)
-	s.callContractMock.AddExpectedCall("updateState", testaide.NoValue{})
 
 	// Create public data inputs
 	publicDataInputs := INilRollupPublicDataInfo{
@@ -158,7 +157,7 @@ func (s *WrapperTestSuite) TestUpdateState_Success() {
 
 	// Call method
 	err := s.wrapper.UpdateState(
-		s.ctx, batchIndex, types.DataProofs{}, oldStateRoot, newStateRoot, validityProof, publicDataInputs,
+		s.ctx, batchIndex, types.DataProofs{[]byte{}}, oldStateRoot, newStateRoot, validityProof, publicDataInputs,
 	)
 
 	// Assert
@@ -189,7 +188,7 @@ func (s *WrapperTestSuite) TestUpdateState_AlreadyFinalized() {
 
 	// Call method
 	err := s.wrapper.UpdateState(
-		s.ctx, batchIndex, types.DataProofs{}, oldStateRoot, newStateRoot, validityProof, publicDataInputs,
+		s.ctx, batchIndex, types.DataProofs{[]byte{}}, oldStateRoot, newStateRoot, validityProof, publicDataInputs,
 	)
 
 	// Assert
@@ -221,7 +220,7 @@ func (s *WrapperTestSuite) TestUpdateState_NotCommitted() {
 
 	// Call method
 	err := s.wrapper.UpdateState(
-		s.ctx, batchIndex, types.DataProofs{}, oldStateRoot, newStateRoot, validityProof, publicDataInputs,
+		s.ctx, batchIndex, types.DataProofs{[]byte{}}, oldStateRoot, newStateRoot, validityProof, publicDataInputs,
 	)
 
 	// Assert
@@ -250,8 +249,7 @@ func (s *WrapperTestSuite) TestUpdateState_EmptyStateRoot() {
 		validityProof,
 		publicDataInputs,
 	)
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "old state root is empty")
+	s.Require().ErrorIs(err, ErrInvalidOldStateRoot)
 
 	// Test with empty new state root
 	err = s.wrapper.UpdateState(
@@ -263,8 +261,7 @@ func (s *WrapperTestSuite) TestUpdateState_EmptyStateRoot() {
 		validityProof,
 		publicDataInputs,
 	)
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "new state root is empty")
+	s.Require().ErrorIs(err, ErrInvalidNewStateRoot)
 }
 
 // Test CommitBatch - success case

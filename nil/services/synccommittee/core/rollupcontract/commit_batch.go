@@ -33,24 +33,23 @@ func (r *wrapperImpl) CommitBatch(
 		return ErrBatchAlreadyCommitted
 	}
 
+	if len(batchIndex) == 0 {
+		return ErrInvalidBatchIndex
+	}
+
 	blobTx, err := r.createBlobTx(ctx, sidecar, r.senderAddress, batchIndex)
 	if err != nil {
 		return err
 	}
 
-	keyedTransactor, err := r.getKeyedTransactor()
-	if err != nil {
-		return err
-	}
-
-	signedTx, err := keyedTransactor.Signer(r.senderAddress, blobTx)
+	signedTx, err := r.signTx(blobTx)
 	if err != nil {
 		return err
 	}
 
 	err = r.simulateTx(ctx, signedTx, nil)
 	if err != nil {
-		return r.parseCommitBatchTxError(fmt.Errorf("pre-submition simulation: %w", err))
+		return r.errorByName(fmt.Errorf("pre-submition simulation: %w", err))
 	}
 
 	err = r.ethClient.SendTransaction(ctx, signedTx)
@@ -79,30 +78,12 @@ func (r *wrapperImpl) CommitBatch(
 		// so results may differ — but we attempt to identify the cause of failure anyway.
 		err = r.simulateTx(ctx, signedTx, receipt.BlockNumber)
 		if err != nil {
-			return r.parseCommitBatchTxError(fmt.Errorf("post-submition simulation: %w", err))
+			return r.errorByName(fmt.Errorf("post-submition simulation: %w", err))
 		}
 		return errors.New("CommitBatch tx failed, can't identify the reason")
 	}
 
 	return nil
-}
-
-func (r *wrapperImpl) parseCommitBatchTxError(err error) error {
-	var cerr contractError
-	if errors.As(err, &cerr) {
-		// abigen doesn't generate error types, have to specify them manually
-		switch cerr.MethodName {
-		case "ErrorBatchAlreadyFinalized":
-			return ErrBatchAlreadyFinalized
-		case "ErrorBatchAlreadyCommitted":
-			return ErrBatchAlreadyCommitted
-		case "ErrorInvalidBatchIndex":
-			return ErrInvalidBatchIndex
-		case "ErrorInvalidVersionedHash":
-			return ErrInvalidVersionedHash
-		}
-	}
-	return err
 }
 
 // ComputeSidecar handles all KZG commitment related computations

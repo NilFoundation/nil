@@ -182,7 +182,7 @@ func NewExecutionShardBlock() *scTypes.Block {
 func NewProposalData(currentTime time.Time) *scTypes.ProposalData {
 	return scTypes.NewProposalData(
 		scTypes.NewBatchId(),
-		scTypes.DataProofs{},
+		scTypes.DataProofs{[]byte{}},
 		RandomHash(),
 		RandomHash(),
 		currentTime.Add(-time.Hour),
