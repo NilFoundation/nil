@@ -35,7 +35,6 @@ export default class BlockCommand extends BaseCommand {
 
     if (/^0x[0-9a-fA-F]+$/.test(args.blockId)) {
       block = await this.rpcClient.getBlockByHash(args.blockId as Hex);
-      // biome-ignore lint/style/noUselessElse: <explanation>
     } else if (validBlockTags.includes(args.blockId as BlockTag)) {
       block = await this.rpcClient.getBlockByNumber(
         args.blockId as BlockTag,

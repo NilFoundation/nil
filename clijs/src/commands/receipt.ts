@@ -23,10 +23,15 @@ export default class ReceiptCommand extends BaseCommand {
     }
 
     const res = await this.rpcClient.getTransactionReceiptByHash(args.hash);
+    const receiptJson = JSON.stringify(
+      res,
+      (k, v) => (typeof v === "bigint" ? v.toString() : v),
+      2,
+    );
     if (flags.quiet) {
-      this.log(res as unknown as string);
+      this.log(receiptJson);
     } else {
-      this.log("Receipt data:", res as unknown as string);
+      this.log("Receipt data:", receiptJson);
     }
     return res;
   }

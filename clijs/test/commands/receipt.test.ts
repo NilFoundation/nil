@@ -19,7 +19,20 @@ describe("receipt:get_receipt", () => {
     ).result as Hex;
     expect(txHash).toBeTruthy();
 
-    const r = (await runCommand(["receipt", txHash])).result as ProcessedReceipt;
-    expect(r.success).toBeTruthy();
+    {
+      const { result, stdout } = await runCommand(["receipt", txHash]);
+      expect((result as ProcessedReceipt).success).toBeTruthy();
+      expect(stdout).to.contains("Receipt data: ");
+      expect(JSON.parse(stdout.substring("Receipt data: ".length)).transactionHash).to.equal(
+        txHash,
+      );
+    }
+
+    {
+      const { result, stdout } = await runCommand(["receipt", "-q", txHash]);
+      expect((result as ProcessedReceipt).success).toBeTruthy();
+      expect(stdout).to.not.contains("Receipt data: ");
+      expect(JSON.parse(stdout).transactionHash).to.equal(txHash);
+    }
   });
 });
