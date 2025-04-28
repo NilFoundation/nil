@@ -26,11 +26,13 @@ func newTransaction(address types.Address, seqno types.Seqno, priorityFee uint64
 	return &types.Transaction{
 		From: address,
 		TransactionDigest: types.TransactionDigest{
-			To:                   address,
-			Seqno:                seqno,
-			MaxPriorityFeePerGas: types.NewValueFromUint64(priorityFee),
-			MaxFeePerGas:         types.NewValueFromUint64(defaultMaxFee),
-			Data:                 code,
+			To:    address,
+			Seqno: seqno,
+			FeePack: types.FeePack{
+				MaxPriorityFeePerGas: types.NewValueFromUint64(priorityFee),
+				MaxFeePerGas:         types.NewValueFromUint64(defaultMaxFee),
+			},
+			Data: code,
 		},
 	}
 }

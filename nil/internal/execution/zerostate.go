@@ -202,10 +202,10 @@ func (es *ExecutionState) GenerateZeroState(stateConfig *ZeroStateConfig) error 
 
 		mainDeployTxn := &types.Transaction{
 			TransactionDigest: types.TransactionDigest{
-				Flags:        types.NewTransactionFlags(types.TransactionFlagInternal),
-				Seqno:        0,
-				Data:         code,
-				MaxFeePerGas: types.MaxFeePerGasDefault,
+				Flags:   types.NewTransactionFlags(types.TransactionFlagInternal),
+				Seqno:   0,
+				Data:    code,
+				FeePack: types.NewFeePackFromFeeCredit(types.NewZeroValue()),
 			},
 		}
 

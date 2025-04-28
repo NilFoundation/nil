@@ -90,10 +90,12 @@ func (s *SuiteZeroState) TestWithdrawFromFaucet() {
 	gasLimit := types.Gas(100_000).ToValue(types.DefaultGasPrice)
 	callTransaction := &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
-			Data:         calldata,
-			To:           s.faucetAddr,
-			FeeCredit:    gasLimit,
-			MaxFeePerGas: types.MaxFeePerGasDefault,
+			Data: calldata,
+			To:   s.faucetAddr,
+			FeePack: types.FeePack{
+				FeeCredit:    gasLimit,
+				MaxFeePerGas: types.MaxFeePerGasDefault,
+			},
 		},
 		From: s.faucetAddr,
 	}

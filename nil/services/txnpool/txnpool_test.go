@@ -32,10 +32,12 @@ var defaultBaseFee = types.NewValueFromUint64(100)
 func newTransaction(address types.Address, seqno types.Seqno, priorityFee uint64) *types.Transaction {
 	return &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
-			To:                   address,
-			Seqno:                seqno,
-			MaxPriorityFeePerGas: types.NewValueFromUint64(priorityFee),
-			MaxFeePerGas:         types.NewValueFromUint64(defaultMaxFee),
+			To:    address,
+			Seqno: seqno,
+			FeePack: types.FeePack{
+				MaxPriorityFeePerGas: types.NewValueFromUint64(priorityFee),
+				MaxFeePerGas:         types.NewValueFromUint64(defaultMaxFee),
+			},
 		},
 	}
 }
@@ -43,10 +45,12 @@ func newTransaction(address types.Address, seqno types.Seqno, priorityFee uint64
 func newTransaction2(address types.Address, seqno types.Seqno, priorityFee, maxFee, value uint64) *types.Transaction {
 	return &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
-			To:                   address,
-			Seqno:                seqno,
-			MaxPriorityFeePerGas: types.NewValueFromUint64(priorityFee),
-			MaxFeePerGas:         types.NewValueFromUint64(maxFee),
+			To:    address,
+			Seqno: seqno,
+			FeePack: types.FeePack{
+				MaxPriorityFeePerGas: types.NewValueFromUint64(priorityFee),
+				MaxFeePerGas:         types.NewValueFromUint64(maxFee),
+			},
 		},
 		Value: types.NewValueFromUint64(value),
 	}

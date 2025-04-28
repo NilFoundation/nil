@@ -172,14 +172,12 @@ func (k ForwardKind) Type() string {
 }
 
 type TransactionDigest struct {
-	Flags                TransactionFlags `json:"flags" ch:"flags"`
-	FeeCredit            Value            `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
-	MaxPriorityFeePerGas Value            `json:"maxPriorityFeePerGas,omitempty" ch:"max_priority_fee_per_gas" ssz-size:"32"` //nolint:lll
-	MaxFeePerGas         Value            `json:"maxFeePerGas,omitempty" ch:"max_fee_per_gas" ssz-size:"32"`
-	To                   Address          `json:"to,omitempty" ch:"to"`
-	ChainId              ChainId          `json:"chainId" ch:"chainId"`
-	Seqno                Seqno            `json:"seqno,omitempty" ch:"seqno"`
-	Data                 Code             `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Flags TransactionFlags `json:"flags" ch:"flags"`
+	FeePack
+	To      Address `json:"to,omitempty" ch:"to"`
+	ChainId ChainId `json:"chainId" ch:"chainId"`
+	Seqno   Seqno   `json:"seqno,omitempty" ch:"seqno"`
+	Data    Code    `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 }
 
 type Transaction struct {
@@ -206,15 +204,13 @@ type OutboundTransaction struct {
 }
 
 type ExternalTransaction struct {
-	Kind                 TransactionKind `json:"kind,omitempty" ch:"kind"`
-	FeeCredit            Value           `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
-	MaxPriorityFeePerGas Value           `json:"maxPriorityFeePerGas,omitempty" ch:"max_priority_fee_per_gas" ssz-size:"32"` //nolint: lll
-	MaxFeePerGas         Value           `json:"maxFeePerGas,omitempty" ch:"max_fee_per_gas" ssz-size:"32"`
-	To                   Address         `json:"to,omitempty" ch:"to"`
-	ChainId              ChainId         `json:"chainId" ch:"chainId"`
-	Seqno                Seqno           `json:"seqno,omitempty" ch:"seqno"`
-	Data                 Code            `json:"data,omitempty" ch:"data" ssz-max:"24576"`
-	AuthData             Signature       `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
+	Kind TransactionKind `json:"kind,omitempty" ch:"kind"`
+	FeePack
+	To       Address   `json:"to,omitempty" ch:"to"`
+	ChainId  ChainId   `json:"chainId" ch:"chainId"`
+	Seqno    Seqno     `json:"seqno,omitempty" ch:"seqno"`
+	Data     Code      `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	AuthData Signature `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
 }
 
 type InternalTransactionPayload struct {
@@ -235,6 +231,14 @@ type FeePack struct {
 	FeeCredit            Value `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
 	MaxPriorityFeePerGas Value `json:"maxPriorityFeePerGas,omitempty" ch:"max_priority_fee_per_gas" ssz-size:"32"`
 	MaxFeePerGas         Value `json:"maxFeePerGas,omitempty" ch:"max_fee_per_gas" ssz-size:"32"`
+}
+
+func NewFeePack() FeePack {
+	return FeePack{
+		FeeCredit:            NewZeroValue(),
+		MaxPriorityFeePerGas: NewZeroValue(),
+		MaxFeePerGas:         NewZeroValue(),
+	}
 }
 
 func NewFeePackFromGas(gas Gas) FeePack {
@@ -290,9 +294,7 @@ var (
 func NewEmptyTransaction() *Transaction {
 	return &Transaction{
 		TransactionDigest: TransactionDigest{
-			FeeCredit:            NewZeroValue(),
-			MaxPriorityFeePerGas: NewZeroValue(),
-			MaxFeePerGas:         NewZeroValue(),
+			FeePack: NewFeePack(),
 		},
 		Value:        NewZeroValue(),
 		Token:        make([]TokenBalance, 0),
@@ -331,15 +333,13 @@ func (m *Transaction) toExternal() *ExternalTransaction {
 		kind = ExecutionTransactionKind
 	}
 	return &ExternalTransaction{
-		Kind:                 kind,
-		FeeCredit:            m.FeeCredit,
-		To:                   m.To,
-		ChainId:              m.ChainId,
-		Seqno:                m.Seqno,
-		Data:                 m.Data,
-		AuthData:             m.Signature,
-		MaxFeePerGas:         m.MaxFeePerGas,
-		MaxPriorityFeePerGas: m.MaxPriorityFeePerGas,
+		Kind:     kind,
+		FeePack:  m.FeePack,
+		To:       m.To,
+		ChainId:  m.ChainId,
+		Seqno:    m.Seqno,
+		Data:     m.Data,
+		AuthData: m.Signature,
 	}
 }
 
@@ -426,11 +426,15 @@ func (m *Transaction) TransactionGasPrice(baseFeePerGas Value) (Value, error) {
 func (m InternalTransactionPayload) ToTransaction(from Address, seqno Seqno) *Transaction {
 	txn := &Transaction{
 		TransactionDigest: TransactionDigest{
-			Flags:     TransactionFlagsFromKind(true, m.Kind),
-			To:        m.To,
-			Data:      m.Data,
-			FeeCredit: m.FeeCredit,
-			Seqno:     seqno,
+			Flags: TransactionFlagsFromKind(true, m.Kind),
+			To:    m.To,
+			Data:  m.Data,
+			FeePack: FeePack{
+				FeeCredit:            m.FeeCredit,
+				MaxPriorityFeePerGas: NewZeroValue(),
+				MaxFeePerGas:         NewZeroValue(),
+			},
+			Seqno: seqno,
 		},
 		RefundTo:  m.RefundTo,
 		BounceTo:  m.BounceTo,
@@ -452,14 +456,12 @@ func (m *ExternalTransaction) Hash() common.Hash {
 
 func (m *ExternalTransaction) SigningHash() (common.Hash, error) {
 	transactionDigest := TransactionDigest{
-		Flags:                TransactionFlagsFromKind(false, m.Kind),
-		FeeCredit:            m.FeeCredit,
-		Seqno:                m.Seqno,
-		To:                   m.To,
-		Data:                 m.Data,
-		ChainId:              m.ChainId,
-		MaxPriorityFeePerGas: m.MaxPriorityFeePerGas,
-		MaxFeePerGas:         m.MaxFeePerGas,
+		Flags:   TransactionFlagsFromKind(false, m.Kind),
+		FeePack: m.FeePack,
+		Seqno:   m.Seqno,
+		To:      m.To,
+		Data:    m.Data,
+		ChainId: m.ChainId,
 	}
 
 	return common.KeccakSSZ(&transactionDigest)
@@ -468,14 +470,12 @@ func (m *ExternalTransaction) SigningHash() (common.Hash, error) {
 func (m ExternalTransaction) ToTransaction() *Transaction {
 	return &Transaction{
 		TransactionDigest: TransactionDigest{
-			Flags:                TransactionFlagsFromKind(false, m.Kind),
-			To:                   m.To,
-			ChainId:              m.ChainId,
-			Seqno:                m.Seqno,
-			Data:                 m.Data,
-			FeeCredit:            m.FeeCredit,
-			MaxPriorityFeePerGas: m.MaxPriorityFeePerGas,
-			MaxFeePerGas:         m.MaxFeePerGas,
+			Flags:   TransactionFlagsFromKind(false, m.Kind),
+			To:      m.To,
+			ChainId: m.ChainId,
+			Seqno:   m.Seqno,
+			Data:    m.Data,
+			FeePack: m.FeePack,
 		},
 		From:      m.To,
 		Signature: m.AuthData,

@@ -249,12 +249,10 @@ func CreateL1BlockUpdateTransaction(header *l1types.Header, txId types.Transacti
 
 	txn := &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
-			Flags:                types.NewTransactionFlags(types.TransactionFlagInternal),
-			To:                   types.L1BlockInfoAddress,
-			FeeCredit:            types.GasToValue(types.DefaultMaxGasInBlock.Uint64()),
-			MaxFeePerGas:         types.MaxFeePerGasDefault,
-			MaxPriorityFeePerGas: types.Value0,
-			Data:                 calldata,
+			Flags:   types.NewTransactionFlags(types.TransactionFlagInternal),
+			To:      types.L1BlockInfoAddress,
+			FeePack: types.NewFeePackFromGas(types.DefaultMaxGasInBlock),
+			Data:    calldata,
 		},
 		TxId: txId,
 		From: types.L1BlockInfoAddress,

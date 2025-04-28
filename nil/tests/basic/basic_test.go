@@ -154,11 +154,10 @@ func (s *SuiteRpc) TestRpcContractSendTransaction() {
 			callerSeqno, err := s.Client.GetTransactionCount(s.Context, callerAddr, "pending")
 			s.Require().NoError(err)
 			callCallerMethod := &types.ExternalTransaction{
-				Seqno:        callerSeqno,
-				To:           callerAddr,
-				Data:         callData,
-				FeeCredit:    s.GasToValue(feeCredit),
-				MaxFeePerGas: types.MaxFeePerGasDefault,
+				Seqno:   callerSeqno,
+				To:      callerAddr,
+				Data:    callData,
+				FeePack: types.NewFeePackFromGas(types.Gas(feeCredit)),
 			}
 			s.Require().NoError(callCallerMethod.Sign(execution.MainPrivateKey))
 			hash, err = s.Client.SendTransaction(s.Context, callCallerMethod)
@@ -406,12 +405,11 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 
 	s.Run("Send raw external transaction", func() {
 		extTxn := &types.ExternalTransaction{
-			To:           smartAccountAddr,
-			Data:         extPayload,
-			Seqno:        callerSeqno,
-			Kind:         types.ExecutionTransactionKind,
-			FeeCredit:    s.GasToValue(100_000),
-			MaxFeePerGas: types.MaxFeePerGasDefault,
+			To:      smartAccountAddr,
+			Data:    extPayload,
+			Seqno:   callerSeqno,
+			Kind:    types.ExecutionTransactionKind,
+			FeePack: types.NewFeePackFromGas(100_000),
 		}
 
 		extBytecode, err := extTxn.MarshalSSZ()

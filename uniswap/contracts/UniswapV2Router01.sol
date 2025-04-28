@@ -65,7 +65,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
         tokensToSend[0].amount = amountA;
         tokensToSend[1].id = tokens[1].id;
         tokensToSend[1].amount = amountA;
-        (bool result, bytes memory __) = smartCall(
+        (bool result, ) = smartCall(
             pair,
             tokensToSend,
             abi.encodeWithSignature("mint(address)", to)
