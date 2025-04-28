@@ -31,5 +31,5 @@ jobs:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
 
       - name: Publish
-        run: bash ./scripts/publish_npm_packages.sh smart-contracts niljs create-nil-hardhat-project
+        run: bash ./scripts/publish_npm_packages.sh smart-contracts niljs create-nil-hardhat-project hardhat-plugin
         shell: bash

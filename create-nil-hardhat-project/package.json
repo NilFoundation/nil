@@ -1,6 +1,6 @@
 {
   "name": "create-nil-hardhat-project",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "main": "index.js",
   "bin": {
     "create-nil-hardhat-template": "scripts/cli.js"

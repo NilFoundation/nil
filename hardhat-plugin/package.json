@@ -1,6 +1,6 @@
 {
 	"name": "@nilfoundation/hardhat-nil-plugin",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"description": "Custom Hardhat plugin to enable seamless deployment and interaction with applications within =nil;",
 	"main": "dist/index.js",
 	"module": "dist/index.esm.js",
