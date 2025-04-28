@@ -43,4 +43,7 @@ export async function topUp({
     },
     client,
   );
+
+  client.closeConnection();
+  faucetClient.closeConnection();
 }

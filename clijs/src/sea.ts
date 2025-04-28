@@ -11,6 +11,7 @@ import AbiCommand from "./commands/abi";
 import AbiDecode from "./commands/abi/decode";
 import AbiEncode from "./commands/abi/encode";
 import BlockCommand from "./commands/block";
+import ReceiptCommand from "./commands/receipt";
 import SmartAccountBalance from "./commands/smart-account/balance.js";
 import SmartAccountCallReadOnly from "./commands/smart-account/call-readonly";
 import SmartAccountDeploy from "./commands/smart-account/deploy.js";
@@ -39,6 +40,8 @@ export const COMMANDS: Record<string, Command.Class> = {
   keygen: Keygen,
   "keygen:new": KeygenNew,
   "keygen:new-p2p": KeygenNewP2p,
+
+  receipt: ReceiptCommand,
 
   "smart-account": SmartAccount,
   "smart-account:balance": SmartAccountBalance,
