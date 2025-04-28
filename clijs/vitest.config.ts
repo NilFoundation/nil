@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "test/**/*.test.ts"],
+    disableConsoleIntercept: true,
     hookTimeout: 20_000,
     testTimeout: 40_000,
     globals: true,
