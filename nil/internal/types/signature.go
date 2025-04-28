@@ -18,6 +18,3 @@ type BlsAggregateSignature struct {
 func (b BlsAggregateSignature) String() string {
 	return fmt.Sprintf("BlsAggregateSignature{Sig: %x, Mask: %x}", b.Sig, b.Mask)
 }
-
-// Generating this manually because fastssz purely supports nested structures
-//go:generate go run github.com/NilFoundation/fastssz/sszgen --path signature.go -include ../../common/hexutil/bytes.go --objs BlsAggregateSignature
