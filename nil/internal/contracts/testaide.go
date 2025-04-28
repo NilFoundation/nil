@@ -11,18 +11,18 @@ import (
 )
 
 const (
-	NameCounter                    = "tests/Counter"
-	NameDeployer                   = "tests/Deployer"
-	NameDeployee                   = "tests/Deployee"
-	NameTransactionCheck           = "tests/TransactionCheck"
-	NameSender                     = "tests/Sender"
-	NameTest                       = "tests/Test"
-	NameTokensTest                 = "tests/TokensTest"
-	NameTokensTestNoExternalAccess = "tests/TokensTestNoExternalAccess"
-	NameRequestResponseTest        = "tests/RequestResponseTest"
-	NamePrecompilesTest            = "tests/PrecompilesTest"
-	NameConfigTest                 = "tests/ConfigTest"
-	NameStresser                   = "tests/Stresser"
+	NameCounter             = "tests/Counter"
+	NameDeployer            = "tests/Deployer"
+	NameDeployee            = "tests/Deployee"
+	NameTransactionCheck    = "tests/TransactionCheck"
+	NameSender              = "tests/Sender"
+	NameTest                = "tests/Test"
+	NameTokensTest          = "tests/TokensTest"
+	NameRequestResponseTest = "tests/RequestResponseTest"
+	NamePrecompilesTest     = "tests/PrecompilesTest"
+	NameConfigTest          = "tests/ConfigTest"
+	NameStresser            = "tests/Stresser"
+	NameBounceTest          = "tests/BounceTest"
 )
 
 func GetDeployPayload(t *testing.T, name string) types.DeployPayload {

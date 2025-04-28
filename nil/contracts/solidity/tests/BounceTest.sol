@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "../../contracts/solidity/lib/Nil.sol";
+import "../lib/Nil.sol";
+import "../system/console.sol";
 
 contract Callee {
     int32 value;
@@ -16,7 +17,7 @@ contract Callee {
     }
 }
 
-contract Caller is NilBounceable {
+contract BounceTest is NilBounceable {
     using Nil for address;
 
     string last_bounce_err;
@@ -53,10 +54,17 @@ contract Caller is NilBounceable {
         return true;
     }
 
-    function bounce(
-        string calldata err
-    ) external payable override onlyInternal {
-        last_bounce_err = err;
+    function bounce(bytes memory returnData) external payable override onlyInternal {
+        console.log("BOUNCE RECEIVE: %_", returnData.length);
+        if (returnData.length > 68) {
+            assembly {
+                returnData := add(returnData, 0x04)
+            }
+            last_bounce_err = abi.decode(returnData, (string));
+        } else {
+            last_bounce_err = "<no revert reason>";
+        }
+        console.log("BOUNCE MSG: %_", last_bounce_err);
     }
 
     function get_bounce_err() public view returns (string memory) {

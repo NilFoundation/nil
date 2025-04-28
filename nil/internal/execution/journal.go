@@ -81,11 +81,6 @@ type (
 		account *types.Address
 		prev    types.Value
 	}
-	tokenChange struct {
-		account *types.Address
-		id      types.TokenId
-		prev    types.Value
-	}
 	seqnoChange struct {
 		account *types.Address
 		prev    types.Seqno
@@ -142,10 +137,6 @@ func (ch selfDestructChange) revert(s IRevertableExecutionState) {
 
 func (ch balanceChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertBalanceChange(*ch.account, ch.prev)
-}
-
-func (ch tokenChange) revert(s IRevertableExecutionState) {
-	reverter{s}.revertTokenChange(*ch.account, ch.id, ch.prev)
 }
 
 func (ch seqnoChange) revert(s IRevertableExecutionState) {
@@ -214,14 +205,6 @@ func (w reverter) revertBalanceChange(addr types.Address, prevBalance types.Valu
 	check.PanicIfErr(err)
 	if account != nil {
 		account.setBalance(prevBalance)
-	}
-}
-
-func (w reverter) revertTokenChange(addr types.Address, tokenId types.TokenId, prevValue types.Value) {
-	account, err := w.es.GetAccount(addr)
-	check.PanicIfErr(err)
-	if account != nil {
-		account.setTokenBalance(tokenId, prevValue)
 	}
 }
 

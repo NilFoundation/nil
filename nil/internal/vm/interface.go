@@ -18,7 +18,6 @@ type StateDBReadOnly interface {
 
 	GetTransactionFlags() types.TransactionFlags
 
-	GetTokens(types.Address) map[types.TokenId]types.Value
 	GetGasPrice(types.ShardId) (types.Value, error)
 }
 
@@ -31,10 +30,6 @@ type StateDB interface {
 	SubBalance(types.Address, types.Value, tracing.BalanceChangeReason) error
 	AddBalance(types.Address, types.Value, tracing.BalanceChangeReason) error
 	GetBalance(types.Address) (types.Value, error)
-
-	AddToken(to types.Address, tokenId types.TokenId, amount types.Value) error
-	SubToken(to types.Address, tokenId types.TokenId, amount types.Value) error
-	SetTokenTransfer([]types.TokenBalance)
 
 	GetSeqno(types.Address) (types.Seqno, error)
 	SetSeqno(types.Address, types.Seqno) error

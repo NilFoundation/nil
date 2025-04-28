@@ -45,10 +45,12 @@ contract TokensTest is NilTokenBase {
             address(0),
             address(0),
             gas,
-            Nil.FORWARD_NONE,
+            Nil.FORWARD_REMAINING,
             0,
             tokens,
-            callData
+            callData,
+            0,
+            0
         );
     }
 
@@ -110,7 +112,7 @@ contract TokensTest is NilTokenBase {
     function testConsole() public pure {
         console.log("test console.log: int=%_, str=%_, addr=%_",
             1234567890,
-            "Simple string",
+            string("Simple string"),
             address(0xabcdef)
         );
     }
@@ -126,34 +128,11 @@ contract TokensTest is NilTokenBase {
     event tokenTxnBalance(uint256 balance);
 
     function checkIncomingToken(TokenId id) public payable {
-        emit tokenTxnBalance(Nil.txnTokens()[0].amount);
+        Nil.Token[] memory tokens = Nil.txnTokens();
+        require(tokens.length == 1, "Expected one token in transaction");
+        emit tokenTxnBalance(tokens[0].amount);
         emit tokenBalance(Nil.tokenBalance(address(this), id));
     }
 
     receive() external payable {}
-}
-
-contract TokensTestNoExternalAccess is NilTokenBase {
-    function setTokenName(string memory) public view override onlyExternal {
-        revert("Not allowed");
-    }
-
-    function mintToken(uint256) public view override onlyExternal {
-        revert("Not allowed");
-    }
-
-    function sendToken(
-        address,
-        TokenId,
-        uint256
-    ) public view override onlyExternal {
-        revert("Not allowed");
-    }
-
-    function verifyExternal(
-        uint256,
-        bytes calldata
-    ) external pure returns (bool) {
-        return true;
-    }
 }

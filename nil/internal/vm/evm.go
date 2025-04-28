@@ -89,10 +89,6 @@ type EVM struct {
 	// applied in opCall*.
 	callGasTemp uint64
 
-	// tokenTransfer holds the tokens that will be transferred in next Call opcode.
-	// Main usage is a transfer token through regular EVM Call opcode in Nil Solidity library(syncCall function).
-	tokenTransfer []types.TokenBalance
-
 	RevertReason error
 
 	DebugInfo *DebugInfo
@@ -174,7 +170,6 @@ func (evm *EVM) Call(
 			}
 		}
 
-		tokenTransfer := evm.tokenTransfer
 		if err := evm.transfer(caller.Address(), addr, value); err != nil {
 			return nil, gas, err
 		}
@@ -191,7 +186,7 @@ func (evm *EVM) Call(
 
 		// If the account has no code, we can abort here
 		// The depth-check is already done, and precompiles handled above
-		contract := NewContract(caller, AccountRef(addr), value, gas, tokenTransfer)
+		contract := NewContract(caller, AccountRef(addr), value, gas)
 		contract.SetCallCode(addr, codeHash, code)
 		ret, runErr = evm.interpreter.Run(contract, input, readOnly)
 		gas = contract.Gas
@@ -216,7 +211,6 @@ func (evm *EVM) Call(
 		transaction := evm.StateDB.GetInTransaction()
 		if transaction != nil && transaction.IsBounce() {
 			// Re-transfer value and token in case of bounce transaction.
-			evm.tokenTransfer = transaction.Token
 			if err := evm.transfer(caller.Address(), addr, value); err != nil {
 				return nil, gas, err
 			}
@@ -273,7 +267,7 @@ func (evm *EVM) CallCode(
 
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		// The contract is a scoped environment for this execution context only.
-		contract := NewContract(caller, AccountRef(caller.Address()), value, gas, nil)
+		contract := NewContract(caller, AccountRef(caller.Address()), value, gas)
 		contract.SetCallCode(addr, codeHash, code)
 		ret, runErr = evm.interpreter.Run(contract, input, readOnly)
 		gas = contract.Gas
@@ -317,7 +311,7 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr types.Address, input []byt
 		}
 
 		// Initialise a new contract and make initialise the delegate values
-		contract := NewContract(caller, AccountRef(caller.Address()), nil, gas, nil).AsDelegate()
+		contract := NewContract(caller, AccountRef(caller.Address()), nil, gas).AsDelegate()
 		contract.SetCallCode(addr, codeHash, code)
 		ret, runErr = evm.interpreter.Run(contract, input, readOnly)
 		gas = contract.Gas
@@ -365,7 +359,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr types.Address, input []byte,
 
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		// The contract is a scoped environment for this execution context only.
-		contract := NewContract(caller, AccountRef(addr), new(uint256.Int), gas, nil)
+		contract := NewContract(caller, AccountRef(addr), new(uint256.Int), gas)
 		contract.SetCallCode(addr, codeHash, code)
 		// When an error was returned by the EVM or when setting the creation code
 		// above we revert to the snapshot and consume any gas remaining. Additionally
@@ -461,7 +455,7 @@ func (evm *EVM) create(
 
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
-	contract := NewContract(caller, AccountRef(address), value, gas, nil)
+	contract := NewContract(caller, AccountRef(address), value, gas)
 	contract.SetCallCode(address, codeAndHash.Hash(), codeAndHash)
 
 	ret, err := evm.interpreter.Run(contract, nil, false)
@@ -566,43 +560,19 @@ func (evm *EVM) canTransfer(addr types.Address, amount *uint256.Int) (bool, erro
 		return false, nil
 	}
 
-	if len(evm.tokenTransfer) > 0 {
-		accTokens := evm.StateDB.GetTokens(addr)
-		for _, token := range evm.tokenTransfer {
-			balance, ok := accTokens[token.Token]
-			if !ok {
-				balance = types.Value{}
-			}
-			if balance.Cmp(token.Balance) < 0 {
-				return false, nil
-			}
-		}
-	}
-
 	return true, nil
 }
 
 // transfer subtracts amount from sender and adds amount to recipient using the given Db
 func (evm *EVM) transfer(sender, recipient types.Address, a *uint256.Int) error {
+	if a.IsZero() {
+		return nil
+	}
 	amount := types.Value{Uint256: types.CastToUint256(a)}
 	// We don't need to subtract balance from async call
 	if !evm.IsAsyncCall {
 		if err := evm.StateDB.SubBalance(sender, amount, tracing.BalanceChangeTransfer); err != nil {
 			return err
-		}
-	}
-	if len(evm.tokenTransfer) > 0 {
-		defer func() { evm.tokenTransfer = nil }()
-
-		for _, token := range evm.tokenTransfer {
-			if evm.depth > 0 {
-				if err := evm.StateDB.SubToken(sender, token.Token, token.Balance); err != nil {
-					return err
-				}
-			}
-			if err := evm.StateDB.AddToken(recipient, token.Token, token.Balance); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -611,10 +581,6 @@ func (evm *EVM) transfer(sender, recipient types.Address, a *uint256.Int) error 
 
 func (evm *EVM) GetDepth() int {
 	return evm.depth
-}
-
-func (evm *EVM) SetTokenTransfer(tokens []types.TokenBalance) {
-	evm.tokenTransfer = tokens
 }
 
 // GetVMContext provides context about the block being executed as well as state

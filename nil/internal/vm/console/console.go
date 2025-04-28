@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
@@ -78,6 +79,8 @@ func readParam(input []byte, pos int, paramType ParamType, hex bool) string {
 		return "true"
 	case StringTy:
 		return readString(input, pos)
+	case BytesTy:
+		return "bytes:" + hexutil.Encode(readBytes(input, pos))
 	case NoneTy:
 		return "<error: none type>"
 	}
@@ -85,8 +88,11 @@ func readParam(input []byte, pos int, paramType ParamType, hex bool) string {
 }
 
 func readString(input []byte, pos int) string {
+	return string(readBytes(input, pos))
+}
+
+func readBytes(input []byte, pos int) []byte {
 	start := binary.BigEndian.Uint32(input[pos+wordSize-4 : pos+wordSize])
 	length := binary.BigEndian.Uint32(input[start+wordSize-4 : start+wordSize])
-	str := string(input[start+wordSize : start+wordSize+length])
-	return str
+	return input[start+wordSize : start+wordSize+length]
 }

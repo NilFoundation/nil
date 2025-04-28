@@ -89,7 +89,7 @@ func (c *APIImpl) TopUpViaFaucet(
 		Data:    callData,
 		Seqno:   seqno,
 		Kind:    types.ExecutionTransactionKind,
-		FeePack: types.NewFeePackFromGas(100_000),
+		FeePack: types.NewFeePackFromGas(1_000_000),
 	}
 
 	data, err := extTxn.MarshalSSZ()

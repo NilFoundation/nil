@@ -266,8 +266,7 @@ func (d *DebugHandler) PrintReceipt(receipt *ReceiptInfo, indentEntry, indent st
 		fmt.Printf("%s%s\n", makeKey("CallData"), d.truncateData(96, receipt.Transaction.Data))
 	}
 	if len(receipt.Receipt.Logs) != 0 {
-		fmt.Println(makeKey("Logs"))
-
+		fmt.Print(makeKey("Logs"))
 		for i, log := range receipt.Receipt.Logs {
 			if hasContract {
 				if i == len(receipt.Receipt.Logs)-1 {

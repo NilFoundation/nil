@@ -14,7 +14,6 @@ nil/tests/faucet_service
 nil/tests/governance
 nil/tests/journald_forwarder
 nil/tests/l1info
-nil/tests/modifiers
 nil/tests/multitoken
 nil/tests/nil_load_generator_service
 nil/tests/opcodes

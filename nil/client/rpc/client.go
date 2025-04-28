@@ -721,7 +721,7 @@ func (c *Client) SetTokenName(
 		return common.EmptyHash, err
 	}
 
-	return c.SendExternalTransaction(ctx, data, contractAddr, pk, types.NewFeePackFromGas(100_000))
+	return c.SendExternalTransaction(ctx, data, contractAddr, pk, types.NewFeePackFromGas(500_000))
 }
 
 func (c *Client) ChangeTokenAmount(
@@ -740,7 +740,7 @@ func (c *Client) ChangeTokenAmount(
 		return common.EmptyHash, err
 	}
 
-	return c.SendExternalTransaction(ctx, data, contractAddr, pk, types.NewFeePackFromGas(100_000))
+	return c.SendExternalTransaction(ctx, data, contractAddr, pk, types.NewFeePackFromGas(500_000))
 }
 
 func callDbAPI[T any](ctx context.Context, c *Client, method string, params ...any) (T, error) {
