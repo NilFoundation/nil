@@ -60,6 +60,7 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
         });
         console.log("🟢 Loaded Smart Account:", smartAccount.address);
     } else {
+        console.log(`creating new nil smart account`);
         const signer = new LocalECDSAKeySigner({ privateKey: privateKey });
         smartAccount = new SmartAccountV1({
             signer,

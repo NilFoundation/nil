@@ -22,6 +22,9 @@ interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage {
 
   error ErrorDuplicateWithdrawalMessage(bytes32 messageHash);
 
+  error ErrorCallerIsNotAdmin();
+  error ErrorCallerNotAuthorised();
+
   /*//////////////////////////////////////////////////////////////////////////
                              STRUCTS   
     //////////////////////////////////////////////////////////////////////////*/
