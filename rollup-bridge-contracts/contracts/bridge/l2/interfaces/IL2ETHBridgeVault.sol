@@ -5,6 +5,10 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 import { IL2ETHBridge } from "./IL2ETHBridge.sol";
 
 interface IL2ETHBridgeVault is IERC165 {
+  /*//////////////////////////////////////////////////////////////////////////
+                             ERRORS
+    //////////////////////////////////////////////////////////////////////////*/
+
   error ErrorInvalidL2ETHBridge();
   error ErrorCallerNotL2ETHBridge();
   error ErrorInvalidRecipientAddress();
@@ -28,11 +32,18 @@ interface IL2ETHBridgeVault is IERC165 {
 
   error ErrorETHReturnedOnWithdrawalFailed();
 
+  error ErrorCallerIsNotAdmin();
+  error ErrorCallerNotAuthorised();
+
+  /*//////////////////////////////////////////////////////////////////////////
+                             EVENTS
+    //////////////////////////////////////////////////////////////////////////*/
+
   event L2ETHBridgeSet(address indexed l2ETHBridge, address indexed newL2ETHBridge);
 
-  function getImplementation() external view returns (address);
-
-  function setL2ETHBridge(address l2EthBridgeAddress) external;
+  /*//////////////////////////////////////////////////////////////////////////
+                             PUBLIC RESTRICTED FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////*/
 
   /// @notice Transfers ETH to a recipient, only callable by the L2ETHBridge contract
   /// @param depositRecipient The address of the recipient
@@ -44,6 +55,28 @@ interface IL2ETHBridgeVault is IERC165 {
   ) external;
 
   function returnETHOnWithdrawal(uint256 amount) external payable;
+
+  function setL2ETHBridge(address l2EthBridgeAddress) external;
+
+  function setPause(bool _status) external;
+
+  /*//////////////////////////////////////////////////////////////////////////
+                             ACCESS CONTROL MANAGEMENT FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////*/
+
+  function grantAccess(bytes32 role, address account) external;
+
+  function revokeAccess(bytes32 role, address account) external;
+
+  function renounceAccess(bytes32 role) external;
+
+  function transferOwnershipRole(address newOwner) external;
+
+  /*//////////////////////////////////////////////////////////////////////////
+                             PUBLIC CONSTANT FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////*/
+
+  function getImplementation() external view returns (address);
 
   function ethAmountTracker() external returns (uint256);
 

@@ -7,7 +7,6 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { L2AccessControlUpgradeable } from "../../L2AccessControlUpgradeable.sol";
 import { AccessControlEnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
 import { IRelayMessage } from "./interfaces/IRelayMessage.sol";
@@ -29,7 +28,7 @@ contract L2BridgeMessenger is
   OwnableUpgradeable,
   PausableUpgradeable,
   ReentrancyGuardUpgradeable,
-  L2AccessControlUpgradeable,
+  AccessControlEnumerableUpgradeable,
   IL2BridgeMessenger
 {
   using EnumerableSet for EnumerableSet.AddressSet;
@@ -159,6 +158,24 @@ contract L2BridgeMessenger is
     }
     _;
   }
+
+  modifier onlyAdmin() {
+    if (!(hasRole(DEFAULT_ADMIN_ROLE, msg.sender))) {
+      revert ErrorCallerIsNotAdmin();
+    }
+    _;
+  }
+
+  modifier onlyOwnerOrAdmin() {
+    if (!(hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) && !(hasRole(NilConstants.OWNER_ROLE, msg.sender))) {
+      revert ErrorCallerNotAuthorised();
+    }
+    _;
+  }
+
+  /*//////////////////////////////////////////////////////////////////////////
+                             PUBLIC CONSTANT FUNCTIONS  
+    //////////////////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc IL2BridgeMessenger
   function getAuthorisedBridges() public view override returns (address[] memory) {

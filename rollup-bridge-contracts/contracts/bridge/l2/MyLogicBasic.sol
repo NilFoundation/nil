@@ -8,8 +8,6 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { AccessControlEnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import { INilAccessControlUpgradeable } from "../../interfaces/INilAccessControlUpgradeable.sol";
-import { L2AccessControlUpgradeable } from "../../L2AccessControlUpgradeable.sol";
-import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
 
 contract MyLogicBasic is
   OwnableUpgradeable,
