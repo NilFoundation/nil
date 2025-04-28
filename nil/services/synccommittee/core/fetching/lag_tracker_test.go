@@ -80,7 +80,7 @@ func (s *LagTrackerTestSuite) Test_GetLagForAllShards_No_Lag() {
 	testaide.ClientMockSetBatches(s.rpcClientMock, batches)
 
 	for _, batch := range batches {
-		err := s.blockStorage.SetBlockBatch(s.ctx, batch)
+		err := s.blockStorage.PutBlockBatch(s.ctx, batch)
 		s.Require().NoError(err)
 	}
 
@@ -103,7 +103,7 @@ func (s *LagTrackerTestSuite) Test_GetLagForAllShards_Lagging_Behind() {
 	pending := batches[3:]
 
 	for _, batch := range alreadyFetched {
-		err := s.blockStorage.SetBlockBatch(s.ctx, batch)
+		err := s.blockStorage.PutBlockBatch(s.ctx, batch)
 		s.Require().NoError(err)
 	}
 
@@ -120,7 +120,7 @@ func (s *LagTrackerTestSuite) Test_GetLagForAllShards_Being_Ahead() {
 	testaide.ClientMockSetBatches(s.rpcClientMock, stateOnL2)
 
 	for _, batch := range batches {
-		err := s.blockStorage.SetBlockBatch(s.ctx, batch)
+		err := s.blockStorage.PutBlockBatch(s.ctx, batch)
 		s.Require().NoError(err)
 	}
 

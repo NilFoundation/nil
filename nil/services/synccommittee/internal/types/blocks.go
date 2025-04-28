@@ -36,6 +36,10 @@ func BlockToRef(block *Block) BlockRef {
 	return NewBlockRef(block.ShardId, block.Hash, block.Number)
 }
 
+func (br *BlockRef) AsId() BlockId {
+	return NewBlockId(br.ShardId, br.Hash)
+}
+
 func (br *BlockRef) String() string {
 	return fmt.Sprintf("BlockRef{shardId=%s, number=%d, hash=%s}", br.ShardId, br.Number, br.Hash)
 }
@@ -65,6 +69,11 @@ func (r BlockRefs) TryGetMain() *BlockRef {
 type BlocksRange struct {
 	Start types.BlockNumber
 	End   types.BlockNumber
+}
+
+func NewBlocksRange(start types.BlockNumber, end types.BlockNumber) BlocksRange {
+	check.PanicIff(start > end, "start cannot be greater than end")
+	return BlocksRange{start, end}
 }
 
 // GetBlocksFetchingRange determines the range of blocks to fetch between the latest handled block
@@ -110,6 +119,25 @@ func GetBlocksFetchingRange(
 	return &BlocksRange{blocksRange.Start, blocksRange.Start + types.BlockNumber(maxNumBlocks-1)}, nil
 }
 
+func (r *BlocksRange) SplitToChunks(chunkSize uint32) []BlocksRange {
+	check.PanicIff(chunkSize == 0, "chunkSize cannot be 0")
+
+	if r == nil {
+		return nil
+	}
+
+	var chunks []BlocksRange
+	for start := r.Start; start <= r.End; start += types.BlockNumber(chunkSize) {
+		end := start + types.BlockNumber(chunkSize) - 1
+		if end > r.End {
+			end = r.End
+		}
+		chunks = append(chunks, BlocksRange{Start: start, End: end})
+	}
+
+	return chunks
+}
+
 func (br *BlockRef) Equals(other *BlockRef) bool {
 	if br == nil || other == nil {
 		return br == nil && other == nil
@@ -143,10 +171,6 @@ func (br *BlockRef) ValidateDescendant(descendant BlockRef) error {
 
 // ValidateNext ensures that the given child block is a valid subsequent block of the current BlockRef.
 func (br *BlockRef) ValidateNext(child *Block) error {
-	if child == nil {
-		return errors.New("child block cannot be nil")
-	}
-
 	childRef := BlockToRef(child)
 	if err := br.ValidateDescendant(childRef); err != nil {
 		return err

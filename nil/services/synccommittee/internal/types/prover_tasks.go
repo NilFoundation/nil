@@ -259,7 +259,7 @@ func (t *TaskEntry) HasHigherPriorityThan(other *TaskEntry) bool {
 		return true
 	}
 
-	if t.Created != other.Created {
+	if !t.Created.Equal(other.Created) {
 		return t.Created.Before(other.Created)
 	}
 	return t.Task.TaskType < other.Task.TaskType
@@ -282,7 +282,7 @@ func NewBatchProofTaskEntry(
 	batchId BatchId, blockIds []BlockId, currentTime time.Time,
 ) (*TaskEntry, error) {
 	if len(blockIds) == 0 {
-		return nil, errors.New("no blocks for create proof batch task")
+		return nil, fmt.Errorf("batch with id=%s is empty, cannot create proof task", batchId)
 	}
 
 	task := Task{

@@ -52,22 +52,25 @@ func (l *StateResetLauncher) AddPausableComponent(pausableComponent ...PausableC
 }
 
 func (l *StateResetLauncher) LaunchPartialResetWithSuspension(
-	ctx context.Context, failedBatchId scTypes.BatchId,
+	ctx context.Context,
+	caller PausableComponent,
+	failedBatchId scTypes.BatchId,
 ) error {
 	return l.withExclusiveLock(func() error {
-		return l.unsafeLaunchPartialResetWithSuspension(ctx, failedBatchId)
+		return l.unsafeLaunchPartialResetWithSuspension(ctx, caller, failedBatchId)
 	})
 }
 
 func (l *StateResetLauncher) unsafeLaunchPartialResetWithSuspension(
 	ctx context.Context,
+	caller PausableComponent,
 	failedBatchId scTypes.BatchId,
 ) error {
 	l.logger.Info().
 		Stringer(logging.FieldBatchId, failedBatchId).
 		Msg("Launching state partial reset process")
 
-	if err := l.pauseComponents(ctx, nil); err != nil {
+	if err := l.pauseComponents(ctx, caller); err != nil {
 		return err
 	}
 

@@ -54,13 +54,18 @@ type BlockBatch struct {
 	ParentId   *BatchId      `json:"parentId"`
 	Blocks     ChainSegments `json:"blocks"`
 	DataProofs DataProofs    `json:"dataProofs"`
+	IsSealed   bool          `json:"isSealed"`
+	CreatedAt  time.Time     `json:"createdAt"`
+	UpdatedAt  time.Time     `json:"updatedAt"`
 }
 
-func NewBlockBatch(parentId *BatchId) *BlockBatch {
+func NewBlockBatch(parentId *BatchId, currentTime time.Time) *BlockBatch {
 	return &BlockBatch{
-		Id:       NewBatchId(),
-		ParentId: parentId,
-		Blocks:   make(ChainSegments),
+		Id:        NewBatchId(),
+		ParentId:  parentId,
+		Blocks:    make(ChainSegments),
+		CreatedAt: currentTime,
+		UpdatedAt: currentTime,
 	}
 }
 
@@ -69,28 +74,50 @@ func ReconstructExistingBlockBatch(
 	parentId *BatchId,
 	blocks ChainSegments,
 	dataProofs DataProofs,
+	isSealed bool,
+	createdAt time.Time,
+	updatedAt time.Time,
 ) *BlockBatch {
 	return &BlockBatch{
 		Id:         id,
 		ParentId:   parentId,
 		Blocks:     blocks,
 		DataProofs: dataProofs,
+		IsSealed:   isSealed,
+		CreatedAt:  createdAt,
+		UpdatedAt:  updatedAt,
 	}
 }
 
-func (b BlockBatch) WithAddedBlocks(segments ChainSegments) (*BlockBatch, error) {
+func (b BlockBatch) WithAddedBlocks(segments ChainSegments, currentTime time.Time) (*BlockBatch, error) {
+	if b.IsSealed {
+		return nil, fmt.Errorf("cannot add blocks to sealed batch with id=%s", b.Id)
+	}
+
 	newSegments, err := b.Blocks.Concat(segments)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add blocks to batch with id=%s: %w", b.Id, err)
 	}
 
 	b.Blocks = newSegments
+	b.UpdatedAt = currentTime
 	return &b, nil
 }
 
-func (b BlockBatch) WithDataProofs(dataProofs DataProofs) *BlockBatch {
+func (b BlockBatch) Seal(dataProofs DataProofs, currentTime time.Time) (*BlockBatch, error) {
+	if b.IsSealed {
+		return nil, fmt.Errorf("batch with id=%s is already sealed", b.Id)
+	}
+
 	b.DataProofs = dataProofs
-	return &b
+	b.UpdatedAt = currentTime
+	b.IsSealed = true
+
+	return &b, nil
+}
+
+func (b *BlockBatch) IsEmpty() bool {
+	return b.Blocks.BlocksCount() == 0
 }
 
 func (b *BlockBatch) BlockIds() []BlockId {
@@ -136,15 +163,25 @@ func (b *BlockBatch) ParentRefs() map[types.ShardId]*BlockRef {
 	return refs
 }
 
+// EarliestBlocks returns the earliest block for each shard in the batch
+func (b *BlockBatch) EarliestBlocks() map[types.ShardId]*Block {
+	return b.Blocks.getEdgeBlocks(false)
+}
+
+// LatestBlocks returns the latest block for each shard in the batch
+func (b *BlockBatch) LatestBlocks() map[types.ShardId]*Block {
+	return b.Blocks.getEdgeBlocks(true)
+}
+
 // EarliestRefs returns refs to the earliest blocks for each shard in the batch
 func (b *BlockBatch) EarliestRefs() BlockRefs {
-	earliestBlocks := b.Blocks.getEdgeBlocks(false)
-	return BlocksToRefs(earliestBlocks)
+	latestBlocks := b.EarliestBlocks()
+	return BlocksToRefs(latestBlocks)
 }
 
 // LatestRefs returns refs to the latest blocks for each shard in the batch
 func (b *BlockBatch) LatestRefs() BlockRefs {
-	latestBlocks := b.Blocks.getEdgeBlocks(true)
+	latestBlocks := b.LatestBlocks()
 	return BlocksToRefs(latestBlocks)
 }
 
