@@ -17,30 +17,6 @@ contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccess
   using StorageUtils for bytes32;
 
   /*//////////////////////////////////////////////////////////////////////////
-                             EVENTS   
-    //////////////////////////////////////////////////////////////////////////*/
-
-  /// @notice Emitted when current maxFeePerGas is updated.
-  /// @param oldMaxFeePerGas The original maxFeePerGas before update.
-  /// @param newMaxFeePerGas The current maxFeePerGas updated.
-  event MaxFeePerGasUpdated(uint256 oldMaxFeePerGas, uint256 newMaxFeePerGas);
-
-  /// @notice Emitted when current maxPriorityFeePerGas is updated.
-  /// @param oldmaxPriorityFeePerGas The original maxPriorityFeePerGas before update.
-  /// @param newmaxPriorityFeePerGas The current maxPriorityFeePerGas updated.
-  event MaxPriorityFeePerGasUpdated(uint256 oldmaxPriorityFeePerGas, uint256 newmaxPriorityFeePerGas);
-
-  /*//////////////////////////////////////////////////////////////////////////
-                             ERRORS   
-    //////////////////////////////////////////////////////////////////////////*/
-
-  error ErrorInvalidMaxFeePerGas();
-
-  error ErrorInvalidMaxPriorityFeePerGas();
-
-  error ErrorInvalidGasLimitForFeeCredit();
-
-  /*//////////////////////////////////////////////////////////////////////////
                              STATE VARIABLES   
     //////////////////////////////////////////////////////////////////////////*/
 
@@ -111,8 +87,7 @@ contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccess
     // grant GasPriceSetter role to gasPriceSetter address
     _grantRole(NilConstants.PROPOSER_ROLE, _proposer);
 
-    maxFeePerGas = _maxFeePerGas;
-    maxPriorityFeePerGas = _maxPriorityFeePerGas;
+    _setOracleFee(_maxFeePerGas, _maxPriorityFeePerGas);
   }
 
   /*//////////////////////////////////////////////////////////////////////////
@@ -120,33 +95,14 @@ contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccess
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc INilGasPriceOracle
-  function setFeePerGas(uint256 newMaxFeePerGas, uint256 newMaxPriorityFeePerGas) external onlyProposer {
-    _setMaxFeePerGas(newMaxFeePerGas);
-    _setMaxPriorityFeePerGas(newMaxPriorityFeePerGas);
+  function setOracleFee(uint256 newMaxFeePerGas, uint256 newMaxPriorityFeePerGas) external onlyProposer {
+    _setOracleFee(newMaxFeePerGas, newMaxPriorityFeePerGas);
   }
 
-  /// @inheritdoc INilGasPriceOracle
-  function setMaxFeePerGas(uint256 newMaxFeePerGas) external onlyProposer {
-    _setMaxFeePerGas(newMaxFeePerGas);
-  }
-
-  function _setMaxFeePerGas(uint256 _newMaxFeePerGas) internal {
-    uint256 oldMaxFeePerGas = maxFeePerGas;
+  function _setOracleFee(uint256 _newMaxFeePerGas, uint256 _newMaxPriorityFeePerGas) internal {
     maxFeePerGas = _newMaxFeePerGas;
-
-    emit MaxFeePerGasUpdated(oldMaxFeePerGas, _newMaxFeePerGas);
-  }
-
-  /// @inheritdoc INilGasPriceOracle
-  function setMaxPriorityFeePerGas(uint256 newMaxPriorityFeePerGas) external onlyProposer {
-    _setMaxPriorityFeePerGas(newMaxPriorityFeePerGas);
-  }
-
-  function _setMaxPriorityFeePerGas(uint256 _newMaxPriorityFeePerGas) internal {
-    uint256 oldMaxPriorityFeePerGas = maxPriorityFeePerGas;
     maxPriorityFeePerGas = _newMaxPriorityFeePerGas;
-
-    emit MaxPriorityFeePerGasUpdated(oldMaxPriorityFeePerGas, _newMaxPriorityFeePerGas);
+    emit OracleFeeUpdated(_newMaxFeePerGas, _newMaxPriorityFeePerGas);
   }
 
   /*//////////////////////////////////////////////////////////////////////////
@@ -154,7 +110,7 @@ contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccess
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc INilGasPriceOracle
-  function getFeeData() public view returns (uint256, uint256) {
+  function getOracleFee() public view returns (uint256, uint256) {
     return (maxFeePerGas, maxPriorityFeePerGas);
   }
 
