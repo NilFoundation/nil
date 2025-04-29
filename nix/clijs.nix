@@ -75,12 +75,7 @@ stdenv.mkDerivation rec {
 
     echo "smoke check passed"
 
-
-    nohup nild run --http-port 8529 --collator-tick-ms=100 > nild.log 2>&1 & echo $! > nild_pid &
-
-    pnpm run test:ci
-
-    kill `cat nild_pid` && rm nild_pid
+    env NILD=nild pnpm run test:ci
 
     echo "tests finished successfully"
   '';

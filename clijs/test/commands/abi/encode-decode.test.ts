@@ -1,9 +1,6 @@
 import { describe, expect } from "vitest";
 import { CliTest } from "../../setup.js";
 
-// To run this test you need to run the nild:
-// nild run --http-port 8529
-// TODO: Setup nild automatically before running the tests
 describe("abi:encode-decode", () => {
   CliTest("tests abi encoding and decoding", async ({ runCommand }) => {
     const encoded = (

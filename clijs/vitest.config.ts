@@ -14,5 +14,8 @@ export default defineConfig({
       provider: "v8",
       reportOnFailure: true,
     },
+    globalSetup: [
+      "./test/globalSetup.ts",
+    ],
   },
 });
