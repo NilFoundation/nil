@@ -412,7 +412,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 			FeePack: types.NewFeePackFromGas(100_000),
 		}
 
-		extBytecode, err := extTxn.MarshalSSZ()
+		extBytecode, err := extTxn.MarshalNil()
 		s.Require().NoError(err)
 
 		callArgs := &jsonrpc.CallArgs{
@@ -439,7 +439,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 			Kind:        types.ExecutionTransactionKind,
 		}
 
-		intBytecode, err := intTxn.MarshalSSZ()
+		intBytecode, err := intTxn.MarshalNil()
 		s.Require().NoError(err)
 
 		callArgs := &jsonrpc.CallArgs{
@@ -468,7 +468,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 		txn.FeeCredit = types.GasToValue(5_000_000)
 		txn.MaxFeePerGas = types.MaxFeePerGasDefault
 
-		txnBytecode, err := txn.MarshalSSZ()
+		txnBytecode, err := txn.MarshalNil()
 		s.Require().NoError(err)
 
 		callArgs := &jsonrpc.CallArgs{

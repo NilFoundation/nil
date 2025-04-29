@@ -445,7 +445,7 @@ func (c *Client) getSendTransactionViaSmartContractRequest(ctx context.Context, 
 	if len(extTxn.Data) > types.TransactionMaxDataSize {
 		return nil, ErrTxnDataTooLong
 	}
-	data, err := extTxn.MarshalSSZ()
+	data, err := extTxn.MarshalNil()
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +511,7 @@ func (c *Client) SendTransaction(ctx context.Context, txn *types.ExternalTransac
 	if len(txn.Data) > types.TransactionMaxDataSize {
 		return common.EmptyHash, ErrTxnDataTooLong
 	}
-	data, err := txn.MarshalSSZ()
+	data, err := txn.MarshalNil()
 	if err != nil {
 		return common.EmptyHash, err
 	}

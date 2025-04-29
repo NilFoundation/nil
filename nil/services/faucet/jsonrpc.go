@@ -92,7 +92,7 @@ func (c *APIImpl) TopUpViaFaucet(
 		FeePack: types.NewFeePackFromGas(100_000),
 	}
 
-	data, err := extTxn.MarshalSSZ()
+	data, err := extTxn.MarshalNil()
 	if err != nil {
 		return common.EmptyHash, err
 	}
@@ -109,7 +109,7 @@ func (c *APIImpl) TopUpViaFaucet(
 		}
 
 		extTxn.Seqno = actualSeqno
-		data, err2 = extTxn.MarshalSSZ()
+		data, err2 = extTxn.MarshalNil()
 		if err2 != nil {
 			return common.EmptyHash, err2
 		}

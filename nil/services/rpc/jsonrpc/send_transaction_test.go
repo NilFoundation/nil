@@ -77,7 +77,7 @@ func (suite *SuiteSendTransaction) TestInvalidChainId() {
 		To:      types.GenerateRandomAddress(0),
 	}
 
-	data, err := txn.MarshalSSZ()
+	data, err := txn.MarshalNil()
 	suite.Require().NoError(err)
 
 	_, err = suite.api.SendRawTransaction(context.Background(), data)
@@ -89,7 +89,7 @@ func (suite *SuiteSendTransaction) TestInvalidShard() {
 		To: types.GenerateRandomAddress(1234),
 	}
 
-	data, err := txn.MarshalSSZ()
+	data, err := txn.MarshalNil()
 	suite.Require().NoError(err)
 
 	_, err = suite.api.SendRawTransaction(context.Background(), data)

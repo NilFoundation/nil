@@ -163,7 +163,7 @@ func (c *DirectClient) GetBlocksRange(
 }
 
 func (c *DirectClient) SendTransaction(ctx context.Context, txn *types.ExternalTransaction) (common.Hash, error) {
-	data, err := txn.MarshalSSZ()
+	data, err := txn.MarshalNil()
 	if err != nil {
 		return common.EmptyHash, err
 	}

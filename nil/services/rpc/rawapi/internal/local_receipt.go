@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
@@ -132,7 +132,7 @@ func (api *localShardApiRo) GetInTransactionReceipt(
 
 	var receiptSSZ []byte
 	if receipt != nil {
-		receiptSSZ, err = receipt.MarshalSSZ()
+		receiptSSZ, err = receipt.MarshalNil()
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal receipt: %w", err)
 		}
@@ -175,7 +175,7 @@ func (api *localShardApiRo) getBlockAndInTransactionIndexByTransactionHash(
 	if err != nil {
 		return nil, index, err
 	}
-	if err := index.UnmarshalSSZ(value); err != nil {
+	if err := index.UnmarshalNil(value); err != nil {
 		return nil, index, err
 	}
 
@@ -189,7 +189,7 @@ func (api *localShardApiRo) getBlockAndInTransactionIndexByTransactionHash(
 func getBlockEntity[
 	T interface {
 		~*S
-		fastssz.Unmarshaler
+		serialization.NilUnmarshaler
 	},
 	S any,
 ](

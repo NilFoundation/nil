@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/NilFoundation/nil/nil/common"
@@ -41,7 +42,7 @@ func (d *ClickhouseDriver) FetchBlock(ctx context.Context, id types.ShardId, num
 	}
 
 	var block types.Block
-	if err := block.UnmarshalSSZ(binary); err != nil {
+	if err := block.UnmarshalNil(binary); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal block: %w", err)
 	}
 
@@ -364,7 +365,7 @@ func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*i
 	}
 
 	for _, block := range blocks {
-		binary, blockErr := block.decoded.MarshalSSZ()
+		binary, blockErr := block.decoded.MarshalNil()
 		if blockErr != nil {
 			return blockErr
 		}
@@ -461,7 +462,7 @@ func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []b
 	for _, block := range blocks {
 		for _, receipt := range block.decoded.Receipts {
 			for _, log := range receipt.Logs {
-				binary, logErr := log.MarshalSSZ()
+				binary, logErr := log.MarshalNil()
 				if logErr != nil {
 					return logErr
 				}

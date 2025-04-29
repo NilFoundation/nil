@@ -189,13 +189,13 @@ func TestSparseMPT(t *testing.T) {
 				continue
 			case SszLeafNode:
 				node := &LeafNode{}
-				require.NoError(t, node.UnmarshalSSZ(v[1:]))
+				require.NoError(t, node.UnmarshalNil(v[1:]))
 
 				node.LeafData = modifiedVal
 				manipulatedNode = node
 			case SszBranchNode:
 				node := &BranchNode{}
-				require.NoError(t, node.UnmarshalSSZ(v[1:]))
+				require.NoError(t, node.UnmarshalNil(v[1:]))
 				if len(node.Value) == 0 {
 					continue
 				}

@@ -36,7 +36,7 @@ type proposer struct {
 
 	logger logging.Logger
 
-	proposal       *execution.ProposalSSZ
+	proposal       *execution.ProposalSerializable
 	executionState *execution.ExecutionState
 
 	ctx context.Context
@@ -60,8 +60,8 @@ func newProposer(params *Params, topology ShardTopology, pool TxnPool, logger lo
 	}
 }
 
-func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execution.ProposalSSZ, error) {
-	p.proposal = &execution.ProposalSSZ{}
+func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execution.ProposalSerializable, error) {
+	p.proposal = &execution.ProposalSerializable{}
 
 	tx, err := txFabric.CreateRoTx(ctx)
 	if err != nil {
@@ -481,7 +481,7 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 	p.logger.Trace().Msgf("Collected %d incoming transactions from neighbors with %d gas and %d forward transactions",
 		len(p.proposal.InternalTxnRefs), p.executionState.GasUsed, len(p.proposal.ForwardTxnRefs))
 
-	p.proposal.ParentBlocks = make([]*execution.ParentBlockSSZ, len(parents))
+	p.proposal.ParentBlocks = make([]*execution.ParentBlockSerializable, len(parents))
 	for i, parent := range parents {
 		p.proposal.ParentBlocks[i] = parent.ToSerializable()
 	}

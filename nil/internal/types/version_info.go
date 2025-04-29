@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
-	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 )
 
 type VersionInfo struct {
@@ -14,8 +14,8 @@ type VersionInfo struct {
 
 // interfaces
 var (
-	_ fastssz.Marshaler   = new(VersionInfo)
-	_ fastssz.Unmarshaler = new(VersionInfo)
+	_ serialization.NilMarshaler   = new(VersionInfo)
+	_ serialization.NilUnmarshaler = new(VersionInfo)
 )
 
 var SchemesInsideDb = []any{
@@ -46,4 +46,12 @@ func NewVersionInfo() *VersionInfo {
 		}
 	}
 	return &VersionInfo{Version: common.KeccakHash(res)}
+}
+
+func (v *VersionInfo) UnmarshalNil(buf []byte) error {
+	return v.UnmarshalSSZ(buf)
+}
+
+func (v VersionInfo) MarshalNil() ([]byte, error) {
+	return v.MarshalSSZ()
 }

@@ -11,6 +11,7 @@ import (
 	nilssz "github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	lru "github.com/hashicorp/golang-lru/v2"
 )
@@ -217,7 +218,7 @@ func collectSszBlockEntities(
 func unmashalSszEntities[
 	T interface {
 		~*S
-		ssz.Unmarshaler
+		serialization.NilUnmarshaler
 	},
 	S any,
 ](block common.Hash, raw [][]byte, cache *lru.Cache[common.Hash, []*S], res *fieldAccessor[[]*S]) error {
@@ -359,7 +360,7 @@ func (b rawBlockAccessor) decodeBlock(hash common.Hash, data []byte) (*types.Blo
 	block, ok := sa.cache.blocksLRU.Get(hash)
 	if !ok {
 		block = &types.Block{}
-		if err := block.UnmarshalSSZ(data); err != nil {
+		if err := block.UnmarshalNil(data); err != nil {
 			return nil, err
 		}
 		sa.cache.blocksLRU.Add(hash, block)
@@ -683,7 +684,7 @@ func getBlockAndInTxnIndexByHash(
 		return nil, idx, err
 	}
 
-	if err = idx.UnmarshalSSZ(value); err != nil {
+	if err = idx.UnmarshalNil(value); err != nil {
 		return nil, idx, err
 	}
 

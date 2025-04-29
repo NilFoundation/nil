@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
@@ -46,8 +46,8 @@ type configReader struct {
 
 // IConfigParam is an interface that all config params must implement.
 type IConfigParam interface {
-	ssz.Unmarshaler
-	ssz.Marshaler
+	serialization.NilUnmarshaler
+	serialization.NilMarshaler
 
 	Name() string
 	Accessor() *ParamAccessor
@@ -234,7 +234,7 @@ func getParamImpl[T any, paramPtr IConfigParamPointer[T]](c ConfigAccessor) (*T,
 	if err != nil {
 		return nil, err
 	}
-	if err := res.UnmarshalSSZ(data); err != nil {
+	if err := res.UnmarshalNil(data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config param: %w", err)
 	}
 	return res, nil
@@ -248,12 +248,12 @@ func setParamImpl[T any](c ConfigAccessor, obj *T) error {
 	}
 
 	name := configParam.Name()
-	marshaler, ok := any(obj).(ssz.Marshaler)
+	marshaler, ok := any(obj).(serialization.NilMarshaler)
 	if !ok {
-		return errors.New("type does not implement ssz.Marshaler")
+		return errors.New("type does not implement serialization.NilMarshaler")
 	}
 
-	data, err := marshaler.MarshalSSZ()
+	data, err := marshaler.MarshalNil()
 	if err != nil {
 		return fmt.Errorf("failed to marshal config param %s: %w", name, err)
 	}

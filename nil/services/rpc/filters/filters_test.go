@@ -276,7 +276,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	}
 
 	receipt := &types.Receipt{ContractAddress: address, Logs: logsInput}
-	receiptEncoded, err := receipt.MarshalSSZ()
+	receiptEncoded, err := receipt.MarshalNil()
 	s.Require().NoError(err)
 	key := receipt.Hash()
 	s.Require().NoError(receiptsMpt.Set(key[:], receiptEncoded))

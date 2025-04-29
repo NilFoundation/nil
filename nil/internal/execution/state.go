@@ -1012,7 +1012,7 @@ func (es *ExecutionState) SendResponseTransaction(txn *types.Transaction, res *E
 		Success:    !res.Failed(),
 		ReturnData: res.ReturnData,
 	}
-	data, err := asyncResponsePayload.MarshalSSZ()
+	data, err := asyncResponsePayload.MarshalNil()
 	if err != nil {
 		return err
 	}
@@ -1284,7 +1284,7 @@ func (es *ExecutionState) TryProcessResponse(
 	}
 
 	responsePayload := new(types.AsyncResponsePayload)
-	if err := responsePayload.UnmarshalSSZ(transaction.Data); err != nil {
+	if err := responsePayload.UnmarshalNil(transaction.Data); err != nil {
 		return nil, NewExecutionResult().SetFatal(
 			fmt.Errorf("AsyncResponsePayload unmarshal failed: %w", err))
 	}
@@ -1865,7 +1865,7 @@ func (es *ExecutionState) GetTokens(addr types.Address) map[types.TokenId]types.
 	for k, v := range acc.TokenTrieReader.Iterate() {
 		var c types.TokenBalance
 		c.Token = types.TokenId(k)
-		if err := c.Balance.UnmarshalSSZ(v); err != nil {
+		if err := c.Balance.UnmarshalNil(v); err != nil {
 			es.logger.Error().Err(err).Msg("failed to unmarshal token balance")
 			continue
 		}

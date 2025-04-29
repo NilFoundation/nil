@@ -59,7 +59,7 @@ func (s *SuiteEthTransaction) SetupSuite() {
 	err = tx.Commit()
 	s.Require().NoError(err)
 
-	s.transactionRaw, err = s.transaction.MarshalSSZ()
+	s.transactionRaw, err = s.transaction.MarshalNil()
 	s.Require().NoError(err)
 }
 

@@ -12,3 +12,11 @@ type Neighbor struct {
 type CollatorState struct {
 	Neighbors []Neighbor `json:"neighbors" ssz-max:"10000"`
 }
+
+func (c *CollatorState) UnmarshalNil(buf []byte) error {
+	return c.UnmarshalSSZ(buf)
+}
+
+func (c CollatorState) MarshalNil() ([]byte, error) {
+	return c.MarshalSSZ()
+}

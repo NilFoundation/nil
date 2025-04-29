@@ -23,7 +23,7 @@ func PublishPendingTransaction(
 		return nil
 	}
 
-	data, err := txn.MarshalSSZ()
+	data, err := txn.MarshalNil()
 	if err != nil {
 		return fmt.Errorf("failed to marshal txn: %w", err)
 	}

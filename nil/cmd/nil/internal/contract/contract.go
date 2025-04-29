@@ -55,7 +55,7 @@ func runContract(cmd *cobra.Command, args []string, cfg *common.Config, params *
 
 	if debugRPCContract != nil {
 		contract := new(types.SmartContract)
-		if err := contract.UnmarshalSSZ(debugRPCContract.Contract); err != nil {
+		if err := contract.UnmarshalNil(debugRPCContract.Contract); err != nil {
 			return err
 		}
 

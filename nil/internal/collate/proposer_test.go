@@ -48,11 +48,11 @@ func newTestProposer(params *Params, pool TxnPool) *proposer {
 func (s *ProposerTestSuite) generateProposal(p *proposer) *execution.Proposal {
 	s.T().Helper()
 
-	proposalSSZ, err := p.GenerateProposal(s.T().Context(), s.db)
+	proposalSerializable, err := p.GenerateProposal(s.T().Context(), s.db)
 	s.Require().NoError(err)
-	s.Require().NotNil(proposalSSZ)
+	s.Require().NotNil(proposalSerializable)
 
-	proposal, err := execution.ConvertProposal(proposalSSZ)
+	proposal, err := execution.ConvertProposal(proposalSerializable)
 	s.Require().NoError(err)
 
 	return proposal

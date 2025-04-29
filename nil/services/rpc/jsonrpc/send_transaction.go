@@ -15,7 +15,7 @@ import (
 // Creates new transaction or a contract creation for previously-signed transaction.
 func (api *APIImpl) SendRawTransaction(ctx context.Context, encoded hexutil.Bytes) (common.Hash, error) {
 	var extTxn types.ExternalTransaction
-	if err := extTxn.UnmarshalSSZ(encoded); err != nil {
+	if err := extTxn.UnmarshalNil(encoded); err != nil {
 		return common.EmptyHash, fmt.Errorf("failed to decode transaction: %w", err)
 	}
 

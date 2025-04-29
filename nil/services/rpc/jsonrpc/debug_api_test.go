@@ -62,7 +62,7 @@ func TestDebugGetBlock(t *testing.T) {
 
 	var hexBytes []byte
 	for _, b := range []*execution.BlockGenerationResult{b1, b2} {
-		hexBytes, err = b.Block.MarshalSSZ()
+		hexBytes, err = b.Block.MarshalNil()
 		require.NoError(t, err)
 
 		err = db.WriteBlock(tx, types.MainShardId, b.BlockHash, b.Block)

@@ -37,19 +37,19 @@ func (args CallArgs) ToTransaction() (*types.Transaction, error) {
 	if args.Transaction != nil {
 		// Try to decode default transaction
 		txn := &types.Transaction{}
-		if err := txn.UnmarshalSSZ(*args.Transaction); err == nil {
+		if err := txn.UnmarshalNil(*args.Transaction); err == nil {
 			return txn, nil
 		}
 
 		// Try to decode external transaction
 		var extTxn types.ExternalTransaction
-		if err := extTxn.UnmarshalSSZ(*args.Transaction); err == nil {
+		if err := extTxn.UnmarshalNil(*args.Transaction); err == nil {
 			return extTxn.ToTransaction(), nil
 		}
 
 		// Try to decode internal transaction payload
 		var intTxn types.InternalTransactionPayload
-		if err := intTxn.UnmarshalSSZ(*args.Transaction); err == nil {
+		if err := intTxn.UnmarshalNil(*args.Transaction); err == nil {
 			var fromAddr types.Address
 			if args.From != nil {
 				fromAddr = *args.From

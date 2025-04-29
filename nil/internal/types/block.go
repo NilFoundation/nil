@@ -4,11 +4,11 @@ import (
 	"math"
 	"strconv"
 
-	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/crypto/bls"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 )
 
 type BlockNumber uint64
@@ -58,6 +58,10 @@ type BlockData struct {
 	PatchLevel uint32 `json:"patchLevel" ch:"patch_level"`
 }
 
+func (bd BlockData) MarshalNil() ([]byte, error) {
+	return bd.MarshalSSZ()
+}
+
 type ConsensusParams struct {
 	ProposerIndex uint64                 `json:"proposerIndex" ch:"round"`
 	Round         uint64                 `json:"round" ch:"round"`
@@ -83,17 +87,25 @@ type RawBlockWithExtractedData struct {
 	Config          map[string][]byte
 }
 
-type TxCountSSZ struct {
+type TxCount struct {
 	ShardId uint16           `json:"shardId"`
 	Count   TransactionIndex `json:"count"`
+}
+
+func (c *TxCount) UnmarshalNil(buf []byte) error {
+	return c.UnmarshalSSZ(buf)
+}
+
+func (c TxCount) MarshalNil() ([]byte, error) {
+	return c.MarshalSSZ()
 }
 
 type BlockWithExtractedData struct {
 	*Block
 	InTransactions  []*Transaction           `json:"inTransactions"`
-	InTxCounts      []*TxCountSSZ            `json:"inTxCounts"`
+	InTxCounts      []*TxCount               `json:"inTxCounts"`
 	OutTransactions []*Transaction           `json:"outTransactions"`
-	OutTxCounts     []*TxCountSSZ            `json:"outTxCounts"`
+	OutTxCounts     []*TxCount               `json:"outTxCounts"`
 	Receipts        []*Receipt               `json:"receipts"`
 	Errors          map[common.Hash]string   `json:"errors,omitempty"`
 	ChildBlocks     []common.Hash            `json:"childBlocks"`
@@ -103,12 +115,12 @@ type BlockWithExtractedData struct {
 
 // interfaces
 var (
-	_ fastssz.Marshaler   = new(Block)
-	_ fastssz.Unmarshaler = new(Block)
+	_ serialization.NilMarshaler   = new(Block)
+	_ serialization.NilUnmarshaler = new(Block)
 )
 
 func (b *Block) Hash(shardId ShardId) common.Hash {
-	return ToShardedHash(common.MustKeccakSSZ(&b.BlockData), shardId)
+	return ToShardedHash(common.MustKeccak(&b.BlockData), shardId)
 }
 
 func (b *Block) GetMainShardHash(shardId ShardId) common.Hash {
@@ -118,16 +130,24 @@ func (b *Block) GetMainShardHash(shardId ShardId) common.Hash {
 	return b.MainShardHash
 }
 
+func (b *Block) UnmarshalNil(buf []byte) error {
+	return b.UnmarshalSSZ(buf)
+}
+
+func (b Block) MarshalNil() ([]byte, error) {
+	return b.MarshalSSZ()
+}
+
 func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error) {
 	block := &Block{}
-	if err := block.UnmarshalSSZ(b.Block); err != nil {
+	if err := block.UnmarshalNil(b.Block); err != nil {
 		return nil, err
 	}
 	inTransactions, err := sszx.DecodeContainer[*Transaction](b.InTransactions)
 	if err != nil {
 		return nil, err
 	}
-	inTxCounts, err := sszx.DecodeContainer[*TxCountSSZ](b.InTxCounts)
+	inTxCounts, err := sszx.DecodeContainer[*TxCount](b.InTxCounts)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +155,7 @@ func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error)
 	if err != nil {
 		return nil, err
 	}
-	outTxCounts, err := sszx.DecodeContainer[*TxCountSSZ](b.OutTxCounts)
+	outTxCounts, err := sszx.DecodeContainer[*TxCount](b.OutTxCounts)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +180,7 @@ func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error)
 }
 
 func (b *BlockWithExtractedData) EncodeSSZ() (*RawBlockWithExtractedData, error) {
-	block, err := b.MarshalSSZ()
+	block, err := b.MarshalNil()
 	if err != nil {
 		return nil, err
 	}

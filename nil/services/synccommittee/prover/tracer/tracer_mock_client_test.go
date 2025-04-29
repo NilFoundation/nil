@@ -151,7 +151,7 @@ func (s *TracerMockClientTestSuite) makeClient() client.Client {
 			Seqno:    100,
 			ExtSeqno: 100,
 		}
-		contractData, err := contract.MarshalSSZ()
+		contractData, err := contract.MarshalNil()
 		s.Require().NoError(err)
 
 		// Build empty proof

@@ -54,7 +54,7 @@ func (pp *blockPostprocessor) fillBlockHashAndTransactionIndexByTransactionHash(
 				BlockHash:        pp.blockResult.BlockHash,
 				TransactionIndex: types.TransactionIndex(i),
 			}
-			value, err := blockHashAndTransactionIndex.MarshalSSZ()
+			value, err := blockHashAndTransactionIndex.MarshalNil()
 			if err != nil {
 				return err
 			}
