@@ -15,16 +15,13 @@ interface IL1BridgeMessenger is IBridgeMessenger, IRelayMessage {
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @notice Thrown when a deposit message already exists.
-  /// @param messageHash The hash of the deposit message.
-  error DepositMessageAlreadyExist(bytes32 messageHash);
+  error DepositMessageAlreadyExist();
 
   /// @notice Thrown when a deposit message does not exist.
-  /// @param messageHash The hash of the deposit message.
-  error DepositMessageDoesNotExist(bytes32 messageHash);
+  error DepositMessageDoesNotExist();
 
   /// @notice Thrown when a deposit message is already cancelled.
-  /// @param messageHash The hash of the deposit message.
-  error DepositMessageAlreadyCancelled(bytes32 messageHash);
+  error DepositMessageAlreadyCancelled();
 
   /// @notice Thrown when a deposit message is not expired.
   /// @param messageHash The hash of the deposit message.

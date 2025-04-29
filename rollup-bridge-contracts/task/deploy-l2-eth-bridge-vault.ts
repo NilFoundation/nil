@@ -55,7 +55,7 @@ task("deploy-l2-eth-bridge-vault", "Deploys L2ETHBridgeVault contract on Nil Cha
             abi: L2ETHBridgeVaultJson.default.abi,
             args: [],
             salt: BigInt(Math.floor(Math.random() * 10000)),
-            feeCredit: BigInt("19340180000000"),
+            //feeCredit: BigInt("19340180000000"),
         });
 
         console.log(`address from deployment is: ${l2EthBridgeVaultImplementationAddress}`);

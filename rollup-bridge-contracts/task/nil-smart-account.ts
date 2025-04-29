@@ -96,6 +96,7 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
 
     config.l2CommonConfig.owner = smartAccountAddress;
     config.l2CommonConfig.admin = smartAccountAddress;
+    config.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.relayerAddress = smartAccountAddress;
 
     // Save the updated config
     saveNilNetworkConfig(networkName, config);
