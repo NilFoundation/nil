@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/constraints"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/syncer"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
@@ -73,9 +74,11 @@ func (s *AggregatorTestSuite) newTestAggregator(
 	contractWrapper, err := rollupcontract.NewWrapper(s.ctx, contractWrapperConfig, logger)
 	s.Require().NoError(err)
 
-	stateResetter := reset.NewStateResetter(logger, s.blockStorage, contractWrapper)
-	// syncCommittee := &core.SyncCommittee{}
-	resetLauncher := reset.NewResetLauncher(stateResetter, nil, logger)
+	fetcher := NewFetcher(s.rpcClientMock, logger)
+	stateRootSyncer := syncer.NewStateRootSyncer(
+		fetcher, contractWrapper, s.blockStorage, logger, syncer.NewDefaultConfig(),
+	)
+	resetLauncher := reset.NewResetLauncher(s.blockStorage, stateRootSyncer, nil, logger)
 
 	batchChecker := constraints.NewChecker(
 		batchConstraints,
@@ -84,7 +87,7 @@ func (s *AggregatorTestSuite) newTestAggregator(
 	)
 
 	return NewAggregator(
-		s.rpcClientMock,
+		fetcher,
 		batchChecker,
 		blockStorage,
 		s.taskStorage,
@@ -252,7 +255,7 @@ func (s *AggregatorTestSuite) Test_Block_Storage_Capacity_Exceeded() {
 
 func (s *AggregatorTestSuite) Test_State_Root_Is_Not_Initialized() {
 	err := s.aggregator.processBlockRange(s.ctx)
-	s.Require().ErrorIs(err, storage.ErrStateRootNotInitialized)
+	s.Require().ErrorIs(err, scTypes.ErrStateRootNotInitialized)
 
 	latestFetched, err := s.blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)
@@ -283,7 +286,7 @@ func (s *AggregatorTestSuite) Test_Latest_Fetched_Does_Not_Exist_On_Chain() {
 
 	err = s.aggregator.processBlockRange(s.ctx)
 	s.Require().ErrorIs(err, scTypes.ErrBlockMismatch)
-	s.Require().ErrorContains(err, "block not found in shard")
+	s.Require().ErrorContains(err, "block not found on L2 side")
 }
 
 // requireNoNewTasks asserts that there are no new tasks available for execution

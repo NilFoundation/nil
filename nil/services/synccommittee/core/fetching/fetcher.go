@@ -4,63 +4,89 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"slices"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
 const blockRangeBatchSize = 20
 
-type fetcher struct {
-	rpcClient RpcBlockFetcher
+type RpcClient interface {
+	GetBlock(ctx context.Context, shardId coreTypes.ShardId, blockId any, fullTx bool) (*jsonrpc.RPCBlock, error)
+	GetBlocksRange(
+		ctx context.Context,
+		shardId coreTypes.ShardId,
+		from, to coreTypes.BlockNumber,
+		fullTx bool,
+		batchSize int,
+	) ([]*jsonrpc.RPCBlock, error)
+	GetShardIdList(ctx context.Context) ([]coreTypes.ShardId, error)
+}
+
+type Fetcher struct {
+	rpcClient RpcClient
 	logger    logging.Logger
 }
 
-func newFetcher(rpcClient RpcBlockFetcher, logger logging.Logger) *fetcher {
-	return &fetcher{
+func NewFetcher(rpcClient RpcClient, logger logging.Logger) *Fetcher {
+	return &Fetcher{
 		rpcClient: rpcClient,
 		logger:    logger,
 	}
 }
 
-func (bf *fetcher) GetBlockRef(
+func (f *Fetcher) TryGetBlockByHash(
+	ctx context.Context,
+	shardId coreTypes.ShardId,
+	hash common.Hash,
+) (*types.Block, error) {
+	block, err := f.rpcClient.GetBlock(ctx, shardId, hash, true)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching block from shard %d: %w", shardId, err)
+	}
+	return block, nil
+}
+
+func (f *Fetcher) TryGetBlockRef(
 	ctx context.Context,
 	shardId coreTypes.ShardId,
 	hash common.Hash,
 ) (*types.BlockRef, error) {
-	block, err := bf.rpcClient.GetBlock(ctx, shardId, hash, true)
+	block, err := f.TryGetBlockByHash(ctx, shardId, hash)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching block from shard %d: %w", shardId, err)
+		return nil, err
 	}
 	if block == nil {
-		return nil, fmt.Errorf("%w: block not found in shard %d: %s", types.ErrBlockMismatch, shardId, hash)
+		return nil, nil
 	}
 	blockRef := types.BlockToRef(block)
 	return &blockRef, nil
 }
 
-func (bf *fetcher) GetEarliestBlockRef(
+func (f *Fetcher) GetGenesisBlockRef(
 	ctx context.Context,
 	shardId coreTypes.ShardId,
 ) (*types.BlockRef, error) {
-	return bf.getBlockRefByStrId(ctx, shardId, "earliest")
+	return f.getBlockRefByStrId(ctx, shardId, "earliest")
 }
 
-func (bf *fetcher) GetLatestBlockRef(
+func (f *Fetcher) GetLatestBlockRef(
 	ctx context.Context,
 	shardId coreTypes.ShardId,
 ) (*types.BlockRef, error) {
-	return bf.getBlockRefByStrId(ctx, shardId, "latest")
+	return f.getBlockRefByStrId(ctx, shardId, "latest")
 }
 
-func (bf *fetcher) getBlockRefByStrId(
+func (f *Fetcher) getBlockRefByStrId(
 	ctx context.Context,
 	shardId coreTypes.ShardId,
 	strId string,
 ) (*types.BlockRef, error) {
-	block, err := bf.rpcClient.GetBlock(ctx, shardId, strId, false)
+	block, err := f.rpcClient.GetBlock(ctx, shardId, strId, false)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"error fetching block, shardId=%d, id=%s: %w", shardId, strId, err,
@@ -75,7 +101,7 @@ func (bf *fetcher) getBlockRefByStrId(
 	return &blockRef, nil
 }
 
-func (bf *fetcher) FetchBlocksSeq(
+func (f *Fetcher) FetchBlocksSeq(
 	ctx context.Context,
 	shardId coreTypes.ShardId,
 	blocksRange types.BlocksRange,
@@ -84,7 +110,7 @@ func (bf *fetcher) FetchBlocksSeq(
 		chunks := blocksRange.SplitToChunks(blockRangeBatchSize)
 
 		for _, chunk := range chunks {
-			blocks, err := bf.fetchChunk(ctx, shardId, chunk)
+			blocks, err := f.fetchChunk(ctx, shardId, chunk)
 			if err != nil {
 				yield(nil, err)
 				return
@@ -98,12 +124,12 @@ func (bf *fetcher) FetchBlocksSeq(
 	}
 }
 
-func (bf *fetcher) fetchChunk(
+func (f *Fetcher) fetchChunk(
 	ctx context.Context,
 	shardId coreTypes.ShardId,
 	blocksRange types.BlocksRange,
 ) ([]*types.Block, error) {
-	blocks, err := bf.rpcClient.GetBlocksRange(
+	blocks, err := f.rpcClient.GetBlocksRange(
 		ctx, shardId, blocksRange.Start, blocksRange.End+1, true, blockRangeBatchSize,
 	)
 	if err != nil {
@@ -114,4 +140,14 @@ func (bf *fetcher) fetchChunk(
 	}
 
 	return blocks, nil
+}
+
+func (f *Fetcher) GetShardIdList(ctx context.Context) ([]coreTypes.ShardId, error) {
+	shardIds, err := f.rpcClient.GetShardIdList(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching shard ids: %w", err)
+	}
+	shardIds = append(shardIds, coreTypes.MainShardId)
+	slices.Sort(shardIds)
+	return shardIds, nil
 }

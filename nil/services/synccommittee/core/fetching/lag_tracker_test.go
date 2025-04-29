@@ -49,8 +49,9 @@ func (s *LagTrackerTestSuite) SetupSuite() {
 	s.blockStorage = storage.NewBlockStorage(s.db, storage.DefaultBlockStorageConfig(), clock, s.metrics, logger)
 	s.rpcClientMock = &client.ClientMock{}
 
+	fetcher := NewFetcher(s.rpcClientMock, logger)
 	s.lagTracker = NewLagTracker(
-		s.rpcClientMock, s.blockStorage, s.metrics, NewDefaultLagTrackerConfig(), logger,
+		fetcher, s.blockStorage, s.metrics, NewDefaultLagTrackerConfig(), logger,
 	)
 }
 

@@ -51,7 +51,8 @@ sync_committee_generate_mocks: \
 	$(root_sc)/core/rollupcontract/eth_client_generated_mock.go \
 	$(root_sc)/internal/srv/worker_generated_mock.go \
 	$(root_sc)/internal/test_utils/op_context_generated_mock.go \
-	$(root_sc)/prover/tracer/storage_getter_setter_generated_mock.go
+	$(root_sc)/prover/tracer/storage_getter_setter_generated_mock.go \
+	$(root_sc)/core/rollupcontract/wrapper_generated_mock.go
 
 $(root_sc)/internal/api/task_handler_generated_mock.go: \
 	$(root_sc)/internal/api/task_handler.go \
@@ -101,6 +102,11 @@ $(root_sc)/prover/tracer/storage_getter_setter_generated_mock.go: \
 	sync_committee_protobuf \
 	$(root_sc)/prover/tracer/storage_tracer.go
 	go generate $(root_sc)/prover/tracer
+
+$(root_sc)/core/rollupcontract/wrapper_generated_mock.go: \
+	sync_committee_contract_abi \
+	$(root_sc)/core/rollupcontract/wrapper.go
+	go generate $(root_sc)/core/rollupcontract/generate.go
 
 .PHONY: sync_committee_protobuf
 sync_committee_protobuf: \

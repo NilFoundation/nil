@@ -29,19 +29,20 @@ type Service interface {
 
 type StateResetLauncher struct {
 	pausableComponents []PausableComponent
-	resetter           *StateResetter
+	resetter           *stateResetter
 	service            Service
 	logger             logging.Logger
 	isRunning          atomic.Bool
 }
 
 func NewResetLauncher(
-	resetter *StateResetter,
+	batchResetter BatchResetter,
+	stateRootSyncer StateRootSyncer,
 	service Service,
 	logger logging.Logger,
 ) *StateResetLauncher {
 	return &StateResetLauncher{
-		resetter: resetter,
+		resetter: newStateResetter(batchResetter, stateRootSyncer, logger),
 		service:  service,
 		logger:   logger,
 	}
