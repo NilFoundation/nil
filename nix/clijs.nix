@@ -75,7 +75,11 @@ stdenv.mkDerivation rec {
 
     echo "smoke check passed"
 
-    env NILD=nild pnpm run test:ci
+    env NILD=nild pnpm run test:ci || {
+      echo "tests failed. nild.log:"
+      cat nild.log
+      exit 1
+    }
 
     echo "tests finished successfully"
   '';
