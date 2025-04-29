@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -12,8 +11,10 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
+	"github.com/rs/zerolog"
 )
 
 type ProposerStorage interface {
@@ -82,7 +83,7 @@ func (*proposer) Name() string {
 // creates L1 transaction if so.
 func (p *proposer) updateStateIfReady(ctx context.Context) error {
 	data, err := p.storage.TryGetNextProposalData(ctx)
-	if errors.Is(err, scTypes.ErrStateRootNotInitialized) {
+	if errors.Is(err, scTypes.ErrLocalStateRootNotInitialized) {
 		p.logger.Warn().Msg("state root has not been initialized yet, awaiting initialization by the stateRootSyncer")
 		return nil
 	}
@@ -110,29 +111,21 @@ func (p *proposer) updateState(
 	proposalData *scTypes.ProposalData,
 ) error {
 	// TODO: populate with actual data
-	validityProof := []byte{0x0A, 0x0B, 0x0C}
-	publicData := rollupcontract.INilRollupPublicDataInfo{
-		L2Tol1Root:    common.Hash{},
-		MessageCount:  big.NewInt(0),
-		L1MessageHash: common.Hash{},
-	}
 
-	p.logger.Info().
-		Stringer(logging.FieldBatchId, proposalData.BatchId).
-		Hex("OldProvedStateRoot", proposalData.OldProvedStateRoot.Bytes()).
-		Hex("NewProvedStateRoot", proposalData.NewProvedStateRoot.Bytes()).
-		Int("blobsCount", len(proposalData.DataProofs)).
-		Msg("calling UpdateState L1 method")
+	updateStateData := scTypes.NewUpdateStateData(
+		proposalData,
+		[]byte{0x0A, 0x0B, 0x0C},
+		common.EmptyHash,
+		0,
+		common.EmptyHash,
+	)
 
-	if err := p.rollupContractWrapper.UpdateState(
-		ctx,
-		proposalData.BatchId.String(),
-		proposalData.DataProofs,
-		proposalData.OldProvedStateRoot,
-		proposalData.NewProvedStateRoot,
-		validityProof,
-		publicData,
-	); err != nil {
+	log.NewStateUpdateEvent(p.logger, zerolog.InfoLevel, updateStateData).Msg("calling UpdateState L1 method")
+
+	if err := p.rollupContractWrapper.UpdateState(ctx, updateStateData); err != nil {
+		log.NewStateUpdateEvent(p.logger, zerolog.ErrorLevel, updateStateData).
+			Err(err).Msg("failed to call UpdateState L1 method")
+
 		return fmt.Errorf("failed to update state: %w", err)
 	}
 

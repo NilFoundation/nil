@@ -255,7 +255,7 @@ func (s *AggregatorTestSuite) Test_Block_Storage_Capacity_Exceeded() {
 
 func (s *AggregatorTestSuite) Test_State_Root_Is_Not_Initialized() {
 	err := s.aggregator.processBlockRange(s.ctx)
-	s.Require().ErrorIs(err, scTypes.ErrStateRootNotInitialized)
+	s.Require().ErrorIs(err, scTypes.ErrLocalStateRootNotInitialized)
 
 	latestFetched, err := s.blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)

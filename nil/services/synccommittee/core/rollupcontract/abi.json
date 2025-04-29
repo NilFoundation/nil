@@ -10,7 +10,8 @@
     "type": "error"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "address",
         "name": "account",
         "type": "address"
@@ -30,29 +31,35 @@
     "type": "error"
   },
   {
-    "inputs": [{
-      "internalType": "string",
-      "name": "batchIndex",
-      "type": "string"
-    }],
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      }
+    ],
     "name": "ErrorBatchAlreadyCommitted",
     "type": "error"
   },
   {
-    "inputs": [{
-      "internalType": "string",
-      "name": "batchIndex",
-      "type": "string"
-    }],
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      }
+    ],
     "name": "ErrorBatchAlreadyFinalized",
     "type": "error"
   },
   {
-    "inputs": [{
-      "internalType": "string",
-      "name": "batchIndex",
-      "type": "string"
-    }],
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      }
+    ],
     "name": "ErrorBatchNotCommitted",
     "type": "error"
   },
@@ -82,7 +89,8 @@
     "type": "error"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "dataProofCount",
         "type": "uint256"
@@ -112,6 +120,27 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "latestBatchIndex",
+        "type": "string"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "latestStateRoot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ErrorGenesisStateRootIsAlreadyInitialized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ErrorGenesisStateRootIsNotInitialized",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "ErrorIncorrectDataProofSize",
     "type": "error"
@@ -132,11 +161,13 @@
     "type": "error"
   },
   {
-    "inputs": [{
-      "internalType": "uint256",
-      "name": "proofIndex",
-      "type": "uint256"
-    }],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "proofIndex",
+        "type": "uint256"
+      }
+    ],
     "name": "ErrorInvalidDataProofItem",
     "type": "error"
   },
@@ -191,7 +222,8 @@
     "type": "error"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "string",
         "name": "batchIndex",
         "type": "string"
@@ -206,7 +238,8 @@
     "type": "error"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "computedL1MessageHash",
         "type": "bytes32"
@@ -221,7 +254,8 @@
     "type": "error"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "string",
         "name": "batchIndex",
         "type": "string"
@@ -271,57 +305,68 @@
     "type": "error"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "owner",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
     "name": "OwnableInvalidOwner",
     "type": "error"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "account",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "OwnableUnauthorizedAccount",
     "type": "error"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "caller",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      }
+    ],
     "name": "Unauthorized",
     "type": "error"
   },
   {
     "anonymous": false,
-    "inputs": [{
-      "indexed": true,
-      "internalType": "string",
-      "name": "batchIndex",
-      "type": "string"
-    }],
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      }
+    ],
     "name": "BatchCommitted",
     "type": "event"
   },
   {
     "anonymous": false,
-    "inputs": [{
-      "indexed": false,
-      "internalType": "uint64",
-      "name": "version",
-      "type": "uint64"
-    }],
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "version",
+        "type": "uint64"
+      }
+    ],
     "name": "Initialized",
     "type": "event"
   },
   {
     "anonymous": false,
-    "inputs": [{
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
         "name": "previousOwner",
@@ -339,18 +384,21 @@
   },
   {
     "anonymous": false,
-    "inputs": [{
-      "indexed": false,
-      "internalType": "address",
-      "name": "account",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "Paused",
     "type": "event"
   },
   {
     "anonymous": false,
-    "inputs": [{
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "bytes32",
         "name": "role",
@@ -374,7 +422,8 @@
   },
   {
     "anonymous": false,
-    "inputs": [{
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "bytes32",
         "name": "role",
@@ -398,7 +447,8 @@
   },
   {
     "anonymous": false,
-    "inputs": [{
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "bytes32",
         "name": "role",
@@ -422,18 +472,21 @@
   },
   {
     "anonymous": false,
-    "inputs": [{
-      "indexed": false,
-      "internalType": "bytes32",
-      "name": "stateRoot",
-      "type": "bytes32"
-    }],
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "stateRoot",
+        "type": "bytes32"
+      }
+    ],
     "name": "StateReset",
     "type": "event"
   },
   {
     "anonymous": false,
-    "inputs": [{
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "string",
         "name": "batchIndex",
@@ -457,93 +510,112 @@
   },
   {
     "anonymous": false,
-    "inputs": [{
-      "indexed": false,
-      "internalType": "address",
-      "name": "account",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "Unpaused",
     "type": "event"
   },
   {
     "inputs": [],
     "name": "DEFAULT_ADMIN_ROLE",
-    "outputs": [{
-      "internalType": "bytes32",
-      "name": "",
-      "type": "bytes32"
-    }],
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "GENESIS_BATCH_INDEX",
-    "outputs": [{
-      "internalType": "string",
-      "name": "",
-      "type": "string"
-    }],
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "POINT_EVALUATION_PRECOMPILE_ADDR",
-    "outputs": [{
-      "internalType": "address",
-      "name": "",
-      "type": "address"
-    }],
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "ZERO_STATE_ROOT",
-    "outputs": [{
-      "internalType": "bytes32",
-      "name": "",
-      "type": "bytes32"
-    }],
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "account",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "addAdmin",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "bytes32",
-      "name": "stateRoot",
-      "type": "bytes32"
-    }],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "stateRoot",
+        "type": "bytes32"
+      }
+    ],
     "name": "batchIndexOfRoot",
-    "outputs": [{
-      "internalType": "string",
-      "name": "",
-      "type": "string"
-    }],
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "string",
-      "name": "",
-      "type": "string"
-    }],
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
     "name": "batchInfoRecords",
-    "outputs": [{
+    "outputs": [
+      {
         "internalType": "string",
         "name": "batchIndex",
         "type": "string"
@@ -574,7 +646,8 @@
         "type": "bytes"
       },
       {
-        "components": [{
+        "components": [
+          {
             "internalType": "bytes32",
             "name": "l2Tol1Root",
             "type": "bytes32"
@@ -604,7 +677,8 @@
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "string",
         "name": "batchIndex",
         "type": "string"
@@ -621,7 +695,8 @@
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "role",
         "type": "bytes32"
@@ -638,28 +713,34 @@
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "string",
-      "name": "batchIndex",
-      "type": "string"
-    }],
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      }
+    ],
     "name": "finalizedStateRoots",
-    "outputs": [{
-      "internalType": "bytes32",
-      "name": "",
-      "type": "bytes32"
-    }],
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "string",
         "name": "batchIndex",
         "type": "string"
       },
       {
-        "components": [{
+        "components": [
+          {
             "internalType": "bytes32",
             "name": "l2Tol1Root",
             "type": "bytes32"
@@ -681,127 +762,154 @@
       }
     ],
     "name": "generatePublicInputForValidityProofVerification",
-    "outputs": [{
-      "internalType": "bytes",
-      "name": "",
-      "type": "bytes"
-    }],
+    "outputs": [
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "getAllAdmins",
-    "outputs": [{
-      "internalType": "address[]",
-      "name": "",
-      "type": "address[]"
-    }],
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "getAllProposers",
-    "outputs": [{
-      "internalType": "address[]",
-      "name": "",
-      "type": "address[]"
-    }],
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "uint256",
-      "name": "index",
-      "type": "uint256"
-    }],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
     "name": "getBlobHash",
-    "outputs": [{
-      "internalType": "bytes32",
-      "name": "",
-      "type": "bytes32"
-    }],
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "string",
-      "name": "batchIndex",
-      "type": "string"
-    }],
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      }
+    ],
     "name": "getBlobVersionedHashes",
-    "outputs": [{
-      "internalType": "bytes32[]",
-      "name": "",
-      "type": "bytes32[]"
-    }],
+    "outputs": [
+      {
+        "internalType": "bytes32[]",
+        "name": "",
+        "type": "bytes32[]"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "getCurrentL2ToL1Root",
-    "outputs": [{
-      "internalType": "bytes32",
-      "name": "",
-      "type": "bytes32"
-    }],
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "getCurrentStateRoot",
-    "outputs": [{
-      "internalType": "bytes32",
-      "name": "",
-      "type": "bytes32"
-    }],
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "getLastFinalizedBatchIndex",
-    "outputs": [{
-      "internalType": "string",
-      "name": "",
-      "type": "string"
-    }],
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "getOwner",
-    "outputs": [{
-      "internalType": "address",
-      "name": "",
-      "type": "address"
-    }],
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "bytes32",
-      "name": "role",
-      "type": "bytes32"
-    }],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
     "name": "getRoleAdmin",
-    "outputs": [{
-      "internalType": "bytes32",
-      "name": "",
-      "type": "bytes32"
-    }],
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "role",
         "type": "bytes32"
@@ -813,46 +921,57 @@
       }
     ],
     "name": "getRoleMember",
-    "outputs": [{
-      "internalType": "address",
-      "name": "",
-      "type": "address"
-    }],
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "bytes32",
-      "name": "role",
-      "type": "bytes32"
-    }],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
     "name": "getRoleMemberCount",
-    "outputs": [{
-      "internalType": "uint256",
-      "name": "",
-      "type": "uint256"
-    }],
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "bytes32",
-      "name": "role",
-      "type": "bytes32"
-    }],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
     "name": "getRoleMembers",
-    "outputs": [{
-      "internalType": "address[]",
-      "name": "",
-      "type": "address[]"
-    }],
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "role",
         "type": "bytes32"
@@ -869,29 +988,34 @@
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "account",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "grantProposerAccess",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "account",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "grantProposerAdminRole",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "role",
         "type": "bytes32"
@@ -908,7 +1032,8 @@
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "role",
         "type": "bytes32"
@@ -920,16 +1045,19 @@
       }
     ],
     "name": "hasRole",
-    "outputs": [{
-      "internalType": "bool",
-      "name": "",
-      "type": "bool"
-    }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "uint64",
         "name": "_l2ChainId",
         "type": "uint64"
@@ -966,204 +1094,250 @@
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "proposerArg",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "proposerArg",
+        "type": "address"
+      }
+    ],
     "name": "isAProposer",
-    "outputs": [{
-      "internalType": "bool",
-      "name": "",
-      "type": "bool"
-    }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "adminArg",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "adminArg",
+        "type": "address"
+      }
+    ],
     "name": "isAnAdmin",
-    "outputs": [{
-      "internalType": "bool",
-      "name": "",
-      "type": "bool"
-    }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "ownerArg",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "ownerArg",
+        "type": "address"
+      }
+    ],
     "name": "isAnOwner",
-    "outputs": [{
-      "internalType": "bool",
-      "name": "",
-      "type": "bool"
-    }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "string",
-      "name": "batchIndex",
-      "type": "string"
-    }],
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      }
+    ],
     "name": "isBatchCommitted",
-    "outputs": [{
-      "internalType": "bool",
-      "name": "",
-      "type": "bool"
-    }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "string",
-      "name": "batchIndex",
-      "type": "string"
-    }],
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "batchIndex",
+        "type": "string"
+      }
+    ],
     "name": "isBatchFinalized",
-    "outputs": [{
-      "internalType": "bool",
-      "name": "",
-      "type": "bool"
-    }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "bytes32",
-      "name": "stateRoot",
-      "type": "bytes32"
-    }],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "stateRoot",
+        "type": "bytes32"
+      }
+    ],
     "name": "isRootFinalized",
-    "outputs": [{
-      "internalType": "bool",
-      "name": "",
-      "type": "bool"
-    }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "l1BridgeMessenger",
-    "outputs": [{
-      "internalType": "contract IL1BridgeMessenger",
-      "name": "",
-      "type": "address"
-    }],
+    "outputs": [
+      {
+        "internalType": "contract IL1BridgeMessenger",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "l1MessageHash",
-    "outputs": [{
-      "internalType": "bytes32",
-      "name": "",
-      "type": "bytes32"
-    }],
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "l2ChainId",
-    "outputs": [{
-      "internalType": "uint64",
-      "name": "",
-      "type": "uint64"
-    }],
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "lastFinalizedBatchIndex",
-    "outputs": [{
-      "internalType": "string",
-      "name": "",
-      "type": "string"
-    }],
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "nilVerifierAddress",
-    "outputs": [{
-      "internalType": "address",
-      "name": "",
-      "type": "address"
-    }],
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "owner",
-    "outputs": [{
-      "internalType": "address",
-      "name": "",
-      "type": "address"
-    }],
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "paused",
-    "outputs": [{
-      "internalType": "bool",
-      "name": "",
-      "type": "bool"
-    }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "bytes32",
-      "name": "stateRoot",
-      "type": "bytes32"
-    }],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "stateRoot",
+        "type": "bytes32"
+      }
+    ],
     "name": "previousStateRoot",
-    "outputs": [{
-      "internalType": "bytes32",
-      "name": "",
-      "type": "bytes32"
-    }],
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "account",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "removeAdmin",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "bytes32",
-      "name": "role",
-      "type": "bytes32"
-    }],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
     "name": "renounceAccess",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -1177,7 +1351,8 @@
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "role",
         "type": "bytes32"
@@ -1194,18 +1369,21 @@
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "bytes32",
-      "name": "targetStateRoot",
-      "type": "bytes32"
-    }],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "targetStateRoot",
+        "type": "bytes32"
+      }
+    ],
     "name": "resetState",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "role",
         "type": "bytes32"
@@ -1222,29 +1400,34 @@
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "account",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "revokeProposerAccess",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "account",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
     "name": "revokeProposerAdminRole",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "role",
         "type": "bytes32"
@@ -1261,92 +1444,124 @@
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "l1BridgeMessengerAddress",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "genesisStateRoot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "setGenesisStateRoot",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "l1BridgeMessengerAddress",
+        "type": "address"
+      }
+    ],
     "name": "setL1BridgeMessenger",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "bool",
-      "name": "_status",
-      "type": "bool"
-    }],
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "_status",
+        "type": "bool"
+      }
+    ],
     "name": "setPause",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "nilVerifier",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "nilVerifier",
+        "type": "address"
+      }
+    ],
     "name": "setVerifierAddress",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "bytes32",
-      "name": "",
-      "type": "bytes32"
-    }],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
     "name": "stateRootIndex",
-    "outputs": [{
-      "internalType": "string",
-      "name": "",
-      "type": "string"
-    }],
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "bytes4",
-      "name": "interfaceId",
-      "type": "bytes4"
-    }],
+    "inputs": [
+      {
+        "internalType": "bytes4",
+        "name": "interfaceId",
+        "type": "bytes4"
+      }
+    ],
     "name": "supportsInterface",
-    "outputs": [{
-      "internalType": "bool",
-      "name": "",
-      "type": "bool"
-    }],
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "newOwner",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
-      "internalType": "address",
-      "name": "newOwner",
-      "type": "address"
-    }],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
     "name": "transferOwnershipRole",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "string",
         "name": "batchIndex",
         "type": "string"
@@ -1372,7 +1587,8 @@
         "type": "bytes"
       },
       {
-        "components": [{
+        "components": [
+          {
             "internalType": "bytes32",
             "name": "l2Tol1Root",
             "type": "bytes32"
@@ -1399,7 +1615,8 @@
     "type": "function"
   },
   {
-    "inputs": [{
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "blobVersionedHash",
         "type": "bytes32"

@@ -95,6 +95,96 @@ func (s *L1SyncerTestSuite) TearDownTest() {
 	s.cancel()
 }
 
+func (s *L1SyncerTestSuite) Test_EnsureL1StateIsInitialized_L1_Already_Initialized() {
+	finalizedRoot := testaide.RandomHash()
+	s.rollupContract.GetLatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
+		return finalizedRoot, nil
+	}
+
+	err := s.syncer.EnsureL1StateIsInitialized(s.ctx)
+	s.Require().NoError(err)
+
+	getBlockCalls := s.rpcClient.GetBlockCalls()
+	s.Require().Empty(getBlockCalls)
+}
+
+func (s *L1SyncerTestSuite) Test_EnsureL1StateIsInitialized_FetchGenesisBlock_Success() {
+	s.rollupContract.GetLatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
+		return common.EmptyHash, nil
+	}
+	genesisHash := testaide.RandomHash()
+	s.rpcClient.GetBlockFunc = func(
+		_ context.Context, shardId coreTypes.ShardId, blockID any, fullTx bool,
+	) (*types.Block, error) {
+		block := testaide.NewGenesisBlock(coreTypes.MainShardId)
+		block.Hash = genesisHash
+		return block, nil
+	}
+	s.rollupContract.SetGenesisStateRootFunc = func(ctx context.Context, hash common.Hash) error {
+		return nil
+	}
+
+	err := s.syncer.EnsureL1StateIsInitialized(s.ctx)
+	s.Require().NoError(err)
+
+	setGenesisRootCalls := s.rollupContract.SetGenesisStateRootCalls()
+	s.Require().Len(setGenesisRootCalls, 1)
+	s.Require().Equal(genesisHash, setGenesisRootCalls[0].GenesisStateRoot)
+}
+
+func (s *L1SyncerTestSuite) Test_EnsureL1StateIsInitialized_GetLatestFinalizedStateRoot_Fails() {
+	l1Error := errors.New("something went wrong")
+	s.rollupContract.GetLatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
+		return common.EmptyHash, l1Error
+	}
+
+	err := s.syncer.EnsureL1StateIsInitialized(s.ctx)
+	s.Require().ErrorIs(err, l1Error)
+}
+
+func (s *L1SyncerTestSuite) Test_EnsureL1StateIsInitialized_FetchGenesisBlock_Fails() {
+	s.rollupContract.GetLatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
+		return common.EmptyHash, nil
+	}
+
+	l2Error := errors.New("something went wrong")
+
+	s.rpcClient.GetBlockFunc = func(
+		_ context.Context, shardId coreTypes.ShardId, blockID any, fullTx bool,
+	) (*types.Block, error) {
+		return nil, l2Error
+	}
+
+	err := s.syncer.EnsureL1StateIsInitialized(s.ctx)
+	s.Require().ErrorIs(err, l2Error)
+
+	setGenesisRootCalls := s.rollupContract.SetGenesisStateRootCalls()
+	s.Require().Empty(setGenesisRootCalls)
+}
+
+func (s *L1SyncerTestSuite) Test_EnsureL1StateIsInitialized_SetGenesisStateRoot_Fails() {
+	s.rollupContract.GetLatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
+		return common.EmptyHash, nil
+	}
+	genesisHash := testaide.RandomHash()
+	s.rpcClient.GetBlockFunc = func(
+		_ context.Context, shardId coreTypes.ShardId, blockID any, fullTx bool,
+	) (*types.Block, error) {
+		block := testaide.NewGenesisBlock(coreTypes.MainShardId)
+		block.Hash = genesisHash
+		return block, nil
+	}
+
+	setGenesisErr := errors.New("failed to set genesis root")
+
+	s.rollupContract.SetGenesisStateRootFunc = func(ctx context.Context, hash common.Hash) error {
+		return setGenesisErr
+	}
+
+	err := s.syncer.EnsureL1StateIsInitialized(s.ctx)
+	s.Require().ErrorIs(err, setGenesisErr)
+}
+
 func (s *L1SyncerTestSuite) Test_SyncLatestFinalizedRoot_EmptyLocal_NonEmptyL1() {
 	for _, testCase := range s.configTestCases() {
 		s.Run(testCase.name, func() {
@@ -123,12 +213,14 @@ func (s *L1SyncerTestSuite) Test_SyncLatestFinalizedRoot_EmptyLocal_EmptyL1() {
 			s.setLatestFinalizedHash(common.EmptyHash)
 
 			err := s.syncer.SyncLatestFinalizedRoot(s.ctx)
-			s.Require().NoError(err)
+			s.Require().ErrorIs(err, types.ErrL1StateRootNotInitialized)
 
-			s.requireLocalRoot(genesisHash)
+			storedRoot, err := s.blockStorage.TryGetProvedStateRoot(s.ctx)
+			s.Require().NoError(err)
+			s.Require().Nil(storedRoot)
 
 			getBlockCalls := s.rpcClient.GetBlockCalls()
-			s.NotEmpty(getBlockCalls)
+			s.Empty(getBlockCalls)
 		})
 	}
 }
@@ -224,7 +316,7 @@ func (s *L1SyncerTestSuite) Test_SyncLatestFinalizedRoot_L1_Returns_Error() {
 			s.syncer.config.AlwaysSyncWithL1 = testCase.alwaysSyncWithL1
 			s.setupClientMock(testaide.RandomHash(), true)
 
-			s.rollupContract.LatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
+			s.rollupContract.GetLatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
 				return common.EmptyHash, errors.New("something went wrong")
 			}
 
@@ -282,7 +374,7 @@ func (s *L1SyncerTestSuite) setupClientMock(genesisHash common.Hash, returnBlock
 
 func (s *L1SyncerTestSuite) setLatestFinalizedHash(latestFinalizedHash common.Hash) {
 	s.T().Helper()
-	s.rollupContract.LatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
+	s.rollupContract.GetLatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
 		return latestFinalizedHash, nil
 	}
 }

@@ -200,9 +200,25 @@ func NewProposalData(currentTime time.Time) *scTypes.ProposalData {
 	)
 }
 
+func NewUpdateStateData() *scTypes.UpdateStateData {
+	return scTypes.NewUpdateStateData(
+		NewProposalData(Now),
+		NewValidityProof(),
+		common.EmptyHash,
+		int64(0),
+		common.EmptyHash,
+	)
+}
+
 func NewDataProofs() scTypes.DataProofs {
 	return scTypes.DataProofs{
 		[]byte{10, 20, 30, 40}, []byte{11, 22, 33, 44}, []byte{12, 23, 34, 45}, []byte{13, 24, 35, 46},
+	}
+}
+
+func NewValidityProof() scTypes.ValidityProof {
+	return scTypes.ValidityProof{
+		10, 20, 30, 40,
 	}
 }
 

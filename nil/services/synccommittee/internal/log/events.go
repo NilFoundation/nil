@@ -36,3 +36,18 @@ func NewTaskResultEvent(
 		Str("errorText", result.Error.ErrText).
 		Stringer("errorType", result.Error.ErrType)
 }
+
+func NewStateUpdateEvent(
+	logger logging.Logger,
+	level zerolog.Level,
+	stateUpdate *types.UpdateStateData,
+) *logging.Event {
+	return logger.WithLevel(level).
+		Stringer(logging.FieldBatchId, stateUpdate.BatchId).
+		Stringer("OldStateRoot", stateUpdate.OldProvedStateRoot).
+		Stringer("NewStateRoot", stateUpdate.NewProvedStateRoot).
+		Int("BlobCount", len(stateUpdate.DataProofs)).
+		Stringer("L2Tol1Root", stateUpdate.L2Tol1Root).
+		Int64("MessageCount", stateUpdate.MessageCount).
+		Stringer("L1MessageHash", stateUpdate.L1MessageHash)
+}

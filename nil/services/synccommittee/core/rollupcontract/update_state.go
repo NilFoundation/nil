@@ -1,10 +1,10 @@
 package rollupcontract
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -15,50 +15,40 @@ import (
 // UpdateState attempts to update the state of a rollup contract using the provided proofs and state roots.
 // It checks for non-empty state roots, validates the batch, verifies data proofs, and finally submits the update.
 // Returns a nil on success or an error on validation failure or submission issues.
-func (r *wrapperImpl) UpdateState(
-	ctx context.Context,
-	batchIndex string,
-	dataProofs types.DataProofs,
-	oldStateRoot, newStateRoot common.Hash,
-	validityProof []byte,
-	publicDataInputs INilRollupPublicDataInfo,
-) error {
-	// go-ethereum states not all RPC nodes support EVM errors parsing
-	// explicitly check possible error in advance
-	if len(batchIndex) == 0 {
-		return ErrInvalidBatchIndex
-	}
-	if oldStateRoot.Empty() {
-		return ErrInvalidOldStateRoot
-	}
-	if newStateRoot.Empty() {
-		return ErrInvalidNewStateRoot
-	}
-	if len(validityProof) == 0 {
-		return ErrInvalidValidityProof
-	}
-	if len(dataProofs) == 0 {
-		return ErrEmptyDataProofs
+func (r *wrapperImpl) UpdateState(ctx context.Context, data *types.UpdateStateData) error {
+	if err := r.validateUpdateStateData(data); err != nil {
+		return fmt.Errorf("invalid update state data: %w", err)
 	}
 
-	batchState, err := r.getBatchState(ctx, batchIndex)
+	batchIdStr := data.BatchId.String()
+	batchState, err := r.getBatchState(ctx, batchIdStr)
 	if err != nil {
 		return err
 	}
 	if batchState.IsFinalized {
-		return fmt.Errorf("%w: batchId=%s", ErrBatchAlreadyFinalized, batchIndex)
+		return fmt.Errorf("%w: batchId=%s", ErrBatchAlreadyFinalized, data.BatchId)
 	}
 	if !batchState.IsCommitted {
-		return fmt.Errorf("%w: batchId=%s", ErrBatchNotCommitted, batchIndex)
+		return fmt.Errorf("%w: batchId=%s", ErrBatchNotCommitted, data.BatchId)
 	}
 
-	latestFinalizedStateRoot, err := r.LatestFinalizedStateRoot(ctx)
+	latestFinalizedStateRoot, err := r.GetLatestFinalizedStateRoot(ctx)
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(latestFinalizedStateRoot[:], oldStateRoot.Bytes()) {
+	if latestFinalizedStateRoot == common.EmptyHash {
+		return types.ErrL1StateRootNotInitialized
+	}
+
+	if latestFinalizedStateRoot != data.OldProvedStateRoot {
 		return fmt.Errorf("%w: latestFinalizedRoot=%s batchOldStateRoot=%s, batchId=%s",
-			ErrOldStateRootMismatch, latestFinalizedStateRoot, oldStateRoot, batchIndex)
+			ErrOldStateRootMismatch, latestFinalizedStateRoot, data.OldProvedStateRoot, data.BatchId)
+	}
+
+	publicDataInputs := INilRollupPublicDataInfo{
+		L2Tol1Root:    data.L2Tol1Root,
+		MessageCount:  big.NewInt(data.MessageCount),
+		L1MessageHash: data.L1MessageHash,
 	}
 
 	// The transaction will be simulated (via eth_estimateGas) before submission,
@@ -69,11 +59,11 @@ func (r *wrapperImpl) UpdateState(
 		var err error
 		tx, err = r.rollupContract.UpdateState(
 			opts,
-			batchIndex,
-			oldStateRoot,
-			newStateRoot,
-			dataProofs,
-			validityProof,
+			batchIdStr,
+			data.OldProvedStateRoot,
+			data.NewProvedStateRoot,
+			data.DataProofs,
+			data.ValidityProof,
 			publicDataInputs,
 		)
 		return err
@@ -104,6 +94,24 @@ func (r *wrapperImpl) UpdateState(
 	}
 
 	return err
+}
+
+func (*wrapperImpl) validateUpdateStateData(data *types.UpdateStateData) error {
+	// go-ethereum states not all RPC nodes support EVM errors parsing
+	// explicitly check possible error in advance
+	if data.OldProvedStateRoot.Empty() {
+		return ErrInvalidOldStateRoot
+	}
+	if data.NewProvedStateRoot.Empty() {
+		return ErrInvalidNewStateRoot
+	}
+	if len(data.ValidityProof) == 0 {
+		return ErrInvalidValidityProof
+	}
+	if len(data.DataProofs) == 0 {
+		return ErrEmptyDataProofs
+	}
+	return nil
 }
 
 // batchState contains validation results for a batch

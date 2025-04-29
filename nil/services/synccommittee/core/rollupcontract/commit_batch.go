@@ -18,14 +18,11 @@ import (
 
 // CommitBatch creates blob transaction for `CommitBatch` contract method and sends it on chain.
 // If such `batchIndex` is already submitted, returns `nil, ErrBatchAlreadyCommitted`.
-func (r *wrapperImpl) CommitBatch(
-	ctx context.Context,
-	sidecar *ethtypes.BlobTxSidecar,
-	batchIndex string,
-) error {
+func (r *wrapperImpl) CommitBatch(ctx context.Context, batchId types.BatchId, sidecar *ethtypes.BlobTxSidecar) error {
+	batchIdStr := batchId.String()
 	// go-ethereum states not all RPC nodes support EVM errors parsing
 	// explicitly check possible error in advance
-	isCommited, err := r.rollupContract.IsBatchCommitted(r.getEthCallOpts(ctx), batchIndex)
+	isCommited, err := r.rollupContract.IsBatchCommitted(r.getEthCallOpts(ctx), batchIdStr)
 	if err != nil {
 		return err
 	}
@@ -33,11 +30,7 @@ func (r *wrapperImpl) CommitBatch(
 		return ErrBatchAlreadyCommitted
 	}
 
-	if len(batchIndex) == 0 {
-		return ErrInvalidBatchIndex
-	}
-
-	blobTx, err := r.createBlobTx(ctx, sidecar, r.senderAddress, batchIndex)
+	blobTx, err := r.createBlobTx(ctx, sidecar, r.senderAddress, batchIdStr)
 	if err != nil {
 		return err
 	}
@@ -86,7 +79,7 @@ func (r *wrapperImpl) CommitBatch(
 	return nil
 }
 
-// ComputeSidecar handles all KZG commitment related computations
+// PrepareBlobs handles all KZG commitment related computations
 func (r *wrapperImpl) PrepareBlobs(
 	ctx context.Context, blobs []kzg4844.Blob,
 ) (*ethtypes.BlobTxSidecar, types.DataProofs, error) {
@@ -200,10 +193,10 @@ func (r *wrapperImpl) computeTxParams(ctx context.Context, from ethcommon.Addres
 		return nil, fmt.Errorf("getting header: %w", err)
 	}
 
-	const basefeeWiggleMultiplier = 2
+	const baseFeeWiggleMultiplier = 2
 	gasFeeCap := new(big.Int).Add(
 		gasTipCap,
-		new(big.Int).Mul(head.BaseFee, big.NewInt(basefeeWiggleMultiplier)),
+		new(big.Int).Mul(head.BaseFee, big.NewInt(baseFeeWiggleMultiplier)),
 	)
 
 	if gasFeeCap.Cmp(gasTipCap) < 0 {
