@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
-	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -169,7 +169,7 @@ func NewDbMPT(db db.RwTx, shardId types.ShardId, name db.ShardedTableName) *Merk
 func GetEntity[
 	T interface {
 		~*S
-		fastssz.Unmarshaler
+		serialization.NilUnmarshaler
 	},
 	S any,
 ](root *Reader, entityKey []byte) (*S, error) {
@@ -179,7 +179,7 @@ func GetEntity[
 	}
 
 	var entity S
-	return &entity, T(&entity).UnmarshalSSZ(entityBytes)
+	return &entity, T(&entity).UnmarshalNil(entityBytes)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

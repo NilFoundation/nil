@@ -195,7 +195,7 @@ func generateStorageProofs(trie *mpt.Reader, storageKeys []common.Hash) ([]Stora
 // addContractDetailsToProof adds smart contract details to the proof result
 func addContractDetailsToProof(result *EthProof, contractSSZ []byte) error {
 	contract := new(types.SmartContract)
-	if err := contract.UnmarshalSSZ(contractSSZ); err != nil {
+	if err := contract.UnmarshalNil(contractSSZ); err != nil {
 		return err
 	}
 

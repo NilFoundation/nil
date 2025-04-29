@@ -40,7 +40,7 @@ func (k *Pubkey) UnmarshalText(input []byte) error {
 
 func InitParams(accessor ConfigAccessor) {
 	for _, p := range ParamsList {
-		data, err := p.MarshalSSZ()
+		data, err := p.MarshalNil()
 		check.PanicIfErr(err)
 		err = accessor.SetParamData(p.Name(), data)
 		check.PanicIfErr(err)
@@ -79,6 +79,14 @@ func (p *ParamValidators) Accessor() *ParamAccessor {
 	return CreateAccessor[ParamValidators]()
 }
 
+func (p *ParamValidators) UnmarshalNil(buf []byte) error {
+	return p.UnmarshalSSZ(buf)
+}
+
+func (p ParamValidators) MarshalNil() ([]byte, error) {
+	return p.MarshalSSZ()
+}
+
 type ParamGasPrice struct {
 	Shards []types.Uint256 `json:"shards" ssz-max:"4096" yaml:"shards"`
 }
@@ -87,6 +95,14 @@ var _ IConfigParam = new(ParamGasPrice)
 
 func (p *ParamGasPrice) Name() string {
 	return NameGasPrice
+}
+
+func (p *ParamGasPrice) UnmarshalNil(buf []byte) error {
+	return p.UnmarshalSSZ(buf)
+}
+
+func (p ParamGasPrice) MarshalNil() ([]byte, error) {
+	return p.MarshalSSZ()
 }
 
 func (p *ParamGasPrice) Accessor() *ParamAccessor {
@@ -105,6 +121,14 @@ var _ IConfigParam = new(ParamL1BlockInfo)
 
 func (p *ParamL1BlockInfo) Name() string {
 	return NameL1Block
+}
+
+func (p *ParamL1BlockInfo) UnmarshalNil(buf []byte) error {
+	return p.UnmarshalSSZ(buf)
+}
+
+func (p ParamL1BlockInfo) MarshalNil() ([]byte, error) {
+	return p.MarshalSSZ()
 }
 
 func (p *ParamL1BlockInfo) Accessor() *ParamAccessor {

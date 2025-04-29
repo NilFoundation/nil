@@ -18,13 +18,13 @@ func (api *localShardApiRo) getTransactionByHash(tx db.RoTx, hash common.Hash) (
 	}
 
 	txn := data.Transaction()
-	transactionSSZ, err := txn.MarshalSSZ()
+	transactionSSZ, err := txn.MarshalNil()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal transaction: %w", err)
 	}
 
 	receipt := data.Receipt()
-	receiptSSZ, err := receipt.MarshalSSZ()
+	receiptSSZ, err := receipt.MarshalNil()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal receipt: %w", err)
 	}

@@ -15,7 +15,7 @@ func (api *localShardApiRw) SendTransaction(ctx context.Context, encoded []byte)
 	}
 
 	var extTxn types.ExternalTransaction
-	if err := extTxn.UnmarshalSSZ(encoded); err != nil {
+	if err := extTxn.UnmarshalNil(encoded); err != nil {
 		return 0, fmt.Errorf("failed to decode transaction: %w", err)
 	}
 

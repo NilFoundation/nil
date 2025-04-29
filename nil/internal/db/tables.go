@@ -51,3 +51,11 @@ type BlockHashAndTransactionIndex struct {
 	BlockHash        common.Hash
 	TransactionIndex types.TransactionIndex
 }
+
+func (i *BlockHashAndTransactionIndex) UnmarshalNil(buf []byte) error {
+	return i.UnmarshalSSZ(buf)
+}
+
+func (i BlockHashAndTransactionIndex) MarshalNil() ([]byte, error) {
+	return i.MarshalSSZ()
+}

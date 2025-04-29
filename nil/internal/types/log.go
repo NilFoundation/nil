@@ -18,6 +18,10 @@ type Log struct {
 	Data hexutil.Bytes `json:"data" ssz-max:"6000"`
 }
 
+func (l Log) MarshalNil() ([]byte, error) {
+	return l.MarshalSSZ()
+}
+
 type DebugLog struct {
 	// Message contains the log message
 	Message []byte `json:"message" ssz-max:"6000"`

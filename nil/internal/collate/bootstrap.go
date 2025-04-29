@@ -67,7 +67,7 @@ func SetVersionHandler(ctx context.Context, nm network.Manager, fabric db.DB) er
 	}
 	check.PanicIfNot(!version.Empty())
 
-	resp, err := version.MarshalSSZ()
+	resp, err := version.MarshalNil()
 	if err != nil {
 		return fmt.Errorf("failed to marshal genesis block hash: %w", err)
 	}
@@ -127,7 +127,7 @@ func fetchGenesisBlockHash(ctx context.Context, nm network.Manager, peerId netwo
 	}
 
 	var res common.Hash
-	if err := res.UnmarshalSSZ(resp); err != nil {
+	if err := res.UnmarshalNil(resp); err != nil {
 		return common.EmptyHash, fmt.Errorf("failed to unmarshal genesis block hash: %w", err)
 	}
 

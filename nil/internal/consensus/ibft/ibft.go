@@ -32,9 +32,9 @@ type ConsensusParams struct {
 }
 
 type validator interface {
-	BuildProposal(ctx context.Context) (*execution.ProposalSSZ, error)
-	IsValidProposal(ctx context.Context, proposal *execution.ProposalSSZ) error
-	InsertProposal(ctx context.Context, proposal *execution.ProposalSSZ, params *types.ConsensusParams) error
+	BuildProposal(ctx context.Context) (*execution.ProposalSerializable, error)
+	IsValidProposal(ctx context.Context, proposal *execution.ProposalSerializable) error
+	InsertProposal(ctx context.Context, proposal *execution.ProposalSerializable, params *types.ConsensusParams) error
 	GetLastBlock(ctx context.Context) (*types.Block, common.Hash, error)
 }
 
@@ -57,9 +57,9 @@ type backendIBFT struct {
 
 var _ core.Backend = &backendIBFT{}
 
-func (i *backendIBFT) unmarshalProposal(raw []byte) (*execution.ProposalSSZ, error) {
-	proposal := &execution.ProposalSSZ{}
-	if err := proposal.UnmarshalSSZ(raw); err != nil {
+func (i *backendIBFT) unmarshalProposal(raw []byte) (*execution.ProposalSerializable, error) {
+	proposal := &execution.ProposalSerializable{}
+	if err := proposal.UnmarshalNil(raw); err != nil {
 		return nil, err
 	}
 	return proposal, nil
@@ -75,7 +75,7 @@ func (i *backendIBFT) BuildProposal(view *protoIBFT.View) []byte {
 		return nil
 	}
 
-	data, err := proposal.MarshalSSZ()
+	data, err := proposal.MarshalNil()
 	if err != nil {
 		i.logger.Error().Err(err).Msg("failed to marshal proposal")
 		return nil

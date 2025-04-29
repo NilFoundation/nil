@@ -391,7 +391,7 @@ func GetContract(t *testing.T, client client.Client, address types.Address) *typ
 	require.NoError(t, err)
 
 	var contract types.SmartContract
-	require.NoError(t, contract.UnmarshalSSZ(res.Contract))
+	require.NoError(t, contract.UnmarshalNil(res.Contract))
 	return &contract
 }
 

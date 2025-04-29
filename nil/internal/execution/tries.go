@@ -3,18 +3,18 @@ package execution
 import (
 	"iter"
 
-	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
 type MPTValue[S any] interface {
 	~*S
-	fastssz.Marshaler
-	fastssz.Unmarshaler
+	serialization.NilMarshaler
+	serialization.NilUnmarshaler
 }
 
 type Entry[K, V any] struct {
@@ -275,7 +275,7 @@ func (m *BaseMPTReader[K, V, VPtr]) Fetch(key K) (VPtr, error) {
 		return nil, err
 	}
 
-	err = v.UnmarshalSSZ(raw)
+	err = v.UnmarshalNil(raw)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +292,7 @@ func (m *BaseMPTReader[K, V, VPtr]) Items() iter.Seq2[K, V] {
 			}
 
 			v := m.newV()
-			if err := v.UnmarshalSSZ(value); err != nil {
+			if err := v.UnmarshalNil(value); err != nil {
 				panic(err)
 			}
 
@@ -312,7 +312,7 @@ func (m *BaseMPTReader[K, V, VPtr]) Entries() ([]Entry[K, VPtr], error) {
 		}
 
 		v := m.newV()
-		if err := v.UnmarshalSSZ(value); err != nil {
+		if err := v.UnmarshalNil(value); err != nil {
 			return nil, err
 		}
 
@@ -337,7 +337,7 @@ func (m *BaseMPTReader[K, V, VPtr]) Values() ([]VPtr, error) {
 	res := make([]VPtr, 0)
 	for _, value := range m.Iterate() {
 		v := m.newV()
-		if err := v.UnmarshalSSZ(value); err != nil {
+		if err := v.UnmarshalNil(value); err != nil {
 			return nil, err
 		}
 		res = append(res, v)
@@ -347,7 +347,7 @@ func (m *BaseMPTReader[K, V, VPtr]) Values() ([]VPtr, error) {
 
 func (m *BaseMPT[K, V, VPtr]) Update(key K, value VPtr) error {
 	k := m.keyToBytes(key)
-	v, err := value.MarshalSSZ()
+	v, err := value.MarshalNil()
 	if err != nil {
 		return err
 	}
@@ -365,7 +365,7 @@ func (m *BaseMPT[K, V, VPtr]) UpdateBatch(keys []K, values []VPtr) error {
 		k = append(k, m.keyToBytes(key))
 	}
 	for _, value := range values {
-		val, err := value.MarshalSSZ()
+		val, err := value.MarshalNil()
 		if err != nil {
 			return err
 		}
@@ -387,7 +387,7 @@ func UpdateFromMap[K comparable, MV any, V any, VPtr MPTValue[V]](
 	for k, v := range data {
 		keys = append(keys, m.keyToBytes(k))
 		if extract != nil {
-			val, err := extract(v).MarshalSSZ()
+			val, err := extract(v).MarshalNil()
 			if err != nil {
 				return err
 			}
@@ -396,7 +396,7 @@ func UpdateFromMap[K comparable, MV any, V any, VPtr MPTValue[V]](
 			v, ok := any(v).(VPtr)
 			check.PanicIfNot(ok)
 
-			val, err := v.MarshalSSZ()
+			val, err := v.MarshalNil()
 			if err != nil {
 				return err
 			}

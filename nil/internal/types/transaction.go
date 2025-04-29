@@ -10,6 +10,7 @@ import (
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -79,8 +80,8 @@ func (ti *TransactionIndex) SetBytes(b []byte) {
 	*ti = TransactionIndex(ssz.UnmarshallUint64(b))
 }
 
-func (ti *TransactionIndex) MarshalSSZ() ([]byte, error) {
-	return ti.Bytes(), nil
+func (ti TransactionIndex) MarshalSSZ() ([]byte, error) {
+	return ssz.MarshalUint64(nil, uint64(ti)), nil
 }
 
 func (ti *TransactionIndex) MarshalSSZTo(buf []byte) ([]byte, error) {
@@ -94,6 +95,14 @@ func (ti *TransactionIndex) SizeSSZ() int {
 func (ti *TransactionIndex) UnmarshalSSZ(b []byte) error {
 	ti.SetBytes(b)
 	return nil
+}
+
+func (ti *TransactionIndex) UnmarshalNil(buf []byte) error {
+	return ti.UnmarshalSSZ(buf)
+}
+
+func (ti TransactionIndex) MarshalNil() ([]byte, error) {
+	return ti.MarshalSSZ()
 }
 
 func BytesToTransactionIndex(b []byte) TransactionIndex {
@@ -180,6 +189,10 @@ type TransactionDigest struct {
 	Data    Code    `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 }
 
+func (d TransactionDigest) MarshalNil() ([]byte, error) {
+	return d.MarshalSSZ()
+}
+
 type Transaction struct {
 	TransactionDigest
 	From     Address          `json:"from,omitempty" ch:"from"`
@@ -213,6 +226,14 @@ type ExternalTransaction struct {
 	AuthData Signature `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
 }
 
+func (tx *ExternalTransaction) UnmarshalNil(buf []byte) error {
+	return tx.UnmarshalSSZ(buf)
+}
+
+func (tx ExternalTransaction) MarshalNil() ([]byte, error) {
+	return tx.MarshalSSZ()
+}
+
 type InternalTransactionPayload struct {
 	Kind        TransactionKind `json:"kind,omitempty" ch:"kind"`
 	Bounce      bool            `json:"bounce,omitempty" ch:"bounce"`
@@ -225,6 +246,14 @@ type InternalTransactionPayload struct {
 	Value       Value           `json:"value,omitempty" ch:"value" ssz-size:"32"`
 	Data        Code            `json:"data,omitempty" ch:"data" ssz-max:"24576"`
 	RequestId   uint64          `json:"requestId,omitempty" ch:"request_id"`
+}
+
+func (p *InternalTransactionPayload) UnmarshalNil(buf []byte) error {
+	return p.UnmarshalSSZ(buf)
+}
+
+func (p InternalTransactionPayload) MarshalNil() ([]byte, error) {
+	return p.MarshalSSZ()
 }
 
 type FeePack struct {
@@ -270,18 +299,34 @@ type AsyncResponsePayload struct {
 	ReturnData []byte `ssz-max:"10000000"`
 }
 
+func (p *AsyncResponsePayload) UnmarshalNil(buf []byte) error {
+	return p.UnmarshalSSZ(buf)
+}
+
+func (p AsyncResponsePayload) MarshalNil() ([]byte, error) {
+	return p.MarshalSSZ()
+}
+
 // AsyncContext contains the context of the request. For await requests, it contains the VM state, which will be
 // restored upon receiving the response. For callback requests, it contains captured variables.
 type AsyncContext struct {
 	ResponseProcessingGas Gas `json:"gas"`
 }
 
+func (c *AsyncContext) UnmarshalNil(buf []byte) error {
+	return c.UnmarshalSSZ(buf)
+}
+
+func (c AsyncContext) MarshalNil() ([]byte, error) {
+	return c.MarshalSSZ()
+}
+
 // interfaces
 var (
-	_ common.Hashable = new(Transaction)
-	_ common.Hashable = new(ExternalTransaction)
-	_ ssz.Marshaler   = new(Transaction)
-	_ ssz.Unmarshaler = new(Transaction)
+	_ common.Hashable              = new(Transaction)
+	_ common.Hashable              = new(ExternalTransaction)
+	_ serialization.NilMarshaler   = new(Transaction)
+	_ serialization.NilUnmarshaler = new(Transaction)
 )
 
 func NewEmptyTransaction() *Transaction {
@@ -296,11 +341,19 @@ func NewEmptyTransaction() *Transaction {
 	}
 }
 
+func (t *Transaction) UnmarshalNil(buf []byte) error {
+	return t.UnmarshalSSZ(buf)
+}
+
+func (t Transaction) MarshalNil() ([]byte, error) {
+	return t.MarshalSSZ()
+}
+
 func (m *Transaction) Hash() common.Hash {
 	if m.IsExternal() {
 		return m.toExternal().Hash()
 	}
-	return ToShardedHash(common.MustKeccakSSZ(m), m.To.ShardId())
+	return ToShardedHash(common.MustKeccak(m), m.To.ShardId())
 }
 
 func (m *Transaction) Sign(key *ecdsa.PrivateKey) error {
@@ -444,7 +497,7 @@ func (m InternalTransactionPayload) ToTransaction(from Address, seqno Seqno) *Tr
 }
 
 func (m *ExternalTransaction) Hash() common.Hash {
-	return ToShardedHash(common.MustKeccakSSZ(m), m.To.ShardId())
+	return ToShardedHash(common.MustKeccak(m), m.To.ShardId())
 }
 
 func (m *ExternalTransaction) SigningHash() (common.Hash, error) {
@@ -457,7 +510,7 @@ func (m *ExternalTransaction) SigningHash() (common.Hash, error) {
 		ChainId: m.ChainId,
 	}
 
-	return common.KeccakSSZ(&transactionDigest)
+	return common.Keccak(&transactionDigest)
 }
 
 func (m ExternalTransaction) ToTransaction() *Transaction {
@@ -476,7 +529,7 @@ func (m ExternalTransaction) ToTransaction() *Transaction {
 }
 
 func (m *Transaction) SigningHash() (common.Hash, error) {
-	return common.KeccakSSZ(&m.TransactionDigest)
+	return common.Keccak(&m.TransactionDigest)
 }
 
 func (m *ExternalTransaction) Sign(key *ecdsa.PrivateKey) error {

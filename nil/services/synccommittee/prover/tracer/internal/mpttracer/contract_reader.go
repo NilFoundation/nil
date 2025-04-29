@@ -24,7 +24,7 @@ type DeserializedDebugRPCContract struct {
 
 func deserializeDebugRPCContract(debugRPCContract *jsonrpc.DebugRPCContract) (*DeserializedDebugRPCContract, error) {
 	contract := new(types.SmartContract)
-	if err := contract.UnmarshalSSZ(debugRPCContract.Contract); err != nil {
+	if err := contract.UnmarshalNil(debugRPCContract.Contract); err != nil {
 		return nil, err
 	}
 
