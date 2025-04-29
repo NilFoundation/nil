@@ -121,7 +121,7 @@ func (api *localShardApiRo) getBlockByHash(
 
 	if assert.Enable {
 		var block types.Block
-		if err := block.UnmarshalSSZ(data.Block()); err != nil {
+		if err := block.UnmarshalNil(data.Block()); err != nil {
 			return nil, err
 		}
 		blockHash := block.Hash(api.shardId())

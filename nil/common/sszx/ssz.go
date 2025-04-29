@@ -1,15 +1,15 @@
 package sszx
 
 import (
-	ssz "github.com/NilFoundation/fastssz"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 )
 
 type SSZEncodedData = []byte
 
-func EncodeContainer[T ssz.Marshaler](container []T) ([]SSZEncodedData, error) {
+func EncodeContainer[T serialization.NilMarshaler](container []T) ([]SSZEncodedData, error) {
 	result := make([]SSZEncodedData, 0, len(container))
 	for _, data := range container {
-		content, err := data.MarshalSSZ()
+		content, err := data.MarshalNil()
 		if err != nil {
 			return nil, err
 		}
@@ -21,14 +21,14 @@ func EncodeContainer[T ssz.Marshaler](container []T) ([]SSZEncodedData, error) {
 func DecodeContainer[
 	T interface {
 		~*S
-		ssz.Unmarshaler
+		serialization.NilUnmarshaler
 	},
 	S any,
 ](dataContainer []SSZEncodedData) ([]*S, error) {
 	result := make([]*S, 0, len(dataContainer))
 	for _, sszData := range dataContainer {
 		decoded := new(S)
-		if err := T(decoded).UnmarshalSSZ(sszData); err != nil {
+		if err := T(decoded).UnmarshalNil(sszData); err != nil {
 			return []*S{}, err
 		}
 		result = append(result, decoded)

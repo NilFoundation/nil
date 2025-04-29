@@ -5,6 +5,7 @@ import (
 
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 )
 
 type SszNodeKind = uint8
@@ -67,6 +68,30 @@ func newBranchNode(refs *[BranchesNum]Reference, value []byte) *BranchNode {
 	return &BranchNode{*refs, value}
 }
 
+func (n *ExtensionNode) UnmarshalNil(buf []byte) error {
+	return n.UnmarshalSSZ(buf)
+}
+
+func (n *BranchNode) UnmarshalNil(buf []byte) error {
+	return n.UnmarshalSSZ(buf)
+}
+
+func (n *LeafNode) UnmarshalNil(buf []byte) error {
+	return n.UnmarshalSSZ(buf)
+}
+
+func (n ExtensionNode) MarshalNil() ([]byte, error) {
+	return n.MarshalSSZ()
+}
+
+func (n BranchNode) MarshalNil() ([]byte, error) {
+	return n.MarshalSSZ()
+}
+
+func (n LeafNode) MarshalNil() ([]byte, error) {
+	return n.MarshalSSZ()
+}
+
 func (n *NodeBase) Path() *Path {
 	return &n.NodePath
 }
@@ -105,12 +130,16 @@ func encode[
 	S any,
 	T interface {
 		~*S
-		ssz.Marshaler
+		serialization.NilMarshaler
 	},
 ](n T, kind SszNodeKind) ([]byte, error) {
-	buf := make([]byte, 0)
+	data, err := n.MarshalNil()
+	if err != nil {
+		return nil, err
+	}
+	buf := make([]byte, 0, len(data)+1)
 	buf = ssz.MarshalUint8(buf, kind)
-	return n.MarshalSSZTo(buf)
+	return append(buf, data...), nil
 }
 
 func (n *LeafNode) Encode() ([]byte, error) {
@@ -132,19 +161,19 @@ func DecodeNode(data []byte) (Node, error) {
 	switch nodeKind {
 	case SszLeafNode:
 		node := &LeafNode{}
-		if err := node.UnmarshalSSZ(data); err != nil {
+		if err := node.UnmarshalNil(data); err != nil {
 			return nil, err
 		}
 		return node, nil
 	case SszExtensionNode:
 		node := &ExtensionNode{}
-		if err := node.UnmarshalSSZ(data); err != nil {
+		if err := node.UnmarshalNil(data); err != nil {
 			return nil, err
 		}
 		return node, nil
 	case SszBranchNode:
 		node := &BranchNode{}
-		if err := node.UnmarshalSSZ(data); err != nil {
+		if err := node.UnmarshalNil(data); err != nil {
 			return nil, err
 		}
 		return node, nil

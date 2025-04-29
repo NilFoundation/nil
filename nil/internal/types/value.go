@@ -139,6 +139,10 @@ func (v *Value) MarshalSSZ() ([]byte, error) {
 	return v.safeInt().MarshalSSZ()
 }
 
+func (v *Value) MarshalNil() ([]byte, error) {
+	return v.MarshalSSZ()
+}
+
 func (v *Value) MarshalSSZTo(dst []byte) ([]byte, error) {
 	return v.safeInt().MarshalSSZAppend(dst)
 }
@@ -146,6 +150,10 @@ func (v *Value) MarshalSSZTo(dst []byte) ([]byte, error) {
 func (v *Value) UnmarshalSSZ(buf []byte) error {
 	v.Uint256 = new(Uint256)
 	return v.Uint256.UnmarshalSSZ(buf)
+}
+
+func (v *Value) UnmarshalNil(buf []byte) error {
+	return v.UnmarshalSSZ(buf)
 }
 
 func (v *Value) SizeSSZ() (size int) {

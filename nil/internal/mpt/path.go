@@ -15,11 +15,7 @@ type Path struct {
 	FirstNibble uint8
 }
 
-var (
-	_ ssz.Marshaler   = new(Path)
-	_ ssz.Unmarshaler = new(Path)
-	_ ssz.HashRoot    = new(Path)
-)
+var _ ssz.HashRoot = new(Path)
 
 type PathAccessor interface {
 	At(idx int) int

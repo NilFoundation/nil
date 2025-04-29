@@ -10,19 +10,20 @@ import (
 	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/holiman/uint256"
 )
 
 // interfaces
 var (
-	_ ssz.Marshaler            = (*Uint256)(nil)
-	_ json.Marshaler           = (*Uint256)(nil)
-	_ ssz.Unmarshaler          = (*Uint256)(nil)
-	_ ssz.HashRoot             = (*Uint256)(nil)
-	_ encoding.BinaryMarshaler = (*Uint256)(nil)
-	_ driver.Valuer            = (*Uint256)(nil)
-	_ encoding.TextMarshaler   = (*Uint256)(nil)
-	_ encoding.TextUnmarshaler = (*Uint256)(nil)
+	_ serialization.NilMarshaler   = (*Uint256)(nil)
+	_ serialization.NilUnmarshaler = (*Uint256)(nil)
+	_ json.Marshaler               = (*Uint256)(nil)
+	_ ssz.HashRoot                 = (*Uint256)(nil)
+	_ encoding.BinaryMarshaler     = (*Uint256)(nil)
+	_ driver.Valuer                = (*Uint256)(nil)
+	_ encoding.TextMarshaler       = (*Uint256)(nil)
+	_ encoding.TextUnmarshaler     = (*Uint256)(nil)
 )
 
 type Uint256 uint256.Int
@@ -81,6 +82,10 @@ func (u *Uint256) MarshalSSZ() ([]byte, error) {
 	return u.safeInt().MarshalSSZ()
 }
 
+func (u *Uint256) MarshalNil() ([]byte, error) {
+	return u.MarshalSSZ()
+}
+
 // MarshalSSZTo ssz marshals the Uint256 object to a target array
 func (u *Uint256) MarshalSSZTo(dst []byte) ([]byte, error) {
 	return u.safeInt().MarshalSSZAppend(dst)
@@ -89,6 +94,10 @@ func (u *Uint256) MarshalSSZTo(dst []byte) ([]byte, error) {
 // UnmarshalSSZ ssz unmarshals the Uint256 object
 func (u *Uint256) UnmarshalSSZ(buf []byte) error {
 	return (*uint256.Int)(u).UnmarshalSSZ(buf)
+}
+
+func (u *Uint256) UnmarshalNil(buf []byte) error {
+	return u.UnmarshalSSZ(buf)
 }
 
 // SizeSSZ returns the ssz encoded size in bytes for the Uint256 object
@@ -133,7 +142,7 @@ func (u *Uint256) UnmarshalText(input []byte) error {
 }
 
 func (u *Uint256) MarshalBinary() (data []byte, err error) {
-	return u.MarshalSSZ()
+	return u.MarshalNil()
 }
 
 func (u Uint256) Value() (driver.Value, error) {

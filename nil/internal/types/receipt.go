@@ -22,5 +22,13 @@ type Receipt struct {
 }
 
 func (r *Receipt) Hash() common.Hash {
-	return ToShardedHash(common.MustKeccakSSZ(r), ShardIdFromHash(r.TxnHash))
+	return ToShardedHash(common.MustKeccak(r), ShardIdFromHash(r.TxnHash))
+}
+
+func (r *Receipt) UnmarshalNil(buf []byte) error {
+	return r.UnmarshalSSZ(buf)
+}
+
+func (r Receipt) MarshalNil() ([]byte, error) {
+	return r.MarshalSSZ()
 }

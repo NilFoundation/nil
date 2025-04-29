@@ -91,7 +91,7 @@ func (p *TxnPool) listen(ctx context.Context, sub *network.Subscription) {
 
 	for m := range sub.Start(ctx, true) {
 		txn := &types.Transaction{}
-		if err := txn.UnmarshalSSZ(m.Data); err != nil {
+		if err := txn.UnmarshalNil(m.Data); err != nil {
 			p.logger.Error().Err(err).
 				Msg("Failed to unmarshal transaction from network")
 			continue

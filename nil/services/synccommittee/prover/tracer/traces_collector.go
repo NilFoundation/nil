@@ -163,7 +163,7 @@ func (tc *remoteTracesCollectorImpl) fetchAndDecodeBlock(
 	return dbgBlock, decodedBlock, nil
 }
 
-func decodeTxCounts(counts []*types.TxCountSSZ) execution.TxCounts {
+func decodeTxCounts(counts []*types.TxCount) execution.TxCounts {
 	txCounts := make(execution.TxCounts, len(counts))
 	for _, count := range counts {
 		txCounts[types.ShardId(count.ShardId)] = count.Count

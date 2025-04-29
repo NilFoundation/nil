@@ -45,7 +45,7 @@ func GetInternalTransactionCommand() *cobra.Command {
 				return err
 			}
 
-			transactionSsz, err := transaction.MarshalSSZ()
+			transactionSsz, err := transaction.MarshalNil()
 			if err != nil {
 				return err
 			}

@@ -143,21 +143,21 @@ func NewChainConfigFromMap(data map[string][]byte) (*ChainConfig, error) {
 func (c *ChainConfig) ToMap() (map[string][]byte, error) {
 	result := make(map[string][]byte)
 	if c.Validators != nil {
-		validators, err := c.Validators.MarshalSSZ()
+		validators, err := c.Validators.MarshalNil()
 		if err != nil {
 			return nil, err
 		}
 		result[config.NameValidators] = validators
 	}
 	if c.GasPrices != nil {
-		gasPrices, err := c.GasPrices.MarshalSSZ()
+		gasPrices, err := c.GasPrices.MarshalNil()
 		if err != nil {
 			return nil, err
 		}
 		result[config.NameGasPrice] = gasPrices
 	}
 	if c.L1BlockInfo != nil {
-		l1BlockInfo, err := c.L1BlockInfo.MarshalSSZ()
+		l1BlockInfo, err := c.L1BlockInfo.MarshalNil()
 		if err != nil {
 			return nil, err
 		}
@@ -434,7 +434,7 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 	}
 
 	receipt := &types.Receipt{}
-	if err := receipt.UnmarshalSSZ(info.ReceiptSSZ); err != nil {
+	if err := receipt.UnmarshalNil(info.ReceiptSSZ); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal receipt: %w", err)
 	}
 
@@ -533,7 +533,7 @@ func toOutTransactions(input []*rpctypes.OutTransaction) ([]*OutTransaction, err
 			Transaction: &types.Transaction{},
 			ForwardKind: txn.ForwardKind,
 		}
-		if err := decoded.UnmarshalSSZ(txn.TransactionSSZ); err != nil {
+		if err := decoded.UnmarshalNil(txn.TransactionSSZ); err != nil {
 			return nil, err
 		}
 		decoded.TxnHash = decoded.Hash()

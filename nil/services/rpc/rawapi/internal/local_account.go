@@ -146,7 +146,7 @@ func (api *localShardApiRo) GetContract(
 	}
 
 	contract := new(types.SmartContract)
-	if err := contract.UnmarshalSSZ(contractRaw); err != nil {
+	if err := contract.UnmarshalNil(contractRaw); err != nil {
 		return nil, err
 	}
 
@@ -210,7 +210,7 @@ func (api *localShardApiRo) getRawSmartContract(
 		return nil, nil, errBlockNotFound
 	}
 	var block types.Block
-	if err := block.UnmarshalSSZ(rawBlock.Block); err != nil {
+	if err := block.UnmarshalNil(rawBlock.Block); err != nil {
 		return nil, nil, err
 	}
 
@@ -240,7 +240,7 @@ func (api *localShardApiRo) getSmartContract(
 	}
 
 	contract := new(types.SmartContract)
-	if err := contract.UnmarshalSSZ(contractRaw); err != nil {
+	if err := contract.UnmarshalNil(contractRaw); err != nil {
 		return nil, err
 	}
 

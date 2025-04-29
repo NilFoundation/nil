@@ -27,7 +27,7 @@ func TestUint256SSZ(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "8e8e010000000000000000000000000000000000000000000000000000000000", hex.EncodeToString(res[:]))
 
-	h, err := common.KeccakSSZ(value)
+	h, err := common.Keccak(value)
 	require.NoError(t, err)
 	assert.Equal(t, "3fa5449386ef45c61db8db3b8dba50dc4b899b5ea9afa02267d309fa92233c12", hex.EncodeToString(h[:]))
 }

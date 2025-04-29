@@ -3,9 +3,9 @@ package types
 import (
 	"database/sql/driver"
 
-	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 )
 
 type SmartContract struct {
@@ -17,6 +17,14 @@ type SmartContract struct {
 	AsyncContextRoot common.Hash
 	Seqno            Seqno
 	ExtSeqno         Seqno
+}
+
+func (s *SmartContract) UnmarshalNil(buf []byte) error {
+	return s.UnmarshalSSZ(buf)
+}
+
+func (s SmartContract) MarshalNil() ([]byte, error) {
+	return s.MarshalSSZ()
 }
 
 type TokenId Address
@@ -49,14 +57,14 @@ func TokenIdForAddress(a Address) *TokenId {
 
 // interfaces
 var (
-	_ driver.Valuer       = new(TokenBalance)
-	_ common.Hashable     = new(SmartContract)
-	_ fastssz.Marshaler   = new(Block)
-	_ fastssz.Unmarshaler = new(Block)
+	_ driver.Valuer                = new(TokenBalance)
+	_ common.Hashable              = new(SmartContract)
+	_ serialization.NilMarshaler   = new(Block)
+	_ serialization.NilUnmarshaler = new(Block)
 )
 
 func (s *SmartContract) Hash() common.Hash {
-	return common.MustKeccakSSZ(s)
+	return common.MustKeccak(s)
 }
 
 type TokensMap = map[TokenId]Value
