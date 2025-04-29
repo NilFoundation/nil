@@ -440,7 +440,7 @@ func (agg *aggregator) sealBatch(ctx context.Context, batch *types.BlockBatch) e
 		return fmt.Errorf("error storing batch, batchId=%s: %w", batch.Id, err)
 	}
 
-	if err := agg.rollupContract.CommitBatch(ctx, sidecar, sealedBatch.Id.String()); err != nil {
+	if err := agg.rollupContract.CommitBatch(ctx, sealedBatch.Id, sidecar); err != nil {
 		return agg.handleCommitBatchError(ctx, sealedBatch, err)
 	}
 

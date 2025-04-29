@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
@@ -22,21 +23,14 @@ import (
 )
 
 type Wrapper interface {
-	UpdateState(
-		ctx context.Context,
-		batchIndex string,
-		dataProofs types.DataProofs,
-		oldStateRoot, newStateRoot common.Hash,
-		validityProof []byte,
-		publicDataInputs INilRollupPublicDataInfo,
-	) error
-	LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
-	CommitBatch(
-		ctx context.Context,
-		sidecar *ethtypes.BlobTxSidecar,
-		batchIndex string,
-	) error
+	UpdateState(ctx context.Context, data *types.UpdateStateData) error
+
+	GetLatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
+
+	CommitBatch(ctx context.Context, batchId types.BatchId, sidecar *ethtypes.BlobTxSidecar) error
+
 	PrepareBlobs(ctx context.Context, blobs []kzg4844.Blob) (*ethtypes.BlobTxSidecar, types.DataProofs, error)
+
 	ResetState(ctx context.Context, targetRoot common.Hash) error
 }
 
@@ -137,7 +131,7 @@ func NewWrapperWithEthClient(
 	}, nil
 }
 
-func (r *wrapperImpl) LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error) {
+func (r *wrapperImpl) GetLatestFinalizedStateRoot(ctx context.Context) (common.Hash, error) {
 	latestFinalizedBatchIndex, err := r.latestFinalizedBatchIndex(ctx)
 	if err != nil {
 		return common.EmptyHash, err
@@ -292,7 +286,7 @@ func (r *wrapperImpl) decodeContractError(err error) error {
 	}
 
 	if len(revertData) < 4 {
-		return errors.New("not enough data to unparse error")
+		return fmt.Errorf("not enough data to unparse error: %w", err)
 	}
 	var selector [4]byte
 	copy(selector[:], revertData[:4])
@@ -348,16 +342,37 @@ func (r *wrapperImpl) errorByName(err error) error {
 
 // simulateTx simulates transaction using `eth_call` method, tries to decode error
 func (r *wrapperImpl) simulateTx(ctx context.Context, tx *ethtypes.Transaction, blockNumber *big.Int) error {
-	_, err := r.ethClient.CallContract(ctx, ethereum.CallMsg{
-		From: r.senderAddress,
-		To:   tx.To(),
-		Data: tx.Data(),
-	}, blockNumber)
+	args := map[string]any{
+		"from":     r.senderAddress,
+		"to":       tx.To(),
+		"gas":      hexutil.Uint64(tx.Gas()),
+		"gasPrice": hexutil.Big(*tx.GasPrice()),
+		"value":    hexutil.Big(*tx.Value()),
+		"data":     hexutil.Bytes(tx.Data()),
+	}
+
+	if sidecar := tx.BlobTxSidecar(); sidecar != nil {
+		args["blobs"] = sidecar.Blobs
+		args["kzgCommitments"] = sidecar.Commitments
+		args["kzgProofs"] = sidecar.Proofs
+		args["blobVersionedHashes"] = tx.BlobHashes()
+		args["blobFeeCap"] = (*hexutil.Big)(tx.BlobGasFeeCap())
+	}
+
+	var result any
+	err := r.ethClient.RawCall(ctx, result, "eth_call", args, toBlockNumArg(blockNumber))
 	if err != nil {
 		return r.decodeContractError(err)
 	}
 
 	return nil
+}
+
+func toBlockNumArg(number *big.Int) string {
+	if number == nil {
+		return "latest"
+	}
+	return hexutil.EncodeBig(number)
 }
 
 type noopWrapper struct {
@@ -366,14 +381,12 @@ type noopWrapper struct {
 
 var _ Wrapper = (*noopWrapper)(nil)
 
-func (w *noopWrapper) UpdateState(
-	context.Context, string, types.DataProofs, common.Hash, common.Hash, []byte, INilRollupPublicDataInfo,
-) error {
+func (w *noopWrapper) UpdateState(context.Context, *types.UpdateStateData) error {
 	w.logger.Debug().Msg("UpdateState noop wrapper method called")
 	return nil
 }
 
-func (w *noopWrapper) LatestFinalizedStateRoot(context.Context) (common.Hash, error) {
+func (w *noopWrapper) GetLatestFinalizedStateRoot(context.Context) (common.Hash, error) {
 	w.logger.Debug().Msg("FinalizedStateRoot noop wrapper method called")
 	return common.Hash{}, nil
 }
@@ -383,7 +396,7 @@ func (w *noopWrapper) PrepareBlobs(context.Context, []kzg4844.Blob) (*ethtypes.B
 	return nil, nil, nil
 }
 
-func (w *noopWrapper) CommitBatch(context.Context, *ethtypes.BlobTxSidecar, string) error {
+func (w *noopWrapper) CommitBatch(context.Context, types.BatchId, *ethtypes.BlobTxSidecar) error {
 	w.logger.Debug().Msg("CommitBatch noop wrapper method called")
 	return nil
 }
