@@ -19,6 +19,8 @@ contract MyLogicBasic is
 
   uint256 public value;
 
+  constructor() {}
+
   function initialize(address ownerAddress, address adminAddress, uint256 _value) public initializer {
     // // Initialize the Ownable contract with the owner address
     OwnableUpgradeable.__Ownable_init(ownerAddress);

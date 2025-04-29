@@ -46,9 +46,10 @@ task("deploy-my-logic-basic", "Deploys MyLogic contract on Nil Chain")
             shardId: 1,
             bytecode: MyLogicJson.default.bytecode as `0x${string}`,
             abi: MyLogicJson.default.abi,
+            chainId: 1,
             args: [],
             salt: BigInt(Math.floor(Math.random() * 10000)),
-            feeCredit: BigInt("19340180000000"),
+            //feeCredit: BigInt("19340180000000"),
         });
 
         console.log(`address from deployment is: ${myLogicImplementationAddress}`);

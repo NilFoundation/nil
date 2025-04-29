@@ -316,12 +316,16 @@ contract L1BridgeMessenger is
     // Check if the deposit message exists
     DepositMessage storage depositMessage = depositMessages[messageHash];
     if (depositMessage.expiryTime == 0) {
-      revert DepositMessageDoesNotExist(messageHash);
+      revert DepositMessageDoesNotExist();
     }
 
     // Check if the deposit message is already canceled
     if (depositMessage.isCancelled) {
-      revert DepositMessageAlreadyCancelled(messageHash);
+      revert DepositMessageAlreadyCancelled();
+    }
+
+    if (depositMessage.isClaimed) {
+      revert DepositMessageAlreadyClaimed();
     }
 
     // Check if the message hash is in the queue
@@ -338,9 +342,7 @@ contract L1BridgeMessenger is
 
     // Mark the deposit message as canceled
     depositMessage.isCancelled = true;
-
-    // Remove the message hash from the queue
-    messageQueue.popFront();
+    depositMessage.isClaimed = true;
 
     // Emit an event for the cancellation
     emit DepositMessageCancelled(messageHash);
@@ -374,7 +376,7 @@ contract L1BridgeMessenger is
   ) public override whenNotPaused {
     DepositMessage storage depositMessage = depositMessages[messageHash];
     if (depositMessage.expiryTime == 0) {
-      revert DepositMessageDoesNotExist(messageHash);
+      revert DepositMessageDoesNotExist();
     }
 
     // Check if the deposit message is already claimed
@@ -496,7 +498,7 @@ contract L1BridgeMessenger is
     );
 
     if (depositMessages[messageHash].expiryTime != 0) {
-      revert DepositMessageAlreadyExist(messageHash);
+      revert DepositMessageAlreadyExist();
     }
 
     depositMessages[messageHash] = depositMessage;
