@@ -253,13 +253,6 @@ func NewFeePackFromFeeCredit(feeCredit Value) FeePack {
 	return FeePack{FeeCredit: feeCredit, MaxPriorityFeePerGas: NewZeroValue(), MaxFeePerGas: MaxFeePerGasDefault}
 }
 
-// EvmState contains EVM data to be saved/restored during await request.
-type EvmState struct {
-	Memory []byte `ssz-max:"10000000"`
-	Stack  []byte `ssz-max:"32768"`
-	Pc     uint64
-}
-
 // AsyncRequestInfo contains information about the incomplete request, that is a request which waits for response to a
 // nested request.
 type AsyncRequestInfo struct {
