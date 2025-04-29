@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/constraints"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/feeupdater"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
@@ -117,9 +118,23 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		logger,
 	)
 
+	feeUpdaterMetrics, err := metrics.NewFeeUpdaterMetrics()
+	if err != nil {
+		return nil, err
+	}
+
+	feeUpdater := feeupdater.NewUpdater(
+		cfg.L1FeeUpdateConfig,
+		fetcher,
+		logger,
+		clock,
+		nil, // TODO contract wrapper
+		feeUpdaterMetrics,
+	)
+
 	syncCommittee.Service = srv.NewService(
 		logger,
-		syncRunner, proposer, agg, lagTracker, taskScheduler, taskListener,
+		syncRunner, proposer, agg, lagTracker, taskScheduler, taskListener, feeUpdater,
 	)
 
 	return syncCommittee, nil

@@ -81,11 +81,18 @@ func (f *Fetcher) GetLatestBlockRef(
 	return f.getBlockRefByStrId(ctx, shardId, "latest")
 }
 
-func (f *Fetcher) getBlockRefByStrId(
+func (f *Fetcher) GetLatestBlock(
+	ctx context.Context,
+	shardId coreTypes.ShardId,
+) (*types.Block, error) {
+	return f.getBlockByStrId(ctx, shardId, "latest")
+}
+
+func (f *Fetcher) getBlockByStrId(
 	ctx context.Context,
 	shardId coreTypes.ShardId,
 	strId string,
-) (*types.BlockRef, error) {
+) (*types.Block, error) {
 	block, err := f.rpcClient.GetBlock(ctx, shardId, strId, false)
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -96,6 +103,18 @@ func (f *Fetcher) getBlockRefByStrId(
 		return nil, fmt.Errorf(
 			"%w: block not found in chain, shardId=%d, id=%s", types.ErrBlockNotFound, shardId, strId,
 		)
+	}
+	return block, nil
+}
+
+func (f *Fetcher) getBlockRefByStrId(
+	ctx context.Context,
+	shardId coreTypes.ShardId,
+	strId string,
+) (*types.BlockRef, error) {
+	block, err := f.getBlockByStrId(ctx, shardId, strId)
+	if err != nil {
+		return nil, err
 	}
 	blockRef := types.BlockToRef(block)
 	return &blockRef, nil
