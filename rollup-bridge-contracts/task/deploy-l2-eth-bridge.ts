@@ -49,20 +49,19 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
         // save the nilMessageTree Address in the json config for l2
         const l2NetworkConfig: L2NetworkConfig = loadNilNetworkConfig(networkName);
 
-        const { address: l2EthBridgeImplementationAddress, hash: l2EthBridgeImplementationDeploymentTxHash } = await deployerAccount.deployContract({
+        const { tx: l2EthBridgeImplementationDeploymentTx, address: l2EthBridgeImplementationAddress } = await deployerAccount.deployContract({
             shardId: 1,
-            bytecode: L2ETHBridgeJson.default.bytecode,
-            abi: L2ETHBridgeJson.default.abi,
+            bytecode: L2ETHBridgeJson.default.bytecode as `0x${string}`,
+            abi: L2ETHBridgeJson.default.abi as Abi,
             args: [],
             salt: BigInt(Math.floor(Math.random() * 10000)),
             feeCredit: BigInt("19340180000000"),
         });
 
-        console.log(`address from deployment is: ${l2EthBridgeImplementationAddress}`);
-        await waitTillCompleted(deployerAccount.client, l2EthBridgeImplementationDeploymentTxHash);
-        console.log("✅ Logic Contract deployed at:", l2EthBridgeImplementationDeploymentTxHash);
+        console.log(`address from deployment is: ${l2EthBridgeImplementationAddress} and transactionHash: ${l2EthBridgeImplementationDeploymentTx.hash}`);
+        await waitTillCompleted(deployerAccount.client, l2EthBridgeImplementationDeploymentTx.hash);
 
-        if (!l2EthBridgeImplementationDeploymentTxHash) {
+        if (!l2EthBridgeImplementationDeploymentTx.hash) {
             throw Error(`Invalid transaction output from deployContract call for L2ETHBridge Contract`);
         }
 
@@ -70,7 +69,7 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
             throw Error(`Invalid address output from deployContract call for L2ETHBridge Contract`);
         }
 
-        console.log(`NilMessageTree contract deployed at address: ${l2EthBridgeImplementationAddress} and with transactionHash: ${l2EthBridgeImplementationDeploymentTxHash}`);
+        console.log(`NilMessageTree contract deployed at address: ${l2EthBridgeImplementationAddress} and with transactionHash: ${l2EthBridgeImplementationDeploymentTx.hash}`);
 
         l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeImplementation = l2EthBridgeImplementationAddress;
 
@@ -81,19 +80,18 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
             l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy,
             l2NetworkConfig.l2ETHBridgeVaultConfig.l2ETHBridgeVaultContracts.l2ETHBridgeVaultProxy],
         });
-
-        const { address: addressProxy, hash: hashProxy } = await deployerAccount.deployContract({
+        const { tx: l2EthBridgeProxyDeploymentTx, address: l2EthBridgeProxyAddress } = await deployerAccount.deployContract({
             shardId: 1,
-            bytecode: TransparentUpgradeableProxy.default.bytecode,
-            abi: TransparentUpgradeableProxy.default.abi,
+            bytecode: TransparentUpgradeableProxy.default.bytecode as `0x${string}`,
+            abi: TransparentUpgradeableProxy.default.abi as Abi,
             args: [l2EthBridgeImplementationAddress, deployerAccount.address, initData],
             salt: BigInt(Math.floor(Math.random() * 10000)),
             feeCredit: convertEthToWei(0.001),
         });
-        await waitTillCompleted(deployerAccount.client, hashProxy);
-        console.log("✅ Transparent Proxy Contract deployed at:", addressProxy);
+        await waitTillCompleted(deployerAccount.client, l2EthBridgeProxyDeploymentTx.hash);
+        console.log("✅ Transparent Proxy Contract deployed at:", l2EthBridgeProxyAddress);
 
-        l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy = addressProxy;
+        l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy = l2EthBridgeProxyAddress;
 
         console.log("Waiting 5 seconds...");
         await new Promise((res) => setTimeout(res, 5000));
@@ -105,7 +103,7 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
         });
 
         const fetchImplementationResult = await deployerAccount.client.call({
-            to: addressProxy,
+            to: l2EthBridgeProxyAddress,
             data: fetchImplementationCall,
             from: deployerAccount.address,
         }, "latest");
@@ -127,7 +125,7 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
         });
 
         const adminResult = await deployerAccount.client.call({
-            to: addressProxy,
+            to: l2EthBridgeProxyAddress,
             data: fetchAdminCall,
             from: deployerAccount.address,
         }, "latest");
