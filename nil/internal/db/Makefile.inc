@@ -1,5 +1,9 @@
-.PHONY: ssz_db
-ssz_db: nil/internal/db/tables_encoding.go
+DB_RLPGEN := cd nil/internal/db && $(RLPGEN_BIN)
 
-nil/internal/db/tables_encoding.go: nil/internal/db/tables.go nil/common/hash.go nil/common/length.go nil/internal/types/transaction.go
-	cd nil/internal/db && go generate generate.go
+RLP_DB_TARGET = nil/internal/db/block_hash_and_transaction_index_rlp_encoding.go
+
+.PHONY: rlp_db rlp_types
+rlp_db: $(RLP_DB_TARGET)
+
+$(RLP_DB_TARGET): nil/internal/db/tables.go nil/common/hash.go nil/common/length.go nil/internal/types/transaction.go | $(RLPGEN_BIN)
+	$(DB_RLPGEN) -type BlockHashAndTransactionIndex -out block_hash_and_transaction_index_rlp_encoding.go -decoder

@@ -46,7 +46,7 @@ func PublishBlock(
 		return nil
 	}
 
-	pbBlock, err := marshalBlockSSZ(block)
+	pbBlock, err := marshalBlock(block)
 	if err != nil {
 		return fmt.Errorf("failed to marshal block: %w", err)
 	}
@@ -85,7 +85,7 @@ func readBlockFromStream(s network.Stream) (*types.BlockWithExtractedData, error
 		return nil, fmt.Errorf("failed to unmarshal block: %w", err)
 	}
 
-	return unmarshalBlockSSZ(&pbBlock)
+	return unmarshalBlock(&pbBlock)
 }
 
 func writeBlockToStream(s network.Stream, block *pb.RawFullBlock) error {
@@ -155,8 +155,8 @@ func RequestBlocks(ctx context.Context, networkManager network.Manager, peerID n
 	return ch, nil
 }
 
-func marshalBlockSSZ(block *types.BlockWithExtractedData) (*pb.RawFullBlock, error) {
-	raw, err := block.EncodeSSZ()
+func marshalBlock(block *types.BlockWithExtractedData) (*pb.RawFullBlock, error) {
+	raw, err := block.EncodeToBytes()
 	if err != nil {
 		return nil, err
 	}
@@ -167,12 +167,12 @@ func marshalBlockSSZ(block *types.BlockWithExtractedData) (*pb.RawFullBlock, err
 	return pbBlock, nil
 }
 
-func unmarshalBlockSSZ(pbBlock *pb.RawFullBlock) (*types.BlockWithExtractedData, error) {
+func unmarshalBlock(pbBlock *pb.RawFullBlock) (*types.BlockWithExtractedData, error) {
 	raw, err := pbBlock.UnpackProtoMessage()
 	if err != nil {
 		return nil, err
 	}
-	return raw.DecodeSSZ()
+	return raw.DecodeBytes()
 }
 
 func SetBlockRequestHandler(
@@ -229,11 +229,11 @@ func SetBlockRequestHandler(
 			}
 
 			b := &pb.RawFullBlock{
-				BlockSSZ:           resp.Block(),
-				OutTransactionsSSZ: resp.OutTransactions(),
-				InTransactionsSSZ:  resp.InTransactions(),
-				ChildBlocks:        pb.PackHashes(resp.ChildBlocks()),
-				Config:             resp.Config(),
+				BlockBytes:           resp.Block(),
+				OutTransactionsBytes: resp.OutTransactions(),
+				InTransactionsBytes:  resp.InTransactions(),
+				ChildBlocks:          pb.PackHashes(resp.ChildBlocks()),
+				Config:               resp.Config(),
 			}
 
 			if err := writeBlockToStream(s, b); err != nil {

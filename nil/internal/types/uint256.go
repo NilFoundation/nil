@@ -8,7 +8,6 @@ import (
 	"io"
 	"math/big"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
@@ -21,7 +20,6 @@ var (
 	_ serialization.NilMarshaler   = (*Uint256)(nil)
 	_ serialization.NilUnmarshaler = (*Uint256)(nil)
 	_ json.Marshaler               = (*Uint256)(nil)
-	_ ssz.HashRoot                 = (*Uint256)(nil)
 	_ encoding.BinaryMarshaler     = (*Uint256)(nil)
 	_ driver.Valuer                = (*Uint256)(nil)
 	_ encoding.TextMarshaler       = (*Uint256)(nil)
@@ -96,52 +94,12 @@ func (u *Uint256) DecodeRLP(r *rlp.Stream) error {
 	return nil
 }
 
-// MarshalSSZ ssz marshals the Uint256 object
-func (u *Uint256) MarshalSSZ() ([]byte, error) {
-	return u.safeInt().MarshalSSZ()
-}
-
 func (u *Uint256) MarshalNil() ([]byte, error) {
-	return u.MarshalSSZ()
-}
-
-// MarshalSSZTo ssz marshals the Uint256 object to a target array
-func (u *Uint256) MarshalSSZTo(dst []byte) ([]byte, error) {
-	return u.safeInt().MarshalSSZAppend(dst)
-}
-
-// UnmarshalSSZ ssz unmarshals the Uint256 object
-func (u *Uint256) UnmarshalSSZ(buf []byte) error {
-	return (*uint256.Int)(u).UnmarshalSSZ(buf)
+	return rlp.EncodeToBytes(u)
 }
 
 func (u *Uint256) UnmarshalNil(buf []byte) error {
-	return u.UnmarshalSSZ(buf)
-}
-
-// SizeSSZ returns the ssz encoded size in bytes for the Uint256 object
-func (u *Uint256) SizeSSZ() (size int) {
-	return u.safeInt().SizeSSZ()
-}
-
-// HashTreeRoot ssz hashes the Uint256 object
-func (u *Uint256) HashTreeRoot() ([32]byte, error) {
-	b, _ := u.MarshalSSZTo(make([]byte, 0, 32)) // ignore error, cannot fail
-	var hash [32]byte
-	copy(hash[:], b)
-	return hash, nil
-}
-
-// HashTreeRootWith ssz hashes the Uint256 object with a hasher
-func (u *Uint256) HashTreeRootWith(hh ssz.HashWalker) (err error) {
-	bytes, _ := u.MarshalSSZTo(make([]byte, 0, 32)) // ignore error, cannot fail
-	hh.AppendBytes32(bytes)
-	return
-}
-
-// GetTree ssz hashes the Uint256 object
-func (u *Uint256) GetTree() (*ssz.Node, error) {
-	return ssz.ProofTree(u)
+	return rlp.DecodeBytes(buf, u)
 }
 
 func (u Uint256) MarshalJSON() ([]byte, error) {

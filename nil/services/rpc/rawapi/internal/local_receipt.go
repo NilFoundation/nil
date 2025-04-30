@@ -65,7 +65,7 @@ func (api *localShardApiRo) GetInTransactionReceipt(
 			types.MainShardId,
 			rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
 		if err == nil {
-			mainBlockData, err := rawMainBlock.DecodeSSZ()
+			mainBlockData, err := rawMainBlock.DecodeBytes()
 			if err != nil {
 				return nil, err
 			}
@@ -130,9 +130,9 @@ func (api *localShardApiRo) GetInTransactionReceipt(
 		}
 	}
 
-	var receiptSSZ []byte
+	var receiptBytes []byte
 	if receipt != nil {
-		receiptSSZ, err = receipt.MarshalNil()
+		receiptBytes, err = receipt.MarshalNil()
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal receipt: %w", err)
 		}
@@ -151,7 +151,7 @@ func (api *localShardApiRo) GetInTransactionReceipt(
 	}
 
 	return &rawapitypes.ReceiptInfo{
-		ReceiptSSZ:      receiptSSZ,
+		ReceiptBytes:    receiptBytes,
 		Flags:           flags,
 		Index:           indexes.TransactionIndex,
 		BlockHash:       blockHash,

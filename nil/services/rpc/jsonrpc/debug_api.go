@@ -89,6 +89,7 @@ func (api *DebugAPIImpl) getBlockByReference(
 ) (*DebugRPCBlock, error) {
 	var blockData *types.RawBlockWithExtractedData
 	var err error
+	fmt.Println("====================== withTransactions", withTransactions)
 	if withTransactions {
 		blockData, err = api.rawApi.GetFullBlockData(ctx, shardId, blockReference)
 		if err != nil {
@@ -115,7 +116,7 @@ func (api *DebugAPIImpl) GetContract(
 	}
 
 	return &DebugRPCContract{
-		Contract:     contract.ContractSSZ,
+		Contract:     contract.ContractBytes,
 		Code:         hexutil.Bytes(contract.Code),
 		Proof:        contract.ProofEncoded,
 		Storage:      contract.Storage,

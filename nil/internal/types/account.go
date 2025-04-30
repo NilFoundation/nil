@@ -6,11 +6,12 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type SmartContract struct {
 	Address          Address
-	Balance          Value `ssz-size:"32"`
+	Balance          Value
 	TokenRoot        common.Hash
 	StorageRoot      common.Hash
 	CodeHash         common.Hash
@@ -20,11 +21,11 @@ type SmartContract struct {
 }
 
 func (s *SmartContract) UnmarshalNil(buf []byte) error {
-	return s.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, s)
 }
 
 func (s SmartContract) MarshalNil() ([]byte, error) {
-	return s.MarshalSSZ()
+	return rlp.EncodeToBytes(&s)
 }
 
 type TokenId Address
@@ -42,8 +43,8 @@ func (c *TokenId) UnmarshalText(input []byte) error {
 }
 
 type TokenBalance struct {
-	Token   TokenId `json:"id" ssz-size:"20" abi:"id"`
-	Balance Value   `json:"value" ssz-size:"32" abi:"amount"`
+	Token   TokenId `json:"id" abi:"id"`
+	Balance Value   `json:"value" abi:"amount"`
 }
 
 func (token TokenBalance) Value() (driver.Value, error) {

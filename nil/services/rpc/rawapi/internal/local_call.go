@@ -143,14 +143,14 @@ func (api *localShardApiRo) handleOutTransactions(
 		}
 
 		outTransactions[i] = &rpctypes.OutTransaction{
-			TransactionSSZ:  raw,
-			ForwardKind:     outTxn.ForwardKind,
-			Data:            res.Data,
-			CoinsUsed:       res.CoinsUsed,
-			OutTransactions: res.OutTransactions,
-			BaseFee:         res.BaseFee,
-			Error:           res.Error,
-			Logs:            res.Logs,
+			TransactionBytes: raw,
+			ForwardKind:      outTxn.ForwardKind,
+			Data:             res.Data,
+			CoinsUsed:        res.CoinsUsed,
+			OutTransactions:  res.OutTransactions,
+			BaseFee:          res.BaseFee,
+			Error:            res.Error,
+			Logs:             res.Logs,
 		}
 
 		if overrides != nil {
@@ -194,7 +194,7 @@ func (api *localShardApiRo) Call(
 		if err != nil {
 			return nil, err
 		}
-		mainBlock, err := mainBlockData.DecodeSSZ()
+		mainBlock, err := mainBlockData.DecodeBytes()
 		if err != nil {
 			return nil, err
 		}

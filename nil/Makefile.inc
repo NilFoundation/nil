@@ -23,16 +23,16 @@ generate_mocks: \
 	$(root_db)/db_generated_mock.go \
 	$(root_rollup)/l1_fetcher_generated_mock.go \
 
-$(root_client)/client_generated_mock.go: $(root_client)/client.go ssz_types
+$(root_client)/client_generated_mock.go: $(root_client)/client.go rlp_types
 	cd $(root_client) && go generate
 
-$(root_vm)/state_generated_mock.go: $(root_vm)/interface.go ssz_types
+$(root_vm)/state_generated_mock.go: $(root_vm)/interface.go rlp_types
 	cd $(root_vm) && go generate
 
-$(root_db)/rwtx_generated_mock.go: $(root_db)/kv.go ssz_types
+$(root_db)/rwtx_generated_mock.go: $(root_db)/kv.go rlp_types
 	cd $(root_db) && go generate -run="rwtx_" kv.go
 
-$(root_db)/db_generated_mock.go: $(root_db)/kv.go ssz_types
+$(root_db)/db_generated_mock.go: $(root_db)/kv.go $(root_db)/rwtx_generated_mock.go rlp_types
 	cd $(root_db) && go generate -run="db_" kv.go
 
 $(root_rollup)/l1_fetcher_generated_mock.go: $(root_rollup)/l1_fetcher.go

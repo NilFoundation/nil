@@ -180,12 +180,12 @@ func (api *localShardApiRo) GetContract(
 	}
 
 	return &rawapitypes.SmartContract{
-		ContractSSZ:  contractRaw,
-		Code:         code,
-		ProofEncoded: encodedProof,
-		Storage:      execution.ConvertTrieEntriesToMap(storageEntries),
-		Tokens:       execution.ConvertTrieEntriesToMap(tokenEntries),
-		AsyncContext: execution.ConvertTrieEntriesToMap(asyncContextEntries),
+		ContractBytes: contractRaw,
+		Code:          code,
+		ProofEncoded:  encodedProof,
+		Storage:       execution.ConvertTrieEntriesToMap(storageEntries),
+		Tokens:        execution.ConvertTrieEntriesToMap(tokenEntries),
+		AsyncContext:  execution.ConvertTrieEntriesToMap(asyncContextEntries),
 	}, nil
 }
 

@@ -28,9 +28,9 @@ func (s *Service) FetchDebugBlock(
 		return nil, nil
 	}
 
-	block, err := hexedBlock.DecodeSSZ()
+	block, err := hexedBlock.DecodeBytes()
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to decode block data from hexed SSZ")
+		s.logger.Error().Err(err).Msg("Failed to decode block data from hexed bytes")
 		return nil, err
 	}
 

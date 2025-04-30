@@ -724,6 +724,38 @@ func (op sliceOp) genDecode(ctx *genContext) (string, string) {
 	return sliceV, b.String()
 }
 
+type arrayOp struct {
+	typ    *types.Array
+	elemOp op
+}
+
+func (op arrayOp) genWrite(ctx *genContext, v string) string {
+	var (
+		iterIdx  = ctx.temp()
+		elemVal  = fmt.Sprintf("%s[%s]", v, iterIdx)
+		elemCode = op.elemOp.genWrite(ctx, elemVal)
+	)
+
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "for %s := range %s {\n", iterIdx, v)
+	fmt.Fprint(&b, elemCode)
+	fmt.Fprintf(&b, "}\n")
+	return b.String()
+}
+
+func (op arrayOp) genDecode(ctx *genContext) (string, string) {
+	arrayV := ctx.temp()
+	elemResult, elemCode := op.elemOp.genDecode(ctx)
+
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "var %s %s\n", arrayV, types.TypeString(op.typ, ctx.qualify))
+	fmt.Fprintf(&b, "for i := 0; i < %d; i++ {\n", int(op.typ.Len()))
+	fmt.Fprintf(&b, "%s", elemCode)
+	fmt.Fprintf(&b, "%s[i] = %s\n", arrayV, elemResult)
+	fmt.Fprintf(&b, "}\n")
+	return arrayV, b.String()
+}
+
 func (bctx *buildContext) makeOp(name *types.Named, typ types.Type, tags rlpstruct.Tags) (op, error) {
 	switch typ := typ.(type) {
 	case *types.Named:
@@ -793,11 +825,14 @@ func (bctx *buildContext) makeOp(name *types.Named, typ types.Type, tags rlpstru
 		return bctx.makeSliceOp(typ)
 
 	case *types.Array:
-		etyp := typ.Elem()
-		if isByte(etyp) && !bctx.isEncoder(etyp) {
+		if isByte(typ.Elem()) && !bctx.isEncoder(typ.Elem()) {
 			return bctx.makeByteArrayOp(name, typ), nil
 		}
-		return nil, fmt.Errorf("unhandled array type: %v", typ)
+		elemOp, err := bctx.makeOp(nil, typ.Elem(), tags)
+		if err != nil {
+			return nil, err
+		}
+		return arrayOp{typ: typ, elemOp: elemOp}, nil
 
 	default:
 		return nil, fmt.Errorf("unhandled type: %v", typ)

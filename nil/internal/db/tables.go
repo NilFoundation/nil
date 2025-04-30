@@ -5,6 +5,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type TableName string
@@ -53,9 +54,9 @@ type BlockHashAndTransactionIndex struct {
 }
 
 func (i *BlockHashAndTransactionIndex) UnmarshalNil(buf []byte) error {
-	return i.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, i)
 }
 
 func (i BlockHashAndTransactionIndex) MarshalNil() ([]byte, error) {
-	return i.MarshalSSZ()
+	return rlp.EncodeToBytes(&i)
 }

@@ -45,7 +45,6 @@ replace github.com/dgraph-io/badger/v4 => github.com/NilFoundation/badger/v4 v4.
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.34.0
-	github.com/NilFoundation/fastssz v0.1.5-0.20250416124252-3f763c4b440a
 	github.com/dgraph-io/badger/v4 v4.7.0
 	github.com/dlsniper/debugger v0.6.0
 	github.com/ethereum/go-ethereum v1.15.10
@@ -270,9 +269,7 @@ require (
 )
 
 tool (
-	github.com/NilFoundation/fastssz/sszgen
 	github.com/ethereum/go-ethereum/cmd/abigen
-	github.com/ethereum/go-ethereum/rlp/rlpgen
 	github.com/matryer/moq
 	gvisor.dev/gvisor/tools/checklocks/cmd/checklocks
 )

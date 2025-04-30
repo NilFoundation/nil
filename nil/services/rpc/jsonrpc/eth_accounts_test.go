@@ -204,7 +204,7 @@ func (suite *SuiteEthAccounts) TestGetProof() {
 	blockData, err := suite.api.rawapi.GetFullBlockData(ctx, suite.smcAddr.ShardId(),
 		rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
 	suite.Require().NoError(err)
-	block, err := blockData.DecodeSSZ()
+	block, err := blockData.DecodeBytes()
 	suite.Require().NoError(err)
 
 	// Test with block number

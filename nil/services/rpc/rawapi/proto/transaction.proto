@@ -6,7 +6,7 @@ option go_package = "/pb";
 import "nil/services/rpc/rawapi/proto/common.proto";
 
 message OutTransaction {
-  bytes transactionSSZ = 1;
+  bytes transactionBytes = 1;
   uint64 forwardKind = 2;
   bytes data = 3;
   Uint256 coinsUsed = 4;
@@ -18,8 +18,8 @@ message OutTransaction {
 }
 
 message TransactionInfo {
-  bytes transactionSSZ = 1;
-  bytes receiptSSZ = 2;
+  bytes transactionBytes = 1;
+  bytes receiptBytes = 2;
   uint64 index = 3;
   Hash blockHash = 4;
   uint64 blockId = 5;
@@ -50,7 +50,7 @@ message TransactionResponse {
 
 message ReceiptInfo {
   uint32 flags = 1;
-  bytes receiptSSZ = 2;
+  bytes receiptBytes = 2;
   uint64 index = 3;
   Hash blockHash = 4;
   uint64 blockId = 5;

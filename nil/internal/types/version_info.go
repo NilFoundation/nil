@@ -6,6 +6,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type VersionInfo struct {
@@ -49,9 +50,9 @@ func NewVersionInfo() *VersionInfo {
 }
 
 func (v *VersionInfo) UnmarshalNil(buf []byte) error {
-	return v.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, v)
 }
 
 func (v VersionInfo) MarshalNil() ([]byte, error) {
-	return v.MarshalSSZ()
+	return rlp.EncodeToBytes(&v)
 }

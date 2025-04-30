@@ -90,15 +90,15 @@ func (args CallArgs) ToTransaction() (*types.Transaction, error) {
 }
 
 type OutTransaction struct {
-	TransactionSSZ  []byte
-	ForwardKind     types.ForwardKind
-	Data            []byte
-	CoinsUsed       types.Value
-	OutTransactions []*OutTransaction
-	BaseFee         types.Value
-	Error           string
-	Logs            []*types.Log
-	DebugLogs       []*types.DebugLog
+	TransactionBytes []byte
+	ForwardKind      types.ForwardKind
+	Data             []byte
+	CoinsUsed        types.Value
+	OutTransactions  []*OutTransaction
+	BaseFee          types.Value
+	Error            string
+	Logs             []*types.Log
+	DebugLogs        []*types.DebugLog
 }
 
 type CallResWithGasPrice struct {

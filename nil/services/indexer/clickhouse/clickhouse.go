@@ -11,7 +11,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/sszx"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	indexerdriver "github.com/NilFoundation/nil/nil/services/indexer/driver"
 	indexertypes "github.com/NilFoundation/nil/nil/services/indexer/types"
@@ -169,9 +169,9 @@ type TransactionWithBinary struct {
 
 func NewTransactionWithBinary(
 	transaction *types.Transaction,
-	transactionBinary sszx.SSZEncodedData,
+	transactionBinary serialization.EncodedData,
 	receipt *types.Receipt,
-	receiptBinary sszx.SSZEncodedData,
+	receiptBinary serialization.EncodedData,
 	block *types.BlockWithExtractedData,
 	idx types.TransactionIndex,
 	shardId types.ShardId,
@@ -335,24 +335,24 @@ func (d *ClickhouseDriver) FetchEarliestAbsentBlockId(ctx context.Context, shard
 	return id + 1, nil
 }
 
-type blockWithSSZ struct {
-	decoded    *indexerdriver.BlockWithShardId
-	sszEncoded *types.RawBlockWithExtractedData
+type blockWithRaw struct {
+	decoded *indexerdriver.BlockWithShardId
+	encoded *types.RawBlockWithExtractedData
 }
 
-type receiptWithSSZ struct {
-	decoded    *types.Receipt
-	sszEncoded sszx.SSZEncodedData
+type receiptWithRaw struct {
+	decoded *types.Receipt
+	encoded serialization.EncodedData
 }
 
 func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*indexerdriver.BlockWithShardId) error {
-	blocks := make([]blockWithSSZ, len(blocksToExport))
+	blocks := make([]blockWithRaw, len(blocksToExport))
 	for blockIndex, block := range blocksToExport {
-		sszEncodedBlock, err := block.EncodeSSZ()
+		encodedBlock, err := block.EncodeToBytes()
 		if err != nil {
 			return err
 		}
-		blocks[blockIndex] = blockWithSSZ{decoded: block, sszEncoded: sszEncodedBlock}
+		blocks[blockIndex] = blockWithRaw{decoded: block, encoded: encodedBlock}
 	}
 
 	if err := exportTransactionsAndLogs(ctx, d.insertConn, blocks); err != nil {
@@ -390,7 +390,7 @@ func (d *ClickhouseDriver) ExportBlocks(ctx context.Context, blocksToExport []*i
 	return nil
 }
 
-func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []blockWithSSZ) error {
+func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []blockWithRaw) error {
 	transactionBatch, err := conn.PrepareBatch(ctx, "INSERT INTO transactions")
 	if err != nil {
 		return err
@@ -404,9 +404,9 @@ func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []b
 		}
 		for inTxnIndex, transaction := range block.decoded.InTransactions {
 			hash := transaction.Hash()
-			receipt := receiptWithSSZ{
-				decoded:    block.decoded.Receipts[inTxnIndex],
-				sszEncoded: block.sszEncoded.Receipts[inTxnIndex],
+			receipt := receiptWithRaw{
+				decoded: block.decoded.Receipts[inTxnIndex],
+				encoded: block.encoded.Receipts[inTxnIndex],
 			}
 			if receipt.decoded.TxnHash != hash {
 				return fmt.Errorf("receipt's transaction hash mismatch: %s != %s", receipt.decoded.TxnHash, hash)
@@ -422,9 +422,9 @@ func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []b
 			}
 			mb := NewTransactionWithBinary(
 				transaction,
-				block.sszEncoded.InTransactions[inTxnIndex],
+				block.encoded.InTransactions[inTxnIndex],
 				receipt.decoded,
-				receipt.sszEncoded,
+				receipt.encoded,
 				block.decoded.BlockWithExtractedData,
 				types.TransactionIndex(inTxnIndex),
 				block.decoded.ShardId)
@@ -435,7 +435,7 @@ func exportTransactionsAndLogs(ctx context.Context, conn driver.Conn, blocks []b
 		for outTransactionIndex, transaction := range block.decoded.OutTransactions {
 			mb := NewTransactionWithBinary(
 				transaction,
-				block.sszEncoded.OutTransactions[outTransactionIndex],
+				block.encoded.OutTransactions[outTransactionIndex],
 				nil,
 				nil,
 				block.decoded.BlockWithExtractedData,

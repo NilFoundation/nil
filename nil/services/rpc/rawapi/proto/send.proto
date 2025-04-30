@@ -6,7 +6,7 @@ option go_package = "/pb";
 import "nil/services/rpc/rawapi/proto/common.proto";
 
 message SendTransactionRequest {
-  bytes transactionSSZ = 1;
+  bytes transactionBytes = 1;
 }
 
 message SendTransactionResponse {

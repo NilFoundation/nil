@@ -2,17 +2,23 @@ package types
 
 import (
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type Receipts []*Receipt
+
+const (
+	ReceiptMaxLogsSize      = 1000
+	ReceiptMaxDebugLogsSize = 1000
+)
 
 type Receipt struct {
 	Success     bool        `json:"success"`
 	Status      ErrorCode   `json:"status"`
 	GasUsed     Gas         `json:"gasUsed"`
 	Forwarded   Value       `json:"forwarded"`
-	Logs        []*Log      `json:"logs" ssz-max:"1000"`
-	DebugLogs   []*DebugLog `json:"debugLogs" ssz-max:"1000"`
+	Logs        []*Log      `json:"logs"`
+	DebugLogs   []*DebugLog `json:"debugLogs"`
 	OutTxnIndex uint32      `json:"outTxnIndex"`
 	OutTxnNum   uint32      `json:"outTxnNum"`
 	FailedPc    uint32      `json:"failedPc"`
@@ -26,9 +32,9 @@ func (r *Receipt) Hash() common.Hash {
 }
 
 func (r *Receipt) UnmarshalNil(buf []byte) error {
-	return r.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, r)
 }
 
 func (r Receipt) MarshalNil() ([]byte, error) {
-	return r.MarshalSSZ()
+	return rlp.EncodeToBytes(&r)
 }
