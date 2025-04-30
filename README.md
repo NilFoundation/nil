@@ -233,7 +233,7 @@ To run the spec generator:
 
 ```bash
 cp nil/cmd/spec_generator/spec_generator.go .
-go run spec_generator.
+go run spec_generator.go
 rm spec_generator.go
 ```
 
