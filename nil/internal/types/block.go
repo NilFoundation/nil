@@ -6,9 +6,9 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
-	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/crypto/bls"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type BlockNumber uint64
@@ -59,13 +59,13 @@ type BlockData struct {
 }
 
 func (bd BlockData) MarshalNil() ([]byte, error) {
-	return bd.MarshalSSZ()
+	return rlp.EncodeToBytes(&bd)
 }
 
 type ConsensusParams struct {
 	ProposerIndex uint64                 `json:"proposerIndex" ch:"round"`
 	Round         uint64                 `json:"round" ch:"round"`
-	Signature     *BlsAggregateSignature `json:"signature" ch:"-"`
+	Signature     *BlsAggregateSignature `json:"signature" ch:"-" rlp:"optional"`
 }
 
 type Block struct {
@@ -75,12 +75,12 @@ type Block struct {
 }
 
 type RawBlockWithExtractedData struct {
-	Block           sszx.SSZEncodedData
-	InTransactions  []sszx.SSZEncodedData
-	InTxCounts      []sszx.SSZEncodedData
-	OutTransactions []sszx.SSZEncodedData
-	OutTxCounts     []sszx.SSZEncodedData
-	Receipts        []sszx.SSZEncodedData
+	Block           serialization.EncodedData
+	InTransactions  []serialization.EncodedData
+	InTxCounts      []serialization.EncodedData
+	OutTransactions []serialization.EncodedData
+	OutTxCounts     []serialization.EncodedData
+	Receipts        []serialization.EncodedData
 	Errors          map[common.Hash]string
 	ChildBlocks     []common.Hash
 	DbTimestamp     uint64
@@ -93,11 +93,11 @@ type TxCount struct {
 }
 
 func (c *TxCount) UnmarshalNil(buf []byte) error {
-	return c.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, c)
 }
 
 func (c TxCount) MarshalNil() ([]byte, error) {
-	return c.MarshalSSZ()
+	return rlp.EncodeToBytes(&c)
 }
 
 type BlockWithExtractedData struct {
@@ -131,35 +131,35 @@ func (b *Block) GetMainShardHash(shardId ShardId) common.Hash {
 }
 
 func (b *Block) UnmarshalNil(buf []byte) error {
-	return b.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, b)
 }
 
 func (b Block) MarshalNil() ([]byte, error) {
-	return b.MarshalSSZ()
+	return rlp.EncodeToBytes(&b)
 }
 
-func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error) {
+func (b *RawBlockWithExtractedData) DecodeBytes() (*BlockWithExtractedData, error) {
 	block := &Block{}
 	if err := block.UnmarshalNil(b.Block); err != nil {
 		return nil, err
 	}
-	inTransactions, err := sszx.DecodeContainer[*Transaction](b.InTransactions)
+	inTransactions, err := serialization.DecodeContainer[*Transaction](b.InTransactions)
 	if err != nil {
 		return nil, err
 	}
-	inTxCounts, err := sszx.DecodeContainer[*TxCount](b.InTxCounts)
+	inTxCounts, err := serialization.DecodeContainer[*TxCount](b.InTxCounts)
 	if err != nil {
 		return nil, err
 	}
-	outTransactions, err := sszx.DecodeContainer[*Transaction](b.OutTransactions)
+	outTransactions, err := serialization.DecodeContainer[*Transaction](b.OutTransactions)
 	if err != nil {
 		return nil, err
 	}
-	outTxCounts, err := sszx.DecodeContainer[*TxCount](b.OutTxCounts)
+	outTxCounts, err := serialization.DecodeContainer[*TxCount](b.OutTxCounts)
 	if err != nil {
 		return nil, err
 	}
-	receipts, err := sszx.DecodeContainer[*Receipt](b.Receipts)
+	receipts, err := serialization.DecodeContainer[*Receipt](b.Receipts)
 	if err != nil {
 		return nil, err
 	}
@@ -179,28 +179,28 @@ func (b *RawBlockWithExtractedData) DecodeSSZ() (*BlockWithExtractedData, error)
 	}, nil
 }
 
-func (b *BlockWithExtractedData) EncodeSSZ() (*RawBlockWithExtractedData, error) {
+func (b *BlockWithExtractedData) EncodeToBytes() (*RawBlockWithExtractedData, error) {
 	block, err := b.MarshalNil()
 	if err != nil {
 		return nil, err
 	}
-	inTransactions, err := sszx.EncodeContainer(b.InTransactions)
+	inTransactions, err := serialization.EncodeContainer(b.InTransactions)
 	if err != nil {
 		return nil, err
 	}
-	inTxCounts, err := sszx.EncodeContainer(b.InTxCounts)
+	inTxCounts, err := serialization.EncodeContainer(b.InTxCounts)
 	if err != nil {
 		return nil, err
 	}
-	outTransactions, err := sszx.EncodeContainer(b.OutTransactions)
+	outTransactions, err := serialization.EncodeContainer(b.OutTransactions)
 	if err != nil {
 		return nil, err
 	}
-	outTxCounts, err := sszx.EncodeContainer(b.OutTxCounts)
+	outTxCounts, err := serialization.EncodeContainer(b.OutTxCounts)
 	if err != nil {
 		return nil, err
 	}
-	receipts, err := sszx.EncodeContainer(b.Receipts)
+	receipts, err := serialization.EncodeContainer(b.Receipts)
 	if err != nil {
 		return nil, err
 	}

@@ -13,12 +13,12 @@ import (
 
 func unmarshalTxnAndReceipt(data *rawapitypes.TransactionInfo) (*types.Transaction, *types.Receipt, error) {
 	txn := &types.Transaction{}
-	if err := txn.UnmarshalNil(data.TransactionSSZ); err != nil {
+	if err := txn.UnmarshalNil(data.TransactionBytes); err != nil {
 		return nil, nil, fmt.Errorf("failed to unmarshal transaction: %w", err)
 	}
 
 	receipt := &types.Receipt{}
-	if err := receipt.UnmarshalNil(data.ReceiptSSZ); err != nil {
+	if err := receipt.UnmarshalNil(data.ReceiptBytes); err != nil {
 		return nil, nil, fmt.Errorf("failed to unmarshal receipt: %w", err)
 	}
 	return txn, receipt, nil
@@ -100,7 +100,7 @@ func (api *APIImplRo) GetRawInTransactionByBlockNumberAndIndex(
 	if err != nil {
 		return nil, err
 	}
-	return res.TransactionSSZ, nil
+	return res.TransactionBytes, nil
 }
 
 func (api *APIImplRo) GetRawInTransactionByBlockHashAndIndex(
@@ -115,7 +115,7 @@ func (api *APIImplRo) GetRawInTransactionByBlockHashAndIndex(
 	if err != nil {
 		return nil, err
 	}
-	return res.TransactionSSZ, nil
+	return res.TransactionBytes, nil
 }
 
 func (api *APIImplRo) GetRawInTransactionByHash(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
@@ -124,5 +124,5 @@ func (api *APIImplRo) GetRawInTransactionByHash(ctx context.Context, hash common
 	if err != nil {
 		return nil, err
 	}
-	return res.TransactionSSZ, nil
+	return res.TransactionBytes, nil
 }

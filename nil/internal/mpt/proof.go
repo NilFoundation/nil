@@ -2,16 +2,18 @@ package mpt
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type MPTOperation uint32
+
+var ErrListTooBig = errors.New("list too big")
 
 const (
 	ReadMPTOperation MPTOperation = iota
@@ -205,13 +207,12 @@ func getMaxMatchingRoute(tree *Reader, key []byte) ([]Node, error) {
 
 func (p *Proof) Encode() ([]byte, error) {
 	if len(p.key) > maxRawKeyLen || len(p.PathToNode) >= (1<<8) {
-		return nil, ssz.ErrListTooBig
+		return nil, ErrListTooBig
 	}
 
-	buf := make([]byte, 0)
-	buf = ssz.MarshalUint32(buf, uint32(p.operation))
-
-	buf = ssz.MarshalUint8(buf, uint8(len(p.key)))
+	buf := make([]byte, 0, len(p.key)+5)
+	buf = binary.BigEndian.AppendUint32(buf, uint32(p.operation))
+	buf = append(buf, byte(len(p.key)))
 	buf = append(buf, p.key...)
 
 	encodedPath, err := p.PathToNode.Encode()
@@ -228,12 +229,12 @@ func DecodeProof(data []byte) (Proof, error) {
 	// and each time advance the offset on correct amount of bytes
 
 	p := Proof{}
-	p.operation = MPTOperation(ssz.UnmarshallUint32(data))
-	data = data[4:]
+	p.operation = MPTOperation(binary.BigEndian.Uint32(data[:4]))
+	keyLen := data[4]
+	data = data[5:]
 
-	keyLen := ssz.UnmarshallUint8(data)
-	p.key = data[1 : 1+keyLen]
-	data = data[1+keyLen:]
+	p.key = data[0:keyLen]
+	data = data[keyLen:]
 
 	sp, err := DecodeSimpleProof(data)
 	if err != nil {
@@ -270,14 +271,15 @@ func BuildSimpleProof(tree *Reader, key []byte) (SimpleProof, error) {
 }
 
 func (sp *SimpleProof) Encode() ([]byte, error) {
-	buf := make([]byte, 0)
-	buf = ssz.MarshalUint8(buf, uint8(len(*sp)))
+	buf := make([]byte, 0, 1)
+	buf = append(buf, byte(len(*sp)))
 	for i := range *sp {
 		node, err := (*sp)[i].Encode()
 		if err != nil {
 			return nil, err
 		}
-		buf = ssz.MarshalUint32(buf, uint32(len(node)))
+
+		buf = binary.BigEndian.AppendUint32(buf, uint32(len(node)))
 		buf = append(buf, node...)
 	}
 
@@ -287,13 +289,12 @@ func (sp *SimpleProof) Encode() ([]byte, error) {
 func DecodeSimpleProof(data []byte) (SimpleProof, error) {
 	// here we deserialize simple proof from the data piece by piece
 	// and each time advance the offset on correct amount of bytes
-	proofLen := ssz.UnmarshallUint8(data)
-	data = data[1:]
 
 	sp := make(SimpleProof, 0)
+	proofLen := data[0]
+	data = data[1:]
 	for range proofLen {
-		nodeLen := ssz.UnmarshallUint32(data)
-
+		nodeLen := binary.BigEndian.Uint32(data[:4])
 		node, err := DecodeNode(data[4 : 4+nodeLen])
 		if err != nil {
 			return nil, err
@@ -309,11 +310,11 @@ func DecodeSimpleProof(data []byte) (SimpleProof, error) {
 func (sp *SimpleProof) ToBytesSlice() ([][]byte, error) {
 	bytesSlice := make([][]byte, 0, len(*sp))
 	for i := range *sp {
-		sszEncodedNode, err := (*sp)[i].Encode()
+		encodedNode, err := (*sp)[i].Encode()
 		if err != nil {
 			return nil, err
 		}
-		bytesSlice = append(bytesSlice, sszEncodedNode)
+		bytesSlice = append(bytesSlice, encodedNode)
 	}
 
 	return bytesSlice, nil
@@ -321,8 +322,8 @@ func (sp *SimpleProof) ToBytesSlice() ([][]byte, error) {
 
 func SimpleProofFromBytesSlice(data [][]byte) (SimpleProof, error) {
 	sp := make(SimpleProof, 0, len(data))
-	for _, sszEncodedNode := range data {
-		node, err := DecodeNode(sszEncodedNode)
+	for _, encodedNode := range data {
+		node, err := DecodeNode(encodedNode)
 		if err != nil {
 			return nil, err
 		}

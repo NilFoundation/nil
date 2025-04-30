@@ -10,8 +10,8 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 )
 
-func sszToRPCBlock(shardId types.ShardId, raw *types.RawBlockWithExtractedData, fullTx bool) (*RPCBlock, error) {
-	data, err := raw.DecodeSSZ()
+func rawToRPCBlock(shardId types.ShardId, raw *types.RawBlockWithExtractedData, fullTx bool) (*RPCBlock, error) {
+	data, err := raw.DecodeBytes()
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (api *APIImplRo) GetBlockByNumber(
 	if err != nil {
 		return nil, err
 	}
-	return sszToRPCBlock(shardId, res, fullTx)
+	return rawToRPCBlock(shardId, res, fullTx)
 }
 
 // GetBlockByHash implements eth_getBlockByHash. Returns information about a block given the block's hash.
@@ -51,7 +51,7 @@ func (api *APIImplRo) GetBlockByHash(ctx context.Context, hash common.Hash, full
 	if err != nil {
 		return nil, err
 	}
-	return sszToRPCBlock(shardId, res, fullTx)
+	return rawToRPCBlock(shardId, res, fullTx)
 }
 
 // GetBlockTransactionCountByNumber implements eth_getBlockTransactionCountByNumber.

@@ -5,9 +5,10 @@ import (
 	"slices"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type ParentBlock struct {
@@ -21,7 +22,7 @@ type ParentBlock struct {
 
 type ParentBlockSerializable struct {
 	ShardId       types.ShardId
-	TxnTrieHolder *sszx.MapHolder
+	TxnTrieHolder *serialization.MapHolder
 	Block         *types.Block
 }
 
@@ -54,25 +55,25 @@ type ProposalSerializable struct {
 
 	CollatorState types.CollatorState
 	MainShardHash common.Hash
-	ShardHashes   []common.Hash `ssz-max:"4096"`
+	ShardHashes   []common.Hash
 
-	ParentBlocks []*ParentBlockSerializable `ssz-max:"1024"`
+	ParentBlocks []*ParentBlockSerializable
 
-	InternalTxnRefs []*InternalTxnReference `ssz-max:"4096"`
-	ForwardTxnRefs  []*InternalTxnReference `ssz-max:"4096"`
+	InternalTxnRefs []*InternalTxnReference
+	ForwardTxnRefs  []*InternalTxnReference
 
-	ExternalTxns []*types.Transaction `ssz-max:"4096"`
+	ExternalTxns []*types.Transaction
 
 	// SpecialTxns are internal transactions produced by the collator. They appear only on the main shard.
-	SpecialTxns []*types.Transaction `ssz-max:"4096"`
+	SpecialTxns []*types.Transaction
 }
 
 func (p *ProposalSerializable) UnmarshalNil(buf []byte) error {
-	return p.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, p)
 }
 
 func (p ProposalSerializable) MarshalNil() ([]byte, error) {
-	return p.MarshalSSZ()
+	return rlp.EncodeToBytes(&p)
 }
 
 func NewParentBlock(shardId types.ShardId, block *types.Block) *ParentBlock {
@@ -85,7 +86,7 @@ func NewParentBlock(shardId types.ShardId, block *types.Block) *ParentBlock {
 	}
 }
 
-func NewParentBlockFromSSZ(b *ParentBlockSerializable) (*ParentBlock, error) {
+func NewParentBlockFromSerializable(b *ParentBlockSerializable) (*ParentBlock, error) {
 	holder := mpt.InMemHolder(b.TxnTrieHolder.ToMap())
 	if err := mpt.ValidateHolder(holder); err != nil {
 		return nil, err
@@ -104,7 +105,7 @@ func NewParentBlockFromSSZ(b *ParentBlockSerializable) (*ParentBlock, error) {
 func (pb *ParentBlock) ToSerializable() *ParentBlockSerializable {
 	return &ParentBlockSerializable{
 		Block:         pb.Block,
-		TxnTrieHolder: sszx.NewMapHolder(pb.txnTrieHolder),
+		TxnTrieHolder: serialization.NewMapHolder(pb.txnTrieHolder),
 	}
 }
 
@@ -159,7 +160,7 @@ func convertTxnRefs(refs []*InternalTxnReference, parentBlocks []*ParentBlock) (
 func ConvertProposal(proposal *ProposalSerializable) (*Proposal, error) {
 	parentBlocks := make([]*ParentBlock, len(proposal.ParentBlocks))
 	for i, pb := range proposal.ParentBlocks {
-		converted, err := NewParentBlockFromSSZ(pb)
+		converted, err := NewParentBlockFromSerializable(pb)
 		if err != nil {
 			return nil, fmt.Errorf("invalid parent block: %w", err)
 		}

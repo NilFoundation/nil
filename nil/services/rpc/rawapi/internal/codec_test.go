@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/common/sszx"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/stretchr/testify/require"
@@ -16,20 +16,20 @@ type compatibleNetworkTransportProtocol interface {
 }
 
 type compatibleApi interface {
-	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (sszx.SSZEncodedData, error)
+	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (serialization.EncodedData, error)
 }
 
 type apiWithOtherMethod interface {
-	OtherMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (sszx.SSZEncodedData, error)
+	OtherMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (serialization.EncodedData, error)
 }
 
 type apiWithWrongMethodArguments interface {
 	TestMethod(
-		ctx context.Context, blockReference rawapitypes.BlockReference, extraArg int) (sszx.SSZEncodedData, error)
+		ctx context.Context, blockReference rawapitypes.BlockReference, extraArg int) (serialization.EncodedData, error)
 }
 
 type apiWithWrongContextMethodArgument interface {
-	TestMethod(notContextArgument int, blockReference rawapitypes.BlockReference) (sszx.SSZEncodedData, error)
+	TestMethod(notContextArgument int, blockReference rawapitypes.BlockReference) (serialization.EncodedData, error)
 }
 
 type apiWithWrongMethodReturn interface {
@@ -37,11 +37,11 @@ type apiWithWrongMethodReturn interface {
 }
 
 type apiWithPointerInsteadOfValueMethodReturn interface {
-	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (*sszx.SSZEncodedData, error)
+	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (*serialization.EncodedData, error)
 }
 
 type apiWithWrongErrorTypeReturn interface {
-	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (sszx.SSZEncodedData, int)
+	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (serialization.EncodedData, int)
 }
 
 func TestApisCompatibility(t *testing.T) {
@@ -93,11 +93,11 @@ type noArgsNetworkTransportProtocol interface {
 }
 
 type noArgsApi interface {
-	TestMethod(ctx context.Context) (sszx.SSZEncodedData, error)
+	TestMethod(ctx context.Context) (serialization.EncodedData, error)
 }
 
 type noArgsApiWithoutCtx interface {
-	TestMethod() (sszx.SSZEncodedData, error)
+	TestMethod() (serialization.EncodedData, error)
 }
 
 func TestApisNoArgs(t *testing.T) {

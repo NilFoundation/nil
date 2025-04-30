@@ -1,0 +1,91 @@
+package test
+
+import "github.com/ethereum/go-ethereum/rlp"
+import "io"
+
+func (obj *Test) EncodeRLP(_w io.Writer) error {
+	w := rlp.NewEncoderBuffer(_w)
+	_tmp0 := w.List()
+	for _tmp1 := range obj.Array1 {
+		_tmp2 := w.List()
+		w.WriteUint64(obj.Array1[_tmp1].A)
+		w.WriteUint64(uint64(obj.Array1[_tmp1].B))
+		w.ListEnd(_tmp2)
+	}
+	for _tmp3 := range obj.Array2 {
+		_tmp4 := w.List()
+		w.WriteUint64(obj.Array2[_tmp3].A)
+		w.WriteUint64(uint64(obj.Array2[_tmp3].B))
+		w.ListEnd(_tmp4)
+	}
+	w.ListEnd(_tmp0)
+	return w.Flush()
+}
+
+func (obj *Test) DecodeRLP(dec *rlp.Stream) error {
+	var _tmp0 Test
+	{
+		if _, err := dec.List(); err != nil {
+			return err
+		}
+		// Array1:
+		var _tmp1 [16]Aux
+		for i := 0; i < 16; i++ {
+			var _tmp2 Aux
+			{
+				if _, err := dec.List(); err != nil {
+					return err
+				}
+				// A:
+				_tmp3, err := dec.Uint64()
+				if err != nil {
+					return err
+				}
+				_tmp2.A = _tmp3
+				// B:
+				_tmp4, err := dec.Uint16()
+				if err != nil {
+					return err
+				}
+				_tmp2.B = _tmp4
+				if err := dec.ListEnd(); err != nil {
+					return err
+				}
+			}
+			_tmp1[i] = _tmp2
+		}
+		_tmp0.Array1 = _tmp1
+		// Array2:
+		var _tmp5 [32]Aux
+		for i := 0; i < 32; i++ {
+			var _tmp6 Aux
+			{
+				if _, err := dec.List(); err != nil {
+					return err
+				}
+				// A:
+				_tmp7, err := dec.Uint64()
+				if err != nil {
+					return err
+				}
+				_tmp6.A = _tmp7
+				// B:
+				_tmp8, err := dec.Uint16()
+				if err != nil {
+					return err
+				}
+				_tmp6.B = _tmp8
+				if err := dec.ListEnd(); err != nil {
+					return err
+				}
+			}
+			_tmp5[i] = _tmp6
+		}
+		_tmp0.Array2 = _tmp5
+		if err := dec.ListEnd(); err != nil {
+			return err
+		}
+	}
+	*obj = _tmp0
+	return nil
+}

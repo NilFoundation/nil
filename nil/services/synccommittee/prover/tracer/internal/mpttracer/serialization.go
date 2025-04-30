@@ -21,7 +21,7 @@ func TracesFromProto(pbMptTraces *pb.MPTTraces) (*MPTTraces, error) {
 	for addr, pbStorageTrace := range pbMptTraces.GetStorageTracesByAccount() {
 		storageTraces := make([]StorageTrieUpdateTrace, len(pbStorageTrace.GetUpdatesTraces()))
 		for i, pbStorageUpdateTrace := range pbStorageTrace.GetUpdatesTraces() {
-			proof, err := protoToGoProof(pbStorageUpdateTrace.GetSszProof())
+			proof, err := protoToGoProof(pbStorageUpdateTrace.GetSerializedProof())
 			if err != nil {
 				return nil, err
 			}
@@ -41,7 +41,7 @@ func TracesFromProto(pbMptTraces *pb.MPTTraces) (*MPTTraces, error) {
 
 	contractTrieTraces := make([]ContractTrieUpdateTrace, len(pbMptTraces.GetContractTrieTraces()))
 	for i, pbContractTrieUpdate := range pbMptTraces.GetContractTrieTraces() {
-		proof, err := protoToGoProof(pbContractTrieUpdate.GetSszProof())
+		proof, err := protoToGoProof(pbContractTrieUpdate.GetSerializedProof())
 		if err != nil {
 			return nil, err
 		}
@@ -86,14 +86,14 @@ func TracesToProto(mptTraces *MPTTraces, traceIdx uint64) (*pb.MPTTraces, error)
 			}
 
 			pbStorageTraces[i] = &pb.StorageTrieUpdateTrace{
-				Key:         storageUpdateTrace.Key.Hex(),
-				RootBefore:  storageUpdateTrace.RootBefore.Hex(),
-				RootAfter:   storageUpdateTrace.RootAfter.Hex(),
-				ValueBefore: pb.Uint256ToProtoUint256(storageUpdateTrace.ValueBefore),
-				ValueAfter:  pb.Uint256ToProtoUint256(storageUpdateTrace.ValueAfter),
-				SszProof:    proof,
-				ProofBefore: proofPathBefore,
-				ProofAfter:  proofPathAfter,
+				Key:             storageUpdateTrace.Key.Hex(),
+				RootBefore:      storageUpdateTrace.RootBefore.Hex(),
+				RootAfter:       storageUpdateTrace.RootAfter.Hex(),
+				ValueBefore:     pb.Uint256ToProtoUint256(storageUpdateTrace.ValueBefore),
+				ValueAfter:      pb.Uint256ToProtoUint256(storageUpdateTrace.ValueAfter),
+				SerializedProof: proof,
+				ProofBefore:     proofPathBefore,
+				ProofAfter:      proofPathAfter,
 			}
 		}
 
@@ -117,14 +117,14 @@ func TracesToProto(mptTraces *MPTTraces, traceIdx uint64) (*pb.MPTTraces, error)
 		}
 
 		pbContractTrieTraces[i] = &pb.ContractTrieUpdateTrace{
-			Key:         contractTrieUpdate.Key.Hex(),
-			RootBefore:  contractTrieUpdate.RootBefore.Hex(),
-			RootAfter:   contractTrieUpdate.RootAfter.Hex(),
-			ValueBefore: smartContractToProto(contractTrieUpdate.ValueBefore),
-			ValueAfter:  smartContractToProto(contractTrieUpdate.ValueAfter),
-			SszProof:    proof,
-			ProofBefore: proofPathBefore,
-			ProofAfter:  proofPathAfter,
+			Key:             contractTrieUpdate.Key.Hex(),
+			RootBefore:      contractTrieUpdate.RootBefore.Hex(),
+			RootAfter:       contractTrieUpdate.RootAfter.Hex(),
+			ValueBefore:     smartContractToProto(contractTrieUpdate.ValueBefore),
+			ValueAfter:      smartContractToProto(contractTrieUpdate.ValueAfter),
+			SerializedProof: proof,
+			ProofBefore:     proofPathBefore,
+			ProofAfter:      proofPathAfter,
 		}
 	}
 

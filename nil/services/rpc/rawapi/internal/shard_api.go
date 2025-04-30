@@ -5,8 +5,8 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/network"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
@@ -24,7 +24,7 @@ const apiNameRo = "rawapi_ro"
 type shardApiRo interface {
 	shardApiBase
 
-	GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (sszx.SSZEncodedData, error)
+	GetBlockHeader(ctx context.Context, blockReference rawapitypes.BlockReference) (serialization.EncodedData, error)
 	GetFullBlockData(
 		ctx context.Context, blockReference rawapitypes.BlockReference) (*types.RawBlockWithExtractedData, error)
 	GetBlockTransactionCount(ctx context.Context, blockReference rawapitypes.BlockReference) (uint64, error)

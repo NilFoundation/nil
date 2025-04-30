@@ -35,11 +35,11 @@ func TestReceiptEncoding(t *testing.T) {
 	require.NoError(t, err)
 	receipt.Logs = append(receipt.Logs, log)
 
-	buf, err = receipt.MarshalSSZ()
+	buf, err = receipt.MarshalNil()
 	require.NoError(t, err)
 
 	receiptDecoded := &Receipt{}
-	require.NoError(t, receiptDecoded.UnmarshalSSZ(buf))
+	require.NoError(t, receiptDecoded.UnmarshalNil(buf))
 
 	require.Equal(t, receiptDecoded.Success, receipt.Success)
 	require.Equal(t, receiptDecoded.GasUsed, receipt.GasUsed)

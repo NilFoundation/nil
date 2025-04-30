@@ -6,13 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type TransactionKind uint8
@@ -74,36 +76,21 @@ type TransactionIndex uint64
 const TransactionIndexSize = 8
 
 func (ti TransactionIndex) Bytes() []byte {
-	return ssz.MarshalUint64(nil, uint64(ti))
+	res, err := ti.MarshalNil()
+	check.PanicIfErr(err)
+	return res
 }
 
 func (ti *TransactionIndex) SetBytes(b []byte) {
-	*ti = TransactionIndex(ssz.UnmarshallUint64(b))
-}
-
-func (ti TransactionIndex) MarshalSSZ() ([]byte, error) {
-	return ssz.MarshalUint64(nil, uint64(ti)), nil
-}
-
-func (ti *TransactionIndex) MarshalSSZTo(buf []byte) ([]byte, error) {
-	return ssz.MarshalUint64(buf, uint64(*ti)), nil
-}
-
-func (ti *TransactionIndex) SizeSSZ() int {
-	return TransactionIndexSize
-}
-
-func (ti *TransactionIndex) UnmarshalSSZ(b []byte) error {
-	ti.SetBytes(b)
-	return nil
+	check.PanicIfErr(ti.UnmarshalNil(b))
 }
 
 func (ti *TransactionIndex) UnmarshalNil(buf []byte) error {
-	return ti.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, (*uint64)(ti))
 }
 
 func (ti TransactionIndex) MarshalNil() ([]byte, error) {
-	return ti.MarshalSSZ()
+	return rlp.EncodeToBytes((uint64)(ti))
 }
 
 func BytesToTransactionIndex(b []byte) TransactionIndex {
@@ -122,6 +109,21 @@ func NewTransactionFlagsFromBits(bits uint8) TransactionFlags {
 
 func (m TransactionFlags) Value() (driver.Value, error) {
 	return m.Bits, nil
+}
+
+func (v TransactionFlags) EncodeRLP(_w io.Writer) error {
+	w := rlp.NewEncoderBuffer(_w)
+	w.WriteUint64(uint64(v.Bits))
+	return w.Flush()
+}
+
+func (v *TransactionFlags) DecodeRLP(r *rlp.Stream) error {
+	bits, err := r.Uint8()
+	if err != nil {
+		return err
+	}
+	v.Bits = bits
+	return nil
 }
 
 var _ driver.Value = new(TransactionFlags)
@@ -187,28 +189,31 @@ type TransactionDigest struct {
 	To      Address `json:"to,omitempty" ch:"to"`
 	ChainId ChainId `json:"chainId" ch:"chainId"`
 	Seqno   Seqno   `json:"seqno,omitempty" ch:"seqno"`
-	Data    Code    `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Data    Code    `json:"data,omitempty" ch:"data"`
 }
 
 func (d TransactionDigest) MarshalNil() ([]byte, error) {
-	return d.MarshalSSZ()
+	return rlp.EncodeToBytes(&d)
 }
+
+const (
+	TransactionMaxTokenSize = 256
+	TransactionMaxDataSize  = 24576
+)
 
 type Transaction struct {
 	TransactionDigest
-	From     Address          `json:"from,omitempty" ch:"from"`
-	TxId     TransactionIndex `json:"txId,omitempty" ch:"tx_id"`
-	RefundTo Address          `json:"refundTo,omitempty" ch:"refund_to"`
-	BounceTo Address          `json:"bounceTo,omitempty" ch:"bounce_to"`
-	Value    Value            `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Token    []TokenBalance   `json:"token,omitempty" ch:"token" ssz-max:"256"`
-
-	// These fields are needed for async requests
+	From         Address             `json:"from,omitempty" ch:"from"`
+	TxId         TransactionIndex    `json:"txId,omitempty" ch:"tx_id"`
+	RefundTo     Address             `json:"refundTo,omitempty" ch:"refund_to"`
+	BounceTo     Address             `json:"bounceTo,omitempty" ch:"bounce_to"`
+	Value        Value               `json:"value,omitempty" ch:"value"`
 	RequestId    uint64              `json:"requestId,omitempty" ch:"request_id"`
-	RequestChain []*AsyncRequestInfo `json:"response,omitempty" ch:"response" ssz-max:"4096"`
+	Token        []TokenBalance      `json:"token,omitempty" ch:"token" rlp:"optional"`
+	RequestChain []*AsyncRequestInfo `json:"response,omitempty" ch:"response" rlp:"optional"`
 
 	// This field should always be at the end of the structure for easy signing
-	Signature hexutil.Bytes `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
+	Signature hexutil.Bytes `json:"signature,omitempty" ch:"signature" rlp:"optional"`
 }
 
 type OutboundTransaction struct {
@@ -223,44 +228,44 @@ type ExternalTransaction struct {
 	To       Address       `json:"to,omitempty" ch:"to"`
 	ChainId  ChainId       `json:"chainId" ch:"chainId"`
 	Seqno    Seqno         `json:"seqno,omitempty" ch:"seqno"`
-	Data     Code          `json:"data,omitempty" ch:"data" ssz-max:"24576"`
-	AuthData hexutil.Bytes `json:"authData,omitempty" ch:"auth_data" ssz-max:"256"`
+	Data     Code          `json:"data,omitempty" ch:"data"`
+	AuthData hexutil.Bytes `json:"authData,omitempty" ch:"auth_data" rlp:"optional"`
 }
 
 func (tx *ExternalTransaction) UnmarshalNil(buf []byte) error {
-	return tx.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, tx)
 }
 
 func (tx ExternalTransaction) MarshalNil() ([]byte, error) {
-	return tx.MarshalSSZ()
+	return rlp.EncodeToBytes(&tx)
 }
 
 type InternalTransactionPayload struct {
 	Kind        TransactionKind `json:"kind,omitempty" ch:"kind"`
 	Bounce      bool            `json:"bounce,omitempty" ch:"bounce"`
-	FeeCredit   Value           `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
+	FeeCredit   Value           `json:"feeCredit,omitempty" ch:"fee_credit"`
 	ForwardKind ForwardKind     `json:"forwardKind,omitempty" ch:"forward_kind"`
 	To          Address         `json:"to,omitempty" ch:"to"`
 	RefundTo    Address         `json:"refundTo,omitempty" ch:"refund_to"`
 	BounceTo    Address         `json:"bounceTo,omitempty" ch:"bounce_to"`
-	Token       []TokenBalance  `json:"token,omitempty" ch:"token" ssz-max:"256"`
-	Value       Value           `json:"value,omitempty" ch:"value" ssz-size:"32"`
-	Data        Code            `json:"data,omitempty" ch:"data" ssz-max:"24576"`
+	Value       Value           `json:"value,omitempty" ch:"value" `
+	Data        Code            `json:"data,omitempty" ch:"data" `
 	RequestId   uint64          `json:"requestId,omitempty" ch:"request_id"`
+	Token       []TokenBalance  `json:"token,omitempty" ch:"token" rlp:"optional"`
 }
 
 func (p *InternalTransactionPayload) UnmarshalNil(buf []byte) error {
-	return p.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, p)
 }
 
 func (p InternalTransactionPayload) MarshalNil() ([]byte, error) {
-	return p.MarshalSSZ()
+	return rlp.EncodeToBytes(&p)
 }
 
 type FeePack struct {
-	FeeCredit            Value `json:"feeCredit,omitempty" ch:"fee_credit" ssz-size:"32"`
-	MaxPriorityFeePerGas Value `json:"maxPriorityFeePerGas,omitempty" ch:"max_priority_fee_per_gas" ssz-size:"32"`
-	MaxFeePerGas         Value `json:"maxFeePerGas,omitempty" ch:"max_fee_per_gas" ssz-size:"32"`
+	FeeCredit            Value `json:"feeCredit,omitempty" ch:"fee_credit"`
+	MaxPriorityFeePerGas Value `json:"maxPriorityFeePerGas,omitempty" ch:"max_priority_fee_per_gas"`
+	MaxFeePerGas         Value `json:"maxFeePerGas,omitempty" ch:"max_fee_per_gas"`
 }
 
 func NewFeePack() FeePack {
@@ -297,15 +302,15 @@ func (a AsyncRequestInfo) Value() (driver.Value, error) {
 // AsyncResponsePayload contains data returned in the response.
 type AsyncResponsePayload struct {
 	Success    bool
-	ReturnData []byte `ssz-max:"10000000"`
+	ReturnData []byte
 }
 
 func (p *AsyncResponsePayload) UnmarshalNil(buf []byte) error {
-	return p.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, p)
 }
 
 func (p AsyncResponsePayload) MarshalNil() ([]byte, error) {
-	return p.MarshalSSZ()
+	return rlp.EncodeToBytes(&p)
 }
 
 // AsyncContext contains the context of the request. For await requests, it contains the VM state, which will be
@@ -315,11 +320,11 @@ type AsyncContext struct {
 }
 
 func (c *AsyncContext) UnmarshalNil(buf []byte) error {
-	return c.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, c)
 }
 
 func (c AsyncContext) MarshalNil() ([]byte, error) {
-	return c.MarshalSSZ()
+	return rlp.EncodeToBytes(&c)
 }
 
 // interfaces
@@ -335,19 +340,16 @@ func NewEmptyTransaction() *Transaction {
 		TransactionDigest: TransactionDigest{
 			FeePack: NewFeePack(),
 		},
-		Value:        NewZeroValue(),
-		Token:        make([]TokenBalance, 0),
-		Signature:    make(hexutil.Bytes, 0),
-		RequestChain: make([]*AsyncRequestInfo, 0),
+		Value: NewZeroValue(),
 	}
 }
 
 func (t *Transaction) UnmarshalNil(buf []byte) error {
-	return t.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, t)
 }
 
 func (t Transaction) MarshalNil() ([]byte, error) {
-	return t.MarshalSSZ()
+	return rlp.EncodeToBytes(&t)
 }
 
 func (m *Transaction) Hash() common.Hash {

@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/crypto/bls"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/rs/zerolog/log"
 )
 
@@ -47,25 +48,18 @@ func InitParams(accessor ConfigAccessor) {
 	}
 }
 
-// This is a workaround for fastssz bug where it doesn't add import of `types` package to generated code.
-// Adding this struct solves the issue. It can be removed once something other from `types` package will be used in the
-// following structs.
-type WorkaroundToImportTypes struct {
-	Tmp types.TransactionIndex
-}
-
 var ErrParamCastFailed = errors.New("input object cannot be cast to Param")
 
 type ListValidators struct {
-	List []ValidatorInfo `json:"list" ssz-max:"4096" yaml:"list"`
+	List []ValidatorInfo `json:"list" yaml:"list"`
 }
 
 type ParamValidators struct {
-	Validators []ListValidators `json:"validators" ssz-max:"4096" yaml:"validators"`
+	Validators []ListValidators `json:"validators" yaml:"validators"`
 }
 
 type ValidatorInfo struct {
-	PublicKey         Pubkey        `json:"pubKey" yaml:"pubKey" ssz-size:"128"`
+	PublicKey         Pubkey        `json:"pubKey" yaml:"pubKey"`
 	WithdrawalAddress types.Address `json:"withdrawalAddress" yaml:"withdrawalAddress"`
 }
 
@@ -80,15 +74,15 @@ func (p *ParamValidators) Accessor() *ParamAccessor {
 }
 
 func (p *ParamValidators) UnmarshalNil(buf []byte) error {
-	return p.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, p)
 }
 
 func (p ParamValidators) MarshalNil() ([]byte, error) {
-	return p.MarshalSSZ()
+	return rlp.EncodeToBytes(&p)
 }
 
 type ParamGasPrice struct {
-	Shards []types.Uint256 `json:"shards" ssz-max:"4096" yaml:"shards"`
+	Shards []types.Uint256 `json:"shards" yaml:"shards"`
 }
 
 var _ IConfigParam = new(ParamGasPrice)
@@ -98,11 +92,11 @@ func (p *ParamGasPrice) Name() string {
 }
 
 func (p *ParamGasPrice) UnmarshalNil(buf []byte) error {
-	return p.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, p)
 }
 
 func (p ParamGasPrice) MarshalNil() ([]byte, error) {
-	return p.MarshalSSZ()
+	return rlp.EncodeToBytes(&p)
 }
 
 func (p *ParamGasPrice) Accessor() *ParamAccessor {
@@ -124,11 +118,11 @@ func (p *ParamL1BlockInfo) Name() string {
 }
 
 func (p *ParamL1BlockInfo) UnmarshalNil(buf []byte) error {
-	return p.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, p)
 }
 
 func (p ParamL1BlockInfo) MarshalNil() ([]byte, error) {
-	return p.MarshalSSZ()
+	return rlp.EncodeToBytes(&p)
 }
 
 func (p *ParamL1BlockInfo) Accessor() *ParamAccessor {

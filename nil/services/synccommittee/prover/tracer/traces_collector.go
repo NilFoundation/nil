@@ -155,7 +155,7 @@ func (tc *remoteTracesCollectorImpl) fetchAndDecodeBlock(
 		return nil, nil, ErrClientReturnedNilBlock
 	}
 
-	decodedBlock, err := dbgBlock.DecodeSSZ()
+	decodedBlock, err := dbgBlock.DecodeBytes()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode block: %w", err)
 	}

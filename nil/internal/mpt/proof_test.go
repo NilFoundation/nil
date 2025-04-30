@@ -6,8 +6,8 @@ import (
 	"maps"
 	"testing"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -184,16 +184,18 @@ func TestSparseMPT(t *testing.T) {
 		for k, v := range sparseHolder {
 			var manipulatedNode Node
 
-			switch ssz.UnmarshallUint8(v) {
-			case SszExtensionNode:
+			var nodeKind nodeKind
+			require.NoError(t, rlp.DecodeBytes(v[:1], &nodeKind))
+			switch nodeKind {
+			case extensionNodeKind:
 				continue
-			case SszLeafNode:
+			case leafNodeKind:
 				node := &LeafNode{}
 				require.NoError(t, node.UnmarshalNil(v[1:]))
 
 				node.LeafData = modifiedVal
 				manipulatedNode = node
-			case SszBranchNode:
+			case branchNodeKind:
 				node := &BranchNode{}
 				require.NoError(t, node.UnmarshalNil(v[1:]))
 				if len(node.Value) == 0 {

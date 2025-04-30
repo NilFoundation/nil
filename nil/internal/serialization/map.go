@@ -1,4 +1,4 @@
-package sszx
+package serialization
 
 import (
 	"bytes"
@@ -6,14 +6,14 @@ import (
 )
 
 type KeyValue struct {
-	Key   []byte `ssz-max:"1024"`
-	Value []byte `ssz-max:"100000"`
+	Key   []byte
+	Value []byte
 }
 
-// MapHolder is a wrapper around a map[string][]byte that can be serialized to SSZ
+// MapHolder is a wrapper around a map[string][]byte that can be serialized.
 type MapHolder struct {
-	// Data is a sorted list of key-value pairs
-	Data []KeyValue `ssz-max:"4096"`
+	// Data is a sorted list of key-value pairs.
+	Data []KeyValue
 }
 
 func NewMapHolder(m map[string][]byte) *MapHolder {

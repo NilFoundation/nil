@@ -9,8 +9,8 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
@@ -225,23 +225,23 @@ func unpackErrorMap(pbErrors map[string]*Error) map[common.Hash]string {
 
 // RawBlock converters
 
-func (rb *RawBlock) PackProtoMessage(block sszx.SSZEncodedData) error {
+func (rb *RawBlock) PackProtoMessage(block serialization.EncodedData) error {
 	if block == nil {
 		return errors.New("block should not be nil")
 	}
 	*rb = RawBlock{
-		BlockSSZ: block,
+		BlockBytes: block,
 	}
 	return nil
 }
 
-func (rb *RawBlock) UnpackProtoMessage() (sszx.SSZEncodedData, error) {
-	return rb.GetBlockSSZ(), nil
+func (rb *RawBlock) UnpackProtoMessage() (serialization.EncodedData, error) {
+	return rb.GetBlockBytes(), nil
 }
 
 // RawBlockResponse converters
 
-func (br *RawBlockResponse) PackProtoMessage(block sszx.SSZEncodedData, err error) error {
+func (br *RawBlockResponse) PackProtoMessage(block serialization.EncodedData, err error) error {
 	if err != nil {
 		br.fromError(err)
 	} else {
@@ -254,7 +254,7 @@ func (br *RawBlockResponse) fromError(err error) {
 	br.Result = &RawBlockResponse_Error{Error: new(Error).PackProtoMessage(err)}
 }
 
-func (br *RawBlockResponse) fromData(data sszx.SSZEncodedData) {
+func (br *RawBlockResponse) fromData(data serialization.EncodedData) {
 	var rawBlock RawBlock
 	if err := rawBlock.PackProtoMessage(data); err != nil {
 		br.fromError(err)
@@ -263,7 +263,7 @@ func (br *RawBlockResponse) fromData(data sszx.SSZEncodedData) {
 	}
 }
 
-func (br *RawBlockResponse) UnpackProtoMessage() (sszx.SSZEncodedData, error) {
+func (br *RawBlockResponse) UnpackProtoMessage() (serialization.EncodedData, error) {
 	switch br.GetResult().(type) {
 	case *RawBlockResponse_Error:
 		return nil, br.GetError().UnpackProtoMessage()
@@ -284,16 +284,16 @@ func (rb *RawFullBlock) PackProtoMessage(block *types.RawBlockWithExtractedData)
 	}
 
 	*rb = RawFullBlock{
-		BlockSSZ:           block.Block,
-		InTransactionsSSZ:  block.InTransactions,
-		InTxCountsSSZ:      block.InTxCounts,
-		OutTransactionsSSZ: block.OutTransactions,
-		OutTxCountsSSZ:     block.OutTxCounts,
-		ReceiptsSSZ:        block.Receipts,
-		Errors:             packErrorMap(block.Errors),
-		ChildBlocks:        PackHashes(block.ChildBlocks),
-		DbTimestamp:        block.DbTimestamp,
-		Config:             block.Config,
+		BlockBytes:           block.Block,
+		InTransactionsBytes:  block.InTransactions,
+		InTxCountsBytes:      block.InTxCounts,
+		OutTransactionsBytes: block.OutTransactions,
+		OutTxCountsBytes:     block.OutTxCounts,
+		ReceiptsBytes:        block.Receipts,
+		Errors:               packErrorMap(block.Errors),
+		ChildBlocks:          PackHashes(block.ChildBlocks),
+		DbTimestamp:          block.DbTimestamp,
+		Config:               block.Config,
 	}
 	return nil
 }
@@ -320,12 +320,12 @@ func PackHashes(input []common.Hash) []*Hash {
 
 func (rb *RawFullBlock) UnpackProtoMessage() (*types.RawBlockWithExtractedData, error) {
 	return &types.RawBlockWithExtractedData{
-		Block:           rb.GetBlockSSZ(),
-		InTransactions:  rb.GetInTransactionsSSZ(),
-		InTxCounts:      rb.GetInTxCountsSSZ(),
-		OutTransactions: rb.GetOutTransactionsSSZ(),
-		OutTxCounts:     rb.GetOutTxCountsSSZ(),
-		Receipts:        rb.GetReceiptsSSZ(),
+		Block:           rb.GetBlockBytes(),
+		InTransactions:  rb.GetInTransactionsBytes(),
+		InTxCounts:      rb.GetInTxCountsBytes(),
+		OutTransactions: rb.GetOutTransactionsBytes(),
+		OutTxCounts:     rb.GetOutTxCountsBytes(),
+		Receipts:        rb.GetReceiptsBytes(),
 		Errors:          unpackErrorMap(rb.GetErrors()),
 		ChildBlocks:     UnpackHashes(rb.GetChildBlocks()),
 		DbTimestamp:     rb.GetDbTimestamp(),
@@ -512,7 +512,7 @@ func (rc *AsyncContext) UnpackProtoMessage() types.AsyncContext {
 // RawContract converters
 
 func (rc *RawContract) PackProtoMessage(contract *rawapitypes.SmartContract) error {
-	rc.ContractSSZ = contract.ContractSSZ
+	rc.ContractBytes = contract.ContractBytes
 	rc.Code = contract.Code
 	rc.ProofEncoded = contract.ProofEncoded
 
@@ -547,9 +547,9 @@ func (rc *RawContract) PackProtoMessage(contract *rawapitypes.SmartContract) err
 
 func (rc *RawContract) UnpackProtoMessage() (*rawapitypes.SmartContract, error) {
 	contract := &rawapitypes.SmartContract{
-		ContractSSZ:  rc.GetContractSSZ(),
-		Code:         rc.GetCode(),
-		ProofEncoded: rc.GetProofEncoded(),
+		ContractBytes: rc.GetContractBytes(),
+		Code:          rc.GetCode(),
+		ProofEncoded:  rc.GetProofEncoded(),
 	}
 
 	if len(rc.GetStorage()) > 0 {
@@ -886,14 +886,14 @@ func (m *OutTransaction) PackProtoMessage(txn *rpctypes.OutTransaction) *OutTran
 	}
 
 	out := &OutTransaction{
-		TransactionSSZ: txn.TransactionSSZ,
-		ForwardKind:    uint64(txn.ForwardKind),
-		Data:           txn.Data,
-		CoinsUsed:      coinsUsed,
-		GasPrice:       gasPrice,
-		Error:          txn.Error,
-		Logs:           packLogs(txn.Logs),
-		DebugLogs:      packDebugLogs(txn.DebugLogs),
+		TransactionBytes: txn.TransactionBytes,
+		ForwardKind:      uint64(txn.ForwardKind),
+		Data:             txn.Data,
+		CoinsUsed:        coinsUsed,
+		GasPrice:         gasPrice,
+		Error:            txn.Error,
+		Logs:             packLogs(txn.Logs),
+		DebugLogs:        packDebugLogs(txn.DebugLogs),
 	}
 
 	if len(txn.OutTransactions) > 0 {
@@ -916,12 +916,12 @@ func newValueFromUint256(v *Uint256) types.Value {
 
 func (m *OutTransaction) UnpackProtoMessage() *rpctypes.OutTransaction {
 	txn := &rpctypes.OutTransaction{
-		TransactionSSZ: m.GetTransactionSSZ(),
-		ForwardKind:    types.ForwardKind(m.GetForwardKind()),
-		Data:           m.GetData(),
-		Error:          m.GetError(),
-		Logs:           unpackLogs(m.GetLogs()),
-		DebugLogs:      unpackDebugLogs(m.GetDebugLogs()),
+		TransactionBytes: m.GetTransactionBytes(),
+		ForwardKind:      types.ForwardKind(m.GetForwardKind()),
+		Data:             m.GetData(),
+		Error:            m.GetError(),
+		Logs:             unpackLogs(m.GetLogs()),
+		DebugLogs:        unpackDebugLogs(m.GetDebugLogs()),
 	}
 
 	txn.CoinsUsed = newValueFromUint256(m.GetCoinsUsed())
@@ -1092,11 +1092,11 @@ func (r *TransactionResponse) PackProtoMessage(info *rawapitypes.TransactionInfo
 
 	r.Result = &TransactionResponse_Data{
 		Data: &TransactionInfo{
-			TransactionSSZ: info.TransactionSSZ,
-			ReceiptSSZ:     info.ReceiptSSZ,
-			Index:          uint64(info.Index),
-			BlockHash:      &hash,
-			BlockId:        uint64(info.BlockId),
+			TransactionBytes: info.TransactionBytes,
+			ReceiptBytes:     info.ReceiptBytes,
+			Index:            uint64(info.Index),
+			BlockHash:        &hash,
+			BlockId:          uint64(info.BlockId),
 		},
 	}
 	return nil
@@ -1113,11 +1113,11 @@ func (r *TransactionResponse) UnpackProtoMessage() (*rawapitypes.TransactionInfo
 			return nil, err
 		}
 		return &rawapitypes.TransactionInfo{
-			TransactionSSZ: data.GetTransactionSSZ(),
-			ReceiptSSZ:     data.GetReceiptSSZ(),
-			Index:          types.TransactionIndex(data.GetIndex()),
-			BlockHash:      hash,
-			BlockId:        types.BlockNumber(data.GetBlockId()),
+			TransactionBytes: data.GetTransactionBytes(),
+			ReceiptBytes:     data.GetReceiptBytes(),
+			Index:            types.TransactionIndex(data.GetIndex()),
+			BlockHash:        hash,
+			BlockId:          types.BlockNumber(data.GetBlockId()),
 		}, nil
 	}
 	return nil, errors.New("unexpected response type")
@@ -1207,7 +1207,7 @@ func (r *TransactionRequest) UnpackProtoMessage() (rawapitypes.TransactionReques
 
 // Receipt converters
 func (r *ReceiptInfo) PackProtoMessage(info *rawapitypes.ReceiptInfo) *ReceiptInfo {
-	if info == nil || info.ReceiptSSZ == nil {
+	if info == nil || info.ReceiptBytes == nil {
 		return nil
 	}
 
@@ -1231,7 +1231,7 @@ func (r *ReceiptInfo) PackProtoMessage(info *rawapitypes.ReceiptInfo) *ReceiptIn
 
 	return &ReceiptInfo{
 		Flags:           uint32(info.Flags.Bits),
-		ReceiptSSZ:      info.ReceiptSSZ,
+		ReceiptBytes:    info.ReceiptBytes,
 		Index:           uint64(info.Index),
 		BlockHash:       blockHash,
 		BlockId:         uint64(info.BlockId),
@@ -1257,7 +1257,7 @@ func (r *ReceiptResponse) PackProtoMessage(info *rawapitypes.ReceiptInfo, err er
 }
 
 func (r *ReceiptInfo) UnpackProtoMessage() *rawapitypes.ReceiptInfo {
-	if r == nil || r.ReceiptSSZ == nil {
+	if r == nil || r.ReceiptBytes == nil {
 		return nil
 	}
 
@@ -1278,7 +1278,7 @@ func (r *ReceiptInfo) UnpackProtoMessage() *rawapitypes.ReceiptInfo {
 	check.PanicIfErr(err)
 	return &rawapitypes.ReceiptInfo{
 		Flags:           types.NewTransactionFlagsFromBits(uint8(r.GetFlags())),
-		ReceiptSSZ:      r.GetReceiptSSZ(),
+		ReceiptBytes:    r.GetReceiptBytes(),
 		Index:           types.TransactionIndex(r.GetIndex()),
 		BlockHash:       blockHash,
 		BlockId:         types.BlockNumber(r.GetBlockId()),
@@ -1384,13 +1384,13 @@ func (r *SendTransactionResponse) UnpackProtoMessage() (txnpool.DiscardReason, e
 	return txnpool.DiscardReason(status), nil
 }
 
-func (r *SendTransactionRequest) PackProtoMessage(transactionSSZ []byte) error {
-	r.TransactionSSZ = transactionSSZ
+func (r *SendTransactionRequest) PackProtoMessage(transactionBytes []byte) error {
+	r.TransactionBytes = transactionBytes
 	return nil
 }
 
 func (r *SendTransactionRequest) UnpackProtoMessage() ([]byte, error) {
-	return r.GetTransactionSSZ(), nil
+	return r.GetTransactionBytes(), nil
 }
 
 func (txn *RawTxnsResponse) PackProtoMessage(txns []*types.Transaction, err error) error {
@@ -1400,7 +1400,7 @@ func (txn *RawTxnsResponse) PackProtoMessage(txns []*types.Transaction, err erro
 	}
 
 	var rawTxns RawTxns
-	rawTxns.Data, err = sszx.EncodeContainer[*types.Transaction](txns)
+	rawTxns.Data, err = serialization.EncodeContainer[*types.Transaction](txns)
 	if err != nil {
 		return err
 	}
@@ -1422,7 +1422,7 @@ func (txn *RawTxnsResponse) UnpackProtoMessage() ([]*types.Transaction, error) {
 		if data == nil {
 			return []*types.Transaction{}, nil
 		}
-		return sszx.DecodeContainer[*types.Transaction](data)
+		return serialization.DecodeContainer[*types.Transaction](data)
 	}
 	return nil, errors.New("unexpected response type")
 }

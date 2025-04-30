@@ -113,15 +113,15 @@ func BlockHashWithChildrenAsBlockReferenceOrHashWithChildren(hash common.Hash, c
 }
 
 type TransactionInfo struct {
-	TransactionSSZ []byte
-	ReceiptSSZ     []byte
-	Index          types.TransactionIndex
-	BlockHash      common.Hash
-	BlockId        types.BlockNumber
+	TransactionBytes []byte
+	ReceiptBytes     []byte
+	Index            types.TransactionIndex
+	BlockHash        common.Hash
+	BlockId          types.BlockNumber
 }
 
 type ReceiptInfo struct {
-	ReceiptSSZ      []byte
+	ReceiptBytes    []byte
 	Flags           types.TransactionFlags
 	Index           types.TransactionIndex
 	BlockHash       common.Hash
@@ -149,10 +149,10 @@ type TransactionRequest struct {
 }
 
 type SmartContract struct {
-	ContractSSZ  []byte
-	Code         types.Code
-	ProofEncoded []byte
-	Storage      map[common.Hash]types.Uint256
-	Tokens       map[types.TokenId]types.Value
-	AsyncContext map[types.TransactionIndex]types.AsyncContext
+	ContractBytes []byte
+	Code          types.Code
+	ProofEncoded  []byte
+	Storage       map[common.Hash]types.Uint256
+	Tokens        map[types.TokenId]types.Value
+	AsyncContext  map[types.TransactionIndex]types.AsyncContext
 }

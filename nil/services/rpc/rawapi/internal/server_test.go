@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/network"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi/pb"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
@@ -42,17 +42,17 @@ func (s *RawApiTestSuite) SetupTest() {
 }
 
 type testApiIface interface {
-	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (sszx.SSZEncodedData, error)
+	TestMethod(ctx context.Context, blockReference rawapitypes.BlockReference) (serialization.EncodedData, error)
 }
 
 type testApi struct {
-	handler func() (sszx.SSZEncodedData, error)
+	handler func() (serialization.EncodedData, error)
 }
 
 func (t *testApi) TestMethod(
 	ctx context.Context,
 	blockReference rawapitypes.BlockReference,
-) (sszx.SSZEncodedData, error) {
+) (serialization.EncodedData, error) {
 	return t.handler()
 }
 
@@ -116,7 +116,7 @@ func (s *ApiServerTestSuite) makeInvalidBlockRequest() []byte {
 
 func (s *ApiServerTestSuite) TestValidResponse() {
 	var index types.TransactionIndex
-	s.api.handler = func() (sszx.SSZEncodedData, error) {
+	s.api.handler = func() (serialization.EncodedData, error) {
 		index++
 		return index.Bytes(), nil
 	}
@@ -130,11 +130,11 @@ func (s *ApiServerTestSuite) TestValidResponse() {
 	var pbResponse pb.RawBlockResponse
 	err = proto.Unmarshal(response, &pbResponse)
 	s.Require().NoError(err)
-	s.Require().EqualValues(1, types.BytesToTransactionIndex(pbResponse.GetData().GetBlockSSZ()))
+	s.Require().EqualValues(1, types.BytesToTransactionIndex(pbResponse.GetData().GetBlockBytes()))
 }
 
 func (s *ApiServerTestSuite) TestNilResponse() {
-	s.api.handler = func() (sszx.SSZEncodedData, error) {
+	s.api.handler = func() (serialization.EncodedData, error) {
 		return nil, nil
 	}
 
@@ -151,8 +151,8 @@ func (s *ApiServerTestSuite) TestNilResponse() {
 }
 
 func (s *ApiServerTestSuite) TestInvalidSchemaRequest() {
-	s.api.handler = func() (sszx.SSZEncodedData, error) {
-		return sszx.SSZEncodedData{}, nil
+	s.api.handler = func() (serialization.EncodedData, error) {
+		return serialization.EncodedData{}, nil
 	}
 
 	response, err := s.clientNetworkManager.SendRequestAndGetResponse(
@@ -170,8 +170,8 @@ func (s *ApiServerTestSuite) TestInvalidSchemaRequest() {
 }
 
 func (s *ApiServerTestSuite) TestInvalidDataRequest() {
-	s.api.handler = func() (sszx.SSZEncodedData, error) {
-		return sszx.SSZEncodedData{}, nil
+	s.api.handler = func() (serialization.EncodedData, error) {
+		return serialization.EncodedData{}, nil
 	}
 
 	request := s.makeInvalidBlockRequest()
@@ -187,7 +187,7 @@ func (s *ApiServerTestSuite) TestInvalidDataRequest() {
 }
 
 func (s *ApiServerTestSuite) TestHandlerPanic() {
-	s.api.handler = func() (sszx.SSZEncodedData, error) {
+	s.api.handler = func() (serialization.EncodedData, error) {
 		panic("test panic")
 	}
 

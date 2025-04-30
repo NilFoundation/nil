@@ -197,7 +197,7 @@ func (s *TracerMockClientTestSuite) makeClient() client.Client {
 			InTransactions: s.inMsgs,
 			Config:         make(map[string]hexutil.Bytes),
 		}
-		rawBlock, err := blockWithData.EncodeSSZ()
+		rawBlock, err := blockWithData.EncodeToBytes()
 		s.Require().NoError(err)
 		return jsonrpc.EncodeRawBlockWithExtractedData(rawBlock)
 	}

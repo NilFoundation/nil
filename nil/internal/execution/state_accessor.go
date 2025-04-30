@@ -4,11 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
-	nilssz "github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
@@ -151,7 +149,7 @@ type shardAccessor struct {
 	*rawShardAccessor
 }
 
-func collectSszShardCounts(
+func collectSerializedShardCounts(
 	block common.Hash, sa *rawShardAccessor, cache *lru.Cache[common.Hash, [][]byte],
 	tableName db.ShardedTableName, rootHash common.Hash, res *fieldAccessor[[][]byte],
 ) {
@@ -167,13 +165,18 @@ func collectSszShardCounts(
 		if len(k) != types.ShardIdSize {
 			continue
 		}
-		// FIXME: this is just byte swapping (shardId.Bytes is big endian)
-		shardId := types.BytesToShardId(k)
-		shardBytes := ssz.MarshalUint16([]byte{}, uint16(shardId))
 
-		item := make([]byte, 0, len(shardBytes)+len(v))
-		item = append(item, shardBytes...)
-		item = append(item, v...)
+		shardId := types.BytesToShardId(k)
+		var transactionIndex types.TransactionIndex
+		check.PanicIfErr(transactionIndex.UnmarshalNil(v))
+
+		txCount := &types.TxCount{
+			ShardId: uint16(shardId),
+			Count:   transactionIndex,
+		}
+
+		item, err := txCount.MarshalNil()
+		check.PanicIfErr(err)
 		items = append(items, item)
 	}
 
@@ -181,7 +184,7 @@ func collectSszShardCounts(
 	cache.Add(block, items)
 }
 
-func collectSszBlockEntities(
+func collectSerializedBlockEntities(
 	block common.Hash,
 	sa *rawShardAccessor,
 	cache *lru.Cache[common.Hash, [][]byte],
@@ -215,7 +218,7 @@ func collectSszBlockEntities(
 	return nil
 }
 
-func unmashalSszEntities[
+func unmashalSerializedEntities[
 	T interface {
 		~*S
 		serialization.NilUnmarshaler
@@ -225,7 +228,7 @@ func unmashalSszEntities[
 	items, ok := cache.Get(block)
 	if !ok {
 		var err error
-		items, err = nilssz.DecodeContainer[T](raw)
+		items, err = serialization.DecodeContainer[T](raw)
 		if err != nil {
 			return err
 		}
@@ -375,7 +378,7 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 	rawBlock, ok := sa.rawCache.blocksLRU.Get(hash)
 	if !ok {
 		var err error
-		rawBlock, err = db.ReadBlockSSZ(sa.tx, sa.shardId, hash)
+		rawBlock, err = db.ReadBlockBytes(sa.tx, sa.shardId, hash)
 		if err != nil {
 			return rawBlockAccessorResult{}, err
 		}
@@ -401,7 +404,7 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 	}
 
 	if b.withInTransactions {
-		if err := collectSszBlockEntities(
+		if err := collectSerializedBlockEntities(
 			hash,
 			sa,
 			sa.rawCache.inTransactionsLRU,
@@ -411,14 +414,14 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 		); err != nil {
 			return rawBlockAccessorResult{}, err
 		}
-		collectSszShardCounts(
+		collectSerializedShardCounts(
 			hash, sa, sa.rawCache.inTxCountsLRU, db.TransactionTrieTable,
 			block.InTransactionsRoot, &res.inTxCounts,
 		)
 	}
 
 	if b.withOutTransactions {
-		if err := collectSszBlockEntities(
+		if err := collectSerializedBlockEntities(
 			hash,
 			sa,
 			sa.rawCache.outTransactionsLRU,
@@ -428,14 +431,14 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 		); err != nil {
 			return rawBlockAccessorResult{}, err
 		}
-		collectSszShardCounts(
+		collectSerializedShardCounts(
 			hash, sa, sa.rawCache.outTxCountsLRU, db.TransactionTrieTable,
 			block.OutTransactionsRoot, &res.outTxCounts,
 		)
 	}
 
 	if b.withReceipts {
-		if err := collectSszBlockEntities(
+		if err := collectSerializedBlockEntities(
 			hash,
 			sa,
 			sa.rawCache.receiptsLRU,
@@ -594,7 +597,7 @@ func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
 	}
 
 	if b.withInTransactions {
-		if err := unmashalSszEntities[*types.Transaction](
+		if err := unmashalSerializedEntities[*types.Transaction](
 			hash,
 			raw.InTransactions(),
 			sa.cache.inTransactionsLRU,
@@ -605,7 +608,7 @@ func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
 	}
 
 	if b.withOutTransactions {
-		if err := unmashalSszEntities[*types.Transaction](
+		if err := unmashalSerializedEntities[*types.Transaction](
 			hash,
 			raw.OutTransactions(),
 			sa.cache.outTransactionsLRU,
@@ -616,7 +619,7 @@ func (b blockAccessor) ByHash(hash common.Hash) (blockAccessorResult, error) {
 	}
 
 	if b.withReceipts {
-		if err := unmashalSszEntities[*types.Receipt](
+		if err := unmashalSerializedEntities[*types.Receipt](
 			hash, raw.Receipts(), sa.cache.receiptsLRU, &res.receipts,
 		); err != nil {
 			return blockAccessorResult{}, err

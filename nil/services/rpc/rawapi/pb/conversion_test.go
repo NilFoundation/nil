@@ -160,22 +160,22 @@ func TestOutTransaction_PackUnpack(t *testing.T) {
 
 	value := types.NewValueFromUint64(321)
 	nestedTransaction := &rpctypes.OutTransaction{
-		TransactionSSZ:  hexutil.Bytes{0x11},
-		ForwardKind:     types.ForwardKindRemaining,
-		Data:            hexutil.Bytes{0x22},
-		CoinsUsed:       value,
-		OutTransactions: nil,
-		BaseFee:         types.NewValueFromUint64(1),
-		Error:           "test message",
+		TransactionBytes: hexutil.Bytes{0x11},
+		ForwardKind:      types.ForwardKindRemaining,
+		Data:             hexutil.Bytes{0x22},
+		CoinsUsed:        value,
+		OutTransactions:  nil,
+		BaseFee:          types.NewValueFromUint64(1),
+		Error:            "test message",
 	}
 
 	args := &rpctypes.OutTransaction{
-		TransactionSSZ:  hexutil.Bytes{0x1},
-		ForwardKind:     types.ForwardKindNone,
-		Data:            hexutil.Bytes{0x2},
-		CoinsUsed:       value,
-		OutTransactions: []*rpctypes.OutTransaction{nestedTransaction},
-		BaseFee:         types.NewValueFromUint64(2),
+		TransactionBytes: hexutil.Bytes{0x1},
+		ForwardKind:      types.ForwardKindNone,
+		Data:             hexutil.Bytes{0x2},
+		CoinsUsed:        value,
+		OutTransactions:  []*rpctypes.OutTransaction{nestedTransaction},
+		BaseFee:          types.NewValueFromUint64(2),
 	}
 
 	callArgs := new(OutTransaction).PackProtoMessage(args)
@@ -197,11 +197,11 @@ func TestCallResponse_PackUnpack(t *testing.T) {
 	gp := types.NewValueFromUint64(123)
 	value := types.NewValueFromUint64(321)
 	outTxn := &rpctypes.OutTransaction{
-		TransactionSSZ:  hexutil.Bytes{0x1},
-		Data:            hexutil.Bytes{0x2},
-		CoinsUsed:       value,
-		OutTransactions: nil,
-		BaseFee:         gp,
+		TransactionBytes: hexutil.Bytes{0x1},
+		Data:             hexutil.Bytes{0x2},
+		CoinsUsed:        value,
+		OutTransactions:  nil,
+		BaseFee:          gp,
 	}
 
 	args := &rpctypes.CallResWithGasPrice{

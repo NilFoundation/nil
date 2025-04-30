@@ -18,24 +18,24 @@ func (api *localShardApiRo) getTransactionByHash(tx db.RoTx, hash common.Hash) (
 	}
 
 	txn := data.Transaction()
-	transactionSSZ, err := txn.MarshalNil()
+	transactionBytes, err := txn.MarshalNil()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal transaction: %w", err)
 	}
 
 	receipt := data.Receipt()
-	receiptSSZ, err := receipt.MarshalNil()
+	receiptBytes, err := receipt.MarshalNil()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal receipt: %w", err)
 	}
 
 	block := data.Block()
 	return &rawapitypes.TransactionInfo{
-		TransactionSSZ: transactionSSZ,
-		ReceiptSSZ:     receiptSSZ,
-		Index:          data.Index(),
-		BlockHash:      block.Hash(api.shardId()),
-		BlockId:        block.Id,
+		TransactionBytes: transactionBytes,
+		ReceiptBytes:     receiptBytes,
+		Index:            data.Index(),
+		BlockHash:        block.Hash(api.shardId()),
+		BlockId:          block.Id,
 	}, nil
 }
 
@@ -66,11 +66,11 @@ func (api *localShardApiRo) getInTransactionByBlockHashAndIndex(
 	}
 
 	return &rawapitypes.TransactionInfo{
-		TransactionSSZ: rawTxn,
-		ReceiptSSZ:     rawReceipt,
-		Index:          txnIndex,
-		BlockHash:      block.Hash(api.shardId()),
-		BlockId:        block.Id,
+		TransactionBytes: rawTxn,
+		ReceiptBytes:     rawReceipt,
+		Index:            txnIndex,
+		BlockHash:        block.Hash(api.shardId()),
+		BlockId:          block.Id,
 	}, nil
 }
 

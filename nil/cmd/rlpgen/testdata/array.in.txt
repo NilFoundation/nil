@@ -1,0 +1,15 @@
+// -*- mode: go -*-
+
+package test
+
+type Aux struct {
+	A uint64
+	B uint16
+}
+
+const arraySize = 32
+
+type Test struct {
+	Array1   [16]Aux
+	Array2   [arraySize]Aux
+}

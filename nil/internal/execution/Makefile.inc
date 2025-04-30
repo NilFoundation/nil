@@ -1,7 +1,16 @@
-.PHONY: ssz_execution
-ssz_execution: nil/internal/execution/proposal_encoding.go ssz_types
+EXEC_RLPGEN := cd nil/internal/execution && $(RLPGEN_BIN)
 
-nil/internal/execution/proposal_encoding.go: nil/internal/execution/proposal.go
-	cd nil/internal/execution && go run github.com/NilFoundation/fastssz/sszgen --path proposal.go \
-		-include ../../common/hexutil/bytes.go,../types/uint256.go,../types/bitflags.go,../types/bloom.go,../types/gas.go,../types/value.go,../types/address.go,../types/code.go,../types/account.go,../types/signature.go,../types/block.go,../types/collator.go,../types/transaction.go,../types/shard.go,../../common/length.go,../../common/hash.go,../../common/sszx/map.go \
-		--objs ParentBlockSerializable,ProposalSerializable
+RLP_EXECUTION_TARGETS = \
+    nil/internal/execution/parent_block_serializable_rlp_encoding.go \
+    nil/internal/execution/proposal_serializable_rlp_encoding.go
+
+$(RLP_EXECUTION_TARGETS): rlp_types rlp_srlz | $(RLPGEN_BIN)
+
+.PHONY: rlp_execution
+rlp_execution: $(RLP_EXECUTION_TARGETS)
+
+nil/internal/execution/parent_block_serializable_rlp_encoding.go: nil/internal/execution/proposal.go
+	$(EXEC_RLPGEN) -type ParentBlockSerializable -out parent_block_serializable_rlp_encoding.go -decoder
+
+nil/internal/execution/proposal_serializable_rlp_encoding.go: nil/internal/execution/proposal.go
+	$(EXEC_RLPGEN) -type ProposalSerializable -out proposal_serializable_rlp_encoding.go -decoder

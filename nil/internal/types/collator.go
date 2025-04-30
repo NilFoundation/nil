@@ -1,5 +1,7 @@
 package types
 
+import "github.com/ethereum/go-ethereum/rlp"
+
 // Neighbor describes collator's current position in a neighbor shard.
 type Neighbor struct {
 	ShardId ShardId `json:"shardId"`
@@ -10,13 +12,13 @@ type Neighbor struct {
 }
 
 type CollatorState struct {
-	Neighbors []Neighbor `json:"neighbors" ssz-max:"10000"`
+	Neighbors []Neighbor `json:"neighbors"`
 }
 
 func (c *CollatorState) UnmarshalNil(buf []byte) error {
-	return c.UnmarshalSSZ(buf)
+	return rlp.DecodeBytes(buf, c)
 }
 
 func (c CollatorState) MarshalNil() ([]byte, error) {
-	return c.MarshalSSZ()
+	return rlp.EncodeToBytes(&c)
 }

@@ -5,8 +5,8 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/network"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
@@ -18,7 +18,7 @@ type NodeApi interface {
 		ctx context.Context,
 		shardId types.ShardId,
 		blockReference rawapitypes.BlockReference,
-	) (sszx.SSZEncodedData, error)
+	) (serialization.EncodedData, error)
 	GetFullBlockData(
 		ctx context.Context,
 		shardId types.ShardId,
