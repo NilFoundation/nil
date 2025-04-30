@@ -50,19 +50,20 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
         // save the L2BridgeMessenger Address in the json config for l2
         const l2NetworkConfig: L2NetworkConfig = loadNilNetworkConfig(networkName);
 
-        const { address: nilMessengerImplementationAddress, hash: nilMessengerImplementationDeploymentTxHash } = await deployerAccount.deployContract({
+
+
+        const { tx: nilMessengerImplementationDeploymentTx, address: nilMessengerImplementationAddress } = await deployerAccount.deployContract({
             shardId: 1,
-            bytecode: L2BridgeMessengerJson.default.bytecode,
-            abi: L2BridgeMessengerJson.default.abi,
+            bytecode: L2BridgeMessengerJson.default.bytecode as `0x${string}`,
+            abi: L2BridgeMessengerJson.default.abi as Abi,
             args: [],
             salt: BigInt(Math.floor(Math.random() * 10000)),
             feeCredit: BigInt("19340180000000"),
         });
 
-        await waitTillCompleted(deployerAccount.client, nilMessengerImplementationDeploymentTxHash);
-        console.log(`L2BridgeMessenger contractis deployed at: ${nilMessengerImplementationAddress} with transactionHash: ${nilMessengerImplementationDeploymentTxHash}`);
+        console.log(`L2BridgeMessenger contractis deployed at: ${nilMessengerImplementationAddress} with transactionHash: ${nilMessengerImplementationDeploymentTx.hash}`);
 
-        if (!nilMessengerImplementationDeploymentTxHash) {
+        if (!nilMessengerImplementationDeploymentTx || !nilMessengerImplementationDeploymentTx.hash) {
             throw Error(`Invalid transaction output from deployContract call for L2BridgeMessenger Contract`);
         }
 
@@ -70,7 +71,7 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
             throw Error(`Invalid address output from deployContract call for L2BridgeMessenger Contract`);
         }
 
-        console.log(`L2BridgeMessenger contract deployed at address: ${nilMessengerImplementationAddress} and with transactionHash: ${nilMessengerImplementationDeploymentTxHash}`);
+        console.log(`L2BridgeMessenger contract deployed at address: ${nilMessengerImplementationAddress} and with transactionHash: ${nilMessengerImplementationAddress}`);
 
         l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerImplementation = nilMessengerImplementationAddress;
 
@@ -83,18 +84,16 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
             l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.messageExpiryDeltaValue],
         });
 
-        const { address: addressProxy, hash: hashProxy } = await deployerAccount.deployContract({
+        const { tx: proxyDeploymentTx, address: proxyAddress } = await deployerAccount.deployContract({
             shardId: 1,
-            bytecode: TransparentUpgradeableProxy.default.bytecode,
-            abi: TransparentUpgradeableProxy.default.abi,
+            bytecode: TransparentUpgradeableProxy.default.bytecode as `0x${string}`,
+            abi: TransparentUpgradeableProxy.default.abi as Abi,
             args: [nilMessengerImplementationAddress, deployerAccount.address, initData],
             salt: BigInt(Math.floor(Math.random() * 10000)),
             feeCredit: convertEthToWei(0.001),
         });
-        await waitTillCompleted(deployerAccount.client, hashProxy);
-        console.log("✅ Transparent Proxy Contract deployed at:", addressProxy);
-
-        l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy = addressProxy;
+        await waitTillCompleted(deployerAccount.client, proxyDeploymentTx.hash);
+        l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy = proxyAddress;
 
         console.log("Waiting 5 seconds...");
         await new Promise((res) => setTimeout(res, 5000));
@@ -102,12 +101,12 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
 
         const messengerContractInstance = getContract({
             client: deployerAccount.client,
-            abi: L2BridgeMessengerJson.default.abi,
-            address: addressProxy,
+            abi: L2BridgeMessengerJson.default.abi as Abi,
+            address: proxyAddress,
         });
 
         console.log("Properties of messengerContractInstance:", Object.keys(messengerContractInstance.read));
 
-        const implementationAddress = await messengerContractInstance.read.getImplementation();
+        const implementationAddress = await messengerContractInstance.read.getImplementation([]);
         console.log(`implementationAddress from MyLogic is: ${implementationAddress}`);
     });

@@ -16,8 +16,8 @@ import {
 import { loadNilSmartAccount } from "./nil-smart-account";
 import { decodeFunctionResult, encodeFunctionData } from "viem";
 
-// npx hardhat deploy-my-logic-basic
-task("deploy-my-logic-basic", "Deploys MyLogic contract on Nil Chain")
+// npx hardhat deploy-my-logic-basic-public
+task("deploy-my-logic-basic-public", "Deploys MyLogic contract on Nil Chain")
     .setAction(async (taskArgs) => {
 
         // Dynamically load artifacts
@@ -50,15 +50,6 @@ task("deploy-my-logic-basic", "Deploys MyLogic contract on Nil Chain")
         if (!MyLogicJson.default.abi) {
             throw new Error(`Invalid abi in the ABI Json file`);
         }
-
-        const client = new PublicClient({
-            transport: new HttpTransport({
-                endpoint: "http://127.0.0.1:8529",
-            }),
-            shardId: 1
-        });
-
-        const gasPrice = await client.getGasPrice(1);
 
         const { tx: myLogicImplementationDeployTxn, address: myLogicImplementationAddress } = await deployerAccount.deployContract({
             shardId: 1,

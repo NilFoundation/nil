@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import * as fs from "fs";
 import {
+    convertEthToWei,
     FaucetClient,
     HttpTransport,
     LocalECDSAKeySigner,
@@ -30,7 +31,7 @@ export async function loadNilSmartAccount(): Promise<SmartAccountV1> {
     smartAccount = new SmartAccountV1({
         signer,
         client,
-        address: smartAccountAddress,
+        address: smartAccountAddress as `0x${string}`,
         pubkey: signer.getPublicKey(),
     });
     console.log("🟢 Loaded Smart Account:", smartAccount.address);
@@ -79,7 +80,7 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
 
     const topUpFaucet = await faucetClient.topUp({
         smartAccountAddress: smartAccount.address,
-        amount: ethers.parseEther("100"),
+        amount: convertEthToWei(0.1),
         faucetAddress: process.env.NIL as `0x${string}`,
     });
 

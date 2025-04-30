@@ -43,20 +43,20 @@ task("deploy-nil-message-tree", "Deploys NilMessageTree contract on Nil Chain")
             throw Error(`Insufficient or Zero balance for smart-account: ${deployerAccount.address}`);
         }
 
-        const { address: nilMessageTreeAddress, hash: nilMessageTreeDeploymentTxHash } = await deployerAccount.deployContract({
+        const { tx: nilMessageTreeDeployTxn, address: nilMessageTreeAddress } = await deployerAccount.deployContract({
             shardId: 1,
-            bytecode: NilMessageTreeJson.default.bytecode,
-            abi: NilMessageTreeJson.default.abi,
+            bytecode: NilMessageTreeJson.default.bytecode as `0x${string}`,
+            abi: NilMessageTreeJson.default.abi as Abi,
             args: [deployerAccount.address],
             salt: BigInt(Math.floor(Math.random() * 10000)),
-            feeCredit: BigInt("19340180000000"),
+            //feeCredit: BigInt("19340180000000"),
         });
 
         console.log(`address from deployment is: ${nilMessageTreeAddress}`);
-        await waitTillCompleted(deployerAccount.client, nilMessageTreeDeploymentTxHash);
-        console.log("✅ Logic Contract deployed at:", nilMessageTreeDeploymentTxHash);
+        await waitTillCompleted(deployerAccount.client, nilMessageTreeDeployTxn.hash);
+        console.log("✅ Logic Contract deployed with transactionHash:", nilMessageTreeDeployTxn.hash);
 
-        if (!nilMessageTreeDeploymentTxHash) {
+        if (!nilMessageTreeDeployTxn.hash) {
             throw Error(`Invalid transaction output from deployContract call for NilMessageTree Contract`);
         }
 
@@ -64,7 +64,7 @@ task("deploy-nil-message-tree", "Deploys NilMessageTree contract on Nil Chain")
             throw Error(`Invalid address output from deployContract call for NilMessageTree Contract`);
         }
 
-        console.log(`NilMessageTree contract deployed at address: ${nilMessageTreeAddress} and with transactionHash: ${nilMessageTreeDeploymentTxHash}`);
+        console.log(`NilMessageTree contract deployed at address: ${nilMessageTreeAddress} and with transactionHash: ${nilMessageTreeDeployTxn.hash}`);
 
         // save the nilMessageTree Address in the json config for l2
         const config: L2NetworkConfig = loadNilNetworkConfig(networkName);
