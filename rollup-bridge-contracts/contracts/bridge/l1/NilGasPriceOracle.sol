@@ -11,6 +11,7 @@ import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 import { INilGasPriceOracle } from "./interfaces/INilGasPriceOracle.sol";
 import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
 import { IRelayMessage } from "./interfaces/IRelayMessage.sol";
+import { IFeeStorage } from "./interfaces/IFeeStorage.sol";
 
 // solhint-disable reason-string
 contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccessControlUpgradeable, INilGasPriceOracle {
@@ -94,7 +95,7 @@ contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccess
                              PUBLIC RESTRICTED MUTATION FUNCTIONS   
     //////////////////////////////////////////////////////////////////////////*/
 
-  /// @inheritdoc INilGasPriceOracle
+  /// @inheritdoc IFeeStorage
   function setOracleFee(uint256 newMaxFeePerGas, uint256 newMaxPriorityFeePerGas) external onlyProposer {
     _setOracleFee(newMaxFeePerGas, newMaxPriorityFeePerGas);
   }
@@ -109,7 +110,7 @@ contract NilGasPriceOracle is OwnableUpgradeable, PausableUpgradeable, NilAccess
                              PUBLIC CONSTANT FUNCTIONS   
     //////////////////////////////////////////////////////////////////////////*/
 
-  /// @inheritdoc INilGasPriceOracle
+  /// @inheritdoc IFeeStorage
   function getOracleFee() public view returns (uint256, uint256) {
     return (maxFeePerGas, maxPriorityFeePerGas);
   }

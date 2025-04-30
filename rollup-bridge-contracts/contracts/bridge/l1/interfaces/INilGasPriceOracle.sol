@@ -3,8 +3,9 @@ pragma solidity ^0.8.28;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { IRelayMessage } from "./IRelayMessage.sol";
+import { IFeeStorage } from "./IFeeStorage.sol";
 
-interface INilGasPriceOracle is IERC165 {
+interface INilGasPriceOracle is IERC165, IFeeStorage {
   /*//////////////////////////////////////////////////////////////////////////
                              ERRORS   
     //////////////////////////////////////////////////////////////////////////*/
@@ -43,18 +44,4 @@ interface INilGasPriceOracle is IERC165 {
     uint256 userMaxFeePerGas,
     uint256 userMaxPriorityFeePerGas
   ) external view returns (IRelayMessage.FeeCreditData memory);
-
-  /// @notice Return the latest known maxFeePerGas and maxPriorityFeePerGas from nil-chain
-  function getOracleFee() external view returns (uint256, uint256);
-
-  function maxFeePerGas() external view returns (uint256);
-
-  function maxPriorityFeePerGas() external view returns (uint256);
-
-  /*//////////////////////////////////////////////////////////////////////////
-                             RESTRICTED FUNCTIONS   
-    //////////////////////////////////////////////////////////////////////////*/
-
-  /// @notice set the maxFeePerGas & maxPriorityFeePerGas from nil-chain
-  function setOracleFee(uint256 maxFeePerGas, uint256 maxPriorityFeePerGas) external;
 }
