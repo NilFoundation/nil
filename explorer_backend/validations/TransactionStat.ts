@@ -2,9 +2,7 @@ import { z } from "zod";
 
 export const TransactionStatPeriodShema = z.union([
   z.literal("1d"),
-  z.literal("1m"),
-  z.literal("15m"),
-  z.literal("30m"),
+  z.literal("14d"),
 ]);
 
 export type TransactionStatPeriod = z.infer<typeof TransactionStatPeriodShema>;
