@@ -199,7 +199,7 @@ The current RPC is loosely modeled after the Ethereum RPC. The RPC exposes the f
 
 ### Filters
 
-* `NewFilter() `
+* `NewFilter()`
 * `NewPendingTransactionFilter()`
 * `NewBlockFilter()`
 * `UninstallFilter()`
