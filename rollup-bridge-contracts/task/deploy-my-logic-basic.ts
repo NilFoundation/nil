@@ -66,7 +66,7 @@ task("deploy-my-logic-basic", "Deploys MyLogic contract on Nil Chain")
             abi: MyLogicJson.default.abi as Abi,
             args: [],
             salt: BigInt(Math.floor(Math.random() * 10000)),
-            feeCredit: convertEthToWei(0.01),
+            //feeCredit: convertEthToWei(0.01),
         });
 
         const implementationDeploymentTxnReceipt = await myLogicImplementationDeployTxn.wait();
