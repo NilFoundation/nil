@@ -2,12 +2,9 @@ package executor
 
 import (
 	"context"
-	"crypto/rand"
-	"math/big"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/common/math"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
@@ -29,23 +26,23 @@ func DefaultConfig() *Config {
 	}
 }
 
+type IdSource interface {
+	GetCurrentId(ctx context.Context) (*types.TaskExecutorId, error)
+}
+
 func New(
 	config *Config,
 	requestHandler api.TaskRequestHandler,
 	taskHandler api.TaskHandler,
+	idSource IdSource,
 	metrics srv.WorkerMetrics,
 	logger logging.Logger,
 ) (*taskExecutor, error) {
-	nonceId, err := generateNonceId()
-	if err != nil {
-		return nil, err
-	}
-
 	executor := &taskExecutor{
-		nonceId:        *nonceId,
 		config:         *config,
 		requestHandler: requestHandler,
 		taskHandler:    taskHandler,
+		idSource:       idSource,
 	}
 
 	loopConfig := srv.NewWorkerLoopConfig("task_executor", executor.config.TaskPollingInterval, executor.runIteration)
@@ -56,14 +53,11 @@ func New(
 type taskExecutor struct {
 	srv.WorkerLoop
 
-	nonceId        types.TaskExecutorId
 	config         Config
 	requestHandler api.TaskRequestHandler
 	taskHandler    api.TaskHandler
-}
-
-func (p *taskExecutor) Id() types.TaskExecutorId {
-	return p.nonceId
+	idSource       IdSource
+	logger         logging.Logger
 }
 
 func (p *taskExecutor) runIteration(ctx context.Context) error {
@@ -72,23 +66,28 @@ func (p *taskExecutor) runIteration(ctx context.Context) error {
 		return err
 	}
 	if !handlerReady {
-		p.Logger.Debug().Msg("handler is not ready to pick up tasks")
+		p.Logger.Debug().Msg("Handler is not ready to pick up tasks")
 		return nil
 	}
 
-	taskRequest := api.NewTaskRequest(p.nonceId)
+	executorId, err := p.idSource.GetCurrentId(ctx)
+	if err != nil {
+		return err
+	}
+
+	taskRequest := api.NewTaskRequest(*executorId)
 	task, err := p.requestHandler.GetTask(ctx, taskRequest)
 	if err != nil {
 		return err
 	}
 
 	if task == nil {
-		p.Logger.Debug().Msg("no task available, waiting for new one")
+		p.Logger.Debug().Msg("No task available, waiting for a new one")
 		return nil
 	}
 
-	log.NewTaskEvent(p.Logger, zerolog.DebugLevel, task).Msg("Executing task")
-	err = p.taskHandler.Handle(ctx, p.nonceId, task)
+	log.NewTaskEvent(p.logger, zerolog.DebugLevel, task).Msg("Executing task")
+	err = p.taskHandler.Handle(ctx, *executorId, task)
 
 	if err == nil {
 		log.NewTaskEvent(p.Logger, zerolog.DebugLevel, task).
@@ -98,13 +97,4 @@ func (p *taskExecutor) runIteration(ctx context.Context) error {
 	}
 
 	return err
-}
-
-func generateNonceId() (*types.TaskExecutorId, error) {
-	bigInt, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt32))
-	if err != nil {
-		return nil, err
-	}
-	nonceId := types.TaskExecutorId(uint32(bigInt.Uint64()))
-	return &nonceId, nil
 }

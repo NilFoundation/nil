@@ -7,8 +7,8 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -143,7 +143,7 @@ func (s *TaskCancelCheckerSuite) newTestTaskCancelChecker(handler api.TaskReques
 	return NewTaskCancelChecker(
 		handler,
 		s.taskStorage,
-		testaide.RandomExecutorId(),
+		executor.NewInMemoryIdSource(),
 		srv.NewNoopWorkerMetrics(),
 		s.logger,
 	)
