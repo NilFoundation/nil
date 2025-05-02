@@ -1,4 +1,5 @@
 root_sc = ./nil/services/synccommittee
+root_contracts = rollup-bridge-contracts/contracts
 
 .PHONY: sync_committee_targets
 sync_committee_targets: \
@@ -6,7 +7,16 @@ sync_committee_targets: \
 	sync_committee_types_stringer \
 	sync_committee_generate_mocks \
 	sync_committee_protobuf \
-	sync_committee_tracer_constants
+	sync_committee_tracer_constants \
+	$(root_sc)/generate_fee_updater_abi
+
+.PHONY: $(root_sc)/compile_fee_updater_abi
+$(root_sc)/compile_fee_updater_abi:
+	solc $(root_contracts)/bridge/l1/interfaces/IFeeStorage.sol --abi --overwrite -o $(root_sc)/core/feeupdater --allow-paths .,$(root_contracts)/common/libraries --no-cbor-metadata --metadata-hash none --pretty-json
+
+.PHONY: $(root_sc)/generate_fee_updater_abi
+$(root_sc)/generate_fee_updater_abi: $(root_sc)/compile_fee_updater_abi
+	cd $(root_sc)/core/feeupdater && go run github.com/ethereum/go-ethereum/cmd/abigen --abi IFeeStorage.abi --pkg=feeupdater --out=./i_fee_storage_contract_abi_generated.go
 
 .PHONY: sync_committee_contract_abi
 sync_committee_contract_abi: \
