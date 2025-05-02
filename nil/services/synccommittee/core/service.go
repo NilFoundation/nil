@@ -123,12 +123,26 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		return nil, err
 	}
 
+	// TODO(oclaw) it should be moved out of the rollup contract wrapper in favor of a separate package
+	l1Client, err := rollupcontract.NewRetryingEthClient(
+		ctx,
+		cfg.ContractWrapperConfig.Endpoint,
+		cfg.ContractWrapperConfig.RequestsTimeout,
+		logger,
+	)
+	if err != nil {
+		return nil, err
+	}
+	feeUpdaterContract, err := feeupdater.NewWrapper(ctx, &cfg.L1FeeUpdateContractConfig, l1Client)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing fee updater contract wrapper: %w", err)
+	}
 	feeUpdater := feeupdater.NewUpdater(
 		cfg.L1FeeUpdateConfig,
 		fetcher,
 		logger,
 		clock,
-		nil, // TODO contract wrapper
+		feeUpdaterContract,
 		feeUpdaterMetrics,
 	)
 	_ = feeUpdater // TODO(oclaw) uncomment when contract integration is done
