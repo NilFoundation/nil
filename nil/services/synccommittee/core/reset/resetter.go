@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
@@ -18,32 +17,31 @@ type BatchResetter interface {
 
 	// ResetAllBatches resets Sync Committee's progress for all batches.
 	ResetAllBatches(ctx context.Context) error
-
-	// SetProvedStateRoot sets the last proved state root during full reset
-	SetProvedStateRoot(ctx context.Context, stateRoot common.Hash) error
 }
 
-type FinalizedStateRootGetter interface {
-	LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
+type StateRootSyncer interface {
+	SyncLatestFinalizedRoot(ctx context.Context) error
 }
 
-type StateResetter struct {
-	batchResetter            BatchResetter
-	finalizedStateRootGetter FinalizedStateRootGetter
-	logger                   logging.Logger
+type stateResetter struct {
+	batchResetter   BatchResetter
+	stateRootSyncer StateRootSyncer
+	logger          logging.Logger
 }
 
-func NewStateResetter(
-	logger logging.Logger, batchResetter BatchResetter, finalizedStateRootGetter FinalizedStateRootGetter,
-) *StateResetter {
-	return &StateResetter{
-		batchResetter:            batchResetter,
-		finalizedStateRootGetter: finalizedStateRootGetter,
-		logger:                   logger,
+func newStateResetter(
+	batchResetter BatchResetter,
+	stateRootSyncer StateRootSyncer,
+	logger logging.Logger,
+) *stateResetter {
+	return &stateResetter{
+		batchResetter:   batchResetter,
+		stateRootSyncer: stateRootSyncer,
+		logger:          logger,
 	}
 }
 
-func (r *StateResetter) ResetProgressPartial(ctx context.Context, fromBatchId scTypes.BatchId) error {
+func (r *stateResetter) ResetProgressPartial(ctx context.Context, fromBatchId scTypes.BatchId) error {
 	r.logger.Info().
 		Stringer(logging.FieldBatchId, fromBatchId).
 		Msg("Started partial progress reset")
@@ -73,19 +71,15 @@ func (r *StateResetter) ResetProgressPartial(ctx context.Context, fromBatchId sc
 	return nil
 }
 
-func (r *StateResetter) ResetProgressToL1(ctx context.Context) error {
+func (r *stateResetter) ResetProgressToL1(ctx context.Context) error {
 	r.logger.Info().Msg("Started all progress reset")
 
 	if err := r.batchResetter.ResetAllBatches(ctx); err != nil {
 		return fmt.Errorf("failed to reset progress for all batches: %w", err)
 	}
 
-	latestStateRoot, err := r.finalizedStateRootGetter.LatestFinalizedStateRoot(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get the latest finalized state root: %w", err)
-	}
-	if err := r.batchResetter.SetProvedStateRoot(ctx, latestStateRoot); err != nil {
-		return fmt.Errorf("failed to set the latest finalized state root: %w", err)
+	if err := r.stateRootSyncer.SyncLatestFinalizedRoot(ctx); err != nil {
+		return fmt.Errorf("failed to sync latest finalized state root: %w", err)
 	}
 
 	r.logger.Info().Msg("Finished all progress reset")

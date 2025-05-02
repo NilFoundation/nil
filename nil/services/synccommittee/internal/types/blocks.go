@@ -119,6 +119,13 @@ func GetBlocksFetchingRange(
 	return &BlocksRange{blocksRange.Start, blocksRange.Start + types.BlockNumber(maxNumBlocks-1)}, nil
 }
 
+func (r *BlocksRange) Size() int {
+	if r == nil {
+		return 0
+	}
+	return int(r.End - r.Start + 1)
+}
+
 func (r *BlocksRange) SplitToChunks(chunkSize uint32) []BlocksRange {
 	check.PanicIff(chunkSize == 0, "chunkSize cannot be 0")
 

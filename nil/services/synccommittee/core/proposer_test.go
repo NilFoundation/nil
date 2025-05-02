@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -10,13 +11,16 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/syncer"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
@@ -106,10 +110,26 @@ func (s *ProposerTestSuite) SetupSuite() {
 	)
 	s.Require().NoError(err)
 
-	stateResetter := reset.NewStateResetter(logger, s.storage, contractWrapper)
-	resetLauncher := reset.NewResetLauncher(stateResetter, nil, logger)
+	s.rpcClientMock = &client.ClientMock{
+		GetBlockFunc: func(_ context.Context, shardId types.ShardId, blockId any, _ bool) (*jsonrpc.RPCBlock, error) {
+			strId, ok := blockId.(string)
+			if ok && strId == "earliest" {
+				return testaide.NewGenesisBlock(shardId), nil
+			}
+			blockHash, ok := blockId.(common.Hash)
+			if !ok {
+				return nil, fmt.Errorf("unexpected blockId: %v", blockId)
+			}
+			block := testaide.NewExecutionShardBlock()
+			block.ShardId = shardId
+			block.Hash = blockHash
+			return block, nil
+		},
+	}
 
-	s.rpcClientMock = &client.ClientMock{}
+	fetcher := fetching.NewFetcher(s.rpcClientMock, logger)
+	l1Syncer := syncer.NewStateRootSyncer(fetcher, contractWrapper, s.storage, logger, syncer.NewDefaultConfig())
+	resetLauncher := reset.NewResetLauncher(s.storage, l1Syncer, nil, logger)
 
 	s.proposer, err = NewProposer(
 		s.params,

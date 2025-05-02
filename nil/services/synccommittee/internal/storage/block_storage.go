@@ -65,7 +65,7 @@ func NewBlockStorage(
 			common.DoNotRetryIf(
 				scTypes.ErrBatchMismatch, scTypes.ErrBlockMismatch,
 				scTypes.ErrBlockNotFound, scTypes.ErrBatchNotFound,
-				scTypes.ErrBatchNotProved, ErrStateRootNotInitialized,
+				scTypes.ErrBatchNotProved, scTypes.ErrStateRootNotInitialized,
 			),
 		),
 		config:  config,
@@ -344,7 +344,7 @@ func (bs *BlockStorage) TryGetNextProposalData(ctx context.Context) (*scTypes.Pr
 		return nil, err
 	}
 	if currentProvedStateRoot == nil {
-		return nil, ErrStateRootNotInitialized
+		return nil, scTypes.ErrStateRootNotInitialized
 	}
 
 	var proposalCandidate *batchEntry
@@ -416,7 +416,7 @@ func (bs *BlockStorage) setBatchAsProposedImpl(ctx context.Context, id scTypes.B
 	case err != nil:
 		return err
 	case currentStateRoot == nil:
-		return ErrStateRootNotInitialized
+		return scTypes.ErrStateRootNotInitialized
 	case batch.ParentRefs[types.MainShardId].Hash != *currentStateRoot:
 		return fmt.Errorf(
 			"%w: currentStateRoot=%s, batch.LatestMain=%s, id=%s",

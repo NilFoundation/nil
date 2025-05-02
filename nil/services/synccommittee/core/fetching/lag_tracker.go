@@ -34,7 +34,7 @@ func NewDefaultLagTrackerConfig() LagTrackerConfig {
 type lagTracker struct {
 	srv.WorkerLoop
 
-	fetcher RpcBlockFetcher
+	fetcher *Fetcher
 	storage LagTrackerStorage
 	metrics LagTrackerMetrics
 	logger  logging.Logger
@@ -42,7 +42,7 @@ type lagTracker struct {
 }
 
 func NewLagTracker(
-	fetcher RpcBlockFetcher,
+	fetcher *Fetcher,
 	storage LagTrackerStorage,
 	metrics LagTrackerMetrics,
 	config LagTrackerConfig,
@@ -123,13 +123,9 @@ func (t *lagTracker) getShardLag(
 }
 
 func (t *lagTracker) getLatestInShard(ctx context.Context, shardId coreTypes.ShardId) (*coreTypes.BlockNumber, error) {
-	block, err := t.fetcher.GetBlock(ctx, shardId, "latest", false)
+	block, err := t.fetcher.GetLatestBlockRef(ctx, shardId)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching latest block from shard %d: %w", shardId, err)
+		return nil, err
 	}
-	if block == nil {
-		return nil, fmt.Errorf("latest main block not found in shard %d", shardId)
-	}
-
 	return &block.Number, nil
 }

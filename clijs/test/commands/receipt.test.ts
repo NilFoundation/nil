@@ -2,8 +2,6 @@ import type { Hex, ProcessedReceipt } from "@nilfoundation/niljs";
 import { describe, expect } from "vitest";
 import { CliTest } from "../setup.js";
 
-// To run this test you need to run the nild:
-// nild run --http-port 8529
 describe("receipt:get_receipt", () => {
   CliTest("tests getting receipts", async ({ runCommand, smartAccount }) => {
     const txHash = (

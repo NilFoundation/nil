@@ -17,9 +17,8 @@ import (
 
 type EthClient interface {
 	bind.ContractBackend
+	bind.DeployBackend
 	ChainID(ctx context.Context) (*big.Int, error)
-	TransactionByHash(ctx context.Context, hash ethcommon.Hash) (tx *types.Transaction, isPending bool, err error)
-	TransactionReceipt(ctx context.Context, txHash ethcommon.Hash) (*types.Receipt, error)
 }
 
 func NewRetryingEthClient(

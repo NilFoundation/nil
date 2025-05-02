@@ -47,7 +47,9 @@ for package in "$@"; do
     PUBLISHED_VERSION=$(pnpm show "$PACKAGE_NAME" version 2>/dev/null || echo "not_published")
 
     if [[ "$PUBLISHED_VERSION" == "not_published" ]]; then
-        echo -e "🚀 Package ${COLOR_YELLOW}$PACKAGE_NAME${COLOR_END} is not published yet!"
+        echo -e "🚀 Package ${COLOR_YELLOW}$PACKAGE_NAME${COLOR_END} is not published yet! Publishing the first version..."
+        pnpm run pub
+        echo -e "${COLOR_GREEN}Published ${COLOR_YELLOW}$PACKAGE_NAME${COLOR_END}"
     elif [[ "$LOCAL_VERSION" == "$PUBLISHED_VERSION" ]]; then
         echo -e "✅ Package ${COLOR_YELLOW}$PACKAGE_NAME${COLOR_END} is already published (version $LOCAL_VERSION)."
     else

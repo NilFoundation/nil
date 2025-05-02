@@ -8,9 +8,11 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/constraints"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/feeupdater"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/syncer"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
@@ -36,7 +38,10 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 	}
 
 	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)
-	client := rpc.NewRetryClient(cfg.RpcEndpoint, logger)
+	fetcher := fetching.NewFetcher(
+		rpc.NewRetryClient(cfg.RpcEndpoint, logger),
+		logger,
+	)
 
 	clock := clockwork.NewRealClock()
 	blockStorage := storage.NewBlockStorage(
@@ -52,12 +57,15 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		return nil, fmt.Errorf("error initializing rollup contract wrapper: %w", err)
 	}
 
-	// todo: add reset logic to TaskStorage (implement StateResetter interface)
+	stateRootSyncer := syncer.NewStateRootSyncer(
+		fetcher, rollupContractWrapper, blockStorage, logger, syncer.NewConfig(!cfg.ContractWrapperConfig.DisableL1),
+	)
+	syncRunner := syncer.NewRunner(stateRootSyncer, logger)
+	// todo: add reset logic to TaskStorage
 	//  and pass it here in https://github.com/NilFoundation/nil/pull/419
-	stateResetter := reset.NewStateResetter(logger, blockStorage, rollupContractWrapper)
 
 	syncCommittee := &SyncCommittee{}
-	resetLauncher := reset.NewResetLauncher(stateResetter, syncCommittee, logger)
+	resetLauncher := reset.NewResetLauncher(blockStorage, stateRootSyncer, syncCommittee, logger)
 
 	batchChecker := constraints.NewChecker(
 		constraints.DefaultBatchConstraints(),
@@ -66,7 +74,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 	)
 
 	agg := fetching.NewAggregator(
-		client,
+		fetcher,
 		batchChecker,
 		blockStorage,
 		taskStorage,
@@ -79,7 +87,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 	)
 
 	lagTracker := fetching.NewLagTracker(
-		client, blockStorage, metricsHandler, fetching.NewDefaultLagTrackerConfig(), logger,
+		fetcher, blockStorage, metricsHandler, fetching.NewDefaultLagTrackerConfig(), logger,
 	)
 
 	proposer, err := NewProposer(
@@ -110,9 +118,37 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		logger,
 	)
 
+	feeUpdaterMetrics, err := metrics.NewFeeUpdaterMetrics()
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(oclaw) it should be moved out of the rollup contract wrapper in favor of a separate package
+	l1Client, err := rollupcontract.NewRetryingEthClient(
+		ctx,
+		cfg.ContractWrapperConfig.Endpoint,
+		cfg.ContractWrapperConfig.RequestsTimeout,
+		logger,
+	)
+	if err != nil {
+		return nil, err
+	}
+	feeUpdaterContract, err := feeupdater.NewWrapper(ctx, &cfg.L1FeeUpdateContractConfig, l1Client)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing fee updater contract wrapper: %w", err)
+	}
+	feeUpdater := feeupdater.NewUpdater(
+		cfg.L1FeeUpdateConfig,
+		fetcher,
+		logger,
+		clock,
+		feeUpdaterContract,
+		feeUpdaterMetrics,
+	)
+
 	syncCommittee.Service = srv.NewService(
 		logger,
-		proposer, agg, lagTracker, taskScheduler, taskListener,
+		syncRunner, proposer, agg, lagTracker, taskScheduler, taskListener, feeUpdater,
 	)
 
 	return syncCommittee, nil

@@ -14,7 +14,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
 
@@ -129,8 +128,8 @@ func (p *proposer) runIteration(ctx context.Context) {
 // creates L1 transaction if so.
 func (p *proposer) updateStateIfReady(ctx context.Context) error {
 	data, err := p.storage.TryGetNextProposalData(ctx)
-	if errors.Is(err, storage.ErrStateRootNotInitialized) {
-		p.logger.Warn().Msg("state root has not been initialized yet, awaiting initialization by the aggregator")
+	if errors.Is(err, scTypes.ErrStateRootNotInitialized) {
+		p.logger.Warn().Msg("state root has not been initialized yet, awaiting initialization by the stateRootSyncer")
 		return nil
 	}
 	if err != nil {

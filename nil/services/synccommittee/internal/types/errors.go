@@ -18,6 +18,11 @@ var (
 	ErrTaskWrongExecutor = errors.New("task belongs to another executor")
 )
 
+var (
+	ErrStateRootNotInitialized = errors.New("local state root is not initialized")
+	ErrStateRootNotSynced      = errors.New("state root is not synchronized")
+)
+
 type TaskErrType int8
 
 const (

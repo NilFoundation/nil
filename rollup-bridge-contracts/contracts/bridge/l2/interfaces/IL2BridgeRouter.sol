@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity ^0.8.28;
 
 interface IL2BridgeRouter {
   function getImplementation() external view returns (address);

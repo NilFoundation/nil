@@ -11,7 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -114,7 +114,7 @@ func NewWrapperWithEthClient(
 		return nil, fmt.Errorf("failed to retrieve chain ID: %w", err)
 	}
 
-	abi, err := RollupcontractMetaData.GetAbi()
+	abiDefinition, err := RollupcontractMetaData.GetAbi()
 	if err != nil {
 		return nil, fmt.Errorf("getting ABI: %w", err)
 	}
@@ -132,7 +132,7 @@ func NewWrapperWithEthClient(
 		privateKey:      privateKeyECDSA,
 		chainID:         chainID,
 		ethClient:       ethClient,
-		abi:             abi,
+		abi:             abiDefinition,
 		logger:          logger,
 	}, nil
 }
@@ -367,39 +367,28 @@ type noopWrapper struct {
 var _ Wrapper = (*noopWrapper)(nil)
 
 func (w *noopWrapper) UpdateState(
-	ctx context.Context,
-	batchIndex string,
-	dataProofs types.DataProofs,
-	oldStateRoot, newStateRoot common.Hash,
-	validityProof []byte,
-	publicDataInputs INilRollupPublicDataInfo,
+	context.Context, string, types.DataProofs, common.Hash, common.Hash, []byte, INilRollupPublicDataInfo,
 ) error {
 	w.logger.Debug().Msg("UpdateState noop wrapper method called")
 	return nil
 }
 
-func (w *noopWrapper) LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error) {
+func (w *noopWrapper) LatestFinalizedStateRoot(context.Context) (common.Hash, error) {
 	w.logger.Debug().Msg("FinalizedStateRoot noop wrapper method called")
 	return common.Hash{}, nil
 }
 
-func (w *noopWrapper) PrepareBlobs(
-	ctx context.Context, blobs []kzg4844.Blob,
-) (*ethtypes.BlobTxSidecar, types.DataProofs, error) {
+func (w *noopWrapper) PrepareBlobs(context.Context, []kzg4844.Blob) (*ethtypes.BlobTxSidecar, types.DataProofs, error) {
 	w.logger.Debug().Msg("PrepareBlobs noop wrapper method called")
 	return nil, nil, nil
 }
 
-func (w *noopWrapper) CommitBatch(
-	ctx context.Context,
-	sidecar *ethtypes.BlobTxSidecar,
-	batchIndex string,
-) error {
+func (w *noopWrapper) CommitBatch(context.Context, *ethtypes.BlobTxSidecar, string) error {
 	w.logger.Debug().Msg("CommitBatch noop wrapper method called")
 	return nil
 }
 
-func (w *noopWrapper) ResetState(ctx context.Context, targetRoot common.Hash) error {
+func (w *noopWrapper) ResetState(context.Context, common.Hash) error {
 	w.logger.Debug().Msg("ResetState noop wrapper method called")
 	return nil
 }

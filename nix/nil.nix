@@ -52,7 +52,7 @@ buildGo124Module rec {
   ];
 
   # to obtain run `nix build` with vendorHash = "";
-  vendorHash = "sha256-WXpCORBW5lBdNtvlF4hr8MhExl992Qdeczz/xY2BqRM=";
+  vendorHash = "sha256-N6ZwGFCTIESk8XPdS0dUzWhgfB/tN4j1RwItMJT37Lk=";
 
   postInstall = ''
     mkdir -p $out/share/doc/nil

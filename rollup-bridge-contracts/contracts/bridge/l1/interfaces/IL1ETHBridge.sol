@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity ^0.8.28;
 
 import { IL1Bridge } from "./IL1Bridge.sol";
 import { IRelayMessage } from "./IRelayMessage.sol";
