@@ -8,8 +8,8 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-//go:generate go run github.com/matryer/moq -out rwtx_generated_mock.go -rm . RwTx
-//go:generate go run github.com/matryer/moq -out db_generated_mock.go -rm . DB
+//go:generate mockery --name=RwTx
+//go:generate mockery --name=DB
 
 type Timestamp uint64
 

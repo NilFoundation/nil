@@ -18,7 +18,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/txnpool"
 )
 
-//go:generate go run github.com/matryer/moq -out client_generated_mock.go -rm -stub -with-resets . Client
+//go:generate mockery --name=Client
 
 type BatchRequest interface {
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (uint64, error)

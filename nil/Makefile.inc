@@ -16,24 +16,7 @@ gen_rollup_contracts_bindings: \
 	$(root_relayer)/gen_l2_mocks
 
 .PHONY: generate_mocks
-generate_mocks: \
-	$(root_client)/client_generated_mock.go \
-	$(root_vm)/state_generated_mock.go \
-	$(root_db)/rwtx_generated_mock.go \
-	$(root_db)/db_generated_mock.go \
-	$(root_rollup)/l1_fetcher_generated_mock.go \
-
-$(root_client)/client_generated_mock.go: $(root_client)/client.go ssz_types
-	cd $(root_client) && go generate
-
-$(root_vm)/state_generated_mock.go: $(root_vm)/interface.go ssz_types
-	cd $(root_vm) && go generate
-
-$(root_db)/rwtx_generated_mock.go: $(root_db)/kv.go ssz_types
-	cd $(root_db) && go generate -run="rwtx_" kv.go
-
-$(root_db)/db_generated_mock.go: $(root_db)/kv.go ssz_types
-	cd $(root_db) && go generate -run="db_" kv.go
-
-$(root_rollup)/l1_fetcher_generated_mock.go: $(root_rollup)/l1_fetcher.go
-	cd $(root_rollup) && go generate l1_fetcher.go
+generate_mocks: ssz_types
+	@for p in $(shell grep -rl '//go:generate mockery' --exclude-dir=vendor | xargs -n1 dirname | sort -u); do \
+		go generate -run "mockery" $$p; \
+	done

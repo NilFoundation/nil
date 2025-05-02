@@ -107,3 +107,9 @@ clean:
 	go clean -cache
 	rm -fr build/*
 	rm -fr contracts/compiled/*
+
+.PHONY: mocks
+mocks: ssz_types
+	@for p in $(shell grep -rl '//go:generate mockery' --exclude-dir=vendor | xargs -n1 dirname | sort -u); do \
+		go generate -run "mockery" $$p; \
+	done

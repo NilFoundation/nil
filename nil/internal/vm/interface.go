@@ -9,7 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-//go:generate go run github.com/matryer/moq -out state_generated_mock.go -rm -stub -with-resets . StateDBReadOnly
+//go:generate mockery --name=StateDBReadOnly
 
 type StateDBReadOnly interface {
 	// IsInternalTransaction returns true if the transaction that initiated execution is internal.
