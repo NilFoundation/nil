@@ -5,21 +5,51 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/jonboulle/clockwork"
 )
 
-type WorkerLoopAction = func(ctx context.Context) error
+type (
+	WorkerLoopAction = func(ctx context.Context) error
+	StarterAction    = func(ctx context.Context) error
+)
 
 type WorkerLoopConfig struct {
 	Name     string
 	Interval time.Duration
 	Action   WorkerLoopAction
+	Starter  StarterAction
+	Clock    clockwork.Clock
 }
 
-func NewWorkerLoopConfig(name string, interval time.Duration, action WorkerLoopAction) WorkerLoopConfig {
-	return WorkerLoopConfig{
+func NewWorkerLoopConfig(
+	name string,
+	interval time.Duration,
+	action WorkerLoopAction,
+	options ...WorkerOption,
+) WorkerLoopConfig {
+	cfg := WorkerLoopConfig{
 		Name:     name,
 		Interval: interval,
 		Action:   action,
+		Clock:    clockwork.NewRealClock(), // Default clock
+	}
+	for _, option := range options {
+		option(&cfg)
+	}
+	return cfg
+}
+
+type WorkerOption func(*WorkerLoopConfig)
+
+func WithStarter(starter StarterAction) WorkerOption {
+	return func(cfg *WorkerLoopConfig) {
+		cfg.Starter = starter
+	}
+}
+
+func WithClock(clock clockwork.Clock) WorkerOption {
+	return func(cfg *WorkerLoopConfig) {
+		cfg.Clock = clock
 	}
 }
 
@@ -52,19 +82,26 @@ func (w *WorkerLoop) Name() string {
 }
 
 func (w *WorkerLoop) Run(ctx context.Context, started chan<- struct{}) error {
+	if w.config.Starter != nil {
+		if err := w.config.Starter(ctx); err != nil {
+			return err
+		}
+	}
+
+	ticker := w.config.Clock.NewTicker(w.config.Interval)
+	defer ticker.Stop()
+
 	close(started)
+
 	iteration := NewWorkerIteration(w.Logger, w.metrics, w.config.Name, w.config.Action)
 
 	if err := iteration.Run(ctx); err != nil {
 		return err
 	}
 
-	ticker := time.NewTicker(w.config.Interval)
-	defer ticker.Stop()
-
 	for {
 		select {
-		case <-ticker.C:
+		case <-ticker.Chan():
 			if err := iteration.Run(ctx); err != nil {
 				return err
 			}

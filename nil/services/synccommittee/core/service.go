@@ -131,11 +131,13 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		nil, // TODO contract wrapper
 		feeUpdaterMetrics,
 	)
+	_ = feeUpdater // TODO(oclaw) uncomment when contract integration is done
 
 	syncCommittee.Service = srv.NewServiceWithHeartbeat(
 		metricsHandler,
 		logger,
-		syncRunner, proposer, agg, lagTracker, taskScheduler, taskListener, feeUpdater,
+		syncRunner, proposer, agg, lagTracker, taskScheduler, taskListener,
+		// feeUpdater, // TODO(oclaw) uncomment when contract integration is done
 	)
 
 	return syncCommittee, nil
