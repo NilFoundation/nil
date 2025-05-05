@@ -1,4 +1,4 @@
-import { BaseCommand } from "../../base";
+import { BaseCommand } from "../../base.js";
 
 export default class ConfigInit extends BaseCommand {
   static override description = "Initialize the config file";

@@ -1,6 +1,6 @@
 import { Args } from "@oclif/core";
-import { BaseCommand } from "../../base";
-import { ConfigKeys } from "../../common/config";
+import { BaseCommand } from "../../base.js";
+import { ConfigKeys } from "../../common/config.js";
 
 export default class ConfigGet extends BaseCommand {
   static override description = "Get the value of a key from the config file";

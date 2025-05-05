@@ -1,5 +1,5 @@
-import { BaseCommand } from "../../base";
-import { ConfigKeys } from "../../common/config";
+import { BaseCommand } from "../../base.js";
+import { ConfigKeys } from "../../common/config.js";
 
 export default class ConfigShow extends BaseCommand {
   static override description = "Show the contents of the config file";
