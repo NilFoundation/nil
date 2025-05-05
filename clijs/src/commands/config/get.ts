@@ -1,6 +1,6 @@
-import {BaseCommand} from "../../base";
-import {ConfigKeys} from "../../common/config";
-import {Args} from "@oclif/core";
+import { Args } from "@oclif/core";
+import { BaseCommand } from "../../base";
+import { ConfigKeys } from "../../common/config";
 
 export default class ConfigGet extends BaseCommand {
   static override description = "Get the value of a key from the config file";
@@ -8,7 +8,7 @@ export default class ConfigGet extends BaseCommand {
   static override examples = ["$ nil config get rpc_endpoint"];
 
   static args = {
-    filename: Args.string({
+    name: Args.string({
       name: "name",
       required: true,
       description: "The path to the bytecode file",
@@ -16,21 +16,14 @@ export default class ConfigGet extends BaseCommand {
   };
 
   public async run(): Promise<string> {
-    const privateKey = generateRandomPrivateKey().slice(2);
+    const { args } = await this.parse(ConfigGet);
 
-    this.configManager.getConfigValue(
-      ConfigKeys.NilSection,
-      ConfigKeys.FaucetEndpoint,
-      rpcEndpoint,
-    )
-
-
-    this.configManager?.updateConfig(ConfigKeys.NilSection, ConfigKeys.PrivateKey, privateKey);
-    if (this.quiet) {
-      this.log(privateKey);
-    } else {
-      this.log(`Private key: ${privateKey}`);
+    const value = this.configManager!.getConfigValue(ConfigKeys.NilSection, args.name);
+    if (!value) {
+      this.log(`Key ${args.name} not found`);
+      return "";
     }
-    return privateKey;
+    this.log(value);
+    return value;
   }
 }

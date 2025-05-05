@@ -168,6 +168,10 @@ class ConfigManager {
     return sectionConfig?.[key] ?? fallback;
   }
 
+  public showConfig(): string {
+    return fs.readFileSync(this.configFilePath, "utf8");
+  }
+
   public loadConfig(): Config {
     try {
       return this.parser.load();
