@@ -11,6 +11,10 @@ import AbiCommand from "./commands/abi";
 import AbiDecode from "./commands/abi/decode";
 import AbiEncode from "./commands/abi/encode";
 import BlockCommand from "./commands/block";
+import ConfigGet from "./commands/config/get";
+import ConfigInit from "./commands/config/init";
+import ConfigSet from "./commands/config/set";
+import ConfigShow from "./commands/config/show";
 import ReceiptCommand from "./commands/receipt";
 import SmartAccountBalance from "./commands/smart-account/balance.js";
 import SmartAccountCallReadOnly from "./commands/smart-account/call-readonly";
@@ -62,6 +66,11 @@ export const COMMANDS: Record<string, Command.Class> = {
 
   util: UtilCommand,
   "util:list-commands": ListCommands,
+
+  "config:init": ConfigInit,
+  "config:get": ConfigGet,
+  "config:set": ConfigSet,
+  "config:show": ConfigShow,
 };
 
 export async function run() {
