@@ -40,6 +40,7 @@ const (
 	FieldTaskParentId   = "taskParentId"
 	FieldTaskType       = "taskType"
 	FieldTaskExecutorId = "taskExecutorId"
+	FieldWorkerName     = "workerName"
 
 	FieldTokenId = "TokenId"
 

@@ -3,6 +3,7 @@ package concurrent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 )
@@ -15,7 +16,7 @@ const (
 	workerStatePaused
 )
 
-var ErrWorkerStopped = errors.New("worker was stopped")
+var ErrSuspendableTerminated = errors.New("suspendable action was terminated")
 
 type stateChangeRequest struct {
 	newState workerState
@@ -24,25 +25,25 @@ type stateChangeRequest struct {
 
 // Suspendable provides a mechanism for suspending and resuming periodic execution of an action.
 type Suspendable struct {
-	action   func(context.Context)
-	interval time.Duration
-	stateCh  chan stateChangeRequest
-	stopped  chan struct{}
+	action    func(context.Context) error
+	interval  time.Duration
+	stateCh   chan stateChangeRequest
+	stoppedCh chan error
 }
 
-func NewSuspendable(action func(context.Context), interval time.Duration) *Suspendable {
-	return &Suspendable{
-		action:   action,
-		interval: interval,
-		stateCh:  make(chan stateChangeRequest),
-		stopped:  make(chan struct{}),
+func NewSuspendable(action func(context.Context) error, interval time.Duration) Suspendable {
+	return Suspendable{
+		action:    action,
+		interval:  interval,
+		stateCh:   make(chan stateChangeRequest),
+		stoppedCh: make(chan error, 1),
 	}
 }
 
 // Run executes a suspendable action periodically based on the provided interval until the context is canceled.
 // It listens for pause and resume signals, halting and resuming execution accordingly.
 func (s *Suspendable) Run(ctx context.Context, started chan<- struct{}) error {
-	defer close(s.stopped)
+	defer close(s.stoppedCh)
 
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
@@ -55,10 +56,15 @@ func (s *Suspendable) Run(ctx context.Context, started chan<- struct{}) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			err := ctx.Err()
+			s.stoppedCh <- err
+			return err
 
 		case <-ticker.C:
-			s.action(ctx)
+			if err := s.action(ctx); err != nil {
+				s.stoppedCh <- err
+				return err
+			}
 
 		case req := <-s.stateCh:
 			s.onStateChange(ticker, &state, req)
@@ -117,7 +123,7 @@ func (s *Suspendable) pushAndWait(ctx context.Context, newState workerState) (bo
 			return stateWasChanged, nil
 		}
 
-	case <-s.stopped:
-		return false, ErrWorkerStopped
+	case err := <-s.stoppedCh:
+		return false, fmt.Errorf("%w: %w", ErrSuspendableTerminated, err)
 	}
 }

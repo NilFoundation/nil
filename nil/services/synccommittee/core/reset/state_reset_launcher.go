@@ -18,9 +18,9 @@ const (
 )
 
 type PausableComponent interface {
-	Pause(ctx context.Context) error
-	Resume(ctx context.Context) error
 	Name() string
+	Pause(ctx context.Context) (paused bool, err error)
+	Resume(ctx context.Context) (resumed bool, err error)
 }
 
 type Service interface {
@@ -141,8 +141,12 @@ func (l *StateResetLauncher) pauseComponents(ctx context.Context, skipComponent 
 		if component == skipComponent {
 			continue
 		}
-		if err := component.Pause(ctx); err != nil {
+		paused, err := component.Pause(ctx)
+		if err != nil {
 			return fmt.Errorf("failed to pause component %s: %w", component.Name(), err)
+		}
+		if !paused {
+			l.logger.Warn().Msgf("Component %s is already paused, skipping", component.Name())
 		}
 	}
 	return nil
@@ -156,12 +160,15 @@ func (l *StateResetLauncher) resumeComponents(ctx context.Context) {
 	for _, component := range l.pausableComponents {
 		timeoutCtx, cancel := context.WithTimeout(detachedCtx, componentsResumeTimeout)
 
-		err := component.Resume(timeoutCtx)
+		resumed, err := component.Resume(timeoutCtx)
 		cancel()
 
 		if err != nil {
 			resumeErr = fmt.Errorf("failed to resume component %s: %w", component.Name(), err)
 			break
+		}
+		if !resumed {
+			l.logger.Warn().Msgf("Component %s is already resumed, skipping", component.Name())
 		}
 	}
 

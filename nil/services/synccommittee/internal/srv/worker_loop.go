@@ -2,7 +2,6 @@ package srv
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -54,8 +53,9 @@ func (w *WorkerLoop) Name() string {
 
 func (w *WorkerLoop) Run(ctx context.Context, started chan<- struct{}) error {
 	close(started)
+	iteration := NewWorkerIteration(w.Logger, w.metrics, w.config.Name, w.config.Action)
 
-	if err := w.runIteration(ctx); err != nil {
+	if err := iteration.Run(ctx); err != nil {
 		return err
 	}
 
@@ -65,26 +65,12 @@ func (w *WorkerLoop) Run(ctx context.Context, started chan<- struct{}) error {
 	for {
 		select {
 		case <-ticker.C:
-			if err := w.runIteration(ctx); err != nil {
+			if err := iteration.Run(ctx); err != nil {
 				return err
 			}
 
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-	}
-}
-
-func (w *WorkerLoop) runIteration(ctx context.Context) error {
-	err := w.config.Action(ctx)
-	switch {
-	case err == nil:
-		return nil
-	case errors.Is(err, context.Canceled):
-		return err
-	default:
-		w.Logger.Error().Err(err).Msgf("Worker %s produced an error", w.config.Name)
-		w.metrics.RecordError(ctx, w.config.Name)
-		return nil
 	}
 }

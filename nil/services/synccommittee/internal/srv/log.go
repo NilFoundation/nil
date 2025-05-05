@@ -3,5 +3,5 @@ package srv
 import "github.com/NilFoundation/nil/nil/common/logging"
 
 func WorkerLogger(logger logging.Logger, worker Worker) logging.Logger {
-	return logger.With().Str("worker", worker.Name()).Logger()
+	return logger.With().Str(logging.FieldWorkerName, worker.Name()).Logger()
 }

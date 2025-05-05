@@ -62,6 +62,8 @@ func NewDefaultAggregatorConfig() AggregatorConfig {
 }
 
 type aggregator struct {
+	concurrent.Suspendable
+
 	fetcher         *Fetcher
 	batchChecker    BatchConstraintChecker
 	blockStorage    AggregatorBlockStorage
@@ -74,7 +76,6 @@ type aggregator struct {
 	clock           clockwork.Clock
 	metrics         AggregatorMetrics
 	config          AggregatorConfig
-	workerAction    *concurrent.Suspendable
 	logger          logging.Logger
 }
 
@@ -105,63 +106,14 @@ func NewAggregator(
 		config:          config,
 	}
 
-	agg.workerAction = concurrent.NewSuspendable(agg.runIteration, config.RpcPollingInterval)
+	iteration := srv.NewWorkerIteration(logger, metrics, agg.Name(), agg.processBlocksAndHandleErr)
+	agg.Suspendable = concurrent.NewSuspendable(iteration.Run, config.RpcPollingInterval)
 	agg.logger = srv.WorkerLogger(logger, agg)
 	return agg
 }
 
 func (agg *aggregator) Name() string {
 	return "aggregator"
-}
-
-func (agg *aggregator) Run(ctx context.Context, started chan<- struct{}) error {
-	agg.logger.Info().Msg("Starting block fetching")
-
-	err := agg.workerAction.Run(ctx, started)
-
-	if err == nil || errors.Is(err, context.Canceled) {
-		agg.logger.Info().Msg("Block fetching stopped")
-	} else {
-		agg.logger.Error().Err(err).Msg("Error running aggregator, stopped")
-	}
-
-	return err
-}
-
-func (agg *aggregator) Pause(ctx context.Context) error {
-	paused, err := agg.workerAction.Pause(ctx)
-	if err != nil {
-		return err
-	}
-	if paused {
-		agg.logger.Info().Msg("Block fetching paused")
-	} else {
-		agg.logger.Warn().Msg("Block fetching already paused")
-	}
-	return nil
-}
-
-func (agg *aggregator) Resume(ctx context.Context) error {
-	resumed, err := agg.workerAction.Resume(ctx)
-	if err != nil {
-		return err
-	}
-	if resumed {
-		agg.logger.Info().Msg("Block fetching resumed")
-	} else {
-		agg.logger.Warn().Msg("Block fetching already running")
-	}
-	return nil
-}
-
-func (agg *aggregator) runIteration(ctx context.Context) {
-	err := agg.processBlocksAndHandleErr(ctx)
-
-	if err == nil || errors.Is(err, context.Canceled) {
-		return
-	}
-
-	agg.metrics.RecordError(ctx, agg.Name())
 }
 
 // processBlocksAndHandleErr fetches and processes new blocks for all shards.
@@ -191,12 +143,7 @@ func (agg *aggregator) handleProcessingErr(ctx context.Context, err error) error
 		agg.logger.Info().Err(err).Msg("Storage capacity limit reached, skipping")
 		return nil
 
-	case errors.Is(err, context.Canceled):
-		agg.logger.Info().Err(err).Msg("Block processing cancelled")
-		return err
-
 	default:
-		agg.logger.Error().Err(err).Msg("Unexpected error during block aggregation")
 		return err
 	}
 }

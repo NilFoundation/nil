@@ -68,7 +68,7 @@ func (s *Service) Run(ctx context.Context) error {
 		return errors.New("service already started")
 	}
 
-	s.logger.Info().Msg("starting service")
+	s.logger.Info().Msg("Starting service")
 
 	signalCtx, cancellation := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
 	s.cancellation <- cancellation
@@ -94,10 +94,10 @@ func (s *Service) Run(ctx context.Context) error {
 
 	select {
 	case workerErr := <-workerErrors:
-		s.logger.Error().Err(workerErr).Msg("stopping service due to a worker error")
+		s.logger.Error().Err(workerErr).Msg("Stopping service due to a worker error")
 		return workerErr
 	case <-signalCtx.Done():
-		s.logger.Info().Msg("stopping service due to a cancellation request")
+		s.logger.Info().Msg("Stopping service due to a cancellation request")
 		return signalCtx.Err()
 	}
 }
@@ -111,7 +111,7 @@ func (s *Service) tryCancel() {
 	if cancel, ok := <-s.cancellation; ok {
 		cancel()
 	} else {
-		s.logger.Debug().Msg("service execution already cancelled, ignoring cancellation request")
+		s.logger.Debug().Msg("Service execution already cancelled, ignoring cancellation request")
 	}
 }
 
@@ -136,7 +136,7 @@ func (s *Service) runWorker(
 		return control, false
 
 	case <-control.started:
-		logger.Info().Msg("worker started")
+		logger.Info().Msg("Worker started")
 		return control, true
 
 	case err := <-control.stopped:
@@ -144,7 +144,7 @@ func (s *Service) runWorker(
 		if err != nil {
 			return nil, false
 		}
-		logger.Info().Msg("worker stopped")
+		logger.Info().Msg("Worker stopped")
 		return nil, true
 	}
 }
@@ -164,26 +164,26 @@ func (s *Service) runWorkerWithControl(
 		if r == nil {
 			return
 		}
-		logger.Error().Interface("panic", r).Str("stacktrace", string(debug.Stack())).Msg("worker panicked")
+		logger.Error().Interface("panic", r).Str("stacktrace", string(debug.Stack())).Msg("Worker panicked")
 		err := fmt.Errorf("worker %s panicked: %v", worker.Name(), r)
 		workerErrors <- err
 		control.stopped <- err
 	}()
 
-	logger.Info().Msg("starting worker")
+	logger.Info().Msg("Starting worker")
 	err := worker.Run(ctx, control.started)
 
 	if nilOrCancelled(err) {
 		return
 	}
 
-	logger.Error().Err(err).Msg("error running worker")
+	logger.Error().Err(err).Msg("Error running worker")
 	workerErrors <- fmt.Errorf("error running worker %s: %w", worker.Name(), err)
 	control.stopped <- err
 }
 
 func (s *Service) cancelWorkers(controls []*workerControl) {
-	s.logger.Info().Msg("stopping all workers")
+	s.logger.Info().Msg("Stopping all workers")
 
 	for i, worker := range slices.Backward(s.workers) {
 		control := controls[i]
@@ -191,23 +191,23 @@ func (s *Service) cancelWorkers(controls []*workerControl) {
 			continue
 		}
 		logger := WorkerLogger(s.logger, worker)
-		logger.Info().Msg("stopping worker")
+		logger.Info().Msg("Stopping worker")
 
 		control.cancel()
 
 		select {
 		case <-time.After(workerStopTimeout):
-			logger.Warn().Msg("worker did not stop in time")
+			logger.Warn().Msg("Worker did not stop in time")
 		case err := <-control.stopped:
 			if nilOrCancelled(err) {
-				logger.Info().Msg("worker stopped")
+				logger.Info().Msg("Worker stopped")
 			} else {
-				logger.Error().Err(err).Msg("error stopping worker")
+				logger.Error().Err(err).Msg("Error stopping worker")
 			}
 		}
 	}
 
-	s.logger.Info().Msg("all workers stopped")
+	s.logger.Info().Msg("All workers stopped")
 }
 
 func nilOrCancelled(err error) bool {
