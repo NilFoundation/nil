@@ -30,6 +30,7 @@ import "./task/deploy-l2-enshrined-token-bridge";
 import "./task/deploy-my-logic-basic";
 import "./task/clear-l2-deployments";
 import "./task/deploy-my-logic-basic-public";
+import "./task/deploy-nil-eth-bridge";
 
 const config: HardhatUserConfig = {
   ignition: {

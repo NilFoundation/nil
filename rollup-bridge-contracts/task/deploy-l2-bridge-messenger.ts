@@ -59,6 +59,10 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
             feeCredit: BigInt("19340180000000"),
         });
 
+        await waitTillCompleted(deployerAccount.client, nilMessengerImplementationDeploymentTx.hash, {
+            waitTillMainShard: true
+        });
+
         if (!nilMessengerImplementationDeploymentTx || !nilMessengerImplementationDeploymentTx.hash) {
             throw Error(`Invalid transaction output from deployContract call for L2BridgeMessenger Contract`);
         }
@@ -89,7 +93,9 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
             salt: BigInt(Math.floor(Math.random() * 10000)),
             feeCredit: convertEthToWei(0.001),
         });
-        await waitTillCompleted(deployerAccount.client, proxyDeploymentTx.hash);
+        await waitTillCompleted(deployerAccount.client, proxyDeploymentTx.hash, {
+            waitTillMainShard: true
+        });
         l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy = proxyAddress;
 
         console.log(`L2BridgeMessengerProxy contract deployed at address: ${proxyAddress} and with transactionHash: ${proxyDeploymentTx.hash}`);
@@ -104,6 +110,9 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
             abi: L2BridgeMessengerJson.default.abi as Abi,
             address: l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy as `0x${string}`
         });
+
+        const l2BridgeMessengerOwner = await nilMessengerProxyInstance.read.owner([]);
+        console.log("✅ l2BridgeMessengerOwner:", l2BridgeMessengerOwner);
 
         const nilMessageTreeFromMessengerProxy = await nilMessengerProxyInstance.read.nilMessageTree([]);
         console.log("✅ nilMessageTreeFromMessengerProxy Address:", nilMessageTreeFromMessengerProxy);
