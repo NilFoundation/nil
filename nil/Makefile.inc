@@ -17,6 +17,4 @@ gen_rollup_contracts_bindings: \
 
 .PHONY: generate_mocks
 generate_mocks: ssz_types
-	@for p in $(shell grep -rl '//go:generate mockery' --exclude-dir=vendor | xargs -n1 dirname | sort -u); do \
-		go generate -run "mockery" $$p; \
-	done
+	mockery --config=.mockery.yaml

@@ -8,8 +8,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-//go:generate mockery --name=RwTx
-//go:generate mockery --name=DB
 
 type Timestamp uint64
 

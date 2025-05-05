@@ -18,7 +18,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/txnpool"
 )
 
-//go:generate mockery --name=Client
 
 type BatchRequest interface {
 	GetBlock(shardId types.ShardId, blockId any, fullTx bool) (uint64, error)

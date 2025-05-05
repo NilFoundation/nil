@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-//go:generate mockery --name=L1BlockFetcher
 
 const pollInterval = 5 * time.Second
 
