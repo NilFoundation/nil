@@ -72,7 +72,7 @@ func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
 		{name: "TaskTypeNone", taskType: types.TaskTypeNone},
 	}
 
-	executorId := testaide.RandomExecutorId()
+	executorId := types.NewRandomExecutorId()
 
 	for _, testCase := range testCases {
 		s.Run(testCase.name, func() {
@@ -89,7 +89,7 @@ func (s *TaskHandlerTestSuite) TestReturnErrorOnUnexpectedTaskType() {
 
 func (s *TaskHandlerTestSuite) TestHandleBatchProofTask() {
 	now := s.clock.Now()
-	executorId := testaide.RandomExecutorId()
+	executorId := types.NewRandomExecutorId()
 	batch := testaide.NewBlockBatch(testaide.ShardsCount)
 	taskEntry, err := batch.CreateProofTask(now)
 	s.Require().NoError(err)
@@ -180,7 +180,7 @@ func (s *TaskHandlerTestSuite) TestMaxActiveTasksLimit() {
 	s.True(s.taskHandler.IsReadyToHandle(s.context))
 	// Add one batch
 	now := s.clock.Now()
-	executorId := testaide.RandomExecutorId()
+	executorId := types.NewRandomExecutorId()
 	batch := testaide.NewBlockBatch(testaide.ShardsCount)
 	taskEntry, err := batch.CreateProofTask(now)
 	s.Require().NoError(err)

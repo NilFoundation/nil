@@ -78,14 +78,14 @@ var (
 
 	firstDepResult = types.NewSuccessProverTaskResult(
 		types.NewTaskId(),
-		testaide.RandomExecutorId(),
+		types.NewRandomExecutorId(),
 		nil,
 		nil,
 	)
 
 	secondDepResult = types.NewSuccessProverTaskResult(
 		types.NewTaskId(),
-		testaide.RandomExecutorId(),
+		types.NewRandomExecutorId(),
 		nil,
 		nil,
 	)

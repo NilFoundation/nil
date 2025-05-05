@@ -66,7 +66,7 @@ func (c *TaskCancelChecker) processRunningTasks(ctx context.Context) error {
 
 	isTaskActiveFunc := func(ctx context.Context, id types.TaskId) (bool, error) {
 		taskRequest := api.NewTaskCheckRequest(id, *executorId)
-		exists, err := c.requestHandler.CheckIfTaskExists(ctx, taskRequest)
+		exists, err := c.requestHandler.CheckIfTaskIsActive(ctx, taskRequest)
 		if err != nil {
 			return false, fmt.Errorf("failed to check task: %w", err)
 		}

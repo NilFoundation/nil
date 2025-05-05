@@ -117,7 +117,7 @@ func (s *taskScheduler) GetTask(ctx context.Context, request *api.TaskRequest) (
 	return task, nil
 }
 
-func (s *taskScheduler) CheckIfTaskExists(ctx context.Context, request *api.TaskCheckRequest) (bool, error) {
+func (s *taskScheduler) CheckIfTaskIsActive(ctx context.Context, request *api.TaskCheckRequest) (bool, error) {
 	s.Logger.Debug().Stringer(logging.FieldTaskId, request.TaskId).Msg("received new check task request")
 
 	taskEntry, err := s.storage.TryGetTaskEntry(ctx, request.TaskId)

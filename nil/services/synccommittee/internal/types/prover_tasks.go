@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
-	mathRand "math/rand"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -81,7 +81,7 @@ const UnknownExecutorId TaskExecutorId = 0
 func NewRandomExecutorId() TaskExecutorId {
 	var randInt uint32
 	for randInt == 0 {
-		randInt = mathRand.Uint32() //nolint:gosec
+		randInt = rand.Uint32() //nolint:gosec
 	}
 	return TaskExecutorId(randInt)
 }

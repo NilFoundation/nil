@@ -292,7 +292,7 @@ func (s *AggregatorTestSuite) Test_Latest_Fetched_Does_Not_Exist_On_Chain() {
 // requireNoNewTasks asserts that there are no new tasks available for execution
 func (s *AggregatorTestSuite) requireNoNewTasks() {
 	s.T().Helper()
-	task, err := s.taskStorage.RequestTaskToExecute(s.ctx, testaide.RandomExecutorId())
+	task, err := s.taskStorage.RequestTaskToExecute(s.ctx, scTypes.NewRandomExecutorId())
 	s.Require().NoError(err)
 	s.Require().Nil(task, "expected no new tasks available for execution, but got one")
 }
@@ -317,7 +317,7 @@ func (s *AggregatorTestSuite) requireBatchHandled(batch *scTypes.BlockBatch) {
 	}
 
 	// one ProofBatch task created
-	taskToExecute, err := s.taskStorage.RequestTaskToExecute(s.ctx, testaide.RandomExecutorId())
+	taskToExecute, err := s.taskStorage.RequestTaskToExecute(s.ctx, scTypes.NewRandomExecutorId())
 	s.Require().NoError(err)
 	s.Require().NotNil(taskToExecute)
 	s.Require().Equal(scTypes.ProofBatch, taskToExecute.TaskType)

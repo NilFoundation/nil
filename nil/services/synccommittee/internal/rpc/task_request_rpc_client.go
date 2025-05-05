@@ -28,7 +28,7 @@ func (r *taskRequestRpcClient) GetTask(ctx context.Context, request *api.TaskReq
 	)
 }
 
-func (r *taskRequestRpcClient) CheckIfTaskExists(ctx context.Context, request *api.TaskCheckRequest) (bool, error) {
+func (r *taskRequestRpcClient) CheckIfTaskIsActive(ctx context.Context, request *api.TaskCheckRequest) (bool, error) {
 	return doRPCCall[*api.TaskCheckRequest, bool](
 		ctx,
 		r.client,
