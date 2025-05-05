@@ -61,7 +61,7 @@ func (s *TaskStateChangeHandlerTestSuite) TearDownSuite() {
 
 func (s *TaskStateChangeHandlerTestSuite) Test_OnTaskTerminated_Success() {
 	task, batch := s.batchTaskSetUp()
-	result := testaide.NewSuccessTaskResult(task.Id, testaide.RandomExecutorId())
+	result := testaide.NewSuccessTaskResult(task.Id, types.NewRandomExecutorId())
 
 	err := s.handler.OnTaskTerminated(s.ctx, task, result)
 	s.Require().NoError(err)
@@ -76,7 +76,7 @@ func (s *TaskStateChangeHandlerTestSuite) Test_OnTaskTerminated_Success() {
 
 func (s *TaskStateChangeHandlerTestSuite) Test_OnTaskTerminated_Retryable_Error() {
 	task, _ := s.batchTaskSetUp()
-	result := testaide.NewRetryableErrorTaskResult(task.Id, testaide.RandomExecutorId())
+	result := testaide.NewRetryableErrorTaskResult(task.Id, types.NewRandomExecutorId())
 
 	err := s.handler.OnTaskTerminated(s.ctx, task, result)
 	s.Require().NoError(err)
@@ -91,7 +91,7 @@ func (s *TaskStateChangeHandlerTestSuite) Test_OnTaskTerminated_Retryable_Error(
 
 func (s *TaskStateChangeHandlerTestSuite) Test_OnTaskTerminated_Non_Retryable_Error() {
 	task, _ := s.batchTaskSetUp()
-	result := testaide.NewNonRetryableErrorTaskResult(task.Id, testaide.RandomExecutorId())
+	result := testaide.NewNonRetryableErrorTaskResult(task.Id, types.NewRandomExecutorId())
 
 	err := s.handler.OnTaskTerminated(s.ctx, task, result)
 	s.Require().NoError(err)
@@ -123,7 +123,7 @@ func (s *TaskStateChangeHandlerTestSuite) batchTaskSetUp() (*types.Task, *types.
 func (s *TaskStateChangeHandlerTestSuite) Test_OnTaskTerminated_Unknown_Batch() {
 	task := testaide.NewTaskOfType(types.ProofBatch)
 	task.BatchId = types.NewBatchId()
-	executor := testaide.RandomExecutorId()
+	executor := types.NewRandomExecutorId()
 
 	testCases := []struct {
 		name   string

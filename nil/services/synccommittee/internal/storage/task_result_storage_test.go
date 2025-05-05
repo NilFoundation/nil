@@ -49,7 +49,7 @@ func (s *TaskResultStorageSuite) TearDownTest() {
 func (s *TaskResultStorageSuite) Test_Put_Same_Task_Result_N_Times() {
 	result := types.NewSuccessProviderTaskResult(
 		types.NewTaskId(),
-		testaide.RandomExecutorId(),
+		types.NewRandomExecutorId(),
 		types.TaskOutputArtifacts{types.AggregatedProof: "agg-proof.1.1.0xAABC"},
 		testaide.RandomTaskResultData(),
 	)
@@ -67,7 +67,7 @@ func (s *TaskResultStorageSuite) Test_Put_Same_Task_Result_N_Times() {
 func (s *TaskResultStorageSuite) Test_SetAsSubmitted_Same_Task_Result_N_Times() {
 	result := types.NewFailureProviderTaskResult(
 		types.NewTaskId(),
-		testaide.RandomExecutorId(),
+		types.NewRandomExecutorId(),
 		types.NewTaskExecError(types.TaskErrUnknown, "something went wrong"),
 	)
 
@@ -117,18 +117,18 @@ func newTaskResults() []*types.TaskResult {
 	return []*types.TaskResult{
 		types.NewSuccessProviderTaskResult(
 			types.NewTaskId(),
-			testaide.RandomExecutorId(),
+			types.NewRandomExecutorId(),
 			types.TaskOutputArtifacts{types.AggregatedProof: "agg-proof.1.1.0xAABC"},
 			testaide.RandomTaskResultData(),
 		),
 		types.NewFailureProviderTaskResult(
 			types.NewTaskId(),
-			testaide.RandomExecutorId(),
+			types.NewRandomExecutorId(),
 			types.NewTaskExecError(types.TaskErrUnknown, "something went wrong"),
 		),
 		types.NewSuccessProverTaskResult(
 			types.NewTaskId(),
-			testaide.RandomExecutorId(),
+			types.NewRandomExecutorId(),
 			types.TaskOutputArtifacts{
 				types.PartialProofChallenges:     "challenge.1.1.0xAABC",
 				types.AssignmentTableDescription: "assignment_table_description.1.1.0xAABC",
@@ -139,7 +139,7 @@ func newTaskResults() []*types.TaskResult {
 		),
 		types.NewFailureProverTaskResult(
 			types.NewTaskId(),
-			testaide.RandomExecutorId(),
+			types.NewRandomExecutorId(),
 			types.NewTaskExecError(types.TaskErrIO, "prover failed to handle task"),
 		),
 	}

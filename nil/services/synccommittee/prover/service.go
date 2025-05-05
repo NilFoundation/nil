@@ -64,6 +64,7 @@ func New(config Config, database db.DB) (*Prover, error) {
 		executor.DefaultConfig(),
 		taskRpcClient,
 		handler,
+		executor.NewInMemoryIdSource(),
 		metricsHandler,
 		logger,
 	)

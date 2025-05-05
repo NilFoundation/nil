@@ -4,7 +4,6 @@ package testaide
 
 import (
 	"crypto/rand"
-	"math"
 	"math/big"
 	"time"
 
@@ -59,14 +58,6 @@ func NewTaskOfType(taskType types.TaskType) *types.Task {
 		BatchId:  types.NewBatchId(),
 		TaskType: taskType,
 	}
-}
-
-func RandomExecutorId() types.TaskExecutorId {
-	bigInt, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt32))
-	if err != nil {
-		panic(err)
-	}
-	return types.TaskExecutorId(uint32(bigInt.Uint64()))
 }
 
 func RandomTaskResultData() types.TaskResultData {

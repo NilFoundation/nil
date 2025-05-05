@@ -60,10 +60,15 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 
 	taskStorage := storage.NewTaskStorage(database, clock, metricsHandler, logger)
 
+	executorIdSource := executor.NewPersistentIdSource(
+		storage.NewExecutorIdStorage(database, logger),
+	)
+
 	taskExecutor, err := executor.New(
 		executor.DefaultConfig(),
 		taskRpcClient,
 		newTaskHandler(taskStorage, taskResultStorage, config.SkipRate, config.MaxConcurrentBatches, clock, logger),
+		executorIdSource,
 		metricsHandler,
 		logger,
 	)
@@ -73,7 +78,7 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 
 	taskScheduler := scheduler.New(
 		taskStorage,
-		newTaskStateChangeHandler(taskResultStorage, taskExecutor.Id(), logger),
+		newTaskStateChangeHandler(taskResultStorage, executorIdSource, logger),
 		metricsHandler,
 		logger,
 	)
@@ -85,7 +90,7 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 	taskCancelChecker := scheduler.NewTaskCancelChecker(
 		taskRpcClient,
 		taskStorage,
-		taskExecutor.Id(),
+		executorIdSource,
 		metricsHandler,
 		logger,
 	)

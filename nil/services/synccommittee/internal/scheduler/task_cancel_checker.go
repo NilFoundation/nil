@@ -7,6 +7,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
@@ -28,24 +29,24 @@ type TaskSource interface {
 type TaskCancelChecker struct {
 	srv.WorkerLoop
 
-	requestHandler api.TaskRequestHandler
-	taskSource     TaskSource
-	executorId     types.TaskExecutorId
-	config         TaskCancelCheckerConfig
+	requestHandler   api.TaskRequestHandler
+	taskSource       TaskSource
+	executorIdSource executor.IdSource
+	config           TaskCancelCheckerConfig
 }
 
 func NewTaskCancelChecker(
 	requestHandler api.TaskRequestHandler,
 	taskSource TaskSource,
-	executorId types.TaskExecutorId,
+	executorIdSource executor.IdSource,
 	metrics srv.WorkerMetrics,
 	logger logging.Logger,
 ) *TaskCancelChecker {
 	checker := &TaskCancelChecker{
-		requestHandler: requestHandler,
-		taskSource:     taskSource,
-		executorId:     executorId,
-		config:         MakeDefaultCheckerConfig(),
+		requestHandler:   requestHandler,
+		taskSource:       taskSource,
+		executorIdSource: executorIdSource,
+		config:           MakeDefaultCheckerConfig(),
 	}
 
 	loopConfig := srv.NewWorkerLoopConfig(
@@ -58,23 +59,28 @@ func NewTaskCancelChecker(
 }
 
 func (c *TaskCancelChecker) processRunningTasks(ctx context.Context) error {
-	canceledCounter, err := c.taskSource.CancelTasksByParentId(ctx, c.isActive)
+	executorId, err := c.executorIdSource.GetCurrentId(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current executor id: %w", err)
+	}
+
+	isTaskActiveFunc := func(ctx context.Context, id types.TaskId) (bool, error) {
+		taskRequest := api.NewTaskCheckRequest(id, *executorId)
+		exists, err := c.requestHandler.CheckIfTaskIsActive(ctx, taskRequest)
+		if err != nil {
+			return false, fmt.Errorf("failed to check task: %w", err)
+		}
+		return exists, nil
+	}
+
+	canceledCounter, err := c.taskSource.CancelTasksByParentId(ctx, isTaskActiveFunc)
 	if err != nil {
 		return fmt.Errorf("failed to cancel dead tasks: %w", err)
 	}
 	if canceledCounter == 0 {
-		c.Logger.Debug().Msg("no task canceled")
+		c.Logger.Debug().Msg("No task canceled")
 	} else {
-		c.Logger.Warn().Msgf("canceled %d dead tasks", canceledCounter)
+		c.Logger.Warn().Msgf("Canceled %d dead tasks", canceledCounter)
 	}
 	return nil
-}
-
-func (c *TaskCancelChecker) isActive(ctx context.Context, taskId types.TaskId) (bool, error) {
-	taskRequest := api.NewTaskCheckRequest(taskId, c.executorId)
-	isExists, err := c.requestHandler.CheckIfTaskExists(ctx, taskRequest)
-	if err != nil {
-		return isExists, fmt.Errorf("failed to check task: %w", err)
-	}
-	return isExists, nil
 }

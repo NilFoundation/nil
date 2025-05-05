@@ -1,9 +1,11 @@
 package types
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"iter"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -76,16 +78,40 @@ type TaskExecutorId uint32
 
 const UnknownExecutorId TaskExecutorId = 0
 
-func (e TaskExecutorId) String() string {
-	return strconv.FormatUint(uint64(e), 10)
+func NewRandomExecutorId() TaskExecutorId {
+	var randInt uint32
+	for randInt == 0 {
+		randInt = rand.Uint32() //nolint:gosec
+	}
+	return TaskExecutorId(randInt)
 }
 
-func (e *TaskExecutorId) Set(str string) error {
+func (id TaskExecutorId) MarshalBinary() ([]byte, error) {
+	intValue := uint32(id)
+	value := make([]byte, 4)
+	binary.LittleEndian.PutUint32(value, intValue)
+	return value, nil
+}
+
+func (id *TaskExecutorId) UnmarshalBinary(data []byte) error {
+	if len(data) != 4 {
+		return fmt.Errorf("invalid bytes length for TaskExecutorId, got %d, expected 4", len(data))
+	}
+	intValue := binary.LittleEndian.Uint32(data)
+	*id = TaskExecutorId(intValue)
+	return nil
+}
+
+func (id TaskExecutorId) String() string {
+	return strconv.FormatUint(uint64(id), 10)
+}
+
+func (id *TaskExecutorId) Set(str string) error {
 	parsedValue, err := strconv.ParseUint(str, 10, 32)
 	if err != nil {
 		return fmt.Errorf("%w: invalid value for TaskExecutorId, got %s", err, str)
 	}
-	*e = TaskExecutorId(parsedValue)
+	*id = TaskExecutorId(parsedValue)
 	return nil
 }
 

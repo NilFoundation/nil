@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
@@ -64,7 +65,7 @@ func (s *TaskCancelCheckerSuite) Test_Check_Empty_Storage() {
 
 	err := cancelChecker.processRunningTasks(s.ctx)
 	s.Require().NoError(err)
-	s.Require().Zero(handlerMock.CheckIfTaskExistsCalls())
+	s.Require().Zero(handlerMock.CheckIfTaskIsActiveCalls())
 }
 
 func (s *TaskCancelCheckerSuite) Test_Check_Alive_Task() {
@@ -81,7 +82,7 @@ func (s *TaskCancelCheckerSuite) Test_Check_Alive_Task() {
 	s.Require().NoError(err)
 
 	handlerMock := &api.TaskRequestHandlerMock{
-		CheckIfTaskExistsFunc: func(contextMoqParam context.Context, request *api.TaskCheckRequest) (bool, error) {
+		CheckIfTaskIsActiveFunc: func(contextMoqParam context.Context, request *api.TaskCheckRequest) (bool, error) {
 			return true, nil
 		},
 	}
@@ -92,7 +93,7 @@ func (s *TaskCancelCheckerSuite) Test_Check_Alive_Task() {
 	s.Require().NoError(err)
 
 	// Parent task was checked
-	checkTaskCall := handlerMock.CheckIfTaskExistsCalls()
+	checkTaskCall := handlerMock.CheckIfTaskIsActiveCalls()
 	s.Require().Len(checkTaskCall, 1)
 	s.Require().Equal(parentTaskId, checkTaskCall[0].Request.TaskId)
 	// Checked task was not removed
@@ -116,7 +117,7 @@ func (s *TaskCancelCheckerSuite) Test_Check_Dead_Task() {
 	s.Require().NoError(err)
 
 	handlerMock := &api.TaskRequestHandlerMock{
-		CheckIfTaskExistsFunc: func(contextMoqParam context.Context, request *api.TaskCheckRequest) (bool, error) {
+		CheckIfTaskIsActiveFunc: func(contextMoqParam context.Context, request *api.TaskCheckRequest) (bool, error) {
 			return false, nil
 		},
 	}
@@ -127,7 +128,7 @@ func (s *TaskCancelCheckerSuite) Test_Check_Dead_Task() {
 	s.Require().NoError(err)
 
 	// Parent task was checked
-	checkTaskCall := handlerMock.CheckIfTaskExistsCalls()
+	checkTaskCall := handlerMock.CheckIfTaskIsActiveCalls()
 	s.Require().Len(checkTaskCall, 1)
 	s.Require().Equal(parentTaskId, checkTaskCall[0].Request.TaskId)
 	// Checked task was not removed
@@ -143,7 +144,7 @@ func (s *TaskCancelCheckerSuite) newTestTaskCancelChecker(handler api.TaskReques
 	return NewTaskCancelChecker(
 		handler,
 		s.taskStorage,
-		testaide.RandomExecutorId(),
+		executor.NewInMemoryIdSource(),
 		srv.NewNoopWorkerMetrics(),
 		s.logger,
 	)

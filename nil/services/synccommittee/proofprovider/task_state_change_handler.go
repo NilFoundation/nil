@@ -5,6 +5,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/rs/zerolog"
@@ -15,20 +16,20 @@ type TaskResultSaver interface {
 }
 
 type taskStateChangeHandler struct {
-	resultStorage     TaskResultSaver
-	currentExecutorId types.TaskExecutorId
-	logger            logging.Logger
+	resultStorage    TaskResultSaver
+	executorIdSource executor.IdSource
+	logger           logging.Logger
 }
 
 func newTaskStateChangeHandler(
 	resultStorage TaskResultSaver,
-	currentExecutorId types.TaskExecutorId,
+	executorIdSource executor.IdSource,
 	logger logging.Logger,
 ) api.TaskStateChangeHandler {
 	return &taskStateChangeHandler{
-		resultStorage:     resultStorage,
-		currentExecutorId: currentExecutorId,
-		logger:            logger,
+		resultStorage:    resultStorage,
+		executorIdSource: executorIdSource,
+		logger:           logger,
 	}
 }
 
@@ -54,11 +55,19 @@ func (h taskStateChangeHandler) OnTaskTerminated(
 		return nil
 	}
 
+	currentExecutorId, err := h.executorIdSource.GetCurrentId(ctx)
+	if err != nil {
+		log.NewTaskEvent(h.logger, zerolog.ErrorLevel, task).
+			Err(err).
+			Msgf("Failed to get current executor id")
+		return err
+	}
+
 	var parentTaskResult *types.TaskResult
 	if result.IsSuccess() {
 		parentTaskResult = types.NewSuccessProviderTaskResult(
 			*task.ParentTaskId,
-			h.currentExecutorId,
+			*currentExecutorId,
 			result.OutputArtifacts,
 			result.Data,
 		)
@@ -68,12 +77,12 @@ func (h taskStateChangeHandler) OnTaskTerminated(
 			Msgf("Prover task cannot be retried, parent will marked as failed")
 		parentTaskResult = types.NewFailureProviderTaskResult(
 			*task.ParentTaskId,
-			h.currentExecutorId,
+			*currentExecutorId,
 			types.NewTaskErrChildFailed(result),
 		)
 	}
 
-	err := h.resultStorage.Put(ctx, parentTaskResult)
+	err = h.resultStorage.Put(ctx, parentTaskResult)
 	if err != nil {
 		log.NewTaskEvent(h.logger, zerolog.ErrorLevel, task).
 			Err(err).

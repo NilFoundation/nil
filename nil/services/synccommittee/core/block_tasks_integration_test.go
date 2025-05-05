@@ -83,7 +83,7 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_R
 	err = s.taskStorage.AddTaskEntries(s.ctx, proofTask)
 	s.Require().NoError(err)
 
-	executorId := testaide.RandomExecutorId()
+	executorId := types.NewRandomExecutorId()
 
 	// requesting batch proof task for execution
 	taskToExecute, err := s.scheduler.GetTask(s.ctx, api.NewTaskRequest(executorId))
@@ -123,7 +123,7 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_R
 	err = s.taskStorage.AddTaskEntries(s.ctx, proofTask)
 	s.Require().NoError(err)
 
-	executorId := testaide.RandomExecutorId()
+	executorId := types.NewRandomExecutorId()
 
 	// requesting batch proof task
 	taskToExecute, err := s.scheduler.GetTask(s.ctx, api.NewTaskRequest(executorId))

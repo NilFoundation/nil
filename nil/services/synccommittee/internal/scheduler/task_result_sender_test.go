@@ -10,7 +10,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
 )
@@ -64,7 +63,7 @@ func (s *TaskResultSenderSuite) Test_Send_Result_Empty_Storage() {
 }
 
 func (s *TaskResultSenderSuite) Test_Send_Result_Faulty_Client() {
-	resultToSend := types.NewSuccessProviderTaskResult(types.NewTaskId(), testaide.RandomExecutorId(), nil, nil)
+	resultToSend := types.NewSuccessProviderTaskResult(types.NewTaskId(), types.NewRandomExecutorId(), nil, nil)
 	err := s.resultStorage.Put(s.ctx, resultToSend)
 	s.Require().NoError(err)
 
@@ -86,7 +85,7 @@ func (s *TaskResultSenderSuite) Test_Send_Result_Faulty_Client() {
 }
 
 func (s *TaskResultSenderSuite) Test_Send_And_Delete_Result() {
-	resultToSend := types.NewSuccessProviderTaskResult(types.NewTaskId(), testaide.RandomExecutorId(), nil, nil)
+	resultToSend := types.NewSuccessProviderTaskResult(types.NewTaskId(), types.NewRandomExecutorId(), nil, nil)
 	err := s.resultStorage.Put(s.ctx, resultToSend)
 	s.Require().NoError(err)
 

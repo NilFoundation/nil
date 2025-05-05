@@ -9,7 +9,7 @@ import (
 const (
 	TaskRequestHandlerNamespace         = "TaskRequestHandler"
 	TaskRequestHandlerGetTask           = TaskRequestHandlerNamespace + "_getTask"
-	TaskRequestHandlerCheckIfTaskExists = TaskRequestHandlerNamespace + "_checkIfTaskExists"
+	TaskRequestHandlerCheckIfTaskExists = TaskRequestHandlerNamespace + "_checkIfTaskIsActive"
 	TaskRequestHandlerSetTaskResult     = TaskRequestHandlerNamespace + "_setTaskResult"
 )
 
@@ -35,7 +35,7 @@ func NewTaskCheckRequest(taskId types.TaskId, executorId types.TaskExecutorId) *
 
 type TaskRequestHandler interface {
 	GetTask(context context.Context, request *TaskRequest) (*types.Task, error)
-	CheckIfTaskExists(context context.Context, request *TaskCheckRequest) (bool, error)
+	CheckIfTaskIsActive(context context.Context, request *TaskCheckRequest) (bool, error)
 	SetTaskResult(context context.Context, result *types.TaskResult) error
 }
 

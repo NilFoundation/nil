@@ -17,6 +17,7 @@ type TestSuite struct {
 	suite.Suite
 	context        context.Context
 	cancellation   context.CancelFunc
+	idSource       IdSource
 	taskExecutor   *taskExecutor
 	requestHandler *api.TaskRequestHandlerMock
 	taskHandler    *api.TaskHandlerMock
@@ -36,7 +37,11 @@ func (s *TestSuite) SetupTest() {
 	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
 
-	taskExecutor, err := New(&config, s.requestHandler, s.taskHandler, metricsHandler, logger)
+	s.idSource = NewInMemoryIdSource()
+
+	taskExecutor, err := New(
+		&config, s.requestHandler, s.taskHandler, s.idSource, metricsHandler, logger,
+	)
 	s.Require().NoError(err)
 	s.taskExecutor = taskExecutor
 }
@@ -68,7 +73,10 @@ func (s *TestSuite) Test_TaskExecutor_Executes_Tasks() {
 	err := testaide.WaitFor(s.context, started, 10*time.Second)
 	s.Require().NoError(err, "task executor did not start in time")
 
-	expectedTaskRequest := api.NewTaskRequest(s.taskExecutor.Id())
+	executorId, err := s.idSource.GetCurrentId(s.context)
+	s.Require().NoError(err)
+
+	expectedTaskRequest := api.NewTaskRequest(*executorId)
 	const tasksThreshold = 5
 
 	s.Require().Eventually(
@@ -95,7 +103,7 @@ func (s *TestSuite) Test_TaskExecutor_Executes_Tasks() {
 	)
 
 	for _, call := range taskHandler.HandleCalls() {
-		s.Require().Equal(s.taskExecutor.Id(), call.ExecutorId,
+		s.Require().Equal(*executorId, call.ExecutorId,
 			"Task executor should have passed its id in the result")
 	}
 }
