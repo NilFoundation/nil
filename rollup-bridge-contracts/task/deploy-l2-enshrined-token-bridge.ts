@@ -40,7 +40,7 @@ task("deploy-l2-enshrined-token-bridge", "Deploys L2EnshrinedTokenBridge contrac
 
         const balance = await deployerAccount.getBalance();
 
-        console.log(`smart-contract${deployerAccount.address} is on shard: ${deployerAccount.shardId} with balance: ${balance}`);
+        console.log(`deployer-smart-account: ${deployerAccount.address} is on shard: ${deployerAccount.shardId} with balance: ${balance}`);
 
         if (!(balance > BigInt(0))) {
             throw Error(`Insufficient or Zero balance for smart-account: ${deployerAccount.address}`);

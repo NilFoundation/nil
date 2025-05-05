@@ -37,7 +37,7 @@ task("deploy-my-logic-basic-public", "Deploys MyLogic contract on Nil Chain")
 
         const balance = await deployerAccount.getBalance();
 
-        console.log(`smart-contract${deployerAccount.address} is on shard: ${deployerAccount.shardId} with balance: ${balance}`);
+        console.log(`deployer-smart-account: ${deployerAccount.address} is on shard: ${deployerAccount.shardId} with balance: ${balance}`);
 
         if (!(balance > BigInt(0))) {
             throw Error(`Insufficient or Zero balance for smart-account: ${deployerAccount.address}`);
@@ -51,6 +51,19 @@ task("deploy-my-logic-basic-public", "Deploys MyLogic contract on Nil Chain")
             throw new Error(`Invalid abi in the ABI Json file`);
         }
 
+        const rpcEndpoint = process.env.NIL_RPC_ENDPOINT as string;
+        const faucetClient = new FaucetClient({
+            transport: new HttpTransport({ endpoint: rpcEndpoint }),
+        });
+
+        const topUpFaucetTxn1 = await faucetClient.topUp({
+            smartAccountAddress: deployerAccount.address,
+            amount: convertEthToWei(0.1),
+            faucetAddress: process.env.NIL as `0x${string}`,
+        });
+        
+        await waitTillCompleted(deployerAccount.client, topUpFaucetTxn1);
+
         const { tx: myLogicImplementationDeployTxn, address: myLogicImplementationAddress } = await deployerAccount.deployContract({
             shardId: 1,
             bytecode: MyLogicJson.default.bytecode as `0x${string}`,
@@ -60,10 +73,7 @@ task("deploy-my-logic-basic-public", "Deploys MyLogic contract on Nil Chain")
             feeCredit: convertEthToWei(0.01),
         });
 
-        const implementationDeploymentTxnReceipt = await myLogicImplementationDeployTxn.wait();
-        if (implementationDeploymentTxnReceipt.some((receipt: ProcessedReceipt) => !receipt.success)) {
-            throw new Error("implementation deployment failed");
-        }
+        await waitTillCompleted(deployerAccount.client, myLogicImplementationDeployTxn.hash);
 
         console.log("✅ Logic Contract deployed at:", myLogicImplementationAddress);
 
@@ -91,12 +101,12 @@ task("deploy-my-logic-basic-public", "Deploys MyLogic contract on Nil Chain")
             salt: BigInt(Math.floor(Math.random() * 10000)),
             //feeCredit: convertEthToWei(0.001),
         });
-        const proxyDeploymentTxnReceipt = await myLogicProxyDeployTxn.wait();
-        if (proxyDeploymentTxnReceipt.some((receipt: ProcessedReceipt) => !receipt.success)) {
-            throw new Error("proxy deployment failed");
-        }
+      
+        await waitTillCompleted(deployerAccount.client, myLogicProxyDeployTxn.hash);
 
         console.log("✅ Transparent Proxy Contract deployed at:", myLogicProxyAddress);
+
+
 
         console.log("Waiting 5 seconds...");
         await new Promise((res) => setTimeout(res, 10000));
@@ -110,7 +120,7 @@ task("deploy-my-logic-basic-public", "Deploys MyLogic contract on Nil Chain")
         console.log("Properties of myLogicContractInstance:", Object.keys(myLogicContractInstance.read));
 
         const implementationAddress = await myLogicContractInstance.read.getImplementation([]);
-        const value = await myLogicContractInstance.read.getValue([]);
+        let value = await myLogicContractInstance.read.getValue([]);
         const owner = await myLogicContractInstance.read.owner([]);
         const storval = await myLogicContractInstance.read.getSimpleStorageValue([]);
         console.log(`deployerAccount address is: ${deployerAccount.address}`);
@@ -125,4 +135,18 @@ task("deploy-my-logic-basic-public", "Deploys MyLogic contract on Nil Chain")
         console.log(`hasOwnerRoleBool is: ${hasOwnerRoleBool}`);
         console.log(`allOwners are: ${allOwners}`);
         console.log(`allAdmins are: ${allAdmins}`);
+
+        const setValueTxn = await deployerAccount.sendTransaction({
+            to: myLogicProxyAddress,
+            abi: MyLogicJson.default.abi as Abi,
+            functionName: "setValue",
+            args: [1000],
+            feeCredit: convertEthToWei(0.001),
+        });
+
+        await waitTillCompleted(deployerAccount.client, setValueTxn.hash);
+
+        value = await myLogicContractInstance.read.getValue([]);
+
+        console.log(`value after update: ${value}`)
     });

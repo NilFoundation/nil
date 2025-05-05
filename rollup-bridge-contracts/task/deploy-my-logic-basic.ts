@@ -37,7 +37,7 @@ task("deploy-my-logic-basic", "Deploys MyLogic contract on Nil Chain")
 
         const balance = await deployerAccount.getBalance();
 
-        console.log(`smart-contract${deployerAccount.address} is on shard: ${deployerAccount.shardId} with balance: ${balance}`);
+        console.log(`deployer-smart-account: ${deployerAccount.address} is on shard: ${deployerAccount.shardId} with balance: ${balance}`);
 
         if (!(balance > BigInt(0))) {
             throw Error(`Insufficient or Zero balance for smart-account: ${deployerAccount.address}`);
@@ -66,7 +66,7 @@ task("deploy-my-logic-basic", "Deploys MyLogic contract on Nil Chain")
             abi: MyLogicJson.default.abi as Abi,
             args: [],
             salt: BigInt(Math.floor(Math.random() * 10000)),
-            //feeCredit: convertEthToWei(0.01),
+            feeCredit: convertEthToWei(0.01),
         });
 
         const implementationDeploymentTxnReceipt = await myLogicImplementationDeployTxn.wait();

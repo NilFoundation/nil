@@ -10,6 +10,7 @@ import {
     Transaction,
     generateRandomPrivateKey,
     waitTillCompleted,
+    getContract,
 } from "@nilfoundation/niljs";
 import { loadNilSmartAccount } from "./nil-smart-account";
 import { L2NetworkConfig, loadNilNetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
@@ -40,7 +41,7 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
 
         const balance = await deployerAccount.getBalance();
 
-        console.log(`smart-contract${deployerAccount.address} is on shard: ${deployerAccount.shardId} with balance: ${balance}`);
+        console.log(`deployer-smart-account: ${deployerAccount.address} is on shard: ${deployerAccount.shardId} with balance: ${balance}`);
 
         if (!(balance > BigInt(0))) {
             throw Error(`Insufficient or Zero balance for smart-account: ${deployerAccount.address}`);
@@ -69,7 +70,7 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
             throw Error(`Invalid address output from deployContract call for L2ETHBridge Contract`);
         }
 
-        console.log(`NilMessageTree contract deployed at address: ${l2EthBridgeImplementationAddress} and with transactionHash: ${l2EthBridgeImplementationDeploymentTx.hash}`);
+        console.log(`L2ETHBridge contract deployed at address: ${l2EthBridgeImplementationAddress} and with transactionHash: ${l2EthBridgeImplementationDeploymentTx.hash}`);
 
         l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeImplementation = l2EthBridgeImplementationAddress;
 
@@ -93,54 +94,32 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
 
         l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy = l2EthBridgeProxyAddress;
 
-        console.log("Waiting 5 seconds...");
-        await new Promise((res) => setTimeout(res, 5000));
-
-        const fetchImplementationCall = encodeFunctionData({
-            abi: TransparentUpgradeableProxy.default.abi,
-            functionName: "fetchImplementation",
-            args: [],
+        const l2EthBridgeProxyInstance = getContract({
+            client: deployerAccount.client,
+            abi: L2ETHBridgeJson.default.abi as Abi,
+            address: l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy as `0x${string}`
         });
 
-        const fetchImplementationResult = await deployerAccount.client.call({
-            to: l2EthBridgeProxyAddress,
-            data: fetchImplementationCall,
-            from: deployerAccount.address,
-        }, "latest");
+        const l2ETHBridgeVault = await l2EthBridgeProxyInstance.read.l2ETHBridgeVault([]);
+        console.log(`l2ETHBridgeVault queried from L2ETHBridge is: ${l2ETHBridgeVault}`);
 
-        console.log(`L2ETHBridgeVaultProxy has fetch-implementation-result: ${JSON.stringify(fetchImplementationResult)}`);
+        const l2ETHBridgeVaultOwner = await l2EthBridgeProxyInstance.read.owner([]);
+        console.log(`l2ETHBridgeVaultOwner queried from L2ETHBridgeVault is: ${l2ETHBridgeVaultOwner}`);
 
-        const proxyImplementationAddress = decodeFunctionResult({
+        const l2EthBridgeVaultImplementation = await l2EthBridgeProxyInstance.read.getImplementation([]);
+        console.log(`l2EthBridgeVaultImplementation queried from L2ETHBridgeVault is: ${l2EthBridgeVaultImplementation}`);
+
+        const proxyContractInsntace = getContract({
+            client: deployerAccount.client,
             abi: TransparentUpgradeableProxy.default.abi,
-            functionName: "fetchImplementation",
-            data: fetchImplementationResult.data,
-        }) as string;
-
-        console.log("✅ proxyImplementationAddress Address:", proxyImplementationAddress);
-
-        const fetchAdminCall = encodeFunctionData({
-            abi: TransparentUpgradeableProxy.default.abi,
-            functionName: "fetchAdmin",
-            args: [],
+            address: l2EthBridgeProxyAddress,
         });
 
-        const adminResult = await deployerAccount.client.call({
-            to: l2EthBridgeProxyAddress,
-            data: fetchAdminCall,
-            from: deployerAccount.address,
-        }, "latest");
+        console.log("Properties of proxyContractInsntace:", Object.keys(proxyContractInsntace.read));
 
-        console.log(`L2ETHBridgeProxy has admin-result: ${JSON.stringify(adminResult)}`);
-
-        const proxyAdminAddress = decodeFunctionResult({
-            abi: TransparentUpgradeableProxy.default.abi,
-            functionName: "fetchAdmin",
-            data: adminResult.data,
-        }) as string;
-
+        const proxyAdminAddress = await proxyContractInsntace.read.fetchAdmin([]);
         console.log("✅ ProxyAdmin Address:", proxyAdminAddress);
-
-        l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.proxyAdmin = proxyAdminAddress;
+        l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.proxyAdmin = proxyAdminAddress as `0x${string}`;
 
         // Save the updated config
         saveNilNetworkConfig(networkName, l2NetworkConfig);
