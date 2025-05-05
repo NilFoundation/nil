@@ -16,7 +16,7 @@ describe("config commands", () => {
     expect(configContent).to.contains(`Set ${testKey} to ${testValue}`);
 
     const { stderr } = await runCommand(["config", "set", invalidTestKey, testValue]);
-    expect(stderr).to.contains(`Key ${invalidTestKey} not supported`)
+    expect(stderr).to.contains(`Key ${invalidTestKey} not supported`);
   });
 
   CliTest("tests config:get command", async ({ runCommand, configManager }) => {

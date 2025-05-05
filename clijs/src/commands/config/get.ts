@@ -20,7 +20,7 @@ export default class ConfigGet extends BaseCommand {
 
     const value = this.configManager!.getConfigValue(ConfigKeys.NilSection, args.name);
     if (!value) {
-      throw new Error(`Key ${args.name} not found`)
+      throw new Error(`Key ${args.name} not found`);
     }
     this.log(value);
     return value;
