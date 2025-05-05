@@ -26,7 +26,6 @@ import (
 	"github.com/NilFoundation/nil/nil/services/cometa"
 	"github.com/NilFoundation/nil/nil/services/faucet"
 	"github.com/NilFoundation/nil/nil/services/indexer"
-	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	"github.com/NilFoundation/nil/nil/services/rollup"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/httpcfg"
@@ -138,20 +137,6 @@ func startRpcServer(
 			return fmt.Errorf("failed to create indexer service: %w", err)
 		}
 		apiList = append(apiList, idx.GetRpcApi())
-
-		check.PanicIfErr(err)
-		task := concurrent.MakeTask(
-			"indexer",
-			func(ctx context.Context) (err error) {
-				return indexer.StartIndexer(ctx, &indexer.Cfg{
-					Client:        client,
-					IndexerDriver: idx.Driver,
-					BlocksChan:    make(chan *driver.BlockWithShardId, 1000),
-				})
-			})
-		if err := concurrent.Run(ctx, task); err != nil {
-			return err
-		}
 	}
 
 	if cfg.IsFaucetApiEnabled() {
