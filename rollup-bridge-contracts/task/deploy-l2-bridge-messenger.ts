@@ -108,15 +108,18 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
         const nilMessageTreeFromMessengerProxy = await nilMessengerProxyInstance.read.nilMessageTree([]);
         console.log("✅ nilMessageTreeFromMessengerProxy Address:", nilMessageTreeFromMessengerProxy);
 
-        // const proxyContractInstance = getContract({
-        //     client: deployerAccount.client,
-        //     abi: TransparentUpgradeableProxy.default.abi,
-        //     address: proxyAddress as `0x${string}`,
-        // });
+        const proxyContractInstance = getContract({
+            client: deployerAccount.client,
+            abi: TransparentUpgradeableProxy.default.abi,
+            address: proxyAddress as `0x${string}`,
+        });
 
-        // console.log("Properties of proxyContractInsntace:", Object.keys(proxyContractInstance.read));
+        console.log("Properties of proxyContractInsntace:", Object.keys(proxyContractInstance.read));
 
-        // const proxyAdminAddress = await proxyContractInstance.read.fetchAdmin([]);
-        // // console.log("✅ ProxyAdmin Address:", proxyAdminAddress);
-        // // l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.proxyAdmin = proxyAdminAddress as `0x${string}`;
+        const proxyAdminAddress = await proxyContractInstance.read.fetchAdmin([]);
+        console.log("✅ ProxyAdmin Address:", proxyAdminAddress);
+        l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.proxyAdmin = proxyAdminAddress as `0x${string}`;
+
+        // Save the updated config
+        saveNilNetworkConfig(networkName, l2NetworkConfig);
     });
