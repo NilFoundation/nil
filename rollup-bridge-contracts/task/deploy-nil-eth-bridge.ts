@@ -64,14 +64,14 @@ task("deploy-nil-eth-bridge", "Deploys NilETHBridge contract on Nil Chain")
         });
 
         if (!l2EthBridgeImplementationDeploymentTx.hash) {
-            throw Error(`Invalid transaction output from deployContract call for L2ETHBridge Contract`);
+            throw Error(`Invalid transaction output from deployContract call for NilETHBridge Contract`);
         }
 
         if (!l2EthBridgeImplementationAddress) {
-            throw Error(`Invalid address output from deployContract call for L2ETHBridge Contract`);
+            throw Error(`Invalid address output from deployContract call for NilETHBridge Contract`);
         }
 
-        console.log(`L2ETHBridge contract deployed at address: ${l2EthBridgeImplementationAddress} and with transactionHash: ${l2EthBridgeImplementationDeploymentTx.hash}`);
+        console.log(`NilETHBridge contract deployed at address: ${l2EthBridgeImplementationAddress} and with transactionHash: ${l2EthBridgeImplementationDeploymentTx.hash}`);
 
         l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeImplementation = l2EthBridgeImplementationAddress;
 
@@ -99,15 +99,15 @@ task("deploy-nil-eth-bridge", "Deploys NilETHBridge contract on Nil Chain")
 
         l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy = l2EthBridgeProxyAddress;
 
-        const l2EthBridgeProxyInstance = getContract({
+        const nilEthBridgeProxyInstance = getContract({
             client: deployerAccount.client,
             abi: NilETHBridgeJson.default.abi as Abi,
             address: l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy as `0x${string}`
         });
 
-        const l2ETHBridgeVaultOwner = await l2EthBridgeProxyInstance.read.owner([]);
-        console.log(`l2ETHBridgeVaultOwner queried from L2ETHBridgeVault is: ${l2ETHBridgeVaultOwner}`);
+        const l2ETHBridgeVaultOwner = await nilEthBridgeProxyInstance.read.owner([]);
+        console.log(`nilEthBridgeProxyInstance owner queried: ${l2ETHBridgeVaultOwner}`);
 
-        const l2EthBridgeVaultImplementation = await l2EthBridgeProxyInstance.read.getImplementation([]);
-        console.log(`l2EthBridgeVaultImplementation queried from L2ETHBridgeVault is: ${l2EthBridgeVaultImplementation}`);
+        const l2EthBridgeVaultImplementation = await nilEthBridgeProxyInstance.read.getImplementation([]);
+        console.log(`nilEthBridgeProxyInstance has l2EthBridgeVault as: ${l2EthBridgeVaultImplementation}`);
     });
