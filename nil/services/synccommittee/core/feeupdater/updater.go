@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/jonboulle/clockwork"
 )
 
@@ -50,6 +51,8 @@ type feeParams struct {
 }
 
 type Updater struct {
+	srv.WorkerLoop
+
 	config          Config
 	blockFetcher    *fetching.Fetcher
 	logger          logging.Logger
@@ -71,7 +74,7 @@ func NewUpdater(
 	contractBinding NilGasPriceOracleContract,
 	metrics *metrics.FeeUpdaterMetrics,
 ) *Updater {
-	return &Updater{
+	u := &Updater{
 		config:          config,
 		blockFetcher:    blockFetcher,
 		logger:          logger,
@@ -79,32 +82,20 @@ func NewUpdater(
 		contractBinding: contractBinding,
 		metrics:         metrics,
 	}
+
+	loopCfg := srv.NewWorkerLoopConfig(
+		"l1_fee_updater",
+		config.PollInterval,
+		u.recalcBaseFee,
+		srv.WithClock(clock),
+	)
+
+	u.WorkerLoop = srv.NewWorkerLoop(loopCfg, metrics, logger)
+	return u
 }
 
 func (u *Updater) Name() string {
 	return "l1_fee_updater"
-}
-
-func (u *Updater) Run(ctx context.Context, started chan<- struct{}) error {
-	return u.runUpdater(ctx, started)
-}
-
-func (u *Updater) runUpdater(ctx context.Context, started chan<- struct{}) error {
-	ticker := u.clock.NewTicker(u.config.PollInterval)
-	close(started)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.Chan():
-			u.logger.Debug().Msg("fetcher wake up by timer")
-			if err := u.recalcBaseFee(ctx); err != nil {
-				u.logger.Error().Err(err).Msg("failed to recalculate L2 fee params")
-				u.metrics.RecordError(ctx, u.Name())
-			}
-		}
-	}
 }
 
 func (u *Updater) recalcBaseFee(ctx context.Context) error {
@@ -129,8 +120,8 @@ func (u *Updater) recalcBaseFee(ctx context.Context) error {
 		}
 	}
 	u.logger.Debug().
-		Uint32("shard_id", uint32(shardWithMaxBaseFee)).
-		Uint256("max_current_base_fee", maxBaseFee.String()).
+		Uint32("shardId", uint32(shardWithMaxBaseFee)).
+		Uint256("maxCurrentBaseFee", maxBaseFee.String()).
 		Msg("fetched new value of max base fee")
 
 	maxBaseFee = maxBaseFee.Mul64(uint64(100 + u.config.MarkupPercent)).Div64(100)
@@ -145,8 +136,8 @@ func (u *Updater) recalcBaseFee(ctx context.Context) error {
 	}
 
 	u.logger.Info().
-		Stringer("max_fee_per_gas", update.maxFeePerGas).
-		Stringer("max_priority_fee_per_gas", update.maxPriorityFeePerGas).
+		Stringer("maxFeePerGas", update.maxFeePerGas).
+		Stringer("maxPriorityFeePerGas", update.maxPriorityFeePerGas).
 		Msg("evaluated new fee params")
 
 	return u.applyUpdate(ctx, update)
@@ -190,7 +181,7 @@ func (u *Updater) isFirstUpdate(_ *feeParams) bool {
 func (u *Updater) isMaxUpdateIntervalElapsed(_ *feeParams) bool {
 	now := u.clock.Now()
 	diff := now.Sub(u.state.lastUpdatedTimestamp)
-	u.logger.Debug().Dur("not_updated_for", diff).Msg("check if it is time to update")
+	u.logger.Debug().Dur("notUpdatedFor", diff).Msg("check if it is time to update")
 	return diff >= u.config.MaxUpdateInterval
 }
 
@@ -205,7 +196,7 @@ func (u *Updater) isChangeSignificant(update *feeParams) bool {
 	relativeDiff := float64(diff) / current
 
 	u.logger.Debug().
-		Float64("relative_diff", relativeDiff).
+		Float64("relativeDiff", relativeDiff).
 		Msg("check if maxFeePerGas diff reached threshold")
 
 	return relativeDiff >= u.config.MaxFeePerGasUpdateThreshold
