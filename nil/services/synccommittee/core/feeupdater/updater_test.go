@@ -67,6 +67,9 @@ func (s *UpdaterTestSuite) SetupTest() {
 	)
 
 	s.ctx, s.cancel = context.WithCancel(s.T().Context())
+}
+
+func (s *UpdaterTestSuite) runUpdater() {
 	started := make(chan struct{})
 	stopped := make(chan struct{})
 	go func() {
@@ -149,6 +152,8 @@ func (s *UpdaterTestSuite) TestInitialUpdate() {
 		return block, nil
 	}
 
+	s.runUpdater()
+
 	updateCalled := make(chan struct{})
 	entered := false
 	s.l1ContractMock.SetOracleFeeFunc = func(
@@ -156,6 +161,7 @@ func (s *UpdaterTestSuite) TestInitialUpdate() {
 		params feeParams,
 	) error {
 		s.Require().False(entered, "expected only one update")
+		entered = true
 
 		s.EqualValues(250_000_000, params.maxFeePerGas.Uint64())
 		s.EqualValues(10_000_00, params.maxPriorityFeePerGas.Uint64())
@@ -185,11 +191,13 @@ func (s *UpdaterTestSuite) TestUpdateOnSignificantChange() {
 		return nil
 	}
 
-	for range 2 {
-		s.clock.Advance(s.config.PollInterval)
-		<-updateCalled
-		maxValue.Store(maxValue.Load() * 2)
-	}
+	s.runUpdater()
+
+	<-updateCalled // first update
+
+	maxValue.Store(maxValue.Load() * 2)
+	s.clock.Advance(s.config.PollInterval)
+	<-updateCalled // significant change update
 }
 
 func (s *UpdaterTestSuite) TestUpdateOnTimeInterval() {
@@ -205,6 +213,8 @@ func (s *UpdaterTestSuite) TestUpdateOnTimeInterval() {
 		updateCalled <- struct{}{}
 		return nil
 	}
+
+	s.runUpdater()
 
 	s.clock.Advance(s.config.PollInterval)
 	<-updateCalled // first update
@@ -228,6 +238,8 @@ func (s *UpdaterTestSuite) TestNoRedundantUpdates() {
 		close(initialzed)
 		return nil
 	}
+
+	s.runUpdater()
 
 	s.clock.Advance(s.config.PollInterval)
 	<-initialzed // first update
