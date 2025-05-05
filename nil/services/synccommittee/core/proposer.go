@@ -12,7 +12,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 )
@@ -26,15 +25,16 @@ type ProposerStorage interface {
 }
 
 type ProposerMetrics interface {
-	metrics.BasicMetrics
+	srv.WorkerMetrics
 	RecordStateUpdated(ctx context.Context, proposalData *scTypes.ProposalData)
 }
 
 type proposer struct {
+	concurrent.Suspendable
+
 	storage               ProposerStorage
 	resetter              *reset.StateResetLauncher
 	rollupContractWrapper rollupcontract.Wrapper
-	workerAction          *concurrent.Suspendable
 	metrics               ProposerMetrics
 	logger                logging.Logger
 }
@@ -67,7 +67,8 @@ func NewProposer(
 		metrics:               metrics,
 	}
 
-	p.workerAction = concurrent.NewSuspendable(p.runIteration, config.ProposingInterval)
+	iteration := srv.NewWorkerIteration(logger, metrics, p.Name(), p.updateStateIfReady)
+	p.Suspendable = concurrent.NewSuspendable(iteration.Run, config.ProposingInterval)
 	p.logger = srv.WorkerLogger(logger, p)
 
 	return p, nil
@@ -75,53 +76,6 @@ func NewProposer(
 
 func (*proposer) Name() string {
 	return "proposer"
-}
-
-func (p *proposer) Run(ctx context.Context, started chan<- struct{}) error {
-	p.logger.Info().Msg("starting proposer")
-
-	err := p.workerAction.Run(ctx, started)
-
-	if err == nil || errors.Is(err, context.Canceled) {
-		p.logger.Info().Msg("proposer stopped")
-	} else {
-		p.logger.Error().Err(err).Msg("error running proposer, stopped")
-	}
-
-	return err
-}
-
-func (p *proposer) Pause(ctx context.Context) error {
-	paused, err := p.workerAction.Pause(ctx)
-	if err != nil {
-		return err
-	}
-	if paused {
-		p.logger.Info().Msg("proposer paused")
-	} else {
-		p.logger.Warn().Msg("trying to pause proser, but it's already paused")
-	}
-	return nil
-}
-
-func (p *proposer) Resume(ctx context.Context) error {
-	resumed, err := p.workerAction.Resume(ctx)
-	if err != nil {
-		return err
-	}
-	if resumed {
-		p.logger.Info().Msg("proposer resumed")
-	} else {
-		p.logger.Warn().Msg("trying to resume proser, but it's already resumed")
-	}
-	return nil
-}
-
-func (p *proposer) runIteration(ctx context.Context) {
-	if err := p.updateStateIfReady(ctx); err != nil {
-		p.logger.Error().Err(err).Msg("error during proved batches proposing")
-		p.metrics.RecordError(ctx, p.Name())
-	}
 }
 
 // updateStateIfReady checks if there is new proved state root is ready to be submitted to L1 and

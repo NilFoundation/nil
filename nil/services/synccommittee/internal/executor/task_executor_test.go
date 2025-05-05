@@ -17,7 +17,7 @@ type TestSuite struct {
 	suite.Suite
 	context        context.Context
 	cancellation   context.CancelFunc
-	taskExecutor   TaskExecutor
+	taskExecutor   *taskExecutor
 	requestHandler *api.TaskRequestHandlerMock
 	taskHandler    *api.TaskHandlerMock
 }

@@ -34,13 +34,13 @@ type TaskResultSender struct {
 
 	requestHandler api.TaskRequestHandler
 	resultSource   TaskResultSource
-	logger         logging.Logger
 	config         ResultSenderConfig
 }
 
 func NewTaskResultSender(
 	requestHandler api.TaskRequestHandler,
 	resultSource TaskResultSource,
+	metrics srv.WorkerMetrics,
 	logger logging.Logger,
 ) *TaskResultSender {
 	sender := &TaskResultSender{
@@ -49,15 +49,9 @@ func NewTaskResultSender(
 		config:         MakeDefaultSenderConfig(),
 	}
 
-	sender.WorkerLoop = srv.NewWorkerLoop("task_result_sender", sender.config.SendInterval, sender.runIteration)
-	sender.logger = srv.WorkerLogger(logger, sender)
+	loopConfig := srv.NewWorkerLoopConfig("task_result_sender", sender.config.SendInterval, sender.processPendingResult)
+	sender.WorkerLoop = srv.NewWorkerLoop(loopConfig, metrics, logger)
 	return sender
-}
-
-func (s *TaskResultSender) runIteration(ctx context.Context) {
-	if err := s.processPendingResult(ctx); err != nil {
-		s.logger.Error().Err(err).Msg("failed to send next task result")
-	}
 }
 
 func (s *TaskResultSender) processPendingResult(ctx context.Context) error {
@@ -79,24 +73,24 @@ func (s *TaskResultSender) getPending(ctx context.Context) (*types.TaskResult, e
 		return nil, fmt.Errorf("failed to get next task result: %w", err)
 	}
 	if pendingResult == nil {
-		s.logger.Debug().Msg("no task result available, waiting for new one")
+		s.Logger.Debug().Msg("no task result available, waiting for new one")
 	}
 	return pendingResult, nil
 }
 
 func (s *TaskResultSender) sendPending(ctx context.Context, result *types.TaskResult) error {
-	log.NewTaskResultEvent(s.logger, zerolog.DebugLevel, result).Msg("sending task result")
+	log.NewTaskResultEvent(s.Logger, zerolog.DebugLevel, result).Msg("sending task result")
 
 	if err := s.requestHandler.SetTaskResult(ctx, result); err != nil {
 		return fmt.Errorf("failed to send task result: %w", err)
 	}
 
-	log.NewTaskResultEvent(s.logger, zerolog.DebugLevel, result).Msg("task result successfully sent")
+	log.NewTaskResultEvent(s.Logger, zerolog.DebugLevel, result).Msg("task result successfully sent")
 
 	if err := s.resultSource.SetAsSubmitted(ctx, result.TaskId); err != nil {
 		return fmt.Errorf("failed to set task result as submitted: %w", err)
 	}
 
-	log.NewTaskResultEvent(s.logger, zerolog.DebugLevel, result).Msg("task result is set as submitted")
+	log.NewTaskResultEvent(s.Logger, zerolog.DebugLevel, result).Msg("task result is set as submitted")
 	return nil
 }

@@ -2,6 +2,7 @@ package concurrent
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -86,9 +87,10 @@ func (s *SuspendableTestSuite) Test_Pause_Not_Running_Timeout() {
 
 func (s *SuspendableTestSuite) Test_Pause_Long_Running_Action() {
 	var called atomic.Bool
-	action := func(ctx context.Context) {
+	action := func(ctx context.Context) error {
 		called.Store(true)
 		time.Sleep(500 * time.Millisecond)
+		return nil
 	}
 	suspendable := NewSuspendable(action, testActionInterval)
 
@@ -140,7 +142,7 @@ func (s *SuspendableTestSuite) Test_Pause_Worker_Cancelled() {
 	cancel()
 
 	paused, err := suspendable.Pause(s.ctx)
-	s.Require().ErrorIs(err, ErrWorkerStopped)
+	s.Require().ErrorIs(err, ErrSuspendableTerminated)
 	s.Require().False(paused)
 }
 
@@ -243,17 +245,45 @@ func (s *SuspendableTestSuite) Test_Resume_Worker_Cancelled() {
 	cancel()
 
 	resumed, err := suspendable.Resume(s.ctx)
-	s.Require().ErrorIs(err, ErrWorkerStopped)
+	s.Require().ErrorIs(err, ErrSuspendableTerminated)
 	s.Require().False(resumed)
 }
 
-func (s *SuspendableTestSuite) noopAction() func(ctx context.Context) {
+func (s *SuspendableTestSuite) Test_Terminated_After_Error() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	testErr := errors.New("something went wrong")
+
+	action := func(ctx context.Context) error {
+		time.Sleep(100 * time.Millisecond)
+		return testErr
+	}
+	suspendable := NewSuspendable(action, testActionInterval)
+
+	var errGroup errgroup.Group
+	errGroup.Go(func() error {
+		return suspendable.Run(ctx, nil)
+	})
+
+	err := errGroup.Wait()
+	s.Require().ErrorIs(err, testErr)
+
+	paused, err := suspendable.Pause(s.ctx)
+	s.Require().ErrorIs(err, ErrSuspendableTerminated)
+	s.Require().ErrorIs(err, testErr)
+	s.Require().False(paused)
+}
+
+func (s *SuspendableTestSuite) noopAction() func(ctx context.Context) error {
 	s.T().Helper()
-	return func(ctx context.Context) {}
+	return func(ctx context.Context) error {
+		return nil
+	}
 }
 
 type testSuspendable struct {
-	*Suspendable
+	Suspendable
 	numOfCalls *atomic.Int32
 }
 
@@ -261,8 +291,9 @@ func (s *SuspendableTestSuite) newRunningSuspendable(ctx context.Context) testSu
 	s.T().Helper()
 
 	var numOfCalls atomic.Int32
-	action := func(ctx context.Context) {
+	action := func(ctx context.Context) error {
 		numOfCalls.Add(1)
+		return nil
 	}
 	suspendable := NewSuspendable(action, testActionInterval)
 
