@@ -168,10 +168,6 @@ class ConfigManager {
     return sectionConfig?.[key] ?? fallback;
   }
 
-  public showConfig(): string {
-    return fs.readFileSync(this.configFilePath, "utf8");
-  }
-
   public loadConfig(): Config {
     try {
       return this.parser.load();
@@ -193,6 +189,10 @@ class ConfigManager {
     const config = this.loadConfig();
     if (!config[section]) {
       config[section] = {};
+    }
+
+    if (!Object.values(ConfigKeys).includes(key as ConfigKeys)) {
+      throw new Error(`Key ${key} not supported`);
     }
 
     (config[section] as Record<string, string>)[key] = value;

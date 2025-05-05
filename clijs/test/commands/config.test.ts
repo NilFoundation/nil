@@ -6,14 +6,17 @@ import { CliTest } from "../setup.js";
 describe("config commands", () => {
   CliTest("tests config:set command", async ({ runCommand, cfgPath }) => {
     const testKey = "rpc_endpoint";
+    const invalidTestKey = "rpc_endpoint_invalid";
     const testValue = "test_value";
 
     const { stdout } = await runCommand(["config", "set", testKey, testValue]);
     expect(stdout).to.contains(`Set ${testKey} to ${testValue}`);
 
     const configContent = fs.readFileSync(cfgPath, "utf8");
-    expect(configContent).to.contains(testKey);
-    expect(configContent).to.contains(testValue);
+    expect(configContent).to.contains(`Set ${testKey} to ${testValue}`);
+
+    const { stderr } = await runCommand(["config", "set", invalidTestKey, testValue]);
+    expect(stderr).to.contains(`Key ${invalidTestKey} not supported`)
   });
 
   CliTest("tests config:get command", async ({ runCommand, configManager }) => {

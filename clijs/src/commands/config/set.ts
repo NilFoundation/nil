@@ -18,7 +18,7 @@ export default class ConfigSet extends BaseCommand {
     }),
   };
 
-  public async run(): Promise<undefined> {
+  public async run(): Promise<void> {
     const { args } = await this.parse(ConfigSet);
 
     this.configManager!.updateConfig(ConfigKeys.NilSection, args.key, args.value);
