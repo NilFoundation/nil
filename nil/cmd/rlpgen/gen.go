@@ -537,52 +537,120 @@ type structOp struct {
 }
 
 type structField struct {
-	name string
-	typ  types.Type
-	elem op
+	name      string
+	typ       types.Type
+	elem      op
+	indexPath []int
+	optional  bool
 }
 
-func (bctx *buildContext) makeStructOp(named *types.Named, typ *types.Struct) (op, error) {
-	// Convert fields to []rlpstruct.Field.
-	allStructFields := make([]rlpstruct.Field, 0, typ.NumFields())
-	for i := range typ.NumFields() {
-		f := typ.Field(i)
-		allStructFields = append(allStructFields, rlpstruct.Field{
+// buildSelector constructs selector string obj.Field1.Field2 ... according to index path.
+func buildSelector(base string, index []int, typ *types.Struct) string {
+	selector := base
+	current := typ
+	for _, idx := range index {
+		f := current.Field(idx)
+		selector += "." + f.Name()
+		if next, ok := f.Type().Underlying().(*types.Struct); ok {
+			current = next
+		}
+	}
+	return selector
+}
+
+// collectEmbeddedFields recursively flattens all exported (and tagged) fields,
+// preserving right-to-left order and propagating rlp-tags.
+func (bctx *buildContext) collectEmbeddedFields(st *types.Struct, prefix []int) ([]*structField, error) {
+	// Build the virtual field list for this struct.
+	raw := make([]rlpstruct.Field, st.NumFields())
+	for i := range st.NumFields() {
+		f := st.Field(i)
+		raw[i] = rlpstruct.Field{
 			Name:     f.Name(),
 			Exported: f.Exported(),
 			Index:    i,
-			Tag:      typ.Tag(i),
+			Tag:      st.Tag(i),
 			Type:     *bctx.typeToStructType(f.Type()),
-		})
+		}
 	}
-
-	// Filter/validate fields.
-	fields, tags, err := rlpstruct.ProcessFields(allStructFields)
+	fields, tags, err := rlpstruct.ProcessFields(raw)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create field ops.
-	op := structOp{named: named, typ: typ}
-	for i, field := range fields {
-		// Advanced struct tags are not supported yet.
-		tag := tags[i]
-		if err := checkUnsupportedTags(field.Name, tag); err != nil {
+	out := make([]*structField, 0, len(fields))
+	for k, f := range fields {
+		fv := st.Field(f.Index)
+		tag := tags[k]
+
+		if fv.Embedded() {
+			if sub, ok := fv.Type().Underlying().(*types.Struct); ok {
+				subList, err := bctx.collectEmbeddedFields(sub, append(prefix, f.Index))
+				if err != nil {
+					return nil, err
+				}
+				out = append(out, subList...)
+				continue
+			}
+		}
+
+		if err := checkUnsupportedTags(f.Name, tag); err != nil {
 			return nil, err
 		}
-		typ := typ.Field(field.Index).Type()
-		elem, err := bctx.makeOp(nil, typ, tags[i])
+		op, err := bctx.makeOp(nil, fv.Type(), tag)
 		if err != nil {
-			return nil, fmt.Errorf("field %s: %w", field.Name, err)
+			return nil, fmt.Errorf("field %s: %w", f.Name, err)
 		}
-		f := &structField{name: field.Name, typ: typ, elem: elem}
-		if tag.Optional {
-			op.optionalFields = append(op.optionalFields, f)
-		} else {
-			op.fields = append(op.fields, f)
+		out = append(out, &structField{
+			name:      f.Name,
+			typ:       fv.Type(),
+			elem:      op,
+			indexPath: append(prefix, f.Index),
+			optional:  tag.Optional,
+		})
+	}
+	return out, nil
+}
+
+func validateFieldOrder(list []*structField, owner string) error {
+	var sawOptional bool
+	var firstOptName string
+	for _, f := range list {
+		if f.optional {
+			if !sawOptional {
+				firstOptName = f.name
+			}
+			sawOptional = true
+			continue
+		}
+		if sawOptional {
+			return fmt.Errorf(
+				`rlp: field %q must be "optional" because preceding field %q is optional in %s`,
+				f.name, firstOptName, owner)
 		}
 	}
-	return op, nil
+	return nil
+}
+
+func (bctx *buildContext) makeStructOp(named *types.Named, typ *types.Struct) (op, error) {
+	flat, err := bctx.collectEmbeddedFields(typ, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := validateFieldOrder(flat, types.TypeString(typ, nil)); err != nil {
+		return nil, err
+	}
+
+	sop := structOp{named: named, typ: typ}
+	for _, f := range flat {
+		if f.optional {
+			sop.optionalFields = append(sop.optionalFields, f)
+		} else {
+			sop.fields = append(sop.fields, f)
+		}
+	}
+	return sop, nil
 }
 
 func checkUnsupportedTags(field string, tag rlpstruct.Tags) error {
@@ -597,7 +665,7 @@ func (op structOp) genWrite(ctx *genContext, v string) string {
 	listMarker := ctx.temp()
 	fmt.Fprintf(&b, "%s := w.List()\n", listMarker)
 	for _, field := range op.fields {
-		selector := v + "." + field.name
+		selector := buildSelector(v, field.indexPath, op.typ)
 		fmt.Fprint(&b, field.elem.genWrite(ctx, selector))
 	}
 	op.writeOptionalFields(&b, ctx, v)
@@ -612,13 +680,13 @@ func (op structOp) writeOptionalFields(b *bytes.Buffer, ctx *genContext, v strin
 	// First check zero-ness of all optional fields.
 	zeroV := make([]string, len(op.optionalFields))
 	for i, field := range op.optionalFields {
-		selector := v + "." + field.name
+		selector := buildSelector(v, field.indexPath, op.typ)
 		zeroV[i] = ctx.temp()
 		fmt.Fprintf(b, "%s := %s\n", zeroV[i], nonZeroCheck(selector, field.typ, ctx.qualify))
 	}
 	// Now write the fields.
 	for i, field := range op.optionalFields {
-		selector := v + "." + field.name
+		selector := buildSelector(v, field.indexPath, op.typ)
 		cond := ""
 		for j := i; j < len(op.optionalFields); j++ {
 			if j > i {
@@ -655,7 +723,8 @@ func (op structOp) genDecode(ctx *genContext) (string, string) {
 		result, code := field.elem.genDecode(ctx)
 		fmt.Fprintf(&b, "// %s:\n", field.name)
 		fmt.Fprint(&b, code)
-		fmt.Fprintf(&b, "%s.%s = %s\n", resultV, field.name, result)
+		selector := buildSelector(resultV, field.indexPath, op.typ)
+		fmt.Fprintf(&b, "%s = %s\n", selector, result)
 	}
 	op.decodeOptionalFields(&b, ctx, resultV)
 	fmt.Fprintf(&b, "if err := dec.ListEnd(); err != nil { return err }\n")
@@ -670,7 +739,8 @@ func (op structOp) decodeOptionalFields(b *bytes.Buffer, ctx *genContext, result
 		fmt.Fprintf(b, "// %s:\n", field.name)
 		fmt.Fprintf(b, "if dec.MoreDataInList() {\n")
 		fmt.Fprint(b, code)
-		fmt.Fprintf(b, "%s.%s = %s\n", resultV, field.name, result)
+		selector := buildSelector(resultV, field.indexPath, op.typ)
+		fmt.Fprintf(b, "%s = %s\n", selector, result)
 		fmt.Fprintf(&suffix, "}\n")
 	}
 	_, err := suffix.WriteTo(b)

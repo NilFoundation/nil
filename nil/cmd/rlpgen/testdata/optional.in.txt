@@ -13,5 +13,5 @@ type Test struct {
 	Slice       []uint64           `rlp:"optional"`
 	Array       [3]byte            `rlp:"optional"`
 	NamedStruct Aux                `rlp:"optional"`
-	AnonStruct  struct{ A string } `rlp:"optional"`
+	AnonStruct  struct { A string } `rlp:"optional"`
 }

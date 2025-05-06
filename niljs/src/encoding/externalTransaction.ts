@@ -12,7 +12,9 @@ import { bytesToHex } from "./fromBytes.js";
 function serializeTransactionRLP(tx: ExternalTransactionEnvelope): Uint8Array {
   return rlpEncode([
     tx.isDeploy ? 1 : 0,
-    [tx.feeCredit, tx.maxPriorityFeePerGas, tx.maxFeePerGas],
+    tx.feeCredit,
+    tx.maxPriorityFeePerGas,
+    tx.maxFeePerGas,
     tx.to,
     tx.chainId,
     tx.seqno,
@@ -23,7 +25,9 @@ function serializeTransactionRLP(tx: ExternalTransactionEnvelope): Uint8Array {
 function serializeSignedTransactionRLP(tx: ExternalTransactionEnvelope): Uint8Array {
   return rlpEncode([
     tx.isDeploy ? 1 : 0,
-    [tx.feeCredit, tx.maxPriorityFeePerGas, tx.maxFeePerGas],
+    tx.feeCredit,
+    tx.maxPriorityFeePerGas,
+    tx.maxFeePerGas,
     tx.to,
     tx.chainId,
     tx.seqno,

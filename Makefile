@@ -21,14 +21,14 @@ BINARY_NAMES := cometa=nil-cometa indexer=nil-indexer
 get_bin_name = $(if $(filter $(1)=%,$(BINARY_NAMES)),$(patsubst $(1)=%,%,$(filter $(1)=%,$(BINARY_NAMES))),$(1))
 RLPGEN_BIN   := $(GOBIN)/rlpgen
 
+all: $(COMMANDS)
+
 $(RLPGEN_BIN): | $(GOBIN)
 	@echo "Building rlpgen"
 	$(GOBUILD) -o $@ ./nil/cmd/rlpgen
 
 $(GOBIN):
 	@mkdir -p $@
-
-all: $(COMMANDS)
 
 .PHONY: generated
 generated: rlp pb compile-contracts generate_mocks sync_committee_targets

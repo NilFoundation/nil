@@ -34,7 +34,7 @@ func TestSerializeBlock(t *testing.T) {
 	h, err := common.Keccak(&block2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("1d515ee5be098713b51627ec2f2c44913ef34813498d987f6c889e9195edc99c")
+	h2, err := hex.DecodeString("24ff2a9b05d533266c08cc1906bffcd746ecd1a427255de2319f9a9a45fa1a75")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), common.BytesToHash(h[:]))
@@ -70,7 +70,7 @@ func TestSerializeTransaction(t *testing.T) {
 	h, err := common.Keccak(&transaction2)
 	require.NoError(t, err)
 
-	h2 := common.HexToHash("571e7504ddc5905ba1c9f2239a2fa584f1dabd6141f2260520f0c0cf6db03ddd")
+	h2 := common.HexToHash("5971272eefd23b6e2dcb47985ce10925171f5d33ef0afdf1601c4474a61d7615")
 	require.Equal(t, h2, h)
 }
 

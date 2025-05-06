@@ -24,7 +24,7 @@ func TestTransactionSign(t *testing.T) {
 
 	h, err := txn.SigningHash()
 	require.NoError(t, err)
-	assert.Equal(t, common.HexToHash("1f15bd8cb2bebd36bc5ac900f3d2a50c56822dc06c21f77db90eecc8ea3fcb13"), h)
+	assert.Equal(t, common.HexToHash("cc0edb9f217689230d266603d9c3e79118aedf22c182dedf1aa4577935d35df8"), h)
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
