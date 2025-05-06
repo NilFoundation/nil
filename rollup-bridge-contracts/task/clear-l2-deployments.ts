@@ -19,6 +19,7 @@ task("clear-l2-deployments", "Clears L2DeploymentConfig entries in nil-deploymen
         config.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerImplementation = "";
         config.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy = "";
         config.l2BridgeMessengerConfig.l2BridgeMessengerContracts.proxyAdmin = "";
+        config.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.relayerAddress = "";
 
         config.l2CommonConfig.mockL1Bridge = "";
 

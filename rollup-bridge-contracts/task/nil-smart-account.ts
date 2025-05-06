@@ -11,6 +11,7 @@ import {
 } from "@nilfoundation/niljs";
 import "dotenv/config";
 import { L2NetworkConfig, loadNilNetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
+import { getCheckSummedAddress } from '../scripts/utils/validate-config';
 
 let smartAccount: SmartAccountV1 | null = null;
 
@@ -34,7 +35,6 @@ export async function loadNilSmartAccount(): Promise<SmartAccountV1> {
         address: smartAccountAddress as `0x${string}`,
         pubkey: signer.getPublicKey(),
     });
-    console.log("🟢 Loaded Smart Account:", smartAccount.address);
 
     return smartAccount;
 }
@@ -59,7 +59,6 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
             address: smartAccountAddress,
             pubkey: signer.getPublicKey(),
         });
-        console.log("🟢 Loaded Smart Account:", smartAccount.address);
     } else {
         console.log(`creating new nil smart account`);
         const signer = new LocalECDSAKeySigner({ privateKey: privateKey });
@@ -95,9 +94,9 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
     // update 
     const config: L2NetworkConfig = loadNilNetworkConfig(networkName);
 
-    config.l2CommonConfig.owner = smartAccountAddress;
-    config.l2CommonConfig.admin = smartAccountAddress;
-    config.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.relayerAddress = smartAccountAddress;
+    config.l2CommonConfig.owner = getCheckSummedAddress(smartAccountAddress);
+    config.l2CommonConfig.admin = getCheckSummedAddress(smartAccountAddress);
+    config.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.relayerAddress = getCheckSummedAddress(smartAccountAddress);
 
     // Save the updated config
     saveNilNetworkConfig(networkName, config);

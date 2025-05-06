@@ -2,9 +2,9 @@
   "networks": {
     "local": {
       "l2CommonConfig": {
-        "owner": "0x0001d68c994b2b18fb72eb2b76e681351ddb8c9b",
-        "admin": "0x0001d68c994b2b18fb72eb2b76e681351ddb8c9b",
-        "enshrined_tokens": [
+        "owner": "",
+        "admin": "",
+        "tokens": [
           {
             "name": "USD Coin",
             "symbol": "USDC",
@@ -23,11 +23,12 @@
             "decimals": 18,
             "address": ""
           }
-        ]
+        ],
+        "mockL1Bridge": ""
       },
       "nilMessageTreeConfig": {
         "nilMessageTreeContracts": {
-          "nilMessageTreeImplementationAddress": "0x00016b86bdaf60bf3d59616e4cbdce146bb4c2bc"
+          "nilMessageTreeImplementationAddress": ""
         }
       },
       "l2ETHBridgeVaultConfig": {
@@ -44,7 +45,7 @@
           "l2BridgeMessengerImplementation": ""
         },
         "l2BridgeMessengerDeployerConfig": {
-          "relayerAddress": "0x00018026b25579652d9fe718acfb6bcb1bc0d331",
+          "relayerAddress": "",
           "messageExpiryDeltaValue": 10000
         }
       },
@@ -52,7 +53,7 @@
         "l2EnshrinedTokenBridgeContracts": {
           "proxyAdmin": "",
           "l2EnshrinedTokenBridgeProxy": "",
-          "l1EnshrinedTokenBridgeImplementation": ""
+          "l2EnshrinedTokenBridgeImplementation": ""
         }
       },
       "l2ETHBridgeConfig": {

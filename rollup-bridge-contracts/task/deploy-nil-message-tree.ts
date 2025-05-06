@@ -10,9 +10,13 @@ import {
     Transaction,
     generateRandomPrivateKey,
     waitTillCompleted,
+    getContract,
+    ProcessedReceipt,
 } from "@nilfoundation/niljs";
 import { loadNilSmartAccount } from "./nil-smart-account";
 import { L2NetworkConfig, loadNilNetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
+import { getCheckSummedAddress } from "../scripts/utils/validate-config";
+import { decodeFunctionResult, encodeFunctionData } from "viem";
 
 // npx hardhat deploy-nil-message-tree --networkname local
 task("deploy-nil-message-tree", "Deploys NilMessageTree contract on Nil Chain")
@@ -37,8 +41,6 @@ task("deploy-nil-message-tree", "Deploys NilMessageTree contract on Nil Chain")
 
         const balance = await deployerAccount.getBalance();
 
-        console.log(`deployer-smart-account: ${deployerAccount.address} is on shard: ${deployerAccount.shardId} with balance: ${balance}`);
-
         if (!(balance > BigInt(0))) {
             throw Error(`Insufficient or Zero balance for smart-account: ${deployerAccount.address}`);
         }
@@ -49,11 +51,13 @@ task("deploy-nil-message-tree", "Deploys NilMessageTree contract on Nil Chain")
             abi: NilMessageTreeJson.default.abi as Abi,
             args: [deployerAccount.address],
             salt: BigInt(Math.floor(Math.random() * 10000)),
-            //feeCredit: BigInt("19340180000000"),
+            feeCredit: convertEthToWei(0.001),
         });
 
         console.log(`address from deployment is: ${nilMessageTreeAddress}`);
-        await waitTillCompleted(deployerAccount.client, nilMessageTreeDeployTxn.hash);
+        await waitTillCompleted(deployerAccount.client, nilMessageTreeDeployTxn.hash, {
+            waitTillMainShard: true
+        });
         console.log("✅ Logic Contract deployed with transactionHash:", nilMessageTreeDeployTxn.hash);
 
         if (!nilMessageTreeDeployTxn.hash) {
@@ -69,7 +73,46 @@ task("deploy-nil-message-tree", "Deploys NilMessageTree contract on Nil Chain")
         // save the nilMessageTree Address in the json config for l2
         const config: L2NetworkConfig = loadNilNetworkConfig(networkName);
 
-        config.nilMessageTreeConfig.nilMessageTreeContracts.nilMessageTreeImplementationAddress = nilMessageTreeAddress;
+        config.nilMessageTreeConfig.nilMessageTreeContracts.nilMessageTreeImplementationAddress = getCheckSummedAddress(nilMessageTreeAddress);
+
+        const nilMessageTreeInstance = getContract({
+            client: deployerAccount.client,
+            abi: NilMessageTreeJson.default.abi as Abi,
+            address: config.nilMessageTreeConfig.nilMessageTreeContracts.nilMessageTreeImplementationAddress as `0x${string}`
+        });
+
+
+        const ownerFromDeployedContract = await nilMessageTreeInstance.read.owner([]);
+        if (ownerFromDeployedContract != config.l2CommonConfig.owner) {
+            throw Error(`OwnerAddress in ETHBridgeContract: ${ownerFromDeployedContract} is incorrect, correct owner as per config: ${config.l2CommonConfig.owner}`);
+        }
+
+        const initialiseMessageTreeData = encodeFunctionData({
+            abi: NilMessageTreeJson.default.abi as Abi,
+            functionName: "initialize",
+            args: [],
+        });
+
+        const initialiseMessageTreeResponse = await deployerAccount.sendTransaction({
+            to: config.nilMessageTreeConfig.nilMessageTreeContracts.nilMessageTreeImplementationAddress as `0x${string}`,
+            data: initialiseMessageTreeData,
+            feeCredit: convertEthToWei(0.001),
+        });
+
+        const initializeMessageTreeReceipts: ProcessedReceipt[] = await initialiseMessageTreeResponse.wait();
+
+        // check the first element in the ProcessedReceipt and verify if it is successful
+        if (!initializeMessageTreeReceipts[0].success) {
+            throw Error(`Failed to initialize the NilMessageTree which was deployed at address: ${config.nilMessageTreeConfig.nilMessageTreeContracts.nilMessageTreeImplementationAddress}`);
+        }
+
+        const isMerkleTreeInitializedResponse = await nilMessageTreeInstance.read.isMerkleTreeInitialized([]);
+
+        if (!isMerkleTreeInitializedResponse) {
+            throw Error(`Failed to assert the initialisation transaction on NilMessageTree at address: ${config.nilMessageTreeConfig.nilMessageTreeContracts.nilMessageTreeImplementationAddress}`);
+        }
+
+        console.log(`successfully initialized the NilMessageTree at address: ${config.nilMessageTreeConfig.nilMessageTreeContracts.nilMessageTreeImplementationAddress}`);
 
         // Save the updated config
         saveNilNetworkConfig(networkName, config);
