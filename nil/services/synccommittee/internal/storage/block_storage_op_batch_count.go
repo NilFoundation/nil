@@ -41,6 +41,15 @@ func (t batchCountOp) addStoredCount(tx db.RwTx, delta int32, config BlockStorag
 	return t.putBatchesCount(tx, newBatchesCount)
 }
 
+func (t batchCountOp) hasFreeSpace(tx db.RoTx, config BlockStorageConfig) (bool, error) {
+	currentBatchesCount, err := t.getBatchesCount(tx)
+	if err != nil {
+		return false, err
+	}
+	hasSpace := currentBatchesCount < config.StoredBatchesLimit
+	return hasSpace, nil
+}
+
 func (batchCountOp) getBatchesCount(tx db.RoTx) (uint32, error) {
 	bytes, err := tx.Get(storedBatchesCountTable, mainShardKey)
 	switch {

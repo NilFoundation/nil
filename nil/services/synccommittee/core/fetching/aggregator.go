@@ -42,6 +42,7 @@ type AggregatorBlockStorage interface {
 	GetLatestFetched(ctx context.Context) (types.BlockRefs, error)
 	TryGetProvedStateRoot(ctx context.Context) (*common.Hash, error)
 	TryGetLatestBatch(ctx context.Context) (*types.BlockBatch, error)
+	HasFreeSpace(ctx context.Context) (bool, error)
 	PutBlockBatch(ctx context.Context, batch *types.BlockBatch) error
 }
 
@@ -194,6 +195,8 @@ func (agg *aggregator) processBlockRange(ctx context.Context) error {
 	return nil
 }
 
+// tryPrepareBatch attempts to prepare a batch for processing by either creating a new one (if possible)
+// or returning the latest created batch if it can be extended with additional blocks
 func (agg *aggregator) tryPrepareBatch(ctx context.Context) (*types.BlockBatch, error) {
 	latestBatch, err := agg.blockStorage.TryGetLatestBatch(ctx)
 	if err != nil {
@@ -210,13 +213,25 @@ func (agg *aggregator) tryPrepareBatch(ctx context.Context) (*types.BlockBatch, 
 		return agg.createAndPutNewBatch(ctx, &latestBatch.Id)
 	}
 
-	agg.logger.Debug().Msgf("Latest batch with id=%s is not sealed", latestBatch.Id)
+	agg.logger.Debug().Msgf("Latest batch with id=%s is not sealed, checking constraints", latestBatch.Id)
 
 	checkResult, err := agg.batchChecker.CheckConstraints(ctx, latestBatch)
 	if err != nil {
 		return nil, fmt.Errorf("error checking batch constraints, batchId=%s: %w", latestBatch.Id, err)
 	}
 
+	if checkResult.CanBeExtended() {
+		return latestBatch, nil
+	}
+
+	return nil, agg.handleUnextendableBatch(ctx, latestBatch, checkResult)
+}
+
+func (agg *aggregator) handleUnextendableBatch(
+	ctx context.Context,
+	latestBatch *types.BlockBatch,
+	checkResult *constraints.CheckResult,
+) error {
 	switch checkResult.Type {
 	case constraints.CheckResultTypeShouldBeDiscarded:
 		agg.logger.Warn().
@@ -224,35 +239,45 @@ func (agg *aggregator) tryPrepareBatch(ctx context.Context) (*types.BlockBatch, 
 			Msgf("Discarding latest batch due to constraint(s) violation: %s", checkResult.Details)
 
 		if err := agg.resetter.LaunchPartialResetWithSuspension(ctx, agg, latestBatch.Id); err != nil {
-			return nil, fmt.Errorf("error resetting progress for batch %s: %w", latestBatch.Id, err)
+			return fmt.Errorf("error resetting progress for batch %s: %w", latestBatch.Id, err)
 		}
 
-		return nil, nil
+		return nil
 
 	case constraints.CheckResultTypeShouldBeSealed:
 		agg.logger.Info().
 			Stringer(logging.FieldBatchId, latestBatch.Id).
 			Msgf("Sealing batch: %s", checkResult.Details)
-
 		if err := agg.sealBatch(ctx, latestBatch); err != nil {
-			return nil, fmt.Errorf("error sealing batch: %w", err)
+			return fmt.Errorf("error sealing batch: %w", err)
 		}
-
-		return nil, nil
+		return nil
 
 	case constraints.CheckResultTypeCanBeExtended:
-		return latestBatch, nil
-
+		return agg.errUnexpectedResult(checkResult, latestBatch.Id)
 	default:
-		return nil, fmt.Errorf("unexpected batch check result type: %s, batchId=%s", checkResult.Type, latestBatch.Id)
+		return agg.errUnexpectedResult(checkResult, latestBatch.Id)
 	}
 }
 
+func (*aggregator) errUnexpectedResult(checkResult *constraints.CheckResult, batchId types.BatchId) error {
+	return fmt.Errorf("unexpected batch check result type: %s, batchId=%s", checkResult.Type, batchId)
+}
+
 func (agg *aggregator) createAndPutNewBatch(ctx context.Context, parentId *types.BatchId) (*types.BlockBatch, error) {
+	hasFreeSpace, err := agg.blockStorage.HasFreeSpace(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error checking storage capacity: %w", err)
+	}
+	if !hasFreeSpace {
+		agg.logger.Info().Msg("Storage capacity limit reached, new batch cannot be created")
+		return nil, nil
+	}
+
 	now := agg.clock.Now()
 	nextBatch := types.NewBlockBatch(parentId, now)
 
-	err := agg.blockStorage.PutBlockBatch(ctx, nextBatch)
+	err = agg.blockStorage.PutBlockBatch(ctx, nextBatch)
 	switch {
 	case errors.Is(err, storage.ErrCapacityLimitReached):
 		return nil, fmt.Errorf("%w, cannot create new batch", err)

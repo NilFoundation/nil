@@ -235,7 +235,7 @@ func (s *AggregatorTestSuite) Test_Block_Storage_Capacity_Exceeded() {
 	s.Require().NotNil(latestFetchedBeforeNext)
 
 	err = agg.processBlockRange(s.ctx)
-	s.Require().ErrorIs(err, storage.ErrCapacityLimitReached)
+	s.Require().NoError(err)
 
 	latestFetchedAfterNext, err := blockStorage.GetLatestFetched(s.ctx)
 	s.Require().NoError(err)

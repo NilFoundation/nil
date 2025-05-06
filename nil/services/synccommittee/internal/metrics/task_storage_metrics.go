@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/telemetry/telattr"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -87,8 +86,7 @@ func (h *taskStorageMetricsHandler) registerStatsCallback(meter telemetry.Meter)
 	_, err := meter.RegisterCallback(
 		func(ctx context.Context, observer metric.Observer) error {
 			provider, ok := h.provider.Load().(types.TaskStatsProvider)
-			check.PanicIfNot(ok)
-			if provider == nil {
+			if !ok || provider == nil {
 				return nil
 			}
 

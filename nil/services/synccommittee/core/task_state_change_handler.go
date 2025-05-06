@@ -61,12 +61,12 @@ func (h *taskStateChangeHandler) OnTaskTerminated(
 	switch {
 	case result.IsSuccess():
 		log.NewTaskResultEvent(h.logger, zerolog.InfoLevel, result).
-			Msg("received successful task result")
+			Msg("Received successful task result")
 		return h.onTaskSuccess(ctx, task, result)
 
 	case result.HasRetryableError():
 		log.NewTaskResultEvent(h.logger, zerolog.WarnLevel, result).
-			Msg("task execution failed with retryable error")
+			Msg("Task execution failed with retryable error")
 		return nil
 
 	default:
@@ -76,7 +76,7 @@ func (h *taskStateChangeHandler) OnTaskTerminated(
 
 func (h *taskStateChangeHandler) resetState(ctx context.Context, task *types.Task, result *types.TaskResult) error {
 	log.NewTaskResultEvent(h.logger, zerolog.WarnLevel, result).
-		Msg("task execution failed with critical error, state will be reset")
+		Msg("Task execution failed with critical error, state will be reset")
 
 	err := h.stateResetLauncher.LaunchPartialResetWithSuspension(ctx, nil, task.BatchId)
 
@@ -96,13 +96,13 @@ func (h *taskStateChangeHandler) resetState(ctx context.Context, task *types.Tas
 func (h *taskStateChangeHandler) onTaskSuccess(ctx context.Context, task *types.Task, result *types.TaskResult) error {
 	if task.TaskType != types.ProofBatch {
 		log.NewTaskEvent(h.logger, zerolog.DebugLevel, task).
-			Msgf("task has type %s, just update pending dependency", task.TaskType)
+			Msgf("Task has type %s, just update pending dependency", task.TaskType)
 		return nil
 	}
 
 	log.NewTaskResultEvent(h.logger, zerolog.InfoLevel, result).
 		Stringer(logging.FieldBatchId, task.BatchId).
-		Msg("Proof batch completed")
+		Msg("Batch proof generation is completed successfully")
 
 	err := h.batchSetter.SetBatchAsProved(ctx, task.BatchId)
 
