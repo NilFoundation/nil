@@ -57,7 +57,16 @@ func init() {
 	testPackageRLP = pkgs[0].Types
 }
 
-var tests = []string{"uints", "nil", "rawvalue", "optional", "bigint", "uint256", "array"}
+var tests = []string{
+	"uints",
+	"nil",
+	"rawvalue",
+	"optional",
+	"bigint",
+	"uint256",
+	"array",
+	"embed",
+}
 
 func TestOutput(t *testing.T) {
 	t.Parallel()

@@ -2,11 +2,11 @@
 
 package test
 
-type Aux struct{
+type Aux struct {
     A uint32
 }
 
-type Test struct{
+type Test struct {
     Uint8 *byte `rlp:"nil"`
     Uint8List *byte `rlp:"nilList"`
 

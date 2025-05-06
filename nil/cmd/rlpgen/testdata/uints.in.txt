@@ -2,7 +2,7 @@
 
 package test
 
-type Test struct{
+type Test struct {
      A uint8
      B uint16
      C uint32
