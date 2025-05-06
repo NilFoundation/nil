@@ -108,6 +108,47 @@ func (s *BlockStorageTestSuite) Test_PutBlockBatch_Capacity_Exceeded() {
 	s.Require().ErrorIs(err, ErrCapacityLimitReached)
 }
 
+func (s *BlockStorageTestSuite) Test_HasFreeSpace_Limit_Reached() {
+	const batchesCount = 5
+	storage := s.newTestBlockStorage(NewBlockStorageConfig(batchesCount))
+	batches := testaide.NewBatchesSequence(batchesCount)
+
+	for _, batch := range batches {
+		hasFreeSpace, err := storage.HasFreeSpace(s.ctx)
+		s.Require().NoError(err)
+		s.Require().True(hasFreeSpace)
+
+		err = storage.PutBlockBatch(s.ctx, batch)
+		s.Require().NoError(err)
+	}
+
+	hasFreeSpace, err := storage.HasFreeSpace(s.ctx)
+	s.Require().NoError(err)
+	s.Require().False(hasFreeSpace)
+}
+
+func (s *BlockStorageTestSuite) Test_HasFreeSpace_AfterReset() {
+	const batchesCount = 5
+	storage := s.newTestBlockStorage(NewBlockStorageConfig(batchesCount))
+	batches := testaide.NewBatchesSequence(batchesCount)
+
+	hasFreeSpaceInitially, err := storage.HasFreeSpace(s.ctx)
+	s.Require().NoError(err)
+	s.Require().True(hasFreeSpaceInitially)
+
+	for _, batch := range batches {
+		err := storage.PutBlockBatch(s.ctx, batch)
+		s.Require().NoError(err)
+	}
+
+	err = storage.ResetAllBatches(s.ctx)
+	s.Require().NoError(err)
+
+	hasFreeSpaceAfterReset, err := storage.HasFreeSpace(s.ctx)
+	s.Require().NoError(err)
+	s.Require().True(hasFreeSpaceAfterReset)
+}
+
 func (s *BlockStorageTestSuite) Test_PutBlockBatch_Free_Capacity_On_SetBatchAsProposed() {
 	batches := testaide.NewBatchesSequence(2)
 
@@ -614,6 +655,26 @@ func (s *BlockStorageTestSuite) Test_ResetAllBatches() {
 		s.Require().NoError(err)
 		s.Require().Nil(fromStorage)
 	}
+}
+
+func (s *BlockStorageTestSuite) Test_ResetAllBatches_Latest_Batch_Is_Nil() {
+	batches := testaide.NewBatchesSequence(resetTestBatchesCount)
+
+	for _, batch := range batches {
+		err := s.bs.PutBlockBatch(s.ctx, batch)
+		s.Require().NoError(err)
+	}
+
+	latestBeforeReset, err := s.bs.TryGetLatestBatch(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Equal(batches[len(batches)-1], latestBeforeReset)
+
+	err = s.bs.ResetAllBatches(s.ctx)
+	s.Require().NoError(err)
+
+	latestAfterReset, err := s.bs.TryGetLatestBatch(s.ctx)
+	s.Require().NoError(err)
+	s.Require().Nil(latestAfterReset)
 }
 
 func (s *BlockStorageTestSuite) Test_ResetAllBatches_1K_Batches_To_Purge() {

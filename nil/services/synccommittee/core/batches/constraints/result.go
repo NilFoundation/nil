@@ -54,6 +54,10 @@ func (r *CheckResult) JoinWith(other *CheckResult) {
 	r.Details = joinedDetails
 }
 
+func (r *CheckResult) CanBeExtended() bool {
+	return r.Type == CheckResultTypeCanBeExtended
+}
+
 func newCheckResult(resultType CheckResultType, format string, args ...any) CheckResult {
 	return CheckResult{
 		Type:    resultType,

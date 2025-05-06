@@ -57,7 +57,7 @@ func (c *checker) CheckConstraints(ctx context.Context, batch *types.BlockBatch)
 	} else {
 		c.logger.Info().
 			Stringer(logging.FieldBatchId, batch.Id).
-			Msgf("Batch constraint(s) are violated, result: %s", batchResult)
+			Msgf("Batch constraints are violated, result: %s", batchResult)
 	}
 
 	return batchResult, nil

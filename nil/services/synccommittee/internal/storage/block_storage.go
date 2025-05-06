@@ -189,6 +189,16 @@ func (bs *BlockStorage) TryGetBlock(ctx context.Context, id scTypes.BlockId) (*j
 	return &entry.Block, nil
 }
 
+func (bs *BlockStorage) HasFreeSpace(ctx context.Context) (bool, error) {
+	tx, err := bs.database.CreateRoTx(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	return bs.ops.hasFreeSpace(tx, bs.config)
+}
+
 // PutBlockBatch creates a new batch in the storage or updates an existing one.
 func (bs *BlockStorage) PutBlockBatch(ctx context.Context, batch *scTypes.BlockBatch) error {
 	if batch == nil {
@@ -543,6 +553,10 @@ func (bs *BlockStorage) resetAllBatchesImpl(ctx context.Context) error {
 
 	if err := bs.ops.resetLatestFetched(tx); err != nil {
 		return fmt.Errorf("failed to reset latest fetched block: %w", err)
+	}
+
+	if err := bs.ops.putLatestBatchId(tx, nil); err != nil {
+		return fmt.Errorf("failed to reset latest batch id: %w", err)
 	}
 
 	if err := bs.deleteBatches(tx, func(batch *batchEntry) bool { return false }); err != nil {
