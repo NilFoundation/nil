@@ -1,3 +1,4 @@
+import { encode as rlpEncode } from "@ethereumjs/rlp";
 import { numberToBytesBE } from "@noble/curves/abstract/utils";
 import { keccak_256 } from "@noble/hashes/sha3";
 import type { PublicClient } from "../clients/PublicClient.js";
@@ -7,7 +8,29 @@ import type { IDeployData } from "../types/IDeployData.js";
 import { getShardIdFromAddress } from "../utils/address.js";
 import { prepareDeployPart } from "./deployPart.js";
 import { bytesToHex } from "./fromBytes.js";
-import { SszSignedTransactionSchema, SszTransactionSchema } from "./ssz.js";
+
+function serializeTransactionRLP(tx: ExternalTransactionEnvelope): Uint8Array {
+  return rlpEncode([
+    tx.isDeploy ? 1 : 0,
+    [tx.feeCredit, tx.maxPriorityFeePerGas, tx.maxFeePerGas],
+    tx.to,
+    tx.chainId,
+    tx.seqno,
+    tx.data,
+  ]);
+}
+
+function serializeSignedTransactionRLP(tx: ExternalTransactionEnvelope): Uint8Array {
+  return rlpEncode([
+    tx.isDeploy ? 1 : 0,
+    [tx.feeCredit, tx.maxPriorityFeePerGas, tx.maxFeePerGas],
+    tx.to,
+    tx.chainId,
+    tx.seqno,
+    tx.data,
+    tx.authData,
+  ]);
+}
 
 /**
  * The envelope for an external transaction (a transaction sent by a user, a dApp, etc.)
@@ -112,17 +135,7 @@ export class ExternalTransactionEnvelope {
    * @returns {Uint8Array} The encoded external transaction.
    */
   public encode(): Uint8Array {
-    return SszSignedTransactionSchema.serialize({
-      feeCredit: this.feeCredit,
-      maxPriorityFeePerGas: this.maxPriorityFeePerGas,
-      maxFeePerGas: this.maxFeePerGas,
-      seqno: this.seqno,
-      chainId: this.chainId,
-      to: this.to,
-      data: this.data,
-      deploy: this.isDeploy,
-      authData: this.authData,
-    });
+    return serializeSignedTransactionRLP(this);
   }
   /**
    * Provides the hash tree root of the external transaction.
@@ -144,16 +157,7 @@ export class ExternalTransactionEnvelope {
    */
   public signingHash(): Uint8Array {
     // print all the fields
-    const raw = SszTransactionSchema.serialize({
-      feeCredit: this.feeCredit,
-      maxPriorityFeePerGas: this.maxPriorityFeePerGas,
-      maxFeePerGas: this.maxFeePerGas,
-      seqno: this.seqno,
-      chainId: this.chainId,
-      to: this.to,
-      data: this.data,
-      deploy: this.isDeploy,
-    });
+    const raw = serializeTransactionRLP(this);
     return keccak_256(raw);
   }
   /**
@@ -172,17 +176,8 @@ export class ExternalTransactionEnvelope {
     hash: Uint8Array;
   }> {
     const signature = await this.sign(signer);
-    const raw = SszSignedTransactionSchema.serialize({
-      feeCredit: this.feeCredit,
-      maxPriorityFeePerGas: this.maxPriorityFeePerGas,
-      maxFeePerGas: this.maxFeePerGas,
-      seqno: this.seqno,
-      chainId: this.chainId,
-      to: this.to,
-      data: this.data,
-      deploy: this.isDeploy,
-      authData: signature,
-    });
+    this.authData = signature;
+    const raw = serializeSignedTransactionRLP(this);
     const shardIdPart = numberToBytesBE(getShardIdFromAddress(bytesToHex(this.to)), 2);
     const hashPart = keccak_256(raw);
     const hash = new Uint8Array([...shardIdPart, ...hashPart.slice(2)]);
