@@ -15,6 +15,7 @@ import {
 import { loadNilSmartAccount } from "./nil-smart-account";
 import { L2NetworkConfig, loadNilNetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
 import { decodeFunctionResult, encodeFunctionData } from "viem";
+import { getCheckSummedAddress, validateAddress } from "../scripts/utils/validate-config";
 
 // npx hardhat deploy-l2-eth-bridge --networkname local
 task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
@@ -41,8 +42,6 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
 
         const balance = await deployerAccount.getBalance();
 
-        console.log(`deployer-smart-account: ${deployerAccount.address} is on shard: ${deployerAccount.shardId} with balance: ${balance}`);
-
         if (!(balance > BigInt(0))) {
             throw Error(`Insufficient or Zero balance for smart-account: ${deployerAccount.address}`);
         }
@@ -50,17 +49,29 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
         // save the nilMessageTree Address in the json config for l2
         const l2NetworkConfig: L2NetworkConfig = loadNilNetworkConfig(networkName);
 
+        validateAddress(l2NetworkConfig.l2CommonConfig.owner, "l2CommonConfig.owner");
+        validateAddress(l2NetworkConfig.l2CommonConfig.admin, "l2CommonConfig.admin");
+        validateAddress(
+            l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy,
+            "l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy"
+        );
+        validateAddress(
+            l2NetworkConfig.l2ETHBridgeVaultConfig.l2ETHBridgeVaultContracts.l2ETHBridgeVaultProxy,
+            "l2ETHBridgeVaultConfig.l2ETHBridgeVaultContracts.l2ETHBridgeVaultProxy"
+        );
+
         const { tx: l2EthBridgeImplementationDeploymentTx, address: l2EthBridgeImplementationAddress } = await deployerAccount.deployContract({
             shardId: 1,
             bytecode: L2ETHBridgeJson.default.bytecode as `0x${string}`,
             abi: L2ETHBridgeJson.default.abi as Abi,
             args: [],
             salt: BigInt(Math.floor(Math.random() * 10000)),
-            feeCredit: BigInt("19340180000000"),
+            feeCredit: convertEthToWei(0.001),
         });
 
-        console.log(`address from deployment is: ${l2EthBridgeImplementationAddress} and transactionHash: ${l2EthBridgeImplementationDeploymentTx.hash}`);
-        await waitTillCompleted(deployerAccount.client, l2EthBridgeImplementationDeploymentTx.hash);
+        await waitTillCompleted(deployerAccount.client, l2EthBridgeImplementationDeploymentTx.hash, {
+            waitTillMainShard: true
+        });
 
         if (!l2EthBridgeImplementationDeploymentTx.hash) {
             throw Error(`Invalid transaction output from deployContract call for L2ETHBridge Contract`);
@@ -70,14 +81,13 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
             throw Error(`Invalid address output from deployContract call for L2ETHBridge Contract`);
         }
 
-        console.log(`L2ETHBridge contract deployed at address: ${l2EthBridgeImplementationAddress} and with transactionHash: ${l2EthBridgeImplementationDeploymentTx.hash}`);
-
-        l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeImplementation = l2EthBridgeImplementationAddress;
+        l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeImplementation = getCheckSummedAddress(l2EthBridgeImplementationAddress);
 
         const initData = encodeFunctionData({
             abi: L2ETHBridgeJson.default.abi,
             functionName: "initialize",
-            args: [l2NetworkConfig.l2CommonConfig.owner, l2NetworkConfig.l2CommonConfig.admin,
+            args: [l2NetworkConfig.l2CommonConfig.owner,
+            l2NetworkConfig.l2CommonConfig.admin,
             l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy,
             l2NetworkConfig.l2ETHBridgeVaultConfig.l2ETHBridgeVaultContracts.l2ETHBridgeVaultProxy],
         });
@@ -89,10 +99,20 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
             salt: BigInt(Math.floor(Math.random() * 10000)),
             feeCredit: convertEthToWei(0.001),
         });
-        await waitTillCompleted(deployerAccount.client, l2EthBridgeProxyDeploymentTx.hash);
-        console.log("✅ Transparent Proxy Contract deployed at:", l2EthBridgeProxyAddress);
+        await waitTillCompleted(deployerAccount.client, l2EthBridgeProxyDeploymentTx.hash, {
+            waitTillMainShard: true
+        });
 
-        l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy = l2EthBridgeProxyAddress;
+        l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy = getCheckSummedAddress(l2EthBridgeProxyAddress);
+
+        const proxyContractInsntace = getContract({
+            client: deployerAccount.client,
+            abi: TransparentUpgradeableProxy.default.abi,
+            address: l2EthBridgeProxyAddress,
+        });
+
+        const proxyAdminAddress = await proxyContractInsntace.read.fetchAdmin([]);
+        l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.proxyAdmin = getCheckSummedAddress(proxyAdminAddress as `0x${string}`);
 
         const l2EthBridgeProxyInstance = getContract({
             client: deployerAccount.client,
@@ -101,25 +121,19 @@ task("deploy-l2-eth-bridge", "Deploys L2ETHBridge contract on Nil Chain")
         });
 
         const l2ETHBridgeVault = await l2EthBridgeProxyInstance.read.l2ETHBridgeVault([]);
-        console.log(`l2ETHBridgeVault queried from L2ETHBridge is: ${l2ETHBridgeVault}`);
+        if (l2ETHBridgeVault != l2NetworkConfig.l2ETHBridgeVaultConfig.l2ETHBridgeVaultContracts.l2ETHBridgeVaultProxy) {
+            throw Error(`l2ETHBridgeVault was incorrectly initialised to address: ${l2ETHBridgeVault}. expectedValue: ${l2NetworkConfig.l2ETHBridgeVaultConfig.l2ETHBridgeVaultContracts.l2ETHBridgeVaultProxy}`);
+        }
 
-        const l2ETHBridgeVaultOwner = await l2EthBridgeProxyInstance.read.owner([]);
-        console.log(`l2ETHBridgeVaultOwner queried from L2ETHBridgeVault is: ${l2ETHBridgeVaultOwner}`);
+        const l2ETHBridgeOwner = await l2EthBridgeProxyInstance.read.owner([]);
+        if (l2ETHBridgeOwner != l2NetworkConfig.l2CommonConfig.owner) {
+            throw Error(`OwnerAddress in ETHBridgeContract: ${l2ETHBridgeOwner} is incorrect, correct owner as per config: ${l2NetworkConfig.l2CommonConfig.owner}`);
+        }
 
-        const l2EthBridgeVaultImplementation = await l2EthBridgeProxyInstance.read.getImplementation([]);
-        console.log(`l2EthBridgeVaultImplementation queried from L2ETHBridgeVault is: ${l2EthBridgeVaultImplementation}`);
-
-        const proxyContractInsntace = getContract({
-            client: deployerAccount.client,
-            abi: TransparentUpgradeableProxy.default.abi,
-            address: l2EthBridgeProxyAddress,
-        });
-
-        console.log("Properties of proxyContractInsntace:", Object.keys(proxyContractInsntace.read));
-
-        const proxyAdminAddress = await proxyContractInsntace.read.fetchAdmin([]);
-        console.log("✅ ProxyAdmin Address:", proxyAdminAddress);
-        l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.proxyAdmin = proxyAdminAddress as `0x${string}`;
+        const implementationAddressFromContract = await l2EthBridgeProxyInstance.read.getImplementation([]);
+        if (implementationAddressFromContract != l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeImplementation) {
+            throw Error(`L2ETHBridgeImplementation in Proxy is incorrect`);
+        }
 
         // Save the updated config
         saveNilNetworkConfig(networkName, l2NetworkConfig);

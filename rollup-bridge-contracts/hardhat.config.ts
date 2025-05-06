@@ -21,16 +21,14 @@ const remappings = getRemappings();
 
 console.log("Remappings:", remappings);
 
+import "./task/clear-l2-deployments";
 import "./task/generate-nil-smart-account";
 import "./task/deploy-nil-message-tree";
+import "./task/deploy-l2-eth-bridge-vault";
 import "./task/deploy-l2-bridge-messenger";
 import "./task/deploy-l2-eth-bridge";
-import "./task/deploy-l2-eth-bridge-vault";
 import "./task/deploy-l2-enshrined-token-bridge";
-import "./task/deploy-my-logic-basic";
-import "./task/clear-l2-deployments";
-import "./task/deploy-my-logic-basic-public";
-import "./task/deploy-nil-eth-bridge";
+import "./task/l2-task-runner";
 
 const config: HardhatUserConfig = {
   ignition: {

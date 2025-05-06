@@ -71,9 +71,9 @@ contract L2BridgeMessenger is
                                     CONSTRUCTOR
     //////////////////////////////////////////////////////////////////////////*/
 
-  // constructor() {
-  //   _disableInitializers();
-  // }
+  constructor() {
+    _disableInitializers();
+  }
 
   /*//////////////////////////////////////////////////////////////////////////
                                     INITIALIZER

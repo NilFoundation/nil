@@ -49,6 +49,14 @@ contract NilMessageTree is AppendOnlyMerkleTree, Ownable, Initializable, INilMes
   }
 
   /**
+   * @dev Public function to check if the Merkle tree has been initialized.
+   * @return bool True if the Merkle tree is initialized, false otherwise.
+   */
+  function isMerkleTreeInitialized() public view returns (bool) {
+    return _isMerkleTreeInitialized();
+  }
+
+  /**
    * @notice sets the messenger address.
    * @param messengerAddress The address of the messenger contract that is authorized to append messages.
    */

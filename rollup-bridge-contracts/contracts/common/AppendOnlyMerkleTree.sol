@@ -49,6 +49,15 @@ abstract contract AppendOnlyMerkleTree is IAppendOnlyMerkleTree {
   }
 
   /**
+   * @dev Public function to check if the Merkle tree has been initialized.
+   * @return bool True if the Merkle tree is initialized, false otherwise.
+   */
+  function _isMerkleTreeInitialized() internal view returns (bool) {
+    // Check if the last element of zeroHashes is non-zero
+    return zeroHashes[MAX_TREE_HEIGHT - 1] != bytes32(0);
+  }
+
+  /**
    * @notice Appends a new leaf hash to the Merkle tree and updates the Merkle root.
    * @dev This function computes the new Merkle root incrementally by hashing the new leaf
    *      with existing branches and zero hashes as needed.
