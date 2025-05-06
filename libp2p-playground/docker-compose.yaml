@@ -1,0 +1,136 @@
+name: libp2p-playground
+services:
+  # Key-value storage for exchanging data (such as libp2p identifiers)
+  # between nodes on different subnets
+  registry:
+    image: redis:7-alpine
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli ping | grep PONG
+    networks:
+      internet:
+        aliases:
+          - registry
+      lan_dialer:
+        aliases:
+          - registry
+      lan_listener:
+        aliases:
+          - registry
+
+  # NAT simulator for listener subnet
+  listener_router:
+    build: ./router
+    init: true
+    environment:
+      DELAY_MS: 100
+    networks:
+      lan_listener: {}
+      internet: {}
+    cap_add:
+      - NET_ADMIN
+
+  # Host in our private network which wants to be reachable outside over relay
+  listener:
+    build: ./listener
+    depends_on:
+      registry:
+        condition: service_healthy
+      listener_router:
+        condition: service_healthy
+      relay:
+        condition: service_healthy
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -ex
+        ROUTER_IP=$$(dig +short listener_router)
+        INTERNET_SUBNET=$$(curl --fail --silent --unix-socket /var/run/docker.sock http://localhost/networks/libp2p-playground_internet | jq -r ".IPAM.Config[0].Subnet")
+        ip route add $$INTERNET_SUBNET via $$ROUTER_IP dev eth0
+        tcpdump -i eth0 -w /tmp/listener.pcap & sleep 2
+        listener
+    environment:
+      REDIS_ADDR: registry:6379
+    networks:
+      lan_listener: {}
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      # For Docker Engine API calls
+      - /var/run/docker.sock:/var/run/docker.sock
+      # For tcpdump
+      - ./:/tmp:rw
+
+  # NAT simulator for dialer subnet
+  dialer_router:
+    build: ./router
+    init: true
+    environment:
+      DELAY_MS: 100
+    networks:
+      lan_dialer: {}
+      internet: {}
+    cap_add:
+      - NET_ADMIN
+
+  # Host behind NAT (in external network) reaching node via relay
+  dialer:
+    build: ./dialer
+    depends_on:
+      registry:
+        condition: service_healthy
+      dialer_router:
+        condition: service_healthy
+      relay:
+        condition: service_healthy
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -ex
+        ROUTER_IP=$$(dig +short dialer_router)
+        INTERNET_SUBNET=$$(curl --fail --silent --unix-socket /var/run/docker.sock http://localhost/networks/libp2p-playground_internet | jq -r '.IPAM.Config[0].Subnet')
+        ip route add $$INTERNET_SUBNET via $$ROUTER_IP dev eth0
+        tcpdump -i eth0 -w /tmp/dialer.pcap & sleep 2 # Let tcpdump start up
+        dialer
+    environment:
+      REDIS_ADDR: registry:6379
+    networks:
+      lan_dialer: {}
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      # For Docker Engine API calls
+      - /var/run/docker.sock:/var/run/docker.sock
+      # For tcpdump
+      - ./:/tmp:rw
+
+  relay:
+    build: ./relay
+    depends_on:
+      registry:
+        condition: service_healthy
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -ex
+        tc qdisc add dev eth0 root netem delay 25ms; # Add a delay to all relayed connections
+        relay
+    environment:
+      REDIS_ADDR: registry:6379
+    networks:
+      internet: {}
+    cap_add:
+      - NET_ADMIN
+
+networks:
+  lan_dialer: {}
+  lan_listener: {}
+  internet:
+    ipam:
+      config:
+        - subnet: 51.24.23.176/28
+
