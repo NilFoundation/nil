@@ -29,6 +29,7 @@ import "./task/deploy-l2-enshrined-token-bridge";
 import "./task/set-eth-bridge-vault-dependencies";
 import "./task/set-eth-bridge-dependencies";
 import "./task/set-enshrined-token-bridge-dependencies";
+import "./task/authorise-l2-bridges-in-messenger";
 import "./task/l2-task-runner";
 
 const config: HardhatUserConfig = {
