@@ -15,12 +15,12 @@ export default class ConfigGet extends BaseCommand {
     }),
   };
 
-  public async run(): Promise<string> {
+  public async run(): Promise<string | null> {
     const { args } = await this.parse(ConfigGet);
 
     const value = this.configManager!.getConfigValue(ConfigKeys.NilSection, args.name);
     if (!value) {
-      throw new Error(`Key ${args.name} not found`);
+      return null;
     }
     this.log(value);
     return value;
