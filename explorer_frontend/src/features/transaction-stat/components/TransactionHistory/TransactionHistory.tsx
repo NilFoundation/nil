@@ -17,9 +17,9 @@ const ErrorView = () => {
   );
 };
 
-export const TransactionStat = () => {
+export const TransactionHistory = () => {
   return (
-    <InfoContainer title="Transactions">
+    <InfoContainer title="Transactions history">
       <ErrorBoundary fallback={<ErrorView />}>
         <Chart />
       </ErrorBoundary>

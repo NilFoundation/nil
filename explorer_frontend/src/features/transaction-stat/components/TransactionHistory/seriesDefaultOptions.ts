@@ -1,10 +1,13 @@
 import { COLORS } from "@nilfoundation/ui-kit";
-import type { AreaSeriesPartialOptions, AutoscaleInfoProvider } from "lightweight-charts";
+import type {
+  AreaSeriesPartialOptions,
+  AutoscaleInfoProvider,
+} from "lightweight-charts";
 
 const autoscaleInfoProvider: AutoscaleInfoProvider = (original) => {
   const res = original();
 
-  if (!res) {
+  if (!res || !res.priceRange) {
     return null;
   }
 
@@ -21,14 +24,15 @@ const autoscaleInfoProvider: AutoscaleInfoProvider = (original) => {
 };
 
 export const seriesDefaultOptions: AreaSeriesPartialOptions = {
-  priceFormat: {
-    type: "price",
-    precision: 2,
-    minMove: 0.01,
-  },
   priceScaleId: "left",
   priceLineVisible: false,
   lastValueVisible: false,
-  topColor: COLORS.blue400,
+  topColor: COLORS.gray200,
+  lineWidth: 1,
+  lineColor: COLORS.gray100,
+  bottomColor: "transparent",
+  crosshairMarkerBackgroundColor: COLORS.gray900,
+  crosshairMarkerBorderColor: COLORS.gray100,
+  crosshairMarkerBorderWidth: 1,
   autoscaleInfoProvider,
 };
