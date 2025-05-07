@@ -72,7 +72,7 @@ task("set-eth-bridge-dependencies", "Set dependencies of L2ETHBridge contract")
             address: l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy as `0x${string}`
         });
 
-        const CounterpartyBridgeFromL2ETHBridgeContract = await l2ETHBridgeProxyInstance.read.CounterpartyBridge([]);
+        const CounterpartyBridgeFromL2ETHBridgeContract = await l2ETHBridgeProxyInstance.read.counterpartyBridge([]);
         if (!CounterpartyBridgeFromL2ETHBridgeContract || CounterpartyBridgeFromL2ETHBridgeContract != getCheckSummedAddress(l1NetworkConfig.l1ETHBridge.l1ETHBridgeProxy)) {
             throw Error(`Invalid counterpartyBridge: ${CounterpartyBridgeFromL2ETHBridgeContract} was set in L2ETHBridge. expected counterpartyBridge is: ${getCheckSummedAddress(l1NetworkConfig.l1ETHBridge.l1ETHBridgeProxy)}`);
         }
