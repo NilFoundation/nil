@@ -43,5 +43,8 @@ task("l2-task-runner", "Runs multiple Hardhat tasks")
         console.log("Running set-enshrined-token-bridge-dependencies...");
         await hre.run("set-enshrined-token-bridge-dependencies", { networkname: networkName, l1networkname: l1NetworkName });
 
+        console.log("Running fund-l2-eth-bridge-vault...");
+        await hre.run("fund-l2-eth-bridge-vault", { networkname: networkName, l1networkname: l1NetworkName });
+
         console.log("All tasks completed.");
     });
