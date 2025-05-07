@@ -7,8 +7,12 @@ import { setTokenMappings } from './bridges/l1/set-token-mappings';
 import { setUserGasFeeInOracle } from './bridges/l1/set-user-gas-fee-in-oracle';
 
 // npx hardhat run scripts/wiring/wiring-master.ts --network geth
-export async function wiringMaster() {
+export async function wiringMasterRunner() {
     const networkName = network.name;
+    await wiringMaster(networkName);
+}
+
+export async function wiringMaster(networkName: string) {
     await authoriseBridges(networkName);
     await setMessengerInBridges(networkName);
     await setMockCounterpartyInBridges(networkName);
@@ -17,11 +21,11 @@ export async function wiringMaster() {
     await setUserGasFeeInOracle(networkName);
 }
 
-async function main() {
-    await wiringMaster();
-}
+// async function main() {
+//     await wiringMasterRunner();
+// }
 
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});
+// main().catch((error) => {
+//     console.error(error);
+//     process.exit(1);
+// });
