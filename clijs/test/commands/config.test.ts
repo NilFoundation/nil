@@ -33,8 +33,8 @@ describe("config commands", () => {
   CliTest("tests config:get with non-existent key", async ({ runCommand }) => {
     const nonExistentKey = "rpc_endpoint_new";
 
-    const { error } = await runCommand(["config", "get", nonExistentKey]);
-    expect(error?.message).to.contains(`Key ${nonExistentKey} not found`);
+    const { result } = await runCommand(["config", "get", nonExistentKey]);
+    expect(result).null;
   });
 
   CliTest("tests config:show command", async ({ runCommand, configManager, cfgPath }) => {
