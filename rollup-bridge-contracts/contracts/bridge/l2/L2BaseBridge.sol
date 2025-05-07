@@ -43,11 +43,6 @@ abstract contract L2BaseBridge is
   uint256[50] private __gap;
 
   /*//////////////////////////////////////////////////////////////////////////
-                             CONSTRUCTOR  
-    //////////////////////////////////////////////////////////////////////////*/
-  constructor() {}
-
-  /*//////////////////////////////////////////////////////////////////////////
                              INITIALISER  
     //////////////////////////////////////////////////////////////////////////*/
 
@@ -165,10 +160,7 @@ abstract contract L2BaseBridge is
   }
 
   function _setCounterpartyBridge(address counterpartyBridgeAddress) internal {
-    if (
-      !counterpartyBridgeAddress.isContract() ||
-      !IERC165(IBridge(counterpartyBridgeAddress).getImplementation()).supportsInterface(type(IL1Bridge).interfaceId)
-    ) {
+    if (!counterpartyBridgeAddress.isAValidAddress()) {
       revert ErrorInvalidCounterpartyBridge();
     }
 
