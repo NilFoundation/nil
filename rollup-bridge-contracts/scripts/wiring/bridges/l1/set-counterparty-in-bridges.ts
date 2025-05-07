@@ -21,9 +21,9 @@ const l1ERC20BridgeABIPath = path.join(
 const l1ERC20BridgeABI = JSON.parse(fs.readFileSync(l1ERC20BridgeABIPath, 'utf8')).abi;
 
 // npx hardhat run scripts/wiring/bridges/l1/set-counterparty-in-bridges.ts --network geth
-export async function setMockCounterpartyInBridges(networkName: string) {
+export async function setCounterpartyInBridges(networkName: string) {
     const config = loadL1NetworkConfig(networkName);
-    const l2Config = loadNilNetworkConfig("geth");
+    const l2Config = loadNilNetworkConfig("local");
 
     if (!isValidAddress(config.l1ERC20Bridge.l1ERC20BridgeProxy)) {
         throw new Error('Invalid l1ERC20BridgeProxy address in config');
@@ -57,6 +57,8 @@ export async function setMockCounterpartyInBridges(networkName: string) {
         throw Error(`Invalid counterpartyBridge: ${counterparty_in_erc20_bridge} set in L1ERC20Bridge. \n expected counterpartyBridge is: ${l2Config.l2EnshrinedTokenBridgeConfig.l2EnshrinedTokenBridgeContracts.l2EnshrinedTokenBridgeProxy}`)
     }
 
+    console.log(`successfully set the counterpartyBridge: ${l2Config.l2EnshrinedTokenBridgeConfig.l2EnshrinedTokenBridgeContracts.l2EnshrinedTokenBridgeProxy} in l1ETHBridge: ${config.l1ERC20Bridge.l1ERC20BridgeProxy}`);
+
     const l1ETHBridgeInstance = new ethers.Contract(
         config.l1ETHBridge.l1ETHBridgeProxy,
         l1EthBridgeABI,
@@ -68,8 +70,20 @@ export async function setMockCounterpartyInBridges(networkName: string) {
 
     const counterparty_in_eth_bridge = await l1ETHBridgeInstance.counterpartyBridge();
 
+    console.log(`successfully set the counterpartyBridge: ${l2Config.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy} in l1ETHBridge: ${config.l1ETHBridge.l1ETHBridgeProxy}`);
+
     if (counterparty_in_eth_bridge != l2Config.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy) {
         throw Error(`Invalid counterpartyBridge: ${counterparty_in_eth_bridge} set in L1ETHBridge. \n expected counterpartyBridge is: ${l2Config.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy}`)
     }
 
 }
+
+async function main() {
+    const networkName = network.name;
+    await setCounterpartyInBridges(networkName);
+}
+
+main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+});

@@ -67,12 +67,12 @@ export async function clearDeployments(networkName: string) {
     saveL1MockConfig(networkName, l1MockContracts);
 }
 
-async function main() {
-    const networkName = network.name;
-    await clearDeployments(networkName);
-}
+// async function main() {
+//     const networkName = network.name;
+//     await clearDeployments(networkName);
+// }
 
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});
+// main().catch((error) => {
+//     console.error(error);
+//     process.exit(1);
+// });
