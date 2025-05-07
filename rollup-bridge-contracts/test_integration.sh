@@ -93,12 +93,8 @@ wait_for_http_service $GETH_RPC_ENDPOINT
 
 echo "Deploying L1 contracts to geth"
 rm -rf deployments
-npx hardhat run scripts/wiring/clear-deployments.ts --network geth
-npx hardhat run scripts/wiring/set-deployer-config.ts --network geth
 npx hardhat run scripts/wallet/fund-wallet.ts
-npx hardhat deploy --network geth --tags DeployL1Mock
-npx hardhat deploy --network geth --tags DeployL1Master
-npx hardhat run scripts/wiring/wiring-master.ts --network geth
+npx hardhat run scripts/deploy-and-wire.ts --network geth
 
 echo "Fetching deployed contract address"
 l1_contract_addr=$(jq -r '.networks.geth.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy' deploy/config/l1-deployment-config.json)
