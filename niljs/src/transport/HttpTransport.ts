@@ -1,6 +1,5 @@
-import type { Client as RPCClient } from "@open-rpc/client-js";
-import type { RequestArguments } from "@open-rpc/client-js/build/ClientInterface.js";
-import { createRPCClient } from "../rpc/createRPCClient.js";
+import type { JSONRPCClient, JSONRPCRequest } from "json-rpc-2.0";
+import { requestHeadersWithDefaults } from "../utils/rpc.js";
 import type { IHttpTransportConfig } from "./types/IHttpTransportConfig.js";
 import type { ITransport } from "./types/ITransport.js";
 
@@ -13,34 +12,30 @@ import type { ITransport } from "./types/ITransport.js";
  */
 class HttpTransport implements ITransport {
   /**
-   * The RPC client for the transport.
-   *
-   * @private
-   * @type {RPCClient}
+   * The endpoint to which the transport connects.
    */
-  private rpcClient: RPCClient;
-  /**
-   * The request timeout.
-   *
-   * @private
-   * @type {number}
-   */
-  private timeout: number;
+  public endpoint: string;
 
   /**
-   * Creates an instance of HttpTransport.
-   *
-   * @constructor
-   * @param {IHttpTransportConfig} config The transport config. See {@link IHttpTransportConfig}.
+   * The timeout for the requests.
    */
-  constructor({
-    endpoint,
-    fetcher,
-    timeout = 20000,
-    headers,
-  }: IHttpTransportConfig) {
-    this.rpcClient = createRPCClient(endpoint, { headers, fetcher });
+  public timeout: number;
+
+  /**
+   * The headers to be used in the requests.
+   */
+  public headers: Record<string, string>;
+
+  /**
+   * The fetcher to be used in the requests.
+   */
+  public fetcher: typeof fetch;
+
+  constructor({ endpoint, timeout = 20000, headers, fetcher }: IHttpTransportConfig) {
+    this.endpoint = endpoint;
     this.timeout = timeout;
+    this.headers = requestHeadersWithDefaults(headers);
+    this.fetcher = fetcher || globalThis.fetch;
   }
 
   /**
@@ -49,20 +44,49 @@ class HttpTransport implements ITransport {
    * @public
    * @async
    * @template T
-   * @param {RequestArguments} requestObject The request object.
+   * @param {JSONRPCRequest} requestObject The request object.
    * @returns {Promise<T>} The response.
    */
-  public async request<T>(requestObject: RequestArguments): Promise<T> {
-    return this.rpcClient.request(requestObject, this.timeout);
-  }
+  public async request(requestObject: JSONRPCRequest, client: JSONRPCClient) {
+    const requestStringified = JSON.stringify(requestObject);
 
-  /**
-   * Closes the connection to the network.
-   *
-   * @public
-   */
-  public closeConnection(): void {
-    this.rpcClient.close();
+    const abortController = new AbortController();
+
+    /**
+     * The signal is used to abort the request if it takes too long.
+     */
+    const signal = AbortSignal.any([abortController.signal, AbortSignal.timeout(this.timeout)]);
+
+    return this.fetcher(this.endpoint, {
+      method: "POST",
+      headers: this.headers,
+      body: requestStringified,
+      signal: signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return response.json();
+      })
+      .then((data) => {
+        if (data.error) {
+          throw new Error(`RPC error! message: ${data.error.message}`);
+        }
+
+        client.receive(data);
+      })
+      .catch((error) => {
+        if (error.name === "AbortError") {
+          throw new Error(`Request timed out after ${this.timeout}ms`);
+        }
+
+        throw error;
+      })
+      .finally(() => {
+        abortController.abort();
+      });
   }
 }
 

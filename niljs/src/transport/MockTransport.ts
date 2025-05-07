@@ -1,5 +1,13 @@
-import type { RequestArguments } from "@open-rpc/client-js/build/ClientInterface.js";
+import type { JSONRPCClient, JSONRPCRequest, JSONRPCSuccessResponse } from "json-rpc-2.0";
 import type { ITransport } from "./types/ITransport.js";
+
+/**
+ * The partial type representing the request arguments, which we typically use in cloients.
+ */
+type RequestArguments = {
+  method: string;
+  params: unknown[];
+};
 
 /**
  * The MockTransport is a transport class for testing purposes.
@@ -9,7 +17,11 @@ import type { ITransport } from "./types/ITransport.js";
  * @implements {ITransport}
  */
 class MockTransport implements ITransport {
+  /**
+   * The handler to be used in the transport.
+   */
   private handler: (args: RequestArguments) => unknown;
+
   /**
    * Creates an instance of MockTransport.
    *
@@ -29,16 +41,27 @@ class MockTransport implements ITransport {
    * @param {RequestArguments} requestObject The request object.
    * @returns {Promise<T>} The response.
    */
-  public async request<T>(requestObject: RequestArguments): Promise<T> {
-    return this.handler(requestObject) as T;
-  }
+  public async request(requestObject: JSONRPCRequest, client: JSONRPCClient) {
+    /**
+     * We want to test method and params only.
+     */
+    const result = this.handler({
+      method: requestObject.method,
+      params: requestObject.params,
+    });
 
-  /**
-   * Closes the connection to the network.
-   *
-   * @public
-   */
-  public closeConnection(): void {}
+    console.log("MockTransport: request", requestObject);
+
+    const simulatedResponse: JSONRPCSuccessResponse = {
+      jsonrpc: "2.0",
+      result,
+      id: requestObject.id ?? 0,
+    };
+
+    console.log("MockTransport: response", simulatedResponse);
+
+    client.receive(simulatedResponse);
+  }
 }
 
 export { MockTransport };

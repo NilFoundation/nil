@@ -1,15 +1,7 @@
 import type { ISigner } from "../../signers/types/ISigner.js";
 import type { ITransport } from "../../transport/types/ITransport.js";
 
-/**
- * The client configuration that is shared between public and private clients.
- */
-type IClientBaseConfig = {
-  /**
-   * The ID of the shard with which the client interacts.
-   * @example 1
-   */
-  shardId?: number;
+type IRPCClientConfig = {
   /**
    * The transport is used to send requests to the network.
    * @example
@@ -21,6 +13,17 @@ type IClientBaseConfig = {
    */
   transport: ITransport;
 };
+
+/**
+ * The client configuration that is shared between public and private clients.
+ */
+type IClientBaseConfig = {
+  /**
+   * The ID of the shard with which the client interacts.
+   * @example 1
+   */
+  shardId?: number;
+} & IRPCClientConfig;
 
 /**
  * The type representing the config for the public client.
@@ -63,4 +66,5 @@ export type {
   ISmartAccountClientConfig,
   FaucetClientConfig,
   CometaClientConfig,
+  IRPCClientConfig,
 };

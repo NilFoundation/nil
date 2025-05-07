@@ -102,6 +102,7 @@ test("Smart account self deploy test", async ({ expect }) => {
 
 test("Deploy through smart account", async ({ expect }) => {
   const fn = vi.fn();
+  fn.mockReturnValue({});
 
   const client = new PublicClient({
     transport: new MockTransport(fn),

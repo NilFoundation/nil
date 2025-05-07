@@ -1,6 +1,5 @@
-import type { RequestArguments } from "@open-rpc/client-js/build/ClientInterface.js";
-import type { ITransport } from "../transport/types/ITransport.js";
 import { assertIsValidShardId } from "../utils/assert.js";
+import { RPCClient } from "./RPCCleint.js";
 import type { IClientBaseConfig } from "./types/Configs.js";
 
 /**
@@ -8,15 +7,7 @@ import type { IClientBaseConfig } from "./types/Configs.js";
  * @class BaseClient
  * @typedef {BaseClient}
  */
-class BaseClient {
-  /**
-   * The ITransport to be used in the client. See {@link ITransport}.
-   *
-   * @readonly
-   * @type {ITransport}
-   */
-  readonly transport: ITransport;
-
+class BaseClient extends RPCClient {
   /**
    * The ID of the shard with which the client needs to interact.
    * The shard with this ID will be used in every call made by the client.
@@ -31,24 +22,8 @@ class BaseClient {
    * @param {IClientBaseConfig} config The config to be used in the client. It contains the transport and the shard ID. See {@link IClientBaseConfig}.
    */
   constructor(config: IClientBaseConfig) {
-    this.transport = config.transport;
+    super(config);
     this.shardId = config.shardId;
-  }
-
-  /**
-   * Closes the connection to the network.
-   */
-  public closeConnection() {
-    this.transport.closeConnection();
-  }
-
-  /**
-   * Sends a request.
-   * @param requestObject The request object. It contains the request method and parameters.
-   * @returns The response.
-   */
-  protected async request<T>(requestObject: RequestArguments): Promise<T> {
-    return this.transport.request(requestObject);
   }
 
   /**
