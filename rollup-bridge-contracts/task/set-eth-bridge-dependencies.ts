@@ -10,7 +10,7 @@ import { L1NetworkConfig, L2NetworkConfig, loadL1NetworkConfig, loadNilNetworkCo
 import { getCheckSummedAddress, validateAddress } from "../scripts/utils/validate-config";
 import { encodeFunctionData } from "viem";
 
-// npx hardhat set-eth-bridge-dependencies --networkname local
+// npx hardhat set-eth-bridge-dependencies --networkname local --l1networkname geth
 task("set-eth-bridge-dependencies", "Set dependencies of L2ETHBridge contract")
     .addParam("networkname", "The network to use") // Mandatory parameter
     .addParam("l1networkname", "The l1 network to use") // Mandatory parameter
@@ -72,8 +72,8 @@ task("set-eth-bridge-dependencies", "Set dependencies of L2ETHBridge contract")
             address: l2NetworkConfig.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy as `0x${string}`
         });
 
-        const CounterpartyBridgeFromL2ETHBridgeContract = await l2ETHBridgeProxyInstance.read.counterpartyBridge([]);
-        if (!CounterpartyBridgeFromL2ETHBridgeContract || CounterpartyBridgeFromL2ETHBridgeContract != getCheckSummedAddress(l1NetworkConfig.l1ETHBridge.l1ETHBridgeProxy)) {
-            throw Error(`Invalid counterpartyBridge: ${CounterpartyBridgeFromL2ETHBridgeContract} was set in L2ETHBridge. expected counterpartyBridge is: ${getCheckSummedAddress(l1NetworkConfig.l1ETHBridge.l1ETHBridgeProxy)}`);
+        const counterpartyBridgeFromL2ETHBridgeContract = await l2ETHBridgeProxyInstance.read.counterpartyBridge([]);
+        if (!counterpartyBridgeFromL2ETHBridgeContract || counterpartyBridgeFromL2ETHBridgeContract != getCheckSummedAddress(l1NetworkConfig.l1ETHBridge.l1ETHBridgeProxy)) {
+            throw Error(`Invalid counterpartyBridge: ${counterpartyBridgeFromL2ETHBridgeContract} was set in L2ETHBridge. expected counterpartyBridge is: ${getCheckSummedAddress(l1NetworkConfig.l1ETHBridge.l1ETHBridgeProxy)}`);
         }
     });

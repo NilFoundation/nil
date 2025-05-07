@@ -42,4 +42,8 @@ library AddressChecker {
     // of the constructor execution.
     return account != address(0) && account.code.length > 0;
   }
+
+  function isAValidAddress(address account) internal view returns (bool) {
+    return account != address(0);
+  }
 }
