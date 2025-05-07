@@ -41,6 +41,11 @@ export const COMMANDS: Record<string, Command.Class> = {
 
   block: BlockCommand,
 
+  "config:get": ConfigGet,
+  "config:init": ConfigInit,
+  "config:set": ConfigSet,
+  "config:show": ConfigShow,
+
   keygen: Keygen,
   "keygen:new": KeygenNew,
   "keygen:new-p2p": KeygenNewP2p,
@@ -66,11 +71,6 @@ export const COMMANDS: Record<string, Command.Class> = {
 
   util: UtilCommand,
   "util:list-commands": ListCommands,
-
-  "config:init": ConfigInit,
-  "config:get": ConfigGet,
-  "config:set": ConfigSet,
-  "config:show": ConfigShow,
 };
 
 export async function run() {
