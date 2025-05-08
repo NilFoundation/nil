@@ -16,7 +16,8 @@ type IndexerDriver interface {
 	FetchEarliestAbsentBlockId(context.Context, types.ShardId) (types.BlockNumber, error)
 	FetchNextPresentBlockId(context.Context, types.ShardId, types.BlockNumber) (types.BlockNumber, error)
 	FetchAddressActions(context.Context, types.Address, types.BlockNumber) ([]indexertypes.AddressAction, error)
-	SetupScheme(ctx context.Context, params SetupParams) error
+	FetchVersion(context.Context) (common.Hash, error)
+	ResetDB(ctx context.Context) error
 	IndexBlocks(context.Context, []*BlockWithShardId) error
 	IndexTxPool(context.Context, []*TxPoolStatus) error
 	HaveBlock(context.Context, types.ShardId, types.BlockNumber) (bool, error)
