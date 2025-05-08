@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l1"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l2"
 	"github.com/NilFoundation/nil/nil/services/rpc"
@@ -18,6 +19,9 @@ import (
 const RPCNamespace = "relayer_debug"
 
 type RelayerStats struct {
+	// address of the smart account used by relayer to operate on L2
+	SmartAccountAddr types.Address ` json:"l2SmartAccountAddr"`
+
 	TimeStamp             time.Time `json:"timestamp"`             // Timestamp of the stats
 	PendingL1EventCount   int       `json:"pendingL1EventCount"`   // Fetched from L1 and not finalized events
 	PendingL2EventCount   int       `json:"pendingL2EventCount"`   // Finalized events waiting to be sent to L2
@@ -50,6 +54,7 @@ func NewRPCListener(
 	l1Storage *l1.EventStorage,
 	l2Storage *l2.EventStorage,
 	finalizedBlockGetter L1FinalizedBlockGetter,
+	l2SmartAccountAddr types.Address,
 	clock clockwork.Clock,
 	logger logging.Logger,
 ) *RPCListener {
@@ -61,6 +66,7 @@ func NewRPCListener(
 		l1Storage,
 		l2Storage,
 		finalizedBlockGetter,
+		l2SmartAccountAddr,
 		clock,
 		p.logger,
 	)
@@ -117,6 +123,7 @@ type RelayerStatsAPI struct {
 	l1Storage              *l1.EventStorage
 	l2Storage              *l2.EventStorage
 	l1FinalizedBlockGetter L1FinalizedBlockGetter
+	smartAccountAddr       types.Address
 	clock                  clockwork.Clock
 	logger                 logging.Logger
 
@@ -127,6 +134,7 @@ func NewRelayerStatsAPI(
 	l1Storage *l1.EventStorage,
 	l2Storage *l2.EventStorage,
 	finalizedBlockGetter L1FinalizedBlockGetter,
+	l2SmartAccountAddr types.Address,
 	clock clockwork.Clock,
 	logger logging.Logger,
 ) *RelayerStatsAPI {
@@ -136,6 +144,7 @@ func NewRelayerStatsAPI(
 		l1FinalizedBlockGetter: finalizedBlockGetter,
 		clock:                  clock,
 		logger:                 logger,
+		smartAccountAddr:       l2SmartAccountAddr,
 		stats:                  atomic.Pointer[RelayerStats]{},
 	}
 }
@@ -179,6 +188,7 @@ func (p *RelayerStatsAPI) refresh(ctx context.Context) error {
 	}
 
 	stats := &RelayerStats{
+		SmartAccountAddr:    p.smartAccountAddr,
 		PendingL1EventCount: l1PendingEvents,
 		PendingL2EventCount: l2PendingEvents,
 		TimeStamp:           now,
