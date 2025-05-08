@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	cerrors "github.com/NilFoundation/nil/nil/internal/collate/errors"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -102,54 +102,6 @@ func (s *Syncer) WaitComplete(ctx context.Context) error {
 	}
 }
 
-func (s *Syncer) getLocalVersion(ctx context.Context) (*NodeVersion, error) {
-	protocolVersion := s.networkManager.ProtocolVersion()
-
-	rotx, err := s.db.CreateRoTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer rotx.Rollback()
-
-	res, err := db.ReadBlockHashByNumber(rotx, types.MainShardId, 0)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			return &NodeVersion{protocolVersion, common.EmptyHash}, nil
-		}
-		return nil, err
-	}
-	return &NodeVersion{protocolVersion, res}, err
-}
-
-type NodeVersion struct {
-	ProtocolVersion  string
-	GenesisBlockHash common.Hash
-}
-
-func (s *Syncer) fetchRemoteVersion(ctx context.Context) (NodeVersion, error) {
-	var err error
-	for _, peer := range s.config.BootstrapPeers {
-		var peerId network.PeerID
-		peerId, err = s.networkManager.Connect(ctx, network.AddrInfo(peer))
-		if err != nil {
-			continue
-		}
-
-		var protocolVersion string
-		protocolVersion, err = s.networkManager.GetPeerProtocolVersion(peerId)
-		if err != nil {
-			continue
-		}
-
-		var res common.Hash
-		res, err = fetchGenesisBlockHash(ctx, s.networkManager, peerId)
-		if err == nil {
-			return NodeVersion{protocolVersion, res}, nil
-		}
-	}
-	return NodeVersion{}, fmt.Errorf("failed to fetch version from all peers; last error: %w", err)
-}
-
 func (s *Syncer) fetchSnapshot(ctx context.Context) error {
 	var err error
 	for _, peer := range s.config.BootstrapPeers {
@@ -171,12 +123,12 @@ func (s *Syncer) Init(ctx context.Context, allowDbDrop bool) error {
 		return nil
 	}
 
-	version, err := s.getLocalVersion(ctx)
+	version, err := GetLocalVersion(ctx, s.networkManager, s.db)
 	if err != nil {
 		return err
 	}
 
-	remoteVersion, err := s.fetchRemoteVersion(ctx)
+	remoteVersion, err := FetchRemoteVersion(ctx, s.networkManager, s.config.BootstrapPeers)
 	if err != nil {
 		// Nodes with allowDbDrop are supposed to be secondary, so they must sync with some reliable peer.
 		// We need some nodes to start without fetching a remote version
@@ -220,7 +172,7 @@ func (s *Syncer) Init(ctx context.Context, allowDbDrop bool) error {
 // SetHandlers sets the handlers for generic (shard-independent) protocols.
 // It must be called after the initial sync of ALL shards is completed.
 // It should be called once, e.g., by the main shard syncer.
-// (Subsequent calls do not have any side effects, but might return an error.)
+// (Subsequent calls do not have any side effects but might return an error.)
 func (s *Syncer) SetHandlers(ctx context.Context) error {
 	if s.networkManager == nil {
 		return nil
@@ -236,6 +188,9 @@ func (s *Syncer) Run(ctx context.Context) error {
 		return nil
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	if s.config.ShardId.IsMainShard() {
 		if err := SetVersionHandler(ctx, s.networkManager, s.db); err != nil {
 			return fmt.Errorf("failed to set version handler: %w", err)
@@ -249,11 +204,11 @@ func (s *Syncer) Run(ctx context.Context) error {
 	s.fetchBlocks(ctx)
 	s.waitForSync.Done()
 
-	s.logger.Info().Msg("Syncer initialization complete")
-
 	if ctx.Err() != nil {
 		return nil
 	}
+
+	s.logger.Info().Msg("Running syncer...")
 
 	sub, err := s.networkManager.PubSub().Subscribe(s.topic)
 	if err != nil {
@@ -261,12 +216,50 @@ func (s *Syncer) Run(ctx context.Context) error {
 	}
 	defer sub.Close()
 
+	if len(s.config.BootstrapPeers) == 0 {
+		s.logger.Info().Msg("No bootstrap peers. Skipping version check")
+
+		s.doFetch(ctx, sub)
+		return nil
+	}
+
+	go s.doFetch(ctx, sub)
+
+	return s.runVersionCheckLoop(ctx)
+}
+
+func (s *Syncer) runVersionCheckLoop(ctx context.Context) error {
+	version, err := GetLocalVersion(ctx, s.networkManager, s.db)
+	if err != nil {
+		return err
+	}
+
+	return concurrent.RunTickerLoopWithErr(ctx, 10*time.Second, func(ctx context.Context) error {
+		remoteVersion, err := FetchRemoteVersion(ctx, s.networkManager, s.config.BootstrapPeers)
+		if err != nil {
+			s.logger.Warn().Err(err).Msg("Failed to fetch remote version")
+			return nil
+		}
+
+		if version.ProtocolVersion != remoteVersion.ProtocolVersion {
+			return &ProtocolVersionMismatchError{
+				version.ProtocolVersion,
+				remoteVersion.ProtocolVersion,
+			}
+		}
+
+		if version.GenesisBlockHash != remoteVersion.GenesisBlockHash {
+			return fmt.Errorf("local version is outdated; local: %s, remote: %s", version, remoteVersion)
+		}
+
+		return nil
+	})
+}
+
+func (s *Syncer) doFetch(ctx context.Context, sub *network.Subscription) {
 	ch := sub.Start(ctx, true)
 	for {
 		select {
-		case <-ctx.Done():
-			s.logger.Debug().Msg("Syncer is terminated")
-			return nil
 		case msg := <-ch:
 			saved, err := s.processTopicTransaction(ctx, msg.Data)
 			if err != nil {
@@ -287,6 +280,9 @@ func (s *Syncer) Run(ctx context.Context) error {
 			s.logger.Warn().Msgf("No new block in the topic for %s, pulling blocks actively", s.config.Timeout)
 
 			s.fetchBlocks(ctx)
+		case <-ctx.Done():
+			s.logger.Info().Msg("Fetch is terminated")
+			return
 		}
 	}
 }
