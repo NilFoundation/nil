@@ -352,7 +352,7 @@ contract L1ERC20Bridge is L1BaseBridge, IL1ERC20Bridge {
 
     // Send message to L1BridgeMessenger
     IL1BridgeMessenger(messenger).sendMessage(
-      NilConstants.MessageType.DEPOSIT_ETH,
+      NilConstants.MessageType.DEPOSIT_ERC20,
       counterpartyBridge,
       _depositMessageParams.message,
       _depositERC20MessageData.l1Token,
