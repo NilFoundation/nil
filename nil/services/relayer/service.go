@@ -176,6 +176,7 @@ func New(
 		l1Storage,
 		l2Storage,
 		rs.L1FinalityEnsurer,
+		l2SmartAccountAddr,
 		clock,
 		rs.Logger,
 	)
