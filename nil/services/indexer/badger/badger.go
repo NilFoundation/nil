@@ -52,9 +52,17 @@ func NewBadgerDriver(path string) (*BadgerDriver, error) {
 	return storage, nil
 }
 
-func (b *BadgerDriver) SetupScheme(ctx context.Context, params driver.SetupParams) error {
-	// no need to setup scheme
-	return nil
+func (b *BadgerDriver) FetchVersion(ctx context.Context) (common.Hash, error) {
+	block, err := b.FetchBlock(ctx, types.MainShardId, 0)
+	if block == nil || err != nil {
+		return common.EmptyHash, err
+	}
+
+	return block.Hash(types.MainShardId), nil
+}
+
+func (b *BadgerDriver) ResetDB(context.Context) error {
+	return b.db.DropAll()
 }
 
 func (b *BadgerDriver) IndexBlocks(ctx context.Context, blocksToIndex []*driver.BlockWithShardId) error {
@@ -161,7 +169,7 @@ func (b *BadgerDriver) indexBlockTransactions(
 	return nil
 }
 
-func (d *BadgerDriver) IndexTxPool(ctx context.Context, txPoolStatuses []*driver.TxPoolStatus) error {
+func (b *BadgerDriver) IndexTxPool(context.Context, []*driver.TxPoolStatus) error {
 	return errors.New("not implemented")
 }
 

@@ -84,7 +84,9 @@ func (s *SuiteArchiveNodeComplex) TestProtocolUpdate() {
 		s.stopArchiveNode()
 		s.Cancel()
 		s.startCluster(newProtocolVersion)
+	})
 
+	s.Run("RunArchiveNode", func() {
 		_, _, rc := s.runArchiveNode(database)
 
 		select {

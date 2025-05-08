@@ -5,11 +5,8 @@ import (
 	"errors"
 
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
-
-var logger = logging.NewLogger("fetch-block")
 
 var ErrBlockNotFound = errors.New("block not found")
 
