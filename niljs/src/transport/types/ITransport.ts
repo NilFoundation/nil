@@ -1,25 +1,15 @@
-import type { RequestArguments } from "@open-rpc/client-js/build/ClientInterface.js";
+import type { JSONRPCClient, JSONRPCRequest } from "json-rpc-2.0";
 
 /**
  * The transport interface.
  */
 abstract class ITransport {
   /**
-   * Sends a request.
-   * @param requestObject - The request object. It contains the method and parameters.
+   * Sends a request and passes the reposnse to the JSON-RPC client.
+   * @param request - The request object.
    * @returns The response.
    */
-  abstract request<T>(requestObject: RequestArguments): Promise<T>;
-
-  /**
-   * Connects to the network.
-   */
-  abstract connect(): void;
-
-  /**
-   * Closes the connection to the network.
-   */
-  abstract closeConnection(): void;
+  abstract request(request: JSONRPCRequest, client: JSONRPCClient): Promise<void>;
 }
 
 export { ITransport };
