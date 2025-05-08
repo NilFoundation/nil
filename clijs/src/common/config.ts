@@ -191,6 +191,10 @@ class ConfigManager {
       config[section] = {};
     }
 
+    if (!Object.values(ConfigKeys).includes(key as ConfigKeys)) {
+      throw new Error(`Key ${key} not supported`);
+    }
+
     (config[section] as Record<string, string>)[key] = value;
     this.saveConfig(config);
   }
