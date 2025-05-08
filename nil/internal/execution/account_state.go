@@ -105,8 +105,8 @@ func (as *AccountState) AddBalance(amount types.Value, reason tracing.BalanceCha
 		return fmt.Errorf("balance overflow: %s + %s", as.Balance, amount)
 	}
 
-	as.logger.Debug().Stringer("address", as.address).Stringer("reason", reason).
-		Msgf("Balance change: adding balance %s + %s = %s", as.Balance, amount, newBalance)
+	as.logger.Debug().Stringer("reason", reason).
+		Msgf("Balance change: %s add %s + %s = %s", as.address.Hex(), as.Balance, amount, newBalance)
 	as.SetBalance(newBalance)
 	return nil
 }
@@ -122,8 +122,8 @@ func (as *AccountState) SubBalance(amount types.Value, reason tracing.BalanceCha
 		return fmt.Errorf("balance overflow: %s + %s", as.Balance, amount)
 	}
 
-	as.logger.Debug().Stringer("address", as.address).Stringer("reason", reason).
-		Msgf("Balance change: withdrawing balance %s - %s = %s", as.Balance, amount, newBalance)
+	as.logger.Debug().Stringer("reason", reason).
+		Msgf("Balance change: %s sub %s - %s = %s", as.address.Hex(), as.Balance, amount, newBalance)
 	as.SetBalance(newBalance)
 	return nil
 }

@@ -813,7 +813,8 @@ func (g *consolePrecompile) Run(evm *EVM, input []byte, value *uint256.Int, call
 	if err != nil {
 		return nil, types.NewVmVerboseError(types.ErrorConsoleParseInputFailed, err.Error())
 	}
-	consoleLogger.Info().Int(logging.FieldShardId, int(evm.StateDB.GetShardID())).Msg(str)
+	//consoleLogger.Info().Int(logging.FieldShardId, int(evm.StateDB.GetShardID())).Msg(str)
+	evm.StateDB.Logger().Info().Int(logging.FieldShardId, int(evm.StateDB.GetShardID())).Msg("[solidity] " + str)
 
 	res := make([]byte, 32)
 	res[31] = 1

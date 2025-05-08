@@ -2,12 +2,33 @@
 pragma solidity ^0.8.0;
 
 import "./NilTokenManager.sol";
+import "../system/console.sol";
 
 /**
  * @title Relayer
  * @dev This contract facilitates relaying transactions, handling responses, and managing token credits.
  */
 contract Relayer {
+
+    struct Transaction {
+        address from;
+        address to;
+        address refundTo;
+        address bounceTo;
+        uint256 value;
+        Nil.Token[] tokens;
+        uint8 forwardKind;
+        uint256 feeCredit;
+        uint256 responseFeeCredit;
+        bytes callData;
+    }
+
+    Transaction[] private currentTransactions;
+    uint8[] private txsForwardedRemaining;
+    uint8[] private txsForwardedPercentage;
+    uint8[] private txsForwardedValue;
+    uint32 private numTxsWithForwardGas;
+    bool private forwardingInitialized;
 
     /**
      * @dev Emitted when a response fails to execute.
@@ -43,6 +64,110 @@ contract Relayer {
         bytes callData
     );
 
+    function startAsync() public payable {
+        require(!forwardingInitialized, "Relayer already initialized");
+        console.log("Relayer start");
+        numTxsWithForwardGas = 0;
+        delete currentTransactions;
+        forwardingInitialized = true;
+    }
+
+    function finalizeAsync(uint gas) public payable {
+        console.log("Relayer finalize: gas=%_, num=%_", gas, numTxsWithForwardGas);
+        _forwardGas(gas);
+        _resetForwarding();
+    }
+
+    function _forwardGas(uint gas) internal {
+//        uint numTxsWithForwardGas = txsForwardedPercentage.length + txsForwardedRemaining.length;
+        uint feeCredit = gas * tx.gasprice;
+        console.log("_forwardGas: gas=%_, num=%_", gas, numTxsWithForwardGas);
+
+        if (numTxsWithForwardGas == 0) {
+            return;
+        }
+
+        for (uint256 i = 0; i < txsForwardedValue.length; i++) {
+            uint256 index = txsForwardedValue[i];
+            Transaction storage txn = currentTransactions[index];
+            if (txn.forwardKind == Nil.FORWARD_VALUE) {
+                console.log("_forwardGas value: to=%_, fee=%_", txn.to, txn.feeCredit);
+                require(feeCredit >= txn.feeCredit, "forwardGas: not enough feeCredit for ForwardValue");
+                feeCredit -= txn.feeCredit;
+            }
+        }
+
+        uint percentageTotal = 0;
+        uint baseFeeCredit = feeCredit;
+        for (uint256 i = 0; i < txsForwardedPercentage.length; i++) {
+            uint256 index = txsForwardedPercentage[i];
+            Transaction storage txn = currentTransactions[index];
+            require(txn.forwardKind == Nil.FORWARD_PERCENTAGE, "forwardGas: invalid percentage forwarding");
+
+            percentageTotal += txn.feeCredit;
+            if (percentageTotal > 100) {
+                revert("forwardGas: total percentage is greater than 100");
+            }
+
+            txn.feeCredit = (txn.feeCredit * baseFeeCredit) / 100;
+
+            if (feeCredit < txn.feeCredit) {
+                txn.feeCredit = feeCredit;
+                feeCredit = 0;
+            } else {
+                feeCredit -= txn.feeCredit;
+            }
+
+            console.log("_forwardGas percentage: fee=%_", txn.feeCredit);
+        }
+
+        if (txsForwardedRemaining.length != 0) {
+            if (feeCredit == 0) {
+                revert("forwardGas: not enough feeCredit for ForwardRemaining");
+            }
+            uint feeCreditForward = feeCredit / txsForwardedRemaining.length;
+            feeCredit = 0;
+            for (uint256 i = 0; i < txsForwardedRemaining.length; i++) {
+                uint256 index = txsForwardedRemaining[i];
+                Transaction storage txn = currentTransactions[index];
+
+                console.log("_forwardGas remaining: to=%_, fee=%_", txn.to, feeCreditForward);
+
+                require(txn.forwardKind == Nil.FORWARD_REMAINING);
+                txn.feeCredit = feeCreditForward;
+            }
+        }
+
+        for (uint256 i = 0; i < currentTransactions.length; i++) {
+            Transaction storage txn = currentTransactions[i];
+            console.log("_forwardGas SEND: to=%_, fee=%_", txn.to, txn.feeCredit);
+            __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: txn.value}(
+                false,
+                txn.forwardKind,
+                txn.to,
+                txn.refundTo,
+                txn.bounceTo,
+                txn.feeCredit,
+                txn.tokens,
+                txn.callData,
+                0, 0);
+        }
+
+        if (feeCredit != 0) {
+            console.log("_forwardGas: return fee %_ to %_", feeCredit, msg.sender);
+            payable(msg.sender).transfer(feeCredit);
+        }
+    }
+
+    function _resetForwarding() internal {
+        numTxsWithForwardGas = 0;
+        delete currentTransactions;
+        delete txsForwardedRemaining;
+        delete txsForwardedPercentage;
+        delete txsForwardedValue;
+        forwardingInitialized = false;
+    }
+
     /**
      * @dev Sends a transaction to a target address with optional refund and bounce handling.
      * @param to The target address.
@@ -68,6 +193,28 @@ contract Relayer {
         uint256 requestId,
         uint responseGas
     ) public payable {
+        console.log("sendTx: to=%_, from=%_", to, msg.sender);
+
+        require(forwardingInitialized, "Relayer not initialized");
+
+        if (forwardKind == Nil.FORWARD_REMAINING) {
+            txsForwardedRemaining.push(uint8(currentTransactions.length));
+            numTxsWithForwardGas++;
+            console.log("sendTx FORWARD_REMAINING: num=%_", numTxsWithForwardGas);
+        } else if (forwardKind == Nil.FORWARD_PERCENTAGE) {
+            txsForwardedPercentage.push(uint8(currentTransactions.length));
+            numTxsWithForwardGas++;
+            console.log("sendTx FORWARD_PERCENTAGE: num=%_", numTxsWithForwardGas);
+        } else if (forwardKind == Nil.FORWARD_VALUE) {
+            txsForwardedValue.push(uint8(currentTransactions.length));
+            numTxsWithForwardGas++;
+            console.log("sendTx FORWARD_VALUE: num=%_", numTxsWithForwardGas);
+        } else if (forwardKind == Nil.FORWARD_NONE) {
+            numTxsWithForwardGas++;
+        } else {
+            revert("sendTx: invalid forwardKind");
+        }
+
         uint256 responseFeeCredit;
         if (requestId != 0) {
             require(responseGas > 0, "sendTx: responseGas must be greater than 0");
@@ -87,17 +234,38 @@ contract Relayer {
         bytes memory data = abi.encodeWithSelector(
             this.receiveTx.selector, msg.sender, to, bounceTo, value, tokens, callData, requestId, responseFeeCredit);
 
-        __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: value}(
-            false,
-            forwardKind,
-            Nil.getRelayerAddress(Nil.getShardId(to)),
-            refundTo,
-            bounceTo,
-            feeCredit,
-            tokens,
-            data,
-            0,
-            0);
+        currentTransactions.push(
+            Transaction(msg.sender, Nil.getRelayerAddress(Nil.getShardId(to)), refundTo, bounceTo, value, tokens, forwardKind, feeCredit, responseFeeCredit, data)
+        );
+        console.log("sendTx pushed: numtxs=%_", currentTransactions.length);
+    }
+
+    function calculateAsyncGas(bool request, bool success) internal view returns(uint) {
+        uint asyncGas;
+        console.log("receiveTx: numTxsWithForwardGas=%_", numTxsWithForwardGas);
+        if (numTxsWithForwardGas != 0) {
+            uint gasToFinish = 1000;
+            uint gasForTxForward = 2000;
+            uint gasForResponse = 10_000;
+            uint gasForBounce = 10_000;
+
+            uint requiredGasForFinish = gasToFinish;
+
+            if (request) {
+                requiredGasForFinish += gasForResponse;
+            } else if (!success) {
+                requiredGasForFinish += gasForBounce;
+            }
+            if (success) {
+                requiredGasForFinish = numTxsWithForwardGas * gasForTxForward;
+            }
+            if (gasleft() < requiredGasForFinish) {
+                success = false;
+            } else {
+                asyncGas = gasleft() - requiredGasForFinish;
+            }
+        }
+        return asyncGas;
     }
 
     /**
@@ -121,11 +289,21 @@ contract Relayer {
         uint256 requestId,
         uint responseFeeCredit
     ) public payable returns(bytes memory) {
+        console.log("receiveTx: gas=%_, to=%_, from=%_", gasleft(), to, from);
+
+//        startAsync();
         NilTokenManager(Nil.getTokenManagerAddress()).creditForRelay(to, tokens);
+
         (bool success, bytes memory returnData) = to.call{value: value}(callData);
+
         NilTokenManager(Nil.getTokenManagerAddress()).resetTxTokens();
 
+        console.log("receiveTx: success=%_, gasleft=%_", success, gasleft());
+
+//        finalizeAsync(calculateAsyncGas(requestId != 0, success));
+
         if (requestId != 0) {
+            printRevertData("receiveTx request", returnData);
             uint256 returnValue = 0;
             if (!success) {
                 returnValue = value;
@@ -145,7 +323,9 @@ contract Relayer {
                 0
             );
             return bytes("");
-        } else if (!success) {
+        }
+
+        if (!success) {
             printRevertData("receiveTx call failed", returnData);
 
             emit CallFailed(from, to, value, tokens, callData);
@@ -165,6 +345,7 @@ contract Relayer {
                 0);
             return bytes("");
         }
+
         return returnData;
     }
 
@@ -219,15 +400,15 @@ contract Relayer {
         }
     }
 
-    function printRevertData(string memory /*str*/, bytes memory /*returnData*/) internal pure {
-//        if (returnData.length > 68) {
-//            assembly {
-//                returnData := add(returnData, 0x04)
-//            }
-//            string memory reason = abi.decode(returnData, (string));
-//            console.log("%_: %_", str, reason);
-//        } else {
-//            console.log("%_: <no revert reason>", str);
-//        }
+    function printRevertData(string memory str, bytes memory returnData) internal pure {
+        if (returnData.length > 68) {
+            assembly {
+                returnData := add(returnData, 0x04)
+            }
+            string memory reason = abi.decode(returnData, (string));
+            console.log("%_: %_", str, reason);
+        } else {
+            console.log("%_: <no revert reason>", str);
+        }
     }
 }

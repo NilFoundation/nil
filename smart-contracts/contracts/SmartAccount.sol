@@ -68,6 +68,26 @@ contract SmartAccount is NilTokenBase {
         uint value,
         bytes calldata callData
     ) public onlyExternal {
+        asyncCall(
+            dst,
+            refundTo,
+            bounceTo,
+            tokens,
+            value,
+            callData,
+            2_000_000
+        );
+    }
+
+    function asyncCall(
+        address dst,
+        address refundTo,
+        address bounceTo,
+        Nil.Token[] memory tokens,
+        uint value,
+        bytes calldata callData,
+        uint256 asyncGas
+    ) public onlyExternal async(asyncGas) {
         Nil.asyncCallWithTokens(
             dst,
             refundTo,

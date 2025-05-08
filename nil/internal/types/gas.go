@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	DefaultGasPrice     = NewValueFromUint64(OperationCosts + ProofGenerationCosts)
+	DefaultGasPrice     = NewValueFromUint64(1) //NewValueFromUint64(OperationCosts + ProofGenerationCosts)
 	MaxFeePerGasDefault = DefaultGasPrice.Mul(DefaultGasPrice)
 )
 

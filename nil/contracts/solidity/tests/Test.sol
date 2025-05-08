@@ -89,12 +89,15 @@ contract Test is NilBase, NilAwaitable {
         address refundTo;
         bytes callData;
     }
+    receive() external payable {}
 
     function testForwarding(
+        uint256 asyncGas,
         AsyncCallArgs[] memory transactions
-    ) public payable {
+    ) public payable async(asyncGas) {
         for (uint i = 0; i < transactions.length; i++) {
             AsyncCallArgs memory transaction = transactions[i];
+            console.log("testForwarding send: dst=%_", transaction.addr);
             Nil.asyncCall(
                 transaction.addr,
                 transaction.refundTo,
@@ -104,6 +107,7 @@ contract Test is NilBase, NilAwaitable {
                 0,
                 transaction.callData
             );
+            console.log("testForwarding send done");
         }
     }
 

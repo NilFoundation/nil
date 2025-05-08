@@ -151,6 +151,8 @@ type Signature struct {
 var (
 	signaturesMap     = map[uint32]*Signature{}
 	signaturesMapOnce sync.Once
+	relayerReceiveTxId = 0
+	relayerSendTxId = 0
 )
 
 func initSignaturesMap() error {
@@ -236,33 +238,37 @@ func GetFuncIdSignature(id uint32) (*Signature, error) {
 	return nil, fmt.Errorf("signature not found for id %x", id)
 }
 
-func DecodeCallData(method *abi.Method, calldata []byte) (string, error) {
+func DecodeCallData(method *abi.Method, calldata []byte) (string, string, error) {
 	if len(calldata) == 0 {
-		return "", errors.New("empty calldata")
+		return "", "", errors.New("empty calldata")
 	}
 	if len(calldata) < 4 {
-		return "", fmt.Errorf("too short calldata: %d", len(calldata))
+		return "", "", fmt.Errorf("too short calldata: %d", len(calldata))
 	}
 
 	if method == nil {
 		sig, err := GetFuncIdSignatureFromBytes(calldata)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		abiContract, err := GetAbi(sig.Contracts[0])
 		if err != nil {
-			return "", fmt.Errorf("failed to get abi: %w", err)
+			return "", "", fmt.Errorf("failed to get abi: %w", err)
 		}
 		m, ok := abiContract.Methods[sig.FuncName]
 		if !ok {
-			return "", fmt.Errorf("method not found: %s", sig.FuncName)
+			return "", "", fmt.Errorf("method not found: %s", sig.FuncName)
 		}
 		method = &m
 	}
 
 	args, err := method.Inputs.Unpack(calldata[4:])
 	if err != nil {
-		return fmt.Sprintf("%s: failed to unpack arguments: %s", method.Name, err), nil
+		return fmt.Sprintf("%s: failed to unpack arguments: %s", method.Name, err), "", nil
+	}
+	var relayerData string
+	if method.Name == "receiveTx" {
+		relayerData, _, err = DecodeCallData(nil, args[5].([]byte))
 	}
 	res := method.Name + "("
 	adjustArg := func(arg any) string {
@@ -282,5 +288,5 @@ func DecodeCallData(method *abi.Method, calldata []byte) (string, error) {
 	}
 	res += ")"
 
-	return res, nil
+	return res, relayerData, nil
 }

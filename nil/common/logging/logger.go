@@ -202,10 +202,10 @@ func newConsoleLogger(component string) zerolog.Logger {
 		Out:        os.Stderr,
 		TimeFormat: time.DateTime,
 		PartsOrder: []string{
-			zerolog.TimestampFieldName,
+			//zerolog.TimestampFieldName,
 			zerolog.LevelFieldName,
 			FieldComponent,
-			zerolog.CallerFieldName,
+			//zerolog.CallerFieldName,
 			zerolog.MessageFieldName,
 		},
 		FieldsExclude:    []string{FieldComponent},

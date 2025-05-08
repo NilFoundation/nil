@@ -68,13 +68,17 @@ func (bt *BlocksTracer) PrintTransaction(txn *types.Transaction, hash common.Has
 		}
 		fmt.Fprintln(bt.file, "]")
 	}
-	if decoded, err := contracts.DecodeCallData(nil, txn.Data); err == nil {
+	if decoded, relayerData, err := contracts.DecodeCallData(nil, txn.Data); err == nil {
 		bt.Printf("decoded: %s\n", decoded)
-	}
-	if len(txn.Data) < 1024 {
-		bt.Printf("data: %s\n", hexutil.Encode(txn.Data))
+		if relayerData != "" {
+			bt.Printf("relayer decoded: %s\n", relayerData)
+		}
 	} else {
-		bt.Printf("data_size: %d\n", len(txn.Data))
+		if len(txn.Data) < 1024 {
+			bt.Printf("data: %s\n", hexutil.Encode(txn.Data))
+		} else {
+			bt.Printf("data_size: %d\n", len(txn.Data))
+		}
 	}
 	if len(txn.Token) > 0 {
 		bt.Printf("token:\n")

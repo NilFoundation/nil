@@ -3,6 +3,8 @@ package vm
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"math/big"
 	"sync/atomic"
 
@@ -158,6 +160,12 @@ func (evm *EVM) Call(
 	if isPrecompile {
 		ret, gas, runErr = RunPrecompiledContract(p, evm, input, gas, evm.Config.Tracer, value, caller, readOnly)
 	} else {
+		evm.StateDB.Logger().Info().Msgf("> %d Call contract: value=%s, addr=%s", evm.depth, value, addr.Hex())
+		if sign, _, err := contracts.DecodeCallData(nil, input); err == nil {
+			evm.StateDB.Logger().Info().Msgf("   CALLDATA: %s", sign)
+		}
+		defer evm.StateDB.Logger().Info().Msgf("< %d Finish call contract: %s", evm.depth, addr.Hex())
+
 		if exists, err := evm.StateDB.Exists(addr); err != nil {
 			return nil, gas, err
 		} else if !exists {
@@ -568,13 +576,15 @@ func (evm *EVM) transfer(sender, recipient types.Address, a *uint256.Int) error 
 	if a.IsZero() {
 		return nil
 	}
+	evm.StateDB.Logger().Info().Msgf("evm.transfer: amount=%s, from=%s, to=%s", a, sender.Hex(), recipient.Hex())
 	amount := types.Value{Uint256: types.CastToUint256(a)}
+	check.PanicIfNotf(sender.ShardId() == recipient.ShardId(), "sender and recipient are on differnet shards")
 	// We don't need to subtract balance from async call
-	if !evm.IsAsyncCall {
+	//if !evm.IsAsyncCall {
 		if err := evm.StateDB.SubBalance(sender, amount, tracing.BalanceChangeTransfer); err != nil {
 			return err
 		}
-	}
+	//}
 
 	return evm.StateDB.AddBalance(recipient, amount, tracing.BalanceChangeTransfer)
 }

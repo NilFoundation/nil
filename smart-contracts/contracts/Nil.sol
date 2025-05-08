@@ -159,6 +159,8 @@ library Nil {
         uint256 requestId,
         uint responseGas
     ) internal {
+        console.log("asyncCallWithTokens: from=%_, to=%_", msg.sender, dst);
+
         require(Nil.getShardId(dst) != 0, "asyncCallWithTokens: call to main shard is not allowed");
         require(Nil.getShardId(dst) < SHARDS_NUM, "asyncCallWithTokens: call to non-existing shard");
 
@@ -166,13 +168,13 @@ library Nil {
         if (forwardKind == FORWARD_NONE) {
             // Deduct feeCredit from the caller account
             valueToDeduct += feeCredit;
-        } else if (forwardKind == Nil.FORWARD_REMAINING) {
-            // TODO: We should deduct feeCredit from the caller account. And properly calculate remaining gas.
-            feeCredit = gasleft() * Nil.getGasPrice(address(this));
-        } else if (forwardKind == FORWARD_VALUE) {
-            revert("FORWARD_VALUE is not supported");
-        } else if (forwardKind == FORWARD_PERCENTAGE) {
-            revert("FORWARD_PERCENTAGE is not supported");
+//        } else if (forwardKind == Nil.FORWARD_REMAINING) {
+//            // TODO: We should deduct feeCredit from the caller account. And properly calculate remaining gas.
+////            feeCredit = gasleft() * Nil.getGasPrice(address(this));
+//        } else if (forwardKind == FORWARD_VALUE) {
+////            revert("FORWARD_VALUE is not supported");
+//        } else if (forwardKind == FORWARD_PERCENTAGE) {
+////            revert("FORWARD_PERCENTAGE is not supported");
         }
 
         Relayer(getRelayerAddress()).sendTx{value: valueToDeduct}(
@@ -461,6 +463,13 @@ contract NilBase {
     modifier onlyExternal() {
         require(!isInternalTransaction(), "Trying to call external function with internal transaction");
         _;
+    }
+
+    modifier async(uint gas) {
+        console.log("async modifier: from=%_, to=%_", msg.sender, address(this));
+        Relayer(Nil.getRelayerAddress()).startAsync();
+        _;
+        Relayer(Nil.getRelayerAddress()).finalizeAsync{value: gas * tx.gasprice}(gas);
     }
 
     // isInternalTransaction returns true if the current transaction is internal.
