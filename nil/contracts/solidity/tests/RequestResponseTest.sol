@@ -254,7 +254,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
         require(success, "Request should be successful");
         uint ctxValue = abi.decode(context, (uint));
         require(ctxValue == uint(11111), "Context value should be the same");
-        require(Nil.txnTokens().length == 0, "Tokens should be empty");
+        require(Nil.txnTokens().length == 0, "Tokens should be empty");  // TODO: [PoC] Tokens remove it
     }
 
     /**
