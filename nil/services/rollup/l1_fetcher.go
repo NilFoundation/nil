@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-//go:generate go run github.com/matryer/moq -out l1_fetcher_generated_mock.go -rm -stub -with-resets . L1BlockFetcher
 
 const pollInterval = 5 * time.Second
 

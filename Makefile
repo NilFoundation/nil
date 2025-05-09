@@ -107,3 +107,7 @@ clean:
 	go clean -cache
 	rm -fr build/*
 	rm -fr contracts/compiled/*
+
+.PHONY: mocks
+mocks: ssz_types
+	mockery --config=.mockery.yaml
