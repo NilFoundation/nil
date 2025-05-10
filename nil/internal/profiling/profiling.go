@@ -10,6 +10,6 @@ const DefaultPort = 6060
 
 func Start(port int) {
 	go func() {
-		_ = http.ListenAndServe("localhost:"+strconv.Itoa(port), nil) //nolint:gosec
+		_ = http.ListenAndServe(":"+strconv.Itoa(port), nil) //nolint:gosec
 	}()
 }
