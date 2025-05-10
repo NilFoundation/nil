@@ -224,7 +224,7 @@ func (s *L1SyncerTestSuite) Test_SyncLatestFinalizedRoot_L1_Returns_Error() {
 			s.syncer.config.AlwaysSyncWithL1 = testCase.alwaysSyncWithL1
 			s.setupClientMock(testaide.RandomHash(), true)
 
-			s.rollupContract.LatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
+			s.rollupContract.GetLatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
 				return common.EmptyHash, errors.New("something went wrong")
 			}
 
@@ -282,7 +282,7 @@ func (s *L1SyncerTestSuite) setupClientMock(genesisHash common.Hash, returnBlock
 
 func (s *L1SyncerTestSuite) setLatestFinalizedHash(latestFinalizedHash common.Hash) {
 	s.T().Helper()
-	s.rollupContract.LatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
+	s.rollupContract.GetLatestFinalizedStateRootFunc = func(ctx context.Context) (common.Hash, error) {
 		return latestFinalizedHash, nil
 	}
 }

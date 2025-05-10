@@ -315,6 +315,8 @@ func NewTransaction(transaction *jsonrpc.RPCInTransaction) PrunedTransaction {
 
 type DataProofs [][]byte
 
+type ValidityProof []byte
+
 type ProposalData struct {
 	BatchId             BatchId
 	DataProofs          DataProofs
@@ -336,5 +338,29 @@ func NewProposalData(
 		OldProvedStateRoot:  oldProvedStateRoot,
 		NewProvedStateRoot:  newProvedStateRoot,
 		FirstBlockFetchedAt: firstBlockFetchedAt,
+	}
+}
+
+type UpdateStateData struct {
+	ProposalData
+	ValidityProof ValidityProof
+	L2Tol1Root    common.Hash
+	MessageCount  int64
+	L1MessageHash common.Hash
+}
+
+func NewUpdateStateData(
+	proposalData *ProposalData,
+	validityProof ValidityProof,
+	l2Tol1Root common.Hash,
+	messageCount int64,
+	l1MessageHash common.Hash,
+) *UpdateStateData {
+	return &UpdateStateData{
+		ProposalData:  *proposalData,
+		ValidityProof: validityProof,
+		L2Tol1Root:    l2Tol1Root,
+		MessageCount:  messageCount,
+		L1MessageHash: l1MessageHash,
 	}
 }

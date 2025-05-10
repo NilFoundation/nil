@@ -16,7 +16,7 @@ type L2BlockFetcher interface {
 }
 
 type L1StateRootGetter interface {
-	LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
+	GetLatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
 }
 
 type LocalStateRootAccessor interface {
@@ -126,7 +126,7 @@ func (s *stateRootSyncer) updateLocalStateRoot(ctx context.Context) error {
 func (s *stateRootSyncer) getLatestFinalizedRoot(ctx context.Context) (*common.Hash, error) {
 	s.logger.Info().Msg("Syncing state with L1")
 
-	latestStateRoot, err := s.l1StateRootGetter.LatestFinalizedStateRoot(ctx)
+	latestStateRoot, err := s.l1StateRootGetter.GetLatestFinalizedStateRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
