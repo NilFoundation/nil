@@ -3,8 +3,9 @@
   "compilerVersion": "0.8.28",
   "settings": {
     "evmVersion": "cancun",
+    "viaIR": true,
     "optimizer": {
-      "enabled": false,
+      "enabled": true,
       "runs": 200
     }
   },
@@ -17,6 +18,18 @@
     },
     "Nil.sol": {
       "urls": ["lib/Nil.sol"]
+    },
+    "Relayer.sol": {
+      "urls": ["lib/Relayer.sol"]
+    },
+    "NilTokenManager.sol": {
+      "urls": ["lib/NilTokenManager.sol"]
+    },
+    "IterableMapping.sol": {
+      "urls": ["lib/IterableMapping.sol"]
+    },
+    "system/console.sol": {
+      "urls": ["system/console.sol"]
     }
   }
 }

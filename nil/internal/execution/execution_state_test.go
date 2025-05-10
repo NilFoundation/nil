@@ -239,7 +239,7 @@ func newState(t *testing.T) *ExecutionState {
 	state.BaseFee = types.DefaultGasPrice
 	require.NoError(t, err)
 
-	defaultZeroStateConfig, err := CreateDefaultZeroStateConfig(MainPublicKey)
+	defaultZeroStateConfig, err := CreateDefaultZeroStateConfig(MainPublicKey, 3)
 	require.NoError(t, err)
 	err = state.GenerateZeroState(defaultZeroStateConfig)
 	require.NoError(t, err)
@@ -448,7 +448,8 @@ func (s *SuiteExecutionState) TestTransactionStatus() {
 		txn.FeePack = types.NewFeePackFromGas(100_000)
 		txn.From = faucetAddr
 		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
-		s.Equal(types.ErrorTransactionToMainShard, res.Error.Code())
+		s.Equal(types.ErrorExecutionReverted, res.Error.Code())
+		s.Equal("ExecutionReverted: asyncCallWithTokens: call to main shard is not allowed", res.Error.Error())
 		s.Require().ErrorAs(res.Error, &vmErrStub)
 	})
 
@@ -461,7 +462,8 @@ func (s *SuiteExecutionState) TestTransactionStatus() {
 		txn.FeePack = types.NewFeePackFromGas(100_000)
 		txn.From = faucetAddr
 		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
-		s.Equal(types.ErrorShardIdIsTooBig, res.Error.Code())
+		s.Equal(types.ErrorExecutionReverted, res.Error.Code())
+		s.Equal("ExecutionReverted: asyncCallWithTokens: call to non-existing shard", res.Error.Error())
 		s.Require().ErrorAs(res.Error, &vmErrStub)
 	})
 
@@ -533,7 +535,6 @@ func (s *SuiteExecutionState) TestPrecompiles() {
 	s.Require().NoError(err)
 
 	txn := types.NewEmptyTransaction()
-	txn.Flags = types.NewTransactionFlags(types.TransactionFlagInternal)
 	txn.To = testAddr
 	txn.Data = []byte("wrong calldata")
 	txn.Seqno = 1
@@ -569,7 +570,8 @@ func (s *SuiteExecutionState) TestPrecompiles() {
 
 		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
 		s.True(res.Failed())
-		s.Equal(types.ErrorTransactionToMainShard, res.Error.Code())
+		s.Equal(types.ErrorExecutionReverted, res.Error.Code())
+		s.Equal("ExecutionReverted: asyncCallWithTokens: call to main shard is not allowed", res.Error.Error())
 	})
 
 	s.Run("testAsyncCall: withdrawFunds failed", func() {
@@ -577,6 +579,7 @@ func (s *SuiteExecutionState) TestPrecompiles() {
 			uint8(types.ForwardKindNone), big.NewInt(1_000_000_000_000_000), []byte{1, 2, 3, 4})
 		s.Require().NoError(err)
 		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
+		fmt.Println(res.String())
 		s.True(res.Failed())
 		s.Equal(types.ErrorInsufficientBalance, res.Error.Code())
 	})
@@ -587,7 +590,8 @@ func (s *SuiteExecutionState) TestPrecompiles() {
 		s.Require().NoError(err)
 		res := es.AddAndHandleTransaction(s.ctx, txn, dummyPayer{})
 		s.True(res.Failed())
-		s.Equal(types.ErrorCrossShardTransaction, res.Error.Code())
+		s.Equal(types.ErrorExecutionReverted, res.Error.Code())
+		s.Equal("ExecutionReverted: tokenBalance: cross-shard call", res.Error.Error())
 	})
 
 	s.Run("Test required gas for outbound transactions", func() {

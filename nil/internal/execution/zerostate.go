@@ -39,7 +39,7 @@ type ZeroStateConfig struct {
 	Contracts    []*ContractDescr `yaml:"contracts" json:"contracts"`
 }
 
-func CreateDefaultZeroStateConfig(mainPublicKey []byte) (*ZeroStateConfig, error) {
+func CreateDefaultZeroStateConfig(mainPublicKey []byte, numShards int) (*ZeroStateConfig, error) {
 	smartAccountValue, err := types.NewValueFromDecimal("100000000000000000000000000000000000000000000000000")
 	if err != nil {
 		return nil, err
@@ -78,7 +78,27 @@ func CreateDefaultZeroStateConfig(mainPublicKey []byte) (*ZeroStateConfig, error
 			},
 		},
 	}
+	AddSystemContractsToZeroStateConfig(zeroStateConfig, numShards)
 	return zeroStateConfig, nil
+}
+
+func AddSystemContractsToZeroStateConfig(zeroStateConfig *ZeroStateConfig, shardsNum int) {
+	v, err := types.NewValueFromDecimal("100000000000000000000000000000000000000000000000000")
+	check.PanicIfErr(err)
+	for i := range shardsNum {
+		zeroStateConfig.Contracts = append(zeroStateConfig.Contracts, &ContractDescr{
+			Name:     fmt.Sprintf("Relayer_%d", i),
+			Contract: "Relayer",
+			Address:  types.GetRelayerAddress(types.ShardId(i)),
+			Value:    v,
+		})
+		zeroStateConfig.Contracts = append(zeroStateConfig.Contracts, &ContractDescr{
+			Name:     fmt.Sprintf("TokenManager_%d", i),
+			Contract: contracts.NameTokenManager,
+			Address:  types.GetTokenManagerAddress(types.ShardId(i)),
+			Value:    types.Value0,
+		})
+	}
 }
 
 func (cfg *ZeroStateConfig) GetValidators() []config.ListValidators {

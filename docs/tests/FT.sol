@@ -36,7 +36,9 @@ contract FT is NilTokenBase {
             Nil.FORWARD_REMAINING,
             0,
             ft,
-            ""
+            "",
+            0,
+            0
         );
     }
 

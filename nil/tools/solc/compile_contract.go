@@ -115,6 +115,7 @@ func CompileSource(sourcePath string, options ...CompileOption) (map[string]*com
 	}
 
 	args := opts.toArgs(sourcePath)
+	args = append(args, "--via-ir", "--optimize")
 
 	cmd := exec.Command(solc, args...)
 

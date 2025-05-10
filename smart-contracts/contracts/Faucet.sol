@@ -64,7 +64,7 @@ contract Faucet {
         value = acquire(addr, value);
 
         bytes memory callData;
-        uint feeCredit = 100_000 * tx.gasprice;
+        uint feeCredit = 500_000 * tx.gasprice;
         Nil.asyncCall(
             addr,
             address(this) /* refundTo */,

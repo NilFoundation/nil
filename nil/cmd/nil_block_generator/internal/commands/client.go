@@ -115,7 +115,7 @@ func CreateNewSmartAccount(rpcEndpoint string, logger logging.Logger) (string, s
 
 	salt := types.NewUint256(0)
 	amount := types.NewValueFromUint64(2_000_000_000_000_000)
-	fee := types.NewFeePackFromFeeCredit(types.NewValueFromUint64(200_000_000_000_000))
+	fee := types.NewFeePackFromGas(2_000_000)
 
 	srv, err := CreateCliService(rpcEndpoint, hexKey, logger)
 	if err != nil {

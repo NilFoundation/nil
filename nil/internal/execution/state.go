@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
 	"sort"
@@ -16,9 +17,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/config"
-	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -311,6 +310,11 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		l = l.Str("mode", params.Mode)
 	}
 	logger := l.Logger()
+
+	// FIXME: remove
+	if params.Mode != "proposal" {
+		logger = logging.NewLoggerWithWriter("", io.Discard)
+	}
 
 	feeCalculator := params.FeeCalculator
 	if feeCalculator == nil {
@@ -915,28 +919,6 @@ func (es *ExecutionState) AddOutTransaction(
 	txn.MaxPriorityFeePerGas = es.GetInTransaction().MaxPriorityFeePerGas
 	txn.MaxFeePerGas = es.GetInTransaction().MaxFeePerGas
 
-	// In case of bounce transaction, we don't debit token from account
-	// In case of refund transaction, we don't transfer tokens
-	if !txn.IsBounce() && !txn.IsRefund() {
-		acc, err := es.GetAccount(txn.From)
-		if err != nil {
-			return nil, err
-		}
-		for _, token := range txn.Token {
-			balance := acc.GetTokenBalance(token.Token)
-			if balance == nil {
-				balance = &types.Value{}
-			}
-			if balance.Cmp(token.Balance) < 0 {
-				return nil, fmt.Errorf("%w: %s < %s, token %s",
-					vm.ErrInsufficientBalance, balance, token.Balance, token.Token)
-			}
-			if err := es.SubToken(txn.From, token.Token, token.Balance); err != nil {
-				return nil, err
-			}
-		}
-	}
-
 	// Use next TxId
 	txn.TxId = es.OutTxCounts[txn.To.ShardId()]
 	es.OutTxCounts[txn.To.ShardId()] = txn.TxId + 1
@@ -967,44 +949,6 @@ func (es *ExecutionState) AddOutTransaction(
 	}
 
 	return txn, nil
-}
-
-func (es *ExecutionState) sendBounceTransaction(txn *types.Transaction, execResult *ExecutionResult) (bool, error) {
-	if txn.Value.IsZero() && len(txn.Token) == 0 {
-		return false, nil
-	}
-	if txn.BounceTo == types.EmptyAddress {
-		es.logger.Debug().Msg("Bounce transaction not sent, no bounce address")
-		return false, nil
-	}
-
-	data, err := contracts.NewCallData(contracts.NameNilBounceable, "bounce", execResult.Error.Error())
-	if err != nil {
-		return false, err
-	}
-
-	check.PanicIfNotf(
-		execResult.CoinsForwarded.IsZero(),
-		"CoinsForwarded should be zero when sending bounce transaction")
-	toReturn := es.txnFeeCredit.Sub(execResult.CoinsUsed())
-
-	bounceTxn := &types.InternalTransactionPayload{
-		Bounce:    true,
-		To:        txn.BounceTo,
-		RefundTo:  txn.RefundTo,
-		Value:     txn.Value,
-		Token:     txn.Token,
-		Data:      data,
-		FeeCredit: toReturn,
-	}
-	if _, err = es.AddOutTransaction(txn.To, bounceTxn, 0); err != nil {
-		return false, err
-	}
-	es.logger.Debug().
-		Stringer(logging.FieldTransactionFrom, txn.To).
-		Stringer(logging.FieldTransactionTo, txn.BounceTo).
-		Msg("Bounce transaction sent")
-	return true, nil
 }
 
 func (es *ExecutionState) SendResponseTransaction(txn *types.Transaction, res *ExecutionResult) error {
@@ -1069,6 +1013,9 @@ func (es *ExecutionState) AcceptInternalTransaction(tx *types.Transaction) error
 func (es *ExecutionState) HandleTransaction(
 	ctx context.Context, txn *types.Transaction, payer Payer,
 ) (retError *ExecutionResult) {
+	check.PanicIff(txn.IsRequest(), "request transactions are deprecated")
+	check.PanicIff(txn.IsBounce(), "bounce transactions are deprecated")
+
 	defer func() {
 		var ev *logging.Event
 		if retError.Failed() {
@@ -1186,18 +1133,6 @@ func (es *ExecutionState) HandleTransaction(
 				}
 			}
 		}
-		if txn.IsBounce() {
-			es.logger.Error().Err(res.Error).Msg("VM returns error during bounce transaction processing")
-		} else {
-			es.logger.Debug().Err(res.Error).Msg("execution txn failed")
-			if txn.IsInternal() {
-				var bounceErr error
-				if bounced, bounceErr = es.sendBounceTransaction(txn, res); bounceErr != nil {
-					es.logger.Error().Err(bounceErr).Msg("Bounce transaction sent failed")
-					return res.SetFatal(bounceErr)
-				}
-			}
-		}
 	} else {
 		availableGas := es.txnFeeCredit.Sub(res.CoinsUsed())
 		var err error
@@ -1264,55 +1199,6 @@ func (es *ExecutionState) handleDeployTransaction(_ context.Context, transaction
 		SetReturnData(ret).SetDebugInfo(es.evm.DebugInfo)
 }
 
-func (es *ExecutionState) TryProcessResponse(
-	transaction *types.Transaction,
-) ([]byte, *ExecutionResult) {
-	if !transaction.IsResponse() {
-		return transaction.Data, nil
-	}
-	var callData []byte
-
-	check.PanicIfNot(transaction.RequestId != 0)
-	acc, err := es.GetAccount(transaction.To)
-	if err != nil {
-		return nil, NewExecutionResult().SetFatal(err)
-	}
-	asyncContext, err := acc.GetAndRemoveAsyncContext(types.TransactionIndex(transaction.RequestId))
-	if err != nil {
-		return nil, NewExecutionResult().SetFatal(fmt.Errorf("failed to get async context %s (%d): %w",
-			transaction.To, transaction.RequestId, err))
-	}
-
-	responsePayload := new(types.AsyncResponsePayload)
-	if err := responsePayload.UnmarshalSSZ(transaction.Data); err != nil {
-		return nil, NewExecutionResult().SetFatal(
-			fmt.Errorf("AsyncResponsePayload unmarshal failed: %w", err))
-	}
-
-	es.txnFeeCredit = es.txnFeeCredit.Add(asyncContext.ResponseProcessingGas.ToValue(es.GasPrice))
-
-	methodSignature := "onFallback(uint256,bool,bytes)"
-	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
-
-	uint256Ty, _ := abi.NewType("uint256", "", nil)
-	boolTy, _ := abi.NewType("bool", "", nil)
-	bytesTy, _ := abi.NewType("bytes", "", nil)
-	args := abi.Arguments{
-		abi.Argument{Name: "answer_id", Type: uint256Ty},
-		abi.Argument{Name: "success", Type: boolTy},
-		abi.Argument{Name: "response", Type: bytesTy},
-	}
-
-	if callData, err = args.Pack(
-		types.NewUint256(transaction.RequestId),
-		responsePayload.Success,
-		responsePayload.ReturnData,
-	); err != nil {
-		return nil, NewExecutionResult().SetFatal(err)
-	}
-	return append(methodSelector, callData...), nil
-}
-
 func (es *ExecutionState) handleExecutionTransaction(
 	_ context.Context,
 	transaction *types.Transaction,
@@ -1334,11 +1220,6 @@ func (es *ExecutionState) handleExecutionTransaction(
 
 	caller := (vm.AccountRef)(transaction.From)
 
-	callData, res := es.TryProcessResponse(transaction)
-	if res != nil && res.Failed() {
-		return res
-	}
-
 	if err := es.newVm(transaction.IsInternal(), transaction.From); err != nil {
 		return NewExecutionResult().SetFatal(err)
 	}
@@ -1350,8 +1231,7 @@ func (es *ExecutionState) handleExecutionTransaction(
 	es.revertId = es.Snapshot()
 
 	gas, exceedBlockLimit := es.calcGasLimit(es.txnFeeCredit.ToGas(es.GasPrice))
-	es.evm.SetTokenTransfer(transaction.Token)
-	ret, leftOver, err := es.evm.Call(caller, addr, callData, gas.Uint64(), transaction.Value.Int())
+	ret, leftOver, err := es.evm.Call(caller, addr, transaction.Data, gas.Uint64(), transaction.Value.Int())
 
 	if exceedBlockLimit && types.IsOutOfGasError(err) {
 		err = types.NewError(types.ErrorTransactionExceedsBlockGasLimit)
@@ -1794,92 +1674,6 @@ func (es *ExecutionState) CallVerifyExternal(
 	return res
 }
 
-func (es *ExecutionState) AddToken(addr types.Address, tokenId types.TokenId, amount types.Value) error {
-	es.logger.Debug().
-		Stringer("addr", addr).
-		Stringer("amount", amount).
-		Stringer("id", tokenId).
-		Msg("Add token")
-
-	acc, err := es.GetAccount(addr)
-	if err != nil {
-		return err
-	}
-	if acc == nil {
-		return fmt.Errorf("destination account %v not found", addr)
-	}
-
-	balance := acc.GetTokenBalance(tokenId)
-	if balance == nil {
-		balance = &types.Value{}
-	}
-	newBalance := balance.Add(amount)
-	// Amount can be negative(token burning). So, if the new balance is negative, set it to 0
-	if newBalance.Cmp(types.Value{}) < 0 {
-		newBalance = types.Value{}
-	}
-	acc.SetTokenBalance(tokenId, newBalance)
-
-	return nil
-}
-
-func (es *ExecutionState) SubToken(addr types.Address, tokenId types.TokenId, amount types.Value) error {
-	es.logger.Debug().
-		Stringer("addr", addr).
-		Stringer("amount", amount).
-		Stringer("id", tokenId).
-		Msg("Sub token")
-
-	acc, err := es.GetAccount(addr)
-	if err != nil {
-		return err
-	}
-	if acc == nil {
-		return fmt.Errorf("destination account %v not found", addr)
-	}
-
-	balance := acc.GetTokenBalance(tokenId)
-	if balance == nil {
-		balance = &types.Value{}
-	}
-	if balance.Cmp(amount) < 0 {
-		return fmt.Errorf("%w: %s < %s, token %s",
-			vm.ErrInsufficientBalance, balance, amount, tokenId)
-	}
-	acc.SetTokenBalance(tokenId, balance.Sub(amount))
-
-	return nil
-}
-
-func (es *ExecutionState) GetTokens(addr types.Address) map[types.TokenId]types.Value {
-	acc, err := es.GetAccountReader(addr)
-	if err != nil {
-		es.logger.Error().Err(err).Msg("failed to get account")
-		return nil
-	}
-	if acc == nil {
-		return nil
-	}
-
-	res := make(map[types.TokenId]types.Value)
-	for k, v := range acc.TokenTrieReader.Iterate() {
-		var c types.TokenBalance
-		c.Token = types.TokenId(k)
-		if err := c.Balance.UnmarshalSSZ(v); err != nil {
-			es.logger.Error().Err(err).Msg("failed to unmarshal token balance")
-			continue
-		}
-		res[c.Token] = c.Balance
-	}
-	// If some token was changed during execution, we need to set it to the result. It will probably rewrite values
-	// fetched from the storage above.
-	for id, balance := range *acc.Tokens {
-		res[id] = balance
-	}
-
-	return res
-}
-
 func (es *ExecutionState) GetGasPrice(shardId types.ShardId) (types.Value, error) {
 	prices, err := config.GetParamGasPrice(es.GetConfigAccessor())
 	if err != nil {
@@ -1902,10 +1696,6 @@ func (es *ExecutionState) Rollback(counter, patchLevel uint32, mainBlock uint64)
 
 func (es *ExecutionState) GetRollback() *RollbackParams {
 	return es.rollback
-}
-
-func (es *ExecutionState) SetTokenTransfer(tokens []types.TokenBalance) {
-	es.evm.SetTokenTransfer(tokens)
 }
 
 func (es *ExecutionState) newVm(internal bool, origin types.Address) error {
@@ -2018,6 +1808,19 @@ func (es *ExecutionState) preTxHookCall(txn *types.Transaction) {
 func (es *ExecutionState) postTxHookCall(txn *types.Transaction, txResult *ExecutionResult) {
 	if es.EvmTracingHooks != nil && es.EvmTracingHooks.OnTxEnd != nil {
 		es.EvmTracingHooks.OnTxEnd(es.evm.GetVMContext(), txn, txResult.Error)
+	}
+}
+
+func (es *ExecutionState) EnableVmTracing() {
+	es.evm.Config.Tracer = &tracing.Hooks{
+		OnOpcode: func(
+			pc uint64, op byte, gas, cost uint64, scope tracing.OpContext, rData []byte, depth int, err error,
+		) {
+			for i, item := range scope.StackData() {
+				fmt.Printf("     %d: %s\n", i, item.String())
+			}
+			fmt.Printf("%04x: %s\n", pc, vm.OpCode(op).String())
+		},
 	}
 }
 

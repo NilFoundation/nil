@@ -32,7 +32,17 @@ var (
 	UsdcFaucetAddress       = ShardAndHexToAddress(BaseShardId, "111111111111111111111111111111111115")
 	L1BlockInfoAddress      = ShardAndHexToAddress(MainShardId, "222222222222222222222222222222222222")
 	GovernanceAddress       = ShardAndHexToAddress(MainShardId, "777777777777777777777777777777777777")
+	RelayerPureAddress      = "333333333333333333333333333333333333"
+	TokenManagerPureAddress = "444444444444444444444444444444444444"
 )
+
+func GetRelayerAddress(shardId ShardId) Address {
+	return ShardAndHexToAddress(shardId, RelayerPureAddress)
+}
+
+func GetTokenManagerAddress(shardId ShardId) Address {
+	return ShardAndHexToAddress(shardId, TokenManagerPureAddress)
+}
 
 func GetTokenName(addr TokenId) string {
 	switch Address(addr) {

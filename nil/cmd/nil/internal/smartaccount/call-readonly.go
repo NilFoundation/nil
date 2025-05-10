@@ -122,7 +122,12 @@ func runCallReadonly(cmd *cobra.Command, args []string, cfg *common.Config, para
 			return nil, nil, err
 		}
 
-		result, err := common.CalldataToArgs(contractAbi, args[1], res.OutTransactions[0].Data)
+		data, err := contracts.UnpackRelayerResult(res.OutTransactions[0].Data)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		result, err := common.CalldataToArgs(contractAbi, args[1], data)
 		if err != nil {
 			return nil, nil, err
 		}

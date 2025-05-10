@@ -34,7 +34,7 @@ func GetCallReadonlyCommand(cfg *common.Config) *cobra.Command {
 		"The path to the ABI file",
 	)
 
-	params.Fee = types.NewFeePackFromGas(100_000)
+	params.Fee = types.NewFeePackFromGas(500_000)
 	cmd.Flags().Var(
 		&params.Fee.FeeCredit,
 		feeCreditFlag,

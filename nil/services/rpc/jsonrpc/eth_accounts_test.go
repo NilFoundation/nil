@@ -67,6 +67,11 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.Require().NoError(es.SetState(suite.smcAddr, common.HexToHash("0x1"), common.HexToHash("0x2")))
 	suite.Require().NoError(es.SetState(suite.smcAddr, common.HexToHash("0x3"), common.HexToHash("0x4")))
 
+	zeroState, err := execution.CreateDefaultZeroStateConfig(execution.MainPublicKey, 5)
+	suite.Require().NoError(err)
+	err = es.GenerateZeroState(zeroState)
+	suite.Require().NoError(err)
+
 	blockRes, err := es.Commit(0, nil)
 	suite.Require().NoError(err)
 	suite.blockHash = blockRes.BlockHash

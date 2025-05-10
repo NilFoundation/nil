@@ -9,8 +9,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
-	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
@@ -32,7 +30,7 @@ func NewBlocksTracer() (*BlocksTracer, error) {
 		indent: "",
 	}
 	if printToStdout {
-		bt.file = os.Stdout
+		bt.file = os.Stderr
 	} else {
 		bt.file, err = os.OpenFile("blocks.txt", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o777)
 		if err != nil || bt.file == nil {
@@ -92,13 +90,6 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block, blockHash 
 	bt.lock.Lock()
 	defer bt.lock.Unlock()
 
-	root := mpt.NewDbReader(es.tx, es.ShardId, db.ContractTrieTable)
-	root.SetRootHash(block.SmartContractsRoot)
-	contractsNum := 0
-	for range root.Iterate() {
-		contractsNum++
-	}
-
 	if !printEmptyBlocks && len(es.InTransactions) == 0 {
 		return
 	}
@@ -109,7 +100,6 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block, blockHash 
 		bt.Printf("id: %d\n", block.Id)
 		bt.Printf("hash: %s\n", blockHash.Hex())
 		bt.Printf("gas_price: %v\n", es.GasPrice)
-		bt.Printf("contracts_num: %d\n", contractsNum)
 		if len(es.InTransactions) != 0 {
 			bt.Printf("in_transactions:\n")
 			for i, txn := range es.InTransactions {

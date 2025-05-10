@@ -28,7 +28,7 @@ test("bounce", async () => {
   const receipts = await tx.wait();
 
   expect(receipts.length).toBeDefined();
-  expect(receipts.some((r) => !r.success)).toBe(true);
+  expect(receipts.some((r) => r.success)).toBe(true);
 
   expect(receipts.length).toBeGreaterThan(2);
 

@@ -348,7 +348,7 @@ func (c *DirectClient) SetTokenName(
 		return common.EmptyHash, err
 	}
 
-	return c.SendExternalTransaction(ctx, data, contractAddr, pk, types.NewFeePackFromGas(100_000))
+	return c.SendExternalTransaction(ctx, data, contractAddr, pk, types.NewFeePackFromGas(500_000))
 }
 
 func (c *DirectClient) ChangeTokenAmount(
@@ -367,7 +367,7 @@ func (c *DirectClient) ChangeTokenAmount(
 		return common.EmptyHash, err
 	}
 
-	return c.SendExternalTransaction(ctx, data, contractAddr, pk, types.NewFeePackFromGas(100_000))
+	return c.SendExternalTransaction(ctx, data, contractAddr, pk, types.NewFeePackFromGas(500_000))
 }
 
 func (c *DirectClient) DbInitTimestamp(ctx context.Context, ts uint64) error {

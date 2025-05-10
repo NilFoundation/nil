@@ -84,19 +84,15 @@ type SimplePrecompiledContract interface {
 }
 
 var (
-	AsyncCallAddress         = types.BytesToAddress([]byte{0xfd})
-	VerifySignatureAddress   = types.BytesToAddress([]byte{0xfe})
-	CheckIsInternalAddress   = types.BytesToAddress([]byte{0xff})
-	ManageTokenAddress       = types.BytesToAddress([]byte{0xd0})
-	TokenBalanceAddress      = types.BytesToAddress([]byte{0xd1})
-	SendTokensAddress        = types.BytesToAddress([]byte{0xd2})
-	TransactionTokensAddress = types.BytesToAddress([]byte{0xd3})
-	GetGasPriceAddress       = types.BytesToAddress([]byte{0xd4})
-	ConfigParamAddress       = types.BytesToAddress([]byte{0xd7})
-	CheckIsResponseAddress   = types.BytesToAddress([]byte{0xd9})
-	LogAddress               = types.BytesToAddress([]byte{0xda})
-	GovernanceAddress        = types.BytesToAddress([]byte{0xdb})
-	ConsoleAddress           = types.HexToAddress("0x00000000000000000000000000000000000dEBa6")
+	AsyncCallAddress       = types.BytesToAddress([]byte{0xfd})
+	VerifySignatureAddress = types.BytesToAddress([]byte{0xfe})
+	CheckIsInternalAddress = types.BytesToAddress([]byte{0xff})
+	GetGasPriceAddress     = types.BytesToAddress([]byte{0xd4})
+	ConfigParamAddress     = types.BytesToAddress([]byte{0xd7})
+	CheckIsResponseAddress = types.BytesToAddress([]byte{0xd9})
+	LogAddress             = types.BytesToAddress([]byte{0xda})
+	GovernanceAddress      = types.BytesToAddress([]byte{0xdb})
+	ConsoleAddress         = types.HexToAddress("0x00000000000000000000000000000000000dEBa6")
 )
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -123,19 +119,15 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 	types.BytesToAddress([]byte{0x13}): &simple{&bls12381MapG2{}},
 
 	// NilFoundation precompiled contracts
-	AsyncCallAddress:         &asyncCall{},
-	VerifySignatureAddress:   &simple{&verifySignature{}},
-	CheckIsInternalAddress:   &checkIsInternal{},
-	ManageTokenAddress:       &manageToken{},
-	TokenBalanceAddress:      &tokenBalance{},
-	SendTokensAddress:        &sendTokenSync{},
-	TransactionTokensAddress: &getTransactionTokens{},
-	GetGasPriceAddress:       &getGasPrice{},
-	ConfigParamAddress:       &configParam{},
-	CheckIsResponseAddress:   &checkIsResponse{},
-	LogAddress:               &emitLog{},
-	GovernanceAddress:        &governance{},
-	ConsoleAddress:           &consolePrecompile{},
+	AsyncCallAddress:       &asyncCall{},
+	VerifySignatureAddress: &simple{&verifySignature{}},
+	CheckIsInternalAddress: &checkIsInternal{},
+	GetGasPriceAddress:     &getGasPrice{},
+	ConfigParamAddress:     &configParam{},
+	CheckIsResponseAddress: &checkIsResponse{},
+	LogAddress:             &emitLog{},
+	GovernanceAddress:      &governance{},
+	ConsoleAddress:         &consolePrecompile{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -484,7 +476,6 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 		RefundTo:    refundTo,
 		BounceTo:    bounceTo,
 		Data:        input,
-		RequestId:   awaitId.Uint64(),
 	}
 	res = make([]byte, 32)
 	res[31] = 1
@@ -641,179 +632,6 @@ func (a *checkIsResponse) Run(
 
 	res := make([]byte, 32)
 	res[31] = 1
-
-	return res, nil
-}
-
-type manageToken struct{}
-
-var _ ReadWritePrecompiledContract = (*manageToken)(nil)
-
-func (c *manageToken) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
-	return 10, nil
-}
-
-func (c *manageToken) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
-	if len(input) < 4 {
-		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
-	}
-
-	res := make([]byte, 32)
-
-	args, err := getPrecompiledMethod("precompileManageToken").Inputs.Unpack(input[4:])
-	if err != nil {
-		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
-	}
-	if len(args) != 2 {
-		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
-	}
-
-	amountBig, ok := args[0].(*big.Int)
-	check.PanicIfNotf(ok, "manageToken failed: `amountBig` is not a big.Int: %v", args[0])
-	amount := types.NewValueFromBigMust(amountBig)
-
-	mint, ok := args[1].(bool)
-	check.PanicIfNotf(ok, "manageToken failed: `mint` is not a bool: %v", args[1])
-
-	tokenId := types.TokenId(caller.Address())
-
-	action := state.AddToken
-	if !mint {
-		action = state.SubToken
-	}
-
-	if err = action(caller.Address(), tokenId, amount); err != nil {
-		actionName := "AddToken"
-		if !mint {
-			actionName = "SubToken"
-		}
-		return nil, types.NewVmVerboseError(
-			types.ErrorPrecompileWrongNumberOfArguments, fmt.Sprintf("%s failed: %v", actionName, err))
-	}
-
-	// Set return data to boolean `true` value
-	res[31] = 1
-
-	return res, nil
-}
-
-type tokenBalance struct{}
-
-var _ ReadOnlyPrecompiledContract = (*tokenBalance)(nil)
-
-func (c *tokenBalance) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
-	return 10, nil
-}
-
-func (a *tokenBalance) Run(
-	state StateDBReadOnly,
-	input []byte,
-	value *uint256.Int,
-	caller ContractRef,
-) ([]byte, error) {
-	if len(input) < 4 {
-		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
-	}
-
-	res := make([]byte, 32)
-
-	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := getPrecompiledMethod("precompileGetTokenBalance").Inputs.Unpack(input[4:])
-	if err != nil {
-		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
-	}
-	if len(args) != 2 {
-		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
-	}
-
-	// Get `id` argument
-	tokenId, ok := args[0].(types.Address)
-	check.PanicIfNotf(ok, "tokenBalance failed: tokenId is not an Address: %v", args[0])
-
-	// Get `addr` argument
-	addr, ok := args[1].(types.Address)
-	check.PanicIfNotf(ok, "tokenBalance failed: addr argument is not an address")
-
-	if addr == types.EmptyAddress {
-		addr = caller.Address()
-	} else if addr.ShardId() != caller.Address().ShardId() {
-		return nil, types.NewVmVerboseError(types.ErrorCrossShardTransaction, "tokenBalance")
-	}
-
-	tokens := state.GetTokens(addr)
-	r, ok := tokens[types.TokenId(tokenId)]
-	if ok {
-		b := r.Bytes32()
-		return b[:], nil
-	}
-
-	return res, nil
-}
-
-type sendTokenSync struct{}
-
-var _ ReadWritePrecompiledContract = (*sendTokenSync)(nil)
-
-func (c *sendTokenSync) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
-	return 10, nil
-}
-
-func (c *sendTokenSync) Run(state StateDB, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
-	if len(input) < 4 {
-		return nil, types.NewVmError(types.ErrorPrecompileTooShortCallData)
-	}
-
-	// Unpack arguments, skipping the first 4 bytes (function selector)
-	args, err := getPrecompiledMethod("precompileSendTokens").Inputs.Unpack(input[4:])
-	if err != nil {
-		return nil, types.NewVmVerboseError(types.ErrorAbiUnpackFailed, err.Error())
-	}
-	if len(args) != 2 {
-		return nil, types.NewVmError(types.ErrorPrecompileWrongNumberOfArguments)
-	}
-
-	// Get destination address
-	addr, ok := args[0].(types.Address)
-	check.PanicIfNotf(ok, "sendTokenSync failed: addr argument is not an address")
-
-	if caller.Address().ShardId() != addr.ShardId() {
-		return nil, fmt.Errorf("sendTokenSync: %w: %s -> %s",
-			ErrCrossShardTransaction, caller.Address().ShardId(), addr.ShardId())
-	}
-
-	// Get tokens
-	tokens, err := extractTokens(args[1])
-	if err != nil {
-		return nil, types.NewVmVerboseError(types.ErrorPrecompileInvalidTokenArray, "sendTokenSync")
-	}
-
-	state.SetTokenTransfer(tokens)
-
-	res := make([]byte, 32)
-	res[31] = 1
-
-	return res, nil
-}
-
-type getTransactionTokens struct{}
-
-var _ ReadOnlyPrecompiledContract = (*getTransactionTokens)(nil)
-
-func (c *getTransactionTokens) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
-	return 10, nil
-}
-
-func (c *getTransactionTokens) Run(
-	state StateDBReadOnly,
-	input []byte,
-	value *uint256.Int,
-	caller ContractRef,
-) ([]byte, error) {
-	callerTokens := caller.Token()
-	res, err := getPrecompiledMethod("precompileGetTransactionTokens").Outputs.Pack(callerTokens)
-	if err != nil {
-		return nil, types.NewVmVerboseError(types.ErrorAbiPackFailed, err.Error())
-	}
 
 	return res, nil
 }

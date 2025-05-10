@@ -155,6 +155,7 @@ type Settings struct {
 	EvmVersion   string    `json:"evmVersion"`
 	AppendCBOR   bool      `json:"appendCBOR"` //nolint:tagliatelle
 	BytecodeHash string    `json:"bytecodeHash"`
+	ViaIR        bool      `json:"viaIR,omitempty"` //nolint:tagliatelle
 }
 
 type FunctionDebugItem struct {
@@ -215,6 +216,7 @@ func (t *CompilerTask) ToCompilerJsonInput() (*CompilerJsonInput, error) {
 	res.Settings.Optimizer = t.Settings.Optimizer
 	res.Settings.EvmVersion = t.Settings.EvmVersion
 	res.Settings.Metadata.BytecodeHash = t.Settings.BytecodeHash
+	res.Settings.ViaIR = t.Settings.ViaIR
 	res.Settings.Metadata.AppendCBOR = t.Settings.AppendCBOR
 	parts := strings.Split(t.ContractName, ":")
 	if len(parts) != 2 {

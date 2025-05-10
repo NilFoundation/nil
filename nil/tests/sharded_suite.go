@@ -205,7 +205,7 @@ func (s *ShardedSuite) start(
 
 	if cfg.ZeroState == nil {
 		var err error
-		cfg.ZeroState, err = execution.CreateDefaultZeroStateConfig(execution.MainPublicKey)
+		cfg.ZeroState, err = execution.CreateDefaultZeroStateConfig(execution.MainPublicKey, int(cfg.NShards))
 		s.Require().NoError(err)
 	}
 
@@ -254,6 +254,8 @@ func (s *ShardedSuite) start(
 
 func (s *ShardedSuite) Start(cfg *nilservice.Config, port int, options ...network.Option) {
 	s.T().Helper()
+
+	logging.ApplyComponentsFilterEnv()
 
 	s.start(cfg, port, createOneShardOneValidatorCfg, options...)
 }

@@ -53,6 +53,7 @@ func (s *SuiteConsensus) SetupTest() {
 			},
 		},
 	}
+	execution.AddSystemContractsToZeroStateConfig(zeroState, int(nShards))
 
 	s.StartShardAllValidators(&nilservice.Config{
 		NShards:              nShards,

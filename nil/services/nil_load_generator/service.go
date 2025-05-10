@@ -387,7 +387,9 @@ func Run(ctx context.Context, cfg *Config, logger logging.Logger) error {
 		return err
 	}
 
-	logging.SetupGlobalLogger(cfg.LogLevel)
+	if cfg.LogLevel != "" {
+		logging.SetupGlobalLogger(cfg.LogLevel)
+	}
 
 	service := newService(cfg, logger)
 

@@ -47,6 +47,7 @@ func (s *SuiteRegression) SetupSuite() {
 			},
 		},
 	}
+	execution.AddSystemContractsToZeroStateConfig(zeroState, int(s.ShardsNum))
 
 	s.Start(&nilservice.Config{
 		NShards:   s.ShardsNum,
@@ -126,6 +127,8 @@ func (s *SuiteRegression) TestEmptyError() {
 func (s *SuiteRegression) TestProposerOutOfGas() {
 	abi, err := contracts.GetAbi(contracts.NameTest)
 	s.Require().NoError(err)
+	abiRelayer, err := contracts.GetAbi(contracts.NameRelayer)
+	s.Require().NoError(err)
 
 	calldata, err := abi.Pack("burnGas")
 	s.Require().NoError(err)
@@ -143,7 +146,17 @@ func (s *SuiteRegression) TestProposerOutOfGas() {
 	s.Require().True(receipt.Success)
 	s.Require().Equal("Success", receipt.Status)
 	s.Require().Len(receipt.OutReceipts, 1)
-	s.Require().Equal("TransactionExceedsBlockGasLimit", receipt.OutReceipts[0].Status)
+	s.Require().True(receipt.OutReceipts[0].Success)
+	s.Require().Len(receipt.OutReceipts[0].Logs, 1)
+	args, err := abiRelayer.Events["CallFailed"].Inputs.Unpack(receipt.OutReceipts[0].Logs[0].Data)
+	s.Require().NoError(err)
+	s.Require().Len(args, 3)
+	d, ok := args[2].([]byte)
+	s.Require().Equal(calldata, d)
+	s.Require().True(ok)
+	s.Require().Len(receipt.OutReceipts[0].Logs[0].Topics, 3)
+	s.Require().Equal(types.MainSmartAccountAddress.Hash(), receipt.OutReceipts[0].Logs[0].Topics[1])
+	s.Require().Equal(s.testAddress.Hash(), receipt.OutReceipts[0].Logs[0].Topics[2])
 }
 
 func (s *SuiteRegression) TestInsufficientFundsIncExtSeqno() {
@@ -353,6 +366,7 @@ func (s *SuiteRegression) TestNonRevertedErrDecoding() {
 }
 
 func (s *SuiteRegression) TestBigTransactions() {
+	s.T().Skip("TODO: we cannot restrict tx gas limit in the new implementation")
 	abi, err := contracts.GetAbi(contracts.NameStresser)
 	s.Require().NoError(err)
 

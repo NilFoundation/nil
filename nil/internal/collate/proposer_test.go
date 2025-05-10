@@ -149,14 +149,24 @@ func (s *ProposerTestSuite) TestCollator() {
 	pool.Reset()
 
 	s.Run("ProcessInternalTransaction1", func() {
-		generateBlock()
+		proposal := generateBlock()
 
 		s.Equal(balance, s.getMainBalance())
 		s.Equal(txnValue.Mul(types.NewValueFromUint64(2)), s.getBalance(shardId, to))
+		s.Len(proposal.InternalTxns, 2)
+
+		// Subtract the gas used by the internal transactions from the balance
+		receipt1 := s.checkReceipt(shardId, proposal.InternalTxns[0])
+		receipt2 := s.checkReceipt(shardId, proposal.InternalTxns[1])
+		balance = balance.Sub(types.GasToValue(receipt1.GasUsed.Uint64()))
+		balance = balance.Sub(types.GasToValue(receipt2.GasUsed.Uint64()))
 	})
 
 	s.Run("ProcessRefundTransactions", func() {
-		generateBlock()
+		proposal := generateBlock()
+
+		// Two refund transactions
+		s.Len(proposal.InternalTxns, 2)
 
 		balance = balance.Add(r1.Forwarded).Add(r2.Forwarded)
 		s.Equal(balance, s.getMainBalance())

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./Nil.sol";
+import "./NilTokenManager.sol";
 
 /**
  * @title NilTokenBase
@@ -11,16 +12,27 @@ import "./Nil.sol";
  * They are virtual, so the main contract can disable them by overriding them. Then only logic of the contract can use
  * internal methods.
  */
-abstract contract NilTokenBase is NilBase {
+abstract contract NilTokenBase is NilBase, NilTokenHook {
     uint totalSupply;
     string tokenName;
+
+    modifier onlyTokenManger() {
+        require(msg.sender == Nil.getTokenManagerAddress(), "Only TokenManager can call this function");
+        _;
+    }
+
+    function sendHook(address from, address to, address token, uint256 amount) external override virtual onlyTokenManger {
+    }
+
+    function receiveHook(address from, address to, address token, uint256 amount) external override virtual onlyTokenManger {
+    }
 
     /**
      * @dev Returns the total supply of the token.
      * @return The total supply of the token.
      */
     function getTokenTotalSupply() public view returns(uint) {
-        return totalSupply;
+        return NilTokenManager(Nil.getTokenManagerAddress()).totalSupply(address(this));
     }
 
     /**
@@ -44,7 +56,7 @@ abstract contract NilTokenBase is NilBase {
      * @return The name of the token.
      */
     function getTokenName() public view returns(string memory) {
-        return tokenName;
+        return NilTokenManager(Nil.getTokenManagerAddress()).getTokenName();
     }
 
     /**
@@ -52,7 +64,7 @@ abstract contract NilTokenBase is NilBase {
      * @param name The name of the token.
      */
     function setTokenName(string memory name) onlyExternal virtual public {
-        tokenName = name;
+        NilTokenManager(Nil.getTokenManagerAddress()).setTokenName(name);
     }
 
     /**
@@ -88,9 +100,7 @@ abstract contract NilTokenBase is NilBase {
      * @param amount The amount of token to mint.
      */
     function mintTokenInternal(uint256 amount) internal {
-        bool success = __Precompile__(Nil.MANAGE_TOKEN).precompileManageToken(amount, true);
-        require(success, "Mint failed");
-        totalSupply += amount;
+        NilTokenManager(Nil.getTokenManagerAddress()).mint(amount);
     }
 
     /**
@@ -99,10 +109,7 @@ abstract contract NilTokenBase is NilBase {
      * @param amount The amount of token to mint.
      */
     function burnTokenInternal(uint256 amount) internal {
-        require(totalSupply >= amount, "Burn failed: not enough tokens");
-        bool success = __Precompile__(Nil.MANAGE_TOKEN).precompileManageToken(amount, false);
-        require(success, "Burn failed");
-        totalSupply -= amount;
+        NilTokenManager(Nil.getTokenManagerAddress()).burn(amount);
     }
 
     /**
@@ -114,7 +121,7 @@ abstract contract NilTokenBase is NilBase {
     function sendTokenInternal(address to, TokenId tokenId, uint256 amount) internal {
         Nil.Token[] memory tokens_ = new Nil.Token[](1);
         tokens_[0] = Nil.Token(tokenId, amount);
-        Nil.asyncCallWithTokens(to, address(0), address(0), 0, Nil.FORWARD_REMAINING, 0, tokens_, "");
+        Nil.asyncCallWithTokens(to, address(0), address(0), 0, Nil.FORWARD_REMAINING, 0, tokens_, "", 0, 0);
     }
 
     /**

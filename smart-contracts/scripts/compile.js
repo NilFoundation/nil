@@ -37,6 +37,11 @@ for (const contract of contracts) {
       }
     },
     settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+      viaIR: true,
       outputSelection: {
         '*': {
           '*': ['*'],

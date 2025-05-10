@@ -480,7 +480,7 @@ func CreateNode(
 
 	if cfg.ZeroState == nil {
 		var err error
-		cfg.ZeroState, err = execution.CreateDefaultZeroStateConfig(nil)
+		cfg.ZeroState, err = execution.CreateDefaultZeroStateConfig(nil, int(cfg.NShards))
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to create default zero state config")
 			return nil, err

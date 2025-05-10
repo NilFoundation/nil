@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
@@ -19,6 +20,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const numShards = 3
+
 type SuiteZeroState struct {
 	suite.Suite
 
@@ -35,7 +38,7 @@ func (s *SuiteZeroState) SetupSuite() {
 	var err error
 	s.ctx = context.Background()
 
-	defaultZeroStateConfig, err := CreateDefaultZeroStateConfig(MainPublicKey)
+	defaultZeroStateConfig, err := CreateDefaultZeroStateConfig(MainPublicKey, numShards)
 	s.Require().NoError(err)
 
 	faucetAddress := defaultZeroStateConfig.GetContractAddress("Faucet")
@@ -66,7 +69,7 @@ func (s *SuiteZeroState) getBalance(address types.Address) types.Value {
 }
 
 func (s *SuiteZeroState) TestYamlSerialization() {
-	orig, err := CreateDefaultZeroStateConfig(MainPublicKey)
+	orig, err := CreateDefaultZeroStateConfig(MainPublicKey, numShards)
 	s.Require().NoError(err)
 
 	yamlData, err := yaml.Marshal(orig)
@@ -87,7 +90,7 @@ func (s *SuiteZeroState) TestWithdrawFromFaucet() {
 	calldata, err := s.faucetABI.Pack("withdrawTo", receiverAddr, big.NewInt(100))
 	s.Require().NoError(err)
 
-	gasLimit := types.Gas(100_000).ToValue(types.DefaultGasPrice)
+	gasLimit := types.Gas(500_000).ToValue(types.DefaultGasPrice)
 	callTransaction := &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
 			Data: calldata,
@@ -100,6 +103,7 @@ func (s *SuiteZeroState) TestWithdrawFromFaucet() {
 		From: s.faucetAddr,
 	}
 	res := s.state.AddAndHandleTransaction(s.ctx, callTransaction, dummyPayer{})
+	fmt.Println(res.String())
 	s.Require().False(res.Failed())
 
 	outTxnHash, ok := reflect.ValueOf(s.state.OutTransactions).MapKeys()[0].Interface().(common.Hash)

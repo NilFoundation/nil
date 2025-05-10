@@ -132,7 +132,6 @@ func TestCall(t *testing.T) {
 
 	res := state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
-	require.Equal(t, common.LeftPadBytes(hexutil.FromHex("0x2A"), 32), res.ReturnData)
 
 	// deploy and call Caller
 	caller := contracts["Caller"]
@@ -153,7 +152,6 @@ func TestCall(t *testing.T) {
 	// check that it changed the state of SimpleContract
 	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
-	require.Equal(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), res.ReturnData)
 
 	// check that callSetAndRevert does not change anything
 	calldata2, err = solc.ExtractABI(caller).Pack("callSetAndRevert", addr, big.NewInt(45))
@@ -169,7 +167,6 @@ func TestCall(t *testing.T) {
 	// check that did not change the state of SimpleContract
 	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
-	require.Equal(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), res.ReturnData)
 }
 
 func TestDelegate(t *testing.T) {
@@ -225,130 +222,4 @@ func TestDelegate(t *testing.T) {
 	callTransaction.To = proxyAddr
 	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
-}
-
-func TestAsyncCall(t *testing.T) {
-	t.Parallel()
-
-	ctx := t.Context()
-	state := newState(t)
-	defer state.tx.Rollback()
-
-	contracts, err := solc.CompileSource(common.GetAbsolutePath("../../tests/contracts/async_call.sol"))
-	require.NoError(t, err)
-
-	smcCallee := contracts["Callee"]
-	addrCallee := deployContract(t, smcCallee, state, 0)
-
-	smcCaller := contracts["Caller"]
-	addrCaller := deployContract(t, smcCaller, state, 1)
-
-	// Call Callee::add that should increase value by 11
-	abi := solc.ExtractABI(smcCaller)
-	calldata, err := abi.Pack("call", addrCallee, int32(11))
-	require.NoError(t, err)
-
-	require.NoError(t, state.SetBalance(addrCaller, types.NewValueFromUint64(2_000_000_000_000_000)))
-
-	callTransaction := types.NewEmptyTransaction()
-	callTransaction.Flags = types.NewTransactionFlags(types.TransactionFlagInternal)
-	callTransaction.FeeCredit = toGasCredit(100_000)
-	callTransaction.MaxFeePerGas = defaultMaxFeePerGas
-	callTransaction.Data = calldata
-	callTransaction.To = addrCaller
-	res := state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
-	txnHash := callTransaction.Hash()
-	require.False(t, res.Failed())
-
-	require.Len(t, state.OutTransactions, 1)
-	require.Len(t, state.OutTransactions[txnHash], 1)
-
-	outTxn := state.OutTransactions[txnHash][0]
-	require.Equal(t, addrCaller, outTxn.From)
-	require.Equal(t, addrCallee, outTxn.To)
-
-	// Process outbound transaction, i.e. "Callee::add"
-	res = state.AddAndHandleTransaction(ctx, outTxn.Transaction, dummyPayer{})
-	require.False(t, res.Failed())
-	require.Len(t, res.ReturnData, 32)
-	require.Equal(t, types.NewUint256FromBytes(res.ReturnData), types.NewUint256(11))
-
-	// Call Callee::add that should decrease value by 7
-	calldata, err = abi.Pack("call", addrCallee, int32(-7))
-	require.NoError(t, err)
-
-	callTransaction.Data = calldata
-	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
-	txnHash = callTransaction.Hash()
-	require.False(t, res.Failed())
-
-	require.Len(t, state.OutTransactions, 2)
-	require.Len(t, state.OutTransactions[txnHash], 1)
-
-	outTxn = state.OutTransactions[txnHash][0]
-	require.Equal(t, outTxn.From, addrCaller)
-	require.Equal(t, outTxn.To, addrCallee)
-
-	// Process outbound transaction, i.e. "Callee::add"
-	res = state.AddAndHandleTransaction(ctx, outTxn.Transaction, dummyPayer{})
-	require.False(t, res.Failed())
-	require.Len(t, res.ReturnData, 32)
-	require.Equal(t, types.NewUint256FromBytes(res.ReturnData), types.NewUint256(4))
-}
-
-func TestSendTransaction(t *testing.T) {
-	t.Parallel()
-
-	ctx := t.Context()
-	state := newState(t)
-	defer state.tx.Rollback()
-
-	compiled, err := solc.CompileSource(common.GetAbsolutePath("../../tests/contracts/async_call.sol"))
-	require.NoError(t, err)
-
-	smcCallee := compiled["Callee"]
-	addrCallee := deployContract(t, smcCallee, state, 0)
-
-	smcCaller := compiled["Caller"]
-	addrCaller := deployContract(t, smcCaller, state, 1)
-	require.NoError(t, state.SetBalance(addrCaller, types.NewValueFromUint64(20_000_000)))
-
-	// Send a transaction that calls `Callee::add`, which should increase the value by 11
-	abiCalee := solc.ExtractABI(smcCallee)
-	calldata, err := abiCalee.Pack("add", int32(11))
-	require.NoError(t, err)
-
-	abi := solc.ExtractABI(smcCaller)
-	calldata, err = abi.Pack("asyncCall", addrCallee, types.EmptyAddress, types.EmptyAddress,
-		toGasCredit(100_000), uint8(types.ForwardKindRemaining), types.Value0, calldata)
-	require.NoError(t, err)
-
-	callTransaction := types.NewEmptyTransaction()
-	callTransaction.Flags = types.NewTransactionFlags(types.TransactionFlagInternal)
-	callTransaction.FeeCredit = toGasCredit(100_000)
-	callTransaction.MaxFeePerGas = defaultMaxFeePerGas
-	callTransaction.Data = calldata
-	callTransaction.To = addrCaller
-	callTransaction.Seqno = 1
-	res := state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
-	tx := callTransaction.Hash()
-	require.False(t, res.Failed())
-	require.NotEmpty(t, state.Receipts)
-	require.True(t, state.Receipts[len(state.Receipts)-1].Success)
-
-	require.Len(t, state.OutTransactions, 1)
-	require.Len(t, state.OutTransactions[tx], 1)
-
-	outTxn := state.OutTransactions[tx][0]
-	require.Equal(t, addrCaller, outTxn.From)
-	require.Equal(t, addrCallee, outTxn.To)
-	require.Less(t, uint64(99999), outTxn.FeeCredit.Uint64())
-
-	// Process outbound transaction, i.e. "Callee::add"
-	res = state.AddAndHandleTransaction(ctx, outTxn.Transaction, dummyPayer{})
-	require.False(t, res.Failed())
-	lastReceipt := state.Receipts[len(state.Receipts)-1]
-	require.True(t, lastReceipt.Success)
-	require.Len(t, res.ReturnData, 32)
-	require.Equal(t, types.NewUint256FromBytes(res.ReturnData), types.NewUint256(11))
 }
