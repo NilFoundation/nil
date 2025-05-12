@@ -43,7 +43,7 @@ pids=()
 
 cleanup() {
     echo "→ cleaning up ${#pids[@]} processes"
-    cat $LOG_DIR/geth.log
+    cat $LOG_DIR/relayer.log
 
     for pid in "${pids[@]}"; do
         if kill -0 "$pid" 2>/dev/null; then
@@ -128,6 +128,9 @@ $RELAYER_BIN run \
     >$LOG_DIR/relayer.log 2>&1 &
 pids+=("$!")
 wait_for_http_service "http://127.0.0.1:7777"
+
+# example query to get relayer stats
+curl -XPOST http://127.0.0.1:7777 -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"relayerDebug_getStats", "params": [], "id": 1}'
 
 echo "TODO: L2 contract deployment is not ready yet"
 

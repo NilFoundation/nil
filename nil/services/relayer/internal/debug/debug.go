@@ -16,7 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const RPCNamespace = "relayer_debug"
+const RPCNamespace = "relayerDebug"
 
 type RelayerStats struct {
 	// address of the smart account used by relayer to operate on L2
@@ -98,7 +98,7 @@ func (p *RPCListener) Run(ctx context.Context, started chan struct{}) error {
 		apiList := []transport.API{
 			{
 				Namespace: RPCNamespace,
-				Public:    false,
+				Public:    true,
 				Service:   p.statsAPI,
 				Version:   "1.0",
 			},
@@ -152,8 +152,11 @@ func NewRelayerStatsAPI(
 func (p *RelayerStatsAPI) runRefreshLoop(ctx context.Context, started chan struct{}) error {
 	ticker := p.clock.NewTicker(15 * time.Second)
 	defer ticker.Stop()
-
 	close(started)
+
+	if err := p.refresh(ctx); err != nil {
+		return err
+	}
 	for {
 		select {
 		case <-ctx.Done():
