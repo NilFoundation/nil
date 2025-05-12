@@ -49,6 +49,8 @@ func execute() error {
 		return err
 	}
 
+	addCommonFlags(rootCmd, runConfig.CommonConfig)
+
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run the prover service",
@@ -56,9 +58,7 @@ func execute() error {
 			return run(runConfig)
 		},
 	}
-	commonCfg := runConfig.CommonConfig
-	addCommonFlags(rootCmd, commonCfg)
-	runCmd.Flags().StringVar(&runConfig.DbPath, "db-path", runConfig.DbPath, "path to database")
+	addRunCmdFlags(runCmd, runConfig)
 
 	traceConfig := tracer.TraceConfig{}
 	var marshalModePlaceholder string
@@ -84,7 +84,7 @@ func execute() error {
 					return err
 				}
 			}
-			client := prover.NewRPCClient(commonCfg.NilRpcEndpoint, logging.NewLogger("client"))
+			client := prover.NewRPCClient(runConfig.NilRpcEndpoint, logging.NewLogger("client"))
 			return tracer.CollectTracesToFile(context.Background(), client, &traceConfig)
 		},
 	}
@@ -122,12 +122,15 @@ func loadRunConfig() (*RunConfig, error) {
 
 func addCommonFlags(cmd *cobra.Command, cfg *CommonConfig) {
 	cobrax.AddConfigFlag(cmd.PersistentFlags())
+
 	cmd.PersistentFlags().StringVar(
 		&cfg.ProofProviderRpcEndpoint,
 		"proof-provider-endpoint",
 		cfg.ProofProviderRpcEndpoint,
-		"proof provider rpc endpoint")
+		"proof provider rpc endpoint",
+	)
 	cmd.PersistentFlags().StringVar(&cfg.NilRpcEndpoint, "nil-endpoint", cfg.NilRpcEndpoint, "nil rpc endpoint")
+
 	logLevel := cmd.PersistentFlags().String("log-level", "info", "log level: trace|debug|info|warn|error|fatal|panic")
 
 	cmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
@@ -135,21 +138,28 @@ func addCommonFlags(cmd *cobra.Command, cfg *CommonConfig) {
 	}
 }
 
+func addRunCmdFlags(cmd *cobra.Command, cfg *RunConfig) {
+	cmd.Flags().StringVar(&cfg.DbPath, "db-path", cfg.DbPath, "path to database")
+
+	cmd.Flags().BoolVar(
+		&cfg.Telemetry.ExportMetrics,
+		"metrics",
+		cfg.Telemetry.ExportMetrics,
+		"export metrics via grpc",
+	)
+}
+
 func addMarshalModeFlag(cmd *cobra.Command, placeholder *string) {
 	cmd.Flags().StringVar(
 		placeholder,
 		"marshal-mode",
 		tracer.MarshalModeBinary.String(),
-		"marshal modes (bin,json) for trace files separated by ','")
+		"marshal modes (bin,json) for trace files separated by ','",
+	)
 }
 
 func run(cfg *RunConfig) error {
 	profiling.Start(profiling.DefaultPort)
-
-	serviceConfig := prover.Config{
-		NilRpcEndpoint:           cfg.NilRpcEndpoint,
-		ProofProviderRpcEndpoint: cfg.ProofProviderRpcEndpoint,
-	}
 
 	database, err := db.NewBadgerDb(cfg.DbPath)
 	if err != nil {
@@ -157,7 +167,7 @@ func run(cfg *RunConfig) error {
 	}
 	defer database.Close()
 
-	service, err := prover.New(serviceConfig, database)
+	service, err := prover.New(*cfg.CommonConfig, database)
 	if err != nil {
 		return fmt.Errorf("failed to create prover service: %w", err)
 	}
