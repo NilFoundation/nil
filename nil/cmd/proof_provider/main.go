@@ -72,28 +72,33 @@ func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
 		&cfg.SyncCommitteeRpcEndpoint,
 		"sync-committee-endpoint",
 		cfg.SyncCommitteeRpcEndpoint,
-		"sync committee rpc endpoint")
+		"sync committee rpc endpoint",
+	)
 	cmd.Flags().StringVar(
 		&cfg.TaskListenerRpcEndpoint,
 		"own-endpoint",
 		cfg.TaskListenerRpcEndpoint,
-		"own rpc server endpoint")
+		"own rpc server endpoint",
+	)
 	cmd.Flags().StringVar(
 		&cfg.DbPath,
 		"db-path",
 		cfg.DbPath,
-		"path to database")
+		"path to database",
+	)
 	cmd.Flags().BoolVar(
 		&cfg.Telemetry.ExportMetrics,
 		"metrics",
 		cfg.Telemetry.ExportMetrics,
-		"export metrics via grpc")
+		"export metrics via grpc",
+	)
 	cmd.Flags().IntVar(
 		&cfg.SkipRate,
 		"skip",
 		cfg.SkipRate,
 		"rate of skip tasks, will skip N from 10, where N is value of option (0 means no skip)."+
-			" Possible values: [0,10]")
+			" Possible values: [0,10]",
+	)
 	cmd.Flags().Uint32Var(
 		&cfg.MaxConcurrentBatches,
 		"max-concurrent-batches",
@@ -103,7 +108,8 @@ func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
 	logLevel := cmd.Flags().String(
 		"log-level",
 		"info",
-		"log level: trace|debug|info|warn|error|fatal|panic")
+		"log level: trace|debug|info|warn|error|fatal|panic",
+	)
 
 	cmd.PreRun = func(cmd *cobra.Command, args []string) {
 		logging.SetupGlobalLogger(*logLevel)
