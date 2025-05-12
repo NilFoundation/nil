@@ -26,5 +26,5 @@ in
     ];
   };
   pname = "nil";
-  hash = lib.fakeHash;
+  hash = "sha256-iVICcLX8AjrtWIWHxu4ATPVb3saPy7JUFdWBlZqxBcw=";
 })
