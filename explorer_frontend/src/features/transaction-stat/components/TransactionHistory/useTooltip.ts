@@ -13,7 +13,8 @@ const useTooltip = <T extends HTMLDivElement>(
   container?: T | null,
   isMobile?: boolean,
   tooltipMargin = 10,
-  toolTipWidth = 200,
+  toolTipWidth = 140,
+  tooltipHeight = 100,
 ): UseToopltipReturn => {
   if (isMobile) {
     return { isOpen: false };
@@ -38,8 +39,8 @@ const useTooltip = <T extends HTMLDivElement>(
   const y = param.point?.y ?? 0;
   const x = param.point?.x ?? 0;
 
-  const left = x + (tooltipMargin + toolTipWidth) * 2;
-  const top = y + container.clientHeight + tooltipMargin;
+  const left = x + (tooltipMargin + toolTipWidth);
+  const top = y + tooltipMargin + tooltipHeight;
 
   return {
     isOpen: true,
