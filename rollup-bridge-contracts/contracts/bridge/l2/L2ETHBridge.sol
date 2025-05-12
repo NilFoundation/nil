@@ -23,7 +23,7 @@ contract L2ETHBridge is L2BaseBridge, IL2ETHBridge {
   using AddressChecker for address;
 
   /*//////////////////////////////////////////////////////////////////////////
-                             STATE-VARIABLES   
+                             STATE-VARIABLES
     //////////////////////////////////////////////////////////////////////////*/
 
   IL2ETHBridgeVault public override l2ETHBridgeVault;

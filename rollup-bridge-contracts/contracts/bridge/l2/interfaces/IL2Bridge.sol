@@ -19,7 +19,7 @@ interface IL2Bridge is IBridge {
   error ErrorCallerNotAuthorised();
 
   /*//////////////////////////////////////////////////////////////////////////
-                             EVENTS   
+                             EVENTS
     //////////////////////////////////////////////////////////////////////////*/
 
   event CounterpartyBridgeSet(address indexed counterpartyBridge, address indexed newCounterpartyBridge);
@@ -29,7 +29,7 @@ interface IL2Bridge is IBridge {
   event BridgeRouterSet(address indexed router, address indexed newRouter);
 
   /*//////////////////////////////////////////////////////////////////////////
-                             PUBLIC MUTATION FUNCTIONS   
+                             PUBLIC MUTATION FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   function setRouter(address routerAddress) external;

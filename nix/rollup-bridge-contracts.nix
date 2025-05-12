@@ -107,7 +107,7 @@ stdenv.mkDerivation rec {
 
     eval forge test --remappings hardhat/=/build/source/node_modules/hardhat/ --remappings forge-std/=rollup-bridge-contracts/lib/forge-std/src/ --remappings ds-test/=rollup-bridge-contracts/lib/ds-test/src/ --remappings solmate/=rollup-bridge-contracts/lib/solmate/src/ --remappings @openzeppelin/=/build/source/node_modules/@openzeppelin/ --remappings @solady/=/build/source/node_modules/solady/src/
 
- 
+
     ### 2. Run integration test of the rollup-bridge-contracts
 
     export NILD_BIN=nild
