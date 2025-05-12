@@ -13,7 +13,7 @@ const mapToTransactionStat = (data: RawTransactionStat): TransactionStat => ({
   earliest_block: Number.parseInt(data.earliest_block),
 });
 
-const createQuery = (aggregateBlock: number) => `
+const createQuery = (aggregateBlock: number, limit: number) => `
     SELECT
     ceil(transactions.block_id/${aggregateBlock}) as time,
     min(transactions.block_id) as earliest_block,
@@ -21,7 +21,7 @@ const createQuery = (aggregateBlock: number) => `
     FROM transactions
     GROUP BY time
     ORDER BY time DESC
-    LIMIT 30
+    LIMIT ${limit}
 `;
 
 const BLOCKS_PER_MINUTE = 29;
@@ -31,19 +31,11 @@ export const getTransactionStat = async (period: TransactionStatPeriod) => {
 
   switch (period) {
     case "1d": {
-      query = createQuery(BLOCKS_PER_MINUTE * 60 * 24);
+      query = createQuery(BLOCKS_PER_MINUTE * 60, 24);
       break;
     }
-    case "1m": {
-      query = createQuery(BLOCKS_PER_MINUTE);
-      break;
-    }
-    case "15m": {
-      query = createQuery(BLOCKS_PER_MINUTE * 15);
-      break;
-    }
-    case "30m": {
-      query = createQuery(BLOCKS_PER_MINUTE * 30);
+    case "14d": {
+      query = createQuery(BLOCKS_PER_MINUTE * 60 * 24, 14);
       break;
     }
     default: {
