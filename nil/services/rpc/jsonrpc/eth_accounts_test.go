@@ -191,7 +191,7 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	suite.Equal(hexutil.Uint64(1), res)
 }
 
-func (suite *SuiteEthAccounts) TestGetProofNew() {
+func (suite *SuiteEthAccounts) TestGetProof() {
 	ctx := suite.T().Context()
 
 	// Test keys to check in proofs
@@ -227,6 +227,7 @@ func (suite *SuiteEthAccounts) TestGetProofNew() {
 	suite.Require().NoError(err)
 
 	// Verify empty result for non-existing address
+	suite.Equal(nonExistingAddr, resNonExisting.Address)
 	suite.NotEmpty(resNonExisting.AccountProof)
 	suite.Zero(resNonExisting.Balance)
 	suite.Zero(resNonExisting.CodeHash)
@@ -256,6 +257,7 @@ func (suite *SuiteEthAccounts) verifyProofResult(res *EthProof, smartContractsRo
 	suite.Require().NoError(sc.UnmarshalSSZ(val))
 
 	// Verify account fields
+	suite.Equal(suite.smcAddr, res.Address)
 	suite.Require().Equal(res.Balance, sc.Balance)
 	suite.Require().Equal(res.CodeHash, sc.CodeHash)
 	suite.Require().Equal(res.Nonce, sc.Seqno)
