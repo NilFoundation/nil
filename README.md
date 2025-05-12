@@ -205,7 +205,6 @@ The current RPC is loosely modeled after the Ethereum RPC. The RPC exposes the f
 * `UninstallFilter()`
 * `GetFilterChanges()`
 * `GetFilterLogs()`
-* `GetShardIdList()`
 
 ### Shards
 
