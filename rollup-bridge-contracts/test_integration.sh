@@ -110,6 +110,8 @@ $FAUCET_BIN run --port 8527 &
 pids+=("$!")
 wait_for_http_service "http://127.0.0.1:8527"
 
+npx hardhat l2-task-runner --networkname local --l1networkname geth
+
 echo "Starting relayer"
 $RELAYER_BIN run \
     --db-path=/tmp/relayer.db \
