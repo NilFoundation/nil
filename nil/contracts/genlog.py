@@ -35,6 +35,7 @@ TYPES = [
     Type(sol_name="uint256", go_name="Uint256Ty", modifier=""),
     Type(sol_name="bool", go_name="BoolTy", modifier=""),
     Type(sol_name="address", go_name="AddressTy", modifier=""),
+    Type(sol_name="bytes", go_name="BytesTy", modifier="memory"),
 ]
 STRING_TYPE = TYPES[0]
 MAX_PARAM_COUNT = 4

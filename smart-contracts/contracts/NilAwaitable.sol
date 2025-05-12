@@ -64,8 +64,18 @@ contract NilAwaitable is NilBase {
     ) internal {
         ctrl.await_id += 1;
         ctrl.awaiters[ctrl.await_id] = Awaiter({callback: cb, answer_id: ctrl.await_id, active: true, context: context});
-        __Precompile__(address(Nil.ASYNC_CALL)).precompileAsyncCall{value: value}(false, Nil.FORWARD_REMAINING, dst, zeroAddress,
-            zeroAddress, 0, tokens, callData, ctrl.await_id, responseProcessingGas);
+        Nil.asyncCallWithTokens(
+            dst,
+            zeroAddress,
+            zeroAddress,
+            0,
+            Nil.FORWARD_REMAINING,
+            value,
+            tokens,
+            callData,
+            ctrl.await_id,
+            responseProcessingGas
+        );
     }
 
     function onFallback(uint256 answer_id, bool success, bytes memory response) external payable {

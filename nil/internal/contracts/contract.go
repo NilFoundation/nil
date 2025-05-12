@@ -29,6 +29,8 @@ const (
 	NameNilConfigAbi  = "NilConfigAbi"
 	NameL1BlockInfo   = "system/L1BlockInfo"
 	NameGovernance    = "system/Governance"
+	NameTokenManager  = "NilTokenManager"
+	NameRelayer       = "Relayer"
 )
 
 var (
@@ -119,6 +121,25 @@ func UnpackData(fileName, methodName string, data []byte) ([]any, error) {
 		return nil, err
 	}
 	return abiCallee.Unpack(methodName, data)
+}
+
+func UnpackRelayerResult(data []byte) ([]byte, error) {
+	abiRelayer, err := GetAbi(NameRelayer)
+	if err != nil {
+		return nil, err
+	}
+	res, err := abiRelayer.Unpack("receiveTx", data)
+	if err != nil {
+		return nil, err
+	}
+	if len(res) != 1 {
+		return nil, errors.New("invalid relayer result")
+	}
+	result, ok := res[0].([]byte)
+	if !ok {
+		return nil, errors.New("invalid relayer result")
+	}
+	return result, nil
 }
 
 type Signature struct {
@@ -241,7 +262,7 @@ func DecodeCallData(method *abi.Method, calldata []byte) (string, error) {
 
 	args, err := method.Inputs.Unpack(calldata[4:])
 	if err != nil {
-		return "", fmt.Errorf("failed to unpack arguments: %w", err)
+		return fmt.Sprintf("%s: failed to unpack arguments: %s", method.Name, err), nil
 	}
 	res := method.Name + "("
 	adjustArg := func(arg any) string {

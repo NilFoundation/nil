@@ -1,6 +1,7 @@
 package cometa
 
 import (
+	"bytes"
 	"os/exec"
 	"syscall"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -117,6 +119,8 @@ func (s *SuiteCometa) SetupSuite() {
 			},
 		},
 	}
+	execution.AddSystemContractsToZeroStateConfig(zerostateCfg, 2)
+
 	s.cometaCfg.DbPath = s.T().TempDir() + "/cometa.db"
 	s.Start(&nilservice.Config{
 		NShards:              2,
@@ -166,10 +170,14 @@ func (s *SuiteCometa) TestGeneratedCode() {
 		data    []byte
 		loc     *cometa.Location
 	)
-	testAbi, err := contracts.GetAbi(contracts.NameTest)
+
+	contractData, err := s.cometaClient.CompileContract(
+		s.Context, "../../services/cometa/tests/input_1.json")
 	s.Require().NoError(err)
 
-	contractData, err := s.cometaClient.CompileContract(s.Context, "../../contracts/solidity/tests/compile-test.json")
+	testAbi, err := abi.JSON(bytes.NewReader([]byte(contractData.Abi)))
+	s.Require().NoError(err)
+
 	s.Require().NoError(err)
 	deployCode := types.BuildDeployPayload(contractData.InitCode, common.EmptyHash)
 	testAddress, _ := s.DeployContractViaMainSmartAccount(types.BaseShardId, deployCode, s.GasToValue(10_000_000))
@@ -183,9 +191,9 @@ func (s *SuiteCometa) TestGeneratedCode() {
 
 	loc, err = s.cometaClient.GetLocation(s.Context, testAddress, uint64(receipt.FailedPc))
 	s.Require().NoError(err)
-	s.Require().Equal("Test.sol:8, function: #function_selector", loc.String())
+	s.Require().Equal("Test.sol:7, function: #function_selector", loc.String())
 
-	data = s.AbiPack(testAbi, "makeFail", int32(1))
+	data = s.AbiPack(&testAbi, "makeFail")
 	receipt = s.SendExternalTransactionNoCheck(data, testAddress)
 	s.Require().False(receipt.AllSuccess())
 	s.Require().NotZero(receipt.FailedPc)

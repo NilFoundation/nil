@@ -3,8 +3,9 @@
   "compilerVersion": "0.8.28",
   "settings": {
     "evmVersion": "cancun",
+    "viaIR": true,
     "optimizer": {
-      "enabled": false,
+      "enabled": true,
       "runs": 200
     }
   },
@@ -15,8 +16,32 @@
     "lib/Nil.sol": {
       "urls": ["../lib/Nil.sol"]
     },
+    "Nil.sol": {
+      "urls": ["../lib/Nil.sol"]
+    },
     "lib/NilAwaitable.sol": {
       "urls": ["../lib/NilAwaitable.sol"]
+    },
+    "Relayer.sol": {
+      "urls": ["../lib/Relayer.sol"]
+    },
+    "lib/Relayer.sol": {
+      "urls": ["../lib/Relayer.sol"]
+    },
+    "lib/NilTokenManager.sol": {
+      "urls": ["../lib/NilTokenManager.sol"]
+    },
+    "NilTokenManager.sol": {
+      "urls": ["../lib/NilTokenManager.sol"]
+    },
+    "lib/IterableMapping.sol": {
+      "urls": ["../lib/IterableMapping.sol"]
+    },
+    "IterableMapping.sol": {
+      "urls": ["../lib/IterableMapping.sol"]
+    },
+    "system/console.sol": {
+      "urls": ["../system/console.sol"]
     }
   }
 }

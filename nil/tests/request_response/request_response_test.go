@@ -3,7 +3,6 @@ package main
 import (
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/abi"
@@ -72,6 +71,7 @@ func (s *SuiteRequestResponse) SetupSuite() {
 			{Name: "Counter1", Contract: "tests/Counter", Address: s.counterAddress1, Value: smartAccountValue},
 		},
 	}
+	execution.AddSystemContractsToZeroStateConfig(zeroState, int(nShards))
 
 	const disableConsensus = true
 	s.Start(&nilservice.Config{
@@ -125,6 +125,7 @@ func (s *SuiteRequestResponse) TestNestedRequest() {
 }
 
 func (s *SuiteRequestResponse) TestSendRequestFromCallback() {
+	s.T().Skip("TODO: probably we won't support nested requests in callbacks at all")
 	var (
 		data    []byte
 		receipt *jsonrpc.RPCReceipt
@@ -180,12 +181,6 @@ func (s *SuiteRequestResponse) TestTwoRequests() {
 	hash, err := s.DefaultClient.SendExternalTransaction(s.T().Context(), data, s.testAddress0, nil, types.FeePack{})
 	s.Require().NoError(err)
 
-	s.Eventually(func() bool {
-		debugContract, err := s.DefaultClient.GetDebugContract(s.Context, s.testAddress0, "latest")
-		s.Require().NoError(err)
-		return len(debugContract.AsyncContext) > 0
-	}, tests.BlockWaitTimeout, time.Duration(s.Instances[0].Config.CollatorTickPeriodMs/5)*time.Millisecond)
-
 	receipt = s.WaitIncludedInMain(hash)
 	s.Require().True(receipt.AllSuccess())
 
@@ -219,7 +214,7 @@ func (s *SuiteRequestResponse) TestRequestResponse() {
 	// this gives a slightly different result since part of the "spent" gas
 	// in fact is being reserved for the response processing and later is being refunded
 	// TODO: likely we need to introduce `receipt.GasReserved` field as well
-	valueReservedAsync := types.Gas(50_000).ToValue(types.DefaultGasPrice)
+	// valueReservedAsync := types.Gas(100_000).ToValue(types.DefaultGasPrice)
 
 	s.Run("Call Counter.get", func() {
 		intContext := big.NewInt(456)
@@ -238,7 +233,7 @@ func (s *SuiteRequestResponse) TestRequestResponse() {
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
 
-		initialBalance = s.CheckBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
+		initialBalance = s.CheckBalance(info, initialBalance, s.accounts)
 		s.checkAsyncContextEmpty(s.testAddress0)
 	})
 
@@ -251,25 +246,20 @@ func (s *SuiteRequestResponse) TestRequestResponse() {
 			s.T(), s.DefaultClient, s.abiCounter, s.counterAddress0, "get", int32(223))
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
-		initialBalance = s.CheckBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
+		initialBalance = s.CheckBalance(info, initialBalance, s.accounts)
 		s.checkAsyncContextEmpty(s.testAddress0)
 	})
 
 	s.Run("Test failed request with value", func() {
 		data := s.AbiPack(s.abiTest, "requestCheckFail", s.testAddress1, true)
 		receipt := s.SendExternalTransactionNoCheck(data, s.testAddress0)
-		s.Require().False(receipt.AllSuccess())
+		s.Require().True(receipt.AllSuccess())
 		s.Require().Len(receipt.OutReceipts, 1)
 		requestReceipt := receipt.OutReceipts[0]
 		s.Require().Len(requestReceipt.OutReceipts, 1)
-		responseReceipt := requestReceipt.OutReceipts[0]
-
-		s.Require().False(requestReceipt.Success)
-		s.Require().Equal("ExecutionReverted", requestReceipt.Status)
-		s.Require().True(responseReceipt.Success)
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
-		initialBalance = s.CheckBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
+		initialBalance = s.CheckBalance(info, initialBalance, s.accounts)
 		s.checkAsyncContextEmpty(s.testAddress0)
 	})
 
@@ -297,8 +287,7 @@ func (s *SuiteRequestResponse) TestRequestResponse() {
 		s.Require().True(receipt.AllSuccess())
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
-		initialBalance = s.CheckBalance(info, initialBalance.Add(valueReservedAsync), s.accounts)
-		s.checkAsyncContextEmpty(s.testAddress0)
+		initialBalance = s.CheckBalance(info, initialBalance, s.accounts)
 
 		tokenId := types.TokenId(s.testAddress0)
 

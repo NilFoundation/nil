@@ -144,7 +144,7 @@ func (c *cluster) generateZeroState(nShards uint32, servers []server) (*executio
 		return nil, err
 	}
 
-	zeroState, err := execution.CreateDefaultZeroStateConfig(mainPublicKey)
+	zeroState, err := execution.CreateDefaultZeroStateConfig(mainPublicKey, int(nShards))
 	if err != nil {
 		return nil, err
 	}

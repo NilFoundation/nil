@@ -144,6 +144,11 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 	suite.Require().NoError(es.SetBalance(suite.smcAddr, types.NewValueFromUint64(1234)))
 	suite.Require().NoError(es.SetExtSeqno(suite.smcAddr, 567))
 
+	zeroState, err := execution.CreateDefaultZeroStateConfig(execution.MainPublicKey, 5)
+	suite.Require().NoError(err)
+	err = es.GenerateZeroState(zeroState)
+	suite.Require().NoError(err)
+
 	blockRes, err := es.Commit(0, nil)
 	suite.Require().NoError(err)
 	suite.blockHash = blockRes.BlockHash
