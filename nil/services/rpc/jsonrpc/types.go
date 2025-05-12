@@ -591,13 +591,15 @@ type EstimateFeeRes struct {
 }
 
 // @component EthProof ethProof object "Response for eth_getProof."
-// @componentprop Balance balance integer true the balance of the account. See `eth_getBalance`
-// @componentprop CodeHash codeHash string true 32 Bytes - hash of the code of the account.
-// @componentprop Nonce nonce integer true nonce of the account. See eth_getTransactionCount
-// @componentprop StorageHash storageHash string true 32 Bytes - hash of the StorageRoot. All storage will deliver a MerkleProof starting with this rootHash.
-// @componentprop AccountProof accountProof array true Array of ssz-serialized MerkleTree-Nodes, starting with the stateRoot-Node, following the path of the address hash as path.
-// @componentprop StorageProof storageProof array true Array of storage-entries as requested.
+// @componentprop Address address string true "The address associated with the account"
+// @componentprop Balance balance integer true "The balance of the account. See `eth_getBalance`."
+// @componentprop CodeHash codeHash string true "32 Bytes - hash of the code of the account."
+// @componentprop Nonce nonce integer true "Nonce of the account. See eth_getTransactionCount."
+// @componentprop StorageHash storageHash string true "32 Bytes - hash of the StorageRoot. All storage will deliver a MerkleProof starting with this rootHash."
+// @componentprop AccountProof accountProof array true "Array of ssz-serialized MerkleTree-Nodes, starting with the stateRoot-Node, following the path of the address hash as path."
+// @componentprop StorageProof storageProof array true "Array of storage-entries as requested."
 type EthProof struct {
+	Address      types.Address   `json:"address"`
 	Balance      types.Value     `json:"balance"`
 	CodeHash     common.Hash     `json:"codeHash"`
 	Nonce        types.Seqno     `json:"nonce"`

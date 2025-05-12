@@ -101,6 +101,7 @@ func (api *APIImplRo) GetProof(
 
 	// Create the basic proof result
 	result := &EthProof{
+		Address:      address,
 		AccountProof: hexutil.FromBytesSlice(accountProofBytes),
 		StorageProof: storageProofs,
 	}
