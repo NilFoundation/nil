@@ -11,7 +11,7 @@ const createEffect = transactionStatDomain.createEffect.bind(transactionStatDoma
 const createEvent = transactionStatDomain.createEvent.bind(transactionStatDomain);
 
 export const $transactionsStat = createStore<TransactionStatData>([]);
-export const $timeInterval = createStore<TimeInterval>(TimeInterval.ThirtyMinutes);
+export const $timeInterval = createStore<TimeInterval>(TimeInterval.OneDay);
 
 export const fetchTransactionsStatFx = createEffect<TimeInterval, TransactionStatData, Error>();
 export const changeTimeInterval = createEvent<TimeInterval>();

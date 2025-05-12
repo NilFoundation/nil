@@ -1,4 +1,4 @@
-import { HeadingXXLarge } from "baseui/typography";
+import { LabelLarge } from "baseui/typography";
 import { useStyletron } from "styletron-react";
 import { styles as s } from "./styles";
 
@@ -11,7 +11,14 @@ export const Legend = ({ value }: LegendProps) => {
 
   return (
     <div className={css(s.legend)}>
-      <HeadingXXLarge>{value}</HeadingXXLarge>
+      <LabelLarge
+        className={css({
+          fontSize: "24px",
+          lineHeight: "32px",
+        })}
+      >
+        {value}
+      </LabelLarge>
     </div>
   );
 };

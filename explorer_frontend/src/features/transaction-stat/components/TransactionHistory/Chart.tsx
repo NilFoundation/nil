@@ -1,11 +1,4 @@
-import {
-  AreaSeries,
-  Chart as ChartWrapper,
-  HeadingMedium,
-  type SeriesApiRef,
-  Spinner,
-  TimeScale,
-} from "@nilfoundation/ui-kit";
+import { StyledChart as ChartWrapper, HeadingMedium, Spinner } from "@nilfoundation/ui-kit";
 import { useStore, useUnit } from "effector-react";
 import {
   type AreaData,
@@ -15,6 +8,12 @@ import {
   type MouseEventParams,
   type Time,
 } from "lightweight-charts";
+import {
+  AreaSeries,
+  PriceScale,
+  type SeriesApiRef,
+  TimeScale,
+} from "lightweight-charts-react-components";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useStyletron } from "styletron-react";
 import { $latestBlocks } from "../../../latest-blocks/models/model";
@@ -100,6 +99,7 @@ export const Chart = () => {
   const range = useGetLogicalRange(mappedData.length);
 
   const tooltipWidth = 140;
+  const tooltipHeight = 100;
   const tooltipMargin = 10;
   const { isOpen, position } = useTooltip(
     param,
@@ -107,22 +107,33 @@ export const Chart = () => {
     isMobile,
     tooltipMargin,
     tooltipWidth,
+    tooltipHeight,
   );
 
   return (
-    <>
-      <Legend value={legend} />
+    <div
+      className={css({
+        height: "100%",
+        width: "100%",
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+      })}
+    >
       <TimeIntervalToggle timeInterval={timeInterval} />
+      <Legend value={legend} />
       <div className={css(s.chartContainer)} ref={containerRef} data-testid="transaction-chart">
         {transactionsStat.length === 0 && pending ? (
           <Spinner />
         ) : transactionsStat.length > 0 ? (
           <ChartWrapper
             onCrosshairMove={handleCrosshairMove}
-            className={css(s.chart)}
-            {...getChartDefaultOptions(timeInterval)}
+            containerProps={{ className: css(s.chart) }}
+            options={getChartDefaultOptions(timeInterval)}
           >
-            <AreaSeries data={mappedData} reactive options={seriesDefaultOptions} ref={series} />
+            <AreaSeries data={mappedData} reactive options={seriesDefaultOptions} ref={series}>
+              <PriceScale id="left" options={{}} />
+            </AreaSeries>
             <TimeScale visibleLogicalRange={range} />
           </ChartWrapper>
         ) : (
@@ -140,6 +151,6 @@ export const Chart = () => {
           width={tooltipWidth}
         />
       )}
-    </>
+    </div>
   );
 };

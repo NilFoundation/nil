@@ -10,10 +10,8 @@ type TimeIntervalToggleProps = {
 };
 
 const timeIntervalOptions = [
-  { key: TimeInterval.OneMinute, label: TimeInterval.OneMinute },
-  { key: TimeInterval.FifteenMinutes, label: TimeInterval.FifteenMinutes },
-  { key: TimeInterval.ThirtyMinutes, label: TimeInterval.ThirtyMinutes },
-  { key: TimeInterval.OneDay, label: TimeInterval.OneDay },
+  { key: TimeInterval.OneDay, label: "Today" },
+  { key: TimeInterval.Days14, label: "14 days" },
 ] as const;
 
 export const TimeIntervalToggle: FC<TimeIntervalToggleProps> = ({ timeInterval }) => {

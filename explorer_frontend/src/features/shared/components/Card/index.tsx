@@ -15,7 +15,7 @@ export const Card = ({ children, as: Element = "div", className = "", transparen
   const styles = {
     card: {
       ...expandProperty("borderRadius", "16px"),
-      ...expandProperty("padding", "32px"),
+      ...expandProperty("padding", "24px"),
       backgroundColor: theme.colors.backgroundPrimary,
       display: "flex",
       flexDirection: "column",
