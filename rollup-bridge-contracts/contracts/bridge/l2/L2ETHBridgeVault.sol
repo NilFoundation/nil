@@ -4,7 +4,6 @@ pragma solidity ^0.8.28;
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { AccessControlEnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
@@ -20,7 +19,7 @@ import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 contract L2ETHBridgeVault is
   OwnableUpgradeable,
   PausableUpgradeable,
-  NilAccessControlUpgradeable,
+  AccessControlEnumerableUpgradeable,
   ReentrancyGuardUpgradeable,
   IL2ETHBridgeVault
 {
@@ -93,6 +92,24 @@ contract L2ETHBridgeVault is
     _grantRole(DEFAULT_ADMIN_ROLE, adminAddress);
   }
 
+  /*//////////////////////////////////////////////////////////////////////////
+                                    MODIFIERS
+    //////////////////////////////////////////////////////////////////////////*/
+
+  modifier onlyAdmin() {
+    if (!(hasRole(DEFAULT_ADMIN_ROLE, msg.sender))) {
+      revert ErrorCallerIsNotAdmin();
+    }
+    _;
+  }
+
+  modifier onlyOwnerOrAdmin() {
+    if (!(hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) && !(hasRole(NilConstants.OWNER_ROLE, msg.sender))) {
+      revert ErrorCallerNotAuthorised();
+    }
+    _;
+  }
+
   /// @notice Receive function to accept ETH, only callable by the l2ETHBridge or Owner
   /// @dev owner of the contract must fund the Vault with ETH
   /// @dev L2EthBridgeVault will transfer ETH to the vault while processing ETH-withdrawal request from user
@@ -108,6 +125,10 @@ contract L2ETHBridgeVault is
     }
   }
 
+  /*//////////////////////////////////////////////////////////////////////////
+                                    PUBLIC RESTRICTED FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////*/
+
   /// @inheritdoc IL2ETHBridgeVault
   function setL2ETHBridge(address l2ETHBridgeAddress) external override onlyOwnerOrAdmin {
     if (
@@ -120,6 +141,32 @@ contract L2ETHBridgeVault is
     l2ETHBridge = IL2ETHBridge(l2ETHBridgeAddress);
 
     emit L2ETHBridgeSet(address(l2ETHBridge), l2ETHBridgeAddress);
+  }
+
+  function grantAccess(bytes32 role, address account) external override {
+    grantRole(role, account);
+  }
+
+  function revokeAccess(bytes32 role, address account) external override {
+    revokeRole(role, account);
+  }
+
+  function renounceAccess(bytes32 role) external override {
+    renounceRole(role, msg.sender);
+  }
+
+  function setPause(bool _status) external override onlyOwnerOrAdmin {
+    if (_status) {
+      _pause();
+    } else {
+      _unpause();
+    }
+  }
+
+  function transferOwnershipRole(address newOwner) external override onlyOwner {
+    _revokeRole(NilConstants.OWNER_ROLE, owner());
+    super.transferOwnership(newOwner);
+    _grantRole(NilConstants.OWNER_ROLE, newOwner);
   }
 
   /// @inheritdoc IL2ETHBridgeVault
@@ -182,6 +229,10 @@ contract L2ETHBridgeVault is
 
     ethAmountTracker = ethAmountTracker - amount;
   }
+
+  /*//////////////////////////////////////////////////////////////////////////
+                                    PUBLIC CONSTANT QUERY FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc IERC165
   function supportsInterface(

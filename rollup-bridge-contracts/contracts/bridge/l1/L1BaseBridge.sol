@@ -202,10 +202,7 @@ abstract contract L1BaseBridge is
   }
 
   function _setCounterpartyBridge(address counterpartyBridgeAddress) internal {
-    if (
-      !counterpartyBridgeAddress.isContract() ||
-      !IERC165(IL2Bridge(counterpartyBridgeAddress).getImplementation()).supportsInterface(type(IL2Bridge).interfaceId)
-    ) {
+    if (!counterpartyBridgeAddress.isAValidAddress()) {
       revert ErrorInvalidNilGasPriceOracle();
     }
     emit CounterpartyBridgeSet(counterpartyBridge, counterpartyBridgeAddress);

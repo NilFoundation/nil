@@ -3,8 +3,19 @@ pragma solidity ^0.8.28;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { IRelayMessage } from "./IRelayMessage.sol";
+import { IFeeStorage } from "./IFeeStorage.sol";
 
-interface INilGasPriceOracle is IERC165 {
+interface INilGasPriceOracle is IERC165, IFeeStorage {
+  /*//////////////////////////////////////////////////////////////////////////
+                             ERRORS   
+    //////////////////////////////////////////////////////////////////////////*/
+
+  error ErrorInvalidMaxFeePerGas();
+
+  error ErrorInvalidMaxPriorityFeePerGas();
+
+  error ErrorInvalidGasLimitForFeeCredit();
+
   /// @dev Invalid owner address.
   error ErrorInvalidOwner();
 
@@ -13,25 +24,20 @@ interface INilGasPriceOracle is IERC165 {
 
   error ErrorNotAuthorised();
 
+  /*//////////////////////////////////////////////////////////////////////////
+                             EVENTS   
+    //////////////////////////////////////////////////////////////////////////*/
+
+  /// @notice Emitted when oracleFee is updated.
+  /// @param maxFeePerGas The maxFeePerGas updated value.
+  /// @param maxPriorityFeePerGas The maxPriorityFeePerGas updated updated.
+  event OracleFeeUpdated(uint256 maxFeePerGas, uint256 maxPriorityFeePerGas);
+
+  /*//////////////////////////////////////////////////////////////////////////
+                             PUBLIC CONSTANT FUNCTIONS   
+    //////////////////////////////////////////////////////////////////////////*/
+
   function getImplementation() external view returns (address);
-
-  /// @notice set the maxFeePerGas & maxPriorityFeePerGas from nil-chain
-  function setFeePerGas(uint256 newMaxFeePerGas, uint256 newMaxPriorityFeePerGas) external;
-
-  /// @notice set the maxFeePerGas from nil-chain
-  function setMaxFeePerGas(uint256 maxFeePerGas) external;
-
-  /// @notice Return the latest known maxFeePerGas from nil-chain
-  function maxFeePerGas() external view returns (uint256);
-
-  /// @notice set the maxPriorityFeePerGas from nil-chain
-  function setMaxPriorityFeePerGas(uint256 maxPriorityFeePerGas) external;
-
-  /// @notice Return the latest known maxPriorityFeePerGas from nil-chain
-  function maxPriorityFeePerGas() external view returns (uint256);
-
-  /// @notice Return the latest known maxFeePerGas, maxPriorityFeePerGas from nil-chain
-  function getFeeData() external view returns (uint256, uint256);
 
   function computeFeeCredit(
     uint256 gasLimit,

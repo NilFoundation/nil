@@ -16,9 +16,6 @@ const nilGasPriceOracleABI = JSON.parse(fs.readFileSync(nilGasPriceOracleABIPath
 export async function setUserGasFeeInOracle(networkName: string) {
     const config = loadL1NetworkConfig(networkName);
 
-    // setMaxFeePerGas
-    // setMaxPriorityFeePerGas
-
     if (!isValidAddress(config.nilGasPriceOracle.nilGasPriceOracleContracts.nilGasPriceOracleProxy)) {
         throw new Error('Invalid nilGasPriceOracleProxy address in config');
     }
@@ -33,15 +30,11 @@ export async function setUserGasFeeInOracle(networkName: string) {
 
     console.log(`setting user-gas-gee in nilGasPriceOracle`);
 
-    const tx = await nilGasPriceOracleInstance.setMaxFeePerGas(config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceOracleMaxFeePerGas);
+    const tx = await nilGasPriceOracleInstance.setOracleFee(config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceOracleMaxFeePerGas,
+        config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceOracleMaxPriorityFeePerGas);
     await tx.wait();
 
-    console.log(`nilGasPriceOracleMaxFeePerGas set in nilGasPriceOracle with transaction: ${JSON.stringify(tx)}`);
-
-    const tx2 = await nilGasPriceOracleInstance.setMaxPriorityFeePerGas(config.nilGasPriceOracle.nilGasPriceOracleDeployerConfig.nilGasPriceOracleMaxPriorityFeePerGas);
-    await tx2.wait();
-
-    console.log(`nilGasPriceOracleMaxPriorityFeePerGas set in nilGasPriceOracle with transaction: ${JSON.stringify(tx2)}`);
+    console.log(`nilGasPriceOracleMaxPriorityFeePerGas set in nilGasPriceOracle with transaction: ${JSON.stringify(tx)}`);
 
     console.log(`completed setting user-gas-fees in nilGasPriceOracle`);
 }

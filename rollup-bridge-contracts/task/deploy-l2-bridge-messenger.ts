@@ -6,6 +6,7 @@ import {
     LocalECDSAKeySigner,
     PublicClient,
     SmartAccountV1,
+    getContract,
     convertEthToWei,
     Transaction,
     generateRandomPrivateKey,
@@ -13,6 +14,7 @@ import {
 } from "@nilfoundation/niljs";
 import { loadNilSmartAccount } from "./nil-smart-account";
 import { L2NetworkConfig, loadNilNetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
+import { getCheckSummedAddress, validateAddress } from "../scripts/utils/validate-config";
 import { decodeFunctionResult, encodeFunctionData } from "viem";
 
 // npx hardhat deploy-l2-bridge-messenger --networkname local
@@ -30,8 +32,6 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
         }
 
         const networkName = taskArgs.networkname;
-        console.log(`Running task on network: ${networkName}`);
-
         const deployerAccount = await loadNilSmartAccount();
 
         if (!deployerAccount) {
@@ -40,8 +40,6 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
 
         const balance = await deployerAccount.getBalance();
 
-        console.log(`smart-contract: ${deployerAccount.address} is on shard: ${deployerAccount.shardId} with balance: ${balance}`);
-
         if (!(balance > BigInt(0))) {
             throw Error(`Insufficient or Zero balance for smart-account: ${deployerAccount.address}`);
         }
@@ -49,19 +47,40 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
         // save the L2BridgeMessenger Address in the json config for l2
         const l2NetworkConfig: L2NetworkConfig = loadNilNetworkConfig(networkName);
 
-        const { address: nilMessengerImplementationAddress, hash: nilMessengerImplementationDeploymentTxHash } = await deployerAccount.deployContract({
+        validateAddress(l2NetworkConfig.l2CommonConfig.owner, "l2CommonConfig.owner");
+        validateAddress(l2NetworkConfig.l2CommonConfig.admin, "l2CommonConfig.admin");
+        validateAddress(
+            l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.relayerAddress,
+            "l2BridgeMessengerDeployerConfig.relayerAddress"
+        );
+        validateAddress(
+            l2NetworkConfig.nilMessageTreeConfig.nilMessageTreeContracts.nilMessageTreeImplementationAddress,
+            "nilMessageTreeContracts.nilMessageTreeImplementationAddress"
+        );
+
+        if (
+            !l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.messageExpiryDeltaValue ||
+            typeof l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.messageExpiryDeltaValue !== "number" ||
+            l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.messageExpiryDeltaValue <= 0
+        ) {
+            throw new Error("Invalid configuration: l2BridgeMessengerDeployerConfig.messageExpiryDeltaValue must be a positive number.");
+        }
+
+
+        const { tx: nilMessengerImplementationDeploymentTx, address: nilMessengerImplementationAddress } = await deployerAccount.deployContract({
             shardId: 1,
-            bytecode: L2BridgeMessengerJson.default.bytecode,
-            abi: L2BridgeMessengerJson.default.abi,
+            bytecode: L2BridgeMessengerJson.default.bytecode as `0x${string}`,
+            abi: L2BridgeMessengerJson.default.abi as Abi,
             args: [],
             salt: BigInt(Math.floor(Math.random() * 10000)),
-            feeCredit: BigInt("19340180000000"),
+            feeCredit: convertEthToWei(0.001),
         });
 
-        await waitTillCompleted(deployerAccount.client, nilMessengerImplementationDeploymentTxHash);
-        console.log(`L2BridgeMessenger contractis deployed at: ${nilMessengerImplementationAddress} with transactionHash: ${nilMessengerImplementationDeploymentTxHash}`);
+        await waitTillCompleted(deployerAccount.client, nilMessengerImplementationDeploymentTx.hash, {
+            waitTillMainShard: true
+        });
 
-        if (!nilMessengerImplementationDeploymentTxHash) {
+        if (!nilMessengerImplementationDeploymentTx || !nilMessengerImplementationDeploymentTx.hash) {
             throw Error(`Invalid transaction output from deployContract call for L2BridgeMessenger Contract`);
         }
 
@@ -69,102 +88,41 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
             throw Error(`Invalid address output from deployContract call for L2BridgeMessenger Contract`);
         }
 
-        console.log(`L2BridgeMessenger contract deployed at address: ${nilMessengerImplementationAddress} and with transactionHash: ${nilMessengerImplementationDeploymentTxHash}`);
-
-        l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerImplementation = nilMessengerImplementationAddress;
+        l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerImplementation = getCheckSummedAddress(nilMessengerImplementationAddress);
 
         const initData = encodeFunctionData({
             abi: L2BridgeMessengerJson.default.abi,
             functionName: "initialize",
-            args: [l2NetworkConfig.l2CommonConfig.owner, l2NetworkConfig.l2CommonConfig.admin,
+            args: [l2NetworkConfig.l2CommonConfig.owner,
+            l2NetworkConfig.l2CommonConfig.admin,
             l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.relayerAddress,
             l2NetworkConfig.nilMessageTreeConfig.nilMessageTreeContracts.nilMessageTreeImplementationAddress,
             l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.messageExpiryDeltaValue],
         });
 
-        const { address: addressProxy, hash: hashProxy } = await deployerAccount.deployContract({
+        const { tx: proxyDeploymentTx, address: proxyAddress } = await deployerAccount.deployContract({
             shardId: 1,
-            bytecode: TransparentUpgradeableProxy.default.bytecode,
-            abi: TransparentUpgradeableProxy.default.abi,
+            bytecode: TransparentUpgradeableProxy.default.bytecode as `0x${string}`,
+            abi: TransparentUpgradeableProxy.default.abi as Abi,
             args: [nilMessengerImplementationAddress, deployerAccount.address, initData],
             salt: BigInt(Math.floor(Math.random() * 10000)),
             feeCredit: convertEthToWei(0.001),
         });
-        await waitTillCompleted(deployerAccount.client, hashProxy);
-        console.log("✅ Transparent Proxy Contract deployed at:", addressProxy);
 
-        l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy = addressProxy;
-
-        console.log("Waiting 5 seconds...");
-        await new Promise((res) => setTimeout(res, 5000));
-
-
-        const getNilMessageTreeCallData = encodeFunctionData({
-            abi: L2BridgeMessengerJson.default.abi,
-            functionName: "nilMessageTree",
-            args: [],
-        });
-        const getNilMessageTreeCallResult = await deployerAccount.client.call({
-            to: addressProxy,
-            from: deployerAccount.address,
-            data: getNilMessageTreeCallData,
-        }, "latest");
-
-        console.log(`getNilMessageTreeCallResult is: ${JSON.stringify(getNilMessageTreeCallResult)}`);
-
-        const result = decodeFunctionResult({
-            abi: L2BridgeMessengerJson.default.abi,
-            functionName: "nilMessageTree",
-            data: getNilMessageTreeCallResult.data,
-        });
-        console.log("✅ NilMessageTree value in L2BridgeMessenger contract:", result);
-
-
-        const getImplementationCallData = encodeFunctionData({
-            abi: L2BridgeMessengerJson.default.abi,
-            functionName: "getImplementation",
-            args: [],
+        await waitTillCompleted(deployerAccount.client, proxyDeploymentTx.hash, {
+            waitTillMainShard: true
         });
 
-        const getImplementationResult = await deployerAccount.client.call({
-            to: addressProxy,
-            data: getImplementationCallData,
-            from: deployerAccount.address,
-        }, "latest");
+        l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy = getCheckSummedAddress(proxyAddress);
 
-        console.log(`L2BridgeMessengerProxy has get-implementation-result: ${JSON.stringify(getImplementationResult)}`);
-
-        const proxyImplementationAddress = decodeFunctionResult({
-            abi: L2BridgeMessengerJson.default.abi,
-            functionName: "getImplementation",
-            data: getImplementationResult.data,
-        }) as string;
-
-        console.log("✅ proxyImplementationAddress Address:", proxyImplementationAddress);
-
-        const fetchAdminCall = encodeFunctionData({
+        const proxyContractInstance = getContract({
+            client: deployerAccount.client,
             abi: TransparentUpgradeableProxy.default.abi,
-            functionName: "fetchAdmin",
-            args: [],
+            address: proxyAddress as `0x${string}`,
         });
 
-        const adminResult = await deployerAccount.client.call({
-            to: addressProxy,
-            data: fetchAdminCall,
-            from: deployerAccount.address,
-        }, "latest");
-
-        console.log(`L2BridgeMessengerProxy has admin-result: ${JSON.stringify(adminResult)}`);
-
-        const proxyAdminAddress = decodeFunctionResult({
-            abi: TransparentUpgradeableProxy.default.abi,
-            functionName: "fetchAdmin",
-            data: adminResult.data,
-        }) as string;
-
-        console.log("✅ ProxyAdmin Address:", proxyAdminAddress);
-
-        l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.proxyAdmin = proxyAdminAddress;
+        const proxyAdminAddress = await proxyContractInstance.read.fetchAdmin([]);
+        l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.proxyAdmin = proxyAdminAddress as `0x${string}`;
 
         // Save the updated config
         saveNilNetworkConfig(networkName, l2NetworkConfig);

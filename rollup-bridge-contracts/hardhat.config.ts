@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-import { HardhatConfig } from "hardhat/config";
+import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-preprocessor";
 import "hardhat-deploy";
@@ -19,17 +19,21 @@ function getRemappings() {
 
 const remappings = getRemappings();
 
-console.log("Remappings:", remappings);
-
+import "./task/clear-l2-deployments";
 import "./task/generate-nil-smart-account";
 import "./task/deploy-nil-message-tree";
+import "./task/deploy-l2-eth-bridge-vault";
 import "./task/deploy-l2-bridge-messenger";
 import "./task/deploy-l2-eth-bridge";
-import "./task/deploy-l2-eth-bridge-vault";
 import "./task/deploy-l2-enshrined-token-bridge";
-import "./task/deploy-my-logic";
+import "./task/set-eth-bridge-vault-dependencies";
+import "./task/set-eth-bridge-dependencies";
+import "./task/set-enshrined-token-bridge-dependencies";
+import "./task/authorise-l2-bridges-in-messenger";
+import "./task/fund-l2-eth-bridge-vault";
+import "./task/l2-task-runner";
 
-const config: HardhatConfig = {
+const config: HardhatUserConfig = {
   ignition: {
     requiredConfirmations: 1,
   },

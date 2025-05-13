@@ -66,6 +66,9 @@ stdenv.mkDerivation rec {
   };
 
   buildPhase = ''
+    (cd smart-contracts; pnpm run build)
+    (cd niljs; pnpm run build)
+
     echo "Installing soljson"
     (cd create-nil-hardhat-project; bash install_soljson.sh ${soljson26})
     export BIOME_BINARY=${biome}/bin/biome

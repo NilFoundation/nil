@@ -15,6 +15,9 @@ interface IL2Bridge is IBridge {
   /// @notice Thrown when the L1 token address does not match the expected address
   error ErrorL1TokenAddressMismatch();
 
+  error ErrorCallerIsNotAdmin();
+  error ErrorCallerNotAuthorised();
+
   /*//////////////////////////////////////////////////////////////////////////
                              EVENTS   
     //////////////////////////////////////////////////////////////////////////*/
@@ -48,6 +51,16 @@ interface IL2Bridge is IBridge {
 
   /// @notice The address of corresponding L1NilMessenger/L2NilMessenger contract.
   function messenger() external view returns (address);
+
+  /*//////////////////////////////////////////////////////////////////////////
+                             PUBLIC RESTRICTED FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////*/
+
+  function grantAccess(bytes32 role, address account) external;
+
+  function revokeAccess(bytes32 role, address account) external;
+
+  function renounceAccess(bytes32 role) external;
 
   function setPause(bool _status) external;
 

@@ -11,7 +11,7 @@ import { IBridge } from "../interfaces/IBridge.sol";
 import { IL2BridgeMessenger } from "./interfaces/IL2BridgeMessenger.sol";
 import { IL2BridgeRouter } from "./interfaces/IL2BridgeRouter.sol";
 import { IBridgeMessenger } from "../interfaces/IBridgeMessenger.sol";
-import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
+import { AccessControlEnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import { NilConstants } from "../../common/libraries/NilConstants.sol";
 import { AddressChecker } from "../../common/libraries/AddressChecker.sol";
 import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
@@ -19,7 +19,7 @@ import { StorageUtils } from "../../common/libraries/StorageUtils.sol";
 abstract contract L2BaseBridge is
   OwnableUpgradeable,
   PausableUpgradeable,
-  NilAccessControlUpgradeable,
+  AccessControlEnumerableUpgradeable,
   ReentrancyGuardUpgradeable,
   IL2Bridge
 {
@@ -41,11 +41,6 @@ abstract contract L2BaseBridge is
 
   /// @dev The storage slots for future usage.
   uint256[50] private __gap;
-
-  /*//////////////////////////////////////////////////////////////////////////
-                             CONSTRUCTOR  
-    //////////////////////////////////////////////////////////////////////////*/
-  constructor() {}
 
   /*//////////////////////////////////////////////////////////////////////////
                              INITIALISER  
@@ -107,6 +102,20 @@ abstract contract L2BaseBridge is
     _;
   }
 
+  modifier onlyAdmin() {
+    if (!(hasRole(DEFAULT_ADMIN_ROLE, msg.sender))) {
+      revert ErrorCallerIsNotAdmin();
+    }
+    _;
+  }
+
+  modifier onlyOwnerOrAdmin() {
+    if (!(hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) && !(hasRole(NilConstants.OWNER_ROLE, msg.sender))) {
+      revert ErrorCallerNotAuthorised();
+    }
+    _;
+  }
+
   /*//////////////////////////////////////////////////////////////////////////
                                     RESTRICTED FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
@@ -151,10 +160,7 @@ abstract contract L2BaseBridge is
   }
 
   function _setCounterpartyBridge(address counterpartyBridgeAddress) internal {
-    if (
-      !counterpartyBridgeAddress.isContract() ||
-      !IERC165(IBridge(counterpartyBridgeAddress).getImplementation()).supportsInterface(type(IL1Bridge).interfaceId)
-    ) {
+    if (!counterpartyBridgeAddress.isAValidAddress()) {
       revert ErrorInvalidCounterpartyBridge();
     }
 
@@ -165,6 +171,21 @@ abstract contract L2BaseBridge is
   /*//////////////////////////////////////////////////////////////////////////
                              RESTRICTED FUNCTIONS   
     //////////////////////////////////////////////////////////////////////////*/
+
+  /// @inheritdoc IL2Bridge
+  function grantAccess(bytes32 role, address account) external override {
+    grantRole(role, account);
+  }
+
+  //// @inheritdoc IL2Bridge
+  function revokeAccess(bytes32 role, address account) external override {
+    revokeRole(role, account);
+  }
+
+  /// @inheritdoc IL2Bridge
+  function renounceAccess(bytes32 role) external override {
+    renounceRole(role, msg.sender);
+  }
 
   /// @inheritdoc IBridge
   function setPause(bool _status) external onlyOwnerOrAdmin {
@@ -181,6 +202,10 @@ abstract contract L2BaseBridge is
     super.transferOwnership(newOwner);
     _grantRole(NilConstants.OWNER_ROLE, newOwner);
   }
+
+  /*//////////////////////////////////////////////////////////////////////////
+                            ACCESS-CONTROL QUERY FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////*/
 
   /**
    * @dev Returns the current implementation address.
