@@ -85,3 +85,8 @@ openrpc.json
 .pnpm/
 .pnpm-store/
 .qodo
+nil/**/mock_*.go
+
+# mockery output (исключаем helper-тесты)
+nil/**/mock_*.go
+!nil/**/mock_*_test.go

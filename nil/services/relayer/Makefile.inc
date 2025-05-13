@@ -20,9 +20,9 @@ $(root_relayer)/generate_l1_abi: $(root_relayer)/embed_l1_abi
 
 .PHONY: $(root_relayer)/gen_l1_mocks
 $(root_relayer)/gen_l1_mocks: $(root_relayer)/generate_l1_abi
-	cd $(root_relayer)/internal/l1 && go run github.com/matryer/moq -out eth_client_generated_mock.go -rm -stub -with-resets . EthClient
-	cd $(root_relayer)/internal/l1 && go run github.com/matryer/moq -out l1_contract_generated_mock.go -rm -stub -with-resets . L1Contract
+	cd $(root_relayer)/internal/l1 && mockery --name=EthClient
+	cd $(root_relayer)/internal/l1 && mockery --name=L1Contract
 
 .PHONY: $(root_relayer)/gen_l2_mocks
 $(root_relayer)/gen_l2_mocks: $(root_relayer)/embed_l2_abi
-	cd $(root_relayer)/internal/l2 && go run github.com/matryer/moq -out l2_contract_generated_mock.go -rm -stub -with-resets . L2Contract
+	cd $(root_relayer)/internal/l2 && mockery --name=L2Contract
