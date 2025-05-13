@@ -10,6 +10,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1client"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -64,7 +65,7 @@ type wrapperImpl struct {
 	senderAddress   ethcommon.Address
 	privateKey      *ecdsa.PrivateKey
 	chainID         *big.Int
-	ethClient       EthClient
+	ethClient       l1client.EthClient
 	abi             *abi.ABI
 	logger          logging.Logger
 }
@@ -79,12 +80,12 @@ func NewWrapper(
 	cfg WrapperConfig,
 	logger logging.Logger,
 ) (Wrapper, error) {
-	var ethClient EthClient
+	var ethClient l1client.EthClient
 	if cfg.DisableL1 {
 		return &noopWrapper{logger}, nil
 	}
 
-	ethClient, err := NewRetryingEthClient(ctx, cfg.Endpoint, cfg.RequestsTimeout, logger)
+	ethClient, err := l1client.NewRetryingEthClient(ctx, cfg.Endpoint, cfg.RequestsTimeout, logger)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing eth client: %w", err)
 	}
@@ -95,7 +96,7 @@ func NewWrapper(
 func NewWrapperWithEthClient(
 	ctx context.Context,
 	cfg WrapperConfig,
-	ethClient EthClient,
+	ethClient l1client.EthClient,
 	logger logging.Logger,
 ) (Wrapper, error) {
 	contactAddress := ethcommon.HexToAddress(cfg.ContractAddressHex)

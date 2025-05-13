@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/syncer"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1client"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
@@ -123,8 +124,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		return nil, err
 	}
 
-	// TODO(oclaw) it should be moved out of the rollup contract wrapper in favor of a separate package
-	l1Client, err := rollupcontract.NewRetryingEthClient(
+	l1Client, err := l1client.NewRetryingEthClient(
 		ctx,
 		cfg.ContractWrapperConfig.Endpoint,
 		cfg.ContractWrapperConfig.RequestsTimeout,

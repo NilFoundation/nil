@@ -1,4 +1,4 @@
-package rollupcontract
+package l1client
 
 import (
 	"context"
@@ -19,6 +19,7 @@ type EthClient interface {
 	bind.ContractBackend
 	bind.DeployBackend
 	ChainID(ctx context.Context) (*big.Int, error)
+	TransactionByHash(ctx context.Context, hash ethcommon.Hash) (*types.Transaction, bool, error)
 }
 
 func NewRetryingEthClient(
