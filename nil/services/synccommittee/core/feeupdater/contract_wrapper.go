@@ -3,6 +3,7 @@ package feeupdater
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -25,16 +26,16 @@ type EthClient interface {
 }
 
 type ContractWrapperConfig struct {
-	ContractAddress string `yaml:"feeupdater_l1_contract_address"`
-	PrivateKey      string `yaml:"feeupdater_l1_private_key"`
+	ContractAddress string `yaml:"feeupdaterL1ContractAddress"`
+	PrivateKey      string `yaml:"feeupdaterL1PrivateKey"`
 }
 
 func (cfg *ContractWrapperConfig) Validate() error {
 	if cfg.ContractAddress == "" {
-		return fmt.Errorf("IFeeStorage contract address is empty")
+		return errors.New("IFeeStorage contract address is empty")
 	}
 	if cfg.PrivateKey == "" {
-		return fmt.Errorf("private key for IFeeStorage L1 contract is empty")
+		return errors.New("private key for IFeeStorage L1 contract is empty")
 	}
 	return nil
 }
