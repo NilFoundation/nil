@@ -31,6 +31,7 @@ const (
 	NameGovernance    = "system/Governance"
 	NameTokenManager  = "NilTokenManager"
 	NameRelayer       = "Relayer"
+	NameMessageQueue  = "MessageQueue"
 )
 
 var (

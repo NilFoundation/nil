@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./Relayer.sol";
+import "./MessageQueue.sol";
 
 // TokenId is a type that represents a unique token identifier.
 type TokenId is address;
@@ -206,6 +207,49 @@ library Nil {
         addr |= uint160(0x444444444444444444444444444444444444);
         return address(addr);
     }
+
+    /**
+     * @dev Modifier to create an async transaction frame for multiple async calls
+     * @param gas Total gas budget to divide among all async calls in the transaction
+     */
+    modifier async(uint gas) {
+        // Get the MessageQueue contract for current shard
+        address messageQueueAddr = getMessageQueueAddress();
+        
+        // Start the async session
+        MessageQueue(messageQueueAddr).startAsync();
+        
+        // Execute the function body
+        _;
+        
+        // Calculate value to send based on gas and gas price
+        uint valueToSend = gas * tx.gasprice;
+        
+        // Finalize the async session with the allocated gas
+        MessageQueue(messageQueueAddr).finalizeAsync{value: valueToSend}(gas);
+    }
+    
+    /**
+     * @dev Returns the address of the MessageQueue contract for the current shard
+     * @return Address of the MessageQueue contract
+     */
+    function getMessageQueueAddress() internal view returns (address) {
+        uint160 addr = uint160(getCurrentShardId()) << (18 * 8);
+        addr |= uint160(0x555555555555555555555555555555555555);
+        return address(addr);
+    }
+    
+    /**
+     * @dev Returns the address of the MessageQueue contract for a specific shard
+     * @param shardId The shard ID
+     * @return Address of the MessageQueue contract
+     */
+    function getMessageQueueAddress(uint shardId) internal pure returns (address) {
+        uint160 addr = uint160(shardId) << (18 * 8);
+        addr |= uint160(0x555555555555555555555555555555555555);
+        return address(addr);
+    }
+
 
     /**
      * @dev Makes a synchronous call to a contract.
