@@ -168,4 +168,6 @@ interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage {
    * @param _status The pause status to update.
    */
   function setPause(bool _status) external;
+
+  function getL2ToL1Root() external view returns (bytes32);
 }

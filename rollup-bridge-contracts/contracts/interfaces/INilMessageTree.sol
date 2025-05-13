@@ -11,4 +11,6 @@ interface INilMessageTree {
   function appendMessage(bytes32 _messageHash) external returns (uint256, bytes32);
 
   function isMerkleTreeInitialized() external view returns (bool);
+
+  function getMessageRoot() external view returns (bytes32);
 }
