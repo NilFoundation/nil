@@ -31,7 +31,7 @@ importers:
     dependencies:
       '@nilfoundation/niljs':
         specifier: 0.25.0
-        version: 0.25.0(encoding@0.1.13)(rollup@4.40.1)(typescript@5.8.2)
+        version: 0.25.0(rollup@4.40.1)(typescript@5.8.2)
       '@nilfoundation/smart-contracts':
         specifier: 0.7.0
         version: 0.7.0
@@ -59,7 +59,7 @@ importers:
     dependencies:
       '@nilfoundation/niljs':
         specifier: 0.25.0
-        version: 0.25.0(encoding@0.1.13)(rollup@4.40.1)(typescript@5.8.2)
+        version: 0.25.0(rollup@4.40.1)(typescript@5.8.2)
       '@nilfoundation/smart-contracts':
         specifier: 0.7.0
         version: 0.7.0
@@ -218,7 +218,7 @@ importers:
         version: 3.7.0(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@khannanov-nil/openrpc-docusaurus':
         specifier: 0.7.1
-        version: 0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(encoding@0.1.13)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)
+        version: 0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)
       '@mdx-js/react':
         specifier: ^3.0.0
         version: 3.1.0(@types/react@17.0.85)(react@18.3.1)
@@ -853,11 +853,11 @@ importers:
   rollup-bridge-contracts:
     dependencies:
       '@nilfoundation/niljs':
-        specifier: 0.25.0
-        version: 0.25.0(encoding@0.1.13)(rollup@4.40.1)(typescript@5.8.2)
+        specifier: 0.26.0
+        version: link:../niljs
       '@nilfoundation/smart-contracts':
-        specifier: 0.7.0
-        version: 0.7.0
+        specifier: 0.8.0
+        version: link:../smart-contracts
       '@openzeppelin/contracts':
         specifier: ^5.1.0
         version: 5.2.0
@@ -22300,9 +22300,9 @@ snapshots:
 
   '@json-schema-spec/json-pointer@0.1.2': {}
 
-  '@json-schema-tools/dereferencer@1.5.5(encoding@0.1.13)':
+  '@json-schema-tools/dereferencer@1.5.5':
     dependencies:
-      '@json-schema-tools/reference-resolver': 1.2.4(encoding@0.1.13)
+      '@json-schema-tools/reference-resolver': 1.2.4
       '@json-schema-tools/traverse': 1.10.4
       fast-safe-stringify: 2.1.1
     transitivePeerDependencies:
@@ -22310,7 +22310,7 @@ snapshots:
 
   '@json-schema-tools/meta-schema@1.6.19': {}
 
-  '@json-schema-tools/reference-resolver@1.2.4(encoding@0.1.13)':
+  '@json-schema-tools/reference-resolver@1.2.4':
     dependencies:
       '@json-schema-spec/json-pointer': 0.1.2
       isomorphic-fetch: 3.0.0(encoding@0.1.13)
@@ -22321,10 +22321,10 @@ snapshots:
 
   '@juggle/resize-observer@3.4.0': {}
 
-  '@khannanov-nil/nil-open-rpc-docs-react@0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@khannanov-nil/nil-open-rpc-docs-react@0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@json-schema-tools/traverse': 1.10.4
-      '@open-rpc/client-js': 1.8.1(encoding@0.1.13)
+      '@open-rpc/client-js': 1.8.1
       '@open-rpc/examples': 1.7.2
       '@rjsf/core': 5.24.8(@rjsf/utils@5.24.8(react@18.3.1))(react@18.3.1)
       '@rjsf/utils': 5.24.8(react@18.3.1)
@@ -22361,7 +22361,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@khannanov-nil/openrpc-docusaurus@0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(encoding@0.1.13)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)':
+  '@khannanov-nil/openrpc-docusaurus@0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)':
     dependencies:
       '@docusaurus/core': 3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2)
       '@docusaurus/plugin-content-blog': 3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2)
@@ -22376,8 +22376,8 @@ snapshots:
       '@docusaurus/theme-common': 3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@docusaurus/theme-search-algolia': 3.7.0(@algolia/client-search@5.23.0)(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)
       '@docusaurus/types': 3.7.0(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@khannanov-nil/nil-open-rpc-docs-react': 0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@open-rpc/schema-utils-js': 1.16.2(encoding@0.1.13)
+      '@khannanov-nil/nil-open-rpc-docs-react': 0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@open-rpc/schema-utils-js': 1.16.2
       node-polyfill-webpack-plugin: 2.0.1(webpack@5.98.0)
       process: 0.11.10
       react: 18.3.1
@@ -22754,13 +22754,13 @@ snapshots:
   '@next/swc-win32-x64-msvc@15.2.4':
     optional: true
 
-  '@nilfoundation/niljs@0.25.0(encoding@0.1.13)(rollup@4.40.1)(typescript@5.8.2)':
+  '@nilfoundation/niljs@0.25.0(rollup@4.40.1)(typescript@5.8.2)':
     dependencies:
       '@chainsafe/persistent-merkle-tree': 0.7.2
       '@chainsafe/ssz': 0.16.0
       '@nilfoundation/smart-contracts': 0.7.0
       '@noble/curves': 1.8.1
-      '@open-rpc/client-js': 1.8.1(encoding@0.1.13)
+      '@open-rpc/client-js': 1.8.1
       '@rollup/plugin-json': 6.1.0(rollup@4.40.1)
       '@scure/bip39': 1.5.4
       '@types/isomorphic-fetch': 0.0.39
@@ -23248,7 +23248,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@open-rpc/client-js@1.8.1(encoding@0.1.13)':
+  '@open-rpc/client-js@1.8.1':
     dependencies:
       isomorphic-fetch: 3.0.0(encoding@0.1.13)
       isomorphic-ws: 5.0.0(ws@7.5.10)
@@ -23263,11 +23263,11 @@ snapshots:
 
   '@open-rpc/meta-schema@1.14.2': {}
 
-  '@open-rpc/schema-utils-js@1.16.2(encoding@0.1.13)':
+  '@open-rpc/schema-utils-js@1.16.2':
     dependencies:
-      '@json-schema-tools/dereferencer': 1.5.5(encoding@0.1.13)
+      '@json-schema-tools/dereferencer': 1.5.5
       '@json-schema-tools/meta-schema': 1.6.19
-      '@json-schema-tools/reference-resolver': 1.2.4(encoding@0.1.13)
+      '@json-schema-tools/reference-resolver': 1.2.4
       '@open-rpc/meta-schema': 1.14.2
       ajv: 6.12.6
       detect-node: 2.1.0
