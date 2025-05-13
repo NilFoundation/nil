@@ -98,6 +98,13 @@ func AddSystemContractsToZeroStateConfig(zeroStateConfig *ZeroStateConfig, shard
 			Address:  types.GetTokenManagerAddress(types.ShardId(i)),
 			Value:    types.Value0,
 		})
+		zeroStateConfig.Contracts = append(zeroStateConfig.Contracts, &ContractDescr{
+			Name:     fmt.Sprintf("MessageQueue_%d", i),
+			Contract: contracts.NameMessageQueue,
+			Address:  types.GetMessageQueueAddress(types.ShardId(i)),
+			Value:    v,
+			CtorArgs: []any{uint64(i)},
+		})
 	}
 }
 

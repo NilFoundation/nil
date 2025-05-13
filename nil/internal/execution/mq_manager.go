@@ -45,45 +45,11 @@ type Message struct {
 	BlockNumber      *big.Int             `json:"blockNumber"`
 }
 
-// Get the MessageQueue contract address for a given shard
-func GetMessageQueueAddress(shardID types.ShardId) types.Address {
-	// Create a big.Int for the base address
-	baseAddr := big.NewInt(0)
-	baseAddr.SetString("555555555555555555555555555555555555", 16)
-
-	// Create a big.Int for the shardID shifted left
-	shardAddr := big.NewInt(int64(shardID))
-	shardAddr.Lsh(shardAddr, 18*8)
-
-	// Combine them with bitwise OR
-	addr := big.NewInt(0)
-	addr.Or(shardAddr, baseAddr)
-
-	return types.Address(addr.Bytes())
-}
-
-// Get the Relayer contract address for a given shard
-func GetRelayerAddress(shardID types.ShardId) types.Address {
-	// Create a big.Int for the base address
-	baseAddr := big.NewInt(0)
-	baseAddr.SetString("666666666666666666666666666666666666", 16)
-
-	// Create a big.Int for the shardID shifted left
-	shardAddr := big.NewInt(int64(shardID))
-	shardAddr.Lsh(shardAddr, 18*8)
-
-	// Combine them with bitwise OR
-	addr := big.NewInt(0)
-	addr.Or(shardAddr, baseAddr)
-
-	return types.Address(addr.Bytes())
-}
-
 // GetPendingMessages retrieves pending messages from a message queue
 func GetPendingMessages(es *ExecutionState, targetShard types.ShardId, maxCount int) ([]Message, error) {
 	logger := es.logger.With().Str("function", "GetPendingMessages").Logger()
 
-	mqAddress := GetMessageQueueAddress(es.ShardId)
+	mqAddress := types.GetMessageQueueAddress(es.ShardId)
 	account, err := es.GetAccount(mqAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get message queue account: %w", err)
@@ -140,10 +106,9 @@ func CreateMessageDeliveryTransaction(
 	message Message,
 	fromShard types.ShardId,
 	toShard types.ShardId,
-	txId types.TransactionIndex,
 ) (*types.Transaction, error) {
 	// Get relayer address
-	relayerAddr := GetRelayerAddress(toShard)
+	relayerAddr := types.GetRelayerAddress(toShard)
 
 	// Get the ABI for Relayer
 	relayerAbi, err := contracts.GetAbi(contracts.NameRelayer)
@@ -218,8 +183,8 @@ func CreateMessageDeliveryTransaction(
 			Data:    calldata,
 		},
 		Value: types.NewValueFromBigMust(message.Value),
-		TxId:  txId,
-		From:  GetMessageQueueAddress(fromShard),
+		TxId:  0, // Will be set by the caller
+		From:  types.GetMessageQueueAddress(fromShard),
 	}
 
 	return txn, nil
@@ -228,10 +193,9 @@ func CreateMessageDeliveryTransaction(
 // CreateMQPruneTransaction creates a transaction to prune processed messages
 func CreateMQPruneTransaction(
 	shardId types.ShardId,
-	upToBlock uint64,
 ) (*types.Transaction, error) {
 	// Get the MessageQueue address
-	mqAddress := GetMessageQueueAddress(shardId)
+	mqAddress := types.GetMessageQueueAddress(shardId)
 
 	// Get the ABI for MessageQueue
 	mqAbi, err := contracts.GetAbi(contracts.NameMessageQueue)
@@ -239,31 +203,10 @@ func CreateMQPruneTransaction(
 		return nil, fmt.Errorf("failed to get MessageQueue ABI: %w", err)
 	}
 
-	// We need to prune messages for all possible destination shards
-	pruneTransactions := [][]byte{}
-
-	for destShard := uint64(0); destShard < uint64(types.DefaultShardNum); destShard++ {
-		if destShard == uint64(shardId) {
-			continue // Skip our own shard
-		}
-
-		// Pack pruning call for this destination
-		calldata, err := mqAbi.Pack("prune", big.NewInt(int64(destShard)), big.NewInt(int64(upToBlock)))
-		if err != nil {
-			return nil, fmt.Errorf("failed to pack prune call: %w", err)
-		}
-
-		pruneTransactions = append(pruneTransactions, calldata)
-	}
-
-	// Pack them into a batch transaction (using a helper contract function if available)
-	// or just use the first one for now
-	var finalCalldata []byte
-	if len(pruneTransactions) > 0 {
-		finalCalldata = pruneTransactions[0]
-	} else {
-		// If no destinations to prune, return nil
-		return nil, nil
+	// Pack pruning call for this destination
+	calldata, err := mqAbi.Pack("pruneAll")
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack prune call: %w", err)
 	}
 
 	// Create transaction to MessageQueue
@@ -272,62 +215,62 @@ func CreateMQPruneTransaction(
 			Flags:   types.NewTransactionFlags(types.TransactionFlagInternal),
 			To:      mqAddress,
 			FeePack: types.NewFeePackFromGas(100000), // Lower gas for pruning
-			Data:    finalCalldata,
+			Data:    calldata,
 		},
 		Value: types.NewZeroValue(),
-		TxId:  0,                       // Will be set by the caller
-		From:  types.GovernanceAddress, // From governance address to bypass auth checks
+		TxId:  0, // Will be set by the caller
+		From:  types.GetMessageQueueAddress(shardId),
 	}
 
 	return txn, nil
 }
 
 // GetMessageQueueStats gets queue statistics for debugging/monitoring
-func GetMessageQueueStats(es *ExecutionState, destShard types.ShardId) (total, pending, firstIndex, lastPruned uint64, err error) {
-	mqAddress := GetMessageQueueAddress(es.ShardId)
-	account, err := es.GetAccount(mqAddress)
-	if err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("failed to get message queue account: %w", err)
-	}
+// func GetMessageQueueStats(es *ExecutionState, destShard types.ShardId) (total, pending, firstIndex, lastPruned uint64, err error) {
+// 	mqAddress := GetMessageQueueAddress(es.ShardId)
+// 	account, err := es.GetAccount(mqAddress)
+// 	if err != nil {
+// 		return 0, 0, 0, 0, fmt.Errorf("failed to get message queue account: %w", err)
+// 	}
 
-	if account == nil {
-		return 0, 0, 0, 0, nil
-	}
+// 	if account == nil {
+// 		return 0, 0, 0, 0, nil
+// 	}
 
-	// Get the ABI for MessageQueue
-	mqAbi, err := contracts.GetAbi(contracts.NameMessageQueue)
-	if err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("failed to get MessageQueue ABI: %w", err)
-	}
+// 	// Get the ABI for MessageQueue
+// 	mqAbi, err := contracts.GetAbi(contracts.NameMessageQueue)
+// 	if err != nil {
+// 		return 0, 0, 0, 0, fmt.Errorf("failed to get MessageQueue ABI: %w", err)
+// 	}
 
-	// Pack the function call data
-	calldata, err := mqAbi.Pack("getQueueStats", big.NewInt(int64(destShard)))
-	if err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("failed to pack getQueueStats call: %w", err)
-	}
+// 	// Pack the function call data
+// 	calldata, err := mqAbi.Pack("getQueueStats", big.NewInt(int64(destShard)))
+// 	if err != nil {
+// 		return 0, 0, 0, 0, fmt.Errorf("failed to pack getQueueStats call: %w", err)
+// 	}
 
-	// Create a VM to execute the static call
-	if err := es.newVm(true, mqAddress); err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("failed to create VM: %w", err)
-	}
-	defer es.resetVm()
+// 	// Create a VM to execute the static call
+// 	if err := es.newVm(true, mqAddress); err != nil {
+// 		return 0, 0, 0, 0, fmt.Errorf("failed to create VM: %w", err)
+// 	}
+// 	defer es.resetVm()
 
-	// Make the static call to retrieve queue stats
-	ret, _, err := es.evm.StaticCall(
-		(vm.AccountRef)(mqAddress),
-		mqAddress,
-		calldata,
-		100000, // Lower gas for read-only operation
-	)
-	if err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("StaticCall to MessageQueue failed: %w", err)
-	}
+// 	// Make the static call to retrieve queue stats
+// 	ret, _, err := es.evm.StaticCall(
+// 		(vm.AccountRef)(mqAddress),
+// 		mqAddress,
+// 		calldata,
+// 		100000, // Lower gas for read-only operation
+// 	)
+// 	if err != nil {
+// 		return 0, 0, 0, 0, fmt.Errorf("StaticCall to MessageQueue failed: %w", err)
+// 	}
 
-	// Unpack the returned stats
-	var totalBig, pendingBig, firstIndexBig, lastPrunedBig *big.Int
-	if err := mqAbi.Unpack(&[]interface{}{&totalBig, &pendingBig, &firstIndexBig, &lastPrunedBig}, "getQueueStats", ret); err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("failed to unpack queue stats: %w", err)
-	}
+// 	// Unpack the returned stats
+// 	var totalBig, pendingBig, firstIndexBig, lastPrunedBig *big.Int
+// 	if err := mqAbi.Unpack(&[]interface{}{&totalBig, &pendingBig, &firstIndexBig, &lastPrunedBig}, "getQueueStats", ret); err != nil {
+// 		return 0, 0, 0, 0, fmt.Errorf("failed to unpack queue stats: %w", err)
+// 	}
 
-	return totalBig.Uint64(), pendingBig.Uint64(), firstIndexBig.Uint64(), lastPrunedBig.Uint64(), nil
-}
+// 	return totalBig.Uint64(), pendingBig.Uint64(), firstIndexBig.Uint64(), lastPrunedBig.Uint64(), nil
+// }

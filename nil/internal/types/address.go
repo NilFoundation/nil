@@ -34,6 +34,7 @@ var (
 	GovernanceAddress       = ShardAndHexToAddress(MainShardId, "777777777777777777777777777777777777")
 	RelayerPureAddress      = "333333333333333333333333333333333333"
 	TokenManagerPureAddress = "444444444444444444444444444444444444"
+	MessageQueuePureAddress = "555555555555555555555555555555555555"
 )
 
 func GetRelayerAddress(shardId ShardId) Address {
@@ -42,6 +43,10 @@ func GetRelayerAddress(shardId ShardId) Address {
 
 func GetTokenManagerAddress(shardId ShardId) Address {
 	return ShardAndHexToAddress(shardId, TokenManagerPureAddress)
+}
+
+func GetMessageQueueAddress(shardId ShardId) Address {
+	return ShardAndHexToAddress(shardId, MessageQueuePureAddress)
 }
 
 func GetTokenName(addr TokenId) string {

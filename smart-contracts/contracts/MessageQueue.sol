@@ -42,7 +42,7 @@ contract MessageQueue is NilBase {
         Nil.Token[] tokens;        // Tokens to send with the message
         bytes data;                // Calldata for the transaction
         uint256 requestId;         // ID for request (for response tracking)
-        uint256 responseGas;       // Gas reserved for response processing
+        uint256 responseFeeCredit; // Fee credit for response
         uint256 timestamp;         // Block timestamp when message was queued
         uint256 nonce;             // Sender's nonce for this message
         uint256 blockNumber;       // Block number when message was queued
@@ -79,6 +79,7 @@ contract MessageQueue is NilBase {
         bytes32[] messageIds;
         uint256 totalGas;
         uint256 totalValue;
+        bool initialized;
     }
     
     mapping(address => mapping(uint256 => AsyncSession)) public asyncSessions;
@@ -125,7 +126,7 @@ contract MessageQueue is NilBase {
         address indexed caller,
         uint256 sessionId,
         uint256 messageCount,
-        uint256 gasPerMessage
+        uint256 valuePerMessage
     );
 
     constructor(address _admin, uint256 _chainId) {
@@ -140,6 +141,11 @@ contract MessageQueue is NilBase {
     
     modifier onlyRelayer() {
         require(msg.sender == relayerAddress, "MessageQueue: caller is not relayer");
+        _;
+    }
+
+    modifier onlyAsync() {
+        require(asyncSessions[msg.sender][currentSessionIds[msg.sender]].initialized, "MessageQueue: not in async session");
         _;
     }
     
@@ -172,39 +178,65 @@ contract MessageQueue is NilBase {
         asyncSessions[msg.sender][sessionId] = AsyncSession({
             messageIds: new bytes32[](0),
             totalGas: 0,
-            totalValue: 0
+            totalValue: 0,
+            initialized: true
         });
         
         emit AsyncSessionStarted(msg.sender, sessionId);
     }
     
     /**
-     * @dev Finalize an async session by allocating gas equally to all messages
-     * @param totalGas Total gas to allocate across all messages
+     * @dev Finalize an async session by allocating value equally to all messages
+     * @param totalValue:  Total value budget, the excessive value will be divided among all async calls in the transaction
+     * The totalValue is spent on: 
+     * 1. Transferring funds to all the generated messages in the transaction
+     * 2. Reponse fee credit for all the messages
+     * 3. Forward fees for all the messages, that is equal to the remaining value divided equally among all the messages
      */
-    function finalizeAsync(uint256 totalGas) external payable {
+    function finalizeAsync(uint256 totalValue) external payable onlyAsync {
         uint256 sessionId = currentSessionIds[msg.sender];
         AsyncSession storage session = asyncSessions[msg.sender][sessionId];
+
+        if (session.messageIds.length == 0) {
+            // If there are no messages in the session, finalize it with zero messages and zero value
+            emit AsyncSessionFinalized(msg.sender, sessionId, 0, 0);
+            return;
+        }
         
-        require(session.messageIds.length > 0, "MessageQueue: no messages in session");
+        uint256 requiredValue = session.totalValue + totalValue;
+        require(msg.value >= requiredValue, "MessageQueue: insufficient value for relaying");
+
+        uint256 valuePerMessage = totalValue / session.messageIds.length;
         
-        uint256 gasPerMessage = totalGas / session.messageIds.length;
-        uint256 requiredValue = session.totalValue;
-        require(msg.value >= requiredValue, "MessageQueue: insufficient value");
-        
-        // Update all messages with gas allocation
+        // Update all messages with gas allocation and deduct tokens
         for (uint256 i = 0; i < session.messageIds.length; i++) {
             bytes32 messageId = session.messageIds[i];
             uint256 destinationChain = extractDestinationChain(messageId);
             Message storage message = outboundQueues[destinationChain].messages[messageId];
-            message.feeCredit = gasPerMessage * tx.gasprice;
+            
+            // Set fee credit for the message
+            message.feeCredit = valuePerMessage;
+            
+            // Deduct tokens for relaying if any
+            if (message.tokens.length > 0) {
+                // Get TokenManager for this shard
+                NilTokenManager tokenManager = NilTokenManager(Nil.getTokenManagerAddress());
+                
+                // Deduct tokens from the message sender
+                tokenManager.deductForRelay(
+                    msg.sender,           // From the original sender
+                    address(this),          // To the MessageQueue contract
+                    message.tokens          // The tokens to transfer
+                );
+            }
         }
         
         // Increment session ID for next async session
         currentSessionIds[msg.sender]++;
         
-        emit AsyncSessionFinalized(msg.sender, sessionId, session.messageIds.length, gasPerMessage);
+        emit AsyncSessionFinalized(msg.sender, sessionId, session.messageIds.length, valuePerMessage);
     }
+
     
     /**
      * @dev Extract destination chain from a message ID (helper function)
@@ -216,9 +248,7 @@ contract MessageQueue is NilBase {
                 return i;
             }
         }
-        
-        // If not found, default to 0
-        return 0;
+        revert("MessageQueue: invalid message ID");
     }
     
     /**
@@ -235,7 +265,7 @@ contract MessageQueue is NilBase {
         Nil.Token[] memory tokens,
         bytes memory data,
         uint256 requestId,
-        uint256 responseGas
+        uint256 responseFeeCredit
     ) public payable returns (bytes32) {
         // Validate destination
         uint256 destinationChain = Nil.getShardId(to);
@@ -244,7 +274,7 @@ contract MessageQueue is NilBase {
         
         // For requests, ensure enough gas for response
         if (requestId != 0) {
-            require(responseGas >= 50000, "MessageQueue: insufficient response gas");
+            require(responseFeeCredit > Nil.ASYNC_REQUEST_MIN_GAS * Nil.getGasPrice(address(this)),  "MessageQueue: insufficient response gas fee credit");
         }
         
         // Generate unique ID
@@ -274,7 +304,7 @@ contract MessageQueue is NilBase {
             tokens: tokens,
             data: data,
             requestId: requestId,
-            responseGas: responseGas,
+            responseFeeCredit: responseFeeCredit,
             timestamp: block.timestamp,
             nonce: nonce,
             blockNumber: block.number
@@ -348,7 +378,7 @@ contract MessageQueue is NilBase {
             tokens: new Nil.Token[](0),
             data: abi.encode(success, responseData, requestId, originalMessageId), // Include originalMessageId in the data
             requestId: requestId,
-            responseGas: 0,
+            responseFeeCredit: 0,
             timestamp: block.timestamp,
             nonce: nonce,
             blockNumber: block.number
@@ -407,7 +437,7 @@ contract MessageQueue is NilBase {
             tokens: tokens,
             data: errorData,
             requestId: 0,
-            responseGas: 0,
+            responseFeeCredit: 0,
             timestamp: block.timestamp,
             nonce: nonce,
             blockNumber: block.number

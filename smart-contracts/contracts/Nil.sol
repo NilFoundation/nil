@@ -139,15 +139,18 @@ library Nil {
     }
 
     /**
-     * @dev Makes an asynchronous call to a contract with tokens.
-     * @param dst Destination address of the call.
-     * @param refundTo Address to refund if the call fails.
-     * @param feeCredit Fee credit for the call.
-     * @param forwardKind Kind of forwarding for the gas.
-     * @param value Value to be sent with the call.
-     * @param tokens Array of tokens to be sent with the call.
-     * @param callData Calldata for the call.
-     */
+    * @dev Makes an asynchronous call to a contract with tokens.
+    * @param dst Destination address of the call.
+    * @param refundTo Address to refund if the call fails.
+    * @param bounceTo Address to bounce to if the call fails.
+    * @param feeCredit Fee credit for the call.
+    * @param forwardKind Kind of forwarding for the gas.
+    * @param value Value to be sent with the call.
+    * @param tokens Array of tokens to be sent with the call.
+    * @param callData Calldata for the call.
+    * @param requestId Request ID for request/response pattern.
+    * @param responseGas Gas allocated for response processing.
+    */
     function asyncCallWithTokens(
         address dst,
         address refundTo,
@@ -163,25 +166,32 @@ library Nil {
         require(Nil.getShardId(dst) != 0, "asyncCallWithTokens: call to main shard is not allowed");
         require(Nil.getShardId(dst) < SHARDS_NUM, "asyncCallWithTokens: call to non-existing shard");
 
-        uint256 valueToDeduct = value;
-        if (forwardKind == FORWARD_NONE) {
-            // Deduct feeCredit from the caller account
-            valueToDeduct += feeCredit;
-        } else if (forwardKind == Nil.FORWARD_REMAINING) {
-            // TODO: We should deduct feeCredit from the caller account. And properly calculate remaining gas.
-            feeCredit = gasleft() * Nil.getGasPrice(address(this));
-        } else if (forwardKind == FORWARD_VALUE) {
-            revert("FORWARD_VALUE is not supported");
-        } else if (forwardKind == FORWARD_PERCENTAGE) {
-            revert("FORWARD_PERCENTAGE is not supported");
-        }
+        // TODO: do we really need forward?
+        // Calculate total value to be sent
+        // uint256 valueToSend = value;
+        
+        // // Handle different forwarding kinds
+        // if (forwardKind == FORWARD_NONE) {
+        //     // Deduct feeCredit from the caller account
+        //     valueToSend += feeCredit;
+        // } else if (forwardKind == FORWARD_REMAINING) {
+        //     // When using remaining credit, we'll let MessageQueue determine it
+        //     // No need to calculate feeCredit here
+        // } else if (forwardKind == FORWARD_VALUE || forwardKind == FORWARD_PERCENTAGE) {
+        //     // These modes are handled by MessageQueue
+        // }
 
-        Relayer(getRelayerAddress()).sendTx{value: valueToDeduct}(
+        // Queue the message for cross-shard delivery
+        bool isDeploy = false; // Set to true for contract deployments
+        
+        // Use MessageQueue to queue the message
+        MessageQueue(getMessageQueueAddress()).queueMessage{value: value}(
+            isDeploy,
+            forwardKind,
             dst,
             refundTo,
             bounceTo,
             feeCredit,
-            forwardKind,
             value,
             tokens,
             callData,
@@ -207,37 +217,6 @@ library Nil {
         addr |= uint160(0x444444444444444444444444444444444444);
         return address(addr);
     }
-
-    /**
-     * @dev Modifier to create an async transaction frame for multiple async calls
-     * @param gas Total gas budget to divide among all async calls in the transaction
-     */
-    modifier async(uint gas) {
-        // Get the MessageQueue contract for current shard
-        address messageQueueAddr = getMessageQueueAddress();
-        
-        // Start the async session
-        MessageQueue(messageQueueAddr).startAsync();
-        
-        // Execute the function body
-        _;
-        
-        // Calculate value to send based on gas and gas price
-        uint valueToSend = gas * tx.gasprice;
-        
-        // Finalize the async session with the allocated gas
-        MessageQueue(messageQueueAddr).finalizeAsync{value: valueToSend}(gas);
-    }
-    
-    /**
-     * @dev Returns the address of the MessageQueue contract for the current shard
-     * @return Address of the MessageQueue contract
-     */
-    function getMessageQueueAddress() internal view returns (address) {
-        uint160 addr = uint160(getCurrentShardId()) << (18 * 8);
-        addr |= uint160(0x555555555555555555555555555555555555);
-        return address(addr);
-    }
     
     /**
      * @dev Returns the address of the MessageQueue contract for a specific shard
@@ -250,6 +229,37 @@ library Nil {
         return address(addr);
     }
 
+    /**
+     * @dev Returns the address of the MessageQueue contract for the current shard
+     * @return Address of the MessageQueue contract
+     */
+    function getMessageQueueAddress() internal view returns (address) {
+        return getMessageQueueAddress(getCurrentShardId());
+    }
+
+    /**
+     * @dev Modifier to create an async transaction frame for multiple async calls
+     * @param value Total value budget,the excessive value will be divided among all async calls in the transaction
+     * The value is spent on: 
+     * 1. Transferring funds to all the generated messages in the transaction
+     * 2. Reponse fee credit for all the messages
+     * 3. Forward fees for all the messages, that is equal to the remaining value divided equally among all the messages
+     * The msg.value needs to be sufficient to cover all these costs
+     */
+    modifier async(uint256 value) {
+        // Get the MessageQueue contract for current shard
+        address messageQueueAddr = getMessageQueueAddress();
+        
+        // Start the async session
+        MessageQueue(messageQueueAddr).startAsync();
+        
+        // Execute the function body
+        _;
+        
+        // Finalize the async session with the allocated gas
+        MessageQueue(messageQueueAddr).finalizeAsync{value: value}();
+    }
+    
 
     /**
      * @dev Makes a synchronous call to a contract.
