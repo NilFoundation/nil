@@ -133,6 +133,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 	if err != nil {
 		return nil, err
 	}
+
 	feeUpdaterContract, err := feeupdater.NewWrapper(ctx, &cfg.L1FeeUpdateContractConfig, l1Client)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing fee updater contract wrapper: %w", err)
@@ -145,13 +146,12 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		feeUpdaterContract,
 		feeUpdaterMetrics,
 	)
-	_ = feeUpdater // TODO(oclaw) uncomment when contract integration is done
 
 	syncCommittee.Service = srv.NewServiceWithHeartbeat(
 		metricsHandler,
 		logger,
 		syncRunner, proposer, agg, lagTracker, taskScheduler, taskListener,
-		// feeUpdater, // TODO(oclaw) uncomment when contract integration is done
+		feeUpdater,
 	)
 
 	return syncCommittee, nil

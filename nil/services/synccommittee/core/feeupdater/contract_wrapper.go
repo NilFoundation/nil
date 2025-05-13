@@ -6,10 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1client"
 	corebind "github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/v2"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -17,12 +18,6 @@ import (
 
 type NilGasPriceOracleContract interface {
 	SetOracleFee(ctx context.Context, params feeParams) error
-}
-
-type EthClient interface {
-	bind.ContractBackend
-	bind.DeployBackend
-	ChainID(ctx context.Context) (*big.Int, error)
 }
 
 type ContractWrapperConfig struct {
@@ -41,17 +36,20 @@ func (cfg *ContractWrapperConfig) Validate() error {
 }
 
 type wrapper struct {
-	client     EthClient
+	client     l1client.EthClient
 	impl       *Feeupdater
 	privateKey *ecdsa.PrivateKey
-	chainID    *big.Int
-	logger     logging.Logger
+
+	chainID     *big.Int
+	chainIDOnce sync.Once
+
+	logger logging.Logger
 }
 
 func NewWrapper(
 	ctx context.Context,
 	cfg *ContractWrapperConfig,
-	client EthClient,
+	client l1client.EthClient,
 ) (*wrapper, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid fee updater L1 config: %w", err)
@@ -69,20 +67,31 @@ func NewWrapper(
 		return nil, err
 	}
 
-	chainID, err := client.ChainID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting chain ID: %w", err)
-	}
-
 	return &wrapper{
 		impl:       impl,
 		privateKey: privateKeyECDSA,
-		chainID:    chainID,
+		client:     client,
 	}, nil
 }
 
+func (w *wrapper) getChainID(ctx context.Context) (*big.Int, error) {
+	var err error
+	w.chainIDOnce.Do(func() {
+		w.chainID, err = w.client.ChainID(ctx)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("getting chain ID: %w", err)
+	}
+	return w.chainID, nil
+}
+
 func (w *wrapper) SetOracleFee(ctx context.Context, params feeParams) error {
-	bindOpts, err := corebind.NewKeyedTransactorWithChainID(w.privateKey, w.chainID)
+	chainID, err := w.getChainID(ctx)
+	if err != nil {
+		return fmt.Errorf("getting chain ID: %w", err)
+	}
+
+	bindOpts, err := corebind.NewKeyedTransactorWithChainID(w.privateKey, chainID)
 	if err != nil {
 		return fmt.Errorf("creating new keyed transactor: %w", err)
 	}
