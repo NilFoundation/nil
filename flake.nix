@@ -55,64 +55,74 @@
           uniswap = (pkgs.callPackage ./nix/uniswap.nix { });
           docsaibackend = (pkgs.callPackage ./nix/docsaibackend.nix { });
         };
-        checks = rec {
-          nil = (pkgs.callPackage ./nix/nil.nix {
-            enableRaceDetector = true;
-            enableTesting = true;
-            solc = packages.solc;
-          });
+        checks =
+          let
+            nilMinimal = pkgs.callPackage ./nix/nil.nix {
+              solc = packages.solc;
+              enableTesting = false;
+              enableRaceDetector = false;
+              testGroup = "none";
+              subPackages = [ "nil/cmd/nil" "nil/cmd/nild" "nil/cmd/relayer" ];
+            };
+          in
+          rec {
+            nil = (pkgs.callPackage ./nix/nil.nix {
+              enableRaceDetector = true;
+              enableTesting = true;
+              solc = packages.solc;
+            });
 
-          # split tests into groups
-          ibft = nil.override {
-            testGroup = "ibft";
-            parallelTesting = true;
-          };
-          heavy = nil.override {
-            testGroup = "heavy";
-            parallelTesting = true;
-          };
-          others = nil.override {
-            testGroup = "others";
-            parallelTesting = true;
-          };
+            # split tests into groups
+            ibft = nil.override {
+              testGroup = "ibft";
+              parallelTesting = true;
+            };
+            heavy = nil.override {
+              testGroup = "heavy";
+              parallelTesting = true;
+            };
+            others = nil.override {
+              testGroup = "others";
+              parallelTesting = true;
+            };
 
-          niljs = (pkgs.callPackage ./nix/niljs.nix {
-            nil = packages.nil;
-            solc = packages.solc;
-            enableTesting = true;
-          });
-          clijs = (pkgs.callPackage ./nix/clijs.nix {
-            nil = packages.nil;
-            enableTesting = true;
-          });
-          nilhardhat = (pkgs.callPackage ./nix/nilhardhat.nix {
-            nil = packages.nil;
-            solc = packages.solc;
-            enableTesting = true;
-          });
-          nildocs = (pkgs.callPackage ./nix/nildocs.nix {
-            nil = packages.nil;
-            enableTesting = true;
-            solc = packages.solc;
-          });
-          nilexplorer = (pkgs.callPackage ./nix/nilexplorer.nix {
-            enableTesting = true;
-            nil = packages.nil;
-          });
-          walletextension = (pkgs.callPackage ./nix/walletextension.nix {
-            nil = packages.nil;
-            enableTesting = true;
-          });
-          uniswap = (pkgs.callPackage ./nix/uniswap.nix {
-            nil = packages.nil;
-            enableTesting = true;
-          });
-          rollup-bridge-contracts =
-            (pkgs.callPackage ./nix/rollup-bridge-contracts.nix {
-              nil = packages.nil;
+            niljs = (pkgs.callPackage ./nix/niljs.nix {
+              nil = nilMinimal;
+              solc = packages.solc;
               enableTesting = true;
             });
-        };
+            clijs = (pkgs.callPackage ./nix/clijs.nix {
+              nil = nilMinimal;
+              enableTesting = true;
+            });
+            nilhardhat = (pkgs.callPackage ./nix/nilhardhat.nix {
+              nil = nilMinimal;
+              solc = packages.solc;
+              enableTesting = true;
+            });
+            nildocs = (pkgs.callPackage ./nix/nildocs.nix {
+              nil = nilMinimal;
+              enableTesting = true;
+              solc = packages.solc;
+            });
+            nilexplorer = (pkgs.callPackage ./nix/nilexplorer.nix {
+              enableTesting = true;
+              nil = nilMinimal;
+            });
+            walletextension = (pkgs.callPackage ./nix/walletextension.nix {
+              nil = nilMinimal;
+              enableTesting = true;
+            });
+            uniswap = (pkgs.callPackage ./nix/uniswap.nix {
+              nil = nilMinimal;
+              enableTesting = true;
+            });
+            rollup-bridge-contracts =
+              (pkgs.callPackage ./nix/rollup-bridge-contracts.nix {
+                nil = nilMinimal;
+                enableTesting = true;
+              });
+          };
 
         bundlers = rec {
           deb = pkg:

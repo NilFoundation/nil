@@ -1,6 +1,7 @@
 { lib
 , stdenv
 , buildGo124Module
+, subPackages ? null
 , enableRaceDetector ? false
 , enableTesting ? false
 , parallelTesting ? false
@@ -31,11 +32,12 @@ buildGo124Module rec {
     mkdir -p ~/.gsolc-select/artifacts/solc-0.8.28
     ln -f -s ${solc}/bin/solc ~/.gsolc-select/artifacts/solc-0.8.28/solc-0.8.28
 
-
-    case ${testGroup} in
-      all|others) ;; # build everything
-      *) subPackages=nil/internal/types;; # build something small
-    esac
+    if [ -z "$subPackages" ]; then
+      case ${testGroup} in
+        all|others) ;; # build everything
+        *) subPackages=nil/internal/types;;
+      esac
+    fi
   '';
 
   tags = [ "assert" ];
@@ -62,7 +64,11 @@ buildGo124Module rec {
     cp -R nil/contracts/compiled $out/contracts/
   '';
 
-  env.CGO_ENABLED = if enableRaceDetector then 1 else 0;
+  env = {
+    CGO_ENABLED = if enableRaceDetector then 1 else 0;
+  } // lib.optionalAttrs (subPackages != null) {
+    subPackages = lib.concatStringsSep " " subPackages;
+  };
 
   nativeBuildInputs = [
     jq
