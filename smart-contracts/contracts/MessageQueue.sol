@@ -125,8 +125,7 @@ contract MessageQueue is NilBase {
     event AsyncSessionFinalized(
         address indexed caller,
         uint256 sessionId,
-        uint256 messageCount,
-        uint256 valuePerMessage
+        uint256 messageCount
     );
 
     constructor(address _admin, uint256 _chainId) {
@@ -187,27 +186,38 @@ contract MessageQueue is NilBase {
     
     /**
      * @dev Finalize an async session by allocating value equally to all messages
-     * @param totalValue:  Total value budget, the excessive value will be divided among all async calls in the transaction
-     * The totalValue is spent on: 
+     * The only parameter that it works with is `msg.value`
+     * This value is spent on: 
      * 1. Transferring funds to all the generated messages in the transaction
      * 2. Reponse fee credit for all the messages
      * 3. Forward fees for all the messages, that is equal to the remaining value divided equally among all the messages
      */
-    function finalizeAsync(uint256 totalValue) external payable onlyAsync {
+    function finalizeAsync() external payable onlyAsync {
         uint256 sessionId = currentSessionIds[msg.sender];
         AsyncSession storage session = asyncSessions[msg.sender][sessionId];
 
         if (session.messageIds.length == 0) {
             // If there are no messages in the session, finalize it with zero messages and zero value
-            emit AsyncSessionFinalized(msg.sender, sessionId, 0, 0);
+            emit AsyncSessionFinalized(msg.sender, sessionId, 0);
             return;
         }
-        
-        uint256 requiredValue = session.totalValue + totalValue;
-        require(msg.value >= requiredValue, "MessageQueue: insufficient value for relaying");
 
-        uint256 valuePerMessage = totalValue / session.messageIds.length;
+        uint256 totalValue = msg.value;
         
+        uint256 requiredValue = session.totalValue;
+        for (uint256 i = 0; i < session.messageIds.length; i++) {
+            bytes32 messageId = session.messageIds[i];
+            uint256 destinationChain = extractDestinationChain(messageId);
+            Message storage message = outboundQueues[destinationChain].messages[messageId];
+            if (message.requestId != 0 ) {
+                requiredValue += message.responseFeeCredit;
+            }
+        }
+
+        require(totalValue >= requiredValue, "MessageQueue: insufficient value for relaying");
+
+        uint256 relayValuePerMessage = (totalValue - requiredValue) / session.messageIds.length;
+            
         // Update all messages with gas allocation and deduct tokens
         for (uint256 i = 0; i < session.messageIds.length; i++) {
             bytes32 messageId = session.messageIds[i];
@@ -215,7 +225,7 @@ contract MessageQueue is NilBase {
             Message storage message = outboundQueues[destinationChain].messages[messageId];
             
             // Set fee credit for the message
-            message.feeCredit = valuePerMessage;
+            message.feeCredit = relayValuePerMessage;
             
             // Deduct tokens for relaying if any
             if (message.tokens.length > 0) {
@@ -234,7 +244,7 @@ contract MessageQueue is NilBase {
         // Increment session ID for next async session
         currentSessionIds[msg.sender]++;
         
-        emit AsyncSessionFinalized(msg.sender, sessionId, session.messageIds.length, valuePerMessage);
+        emit AsyncSessionFinalized(msg.sender, sessionId, session.messageIds.length);
     }
 
     
