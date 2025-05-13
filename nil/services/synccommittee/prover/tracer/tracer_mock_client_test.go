@@ -151,7 +151,7 @@ func (s *TracerMockClientTestSuite) makeClient() client.Client {
 			Seqno:    100,
 			ExtSeqno: 100,
 		}
-		contractData, err := contract.MarshalSSZ()
+		contractData, err := contract.MarshalNil()
 		s.Require().NoError(err)
 
 		// Build empty proof
@@ -197,7 +197,7 @@ func (s *TracerMockClientTestSuite) makeClient() client.Client {
 			InTransactions: s.inMsgs,
 			Config:         make(map[string]hexutil.Bytes),
 		}
-		rawBlock, err := blockWithData.EncodeSSZ()
+		rawBlock, err := blockWithData.EncodeToBytes()
 		s.Require().NoError(err)
 		return jsonrpc.EncodeRawBlockWithExtractedData(rawBlock)
 	}

@@ -65,7 +65,7 @@ message StorageTrieUpdateTrace {
     string root_after = 3;
     Uint256 value_before = 4;
     Uint256 value_after = 5;
-    bytes ssz_proof = 6;
+    bytes serialized_proof = 6;
     HumanReadableProof proof_before = 7;
     HumanReadableProof proof_after = 8;
 }
@@ -78,7 +78,7 @@ message ContractTrieUpdateTrace {
     string root_after = 3;
     SmartContract value_before = 4;
     SmartContract value_after = 5;
-    bytes ssz_proof = 6;
+    bytes serialized_proof = 6;
     HumanReadableProof proof_before = 7;
     HumanReadableProof proof_after = 8;
 }

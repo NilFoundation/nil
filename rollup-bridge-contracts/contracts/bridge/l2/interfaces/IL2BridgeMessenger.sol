@@ -26,7 +26,7 @@ interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage {
   error ErrorCallerNotAuthorised();
 
   /*//////////////////////////////////////////////////////////////////////////
-                             STRUCTS   
+                             STRUCTS
     //////////////////////////////////////////////////////////////////////////*/
 
   struct AddressSlot {

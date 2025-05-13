@@ -18,13 +18,13 @@ contract MockL2Bridge is IL2Bridge, IERC165 {
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @notice The address of L1BridgeRouter/L2BridgeRouter contract.
-  function router() external view returns (address) {
+  function router() external pure returns (address) {
     return address(0);
   }
 
   /// @notice The address of Bridge contract on other side (for L1Bridge it would be the bridge-address on L2 and for
   /// L2Bridge this would be the bridge-address on L1)
-  function counterpartyBridge() external view returns (address) {
+  function counterpartyBridge() external pure returns (address) {
     return address(0);
   }
 
@@ -46,7 +46,7 @@ contract MockL2Bridge is IL2Bridge, IERC165 {
   }
 
   /// @inheritdoc IERC165
-  function supportsInterface(bytes4 interfaceId) public view override(IERC165) returns (bool) {
+  function supportsInterface(bytes4 interfaceId) public pure override(IERC165) returns (bool) {
     return interfaceId == type(IL2Bridge).interfaceId;
   }
 }

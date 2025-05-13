@@ -19,12 +19,19 @@ COMMANDS += nild nil nil-load-generator indexer cometa faucet journald_forwarder
 
 BINARY_NAMES := cometa=nil-cometa indexer=nil-indexer
 get_bin_name = $(if $(filter $(1)=%,$(BINARY_NAMES)),$(patsubst $(1)=%,%,$(filter $(1)=%,$(BINARY_NAMES))),$(1))
-
+RLPGEN_BIN   := $(GOBIN)/rlpgen
 
 all: $(COMMANDS)
 
+$(RLPGEN_BIN): | $(GOBIN)
+	@echo "Building rlpgen"
+	$(GOBUILD) -o $@ ./nil/cmd/rlpgen
+
+$(GOBIN):
+	@mkdir -p $@
+
 .PHONY: generated
-generated: ssz pb compile-contracts generate_mocks sync_committee_targets
+generated: rlp pb compile-contracts generate_mocks sync_committee_targets
 
 .PHONY: test
 test: generated
@@ -44,7 +51,7 @@ $(COMMANDS): %: generated %.cmd
 
 $(SC_COMMANDS:%=%.cmd): gen_rollup_contracts_bindings
 
-include nil/common/sszx/Makefile.inc
+include nil/internal/serialization/Makefile.inc
 include nil/internal/db/Makefile.inc
 include nil/internal/mpt/Makefile.inc
 include nil/internal/types/Makefile.inc
@@ -54,8 +61,8 @@ include nil/services/rpc/rawapi/proto/Makefile.inc
 include nil/go-ibft/messages/proto/Makefile.inc
 include nil/Makefile.inc
 
-.PHONY: ssz
-ssz: ssz_sszx ssz_db ssz_mpt ssz_types ssz_config ssz_execution
+.PHONY: rlp
+rlp: rlp_types rlp_config rlp_execution rlp_srlz rlp_db rlp_mpt
 
 .PHONY: pb
 pb: pb_rawapi pb_ibft

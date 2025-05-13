@@ -7,8 +7,8 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
@@ -16,7 +16,7 @@ import (
 func (api *localShardApiRo) GetBlockHeader(
 	ctx context.Context,
 	blockReference rawapitypes.BlockReference,
-) (sszx.SSZEncodedData, error) {
+) (serialization.EncodedData, error) {
 	tx, err := api.db.CreateRoTx(ctx)
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (api *localShardApiRo) getBlockByHash(
 
 	if assert.Enable {
 		var block types.Block
-		if err := block.UnmarshalSSZ(data.Block()); err != nil {
+		if err := block.UnmarshalNil(data.Block()); err != nil {
 			return nil, err
 		}
 		blockHash := block.Hash(api.shardId())
@@ -143,8 +143,8 @@ func (api *localShardApiRo) getBlockByHash(
 		result.Config = data.Config()
 
 		// Need to decode transactions to get its hashes because external transaction hash
-		// calculated in a bit different way (not just Hash(SSZ)).
-		transactions, err := sszx.DecodeContainer[*types.Transaction](result.InTransactions)
+		// calculated in a bit different way (not just Hash(bytes)).
+		transactions, err := serialization.DecodeContainer[*types.Transaction](result.InTransactions)
 		if err != nil {
 			return nil, err
 		}

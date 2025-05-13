@@ -35,7 +35,7 @@ contract L1BridgeMessenger is
   using StorageUtils for bytes32;
 
   /*//////////////////////////////////////////////////////////////////////////
-                             ERRORS   
+                             ERRORS
     //////////////////////////////////////////////////////////////////////////*/
 
   error NotEnoughMessagesInQueue();
@@ -43,7 +43,7 @@ contract L1BridgeMessenger is
   error ErrorInvalidClaimProof();
 
   /*//////////////////////////////////////////////////////////////////////////
-                             STATE-VARIABLES   
+                             STATE-VARIABLES
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @notice address of the NilRollup contracrt on L1
@@ -89,7 +89,7 @@ contract L1BridgeMessenger is
   }
 
   /*//////////////////////////////////////////////////////////////////////////
-                             INITIALIZER   
+                             INITIALIZER
     //////////////////////////////////////////////////////////////////////////*/
 
   function initialize(
@@ -147,7 +147,7 @@ contract L1BridgeMessenger is
   receive() external payable onlyOwner {}
 
   /*//////////////////////////////////////////////////////////////////////////
-                             MODIFIERS  
+                             MODIFIERS
     //////////////////////////////////////////////////////////////////////////*/
 
   modifier onlyAuthorizedL1Bridge() {
@@ -158,7 +158,7 @@ contract L1BridgeMessenger is
   }
 
   /*//////////////////////////////////////////////////////////////////////////
-                             PUBLIC CONSTANT FUNCTIONS   
+                             PUBLIC CONSTANT FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc IL1BridgeMessenger
@@ -187,12 +187,12 @@ contract L1BridgeMessenger is
     address messageTarget,
     uint256 messageNonce,
     bytes memory message
-  ) public view override returns (bytes32) {
+  ) public pure override returns (bytes32) {
     return keccak256(abi.encode(messageType, messageSender, messageTarget, messageNonce, message));
   }
 
   /*//////////////////////////////////////////////////////////////////////////
-                             RESTRICTED FUNCTIONS   
+                             RESTRICTED FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc IL1BridgeMessenger
@@ -281,7 +281,7 @@ contract L1BridgeMessenger is
   }
 
   /*//////////////////////////////////////////////////////////////////////////
-                             PUBLIC MUTATING FUNCTIONS   
+                             PUBLIC MUTATING FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc IRelayMessage
@@ -479,12 +479,12 @@ contract L1BridgeMessenger is
     address messageTarget,
     uint256 messageNonce,
     bytes memory message
-  ) public view override returns (bytes32) {
+  ) public pure override returns (bytes32) {
     return keccak256(abi.encode(messageType, messageSender, messageTarget, messageNonce, message));
   }
 
   /*//////////////////////////////////////////////////////////////////////////
-                             INTERNAL FUNCTIONS   
+                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   function _sendMessage(SendMessageParams memory params) internal nonReentrant {

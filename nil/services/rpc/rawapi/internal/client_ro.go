@@ -5,8 +5,8 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/network"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
@@ -40,8 +40,8 @@ func newShardApiClientDirectEmulatorRo(shardApi shardApiRo) *shardApiClientRo {
 
 func (api *shardApiClientRo) GetBlockHeader(
 	ctx context.Context, blockReference rawapitypes.BlockReference,
-) (sszx.SSZEncodedData, error) {
-	return sendRequestAndGetResponseWithCallerMethodName[sszx.SSZEncodedData](
+) (serialization.EncodedData, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[serialization.EncodedData](
 		ctx, api.shardApiRequestPerformer, "GetBlockHeader", blockReference)
 }
 

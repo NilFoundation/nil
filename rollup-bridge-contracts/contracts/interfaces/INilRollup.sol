@@ -5,7 +5,7 @@ import { INilAccessControlUpgradeable } from "./INilAccessControlUpgradeable.sol
 
 interface INilRollup is INilAccessControlUpgradeable {
     /*//////////////////////////////////////////////////////////////////////////
-                             NILROLLUP-ERRORS   
+                             NILROLLUP-ERRORS
     //////////////////////////////////////////////////////////////////////////*/
 
     /// @dev Invalid owner address.

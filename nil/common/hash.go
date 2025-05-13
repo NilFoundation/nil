@@ -8,10 +8,11 @@ import (
 	"math/rand"
 	"reflect"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
 )
 
@@ -36,16 +37,16 @@ func KeccakHash(b []byte) Hash {
 	return BytesToHash(crypto.Keccak256(b))
 }
 
-func KeccakSSZ(data ssz.Marshaler) (Hash, error) {
-	buf, err := data.MarshalSSZ()
+func Keccak(data serialization.NilMarshaler) (Hash, error) {
+	buf, err := data.MarshalNil()
 	if err != nil {
 		return EmptyHash, err
 	}
 	return KeccakHash(buf), nil
 }
 
-func MustKeccakSSZ(data ssz.Marshaler) Hash {
-	h, err := KeccakSSZ(data)
+func MustKeccak(data serialization.NilMarshaler) Hash {
+	h, err := Keccak(data)
 	check.PanicIfErr(err)
 	return h
 }
@@ -170,19 +171,10 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 // If b is larger than len(h), b will be cropped from the left.
 func HexToHash(s string) Hash { return BytesToHash(hexutil.FromHex(s)) }
 
-func (h *Hash) UnmarshalSSZ(buf []byte) error {
-	*h = BytesToHash(buf)
-	return nil
+func (h *Hash) UnmarshalNil(buf []byte) error {
+	return rlp.DecodeBytes(buf, h)
 }
 
-func (h *Hash) MarshalSSZ() ([]byte, error) {
-	return ssz.MarshalSSZ(h)
-}
-
-func (h *Hash) MarshalSSZTo(dest []byte) ([]byte, error) {
-	return append(dest, h.Bytes()...), nil
-}
-
-func (h *Hash) SizeSSZ() int {
-	return HashSize
+func (h Hash) MarshalNil() ([]byte, error) {
+	return rlp.EncodeToBytes(h)
 }

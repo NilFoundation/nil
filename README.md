@@ -118,12 +118,12 @@ Run tests with:
 make test
 ```
 
-### Generating the SSZ serialization code
+### Generating the RLP serialization code
 
-Run the below command to generate the SSZ serialization code:
+Run the below command to generate the RLP serialization code:
 
 ```bash
-make ssz
+make rlp
 ```
 
 ### Generating zero state compiled contracts code

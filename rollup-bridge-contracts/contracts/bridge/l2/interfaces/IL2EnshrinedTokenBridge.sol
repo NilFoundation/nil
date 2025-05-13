@@ -7,7 +7,7 @@ import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 interface IL2EnshrinedTokenBridge is IL2Bridge {
   /*//////////////////////////////////////////////////////////////////////////
-                             ERRORS   
+                             ERRORS
     //////////////////////////////////////////////////////////////////////////*/
 
   error ErrorTokenMintFailed();
@@ -27,7 +27,7 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
   error ErrorL2TokenCreationFailed();
 
   /*//////////////////////////////////////////////////////////////////////////
-                             EVENTS   
+                             EVENTS
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @notice Emitted when the token mapping is updated
@@ -54,7 +54,7 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
   );
 
   /*//////////////////////////////////////////////////////////////////////////
-                             PUBLIC CONSTANT FUNCTIONS   
+                             PUBLIC CONSTANT FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @notice Return the corresponding l1 token address given l2 token address.
@@ -62,7 +62,7 @@ interface IL2EnshrinedTokenBridge is IL2Bridge {
   function getL1ERC20Address(TokenId l2Token) external view returns (address);
 
   /*//////////////////////////////////////////////////////////////////////////
-                             PUBLIC MUTATION FUNCTIONS   
+                             PUBLIC MUTATION FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @notice Complete a deposit from L1 to L2 and send fund to recipient's account in L2.

@@ -10,8 +10,8 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/indexer/driver"
 	indexertypes "github.com/NilFoundation/nil/nil/services/indexer/types"
@@ -28,12 +28,12 @@ type BadgerDriver struct {
 	db db.DB
 }
 
-type receiptWithSSZ struct {
-	decoded    *types.Receipt
-	sszEncoded sszx.SSZEncodedData
+type receiptWithRaw struct {
+	decoded *types.Receipt
+	encoded serialization.EncodedData
 }
 
-type blockWithSSZ struct {
+type blockWithRaw struct {
 	Decoded *driver.BlockWithShardId `json:"decoded"`
 }
 
@@ -64,21 +64,21 @@ func (b *BadgerDriver) IndexBlocks(ctx context.Context, blocksToIndex []*driver.
 	}
 	defer tx.Rollback()
 
-	blocks := make([]blockWithSSZ, len(blocksToIndex))
-	receipts := make(map[common.Hash]receiptWithSSZ)
+	blocks := make([]blockWithRaw, len(blocksToIndex))
+	receipts := make(map[common.Hash]receiptWithRaw)
 	shardLatest := make(map[types.ShardId]types.BlockNumber)
 
 	for blockIndex, block := range blocksToIndex {
-		sszEncodedBlock, err := block.EncodeSSZ()
+		encodedBlock, err := block.EncodeToBytes()
 		if err != nil {
 			return fmt.Errorf("failed to encode block: %w", err)
 		}
-		blocks[blockIndex] = blockWithSSZ{Decoded: block}
+		blocks[blockIndex] = blockWithRaw{Decoded: block}
 
 		for receiptIndex, receipt := range block.Receipts {
-			receipts[receipt.TxnHash] = receiptWithSSZ{
-				decoded:    receipt,
-				sszEncoded: sszEncodedBlock.Receipts[receiptIndex],
+			receipts[receipt.TxnHash] = receiptWithRaw{
+				decoded: receipt,
+				encoded: encodedBlock.Receipts[receiptIndex],
 			}
 		}
 
@@ -123,7 +123,7 @@ func (b *BadgerDriver) IndexBlocks(ctx context.Context, blocksToIndex []*driver.
 func (b *BadgerDriver) indexBlockTransactions(
 	tx db.RwTx,
 	block *driver.BlockWithShardId,
-	receipts map[common.Hash]receiptWithSSZ,
+	receipts map[common.Hash]receiptWithRaw,
 ) error {
 	for _, txn := range block.InTransactions {
 		hash := txn.Hash()
@@ -264,12 +264,12 @@ func (b *BadgerDriver) FetchBlock(
 		return nil, err
 	}
 
-	var blockWithSSZ blockWithSSZ
-	if err := json.Unmarshal(val, &blockWithSSZ); err != nil {
+	var blockWithRaw blockWithRaw
+	if err := json.Unmarshal(val, &blockWithRaw); err != nil {
 		return nil, err
 	}
-	if blockWithSSZ.Decoded != nil {
-		block = blockWithSSZ.Decoded.Block
+	if blockWithRaw.Decoded != nil {
+		block = blockWithRaw.Decoded.Block
 	}
 
 	return block, nil

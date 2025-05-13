@@ -155,7 +155,7 @@ func (tc *remoteTracesCollectorImpl) fetchAndDecodeBlock(
 		return nil, nil, ErrClientReturnedNilBlock
 	}
 
-	decodedBlock, err := dbgBlock.DecodeSSZ()
+	decodedBlock, err := dbgBlock.DecodeBytes()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode block: %w", err)
 	}
@@ -163,7 +163,7 @@ func (tc *remoteTracesCollectorImpl) fetchAndDecodeBlock(
 	return dbgBlock, decodedBlock, nil
 }
 
-func decodeTxCounts(counts []*types.TxCountSSZ) execution.TxCounts {
+func decodeTxCounts(counts []*types.TxCount) execution.TxCounts {
 	txCounts := make(execution.TxCounts, len(counts))
 	for _, count := range counts {
 		txCounts[types.ShardId(count.ShardId)] = count.Count

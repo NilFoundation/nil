@@ -142,7 +142,7 @@ contract L2BridgeMessenger is
   receive() external payable onlyOwner {}
 
   /*//////////////////////////////////////////////////////////////////////////
-                             MODIFIERS  
+                             MODIFIERS
     //////////////////////////////////////////////////////////////////////////*/
 
   modifier onlyauthorisedL2Bridge() {
@@ -298,7 +298,7 @@ contract L2BridgeMessenger is
   }
 
   /*//////////////////////////////////////////////////////////////////////////
-                             INTERNAL FUNCTIONS   
+                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   function _sendMessage(SendMessageParams memory params) internal nonReentrant returns (bytes32) {

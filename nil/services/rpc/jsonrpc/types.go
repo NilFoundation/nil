@@ -44,7 +44,7 @@ type Transaction struct {
 	Value     types.Value            `json:"value"`
 	Token     []types.TokenBalance   `json:"token,omitempty"`
 	ChainID   types.ChainId          `json:"chainId,omitempty"`
-	Signature types.Signature        `json:"signature"`
+	Signature hexutil.Bytes          `json:"signature"`
 }
 
 // @component RPCInTransaction rpcInTransaction object "The transaction whose information is requested."
@@ -143,21 +143,21 @@ func NewChainConfigFromMap(data map[string][]byte) (*ChainConfig, error) {
 func (c *ChainConfig) ToMap() (map[string][]byte, error) {
 	result := make(map[string][]byte)
 	if c.Validators != nil {
-		validators, err := c.Validators.MarshalSSZ()
+		validators, err := c.Validators.MarshalNil()
 		if err != nil {
 			return nil, err
 		}
 		result[config.NameValidators] = validators
 	}
 	if c.GasPrices != nil {
-		gasPrices, err := c.GasPrices.MarshalSSZ()
+		gasPrices, err := c.GasPrices.MarshalNil()
 		if err != nil {
 			return nil, err
 		}
 		result[config.NameGasPrice] = gasPrices
 	}
 	if c.L1BlockInfo != nil {
-		l1BlockInfo, err := c.L1BlockInfo.MarshalSSZ()
+		l1BlockInfo, err := c.L1BlockInfo.MarshalNil()
 		if err != nil {
 			return nil, err
 		}
@@ -209,12 +209,12 @@ func (b *DebugRPCBlock) Decode() (*types.RawBlockWithExtractedData, error) {
 	return &decodedBlock, nil
 }
 
-func (b *DebugRPCBlock) DecodeSSZ() (*types.BlockWithExtractedData, error) {
+func (b *DebugRPCBlock) DecodeBytes() (*types.BlockWithExtractedData, error) {
 	block, err := b.Decode()
 	if err != nil {
 		return nil, fmt.Errorf("DebugRPCBlock.Decode failed: %w", err)
 	}
-	return block.DecodeSSZ()
+	return block.DecodeBytes()
 }
 
 func EncodeRawBlockWithExtractedData(block *types.RawBlockWithExtractedData) (*DebugRPCBlock, error) {
@@ -434,7 +434,7 @@ func NewRPCReceipt(info *rawapitypes.ReceiptInfo) (*RPCReceipt, error) {
 	}
 
 	receipt := &types.Receipt{}
-	if err := receipt.UnmarshalSSZ(info.ReceiptSSZ); err != nil {
+	if err := receipt.UnmarshalNil(info.ReceiptBytes); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal receipt: %w", err)
 	}
 
@@ -533,7 +533,7 @@ func toOutTransactions(input []*rpctypes.OutTransaction) ([]*OutTransaction, err
 			Transaction: &types.Transaction{},
 			ForwardKind: txn.ForwardKind,
 		}
-		if err := decoded.UnmarshalSSZ(txn.TransactionSSZ); err != nil {
+		if err := decoded.UnmarshalNil(txn.TransactionBytes); err != nil {
 			return nil, err
 		}
 		decoded.TxnHash = decoded.Hash()
@@ -596,7 +596,7 @@ type EstimateFeeRes struct {
 // @componentprop CodeHash codeHash string true "32 Bytes - hash of the code of the account."
 // @componentprop Nonce nonce integer true "Nonce of the account. See eth_getTransactionCount."
 // @componentprop StorageHash storageHash string true "32 Bytes - hash of the StorageRoot. All storage will deliver a MerkleProof starting with this rootHash."
-// @componentprop AccountProof accountProof array true "Array of ssz-serialized MerkleTree-Nodes, starting with the stateRoot-Node, following the path of the address hash as path."
+// @componentprop AccountProof accountProof array true "Array of serialized MerkleTree-Nodes, starting with the stateRoot-Node, following the path of the address hash as path."
 // @componentprop StorageProof storageProof array true "Array of storage-entries as requested."
 type EthProof struct {
 	Address      types.Address   `json:"address"`
@@ -611,7 +611,7 @@ type EthProof struct {
 // @component StorageProof storageProof object "Underlying type of StorageProof inside EthProof"
 // @componentprop Key key string true the requested storage key
 // @componentprop Value value string true the storage value
-// @componentprop Proof proof array false Array of ssz-serialized MerkleTree-Nodes, starting with the stateRoot-Node, following the path of the key hash as path.
+// @componentprop Proof proof array false Array of serialized MerkleTree-Nodes, starting with the stateRoot-Node, following the path of the key hash as path.
 type StorageProof struct {
 	Key   hexutil.Big     `json:"key"`
 	Value hexutil.Big     `json:"value"`

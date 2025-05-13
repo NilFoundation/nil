@@ -105,7 +105,7 @@ func (s *SuiteRpcService) TestRpcDebugModules() {
 	res, err := s.Client.GetDebugBlock(s.Context, types.BaseShardId, "latest", false)
 	s.Require().NoError(err)
 
-	block, err := res.DecodeSSZ()
+	block, err := res.DecodeBytes()
 	s.Require().NoError(err)
 
 	s.Require().NotEmpty(block.Id)

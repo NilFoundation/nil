@@ -178,7 +178,7 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	txn.AuthData, err = crypto.Sign(digest.Bytes(), key)
 	suite.Require().NoError(err)
 
-	data, err := txn.MarshalSSZ()
+	data, err := txn.MarshalNil()
 	suite.Require().NoError(err)
 
 	hash, err := suite.api.SendRawTransaction(ctx, data)
@@ -204,7 +204,7 @@ func (suite *SuiteEthAccounts) TestGetProof() {
 	blockData, err := suite.api.rawapi.GetFullBlockData(ctx, suite.smcAddr.ShardId(),
 		rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
 	suite.Require().NoError(err)
-	block, err := blockData.DecodeSSZ()
+	block, err := blockData.DecodeBytes()
 	suite.Require().NoError(err)
 
 	// Test with block number
@@ -254,7 +254,7 @@ func (suite *SuiteEthAccounts) verifyProofResult(res *EthProof, smartContractsRo
 	suite.Require().NoError(err)
 
 	var sc types.SmartContract
-	suite.Require().NoError(sc.UnmarshalSSZ(val))
+	suite.Require().NoError(sc.UnmarshalNil(val))
 
 	// Verify account fields
 	suite.Equal(suite.smcAddr, res.Address)
@@ -298,7 +298,7 @@ func (suite *SuiteEthAccounts) verifyStorageProof(
 		suite.Require().Equal(uint64(0), storageProof.Value.Uint64()) // no value for such key
 	} else {
 		var u types.Uint256
-		suite.Require().NoError(u.UnmarshalSSZ(storageProof.Value.ToInt().Bytes()))
+		suite.Require().NoError(u.UnmarshalNil(storageProof.Value.ToInt().Bytes()))
 		suite.Require().Equal(expectedValue.Uint256(), u.Int())
 	}
 
@@ -312,7 +312,7 @@ func (suite *SuiteEthAccounts) verifyStorageProof(
 		suite.Require().Nil(val)
 	} else {
 		var u types.Uint256
-		suite.Require().NoError(u.UnmarshalSSZ(val))
+		suite.Require().NoError(u.UnmarshalNil(val))
 		suite.Require().Equal(expectedValue.Uint256(), u.Int())
 	}
 }

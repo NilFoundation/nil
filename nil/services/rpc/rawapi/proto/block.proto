@@ -14,7 +14,7 @@ message BlocksRangeRequest {
 }
 
 message RawBlock {
-  bytes blockSSZ = 1;
+  bytes blockBytes = 1;
 }
 
 message RawBlockResponse {
@@ -25,17 +25,17 @@ message RawBlockResponse {
 }
 
 message RawFullBlock {
-  bytes blockSSZ = 1;
+  bytes blockBytes = 1;
 
-  repeated bytes inTransactionsSSZ = 2;
-  repeated bytes outTransactionsSSZ = 3;
-  repeated bytes receiptsSSZ = 4;
+  repeated bytes inTransactionsBytes = 2;
+  repeated bytes outTransactionsBytes = 3;
+  repeated bytes receiptsBytes = 4;
   map<string, Error> errors = 5;
   repeated Hash childBlocks = 6;
   uint64 dbTimestamp = 7;
   map<string, bytes> config = 8;
-  repeated bytes inTxCountsSSZ = 9;
-  repeated bytes outTxCountsSSZ = 10;
+  repeated bytes inTxCountsBytes = 9;
+  repeated bytes outTxCountsBytes = 10;
 }
 
 message RawFullBlocks {

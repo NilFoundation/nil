@@ -9,7 +9,7 @@ import { IL2BridgeRouter } from "./IL2BridgeRouter.sol";
 
 interface IL2ETHBridge is IL2Bridge {
   /*//////////////////////////////////////////////////////////////////////////
-                             ERRORS   
+                             ERRORS
     //////////////////////////////////////////////////////////////////////////*/
 
   error ErrorInvalidEthBridgeVault();
@@ -27,7 +27,7 @@ interface IL2ETHBridge is IL2Bridge {
   error ErrorInvalidMessageHash();
 
   /*//////////////////////////////////////////////////////////////////////////
-                             EVENTS   
+                             EVENTS
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @notice Emitted when ETH deposit is finalised on L2
@@ -41,7 +41,7 @@ interface IL2ETHBridge is IL2Bridge {
   event WithdrawnETH(bytes32 indexed messageHash, address l1WithdrawalRecipient, uint256 withdrawalAmount);
 
   /*//////////////////////////////////////////////////////////////////////////
-                             PUBLIC RESTRICTED FUNCTIONS   
+                             PUBLIC RESTRICTED FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   function l2ETHBridgeVault() external returns (IL2ETHBridgeVault);
@@ -49,7 +49,7 @@ interface IL2ETHBridge is IL2Bridge {
   function setL2ETHBridgeVault(address l2ETHBridgeVaultAddress) external;
 
   /*//////////////////////////////////////////////////////////////////////////
-                            PUBLIC MUTATION FUNCTIONS      
+                            PUBLIC MUTATION FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @notice Complete an ETH-deposit from L1 to L2 and send fund to recipient's account in L2.

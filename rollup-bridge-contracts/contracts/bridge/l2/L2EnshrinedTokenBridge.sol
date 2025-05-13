@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import "@nilfoundation/smart-contracts/contracts/NilAwaitable.sol";
 import "@nilfoundation/smart-contracts/contracts/NilTokenBase.sol";
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -19,7 +20,7 @@ import { IL2BridgeRouter } from "./interfaces/IL2BridgeRouter.sol";
 import { L2BaseBridge } from "./L2BaseBridge.sol";
 import { NilEnshrinedToken } from "../../common/tokens/NilEnshrinedToken.sol";
 
-contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBase, NilTokenBase {
+contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBase, NilTokenBase, NilAwaitable {
   using AddressChecker for address;
 
   /// @notice Mapping from enshrined-token-address to layer-1 ERC20-TokenAddress.
@@ -56,7 +57,7 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
   }
 
   /*//////////////////////////////////////////////////////////////////////////
-                             PUBLIC CONSTANT FUNCTIONS   
+                             PUBLIC CONSTANT FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   function getL1ERC20Address(TokenId l2Token) external view override returns (address) {
@@ -64,7 +65,7 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
   }
 
   /*//////////////////////////////////////////////////////////////////////////
-                             PUBLIC MUTATING FUNCTIONS   
+                             PUBLIC MUTATING FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
   /**
@@ -137,8 +138,7 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
     /// @dev Transfers the token amount to the depositRecipient's address after the mint is successful.
     /// @notice Encoding the context to process the loan after the price is fetched
     /// @dev The context contains the borrower’s details, loan amount, borrow token, and collateral token.
-    bytes memory eventEmissionContext = abi.encodeWithSelector(
-      this.handleTokenTransferResponse.selector,
+    bytes memory eventEmissionContext = abi.encode(
       l1Token,
       l2Token,
       depositor,
@@ -158,7 +158,7 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
 
     /// @notice Send a request to the token contract to get token minted.
     /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
-    Nil.sendRequest(l2TokenAddress, 0, Nil.ASYNC_REQUEST_MIN_GAS, eventEmissionContext, transferCallData);
+    sendRequest(l2TokenAddress, 0, Nil.ASYNC_REQUEST_MIN_GAS, eventEmissionContext, transferCallData, handleTokenTransferResponse);
   }
 
   function handleTokenTransferResponse(bool success, bytes memory returnData, bytes memory context) public {
@@ -218,8 +218,7 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
     }
 
     /// @notice Encoding the context to process the callback for burnTokenInternal's completion
-    bytes memory postTokenBurnCallbackContext = abi.encodeWithSelector(
-      this.handleTokenBurnResponse.selector,
+    bytes memory postTokenBurnCallbackContext = abi.encode(
       l1TokenAddress,
       l2TokenAddress,
       _msgSender(),
@@ -231,7 +230,7 @@ contract L2EnshrinedTokenBridge is L2BaseBridge, IL2EnshrinedTokenBridge, NilBas
     bytes memory burnInternalCallData = abi.encodeWithSignature("burnTokenInternal(uint256)", withdrawalAmount);
 
     /// @notice Send a request to the token contract to get token burnt.
-    Nil.sendRequest(l2TokenAddress, 0, Nil.ASYNC_REQUEST_MIN_GAS, postTokenBurnCallbackContext, burnInternalCallData);
+    sendRequest(l2TokenAddress, 0, Nil.ASYNC_REQUEST_MIN_GAS, postTokenBurnCallbackContext, burnInternalCallData, handleTokenBurnResponse);
   }
 
   function handleTokenBurnResponse(bool success, bytes memory returnData, bytes memory context) public {

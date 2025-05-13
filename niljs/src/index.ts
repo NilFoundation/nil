@@ -42,7 +42,6 @@ export * from "./types/Block.js";
 export * from "./types/Token.js";
 export * from "./types/IReceipt.js";
 export * from "./types/ILog.js";
-export * from "./types/ITransaction.js";
 export * from "./types/ProcessedTransaction.js";
 export * from "./types/ExternalTransaction.js";
 export * from "./types/Token.js";

@@ -15,19 +15,21 @@ import { IL2ETHBridgeVault } from "./interfaces/IL2ETHBridgeVault.sol";
 import { IL2ETHBridge } from "./interfaces/IL2ETHBridge.sol";
 import { IBridge } from "../interfaces/IBridge.sol";
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
+import "@nilfoundation/smart-contracts/contracts/NilAwaitable.sol";
 
 contract L2ETHBridgeVault is
   OwnableUpgradeable,
   PausableUpgradeable,
   AccessControlEnumerableUpgradeable,
   ReentrancyGuardUpgradeable,
-  IL2ETHBridgeVault
+  IL2ETHBridgeVault,
+  NilAwaitable
 {
   using AddressChecker for address;
   using StorageUtils for address;
 
   /*//////////////////////////////////////////////////////////////////////////
-                             STATE-VARIABLES   
+                             STATE-VARIABLES
     //////////////////////////////////////////////////////////////////////////*/
 
   /// @notice the address of L2ETHBridge which is authorised to transfer native-ETH from bridgeVault
@@ -195,14 +197,14 @@ contract L2ETHBridgeVault is
 
     /// @notice Encoding the context to process the loan after the price is fetched
     /// @dev The context contains the borrower’s details, loan amount, borrow token, and collateral token.
-    bytes memory ethTransferCallbackContext = abi.encodeWithSelector(this.handleETHTransferResponse.selector, "0x");
+    bytes memory ethTransferCallbackContext = abi.encode("0x");
 
     /// @notice Send a request to the token contract to get token minted.
     /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
-    Nil.sendRequest(depositRecipient, depositAmount, Nil.ASYNC_REQUEST_MIN_GAS, ethTransferCallbackContext, "0x");
+    sendRequest(depositRecipient, depositAmount, Nil.ASYNC_REQUEST_MIN_GAS, ethTransferCallbackContext, "0x", handleETHTransferResponse);
   }
 
-  function handleETHTransferResponse(bool success, bytes memory returnData, bytes memory context) public {
+  function handleETHTransferResponse(bool success, bytes memory returnData, bytes memory context) public pure {
     /// @notice Ensure the ETH transfer call was successful
     if (!success) {
       revert ErrorETHTransferFailed();

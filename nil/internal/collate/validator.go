@@ -146,7 +146,7 @@ func (s *Validator) TxPool() TxnPool {
 	return s.pool
 }
 
-func (s *Validator) BuildProposal(ctx context.Context) (*execution.ProposalSSZ, error) {
+func (s *Validator) BuildProposal(ctx context.Context) (*execution.ProposalSerializable, error) {
 	// No lock since it doesn't directly access last block/hash
 	proposer := newProposer(s.params, s.params.Topology, s.pool, s.logger)
 	proposal, err := proposer.GenerateProposal(ctx, s.txFabric)
@@ -193,7 +193,7 @@ func (s *Validator) buildBlockHashByProposal(ctx context.Context, proposal *exec
 	return res.BlockHash, nil
 }
 
-func (s *Validator) IsValidProposal(ctx context.Context, proposal *execution.ProposalSSZ) error {
+func (s *Validator) IsValidProposal(ctx context.Context, proposal *execution.ProposalSerializable) error {
 	p, err := execution.ConvertProposal(proposal)
 	if err != nil {
 		return err
@@ -222,7 +222,7 @@ func (s *Validator) IsValidProposal(ctx context.Context, proposal *execution.Pro
 
 func (s *Validator) InsertProposal(
 	ctx context.Context,
-	proposal *execution.ProposalSSZ,
+	proposal *execution.ProposalSerializable,
 	params *types.ConsensusParams,
 ) error {
 	s.mutex.Lock()
@@ -233,7 +233,7 @@ func (s *Validator) InsertProposal(
 // +checklocks:s.mutex
 func (s *Validator) insertProposalUnlocked(
 	ctx context.Context,
-	proposal *execution.ProposalSSZ,
+	proposal *execution.ProposalSerializable,
 	consensusParams *types.ConsensusParams,
 ) error {
 	p, err := execution.ConvertProposal(proposal)
@@ -435,7 +435,7 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 	if s.params.ShardId.IsMainShard() {
 		if gasPricesBytes, ok := block.Config[config.NameGasPrice]; ok {
 			param := &config.ParamGasPrice{}
-			if err := param.UnmarshalSSZ(gasPricesBytes); err != nil {
+			if err := param.UnmarshalNil(gasPricesBytes); err != nil {
 				return fmt.Errorf("failed to unmarshal gas prices: %w", err)
 			}
 			gasPrices = param.Shards

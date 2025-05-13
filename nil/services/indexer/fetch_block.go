@@ -27,7 +27,7 @@ func (e *Indexer) FetchBlocks(
 	result := make([]*types.BlockWithExtractedData, len(rawBlocks))
 	for i, raw := range rawBlocks {
 		check.PanicIfNot(raw != nil)
-		result[i], err = raw.DecodeSSZ()
+		result[i], err = raw.DecodeBytes()
 		if err != nil {
 			return nil, err
 		}
@@ -48,7 +48,7 @@ func (e *Indexer) FetchBlock(
 	if latestBlock == nil {
 		return nil, ErrBlockNotFound
 	}
-	return latestBlock.DecodeSSZ()
+	return latestBlock.DecodeBytes()
 }
 
 func (e *Indexer) FetchShards(ctx context.Context) ([]types.ShardId, error) {

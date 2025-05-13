@@ -5,8 +5,8 @@ import (
 	"errors"
 	"reflect"
 
-	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
@@ -14,7 +14,7 @@ import (
 func readDecodable[
 	T interface {
 		~*S
-		fastssz.Unmarshaler
+		serialization.NilUnmarshaler
 	},
 	S any,
 ](tx RoTx, table ShardedTableName, shardId types.ShardId, hash common.Hash) (*S, error) {
@@ -24,7 +24,7 @@ func readDecodable[
 	}
 
 	decoded := new(S)
-	if err := T(decoded).UnmarshalSSZ(data); err != nil {
+	if err := T(decoded).UnmarshalNil(data); err != nil {
 		return nil, err
 	}
 	return decoded, nil
@@ -32,10 +32,10 @@ func readDecodable[
 
 func writeRawKeyEncodable[
 	T interface {
-		fastssz.Marshaler
+		serialization.NilMarshaler
 	},
 ](tx RwTx, tableName ShardedTableName, shardId types.ShardId, key []byte, value T) error {
-	data, err := value.MarshalSSZ()
+	data, err := value.MarshalNil()
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func writeRawKeyEncodable[
 
 func writeEncodable[
 	T interface {
-		fastssz.Marshaler
+		serialization.NilMarshaler
 	},
 ](tx RwTx, tableName ShardedTableName, shardId types.ShardId, hash common.Hash, obj T) error {
 	return writeRawKeyEncodable(tx, tableName, shardId, hash.Bytes(), obj)
@@ -57,14 +57,14 @@ func ReadVersionInfo(tx RoTx) (*types.VersionInfo, error) {
 		return nil, err
 	}
 	res := &types.VersionInfo{}
-	if err := res.UnmarshalSSZ(rawVersionInfo); err != nil {
+	if err := res.UnmarshalNil(rawVersionInfo); err != nil {
 		return nil, err
 	}
 	return res, nil
 }
 
 func WriteVersionInfo(tx RwTx, version *types.VersionInfo) error {
-	rawVersionInfo, err := version.MarshalSSZ()
+	rawVersionInfo, err := version.MarshalNil()
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func ReadBlock(tx RoTx, shardId types.ShardId, hash common.Hash) (*types.Block, 
 	return readDecodable[*types.Block](tx, blockTable, shardId, hash)
 }
 
-func ReadBlockSSZ(tx RoTx, shardId types.ShardId, hash common.Hash) ([]byte, error) {
+func ReadBlockBytes(tx RoTx, shardId types.ShardId, hash common.Hash) ([]byte, error) {
 	return tx.GetFromShard(shardId, blockTable, hash.Bytes())
 }
 
@@ -110,14 +110,14 @@ func ReadCollatorState(tx RoTx, shardId types.ShardId) (types.CollatorState, err
 		return res, err
 	}
 
-	if err := res.UnmarshalSSZ(buf); err != nil {
+	if err := res.UnmarshalNil(buf); err != nil {
 		return res, err
 	}
 	return res, nil
 }
 
 func WriteCollatorState(tx RwTx, shardId types.ShardId, state types.CollatorState) error {
-	value, err := state.MarshalSSZ()
+	value, err := state.MarshalNil()
 	if err != nil {
 		return err
 	}

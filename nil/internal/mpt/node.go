@@ -3,16 +3,18 @@ package mpt
 import (
 	"fmt"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
-type SszNodeKind = uint8
+type nodeKind = uint8
 
 const (
-	SszLeafNode SszNodeKind = iota
-	SszExtensionNode
-	SszBranchNode
+	leafNodeKind nodeKind = iota
+	extensionNodeKind
+	branchNodeKind
 )
 
 const BranchesNum = 16
@@ -41,17 +43,17 @@ type NodeBase struct {
 
 type LeafNode struct {
 	NodeBase
-	LeafData []byte `ssz-max:"100000000"`
+	LeafData []byte
 }
 
 type ExtensionNode struct {
 	NodeBase
-	NextRef Reference `ssz-max:"32"`
+	NextRef Reference
 }
 
 type BranchNode struct {
-	Branches [BranchesNum]Reference `ssz-max:"16,32"`
-	Value    []byte                 `ssz-max:"100000000"`
+	Branches [BranchesNum]Reference
+	Value    []byte
 }
 
 func newLeafNode(path *Path, data []byte) *LeafNode {
@@ -65,6 +67,30 @@ func newExtensionNode(path *Path, next Reference) *ExtensionNode {
 
 func newBranchNode(refs *[BranchesNum]Reference, value []byte) *BranchNode {
 	return &BranchNode{*refs, value}
+}
+
+func (n *ExtensionNode) UnmarshalNil(buf []byte) error {
+	return rlp.DecodeBytes(buf, n)
+}
+
+func (n *BranchNode) UnmarshalNil(buf []byte) error {
+	return rlp.DecodeBytes(buf, n)
+}
+
+func (n *LeafNode) UnmarshalNil(buf []byte) error {
+	return rlp.DecodeBytes(buf, n)
+}
+
+func (n ExtensionNode) MarshalNil() ([]byte, error) {
+	return rlp.EncodeToBytes(&n)
+}
+
+func (n BranchNode) MarshalNil() ([]byte, error) {
+	return rlp.EncodeToBytes(&n)
+}
+
+func (n LeafNode) MarshalNil() ([]byte, error) {
+	return rlp.EncodeToBytes(&n)
 }
 
 func (n *NodeBase) Path() *Path {
@@ -105,46 +131,51 @@ func encode[
 	S any,
 	T interface {
 		~*S
-		ssz.Marshaler
+		serialization.NilMarshaler
 	},
-](n T, kind SszNodeKind) ([]byte, error) {
-	buf := make([]byte, 0)
-	buf = ssz.MarshalUint8(buf, kind)
-	return n.MarshalSSZTo(buf)
+](n T, kind nodeKind) ([]byte, error) {
+	data, err := n.MarshalNil()
+	if err != nil {
+		return nil, err
+	}
+	buf, err := rlp.EncodeToBytes(kind)
+	check.PanicIfErr(err)
+	return append(buf, data...), nil
 }
 
 func (n *LeafNode) Encode() ([]byte, error) {
-	return encode(n, SszLeafNode)
+	return encode(n, leafNodeKind)
 }
 
 func (n *ExtensionNode) Encode() ([]byte, error) {
-	return encode(n, SszExtensionNode)
+	return encode(n, extensionNodeKind)
 }
 
 func (n *BranchNode) Encode() ([]byte, error) {
-	return encode(n, SszBranchNode)
+	return encode(n, branchNodeKind)
 }
 
 func DecodeNode(data []byte) (Node, error) {
-	nodeKind := ssz.UnmarshallUint8(data)
+	var nodeKind nodeKind
+	check.PanicIfErr(rlp.DecodeBytes(data[:1], &nodeKind))
 	data = data[1:]
 
 	switch nodeKind {
-	case SszLeafNode:
+	case leafNodeKind:
 		node := &LeafNode{}
-		if err := node.UnmarshalSSZ(data); err != nil {
+		if err := node.UnmarshalNil(data); err != nil {
 			return nil, err
 		}
 		return node, nil
-	case SszExtensionNode:
+	case extensionNodeKind:
 		node := &ExtensionNode{}
-		if err := node.UnmarshalSSZ(data); err != nil {
+		if err := node.UnmarshalNil(data); err != nil {
 			return nil, err
 		}
 		return node, nil
-	case SszBranchNode:
+	case branchNodeKind:
 		node := &BranchNode{}
-		if err := node.UnmarshalSSZ(data); err != nil {
+		if err := node.UnmarshalNil(data); err != nil {
 			return nil, err
 		}
 		return node, nil

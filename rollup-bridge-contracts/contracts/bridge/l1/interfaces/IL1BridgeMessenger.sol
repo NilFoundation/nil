@@ -83,7 +83,7 @@ interface IL1BridgeMessenger is IBridgeMessenger, IRelayMessage {
   );
 
   /*//////////////////////////////////////////////////////////////////////////
-                             MESSAGE STRUCTS   
+                             MESSAGE STRUCTS
     //////////////////////////////////////////////////////////////////////////*/
 
   struct AddressSlot {
@@ -129,7 +129,7 @@ interface IL1BridgeMessenger is IBridgeMessenger, IRelayMessage {
     address messageTarget,
     uint256 messageNonce,
     bytes memory message
-  ) external view returns (bytes32);
+  ) external pure returns (bytes32);
 
   function computeDepositMessageHash(
     NilConstants.MessageType messageType,
@@ -137,7 +137,7 @@ interface IL1BridgeMessenger is IBridgeMessenger, IRelayMessage {
     address messageTarget,
     uint256 messageNonce,
     bytes memory message
-  ) external view returns (bytes32);
+  ) external pure returns (bytes32);
 
   /*//////////////////////////////////////////////////////////////////////////
                            PUBLIC MUTATING FUNCTIONS

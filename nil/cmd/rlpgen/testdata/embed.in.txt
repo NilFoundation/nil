@@ -1,0 +1,16 @@
+// -*- mode: go -*-
+
+package test
+
+type Embedded struct {
+    A uint32
+    B uint64
+    C uint32
+}
+
+type Test struct {
+    A uint32
+    Embedded
+    B uint64
+    C uint32
+}

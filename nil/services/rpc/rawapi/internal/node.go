@@ -8,8 +8,8 @@ import (
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/common/sszx"
 	"github.com/NilFoundation/nil/nil/internal/network"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
@@ -48,7 +48,7 @@ func (api *nodeApiOverShardApis) GetBlockHeader(
 	ctx context.Context,
 	shardId types.ShardId,
 	blockReference rawapitypes.BlockReference,
-) (sszx.SSZEncodedData, error) {
+) (serialization.EncodedData, error) {
 	methodName := methodNameChecked("GetBlockHeader")
 	shardApi, ok := api.apisRo[shardId]
 	if !ok {

@@ -107,8 +107,8 @@ func (api *APIImplRo) GetProof(
 	}
 
 	// If contract data is available, add contract details
-	if len(smartContract.ContractSSZ) > 0 {
-		if err := addContractDetailsToProof(result, smartContract.ContractSSZ); err != nil {
+	if len(smartContract.ContractBytes) > 0 {
+		if err := addContractDetailsToProof(result, smartContract.ContractBytes); err != nil {
 			return nil, fmt.Errorf("failed to add contract details: %w", err)
 		}
 	}
@@ -193,9 +193,9 @@ func generateStorageProofs(trie *mpt.Reader, storageKeys []common.Hash) ([]Stora
 }
 
 // addContractDetailsToProof adds smart contract details to the proof result
-func addContractDetailsToProof(result *EthProof, contractSSZ []byte) error {
+func addContractDetailsToProof(result *EthProof, contractBytes []byte) error {
 	contract := new(types.SmartContract)
-	if err := contract.UnmarshalSSZ(contractSSZ); err != nil {
+	if err := contract.UnmarshalNil(contractBytes); err != nil {
 		return err
 	}
 

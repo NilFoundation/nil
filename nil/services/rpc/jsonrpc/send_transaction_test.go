@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/config"
@@ -68,7 +67,7 @@ func (suite *SuiteSendTransaction) TearDownSuite() {
 
 func (suite *SuiteSendTransaction) TestInvalidTransaction() {
 	_, err := suite.api.SendRawTransaction(context.Background(), hexutil.Bytes("querty"))
-	suite.Require().ErrorIs(err, ssz.ErrSize)
+	suite.Require().Error(err)
 }
 
 func (suite *SuiteSendTransaction) TestInvalidChainId() {
@@ -77,7 +76,7 @@ func (suite *SuiteSendTransaction) TestInvalidChainId() {
 		To:      types.GenerateRandomAddress(0),
 	}
 
-	data, err := txn.MarshalSSZ()
+	data, err := txn.MarshalNil()
 	suite.Require().NoError(err)
 
 	_, err = suite.api.SendRawTransaction(context.Background(), data)
@@ -89,7 +88,7 @@ func (suite *SuiteSendTransaction) TestInvalidShard() {
 		To: types.GenerateRandomAddress(1234),
 	}
 
-	data, err := txn.MarshalSSZ()
+	data, err := txn.MarshalNil()
 	suite.Require().NoError(err)
 
 	_, err = suite.api.SendRawTransaction(context.Background(), data)

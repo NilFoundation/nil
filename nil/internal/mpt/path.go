@@ -2,24 +2,16 @@ package mpt
 
 import (
 	"strings"
-
-	ssz "github.com/NilFoundation/fastssz"
 )
 
 type Path struct {
-	Data []byte `ssz-max:"100000"`
+	Data []byte
 	// whether path starts from 1st nibble
 	Shifted bool
 	// we can't store FirstNibble as part of Data
 	// https://github.com/NilFoundation/nil/pull/836#discussion_r1743673490
 	FirstNibble uint8
 }
-
-var (
-	_ ssz.Marshaler   = new(Path)
-	_ ssz.Unmarshaler = new(Path)
-	_ ssz.HashRoot    = new(Path)
-)
 
 type PathAccessor interface {
 	At(idx int) int

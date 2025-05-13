@@ -5,6 +5,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type TableName string
@@ -50,4 +51,12 @@ func ShardBlocksTrieTableName(blockId types.BlockNumber) ShardedTableName {
 type BlockHashAndTransactionIndex struct {
 	BlockHash        common.Hash
 	TransactionIndex types.TransactionIndex
+}
+
+func (i *BlockHashAndTransactionIndex) UnmarshalNil(buf []byte) error {
+	return rlp.DecodeBytes(buf, i)
+}
+
+func (i BlockHashAndTransactionIndex) MarshalNil() ([]byte, error) {
+	return rlp.EncodeToBytes(&i)
 }

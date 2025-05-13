@@ -11,8 +11,8 @@ type Signature = hexutil.Bytes
 type BlsSignature = hexutil.Bytes
 
 type BlsAggregateSignature struct {
-	Sig  hexutil.Bytes `json:"sig" yaml:"sig" ssz-max:"64"`
-	Mask hexutil.Bytes `json:"mask" yaml:"mask" ssz-max:"128"`
+	Sig  hexutil.Bytes `json:"sig" yaml:"sig"`
+	Mask hexutil.Bytes `json:"mask" yaml:"mask"`
 }
 
 func (b BlsAggregateSignature) String() string {

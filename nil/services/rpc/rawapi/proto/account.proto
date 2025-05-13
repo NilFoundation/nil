@@ -40,7 +40,7 @@ message AsyncContext {
 }
 
 message RawContract {
-  bytes contractSSZ = 1;
+  bytes contractBytes = 1;
   bytes code = 2;
   bytes proofEncoded = 3;
   map<string, Uint256> storage = 4;

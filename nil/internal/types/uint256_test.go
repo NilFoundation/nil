@@ -1,36 +1,12 @@
 package types
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestUint256SSZ(t *testing.T) {
-	t.Parallel()
-
-	value := NewUint256(102030)
-
-	v, err := value.MarshalSSZTo([]byte{})
-	require.NoError(t, err)
-	assert.Equal(t, "8e8e010000000000000000000000000000000000000000000000000000000000", hex.EncodeToString(v))
-
-	v, err = value.MarshalSSZTo([]byte{1, 2})
-	require.NoError(t, err)
-	assert.Equal(t, "01028e8e010000000000000000000000000000000000000000000000000000000000", hex.EncodeToString(v))
-
-	res, err := value.HashTreeRoot()
-	require.NoError(t, err)
-	assert.Equal(t, "8e8e010000000000000000000000000000000000000000000000000000000000", hex.EncodeToString(res[:]))
-
-	h, err := common.KeccakSSZ(value)
-	require.NoError(t, err)
-	assert.Equal(t, "3fa5449386ef45c61db8db3b8dba50dc4b899b5ea9afa02267d309fa92233c12", hex.EncodeToString(h[:]))
-}
 
 func TestUint256Json(t *testing.T) {
 	t.Parallel()

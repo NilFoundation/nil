@@ -296,7 +296,7 @@ func (s *Syncer) processTopicTransaction(ctx context.Context, data []byte) (bool
 	if err := proto.Unmarshal(data, &pbBlock); err != nil {
 		return false, err
 	}
-	b, err := unmarshalBlockSSZ(&pbBlock)
+	b, err := unmarshalBlock(&pbBlock)
 	if err != nil {
 		return false, err
 	}

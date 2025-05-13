@@ -1,10 +1,11 @@
 package types
 
 import (
+	"io"
 	"math/big"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
 )
 
@@ -133,40 +134,30 @@ func (v Value) ToBig() *big.Int {
 	return v.safeInt().ToBig()
 }
 
-// We need to override SSZ methods, because fast-ssz does not support wrappers around pointer types.
-
-func (v *Value) MarshalSSZ() ([]byte, error) {
-	return v.safeInt().MarshalSSZ()
+func (v *Value) MarshalNil() ([]byte, error) {
+	return rlp.EncodeToBytes(v)
 }
 
-func (v *Value) MarshalSSZTo(dst []byte) ([]byte, error) {
-	return v.safeInt().MarshalSSZAppend(dst)
+func (v *Value) UnmarshalNil(buf []byte) error {
+	return rlp.DecodeBytes(buf, v)
 }
 
-func (v *Value) UnmarshalSSZ(buf []byte) error {
-	v.Uint256 = new(Uint256)
-	return v.Uint256.UnmarshalSSZ(buf)
+// EncodeRLP rlp marshals the Value object to a target array
+func (v Value) EncodeRLP(w io.Writer) error {
+	if v.Uint256 == nil {
+		return Value0.EncodeRLP(w)
+	}
+	return v.Uint256.EncodeRLP(w)
 }
 
-func (v *Value) SizeSSZ() (size int) {
-	return v.safeInt().SizeSSZ()
-}
-
-func (v *Value) HashTreeRoot() ([32]byte, error) {
-	b, _ := v.MarshalSSZTo(make([]byte, 0, 32)) // ignore error, cannot fail
-	var hash [32]byte
-	copy(hash[:], b)
-	return hash, nil
-}
-
-func (v *Value) HashTreeRootWith(hh ssz.HashWalker) (err error) {
-	bytes, _ := v.MarshalSSZTo(make([]byte, 0, 32)) // ignore error, cannot fail
-	hh.AppendBytes32(bytes)
-	return
-}
-
-func (v *Value) GetTree() (*ssz.Node, error) {
-	return ssz.ProofTree(v)
+// DecodeRLP rlp unmarshals the Value object
+func (v *Value) DecodeRLP(r *rlp.Stream) error {
+	var u Uint256
+	if err := u.DecodeRLP(r); err != nil {
+		return err
+	}
+	v.Uint256 = &u
+	return nil
 }
 
 func (v *Value) UnmarshalJSON(input []byte) error {

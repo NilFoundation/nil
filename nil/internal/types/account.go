@@ -3,20 +3,29 @@ package types
 import (
 	"database/sql/driver"
 
-	fastssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type SmartContract struct {
 	Address          Address
-	Balance          Value `ssz-size:"32"`
+	Balance          Value
 	TokenRoot        common.Hash
 	StorageRoot      common.Hash
 	CodeHash         common.Hash
 	AsyncContextRoot common.Hash
 	Seqno            Seqno
 	ExtSeqno         Seqno
+}
+
+func (s *SmartContract) UnmarshalNil(buf []byte) error {
+	return rlp.DecodeBytes(buf, s)
+}
+
+func (s SmartContract) MarshalNil() ([]byte, error) {
+	return rlp.EncodeToBytes(&s)
 }
 
 type TokenId Address
@@ -34,8 +43,8 @@ func (c *TokenId) UnmarshalText(input []byte) error {
 }
 
 type TokenBalance struct {
-	Token   TokenId `json:"id" ssz-size:"20" abi:"id"`
-	Balance Value   `json:"value" ssz-size:"32" abi:"amount"`
+	Token   TokenId `json:"id" abi:"id"`
+	Balance Value   `json:"value" abi:"amount"`
 }
 
 func (token TokenBalance) Value() (driver.Value, error) {
@@ -49,14 +58,14 @@ func TokenIdForAddress(a Address) *TokenId {
 
 // interfaces
 var (
-	_ driver.Valuer       = new(TokenBalance)
-	_ common.Hashable     = new(SmartContract)
-	_ fastssz.Marshaler   = new(Block)
-	_ fastssz.Unmarshaler = new(Block)
+	_ driver.Valuer                = new(TokenBalance)
+	_ common.Hashable              = new(SmartContract)
+	_ serialization.NilMarshaler   = new(Block)
+	_ serialization.NilUnmarshaler = new(Block)
 )
 
 func (s *SmartContract) Hash() common.Hash {
-	return common.MustKeccakSSZ(s)
+	return common.MustKeccak(s)
 }
 
 type TokensMap = map[TokenId]Value

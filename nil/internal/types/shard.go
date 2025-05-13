@@ -66,7 +66,5 @@ func ParseShardIdFromString(s string) (ShardId, error) {
 
 func (s ShardId) String() string { return strconv.FormatUint(uint64(s), 10) }
 func (s ShardId) Bytes() []byte {
-	bytes := make([]byte, 2)
-	binary.BigEndian.PutUint16(bytes, uint16(s))
-	return bytes
+	return binary.BigEndian.AppendUint16(make([]byte, 0, 2), uint16(s))
 }

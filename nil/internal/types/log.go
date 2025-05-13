@@ -5,6 +5,13 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/ethereum/go-ethereum/rlp"
+)
+
+const (
+	LogMaxDataSize         = 6000
+	DebugLogMaxMessageSize = 6000
+	DebugLogMaxDataSize    = 6000
 )
 
 type Logs []*Log
@@ -13,16 +20,20 @@ type Log struct {
 	// Address of the contract that generated the event
 	Address Address `json:"address"`
 	// List of topics provided by the contract
-	Topics []common.Hash `json:"topics" ssz-max:"4"`
+	Topics []common.Hash `json:"topics"`
 	// Supplied by the contract, usually ABI-encoded
-	Data hexutil.Bytes `json:"data" ssz-max:"6000"`
+	Data hexutil.Bytes `json:"data"`
+}
+
+func (l Log) MarshalNil() ([]byte, error) {
+	return rlp.EncodeToBytes(&l)
 }
 
 type DebugLog struct {
 	// Message contains the log message
-	Message []byte `json:"message" ssz-max:"6000"`
+	Message []byte `json:"message"`
 	// Data contains array of integers
-	Data []Uint256 `json:"data" ssz-max:"6000"`
+	Data []Uint256 `json:"data"`
 }
 
 func NewLog(address Address, data []byte, topics []common.Hash) (*Log, error) {

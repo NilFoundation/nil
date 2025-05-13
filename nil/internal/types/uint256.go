@@ -5,24 +5,27 @@ import (
 	"database/sql/driver"
 	"encoding"
 	"encoding/json"
+	"io"
 	"math/big"
 
-	ssz "github.com/NilFoundation/fastssz"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
 )
 
 // interfaces
 var (
-	_ ssz.Marshaler            = (*Uint256)(nil)
-	_ json.Marshaler           = (*Uint256)(nil)
-	_ ssz.Unmarshaler          = (*Uint256)(nil)
-	_ ssz.HashRoot             = (*Uint256)(nil)
-	_ encoding.BinaryMarshaler = (*Uint256)(nil)
-	_ driver.Valuer            = (*Uint256)(nil)
-	_ encoding.TextMarshaler   = (*Uint256)(nil)
-	_ encoding.TextUnmarshaler = (*Uint256)(nil)
+	_ serialization.NilMarshaler   = (*Uint256)(nil)
+	_ serialization.NilUnmarshaler = (*Uint256)(nil)
+	_ json.Marshaler               = (*Uint256)(nil)
+	_ encoding.BinaryMarshaler     = (*Uint256)(nil)
+	_ driver.Valuer                = (*Uint256)(nil)
+	_ encoding.TextMarshaler       = (*Uint256)(nil)
+	_ encoding.TextUnmarshaler     = (*Uint256)(nil)
+	_ rlp.Encoder                  = (*Uint256)(nil)
+	_ rlp.Decoder                  = (*Uint256)(nil)
 )
 
 type Uint256 uint256.Int
@@ -76,44 +79,27 @@ func (u *Uint256) SetFromBig(b *big.Int) bool {
 	return (*uint256.Int)(u).SetFromBig(b)
 }
 
-// MarshalSSZ ssz marshals the Uint256 object
-func (u *Uint256) MarshalSSZ() ([]byte, error) {
-	return u.safeInt().MarshalSSZ()
+// EncodeRLP rlp marshals the Uint256 object to a target array
+func (u Uint256) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, u.safeInt())
 }
 
-// MarshalSSZTo ssz marshals the Uint256 object to a target array
-func (u *Uint256) MarshalSSZTo(dst []byte) ([]byte, error) {
-	return u.safeInt().MarshalSSZAppend(dst)
+// DecodeRLP rlp unmarshals the Uint256 object
+func (u *Uint256) DecodeRLP(r *rlp.Stream) error {
+	var tmp uint256.Int
+	if err := r.Decode(&tmp); err != nil {
+		return err
+	}
+	*u = Uint256(tmp)
+	return nil
 }
 
-// UnmarshalSSZ ssz unmarshals the Uint256 object
-func (u *Uint256) UnmarshalSSZ(buf []byte) error {
-	return (*uint256.Int)(u).UnmarshalSSZ(buf)
+func (u *Uint256) MarshalNil() ([]byte, error) {
+	return rlp.EncodeToBytes(u)
 }
 
-// SizeSSZ returns the ssz encoded size in bytes for the Uint256 object
-func (u *Uint256) SizeSSZ() (size int) {
-	return u.safeInt().SizeSSZ()
-}
-
-// HashTreeRoot ssz hashes the Uint256 object
-func (u *Uint256) HashTreeRoot() ([32]byte, error) {
-	b, _ := u.MarshalSSZTo(make([]byte, 0, 32)) // ignore error, cannot fail
-	var hash [32]byte
-	copy(hash[:], b)
-	return hash, nil
-}
-
-// HashTreeRootWith ssz hashes the Uint256 object with a hasher
-func (u *Uint256) HashTreeRootWith(hh ssz.HashWalker) (err error) {
-	bytes, _ := u.MarshalSSZTo(make([]byte, 0, 32)) // ignore error, cannot fail
-	hh.AppendBytes32(bytes)
-	return
-}
-
-// GetTree ssz hashes the Uint256 object
-func (u *Uint256) GetTree() (*ssz.Node, error) {
-	return ssz.ProofTree(u)
+func (u *Uint256) UnmarshalNil(buf []byte) error {
+	return rlp.DecodeBytes(buf, u)
 }
 
 func (u Uint256) MarshalJSON() ([]byte, error) {
@@ -133,7 +119,7 @@ func (u *Uint256) UnmarshalText(input []byte) error {
 }
 
 func (u *Uint256) MarshalBinary() (data []byte, err error) {
-	return u.MarshalSSZ()
+	return u.MarshalNil()
 }
 
 func (u Uint256) Value() (driver.Value, error) {

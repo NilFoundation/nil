@@ -45,19 +45,19 @@ func GetInternalTransactionCommand() *cobra.Command {
 				return err
 			}
 
-			transactionSsz, err := transaction.MarshalSSZ()
+			transactionBin, err := transaction.MarshalNil()
 			if err != nil {
 				return err
 			}
 
-			transactionSszHex := hexutil.Encode(transactionSsz)
+			transactionHex := hexutil.Encode(transactionBin)
 
 			if !common.Quiet {
 				fmt.Println("Transaction:")
 				fmt.Println(string(transactionStr))
 				fmt.Print("Result: ")
 			}
-			fmt.Println(transactionSszHex)
+			fmt.Println(transactionHex)
 
 			if !common.Quiet {
 				fmt.Printf("Hash: %x\n", transaction.ToTransaction(types.EmptyAddress, types.Seqno(0)).Hash())
