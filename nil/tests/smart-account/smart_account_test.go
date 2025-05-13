@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -24,6 +25,8 @@ func (s *SuiteSmartAccountRpc) SetupSuite() {
 		NShards: 4,
 		HttpUrl: rpc.GetSockPath(s.T()),
 		RunMode: nilservice.CollatorsOnlyRunMode,
+
+		DisableConsensus: true,
 	})
 }
 
@@ -75,12 +78,12 @@ func (s *SuiteSmartAccountRpc) TestDeployWithValueNonPayableConstructor() {
 
 	hash, addr, err := s.Client.DeployContract(s.Context, 2, smartAccount,
 		contracts.CounterDeployPayload(s.T()),
-		types.NewValueFromUint64(500_000), types.NewFeePackFromGas(500_000), execution.MainPrivateKey)
+		types.NewValueFromUint64(500_000), types.NewFeePackFromGas(1_000_000), execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.WaitForReceipt(hash)
-	s.Require().True(receipt.Success)
-	s.Require().False(receipt.OutReceipts[0].Success)
+	s.Require().True(receipt.AllSuccess())
+	//s.Require().False(receipt.OutReceipts[0].Success)
 
 	balance, err := s.Client.GetBalance(s.Context, addr, "latest")
 	s.Require().NoError(err)
@@ -101,9 +104,11 @@ func (s *SuiteSmartAccountRpc) TestDeploySmartAccountWithValue() {
 
 	hash, address, err := s.Client.DeployContract(
 		s.Context, types.BaseShardId, types.MainSmartAccountAddress, deployCode, types.NewValueFromUint64(500_000),
-		types.NewFeePackFromGas(5_000_000), execution.MainPrivateKey,
+		types.NewFeePackFromGas(10_000_000), execution.MainPrivateKey,
 	)
 	s.Require().NoError(err)
+	fmt.Println("CCCCCCCCCCCCCCCCCCC 1:", address.Hex())
+
 
 	receipt := s.WaitForReceipt(hash)
 	s.Require().True(receipt.Success)

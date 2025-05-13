@@ -20,6 +20,8 @@ contract Relayer {
         uint8 forwardKind;
         uint256 feeCredit;
         uint256 responseFeeCredit;
+        bool deploy;
+        uint256 salt;
         bytes callData;
     }
 
@@ -29,6 +31,7 @@ contract Relayer {
     uint8[] private txsForwardedValue;
     uint32 private numTxsWithForwardGas;
     bool private forwardingInitialized;
+    mapping(address => uint256) private pendingRefund;
 
     /**
      * @dev Emitted when a response fails to execute.
@@ -79,7 +82,6 @@ contract Relayer {
     }
 
     function _forwardGas(uint gas) internal {
-//        uint numTxsWithForwardGas = txsForwardedPercentage.length + txsForwardedRemaining.length;
         uint feeCredit = gas * tx.gasprice;
         console.log("_forwardGas: gas=%_, num=%_", gas, numTxsWithForwardGas);
 
@@ -155,7 +157,11 @@ contract Relayer {
 
         if (feeCredit != 0) {
             console.log("_forwardGas: return fee %_ to %_", feeCredit, msg.sender);
-            payable(msg.sender).transfer(feeCredit);
+            bytes memory data = abi.encodeWithSignature("nilReceive()");
+            (bool success,) = payable(msg.sender).call{value: feeCredit}(data);
+            if (!success) {
+                revert("forwardGas: failed to return feeCredit(probably nilReceive is not implemented)");
+            }
         }
     }
 
@@ -185,13 +191,13 @@ contract Relayer {
         address to,
         address refundTo,
         address bounceTo,
-        uint feeCredit,
+        uint256 feeCredit,
         uint8 forwardKind,
-        uint value,
+        uint256 value,
         Nil.Token[] memory tokens,
         bytes memory callData,
         uint256 requestId,
-        uint responseGas
+        uint256 responseGas
     ) public payable {
         console.log("sendTx: to=%_, from=%_", to, msg.sender);
 
@@ -235,37 +241,81 @@ contract Relayer {
             this.receiveTx.selector, msg.sender, to, bounceTo, value, tokens, callData, requestId, responseFeeCredit);
 
         currentTransactions.push(
-            Transaction(msg.sender, Nil.getRelayerAddress(Nil.getShardId(to)), refundTo, bounceTo, value, tokens, forwardKind, feeCredit, responseFeeCredit, data)
+            Transaction(
+                msg.sender,
+                Nil.getRelayerAddress(Nil.getShardId(to)),
+                refundTo,
+                bounceTo,
+                value,
+                tokens,
+                forwardKind,
+                feeCredit,
+                responseFeeCredit,
+                false,
+                0,
+                data)
         );
-        console.log("sendTx pushed: numtxs=%_", currentTransactions.length);
+        console.log("sendTx done: numtxs=%_", currentTransactions.length);
     }
 
-    function calculateAsyncGas(bool request, bool success) internal view returns(uint) {
-        uint asyncGas;
-        console.log("receiveTx: numTxsWithForwardGas=%_", numTxsWithForwardGas);
-        if (numTxsWithForwardGas != 0) {
-            uint gasToFinish = 1000;
-            uint gasForTxForward = 2000;
-            uint gasForResponse = 10_000;
-            uint gasForBounce = 10_000;
+    function sendTxDeploy(
+        address to,
+        address refundTo,
+        address bounceTo,
+        uint256 feeCredit,
+        uint8 forwardKind,
+        uint256 value,
+        uint256 salt,
+        bytes memory callData
+    ) public payable {
+        console.log("sendTxDeploy: to=%_, from=%_", to, msg.sender);
 
-            uint requiredGasForFinish = gasToFinish;
+        require(forwardingInitialized, "Relayer not initialized");
 
-            if (request) {
-                requiredGasForFinish += gasForResponse;
-            } else if (!success) {
-                requiredGasForFinish += gasForBounce;
-            }
-            if (success) {
-                requiredGasForFinish = numTxsWithForwardGas * gasForTxForward;
-            }
-            if (gasleft() < requiredGasForFinish) {
-                success = false;
-            } else {
-                asyncGas = gasleft() - requiredGasForFinish;
-            }
+        if (forwardKind == Nil.FORWARD_REMAINING) {
+            txsForwardedRemaining.push(uint8(currentTransactions.length));
+            numTxsWithForwardGas++;
+            console.log("sendTxDeploy FORWARD_REMAINING: num=%_", numTxsWithForwardGas);
+        } else if (forwardKind == Nil.FORWARD_PERCENTAGE) {
+            txsForwardedPercentage.push(uint8(currentTransactions.length));
+            numTxsWithForwardGas++;
+            console.log("sendTxDeploy FORWARD_PERCENTAGE: num=%_", numTxsWithForwardGas);
+        } else if (forwardKind == Nil.FORWARD_VALUE) {
+            txsForwardedValue.push(uint8(currentTransactions.length));
+            numTxsWithForwardGas++;
+            console.log("sendTxDeploy FORWARD_VALUE: num=%_", numTxsWithForwardGas);
+        } else if (forwardKind == Nil.FORWARD_NONE) {
+            numTxsWithForwardGas++;
+        } else {
+            revert("sendTxDeploy: invalid forwardKind");
         }
-        return asyncGas;
+
+        if (refundTo == address(0)) {
+            refundTo = msg.sender;
+        }
+        if (bounceTo == address(0)) {
+            bounceTo = msg.sender;
+        }
+
+        bytes memory data = abi.encodeWithSelector(
+            this.receiveTxDeploy.selector, msg.sender, to, bounceTo, value, salt, callData);
+
+        currentTransactions.push(
+            Transaction(
+                msg.sender,
+                Nil.getRelayerAddress(Nil.getShardId(to)),
+                refundTo,
+                bounceTo,
+                value,
+                new Nil.Token[](0),
+                forwardKind,
+                feeCredit,
+                0,
+                true,
+                salt,
+                data)
+        );
+        console.log("sendTxDeploy pushed: numtxs=%_", currentTransactions.length);
     }
 
     /**
@@ -332,13 +382,13 @@ contract Relayer {
 
             NilTokenManager(Nil.getTokenManagerAddress()).deductForRelay(to, address(this), tokens);
             bytes memory data = abi.encodeWithSelector(this.receiveTxBounce.selector, bounceTo, value, tokens, returnData);
-            __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: value}(
+            __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: value + 100_000 * tx.gasprice}(
                 false,
                 Nil.FORWARD_REMAINING,
                 Nil.getRelayerAddress(Nil.getShardId(from)),
-                from,
-                from,
-                0,
+                address(this),
+                address(this),
+                100_000 * tx.gasprice,
                 tokens,
                 data,
                 0,
@@ -347,6 +397,49 @@ contract Relayer {
         }
 
         return returnData;
+    }
+
+    function receiveTxDeploy(
+        address from,
+        address to,
+        address bounceTo,
+        uint256 value,
+        uint256 salt,
+        bytes memory code
+    ) public payable returns(bytes memory) {
+        console.log("receiveTxDeploy: gas=%_, to=%_, salt=%_", gasleft(), to, salt);
+
+        address addr;
+        assembly {
+            addr := create2(value, add(code, 0x20), mload(code), salt)
+        }
+        bool success = addr != address(0);
+
+        console.log("receiveTxDeploy: addr=%_", addr);
+
+//        if (value != 0) {
+//            (success,) = payable(addr).call{value: value}("");
+//        }
+
+        if (!success) {
+            printRevertData("receiveTxDeploy call failed", "");
+
+            bytes memory data = abi.encodeWithSelector(this.receiveTxBounce.selector, bounceTo, value, new Nil.Token[](0), bytes(""));
+            __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: value + 100_000 * tx.gasprice}(
+                false,
+                Nil.FORWARD_REMAINING,
+                Nil.getRelayerAddress(Nil.getShardId(from)),
+                address(this),
+                address(this),
+                100_000 * tx.gasprice,
+                new Nil.Token[](0),
+                data,
+                0,
+                0);
+            return bytes("");
+        }
+
+        return bytes("");
     }
 
     /**
@@ -390,12 +483,15 @@ contract Relayer {
         bytes memory callData
     ) public payable {
         printRevertData("Bounce tx", callData);
+        console.log("bounce: value=%_, to=%_", value, to);
         NilTokenManager(Nil.getTokenManagerAddress()).creditForRelay(to, tokens);
         NilTokenManager(Nil.getTokenManagerAddress()).resetTxTokens();
 
         bytes memory data = abi.encodeWithSignature("bounce(bytes)", callData);
         (bool success, bytes memory returnData) = to.call{value: value}(data);
         if (!success) {
+            // Save the value for the future refund
+            pendingRefund[to] += value;
             printRevertData("Bounce call failed", returnData);
         }
     }
@@ -411,4 +507,34 @@ contract Relayer {
             console.log("%_: <no revert reason>", str);
         }
     }
+
+
+    function calculateAsyncGas(bool request, bool success) internal view returns(uint) {
+        uint asyncGas;
+        console.log("receiveTx: numTxsWithForwardGas=%_", numTxsWithForwardGas);
+        if (numTxsWithForwardGas != 0) {
+            uint gasToFinish = 1000;
+            uint gasForTxForward = 2000;
+            uint gasForResponse = 10_000;
+            uint gasForBounce = 10_000;
+
+            uint requiredGasForFinish = gasToFinish;
+
+            if (request) {
+                requiredGasForFinish += gasForResponse;
+            } else if (!success) {
+                requiredGasForFinish += gasForBounce;
+            }
+            if (success) {
+                requiredGasForFinish = numTxsWithForwardGas * gasForTxForward;
+            }
+            if (gasleft() < requiredGasForFinish) {
+                success = false;
+            } else {
+                asyncGas = gasleft() - requiredGasForFinish;
+            }
+        }
+        return asyncGas;
+    }
+
 }

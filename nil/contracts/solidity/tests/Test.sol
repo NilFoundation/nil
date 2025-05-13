@@ -116,7 +116,7 @@ contract Test is NilBase, NilAwaitable {
         uint feeCredit,
         uint8 forwardKind,
         bytes memory callData
-    ) public payable {
+    ) public payable async(1_000_000) {
         Nil.asyncCall(dst, address(0), address(0), feeCredit, forwardKind, 0, callData);
     }
 

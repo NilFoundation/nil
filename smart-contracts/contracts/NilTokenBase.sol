@@ -12,7 +12,7 @@ import "./NilTokenManager.sol";
  * They are virtual, so the main contract can disable them by overriding them. Then only logic of the contract can use
  * internal methods.
  */
-abstract contract NilTokenBase is NilBase, NilTokenHook {
+abstract contract NilTokenBase is NilBounceable, NilTokenHook {
     uint totalSupply;
     string tokenName;
 

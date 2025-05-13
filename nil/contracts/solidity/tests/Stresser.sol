@@ -54,7 +54,7 @@ contract Stresser is NilAwaitable {
         return start + n;
     }
 
-    function asyncCalls(address[] memory addresses, uint256 n) public {
+    function asyncCalls(address[] memory addresses, uint256 n) public async(2_000_000) {
         for (uint256 i = 0; i < addresses.length; i++) {
             gasConsumer(n/addresses.length);
             Nil.asyncCall(

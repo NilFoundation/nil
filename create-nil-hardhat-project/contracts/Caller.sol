@@ -6,7 +6,7 @@ import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 contract Caller {
     using Nil for address;
 
-    function call(address dst) public {
+    function call(address dst) public async(500_000) {
         Nil.asyncCall(
             dst,
             msg.sender,

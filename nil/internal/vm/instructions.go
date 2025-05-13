@@ -18,6 +18,8 @@ package vm
 
 import (
 	"errors"
+	"fmt"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"math"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -648,6 +650,10 @@ func opCreate2(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 		stackvalue.SetBytes(addr.Bytes())
 	}
 	scope.Stack.push(&stackvalue)
+
+	fmt.Println("CCCCCCCCCCCCCCCCCCC 2:", addr.Hex())
+	fmt.Println(salt.Hex(), size)
+	fmt.Println(hexutil.Encode(input))
 
 	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 

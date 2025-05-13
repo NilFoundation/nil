@@ -277,7 +277,7 @@ func (c *DirectClient) DeployContract(
 	ctx context.Context, shardId types.ShardId, smartAccountAddress types.Address, payload types.DeployPayload,
 	value types.Value, fee types.FeePack, pk *ecdsa.PrivateKey,
 ) (common.Hash, types.Address, error) {
-	contractAddr := types.CreateAddress(shardId, payload)
+	contractAddr := types.CreateAddressForCreate2(types.GetRelayerAddress(smartAccountAddress.ShardId()), payload.BytesWithoutSalt(), common.HexToHash("0x0"))
 	txnHash, err := SendTransactionViaSmartAccount(ctx, c, smartAccountAddress, payload.Bytes(), fee, value,
 		[]types.TokenBalance{}, contractAddr, pk, true)
 	if err != nil {

@@ -6,6 +6,8 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"fmt"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/client"
@@ -78,7 +80,12 @@ func DeployContractViaSmartAccount(
 ) (types.Address, *jsonrpc.RPCReceipt) {
 	t.Helper()
 
-	contractAddr := types.CreateAddress(shardId, payload)
+	contractAddr := types.CreateAddressForCreate2(types.GetRelayerAddress(addrFrom.ShardId()), payload.BytesWithoutSalt(), common.HexToHash("0x0"))
+	fmt.Println("CCCCCCCCCCCCCCCCCCC 1:", contractAddr.Hex())
+	fmt.Println(len(payload.Bytes()))
+	fmt.Println(hexutil.Encode(payload.Bytes()))
+
+	//contractAddr := types.CreateAddress(shardId, payload)
 	txHash, err := client.SendTransactionViaSmartAccount(
 		t.Context(),
 		addrFrom,
@@ -253,7 +260,17 @@ func analyzeReceiptRec(
 	require.NoError(t, err)
 	require.NotNil(t, txn)
 
-	value.ValueUsed = value.ValueUsed.Add(receipt.GasUsed.ToValue(receipt.GasPrice))
+	// Skip gas used for bounce transaction, as it paid by Relayer.
+	skipGasUsed := false
+	if txn.To == types.GetRelayerAddress(1) {
+		sign, err := contracts.GetFuncIdSignatureFromBytes(txn.Data)
+		require.NoError(t, err)
+		skipGasUsed = sign.FuncName == "receiveTxBounce"
+	}
+
+	if !skipGasUsed {
+		value.ValueUsed = value.ValueUsed.Add(receipt.GasUsed.ToValue(receipt.GasPrice))
+	}
 	value.ValueForwarded = value.ValueForwarded.Add(receipt.Forwarded)
 	caller := getContractInfo(txn.From, valuesMap)
 

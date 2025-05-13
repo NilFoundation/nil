@@ -90,10 +90,34 @@ library Nil {
         bytes memory code,
         uint256 salt
     ) internal returns (address) {
-        Token[] memory tokens;
+//        Token[] memory tokens;
+//        address contractAddress = Nil.createAddress(shardId, code, salt);
+//        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(true, forwardKind, contractAddress, refundTo,
+//            bounceTo, feeCredit, tokens, bytes.concat(code, bytes32(salt)), 0, 0);
+//        return contractAddress;
+        console.log("asyncDeploy: start");
+
+        require(shardId != 0, "asyncDeploy: call to main shard is not allowed");
+        require(shardId < SHARDS_NUM, "asyncDeploy: call to non-existing shard");
+
+        uint256 valueToDeduct = value;
+        if (forwardKind == FORWARD_NONE) {
+            // Deduct feeCredit from the caller account
+            valueToDeduct += feeCredit;
+        }
+
         address contractAddress = Nil.createAddress(shardId, code, salt);
-        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(true, forwardKind, contractAddress, refundTo,
-            bounceTo, feeCredit, tokens, bytes.concat(code, bytes32(salt)), 0, 0);
+
+        Relayer(getRelayerAddress()).sendTxDeploy{value: valueToDeduct}(
+            contractAddress,
+            refundTo,
+            bounceTo,
+            feeCredit,
+            forwardKind,
+            value,
+            salt,
+            code
+        );
         return contractAddress;
     }
 
@@ -480,10 +504,12 @@ contract NilBase {
         require(returnData.length > 0, "'IS_INTERNAL_TRANSACTION' returns invalid data");
         return abi.decode(returnData, (bool));
     }
+
+    function nilReceive() virtual payable external {}
 }
 
 abstract contract NilBounceable is NilBase {
-    function bounce(bytes memory returnData) virtual payable external;
+    function bounce(bytes memory returnData) virtual payable external {}
 }
 
 // WARNING: User should never use this contract directly.

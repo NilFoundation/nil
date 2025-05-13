@@ -46,7 +46,7 @@ contract SmartAccount is NilTokenBase {
         uint value,
         bytes calldata code,
         uint salt
-    ) public onlyExternal {
+    ) public onlyExternal async(20_000_000) {
         Nil.asyncDeploy(shardId, address(this), value, code, salt);
     }
 
