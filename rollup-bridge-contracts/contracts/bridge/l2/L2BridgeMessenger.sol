@@ -414,4 +414,8 @@ contract L2BridgeMessenger is
   ) public view override(AccessControlEnumerableUpgradeable, IERC165) returns (bool) {
     return interfaceId == type(IL2BridgeMessenger).interfaceId || super.supportsInterface(interfaceId);
   }
+
+  function getL2ToL1Root() external view override returns (bytes32) {
+    return INilMessageTree(nilMessageTree).getMessageRoot();
+  }
 }

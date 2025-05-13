@@ -87,4 +87,8 @@ contract NilMessageTree is AppendOnlyMerkleTree, Ownable, Initializable, INilMes
     (uint256 currentNonce, bytes32 currentRoot) = _appendMessageHash(messageHash);
     return (currentNonce, currentRoot);
   }
+
+  function getMessageRoot() external view override returns (bytes32) {
+    return messageRoot;
+  }
 }
