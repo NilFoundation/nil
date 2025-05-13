@@ -89,7 +89,6 @@ func (api *DebugAPIImpl) getBlockByReference(
 ) (*DebugRPCBlock, error) {
 	var blockData *types.RawBlockWithExtractedData
 	var err error
-	fmt.Println("====================== withTransactions", withTransactions)
 	if withTransactions {
 		blockData, err = api.rawApi.GetFullBlockData(ctx, shardId, blockReference)
 		if err != nil {
