@@ -418,4 +418,9 @@ contract L2BridgeMessenger is
   function getL2ToL1Root() external view override returns (bytes32) {
     return INilMessageTree(nilMessageTree).getMessageRoot();
   }
+
+  /// @inheritdoc IL2BridgeMessenger
+  function getLatestDepositNonce() external view returns (uint256) {
+    return relayedMessageHashStore.length();
+  }
 }

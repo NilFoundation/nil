@@ -170,4 +170,6 @@ interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage {
   function setPause(bool _status) external;
 
   function getL2ToL1Root() external view returns (bytes32);
+
+  function getLatestDepositNonce() external view returns (uint256);
 }
