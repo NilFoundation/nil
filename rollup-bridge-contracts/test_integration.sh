@@ -26,11 +26,6 @@ if [ -z "$NILD_BIN" ]; then
     exit 1
 fi
 
-if [ -z "$FAUCET_BIN" ]; then
-    echo "FAUCET_BIN is not set!"
-    exit 1
-fi
-
 if [ -z "$RELAYER_BIN" ]; then
     echo "RELAYER_BIN is not set!"
     exit 1
@@ -105,11 +100,6 @@ $NILD_BIN run --http-port 8529 --collator-tick-ms=100 >$LOG_DIR/nild.log 2>&1 &
 pids+=("$!")
 wait_for_http_service "http://127.0.0.1:8529"
 
-echo "Starting faucet"
-$FAUCET_BIN run --port 8527 &
-pids+=("$!")
-wait_for_http_service "http://127.0.0.1:8527"
-
 npx hardhat l2-task-runner --networkname local --l1networkname geth
 
 echo "Starting relayer"
@@ -121,7 +111,7 @@ $RELAYER_BIN run \
     --l2-endpoint=http://127.0.0.1:8529 \
     --l2-debug-mode=true \
     --l2-smart-account-salt=1234567890 \
-    --l2-faucet-address=http://127.0.0.1:8527 \
+    --l2-faucet-address=http://127.0.0.1:8529 \
     --l2-contract-addr=0xdeadbeef \
     >$LOG_DIR/relayer.log 2>&1 &
 pids+=("$!")
