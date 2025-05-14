@@ -8,10 +8,12 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/constraints"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/feeupdater"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/syncer"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1client"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
@@ -117,10 +119,39 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		logger,
 	)
 
+	feeUpdaterMetrics, err := metrics.NewFeeUpdaterMetrics()
+	if err != nil {
+		return nil, err
+	}
+
+	l1Client, err := l1client.NewRetryingEthClient(
+		ctx,
+		cfg.ContractWrapperConfig.Endpoint,
+		cfg.ContractWrapperConfig.RequestsTimeout,
+		logger,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	feeUpdaterContract, err := feeupdater.NewWrapper(ctx, &cfg.L1FeeUpdateContractConfig, l1Client)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing fee updater contract wrapper: %w", err)
+	}
+	feeUpdater := feeupdater.NewUpdater(
+		cfg.L1FeeUpdateConfig,
+		fetcher,
+		logger,
+		clock,
+		feeUpdaterContract,
+		feeUpdaterMetrics,
+	)
+
 	syncCommittee.Service = srv.NewServiceWithHeartbeat(
 		metricsHandler,
 		logger,
 		syncRunner, proposer, agg, lagTracker, taskScheduler, taskListener,
+		feeUpdater,
 	)
 
 	return syncCommittee, nil

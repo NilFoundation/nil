@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/tests"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/suite"
 )
@@ -76,6 +78,13 @@ func (s *SyncCommitteeTestSuite) newService() *SyncCommittee {
 	cfg := NewDefaultConfig()
 	cfg.RpcEndpoint = s.url
 	cfg.ContractWrapperConfig.DisableL1 = true
+
+	cfg.L1FeeUpdateContractConfig.ContractAddress = "0xaddr"
+
+	k, err := crypto.GenerateKey()
+	s.Require().NoError(err)
+	cfg.L1FeeUpdateContractConfig.PrivateKey = hex.EncodeToString(crypto.FromECDSA(k))
+
 	syncCommittee, err := New(context.Background(), cfg, s.scDb)
 	s.Require().NoError(err)
 	return syncCommittee

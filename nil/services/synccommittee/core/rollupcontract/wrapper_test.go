@@ -10,6 +10,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/blob"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1client"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/ethereum/go-ethereum"
@@ -26,8 +27,9 @@ type WrapperTestSuite struct {
 	ctx          context.Context
 	cancellation context.CancelFunc
 
-	config           WrapperConfig
-	ethClient        *EthClientMock
+	config    WrapperConfig
+	ethClient *l1client.EthClientMock
+
 	callContractMock *testaide.CallContractMock
 	wrapper          Wrapper
 	logger           logging.Logger
@@ -45,7 +47,7 @@ func (s *WrapperTestSuite) SetupSuite() {
 	abi, err := RollupcontractMetaData.GetAbi()
 	s.Require().NoError(err)
 	s.callContractMock = testaide.NewCallContractMock(abi)
-	s.ethClient = &EthClientMock{
+	s.ethClient = &l1client.EthClientMock{
 		CallContractFunc:    s.callContractMock.CallContract,
 		EstimateGasFunc:     func(ctx context.Context, call ethereum.CallMsg) (uint64, error) { return 123, nil },
 		SuggestGasPriceFunc: func(ctx context.Context) (*big.Int, error) { return big.NewInt(123), nil },
