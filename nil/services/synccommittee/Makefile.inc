@@ -60,7 +60,6 @@ sync_committee_generate_mocks: \
 	$(root_sc)/internal/api/task_state_change_handler_generated_mock.go \
 	$(root_sc)/internal/api/task_request_handler_generated_mock.go \
 	$(root_sc)/core/state_reset_launcher_generated_mock.go \
-	$(root_sc)/internal/scheduler/task_scheduler_generated_mock.go \
 	$(root_sc)/internal/l1client/eth_client_generated_mock.go \
 	$(root_sc)/internal/srv/worker_generated_mock.go \
 	$(root_sc)/internal/test_utils/op_context_generated_mock.go \
@@ -88,16 +87,6 @@ $(root_sc)/core/state_reset_launcher_generated_mock.go: \
 	sync_committee_contract_abi \
 	$(root_sc)/core/task_state_change_handler.go
 	go generate $(root_sc)/core/task_state_change_handler.go
-
-$(root_sc)/internal/scheduler/task_scheduler_generated_mock.go: \
-	$(root_sc)/internal/scheduler/task_scheduler.go \
-	$(root_sc)/internal/api/task_request_handler.go \
-	$(root_sc)/internal/srv/worker.go \
-	$(root_sc)/internal/types/prover_tasks.go \
-	$(root_sc)/internal/types/task_result.go \
-	$(root_sc)/public/task_debug_api.go \
-	$(root_sc)/public/task_view.go
-	go generate $(root_sc)/internal/scheduler
 
 $(root_sc)/internal/srv/worker_generated_mock.go: \
 	$(root_sc)/internal/srv/worker.go

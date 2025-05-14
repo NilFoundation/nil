@@ -447,7 +447,7 @@ func (bs *BlockStorage) setBatchAsProposedImpl(ctx context.Context, id scTypes.B
 
 // ResetBatchesRange resets the block storage state starting from the batch with given ID:
 //
-//  1. Picks first main shard block [B] from the batch with the given ID.
+//  1. Picks the first main shard block [B] from the batch with the given ID.
 //
 //  2. Sets the latest fetched block reference to the parent of the block [B].
 //     If the specified block is the first block in the chain, the new latest fetched value will be nil.

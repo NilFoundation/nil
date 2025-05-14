@@ -1,42 +1,25 @@
 package rpc
 
 import (
-	"context"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/services/rpc"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
-	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/suite"
 )
 
-type TaskSchedulerDebugRpcTestSuite struct {
-	suite.Suite
-	context      context.Context
-	cancellation context.CancelFunc
-
+type TaskDebugRpcTestSuite struct {
+	RpcServerTestSuite
 	rpcClient public.TaskDebugApi
-	scheduler scheduler.TaskScheduler
-
-	database db.DB
-	storage  *storage.TaskStorage
-	clock    *clockwork.FakeClock
 }
 
 func TestTaskSchedulerDebugRpcTestSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(TaskSchedulerDebugRpcTestSuite))
+	suite.Run(t, new(TaskDebugRpcTestSuite))
 }
 
 var (
@@ -61,58 +44,17 @@ func newTaskEntries(now time.Time) []*types.TaskEntry {
 	}
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) SetupSuite() {
-	s.context, s.cancellation = context.WithCancel(context.Background())
-	listenerEndpoint := rpc.GetSockPath(s.T())
-
-	logger := logging.NewLogger("task_debug_rpc_test")
-
-	database, err := db.NewBadgerDbInMemory()
-	s.Require().NoError(err)
-	s.database = database
-	metricsHandler, err := metrics.NewSyncCommitteeMetrics()
-	s.Require().NoError(err)
-
-	s.clock = testaide.NewTestClock()
-
-	s.storage = storage.NewTaskStorage(
-		s.database,
-		s.clock,
-		metricsHandler,
-		logger,
-	)
-
-	s.scheduler = scheduler.New(
-		s.storage,
-		&api.TaskStateChangeHandlerMock{},
-		metricsHandler,
-		logger,
-	)
-
-	started := make(chan struct{})
-	go func() {
-		taskListener := NewTaskListener(
-			&TaskListenerConfig{HttpEndpoint: listenerEndpoint},
-			s.scheduler,
-			logger,
-		)
-
-		err := taskListener.Run(s.context, started)
-		s.NoError(err)
-	}()
-	err = testaide.WaitFor(s.context, started, 10*time.Second)
-	s.Require().NoError(err, "task listener did not start in time")
-
-	s.rpcClient = NewTaskDebugRpcClient(listenerEndpoint, logger)
+func (s *TaskDebugRpcTestSuite) SetupSuite() {
+	s.RpcServerTestSuite.SetupSuite()
+	s.rpcClient = NewTaskDebugRpcClient(s.serverEndpoint, s.logger)
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) TearDownTest() {
+func (s *TaskDebugRpcTestSuite) TearDownTest() {
+	s.RpcServerTestSuite.TearDownTest()
 	testaide.ResetTestClock(s.clock)
-	err := s.database.DropAll()
-	s.Require().NoError(err, "failed to clear database in TearDownTest")
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) TearDownSuite() {
+func (s *TaskDebugRpcTestSuite) TearDownSuite() {
 	s.cancellation()
 }
 
@@ -120,7 +62,7 @@ func noFilterRequest() *public.TaskDebugRequest {
 	return public.NewTaskDebugRequest(nil, nil, nil, nil, false, nil)
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks_Empty_Storage() {
+func (s *TaskDebugRpcTestSuite) Test_Get_Tasks_Empty_Storage() {
 	request := noFilterRequest()
 	taskEntries, err := s.rpcClient.GetTasks(s.context, request)
 
@@ -135,7 +77,7 @@ type getTaskTestCase struct {
 	ignoreOrder     bool
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks() {
+func (s *TaskDebugRpcTestSuite) Test_Get_Tasks() {
 	entries := newTaskEntries(s.clock.Now())
 	err := s.storage.AddTaskEntries(s.context, entries...)
 	s.Require().NoError(err)
@@ -204,7 +146,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Tasks() {
 	}
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) runGetTasksCase(testCase getTaskTestCase) {
+func (s *TaskDebugRpcTestSuite) runGetTasksCase(testCase getTaskTestCase) {
 	s.T().Helper()
 
 	result, err := s.rpcClient.GetTasks(s.context, testCase.request)
@@ -228,13 +170,13 @@ func (s *TaskSchedulerDebugRpcTestSuite) runGetTasksCase(testCase getTaskTestCas
 	}
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_Empty_Storage() {
+func (s *TaskDebugRpcTestSuite) Test_Get_Task_Tree_Empty_Storage() {
 	taskTree, err := s.rpcClient.GetTaskTree(s.context, types.NewTaskId())
 	s.Require().NoError(err)
 	s.Require().Nil(taskTree)
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_Not_Found() {
+func (s *TaskDebugRpcTestSuite) Test_Get_Task_Tree_Not_Found() {
 	entries := newTaskEntries(s.clock.Now())
 	err := s.storage.AddTaskEntries(s.context, entries...)
 	s.Require().NoError(err)
@@ -245,7 +187,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_Not_Found() {
 	s.Require().Nil(taskTree)
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_No_Dependencies() {
+func (s *TaskDebugRpcTestSuite) Test_Get_Task_Tree_No_Dependencies() {
 	now := s.clock.Now()
 	entry := testaide.NewTaskEntry(now, running, types.NewRandomExecutorId())
 	err := s.storage.AddTaskEntries(s.context, entry)
@@ -260,7 +202,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_No_Dependencies() {
 	s.Require().Empty(taskTree.Dependencies)
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_With_Dependencies() {
+func (s *TaskDebugRpcTestSuite) Test_Get_Task_Tree_With_Dependencies() {
 	//   A
 	//  / \
 	// B   C
@@ -313,7 +255,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_With_Dependencies() 
 	s.Require().Empty(taskESubtree.Dependencies, "task E should have no dependencies")
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_With_Terminated_Dependencies() {
+func (s *TaskDebugRpcTestSuite) Test_Get_Task_Tree_With_Terminated_Dependencies() {
 	//   A
 	//  / \
 	// B   C
@@ -348,7 +290,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) Test_Get_Task_Tree_With_Terminated_Depe
 	s.requireHasTerminatedLeafDependency(taskATree, executor, taskC, false)
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) requestAndSendResult(
+func (s *TaskDebugRpcTestSuite) requestAndSendResult(
 	expected *types.Task, executor types.TaskExecutorId, completeSuccessfully bool,
 ) {
 	s.T().Helper()
@@ -372,7 +314,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) requestAndSendResult(
 	s.Require().NoError(err)
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) requireHasTerminatedLeafDependency(
+func (s *TaskDebugRpcTestSuite) requireHasTerminatedLeafDependency(
 	tree *public.TaskTreeView, executor public.TaskExecutorId, expected *types.TaskEntry, successResult bool,
 ) {
 	s.T().Helper()
@@ -401,7 +343,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) requireHasTerminatedLeafDependency(
 	s.requireAllPass(assertions, expected.Task.Id)
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) requireTaskViewEqual(expected *types.TaskEntry, actual *public.TaskView) {
+func (s *TaskDebugRpcTestSuite) requireTaskViewEqual(expected *types.TaskEntry, actual *public.TaskView) {
 	s.T().Helper()
 	s.Require().NotNil(actual)
 
@@ -417,14 +359,14 @@ func (s *TaskSchedulerDebugRpcTestSuite) requireTaskViewEqual(expected *types.Ta
 	s.requireAllPass(assertions, expected.Task.Id)
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) requireHasDependency(tree *public.TaskTreeView, expected *types.TaskEntry) {
+func (s *TaskDebugRpcTestSuite) requireHasDependency(tree *public.TaskTreeView, expected *types.TaskEntry) {
 	s.T().Helper()
 	taskSubtree, exists := tree.Dependencies[expected.Task.Id]
 	s.Require().True(exists)
 	s.requireTaskTreeViewEqual(expected, taskSubtree)
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) requireTaskTreeViewEqual(
+func (s *TaskDebugRpcTestSuite) requireTaskTreeViewEqual(
 	expected *types.TaskEntry, actual *public.TaskTreeView,
 ) {
 	s.T().Helper()
@@ -435,7 +377,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) requireTaskTreeViewEqual(
 	s.requireAllPass(assertions, expected.Task.Id)
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) commonTaskAssertions(
+func (s *TaskDebugRpcTestSuite) commonTaskAssertions(
 	expected *types.TaskEntry, actual *public.TaskViewCommon,
 ) []bool {
 	now := s.clock.Now()
@@ -451,7 +393,7 @@ func (s *TaskSchedulerDebugRpcTestSuite) commonTaskAssertions(
 	}
 }
 
-func (s *TaskSchedulerDebugRpcTestSuite) requireAllPass(assertions []bool, id types.TaskId) {
+func (s *TaskDebugRpcTestSuite) requireAllPass(assertions []bool, id types.TaskId) {
 	if slices.Contains(assertions, false) {
 		s.FailNowf("", "assertion for task with id=%s failed", id.String())
 	}

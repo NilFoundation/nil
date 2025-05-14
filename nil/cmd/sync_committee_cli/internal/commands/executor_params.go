@@ -20,7 +20,7 @@ const MinRefreshInterval = 100 * time.Millisecond
 
 func DefaultExecutorParams() *ExecutorParams {
 	return &ExecutorParams{
-		DebugRpcEndpoint: core.DefaultTaskRpcEndpoint,
+		DebugRpcEndpoint: core.DefaultOwnRpcEndpoint,
 		AutoRefresh:      false,
 		RefreshInterval:  5 * time.Second,
 	}

@@ -75,8 +75,8 @@ func NewSuccessTaskResult(taskId types.TaskId, executor types.TaskExecutorId) *t
 	return types.NewSuccessProverTaskResult(
 		taskId,
 		executor,
-		types.TaskOutputArtifacts{},
-		types.TaskResultData{},
+		types.TaskOutputArtifacts{types.AggregatedProof: "agg-proof.1.1.0xAABC"},
+		types.TaskResultData{10, 20, 30, 40},
 	)
 }
 

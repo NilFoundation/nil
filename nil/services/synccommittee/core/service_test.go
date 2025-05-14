@@ -76,7 +76,7 @@ func (s *SyncCommitteeTestSuite) newService() *SyncCommittee {
 	s.T().Helper()
 
 	cfg := NewDefaultConfig()
-	cfg.RpcEndpoint = s.url
+	cfg.NilRpcEndpoint = s.url
 	cfg.ContractWrapperConfig.DisableL1 = true
 
 	cfg.L1FeeUpdateContractConfig.ContractAddress = "0xaddr"
