@@ -21,7 +21,6 @@ import { INilRollup } from "../../interfaces/INilRollup.sol";
 import { INilGasPriceOracle } from "./interfaces/INilGasPriceOracle.sol";
 import { NilAccessControlUpgradeable } from "../../NilAccessControlUpgradeable.sol";
 import { IL2BridgeMessenger } from "../l2/interfaces/IL2BridgeMessenger.sol";
-import "forge-std/console.sol";
 
 contract L1BridgeMessenger is
   OwnableUpgradeable,
@@ -547,7 +546,6 @@ contract L1BridgeMessenger is
   }
 
   function getQueueHeadIndex() external view override returns (uint256) {
-    console.log("L1BridgeMessener - QueueHeadIndex call");
     return messageQueue.getFirstUnprocessedMessageHash();
   }
 }
