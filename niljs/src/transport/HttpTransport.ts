@@ -3,6 +3,18 @@ import { requestHeadersWithDefaults } from "../utils/rpc.js";
 import type { IHttpTransportConfig } from "./types/IHttpTransportConfig.js";
 import type { ITransport } from "./types/ITransport.js";
 
+const getIsomorphicFetch = () => {
+  if (typeof window !== "undefined") {
+    return window.fetch.bind(window);
+  }
+
+  if (typeof globalThis !== "undefined") {
+    return globalThis.fetch;
+  }
+
+  throw new Error("No fetch implementation found");
+};
+
 /**
  * HttpTransport represents the HTTP transport for connecting to the network.
  *
@@ -35,7 +47,7 @@ class HttpTransport implements ITransport {
     this.endpoint = endpoint;
     this.timeout = timeout;
     this.headers = requestHeadersWithDefaults(headers);
-    this.fetcher = fetcher || globalThis.fetch;
+    this.fetcher = fetcher || getIsomorphicFetch();
   }
 
   /**
