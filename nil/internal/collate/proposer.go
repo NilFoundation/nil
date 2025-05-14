@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
@@ -13,12 +14,77 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
-	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rollup"
 	"github.com/NilFoundation/nil/nil/services/txnpool"
 	l1types "github.com/ethereum/go-ethereum/core/types"
 )
+
+func CallGetterByBlock(
+	ctx context.Context,
+	tx db.RoTx,
+	address types.Address,
+	block *types.Block,
+	calldata []byte,
+) ([]byte, error) {
+	cfgAccessor, err := config.NewConfigReader(tx, &block.MainShardHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create config accessor: %w", err)
+	}
+
+	es, err := execution.NewExecutionState(tx, address.ShardId(), execution.StateParams{
+		Block:          block,
+		ConfigAccessor: cfgAccessor,
+		Mode:           execution.ModeReadOnly,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	extTxn := &types.ExternalTransaction{
+		FeePack: types.NewFeePackFromGas(types.DefaultMaxGasInBlock),
+		To:      address,
+		Data:    calldata,
+	}
+
+	txn := extTxn.ToTransaction()
+
+	payer := execution.NewDummyPayer()
+
+	es.AddInTransaction(txn)
+	res := es.HandleTransaction(ctx, txn, payer)
+	if res.Failed() {
+		return nil, fmt.Errorf("transaction failed: %w", res.GetError())
+	}
+	return res.ReturnData, nil
+}
+
+func CallGetterByBlockNumber(
+	ctx context.Context,
+	tx db.RoTx,
+	address types.Address,
+	blockNumber types.BlockNumber,
+	calldata []byte,
+) ([]byte, error) {
+	block, err := db.ReadBlockByNumber(tx, address.ShardId(), blockNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read block by number %d: %w", blockNumber, err)
+	}
+	return CallGetterByBlock(ctx, tx, address, block, calldata)
+}
+
+func CallGetter(
+	ctx context.Context,
+	tx db.RoTx,
+	address types.Address,
+	calldata []byte,
+) ([]byte, error) {
+	block, _, err := db.ReadLastBlock(tx, address.ShardId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to read last block: %w", err)
+	}
+	return CallGetterByBlock(ctx, tx, address, block, calldata)
+}
 
 const (
 	defaultMaxGasInBlock                 = types.DefaultMaxGasInBlock
@@ -349,143 +415,262 @@ func (p *proposer) handleTransactionsFromPool() error {
 }
 
 func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
-	state, err := db.ReadCollatorState(tx, p.params.ShardId)
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return err
-	}
+	// Get our Relayer address
+	ourRelayerAddr := types.GetRelayerAddress(p.params.ShardId)
 
-	neighborIndexes := common.SliceToMap(state.Neighbors, func(i int, t types.Neighbor) (types.ShardId, int) {
-		return t.ShardId, i
-	})
+	// Get neighbors from topology
+	neighbors := p.topology.GetNeighbors(p.params.ShardId, p.params.NShards, true)
+
+	var parents []*execution.ParentBlock
 
 	checkLimits := func() bool {
 		return p.executionState.GasUsed < p.params.MaxGasInBlock &&
 			len(p.proposal.ForwardTxnRefs) < p.params.MaxForwardTransactionsInBlock
 	}
 
-	var parents []*execution.ParentBlock
+	// Get inMsgCounts from our Relayer (what we've processed so far)
+	inMsgCountsCalldata, err := contracts.NewCallData(contracts.NameRelayer, "getInMsgCount")
+	if err != nil {
+		return fmt.Errorf("failed to create getInMsgCount calldata: %w", err)
+	}
 
-	for _, neighborId := range p.topology.GetNeighbors(p.params.ShardId, p.params.NShards, true) {
-		position, ok := neighborIndexes[neighborId]
-		if !ok {
-			position = len(neighborIndexes)
-			neighborIndexes[neighborId] = position
-			state.Neighbors = append(state.Neighbors, types.Neighbor{ShardId: neighborId})
+	inMsgCountsData, err := CallGetter(p.ctx, tx, ourRelayerAddr, inMsgCountsCalldata)
+	if err != nil {
+		return fmt.Errorf("failed to call getInMsgCount: %w", err)
+	}
+
+	var inMsgCounts [5]uint64 // Assuming SHARDS_NUM = 5
+	abi, err := contracts.GetAbi(contracts.NameRelayer)
+	if err != nil {
+		return fmt.Errorf("failed to get Relayer ABI: %w", err)
+	}
+
+	if err := abi.UnpackIntoInterface(&inMsgCounts, "getInMsgCount", inMsgCountsData); err != nil {
+		return fmt.Errorf("failed to unpack getInMsgCount result: %w", err)
+	}
+
+	// Define Message struct to match the Solidity struct
+	type RelayerMessage struct {
+		Id       uint64
+		From     types.Address
+		To       types.Address
+		RefundTo types.Address
+		BounceTo types.Address
+		Value    *big.Int
+		Tokens   []struct {
+			Token   types.Address
+			Balance *big.Int
 		}
-		neighbor := &state.Neighbors[position]
-		nextTx := p.executionState.InTxCounts[neighborId]
+		ForwardKind       uint8
+		FeeCredit         *big.Int
+		Data              []byte
+		RequestId         *big.Int
+		ResponseFeeCredit *big.Int
+		IsDeploy          bool
+		Salt              *big.Int
+	}
 
-		var lastBlockNumber types.BlockNumber
-		lastBlock, _, err := db.ReadLastBlock(tx, neighborId)
-		if !errors.Is(err, db.ErrKeyNotFound) {
-			if err != nil {
-				return err
-			}
-			lastBlockNumber = lastBlock.Id
+	// Get current block numbers from our Relayer
+	currBlockNumCalldata, err := contracts.NewCallData(contracts.NameRelayer, "getCurrentBlockNumber")
+	if err != nil {
+		return fmt.Errorf("failed to create getCurrentBlockNumber calldata: %w", err)
+	}
+
+	currBlockNumData, err := CallGetter(p.ctx, tx, ourRelayerAddr, currBlockNumCalldata)
+	if err != nil {
+		return fmt.Errorf("failed to call getCurrentBlockNumber: %w", err)
+	}
+
+	currentBlockNumbers := make([]uint64, p.params.NShards)
+	abi, err = contracts.GetAbi(contracts.NameRelayer)
+	if err != nil {
+		return fmt.Errorf("failed to get Relayer ABI: %w", err)
+	}
+	if err := abi.UnpackIntoInterface(&currentBlockNumbers, "getCurrentBlockNumber", currBlockNumData); err != nil {
+		return fmt.Errorf("failed to unpack getCurrentBlockNumber result: %w", err)
+	}
+	if len(currentBlockNumbers) != int(p.params.NShards) {
+		return fmt.Errorf("unexpected number of block numbers returned: %d", len(currentBlockNumbers))
+	}
+
+	// Track if we need to update block numbers
+	needUpdateBlockNumbers := false
+	newBlockNumbers := make([]uint64, p.params.NShards) // Copy of currentBlockNumbers
+	copy(newBlockNumbers, currentBlockNumbers)
+
+	for _, neighborID := range neighbors {
+		if !checkLimits() {
+			break
 		}
 
-		for checkLimits() {
-			// We will break the loop when lastBlockNumber is reached anyway,
-			// but in case of read-through mode, we will make unnecessary requests to the server
-			// if we don't check it here.
-			if lastBlockNumber < neighbor.BlockNumber {
+		// Get neighbor's Relayer address
+		neighborRelayerAddr := types.GetRelayerAddress(neighborID)
+
+		// Get our current inMsgCount for this neighbor (messages we've processed)
+		fromMsgID := inMsgCounts[neighborID]
+
+		// Get the last block number for this neighbor
+		lastBlock, _, err := db.ReadLastBlock(tx, neighborID)
+		if err != nil {
+			p.logger.Warn().Err(err).Msgf("Failed to read last block for shard %d", neighborID)
+			continue
+		}
+
+		// Start from the current block we're processing for this neighbor
+		currentBlockNum := types.BlockNumber(currentBlockNumbers[neighborID])
+
+		// Process blocks up to the last one
+		for currentBlockNum <= lastBlock.Id {
+			if !checkLimits() {
 				break
 			}
-			block, err := db.ReadBlockByNumber(tx, neighborId, neighbor.BlockNumber)
-			if errors.Is(err, db.ErrKeyNotFound) {
+
+			// Get the relayer state at this block number
+			neighborBlock, err := db.ReadBlockByNumber(tx, neighborID, currentBlockNum)
+			if err != nil {
+				p.logger.Warn().Err(err).Msgf("Failed to read block %d for shard %d", currentBlockNum, neighborID)
 				break
 			}
-			if err != nil {
-				return err
-			}
 
-			outTxnTrie := execution.NewDbTransactionTrieReader(tx, neighborId)
-			outTxnTrie.SetRootHash(block.OutTransactionsRoot)
-
-			saveProof := func() (*execution.InternalTxnReference, error) {
-				if len(parents) == 0 ||
-					parents[len(parents)-1].ShardId != neighborId ||
-					parents[len(parents)-1].Block.Id != block.Id {
-					parents = append(parents, execution.NewParentBlock(neighborId, block))
-				}
-
-				blockIndex := uint32(len(parents) - 1)
-				proof, err := mpt.BuildProof(outTxnTrie.Reader, neighbor.TransactionIndex.Bytes(), mpt.ReadMPTOperation)
+			// Get messages from neighbor Relayer at this block
+			messagesProcessed := false
+			for checkLimits() {
+				// Get up to 50 pending messages at a time for the current block
+				getMsgsCalldata, err := contracts.NewCallData(contracts.NameRelayer, "getPendingMessages",
+					uint32(p.params.ShardId), fromMsgID, uint32(50))
 				if err != nil {
-					return nil, err
-				}
-				if err := mpt.PopulateMptWithProof(parents[blockIndex].TxnTrie.MPT(), &proof); err != nil {
-					return nil, err
+					return fmt.Errorf("failed to create getPendingMessages calldata: %w", err)
 				}
 
-				return &execution.InternalTxnReference{
-					ParentBlockIndex: blockIndex,
-					TxnIndex:         neighbor.TransactionIndex,
-				}, nil
-			}
-
-			for ; neighbor.TransactionIndex < block.OutTransactionsNum && checkLimits(); neighbor.TransactionIndex++ {
-				txn, err := outTxnTrie.Fetch(neighbor.TransactionIndex)
+				// Use CallGetterByBlockNumber to access the state at this specific block
+				msgsData, err := CallGetterByBlockNumber(
+					p.ctx,
+					tx,
+					neighborRelayerAddr,
+					currentBlockNum,
+					getMsgsCalldata,
+				)
 				if err != nil {
-					return err
+					p.logger.Warn().Err(err).
+						Msgf("Failed to get pending messages for shard %d at block %d", neighborID, currentBlockNum)
+					break
 				}
 
-				if txn.To.ShardId() == p.params.ShardId {
-					if txn.TxId < nextTx {
-						// When we become proposer, we start with an outdated CollatorState,
-						// so we need to skip transactions that were already processed.
-						p.logger.Debug().
-							Uint64("txId", uint64(txn.TxId)).Uint64("nextTx", uint64(nextTx)).
-							Msg("Already processed transaction")
-						continue
+				var messages []RelayerMessage
+				abi, err := contracts.GetAbi(contracts.NameRelayer)
+				if err != nil {
+					return fmt.Errorf("failed to get ABI: %w", err)
+				}
+				if err := abi.UnpackIntoInterface(&messages, "getPendingMessages", msgsData); err != nil {
+					return fmt.Errorf("failed to unpack getPendingMessages result: %w", err)
+				}
+
+				if len(messages) == 0 {
+					// No more messages in this block, break inner loop to move to next block
+					break
+				}
+
+				messagesProcessed = true
+
+				for _, msg := range messages {
+					if !checkLimits() {
+						break
 					}
-					nextTx++
+
+					// Convert the Relayer message to a Transaction
+					txn := &types.Transaction{
+						TransactionDigest: types.TransactionDigest{
+							Flags:   types.TransactionFlagsFromKind(true, types.ExecutionTransactionKind),
+							FeePack: types.NewFeePackFromFeeCredit(types.NewValueFromBigMust(msg.FeeCredit)),
+							To:      msg.To,
+							Data:    msg.Data,
+						},
+						From:      msg.From,
+						RefundTo:  msg.RefundTo,
+						BounceTo:  msg.BounceTo,
+						Value:     types.NewValueFromBigMust(msg.Value),
+						RequestId: msg.RequestId.Uint64(),
+						TxId:      types.TransactionIndex(msg.Id),
+					}
+
+					// Set flags based on message properties
+					if msg.IsDeploy {
+						txn.Flags.SetBit(types.TransactionFlagDeploy)
+					}
 
 					txnHash := txn.Hash()
 
-					if err := p.executionState.AcceptInternalTransaction(txn); err != nil {
-						p.logger.Warn().Err(err).
-							Stringer(logging.FieldTransactionHash, txnHash).
-							Msg("Invalid internal transaction")
-					} else {
-						if err := p.handleTransaction(
-							txn, txnHash, execution.NewTransactionPayer(txn, p.executionState),
-						); err != nil {
-							return err
-						}
-					}
-
-					ref, err := saveProof()
-					if err != nil {
+					// Process the transaction
+					if err := p.handleTransaction(
+						txn, txnHash, execution.NewTransactionPayer(txn, p.executionState),
+					); err != nil {
 						return err
 					}
-					p.proposal.InternalTxnRefs = append(p.proposal.InternalTxnRefs, ref)
-				} else if p.params.ShardId != neighborId {
-					if p.topology.ShouldPropagateTxn(neighborId, p.params.ShardId, txn.To.ShardId()) {
-						ref, err := saveProof()
-						if err != nil {
-							return err
-						}
-						p.proposal.ForwardTxnRefs = append(p.proposal.ForwardTxnRefs, ref)
+
+					// Find or create parent block reference
+					if len(parents) == 0 ||
+						parents[len(parents)-1].ShardId != neighborID ||
+						parents[len(parents)-1].Block.Id != neighborBlock.Id {
+						parents = append(parents, execution.NewParentBlock(neighborID, neighborBlock))
 					}
+
+					blockIndex := uint32(len(parents) - 1)
+					txIdx := types.TransactionIndex(msg.Id)
+					p.proposal.InternalTxnRefs = append(p.proposal.InternalTxnRefs, &execution.InternalTxnReference{
+						ParentBlockIndex: blockIndex,
+						TxnIndex:         txIdx,
+					})
+
+					// Move to the next message
+					fromMsgID++
 				}
 			}
 
-			if neighbor.TransactionIndex == block.OutTransactionsNum {
-				neighbor.BlockNumber++
-				neighbor.TransactionIndex = 0
+			// If no messages were processed or we hit limits, we're done with this neighbor
+			if !messagesProcessed || !checkLimits() {
+				break
+			}
+
+			// Move to the next block for this neighbor
+			currentBlockNum++
+
+			// Update our tracking of which block we've processed for this neighbor
+			if uint64(currentBlockNum) > newBlockNumbers[neighborID] {
+				newBlockNumbers[neighborID] = uint64(currentBlockNum)
+				needUpdateBlockNumbers = true
 			}
 		}
 	}
+	// If we need to update block numbers, prepare a transaction
+	if needUpdateBlockNumbers {
+		// Create updateCurrentBlockNumber calldata
+		updateBlockNumCalldata, err := contracts.NewCallData(
+			contracts.NameRelayer, "updateCurrentBlockNumber", newBlockNumbers)
+		if err != nil {
+			return fmt.Errorf("failed to create updateCurrentBlockNumber calldata: %w", err)
+		}
 
-	p.logger.Trace().Msgf("Collected %d incoming transactions from neighbors with %d gas and %d forward transactions",
-		len(p.proposal.InternalTxnRefs), p.executionState.GasUsed, len(p.proposal.ForwardTxnRefs))
+		updateTxn := &types.Transaction{
+			TransactionDigest: types.TransactionDigest{
+				Flags:   types.NewTransactionFlags(types.TransactionFlagInternal),
+				FeePack: types.NewFeePackFromGas(100_000), // Reasonable gas limit
+				To:      ourRelayerAddr,
+				Data:    updateBlockNumCalldata,
+			},
+			From: ourRelayerAddr,
+		}
 
+		p.proposal.SpecialTxns = append(p.proposal.SpecialTxns, updateTxn)
+	}
+
+	p.logger.Trace().Msgf("Collected %d incoming transactions from neighbors with %d gas",
+		len(p.proposal.InternalTxnRefs), p.executionState.GasUsed)
+
+	// Set parent blocks in the proposal
 	p.proposal.ParentBlocks = make([]*execution.ParentBlockSSZ, len(parents))
 	for i, parent := range parents {
 		p.proposal.ParentBlocks[i] = parent.ToSerializable()
 	}
 
-	p.proposal.CollatorState = state
 	return nil
 }

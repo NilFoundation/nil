@@ -117,9 +117,10 @@ func (api *localShardApiRo) GetTokens(
 	return res, nil
 }
 
-func (api *localShardApiRo) CallGetter(
+func (api *localShardApiRo) CallGetterByBlock(
 	ctx context.Context,
 	address types.Address,
+	block *types.Block,
 	calldata []byte,
 ) ([]byte, error) {
 	tx, err := api.db.CreateRoTx(ctx)
@@ -127,11 +128,6 @@ func (api *localShardApiRo) CallGetter(
 		return nil, err
 	}
 	defer tx.Rollback()
-
-	block, _, err := db.ReadLastBlock(tx, address.ShardId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to read last block: %w", err)
-	}
 
 	cfgAccessor, err := config.NewConfigReader(tx, &block.MainShardHash)
 	if err != nil {
@@ -163,6 +159,43 @@ func (api *localShardApiRo) CallGetter(
 		return nil, fmt.Errorf("transaction failed: %w", res.GetError())
 	}
 	return res.ReturnData, nil
+}
+
+func (api *localShardApiRo) CallGetterByBlockNumber(
+	ctx context.Context,
+	address types.Address,
+	blockNumber types.BlockNumber,
+	calldata []byte,
+) ([]byte, error) {
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	block, err := db.ReadBlockByNumber(tx, address.ShardId(), blockNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read block by number %d: %w", blockNumber, err)
+	}
+	return api.CallGetterByBlock(ctx, address, block, calldata)
+}
+
+func (api *localShardApiRo) CallGetter(
+	ctx context.Context,
+	address types.Address,
+	calldata []byte,
+) ([]byte, error) {
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	block, _, err := db.ReadLastBlock(tx, address.ShardId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to read last block: %w", err)
+	}
+	return api.CallGetterByBlock(ctx, address, block, calldata)
 }
 
 func (api *localShardApiRo) GetContract(
