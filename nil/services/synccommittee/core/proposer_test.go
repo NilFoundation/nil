@@ -16,6 +16,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/syncer"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1client"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
@@ -38,7 +39,7 @@ type ProposerTestSuite struct {
 	db               db.DB
 	clock            clockwork.Clock
 	storage          *storage.BlockStorage
-	ethClient        *rollupcontract.EthClientMock
+	ethClient        *l1client.EthClientMock
 	proposer         *proposer
 	testData         *scTypes.ProposalData
 	callContractMock *testaide.CallContractMock
@@ -68,7 +69,7 @@ func (s *ProposerTestSuite) SetupSuite() {
 	abi, err := rollupcontract.RollupcontractMetaData.GetAbi()
 	s.Require().NoError(err)
 	s.callContractMock = testaide.NewCallContractMock(abi)
-	s.ethClient = &rollupcontract.EthClientMock{
+	s.ethClient = &l1client.EthClientMock{
 		CallContractFunc:    s.callContractMock.CallContract,
 		EstimateGasFunc:     func(ctx context.Context, call ethereum.CallMsg) (uint64, error) { return 123, nil },
 		SuggestGasPriceFunc: func(ctx context.Context) (*big.Int, error) { return big.NewInt(123), nil },

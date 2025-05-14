@@ -12,13 +12,14 @@ const (
 )
 
 type Config struct {
-	RpcEndpoint             string                       `yaml:"endpoint,omitempty"`
-	TaskListenerRpcEndpoint string                       `yaml:"ownEndpoint,omitempty"`
-	AggregatorConfig        fetching.AggregatorConfig    `yaml:",inline"`
-	ProposerParams          ProposerConfig               `yaml:"-"`
-	ContractWrapperConfig   rollupcontract.WrapperConfig `yaml:",inline"`
-	L1FeeUpdateConfig       feeupdater.Config            `yaml:",inline"`
-	Telemetry               *telemetry.Config            `yaml:",inline"`
+	RpcEndpoint               string                           `yaml:"endpoint,omitempty"`
+	TaskListenerRpcEndpoint   string                           `yaml:"ownEndpoint,omitempty"`
+	AggregatorConfig          fetching.AggregatorConfig        `yaml:",inline"`
+	ProposerParams            ProposerConfig                   `yaml:"-"`
+	ContractWrapperConfig     rollupcontract.WrapperConfig     `yaml:",inline"`
+	L1FeeUpdateConfig         feeupdater.Config                `yaml:",inline"`
+	L1FeeUpdateContractConfig feeupdater.ContractWrapperConfig `yaml:",inline"`
+	Telemetry                 *telemetry.Config                `yaml:",inline"`
 }
 
 func NewDefaultConfig() *Config {

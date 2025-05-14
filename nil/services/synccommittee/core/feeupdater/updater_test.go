@@ -216,7 +216,6 @@ func (s *UpdaterTestSuite) TestUpdateOnTimeInterval() {
 
 	s.runUpdater()
 
-	s.clock.Advance(s.config.PollInterval)
 	<-updateCalled // first update
 
 	// not a significant change
@@ -241,7 +240,6 @@ func (s *UpdaterTestSuite) TestNoRedundantUpdates() {
 
 	s.runUpdater()
 
-	s.clock.Advance(s.config.PollInterval)
 	<-initialzed // first update
 
 	updated := make(chan struct{})
