@@ -57,7 +57,7 @@ stdenv.mkDerivation rec {
 
     pnpm run lint
 
-    env NODE_NO_WARNINGS=1 ./dist/clijs util list-commands > bundled_cli_commands
+    ./dist/clijs util list-commands > bundled_cli_commands
 
     pnpm run build-to dist-tmp
     jq '.commands = "./dist-tmp/src/commands"' .oclifrc.json | sponge .oclifrc.json
