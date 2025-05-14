@@ -81,7 +81,7 @@
     "hardhat-deploy": "0.14.0",
     "path-exists": "^5.0.0",
     "yargs": "^17.7.2",
-    "@nilfoundation/niljs": "workspace:*",
-    "@nilfoundation/smart-contracts": "workspace:*"
+    "@nilfoundation/niljs": "0.26.0",
+    "@nilfoundation/smart-contracts": "0.8.0"
   }
 }
