@@ -50,4 +50,14 @@ library IterableMapping {
         map.keys[index] = lastKey;
         map.keys.pop();
     }
+
+    function clear(Map storage map) internal {
+        while(map.keys.length > 0) {
+            address key = map.keys[map.keys.length - 1];
+            delete map.values[key];
+            delete map.indexOf[key];
+            delete map.inserted[key];
+            map.keys.pop();
+        }
+    }
 }

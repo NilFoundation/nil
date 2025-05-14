@@ -16,7 +16,7 @@ contract Relayer {
     // Message status enum
     enum MessageStatus {
         Pending,    // Initial state - waiting for processing
-        Ready,      // Ready to be processed (gas allocated)
+        Ready,      // Ready to be processed (fee credit allocated)
         Delivered,  // Successfully delivered and processed
         Failed      // Failed to process
     }
@@ -43,7 +43,7 @@ contract Relayer {
     // Message queue data
     uint160 private nextMessageId = 1;
     mapping(uint160 => Message) private messages;
-    IterableMapping.Map private pendingMessageIds;   // Messages waiting for gas allocation
+    IterableMapping.Map private pendingMessageIds;   // Messages waiting for fee allocation
     IterableMapping.Map private readyMessageIds;     // Messages ready to be processed
     IterableMapping.Map private processedMessageIds; // Delivered or failed messages
     
@@ -54,6 +54,10 @@ contract Relayer {
     uint32 private numMsgsWithForwardGas;
     bool private forwardingInitialized;
     mapping(address => uint256) private pendingRefund;
+
+    // For pending messages traversal 
+    uint64[SHARDS_NUM] private currentBlockNumber;
+    uint32[SHARDS_NUM] private currentMessageId;
 
     // Events
 
@@ -192,7 +196,7 @@ contract Relayer {
     }
     
     /**
-     * @dev Marks a message as ready for processing (with gas allocation)
+     * @dev Marks a message as ready for processing (with fee allocation)
      * @param messageId ID of the message
      */
     function markMessageReady(uint160 messageId) internal {
@@ -224,7 +228,7 @@ contract Relayer {
     }
     
     /**
-     * @dev Gets pending messages (waiting for gas allocation)
+     * @dev Gets pending messages (waiting for fee allocation)
      * @param count Maximum number of messages to return
      * @return messageIds Array of message IDs
      */
@@ -233,12 +237,12 @@ contract Relayer {
     }
     
     /**
-     * @dev Gets ready messages (with allocated gas, ready for processing)
+     * @dev Gets ready messages (with allocated fee credit, ready for processing)
      * @param count Maximum number of messages to return
      * @return messageIds Array of message IDs
      * It must be called by the validator when it is assembling a block.
      */
-    function getReadyMessages(uint256 count) external view returns (uint160[] memory) {
+    function getReadyMessages(uint32 count) external view returns (uint160[] memory) {
         return _getMessagesFromMap(readyMessageIds, count);
     }
     
@@ -1046,37 +1050,47 @@ contract Relayer {
             console.log("%_: <no revert reason>", str);
         }
     }
-}
 
-/**
- * @dev Allows users to claim their pending refunds
- * @return The amount claimed
- */
-function claimPendingRefund() external returns (uint256) {
-    uint256 amount = pendingRefund[msg.sender];
-    require(amount > 0, "No pending refund");
-    
-    // Reset refund amount before transfer to prevent reentrancy
-    pendingRefund[msg.sender] = 0;
-    
-    bytes memory data = abi.encodeWithSignature("nilReceive()");
-    (bool success,) = payable(msg.sender).call{value: amount}(data);
+    /**
+     * @dev Allows users to claim their pending refunds
+     * @return The amount claimed
+     */
+    function claimPendingRefund() external returns (uint256) {
+        uint256 amount = pendingRefund[msg.sender];
+        require(amount > 0, "No pending refund");
+        
+        // Reset refund amount before transfer to prevent reentrancy
+        pendingRefund[msg.sender] = 0;
+        
+        bytes memory data = abi.encodeWithSignature("nilReceive()");
+        (bool success,) = payable(msg.sender).call{value: amount}(data);
 
-    // If transfer fails, restore the pending refund
-    if (!success) {
-        pendingRefund[msg.sender] = amount;
-        revert("Failed to send refund via nilReceive()");
+        // If transfer fails, restore the pending refund
+        if (!success) {
+            pendingRefund[msg.sender] = amount;
+            revert("Failed to send refund via nilReceive()");
+        }
+        
+        emit RefundClaimed(msg.sender, amount);
+        return amount;
     }
-    
-    emit RefundClaimed(msg.sender, amount);
-    return amount;
-}
 
-/**
- * @dev Returns the pending refund amount for an address
- * @param account The address to check
- * @return The pending refund amount
- */
-function getPendingRefund(address account) external view returns (uint256) {
-    return pendingRefund[account];
+    /**
+     * @dev Returns the pending refund amount for an address
+     * @param account The address to check
+     * @return The pending refund amount
+     */
+    function getPendingRefund(address account) external view returns (uint256) {
+        return pendingRefund[account];
+    }
+
+    /**
+     * @dev Clear the message queue state 
+     * Must be injected as a first(or at least prior to all async calls) transaction in block by the validator
+     */
+    function clearQueueState() external {
+        IterableMapping.clear(pendingMessageIds);
+        IterableMapping.clear(readyMessageIds);
+        IterableMapping.clear(processedMessageIds);
+    }
 }
