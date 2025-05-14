@@ -117,6 +117,11 @@ contract Relayer {
         bytes callData
     );
 
+    /**
+     * @dev Emitted when a refund is claimed.
+     * @param recipient The address that received the refund.
+     * @param amount The amount of Ether refunded.
+     */
     event RefundClaimed(address indexed recipient, uint256 amount);
 
     // Queue management functions
