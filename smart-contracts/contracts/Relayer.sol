@@ -114,7 +114,8 @@ contract Relayer {
         MessageQueue(messageQueueAddress).messageDelivered(messageId, success, gasUsed);
         
         // Handle request/response pattern
-        if (requestId != 0 && responseFeeCredit > 0) {
+        if (requestId != 0) {
+            require(responseFeeCredit > 0, "Relayer: response fee credit is required for request/response pattern");
             // Queue a response message
             uint256 returnValue = success ? 0 : value;
             

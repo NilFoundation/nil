@@ -179,7 +179,7 @@ func CreateMessageDeliveryTransaction(
 		TransactionDigest: types.TransactionDigest{
 			Flags:   types.NewTransactionFlags(types.TransactionFlagInternal),
 			To:      relayerAddr,
-			FeePack: types.NewFeePackFromGas(types.DefaultMaxGasInBlock),
+			FeePack: types.NewFeePackFromFeeCredit(types.NewValueFromBigMust(message.FeeCredit)),
 			Data:    calldata,
 		},
 		Value: types.NewValueFromBigMust(message.Value),
