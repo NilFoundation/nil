@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 import dataclasses
 import itertools
-import os
-import sha3
+from Crypto.Hash import keccak
+from typing import List
 import sys
-from typing import List, Dict, Generator, Union
+
 
 @dataclasses.dataclass
 class Type:
     sol_name: str
     go_name: str
     modifier: str
+
 
 class Function:
     def __init__(self, params: List[Type]):
@@ -30,6 +31,7 @@ class Function:
     def func_id_hex(self) -> str:
         return self.func_id
 
+
 TYPES = [
     Type(sol_name="string", go_name="StringTy", modifier="memory"),
     Type(sol_name="uint256", go_name="Uint256Ty", modifier=""),
@@ -40,10 +42,12 @@ TYPES = [
 STRING_TYPE = TYPES[0]
 MAX_PARAM_COUNT = 4
 
+
 def get_function_selector(signature: str) -> str:
-    k = sha3.keccak_256()
-    k.update(signature.encode('ascii'))
+    k = keccak.new(digest_bits=256)
+    k.update(signature.encode("ascii"))
     return k.hexdigest()[:8]
+
 
 def create_functions() -> List[Function]:
     format_param = STRING_TYPE
@@ -54,6 +58,7 @@ def create_functions() -> List[Function]:
             f = Function(params=[format_param, *p])
             functions.append(f)
     return functions
+
 
 def generate_solidity(funcs: List[Function]) -> str:
     solidity_str = """// SPDX-License-Identifier: MIT
@@ -104,6 +109,7 @@ library console {
         solidity_str += s
 
     return solidity_str + "}"
+
 
 def generate_go(funcs: List[Function]) -> str:
     types = "\n\t".join(t.go_name for t in TYPES)
