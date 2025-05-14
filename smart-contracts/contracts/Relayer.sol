@@ -2,8 +2,11 @@
 pragma solidity ^0.8.0;
 
 import "./NilTokenManager.sol";
-import "../system/console.sol";
+import "../../nil/contracts/solidity/system/console.sol";
+// import "../system/console.sol";
 import "./IterableMapping.sol";
+
+uint constant SHARDS_NUM = 5;
 
 /**
  * @title Relayer
@@ -213,7 +216,7 @@ contract Relayer {
     /**
      * @dev Marks a message as delivered (called by validators after processing)
      * @param messageId ID of the message
-     * @param success
+     * @param success   Whether the message was successfully processed
      * It must be called by the validator when block with this message is finalized 
      */
     function markMessageDelivered(uint160 messageId, bool success) external {
@@ -264,10 +267,23 @@ contract Relayer {
     }
     
     /**
-     * @dev Gets a specific message by ID
-     * @param messageId ID of the message
-     * @return The message details
-     */
+    * @dev Gets a specific message by ID
+    * @param messageId ID of the message
+    * @return from The address that sent the message
+    * @return to The destination address of the message
+    * @return refundTo The address to refund in case of failure
+    * @return bounceTo The address to bounce to in case of failure
+    * @return value The value to transfer
+    * @return tokens The tokens to transfer
+    * @return forwardKind The forwarding kind
+    * @return feeCredit The fee credit
+    * @return data The call data
+    * @return requestId The request ID for responses
+    * @return responseFeeCredit The fee credit allocated for response
+    * @return isDeploy Whether this is a deploy message
+    * @return salt The salt for deploy messages
+    * @return status The message status
+    */
     function getMessage(uint160 messageId) external view returns (
         address from,
         address to,
@@ -532,13 +548,13 @@ contract Relayer {
 
         // Process VALUE forwarded messages first
         for (uint256 i = 0; i < msgsForwardedValue.length; i++) {
-            uint256 messageId = uint256(uint160(pendingMessageIds.getKeyAtIndex(msgsForwardedValue[i])));
-            Message storage msg = messages[messageId];
-            
-            console.log("_forwardGas value: to=%_, fee=%_", msg.to, msg.feeCredit);
-            require(feeCredit >= msg.feeCredit, "forwardGas: not enough feeCredit for ForwardValue");
-            feeCredit -= msg.feeCredit;
-            
+            uint160 messageId = uint160(pendingMessageIds.getKeyAtIndex(msgsForwardedValue[i]));
+            Message storage message = messages[messageId];
+        
+            console.log("_forwardGas value: to=%_, fee=%_", message.to, message.feeCredit);
+            require(feeCredit >= message.feeCredit, "forwardGas: not enough feeCredit for ForwardValue");
+            feeCredit -= message.feeCredit;
+        
             markMessageReady(messageId);
         }
 
@@ -546,26 +562,26 @@ contract Relayer {
         uint percentageTotal = 0;
         uint baseFeeCredit = feeCredit;
         for (uint256 i = 0; i < msgsForwardedPercentage.length; i++) {
-            uint256 messageId = uint256(uint160(pendingMessageIds.getKeyAtIndex(msgsForwardedPercentage[i])));
-            Message storage msg = messages[messageId];
+            uint160 messageId = uint160(pendingMessageIds.getKeyAtIndex(msgsForwardedPercentage[i]));
+            Message storage message = messages[messageId];
             
-            require(msg.forwardKind == Nil.FORWARD_PERCENTAGE, "forwardGas: invalid percentage forwarding");
+            require(message.forwardKind == Nil.FORWARD_PERCENTAGE, "forwardGas: invalid percentage forwarding");
 
-            percentageTotal += msg.feeCredit;
+            percentageTotal += message.feeCredit;
             if (percentageTotal > 100) {
                 revert("forwardGas: total percentage is greater than 100");
             }
 
-            msg.feeCredit = (msg.feeCredit * baseFeeCredit) / 100;
+            message.feeCredit = (message.feeCredit * baseFeeCredit) / 100;
 
-            if (feeCredit < msg.feeCredit) {
-                msg.feeCredit = feeCredit;
+            if (feeCredit < message.feeCredit) {
+                message.feeCredit = feeCredit;
                 feeCredit = 0;
             } else {
-                feeCredit -= msg.feeCredit;
+                feeCredit -= message.feeCredit;
             }
 
-            console.log("_forwardGas percentage: fee=%_", msg.feeCredit);
+            console.log("_forwardGas percentage: fee=%_", message.feeCredit);
             markMessageReady(messageId);
         }
 
@@ -578,13 +594,13 @@ contract Relayer {
             feeCredit = 0;
             
             for (uint256 i = 0; i < msgsForwardedRemaining.length; i++) {
-                uint256 messageId = uint256(uint160(pendingMessageIds.getKeyAtIndex(msgsForwardedRemaining[i])));
-                Message storage msg = messages[messageId];
+                uint160 messageId = uint160(pendingMessageIds.getKeyAtIndex(msgsForwardedRemaining[i]));
+                Message storage message = messages[messageId];
 
-                console.log("_forwardGas remaining: to=%_, fee=%_", msg.to, feeCreditForward);
+                console.log("_forwardGas remaining: to=%_, fee=%_", message.to, feeCreditForward);
 
-                require(msg.forwardKind == Nil.FORWARD_REMAINING);
-                msg.feeCredit = feeCreditForward;
+                require(message.forwardKind == Nil.FORWARD_REMAINING);
+                message.feeCredit = feeCreditForward;
                 markMessageReady(messageId);
             }
         }
