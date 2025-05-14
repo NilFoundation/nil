@@ -9,7 +9,6 @@ import { NilConstants } from "./common/libraries/NilConstants.sol";
 import { INilRollup } from "./interfaces/INilRollup.sol";
 import { INilVerifier } from "./interfaces/INilVerifier.sol";
 import { IL1BridgeMessenger } from "./bridge/l1/interfaces/IL1BridgeMessenger.sol";
-import "forge-std/console.sol";
 
 /// @title NilRollup
 /// @notice Manages rollup batches, state updates, and access control for the Nil protocol.
@@ -410,8 +409,6 @@ contract NilRollup is OwnableUpgradeable, PausableUpgradeable, NilAccessControlU
   }
 
   function validatePublicDataInput(PublicDataInfo calldata publicDataInfo) private {
-    console.log("L1BridgeMessenger in NilRollup is: ", address(l1BridgeMessenger));
-
     // get the messageCount from the publicInput
     uint256 depositMessageCount = publicDataInfo.depositNonce - l1BridgeMessenger.getQueueHeadIndex();
 
