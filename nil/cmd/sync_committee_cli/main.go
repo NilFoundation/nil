@@ -80,7 +80,7 @@ func buildGetTasksCmd(commonParam *commands.ExecutorParams, logger logging.Logge
 		cmdParams.Limit,
 		fmt.Sprintf(
 			"limit the number of tasks returned, should be in range [%d, %d]",
-			public.TaskDebugMinLimit, public.TaskDebugMaxLimit,
+			public.DebugMinLimit, public.DebugMaxLimit,
 		),
 	)
 

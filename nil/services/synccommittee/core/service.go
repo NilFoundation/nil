@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/syncer"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/debug"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1client"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
@@ -113,11 +114,14 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		logger,
 	)
 
+	blockDebugger := debug.NewBlockDebugger(rollupContractWrapper, blockStorage)
+
 	rpcServer := rpc.NewServerWithTasks(
 		rpc.NewServerConfig(cfg.OwnRpcEndpoint),
 		logger,
 		taskScheduler,
-		scheduler.NewTaskDebugger(taskStorage, logger),
+		debug.NewTaskDebugger(taskStorage, logger),
+		rpc.DebugBlocksServerHandler(blockDebugger),
 	)
 
 	feeUpdaterMetrics, err := metrics.NewFeeUpdaterMetrics()
