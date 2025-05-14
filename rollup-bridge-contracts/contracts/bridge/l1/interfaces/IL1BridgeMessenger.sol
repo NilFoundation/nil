@@ -174,4 +174,6 @@ interface IL1BridgeMessenger is IBridgeMessenger, IRelayMessage {
   /// @param messageCount number of messages to be removed from the queue
   /// @return messageHashes array of messageHashes start from the head of queue
   function popMessages(uint256 messageCount) external returns (bytes32[] memory);
+
+  function getQueueHeadIndex() external view returns (uint256);
 }
