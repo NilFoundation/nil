@@ -75,9 +75,9 @@ func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
 		"sync committee rpc endpoint",
 	)
 	cmd.Flags().StringVar(
-		&cfg.TaskListenerRpcEndpoint,
+		&cfg.OwnRpcEndpoint,
 		"own-endpoint",
-		cfg.TaskListenerRpcEndpoint,
+		cfg.OwnRpcEndpoint,
 		"own rpc server endpoint",
 	)
 	cmd.Flags().StringVar(

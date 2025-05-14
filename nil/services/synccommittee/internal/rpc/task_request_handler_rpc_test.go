@@ -2,91 +2,140 @@ package rpc
 
 import (
 	"testing"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
 )
 
-// Check TaskRequestHandler API calls from Prover to SyncCommittee
+type TaskRequestHandlerSuite struct {
+	RpcServerTestSuite
+	rpcClient api.TaskRequestHandler
+}
+
+func (s *TaskRequestHandlerSuite) SetupSuite() {
+	s.RpcServerTestSuite.SetupSuite()
+	s.rpcClient = NewTaskRequestRpcClient(s.serverEndpoint, s.logger)
+}
+
 func TestTaskRequestHandlerSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(TaskRequestHandlerTestSuite))
+	suite.Run(t, new(TaskRequestHandlerSuite))
 }
 
-func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_GetTask() {
-	testCases := []struct {
-		name       string
-		executorId types.TaskExecutorId
-	}{
-		{"Returns_Task_Without_Deps", firstExecutorId},
-		{"Returns_Task_With_Deps", secondExecutorId},
-		{"Returns_Nil", types.NewRandomExecutorId()},
-	}
+func (s *TaskRequestHandlerSuite) Test_GetTask_Without_Deps() {
+	executor := types.NewRandomExecutorId()
+	currentTime := s.clock.Now()
 
-	for _, testCase := range testCases {
-		s.Run(testCase.name, func() {
-			s.testGetTask(testCase.executorId)
-		})
-	}
-}
-
-func (s *TaskRequestHandlerTestSuite) testGetTask(executorId types.TaskExecutorId) {
-	s.T().Helper()
-
-	request := api.NewTaskRequest(executorId)
-	receivedTask, err := s.clientHandler.GetTask(s.context, request)
-	s.Require().NoError(err)
-	getTaskCalls := s.scheduler.GetTaskCalls()
-	s.Require().Len(getTaskCalls, 1, "expected one call to GetTask")
-	s.Require().Equal(request, getTaskCalls[0].Request)
-
-	expectedTask := tasksForExecutors[executorId]
-	s.Equal(expectedTask, receivedTask)
-}
-
-func (s *TaskRequestHandlerTestSuite) Test_TaskRequestHandler_UpdateTaskStatus() {
-	testCases := []struct {
-		name   string
-		result *types.TaskResult
-	}{
-		{
-			"Success_Result_Final_Proof",
-			types.NewSuccessProverTaskResult(
-				types.NewTaskId(),
-				types.NewRandomExecutorId(),
-				types.TaskOutputArtifacts{types.FinalProof: "final-proof.1.0xAABC"},
-				types.TaskResultData{10, 20, 30, 40},
-			),
-		},
-		{
-			"Success_Result_Provider",
-			types.NewSuccessProviderTaskResult(types.NewTaskId(), types.NewRandomExecutorId(), nil, nil),
-		},
-		{
-			"Failure_Result_Provider",
-			types.NewFailureProverTaskResult(
-				types.NewTaskId(),
-				types.NewRandomExecutorId(),
-				types.NewTaskExecError(types.TaskErrUnknown, "something went wrong"),
-			),
-		},
-	}
-
-	for _, testCase := range testCases {
-		s.Run(testCase.name, func() {
-			s.testSetTaskStatus(testCase.result)
-		})
-	}
-}
-
-func (s *TaskRequestHandlerTestSuite) testSetTaskStatus(resultToSend *types.TaskResult) {
-	s.T().Helper()
-
-	err := s.clientHandler.SetTaskResult(s.context, resultToSend)
+	// Prepare a task without dependencies
+	task := testaide.NewTaskEntry(currentTime, types.WaitingForExecutor, types.UnknownExecutorId)
+	err := s.storage.AddTaskEntries(s.context, task)
 	s.Require().NoError(err)
 
-	setResultCalls := s.scheduler.SetTaskResultCalls()
-	s.Require().Len(setResultCalls, 1, "expected one call to SetTaskResult")
-	s.Require().Equal(resultToSend, setResultCalls[0].Result)
+	// Make the request
+	request := api.NewTaskRequest(executor)
+	receivedTask, err := s.rpcClient.GetTask(s.context, request)
+	s.Require().NoError(err)
+
+	// Validate the response
+	s.Require().NotNil(receivedTask)
+	s.Equal(task.Task.Id, receivedTask.Id)
+	s.Equal(task.Task.TaskType, receivedTask.TaskType)
+
+	// Verify task status was updated
+	updatedTask, err := s.storage.TryGetTaskEntry(s.context, task.Task.Id)
+	s.Require().NoError(err)
+	s.Require().NotNil(updatedTask)
+	s.Equal(types.Running, updatedTask.Status)
+	s.Equal(executor, updatedTask.Owner)
+}
+
+func (s *TaskRequestHandlerSuite) Test_GetTask_With_Deps() {
+	executor := types.NewRandomExecutorId()
+
+	dependencyExecutor := types.NewRandomExecutorId()
+	dependency := testaide.NewTaskEntry(s.clock.Now(), types.Running, dependencyExecutor)
+	depResult := testaide.NewSuccessTaskResult(dependency.Task.Id, dependencyExecutor)
+
+	// Create a task with dependency
+	taskEntry := testaide.NewTaskEntry(s.clock.Now(), types.WaitingForExecutor, types.UnknownExecutorId)
+	taskEntry.AddDependency(dependency)
+
+	s.clock.Advance(time.Minute)
+	details := types.NewTaskResultDetails(depResult, dependency, s.clock.Now())
+	err := taskEntry.AddDependencyResult(*details)
+	s.Require().NoError(err)
+
+	err = s.storage.AddTaskEntries(s.context, taskEntry)
+	s.Require().NoError(err)
+
+	// Make the request
+	request := api.NewTaskRequest(executor)
+	receivedTask, err := s.rpcClient.GetTask(s.context, request)
+	s.Require().NoError(err)
+
+	// Validate the response
+	s.Require().NotNil(receivedTask)
+	s.Require().Equal(taskEntry.Task, *receivedTask)
+}
+
+func (s *TaskRequestHandlerSuite) Test_GetTask_Returns_Nil_When_No_Tasks_Available() {
+	executor := types.NewRandomExecutorId()
+
+	request := api.NewTaskRequest(executor)
+
+	receivedTask, err := s.rpcClient.GetTask(s.context, request)
+	s.Require().NoError(err)
+	s.Nil(receivedTask)
+}
+
+func (s *TaskRequestHandlerSuite) Test_UpdateTaskStatus_Success() {
+	currentTime := s.clock.Now()
+	executor := types.NewRandomExecutorId()
+
+	// Create and add a task
+	task := testaide.NewTaskEntry(currentTime, types.Running, executor)
+	err := s.storage.AddTaskEntries(s.context, task)
+	s.Require().NoError(err)
+
+	// Create a success result
+	result := testaide.NewSuccessTaskResult(task.Task.Id, executor)
+
+	// Update task status
+	err = s.rpcClient.SetTaskResult(s.context, result)
+	s.Require().NoError(err)
+
+	// Verify the task was completed
+	completedTask, err := s.storage.TryGetTaskEntry(s.context, task.Task.Id)
+	s.Require().NoError(err)
+	s.Require().Nil(completedTask)
+}
+
+func (s *TaskRequestHandlerSuite) Test_UpdateTaskStatus_Failure() {
+	currentTime := s.clock.Now()
+	executor := types.NewRandomExecutorId()
+
+	// Create and add a task
+	task := testaide.NewTaskEntry(currentTime, types.Running, executor)
+	err := s.storage.AddTaskEntries(s.context, task)
+	s.Require().NoError(err)
+
+	// Create failure result
+	result := types.NewFailureProverTaskResult(
+		task.Task.Id,
+		executor,
+		types.NewTaskExecError(types.TaskErrProofGenerationFailed, "something went wrong"),
+	)
+
+	// Update task status
+	err = s.rpcClient.SetTaskResult(s.context, result)
+	s.Require().NoError(err)
+
+	// Verify task was marked as failed
+	failedTask, err := s.storage.TryGetTaskEntry(s.context, task.Task.Id)
+	s.Require().NoError(err)
+	s.Require().NotNil(failedTask)
+	s.Equal(types.Failed, failedTask.Status)
 }

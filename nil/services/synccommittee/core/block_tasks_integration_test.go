@@ -28,7 +28,7 @@ type BlockTasksIntegrationTestSuite struct {
 	taskStorage  *storage.TaskStorage
 	blockStorage *storage.BlockStorage
 
-	scheduler scheduler.TaskScheduler
+	requestHandler api.TaskRequestHandler
 }
 
 func TestBlockTasksTestSuite(t *testing.T) {
@@ -51,7 +51,7 @@ func (s *BlockTasksIntegrationTestSuite) SetupSuite() {
 	s.taskStorage = storage.NewTaskStorage(s.db, s.clock, metricsHandler, logger)
 	s.blockStorage = storage.NewBlockStorage(s.db, storage.DefaultBlockStorageConfig(), s.clock, metricsHandler, logger)
 
-	s.scheduler = scheduler.New(
+	s.requestHandler = scheduler.New(
 		s.taskStorage,
 		newTaskStateChangeHandler(s.blockStorage, &StateResetLauncherMock{}, logger),
 		metricsHandler,
@@ -86,19 +86,19 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Success_R
 	executorId := types.NewRandomExecutorId()
 
 	// requesting batch proof task for execution
-	taskToExecute, err := s.scheduler.GetTask(s.ctx, api.NewTaskRequest(executorId))
+	taskToExecute, err := s.requestHandler.GetTask(s.ctx, api.NewTaskRequest(executorId))
 	s.Require().NoError(err)
 	s.Require().NotNil(taskToExecute)
 	s.Require().Equal(types.ProofBatch, taskToExecute.TaskType)
 
 	// no new tasks available yet
-	nonAvailableTask, err := s.scheduler.GetTask(s.ctx, api.NewTaskRequest(executorId))
+	nonAvailableTask, err := s.requestHandler.GetTask(s.ctx, api.NewTaskRequest(executorId))
 	s.Require().NoError(err)
 	s.Require().Nil(nonAvailableTask)
 
 	// successfully completing batch proof task
 	batchProofResult := newTestSuccessProviderResult(taskToExecute, executorId)
-	err = s.scheduler.SetTaskResult(s.ctx, batchProofResult)
+	err = s.requestHandler.SetTaskResult(s.ctx, batchProofResult)
 	s.Require().NoError(err)
 
 	// once top-level task is completed, proposal data for the main block should become available
@@ -126,7 +126,7 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_R
 	executorId := types.NewRandomExecutorId()
 
 	// requesting batch proof task
-	taskToExecute, err := s.scheduler.GetTask(s.ctx, api.NewTaskRequest(executorId))
+	taskToExecute, err := s.requestHandler.GetTask(s.ctx, api.NewTaskRequest(executorId))
 	s.Require().NoError(err)
 	s.Require().NotNil(taskToExecute)
 	s.Require().Equal(types.ProofBatch, taskToExecute.TaskType)
@@ -138,7 +138,7 @@ func (s *BlockTasksIntegrationTestSuite) Test_Provide_Tasks_And_Handle_Failure_R
 		types.NewTaskExecError(types.TaskErrProofGenerationFailed, "batch proof generation failed"),
 	)
 
-	err = s.scheduler.SetTaskResult(s.ctx, batchProofFailed)
+	err = s.requestHandler.SetTaskResult(s.ctx, batchProofFailed)
 	s.Require().NoError(err)
 
 	// proposal data should not become available

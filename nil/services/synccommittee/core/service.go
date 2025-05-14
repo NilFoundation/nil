@@ -38,9 +38,9 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		return nil, fmt.Errorf("error initializing metrics: %w", err)
 	}
 
-	logger.Info().Msgf("Use RPC endpoint %v", cfg.RpcEndpoint)
+	logger.Info().Msgf("Use RPC endpoint %v", cfg.NilRpcEndpoint)
 	fetcher := fetching.NewFetcher(
-		rpc.NewRetryClient(cfg.RpcEndpoint, logger),
+		rpc.NewRetryClient(cfg.NilRpcEndpoint, logger),
 		logger,
 	)
 
@@ -113,10 +113,11 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		logger,
 	)
 
-	taskListener := rpc.NewTaskListener(
-		&rpc.TaskListenerConfig{HttpEndpoint: cfg.TaskListenerRpcEndpoint},
-		taskScheduler,
+	rpcServer := rpc.NewServerWithTasks(
+		rpc.NewServerConfig(cfg.OwnRpcEndpoint),
 		logger,
+		taskScheduler,
+		scheduler.NewTaskDebugger(taskStorage, logger),
 	)
 
 	feeUpdaterMetrics, err := metrics.NewFeeUpdaterMetrics()
@@ -150,8 +151,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 	syncCommittee.Service = srv.NewServiceWithHeartbeat(
 		metricsHandler,
 		logger,
-		syncRunner, proposer, agg, lagTracker, taskScheduler, taskListener,
-		feeUpdater,
+		syncRunner, proposer, agg, lagTracker, taskScheduler, feeUpdater, rpcServer,
 	)
 
 	return syncCommittee, nil

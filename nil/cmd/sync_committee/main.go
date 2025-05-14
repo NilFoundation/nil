@@ -67,14 +67,14 @@ func loadConfig() (*cmdConfig, error) {
 func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
 	cobrax.AddConfigFlag(cmd.Flags())
 	cmd.Flags().StringVar(
-		&cfg.RpcEndpoint,
+		&cfg.NilRpcEndpoint,
 		"endpoint",
-		cfg.RpcEndpoint,
+		cfg.NilRpcEndpoint,
 		"rpc endpoint")
 	cmd.Flags().StringVar(
-		&cfg.TaskListenerRpcEndpoint,
+		&cfg.OwnRpcEndpoint,
 		"own-endpoint",
-		cfg.TaskListenerRpcEndpoint,
+		cfg.OwnRpcEndpoint,
 		"own rpc server endpoint")
 	cmd.Flags().DurationVar(
 		&cfg.AggregatorConfig.RpcPollingInterval,

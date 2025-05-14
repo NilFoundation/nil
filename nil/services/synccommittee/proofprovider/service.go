@@ -18,7 +18,7 @@ import (
 
 type Config struct {
 	SyncCommitteeRpcEndpoint string            `yaml:"syncCommitteeEndpoint,omitempty"`
-	TaskListenerRpcEndpoint  string            `yaml:"ownEndpoint,omitempty"`
+	OwnRpcEndpoint           string            `yaml:"ownEndpoint,omitempty"`
 	SkipRate                 int               `yaml:"skipRate,omitempty"`
 	MaxConcurrentBatches     uint32            `yaml:"maxConcurrentBatches,omitempty"`
 	Telemetry                *telemetry.Config `yaml:",inline"`
@@ -27,7 +27,7 @@ type Config struct {
 func NewDefaultConfig() *Config {
 	return &Config{
 		SyncCommitteeRpcEndpoint: "tcp://127.0.0.1:8530",
-		TaskListenerRpcEndpoint:  "tcp://127.0.0.1:8531",
+		OwnRpcEndpoint:           "tcp://127.0.0.1:8531",
 		SkipRate:                 0,
 		MaxConcurrentBatches:     1,
 		Telemetry: &telemetry.Config{
@@ -83,8 +83,11 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 		logger,
 	)
 
-	taskListener := rpc.NewTaskListener(
-		&rpc.TaskListenerConfig{HttpEndpoint: config.TaskListenerRpcEndpoint}, taskScheduler, logger,
+	rpcServer := rpc.NewServerWithTasks(
+		rpc.NewServerConfig(config.OwnRpcEndpoint),
+		logger,
+		taskScheduler,
+		scheduler.NewTaskDebugger(taskStorage, logger),
 	)
 
 	taskCancelChecker := scheduler.NewTaskCancelChecker(
@@ -99,7 +102,7 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 		Service: srv.NewServiceWithHeartbeat(
 			metricsHandler,
 			logger,
-			taskExecutor, taskScheduler, taskListener, taskCancelChecker, taskResultSender,
+			taskExecutor, taskScheduler, taskCancelChecker, taskResultSender, rpcServer,
 		),
 	}, nil
 }
