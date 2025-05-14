@@ -12,7 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/blob"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
@@ -119,7 +119,7 @@ func (s *WrapperTestSuite) TearDownSuite() {
 	s.cancellation()
 }
 
-// Test LatestFinalizedStateRoot functionality
+// Test GetLatestFinalizedStateRoot functionality
 func (s *WrapperTestSuite) TestFinalizedBatchIndex() {
 	// Setup expected return
 	expectedRoot := common.HexToHash("1234")
@@ -127,7 +127,7 @@ func (s *WrapperTestSuite) TestFinalizedBatchIndex() {
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", expectedRoot)
 
 	// Call method
-	root, err := s.wrapper.LatestFinalizedStateRoot(s.ctx)
+	root, err := s.wrapper.GetLatestFinalizedStateRoot(s.ctx)
 
 	// Assert
 	s.Require().NoError(err)
@@ -137,28 +137,16 @@ func (s *WrapperTestSuite) TestFinalizedBatchIndex() {
 
 // Test UpdateState - normal case
 func (s *WrapperTestSuite) TestUpdateState_Success() {
-	batchIndex := "42"
-	oldStateRoot := common.HexToHash("0x1111")
-	newStateRoot := common.HexToHash("0x2222")
-	validityProof := []byte{1, 2, 3}
+	updateStateData := testaide.NewUpdateStateData()
 
 	// Mock the required contract calls
 	s.callContractMock.AddExpectedCall("isBatchFinalized", false)
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
-	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", "41")
-	s.callContractMock.AddExpectedCall("finalizedStateRoots", oldStateRoot)
-
-	// Create public data inputs
-	publicDataInputs := INilRollupPublicDataInfo{
-		L2Tol1Root:    common.HexToHash("1234"),
-		MessageCount:  big.NewInt(1),
-		L1MessageHash: common.HexToHash("1234"),
-	}
+	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", types.NewBatchId().String())
+	s.callContractMock.AddExpectedCall("finalizedStateRoots", updateStateData.OldProvedStateRoot)
 
 	// Call method
-	err := s.wrapper.UpdateState(
-		s.ctx, batchIndex, types.DataProofs{[]byte{}}, oldStateRoot, newStateRoot, validityProof, publicDataInputs,
-	)
+	err := s.wrapper.UpdateState(s.ctx, updateStateData)
 
 	// Assert
 	s.Require().NoError(err)
@@ -170,26 +158,14 @@ func (s *WrapperTestSuite) TestUpdateState_Success() {
 
 // Test UpdateState - batch already finalized
 func (s *WrapperTestSuite) TestUpdateState_AlreadyFinalized() {
-	batchIndex := "42"
-	oldStateRoot := common.HexToHash("0x1111")
-	newStateRoot := common.HexToHash("0x2222")
-	validityProof := []byte{1, 2, 3}
+	updateStateData := testaide.NewUpdateStateData()
 
 	// Mock the batch finalized check to return true
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
 	s.callContractMock.AddExpectedCall("isBatchFinalized", true)
 
-	// Create public data inputs
-	publicDataInputs := INilRollupPublicDataInfo{
-		L2Tol1Root:    common.HexToHash("1234"),
-		MessageCount:  big.NewInt(1),
-		L1MessageHash: common.HexToHash("1234"),
-	}
-
 	// Call method
-	err := s.wrapper.UpdateState(
-		s.ctx, batchIndex, types.DataProofs{[]byte{}}, oldStateRoot, newStateRoot, validityProof, publicDataInputs,
-	)
+	err := s.wrapper.UpdateState(s.ctx, updateStateData)
 
 	// Assert
 	s.Require().Error(err)
@@ -202,26 +178,14 @@ func (s *WrapperTestSuite) TestUpdateState_AlreadyFinalized() {
 
 // Test UpdateState - batch not committed
 func (s *WrapperTestSuite) TestUpdateState_NotCommitted() {
-	batchIndex := "42"
-	oldStateRoot := common.HexToHash("0x1111")
-	newStateRoot := common.HexToHash("0x2222")
-	validityProof := []byte{1, 2, 3}
+	updateStateData := testaide.NewUpdateStateData()
 
 	// Mock the batch finalized and committed checks
 	s.callContractMock.AddExpectedCall("isBatchFinalized", false)
 	s.callContractMock.AddExpectedCall("isBatchCommitted", false)
 
-	// Create public data inputs
-	publicDataInputs := INilRollupPublicDataInfo{
-		L2Tol1Root:    common.HexToHash("1234"),
-		MessageCount:  big.NewInt(1),
-		L1MessageHash: common.HexToHash("1234"),
-	}
-
 	// Call method
-	err := s.wrapper.UpdateState(
-		s.ctx, batchIndex, types.DataProofs{[]byte{}}, oldStateRoot, newStateRoot, validityProof, publicDataInputs,
-	)
+	err := s.wrapper.UpdateState(s.ctx, updateStateData)
 
 	// Assert
 	s.Require().Error(err)
@@ -234,47 +198,47 @@ func (s *WrapperTestSuite) TestUpdateState_NotCommitted() {
 
 // Test UpdateState - with empty state root
 func (s *WrapperTestSuite) TestUpdateState_EmptyStateRoot() {
-	batchIndex := "42"
-	emptyStateRoot := common.Hash{} // Empty state root
-	validityProof := []byte{1, 2, 3}
-	publicDataInputs := INilRollupPublicDataInfo{}
+	testCases := []struct {
+		updateData  func() *types.UpdateStateData
+		expectedErr error
+	}{
+		{
+			func() *types.UpdateStateData {
+				data := testaide.NewUpdateStateData()
+				data.OldProvedStateRoot = common.EmptyHash
+				return data
+			},
+			ErrInvalidOldStateRoot,
+		},
+		{
+			func() *types.UpdateStateData {
+				data := testaide.NewUpdateStateData()
+				data.NewProvedStateRoot = common.EmptyHash
+				return data
+			},
+			ErrInvalidNewStateRoot,
+		},
+	}
 
-	// Test with empty old state root
-	err := s.wrapper.UpdateState(
-		s.ctx,
-		batchIndex,
-		types.DataProofs{},
-		emptyStateRoot,
-		common.HexToHash("0x2222"),
-		validityProof,
-		publicDataInputs,
-	)
-	s.Require().ErrorIs(err, ErrInvalidOldStateRoot)
-
-	// Test with empty new state root
-	err = s.wrapper.UpdateState(
-		s.ctx,
-		batchIndex,
-		types.DataProofs{},
-		common.HexToHash("0x1111"),
-		emptyStateRoot,
-		validityProof,
-		publicDataInputs,
-	)
-	s.Require().ErrorIs(err, ErrInvalidNewStateRoot)
+	for _, testCase := range testCases {
+		s.Run(testCase.expectedErr.Error(), func() {
+			updateStateData := testCase.updateData()
+			err := s.wrapper.UpdateState(s.ctx, updateStateData)
+			s.Require().ErrorIs(err, testCase.expectedErr)
+		})
+	}
 }
 
 // Test CommitBatch - success case
 func (s *WrapperTestSuite) TestCommitBatch_Success() {
-	batchIndex := "42"
+	batchId := types.NewBatchId()
 	sidecar := s.getSampleSidecar()
 
 	// Mock the batch committed check
 	s.callContractMock.AddExpectedCall("isBatchCommitted", false)
-	s.callContractMock.AddExpectedCall("commitBatch", testaide.NoValue{})
 
 	// Call method
-	err := s.wrapper.CommitBatch(s.ctx, sidecar, batchIndex)
+	err := s.wrapper.CommitBatch(s.ctx, batchId, sidecar)
 
 	// Assert
 	s.Require().NoError(err)
@@ -286,14 +250,14 @@ func (s *WrapperTestSuite) TestCommitBatch_Success() {
 
 // Test CommitBatch - already committed
 func (s *WrapperTestSuite) TestCommitBatch_AlreadyCommitted() {
-	batchIndex := "42"
+	batchId := types.NewBatchId()
 	sidecar := s.getSampleSidecar()
 
 	// Mock the batch committed check to return true
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
 
 	// Call method
-	err := s.wrapper.CommitBatch(s.ctx, sidecar, batchIndex)
+	err := s.wrapper.CommitBatch(s.ctx, batchId, sidecar)
 
 	// Assert
 	s.Require().Error(err)
@@ -355,21 +319,26 @@ func (s *WrapperTestSuite) TestPrepareBlobsVerificationFailed() {
 // Test noop wrapper
 func (s *WrapperTestSuite) TestNoopWrapper() {
 	logger := logging.NewLogger("noop_wrapper_test")
-	noopWrapper := &noopWrapper{logger: logger}
+	noop := &noopWrapper{logger: logger}
+
+	genesisHash := testaide.RandomHash()
+	err := noop.SetGenesisStateRoot(s.ctx, genesisHash)
+	s.Require().NoError(err)
 
 	// Test UpdateState
-	err := noopWrapper.UpdateState(
-		s.ctx, "42", types.DataProofs{}, common.Hash{}, common.Hash{}, nil, INilRollupPublicDataInfo{},
-	)
+	updateStateData := testaide.NewUpdateStateData()
+	updateStateData.OldProvedStateRoot = genesisHash
+
+	err = noop.UpdateState(s.ctx, updateStateData)
 	s.Require().NoError(err)
 
-	// Test FinalizedBatchIndex
-	index, err := noopWrapper.LatestFinalizedStateRoot(s.ctx)
+	// Test GetLatestFinalizedStateRoot
+	stateRoot, err := noop.GetLatestFinalizedStateRoot(s.ctx)
 	s.Require().NoError(err)
-	s.Empty(index)
+	s.Equal(stateRoot, updateStateData.NewProvedStateRoot)
 
 	// Test CommitBatch
-	err = noopWrapper.CommitBatch(s.ctx, nil, "42")
+	err = noop.CommitBatch(s.ctx, types.NewBatchId(), nil)
 	s.Require().NoError(err)
 }
 

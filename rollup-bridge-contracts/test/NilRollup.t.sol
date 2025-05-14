@@ -407,6 +407,35 @@ contract NilRollupTest is BaseTest {
   }
 
   /**
+ * @notice Tests the `setGenesisStateRoot` function to ensure it reverts when the state root has already been initialized.
+   *
+   * @dev This test follows these steps:
+   * 1. Starts a prank as the proposer.
+   * 2. Attempts to set the genesis state root, expecting a revert.
+   * 3. Verifies that the current state root has not been affected.
+   *
+   * The test ensures that the `updateState` function correctly handles the scenario where the old state root does not
+   * match the expected state root, preventing state updates with incorrect state roots.
+   */
+  function test_setGenesisStateRoot_reverts_when_root_is_already_initialized() external {
+    bytes32 currentStateRoot = rollup.getCurrentStateRoot();
+
+    vm.startPrank(_proposer);
+
+    vm.expectRevert(abi.encodeWithSelector(
+      INilRollup.ErrorGenesisStateRootIsAlreadyInitialized.selector, "GENESIS_BATCH_INDEX", _genesisStateRoot
+    ));
+
+    bytes32 newStateRoot = hex"9de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91";
+    rollup.setGenesisStateRoot(newStateRoot);
+
+    vm.stopPrank();
+
+    // Verify that the state root remains unchanged
+    assertEq(rollup.getCurrentStateRoot(), currentStateRoot);
+  }
+
+  /**
    * @notice Tests the `updateState` function to ensure it reverts when the old state root does not match the expected
    * state root.
    *
@@ -423,50 +452,58 @@ contract NilRollupTest is BaseTest {
    * match the expected state root, preventing state updates with incorrect state roots.
    */
   function test_updateState_toRevert_with_oldStateRoot_mismatch() external {
-    // Start a prank as the proposer
+    BatchData memory initialBatchData = this.generateBatchData(
+      "batch_1",
+      hex"8de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91",
+      hex"9de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91"
+    );
+    BatchDataItem memory initialBatch = initialBatchData.batches[0];
+
+    commitBatchWithTestData(_proposer, initialBatchData);
+    updateStateWithTestData(_proposer, initialBatchData);
+
+    // Verify the state of the initial batch
+    assertTrue(rollup.isBatchCommitted(initialBatch.batchId));
+    assertTrue(rollup.isBatchFinalized(initialBatch.batchId));
+
+    BatchData memory mismatchedBatchData = this.generateBatchData(
+      "batch_2",
+      hex"0000000000000000000000000000000000000000000000000000000000001234",
+      hex"01b8c86fa666387a77359ce7a28279db2e55c1e06772828ae65f26722b704862"
+    );
+    BatchDataItem memory mismatchedBatch = mismatchedBatchData.batches[0];
+
+    commitBatchWithTestData(_proposer, mismatchedBatchData);
+
+    // Verify the state of the second batch
+    assertTrue(rollup.isBatchCommitted(mismatchedBatch.batchId));
+
     vm.startPrank(_proposer);
-
-    // Set a blob versioned hash for the first batch
-    bytes32 versionedHash = hex"01b8c86fa666387a77359ce7a28279db2e55c1e06772828ae65f26722b704862";
-    NilRollupMockBlob(address(rollup)).setBlobVersionedHash(0, versionedHash);
-    string memory batchIndex = "BATCH_1";
-    uint256 blobCount = 1;
-
-    // Commit the first batch
-    rollup.commitBatch(batchIndex, blobCount);
-
-    // Verify the committed state of the first batch
-    assertTrue(rollup.isBatchCommitted(batchIndex));
-    assertFalse(rollup.isBatchFinalized(batchIndex));
-
-    // Prepare state update details for the first batch with an old state root that does not match the expected
-    // state root
-    bytes32 oldStateRoot = hex"9de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91";
-    bytes32 newStateRoot = hex"9de4b8e9649321f6aa403b03144f068e52db6cd0b6645fc572d6a9c600f5cb91";
-    bytes[] memory dataProofs = new bytes[](1);
-    dataProofs[
-      0
-    ] = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
-    bytes
-      memory validityProof = hex"4c746babf097541f290a0b3bd300fa5e7874cecac18404287093b343f86eec75292693c83af3e79058a8f6a555ac92492e8b24cfdcb9b74148c0fc10917430308020c2fcb81a761c74b62042e6331d4f158702e087a32c56479e97ce611770f162606d64f90eb197b8475565ee0a37128a532ea99af9fb72673e37139eed42f60d79c671097d0b566638cc8861fd7cb66ccbecb436c53877e2e74f7db03280a7";
-
-    bytes32 l2Tol1Root = hex"01224624a9a635f1596717f628afc4a7e01e2afe21a6199e061dd9c7b14053b2";
-
-    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
-      l2Tol1Root: l2Tol1Root,
-      messageCount: 0,
-      l1MessageHash: ZERO_STATE_ROOT
-    });
 
     // Expect a revert due to the old state root mismatch
     vm.expectRevert(abi.encodeWithSelector(INilRollup.ErrorOldStateRootMismatch.selector));
 
-    // Attempt to update the state with the first batch's details
-    rollup.updateState(batchIndex, oldStateRoot, newStateRoot, dataProofs, validityProof, publicDataInfo);
+    INilRollup.PublicDataInfo memory publicDataInfo = INilRollup.PublicDataInfo({
+      l2Tol1Root: ZERO_STATE_ROOT,
+      messageCount: 0,
+      l1MessageHash: ZERO_STATE_ROOT
+    });
 
-    // Stop the prank
+    rollup.updateState(
+      mismatchedBatch.batchId,
+      mismatchedBatch.oldStateRoot,
+      mismatchedBatch.newStateRoot,
+      mismatchedBatch.dataProofs,
+      mismatchedBatch.validityProof,
+      publicDataInfo
+    );
+
     vm.stopPrank();
+
+    // Verify the state of the second batch
+    assertFalse(rollup.isBatchFinalized(mismatchedBatch.batchId));
   }
+
 
   /**
    * @notice Tests the `updateState` function to ensure it reverts when the new state root is invalid (empty).

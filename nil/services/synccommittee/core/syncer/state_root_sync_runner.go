@@ -56,6 +56,13 @@ func (s *stateRootSyncRunner) Run(ctx context.Context, started chan<- struct{}) 
 	s.logger.Info().Msg("Syncing state with L1")
 
 	err := s.retrier.Do(ctx, func(ctx context.Context) error {
+		return s.syncer.EnsureL1StateIsInitialized(ctx)
+	})
+	if err != nil {
+		return fmt.Errorf("failed to ensure L1 state is initialized: %w", err)
+	}
+
+	err = s.retrier.Do(ctx, func(ctx context.Context) error {
 		return s.syncer.SyncLatestFinalizedRoot(ctx)
 	})
 	if err != nil {

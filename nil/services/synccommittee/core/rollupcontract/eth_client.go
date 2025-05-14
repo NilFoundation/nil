@@ -17,6 +17,7 @@ import (
 
 type EthClient interface {
 	bind.ContractBackend
+	RawCall(ctx context.Context, result any, method string, args ...any) error
 	ChainID(ctx context.Context) (*big.Int, error)
 	TransactionByHash(ctx context.Context, hash ethcommon.Hash) (tx *types.Transaction, isPending bool, err error)
 	TransactionReceipt(ctx context.Context, txHash ethcommon.Hash) (*types.Receipt, error)
@@ -48,6 +49,15 @@ type retryingEthClient struct {
 }
 
 var _ EthClient = (*retryingEthClient)(nil)
+
+func (rec *retryingEthClient) RawCall(
+	ctx context.Context, result any, method string, args ...any,
+) error {
+	rawClient := rec.c.Client()
+	return retry1(ctx, rec, func(ctx context.Context) error {
+		return rawClient.CallContext(ctx, result, method, args...)
+	})
+}
 
 func (rec *retryingEthClient) CallContract(
 	ctx context.Context, msg ethereum.CallMsg, blockNumber *big.Int,

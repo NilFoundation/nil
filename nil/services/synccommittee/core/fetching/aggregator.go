@@ -136,7 +136,7 @@ func (agg *aggregator) handleProcessingErr(ctx context.Context, err error) error
 		}
 		return nil
 
-	case errors.Is(err, types.ErrStateRootNotInitialized):
+	case errors.Is(err, types.ErrLocalStateRootNotInitialized):
 		agg.logger.Warn().Err(err).Msg("Local state root not initialized, skipping")
 		return nil
 
@@ -345,7 +345,7 @@ func (agg *aggregator) getStartingBlockRef(ctx context.Context) (*types.BlockRef
 		return nil, fmt.Errorf("error reading latest proved state root: %w", err)
 	}
 	if latestProvedRoot == nil {
-		return nil, types.ErrStateRootNotInitialized
+		return nil, types.ErrLocalStateRootNotInitialized
 	}
 
 	ref, err := agg.fetcher.TryGetBlockRef(ctx, coreTypes.MainShardId, *latestProvedRoot)
@@ -465,7 +465,7 @@ func (agg *aggregator) sealBatch(ctx context.Context, batch *types.BlockBatch) e
 		return fmt.Errorf("error storing batch, batchId=%s: %w", batch.Id, err)
 	}
 
-	if err := agg.rollupContract.CommitBatch(ctx, sidecar, sealedBatch.Id.String()); err != nil {
+	if err := agg.rollupContract.CommitBatch(ctx, sealedBatch.Id, sidecar); err != nil {
 		return agg.handleCommitBatchError(ctx, sealedBatch, err)
 	}
 

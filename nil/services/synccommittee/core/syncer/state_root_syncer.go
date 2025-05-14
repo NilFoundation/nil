@@ -15,8 +15,9 @@ type L2BlockFetcher interface {
 	GetGenesisBlockRef(ctx context.Context, shardId coreTypes.ShardId) (*types.BlockRef, error)
 }
 
-type L1StateRootGetter interface {
-	LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
+type L1StateRootAccessor interface {
+	SetGenesisStateRoot(ctx context.Context, genesisStateRoot common.Hash) error
+	GetLatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
 }
 
 type LocalStateRootAccessor interface {
@@ -46,7 +47,7 @@ func NewDefaultConfig() StateRootSyncerConfig {
 
 type stateRootSyncer struct {
 	fetcher                L2BlockFetcher
-	l1StateRootGetter      L1StateRootGetter
+	l1StateRootAccessor    L1StateRootAccessor
 	localStateRootAccessor LocalStateRootAccessor
 	logger                 logging.Logger
 	config                 StateRootSyncerConfig
@@ -54,18 +55,47 @@ type stateRootSyncer struct {
 
 func NewStateRootSyncer(
 	fetcher L2BlockFetcher,
-	l1StateRootGetter L1StateRootGetter,
+	l1StateRootGetter L1StateRootAccessor,
 	localStateRootAccessor LocalStateRootAccessor,
 	logger logging.Logger,
 	config StateRootSyncerConfig,
 ) *stateRootSyncer {
 	return &stateRootSyncer{
 		fetcher:                fetcher,
-		l1StateRootGetter:      l1StateRootGetter,
+		l1StateRootAccessor:    l1StateRootGetter,
 		localStateRootAccessor: localStateRootAccessor,
 		logger:                 logger,
 		config:                 config,
 	}
+}
+
+// EnsureL1StateIsInitialized ensures the L1 genesis state root is initialized by setting it if it is currently unset.
+func (s *stateRootSyncer) EnsureL1StateIsInitialized(ctx context.Context) error {
+	s.logger.Info().Msg("Checking if L1 genesis state root is set")
+
+	latestFinalized, err := s.l1StateRootAccessor.GetLatestFinalizedStateRoot(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get local state root: %w", err)
+	}
+
+	if latestFinalized != common.EmptyHash {
+		s.logger.Info().Stringer(logging.FieldStateRoot, &latestFinalized).Msg("L1 state root is initialized")
+		return nil
+	}
+
+	s.logger.Info().Msg("L1 state root is not initialized, genesis block hash will be fetched")
+
+	genesisRef, err := s.fetcher.GetGenesisBlockRef(ctx, coreTypes.MainShardId)
+	if err != nil {
+		return fmt.Errorf("failed to get genesis block ref: %w", err)
+	}
+
+	if err := s.l1StateRootAccessor.SetGenesisStateRoot(ctx, genesisRef.Hash); err != nil {
+		return fmt.Errorf("failed to set L1 genesis state root: %w", err)
+	}
+
+	s.logger.Info().Stringer(logging.FieldStateRoot, genesisRef.Hash).Msg("L1 genesis state root is set")
+	return nil
 }
 
 // SyncLatestFinalizedRoot synchronizes the locally stored state root
@@ -126,18 +156,13 @@ func (s *stateRootSyncer) updateLocalStateRoot(ctx context.Context) error {
 func (s *stateRootSyncer) getLatestFinalizedRoot(ctx context.Context) (*common.Hash, error) {
 	s.logger.Info().Msg("Syncing state with L1")
 
-	latestStateRoot, err := s.l1StateRootGetter.LatestFinalizedStateRoot(ctx)
+	latestStateRoot, err := s.l1StateRootAccessor.GetLatestFinalizedStateRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	if latestStateRoot == common.EmptyHash {
-		s.logger.Warn().Msg("Storage state root is not initialized, genesis state root will be used")
-		genesisRef, err := s.fetcher.GetGenesisBlockRef(ctx, coreTypes.MainShardId)
-		if err != nil {
-			return nil, err
-		}
-		return &genesisRef.Hash, nil
+		return nil, types.ErrL1StateRootNotInitialized
 	}
 
 	existsOnL2, err := s.existsOnL2(ctx, latestStateRoot)

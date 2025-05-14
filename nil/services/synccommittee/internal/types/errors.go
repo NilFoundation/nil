@@ -19,8 +19,10 @@ var (
 )
 
 var (
-	ErrStateRootNotInitialized = errors.New("local state root is not initialized")
-	ErrStateRootNotSynced      = errors.New("state root is not synchronized")
+	ErrLocalStateRootNotInitialized  = errors.New("local state root is not initialized")
+	ErrL1StateRootNotInitialized     = errors.New("state root is not initialized on the L1 side")
+	ErrL1StateRootAlreadyInitialized = errors.New("state root already initialized on the L1 side")
+	ErrStateRootNotSynced            = errors.New("state root is not synchronized")
 )
 
 type TaskErrType int8

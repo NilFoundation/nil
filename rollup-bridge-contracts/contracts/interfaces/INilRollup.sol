@@ -26,6 +26,12 @@ interface INilRollup is INilAccessControlUpgradeable {
     /// @dev Error thrown when setVerifierAddress is called with idential address as in nilVerifier
     error ErrorNilVerifierAddressNotChanged();
 
+    /// @dev Genesis state root has not been initialized yet.
+    error ErrorGenesisStateRootIsNotInitialized();
+
+    /// @dev Genesis state root is already initialized.
+    error ErrorGenesisStateRootIsAlreadyInitialized(string latestBatchIndex, bytes32 latestStateRoot);
+
     /// @dev New state root is invalid.
     error ErrorInvalidNewStateRoot();
 
@@ -235,6 +241,15 @@ interface INilRollup is INilAccessControlUpgradeable {
      * @param blobCount The number of blobs in the batch.
      */
     function commitBatch(string memory batchIndex, uint256 blobCount) external;
+
+    /**
+     * @notice Sets the initial state root.
+     * @dev Allows an account with the PROPOSER_ROLE to set the initial state root,
+     *      provided it has not already been set (either via a previous call to `setGenesisStateRoot`
+     *      or during contract initialization).
+     * @param genesisStateRoot The genesis state root to be set.
+     */
+    function setGenesisStateRoot(bytes32 genesisStateRoot) external;
 
     /**
      * @notice Updates the state root for a batch.

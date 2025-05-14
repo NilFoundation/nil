@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -15,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
@@ -22,22 +24,17 @@ import (
 )
 
 type Wrapper interface {
-	UpdateState(
-		ctx context.Context,
-		batchIndex string,
-		dataProofs types.DataProofs,
-		oldStateRoot, newStateRoot common.Hash,
-		validityProof []byte,
-		publicDataInputs INilRollupPublicDataInfo,
-	) error
-	LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
-	CommitBatch(
-		ctx context.Context,
-		sidecar *ethtypes.BlobTxSidecar,
-		batchIndex string,
-	) error
+	SetGenesisStateRoot(ctx context.Context, genesisStateRoot common.Hash) error
+
+	UpdateState(ctx context.Context, data *types.UpdateStateData) error
+
+	GetLatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
+
+	CommitBatch(ctx context.Context, batchId types.BatchId, sidecar *ethtypes.BlobTxSidecar) error
+
 	PrepareBlobs(ctx context.Context, blobs []kzg4844.Blob) (*ethtypes.BlobTxSidecar, types.DataProofs, error)
-	ResetState(ctx context.Context, targetRoot common.Hash) error
+
+	RollbackState(ctx context.Context, targetRoot common.Hash) error
 }
 
 type WrapperConfig struct {
@@ -81,7 +78,9 @@ func NewWrapper(
 ) (Wrapper, error) {
 	var ethClient EthClient
 	if cfg.DisableL1 {
-		return &noopWrapper{logger}, nil
+		return &noopWrapper{
+			logger: logger,
+		}, nil
 	}
 
 	ethClient, err := NewRetryingEthClient(ctx, cfg.Endpoint, cfg.RequestsTimeout, logger)
@@ -137,7 +136,45 @@ func NewWrapperWithEthClient(
 	}, nil
 }
 
-func (r *wrapperImpl) LatestFinalizedStateRoot(ctx context.Context) (common.Hash, error) {
+func (r *wrapperImpl) SetGenesisStateRoot(ctx context.Context, genesisStateRoot common.Hash) error {
+	latestFinalizedStateRoot, err := r.GetLatestFinalizedStateRoot(ctx)
+	if err != nil {
+		return err
+	}
+	if latestFinalizedStateRoot != common.EmptyHash {
+		return fmt.Errorf("%w: %s", types.ErrL1StateRootAlreadyInitialized, latestFinalizedStateRoot)
+	}
+
+	var tx *ethtypes.Transaction
+	if err := r.transactWithCtx(ctx, func(opts *bind.TransactOpts) error {
+		var err error
+		tx, err = r.rollupContract.SetGenesisStateRoot(
+			opts,
+			genesisStateRoot,
+		)
+		return err
+	}); err != nil {
+		return fmt.Errorf("SetGenesisStateRoot transaction failed: %w", err)
+	}
+	r.logger.Info().
+		Hex("txHash", tx.Hash().Bytes()).
+		Int("gasLimit", int(tx.Gas())).
+		Int("cost", int(tx.Cost().Uint64())).
+		Msg("SetGenesisStateRoot transaction sent")
+
+	receipt, err := r.waitForReceipt(ctx, tx.Hash())
+	if err != nil {
+		return fmt.Errorf("error during waiting for receipt: %w", err)
+	}
+	r.logReceiptDetails(receipt)
+	if receipt.Status != ethtypes.ReceiptStatusSuccessful {
+		return errors.New("SetGenesisStateRoot tx failed")
+	}
+
+	return err
+}
+
+func (r *wrapperImpl) GetLatestFinalizedStateRoot(ctx context.Context) (common.Hash, error) {
 	latestFinalizedBatchIndex, err := r.latestFinalizedBatchIndex(ctx)
 	if err != nil {
 		return common.EmptyHash, err
@@ -245,8 +282,8 @@ func (r *wrapperImpl) logReceiptDetails(receipt *ethtypes.Receipt) {
 		Msg("transaction receipt received")
 }
 
-// ResetState resets contract state to specified `targetRoot`.
-func (r *wrapperImpl) ResetState(ctx context.Context, targetRoot common.Hash) error {
+// RollbackState resets contract state to specified `targetRoot`.
+func (r *wrapperImpl) RollbackState(ctx context.Context, targetRoot common.Hash) error {
 	var tx *ethtypes.Transaction
 	if err := r.transactWithCtx(ctx, func(opts *bind.TransactOpts) error {
 		var err error
@@ -256,13 +293,13 @@ func (r *wrapperImpl) ResetState(ctx context.Context, targetRoot common.Hash) er
 		)
 		return err
 	}); err != nil {
-		return fmt.Errorf("ResetState transaction failed: %w", err)
+		return fmt.Errorf("RollbackState transaction failed: %w", err)
 	}
 	r.logger.Info().
 		Hex("txHash", tx.Hash().Bytes()).
 		Int("gasLimit", int(tx.Gas())).
 		Int("cost", int(tx.Cost().Uint64())).
-		Msg("ResetState transaction sent")
+		Msg("RollbackState transaction sent")
 
 	receipt, err := r.waitForReceipt(ctx, tx.Hash())
 	if err != nil {
@@ -270,7 +307,7 @@ func (r *wrapperImpl) ResetState(ctx context.Context, targetRoot common.Hash) er
 	}
 	r.logReceiptDetails(receipt)
 	if receipt.Status != ethtypes.ReceiptStatusSuccessful {
-		return errors.New("ResetState tx failed")
+		return errors.New("RollbackState tx failed")
 	}
 
 	return err
@@ -292,7 +329,7 @@ func (r *wrapperImpl) decodeContractError(err error) error {
 	}
 
 	if len(revertData) < 4 {
-		return errors.New("not enough data to unparse error")
+		return fmt.Errorf("not enough data to unparse error: %w", err)
 	}
 	var selector [4]byte
 	copy(selector[:], revertData[:4])
@@ -313,6 +350,7 @@ func (r *wrapperImpl) decodeContractError(err error) error {
 
 // abigen doesn't generate error types, have to specify them manually
 var contractErrorMap = map[string]error{
+	"ErrorGenesisStateRootIsNotInitialized":          types.ErrL1StateRootNotInitialized,
 	"ErrorInvalidBatchIndex":                         ErrInvalidBatchIndex,
 	"ErrorInvalidOldStateRoot":                       ErrInvalidOldStateRoot,
 	"ErrorInvalidNewStateRoot":                       ErrInvalidNewStateRoot,
@@ -348,11 +386,25 @@ func (r *wrapperImpl) errorByName(err error) error {
 
 // simulateTx simulates transaction using `eth_call` method, tries to decode error
 func (r *wrapperImpl) simulateTx(ctx context.Context, tx *ethtypes.Transaction, blockNumber *big.Int) error {
-	_, err := r.ethClient.CallContract(ctx, ethereum.CallMsg{
-		From: r.senderAddress,
-		To:   tx.To(),
-		Data: tx.Data(),
-	}, blockNumber)
+	args := map[string]any{
+		"from":     r.senderAddress,
+		"to":       tx.To(),
+		"gas":      hexutil.Uint64(tx.Gas()),
+		"gasPrice": hexutil.Big(*tx.GasPrice()),
+		"value":    hexutil.Big(*tx.Value()),
+		"data":     hexutil.Bytes(tx.Data()),
+	}
+
+	if sidecar := tx.BlobTxSidecar(); sidecar != nil {
+		args["blobs"] = sidecar.Blobs
+		args["kzgCommitments"] = sidecar.Commitments
+		args["kzgProofs"] = sidecar.Proofs
+		args["blobVersionedHashes"] = tx.BlobHashes()
+		args["blobFeeCap"] = (*hexutil.Big)(tx.BlobGasFeeCap())
+	}
+
+	var result any
+	err := r.ethClient.RawCall(ctx, result, "eth_call", args, toBlockNumArg(blockNumber))
 	if err != nil {
 		return r.decodeContractError(err)
 	}
@@ -360,22 +412,62 @@ func (r *wrapperImpl) simulateTx(ctx context.Context, tx *ethtypes.Transaction, 
 	return nil
 }
 
+func toBlockNumArg(number *big.Int) string {
+	if number == nil {
+		return "latest"
+	}
+	return hexutil.EncodeBig(number)
+}
+
 type noopWrapper struct {
-	logger logging.Logger
+	logger    logging.Logger
+	stateRoot common.Hash
+	mutex     sync.RWMutex
 }
 
 var _ Wrapper = (*noopWrapper)(nil)
 
-func (w *noopWrapper) UpdateState(
-	context.Context, string, types.DataProofs, common.Hash, common.Hash, []byte, INilRollupPublicDataInfo,
-) error {
-	w.logger.Debug().Msg("UpdateState noop wrapper method called")
+func (w *noopWrapper) SetGenesisStateRoot(_ context.Context, hash common.Hash) error {
+	w.logger.Debug().Msg("SetGenesisStateRoot noop wrapper method called")
+
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	if w.stateRoot != common.EmptyHash {
+		return fmt.Errorf("%w: %s", types.ErrL1StateRootAlreadyInitialized, w.stateRoot)
+	}
+	w.stateRoot = hash
+
 	return nil
 }
 
-func (w *noopWrapper) LatestFinalizedStateRoot(context.Context) (common.Hash, error) {
+func (w *noopWrapper) UpdateState(_ context.Context, data *types.UpdateStateData) error {
+	w.logger.Debug().Msg("UpdateState noop wrapper method called")
+
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
+	if w.stateRoot == common.EmptyHash {
+		return types.ErrL1StateRootNotInitialized
+	}
+
+	if w.stateRoot != data.OldProvedStateRoot {
+		return fmt.Errorf(
+			"%w, currentState=%s, received=%s", ErrOldStateRootMismatch, w.stateRoot, data.OldProvedStateRoot,
+		)
+	}
+
+	w.stateRoot = data.NewProvedStateRoot
+
+	return nil
+}
+
+func (w *noopWrapper) GetLatestFinalizedStateRoot(context.Context) (common.Hash, error) {
 	w.logger.Debug().Msg("FinalizedStateRoot noop wrapper method called")
-	return common.Hash{}, nil
+
+	w.mutex.RLock()
+	defer w.mutex.RUnlock()
+
+	return w.stateRoot, nil
 }
 
 func (w *noopWrapper) PrepareBlobs(context.Context, []kzg4844.Blob) (*ethtypes.BlobTxSidecar, types.DataProofs, error) {
@@ -383,12 +475,12 @@ func (w *noopWrapper) PrepareBlobs(context.Context, []kzg4844.Blob) (*ethtypes.B
 	return nil, nil, nil
 }
 
-func (w *noopWrapper) CommitBatch(context.Context, *ethtypes.BlobTxSidecar, string) error {
+func (w *noopWrapper) CommitBatch(context.Context, types.BatchId, *ethtypes.BlobTxSidecar) error {
 	w.logger.Debug().Msg("CommitBatch noop wrapper method called")
 	return nil
 }
 
-func (w *noopWrapper) ResetState(context.Context, common.Hash) error {
-	w.logger.Debug().Msg("ResetState noop wrapper method called")
+func (w *noopWrapper) RollbackState(context.Context, common.Hash) error {
+	w.logger.Debug().Msg("RollbackState noop wrapper method called")
 	return nil
 }

@@ -21,7 +21,7 @@
         },
         "nilRollupInitConfig": {
           "l2ChainId": 0,
-          "genesisStateRoot": "0x64756d6d795374617465526f6f74000000000000000000000000000000000000"
+          "genesisStateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
         }
       },
       "l1BridgeRouter": {

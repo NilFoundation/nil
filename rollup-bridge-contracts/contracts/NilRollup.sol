@@ -231,7 +231,7 @@ contract NilRollup is OwnableUpgradeable, PausableUpgradeable, NilAccessControlU
     }
 
     /// @inheritdoc INilRollup
-    function getCurrentStateRoot() external view override returns (bytes32) {
+    function getCurrentStateRoot() public view override returns (bytes32) {
         return batchInfoRecords[lastFinalizedBatchIndex].newStateRoot;
     }
 
@@ -243,6 +243,21 @@ contract NilRollup is OwnableUpgradeable, PausableUpgradeable, NilAccessControlU
     /*//////////////////////////////////////////////////////////////////////////
                          USER-FACING NON-CONSTANT FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc INilRollup
+    function setGenesisStateRoot(bytes32 genesisStateRoot) external override whenNotPaused onlyProposer {
+        if (genesisStateRoot == bytes32(0)) {
+            revert ErrorInvalidNewStateRoot();
+        }
+
+        bytes32 latestStateRoot = getCurrentStateRoot();
+
+        if (latestStateRoot != ZERO_STATE_ROOT) {
+            revert ErrorGenesisStateRootIsAlreadyInitialized(lastFinalizedBatchIndex, latestStateRoot);
+        }
+
+        batchInfoRecords[GENESIS_BATCH_INDEX].newStateRoot = genesisStateRoot;
+    }
 
     /// @inheritdoc INilRollup
     function commitBatch(string memory batchIndex, uint256 blobCount) external override whenNotPaused onlyProposer {
@@ -325,6 +340,12 @@ contract NilRollup is OwnableUpgradeable, PausableUpgradeable, NilAccessControlU
             revert ErrorEmptyDataProofs();
         }
 
+        bytes32 latestStateRoot = getCurrentStateRoot();
+
+        if (latestStateRoot == ZERO_STATE_ROOT) {
+            revert ErrorGenesisStateRootIsNotInitialized();
+        }
+
         // Check if batchIndex has storage values of isCommitted true and isFinalized false
         if (!batchInfoRecords[batchIndex].isCommitted) {
             revert ErrorBatchNotCommitted(batchIndex);
@@ -345,7 +366,7 @@ contract NilRollup is OwnableUpgradeable, PausableUpgradeable, NilAccessControlU
         }
 
         // Check if the oldStateRoot matches the last finalized batch's newStateRoot
-        if (batchInfoRecords[lastFinalizedBatchIndex].newStateRoot != oldStateRoot) {
+        if (latestStateRoot != oldStateRoot) {
             revert ErrorOldStateRootMismatch();
         }
 
@@ -355,65 +376,7 @@ contract NilRollup is OwnableUpgradeable, PausableUpgradeable, NilAccessControlU
             revert ErrorIncorrectDataProofSize();
         }
 
-        // get the messageCount from the publicInput
-        uint256 depositMessageCount = publicDataInfo.messageCount;
-
-        if (
-            (
-                depositMessageCount == 0
-                    && (
-                        publicDataInfo.l2Tol1Root != batchInfoRecords[lastFinalizedBatchIndex].publicDataInfo.l2Tol1Root
-                            || publicDataInfo.l1MessageHash != ZERO_STATE_ROOT
-                    )
-            )
-                || (
-                    (
-                        (
-                            depositMessageCount > 0
-                                && (
-                                    (
-                                        (
-                                            publicDataInfo.l2Tol1Root
-                                                == batchInfoRecords[lastFinalizedBatchIndex].publicDataInfo.l2Tol1Root
-                                        )
-                                    ) || publicDataInfo.l1MessageHash == ZERO_STATE_ROOT
-                                )
-                        )
-                    )
-                )
-        ) {
-            revert ErrorInvalidPublicDataInfo();
-        }
-
-        if (depositMessageCount > 0) {
-            // pull first n messages from the messageQueue via l1BridgeMessenger
-            bytes32[] memory depositMessageHashes = l1BridgeMessenger.popMessages(depositMessageCount);
-
-            if (l1MessageHash == bytes32(0)) {
-                if (depositMessageCount == 1) {
-                    l1MessageHash = depositMessageHashes[0];
-                } else {
-                    bytes32 l1MessageHashLocal = depositMessageHashes[0];
-                    for (uint256 messageHashIndex = 1; messageHashIndex < depositMessageCount; messageHashIndex++) {
-                        l1MessageHashLocal =
-                            keccak256(abi.encode(l1MessageHashLocal, depositMessageHashes[messageHashIndex]));
-                    }
-                    l1MessageHash = l1MessageHashLocal;
-                }
-            } else {
-                bytes32 l1MessageHashLocal = l1MessageHash;
-                for (uint256 messageHashIndex = 0; messageHashIndex < depositMessageCount; messageHashIndex++) {
-                    l1MessageHashLocal =
-                        keccak256(abi.encode(depositMessageHashes[messageHashIndex], l1MessageHashLocal));
-                }
-                l1MessageHash = l1MessageHashLocal;
-            }
-
-            // Check if the l1MessageHash in publicDataInput is the same as the l1MessageHash computed above
-            if (l1MessageHash != publicDataInfo.l1MessageHash) {
-                revert ErrorL1MessageHashMismatch(l1MessageHash, publicDataInfo.l1MessageHash);
-            }
-        }
+        validatePublicDataInput(publicDataInfo);
 
         for (uint256 i = 0; i < blobVersionedHashes.length; i++) {
             if (dataProofs[i].length == 0) {
@@ -452,6 +415,63 @@ contract NilRollup is OwnableUpgradeable, PausableUpgradeable, NilAccessControlU
 
         // emit an event for the updated state root
         emit StateRootUpdated(batchIndex, oldStateRoot, newStateRoot);
+    }
+
+    function validatePublicDataInput(PublicDataInfo calldata publicDataInfo) private {
+        // get the messageCount from the publicInput
+        uint256 depositMessageCount = publicDataInfo.messageCount;
+
+        if (
+            depositMessageCount == 0
+            && (
+                publicDataInfo.l2Tol1Root != batchInfoRecords[lastFinalizedBatchIndex].publicDataInfo.l2Tol1Root
+                || publicDataInfo.l1MessageHash != ZERO_STATE_ROOT
+            )
+        ) {
+            revert ErrorInvalidPublicDataInfo();
+        }
+
+        if (
+            depositMessageCount > 0
+                && (
+                publicDataInfo.l2Tol1Root == batchInfoRecords[lastFinalizedBatchIndex].publicDataInfo.l2Tol1Root
+                || publicDataInfo.l1MessageHash == ZERO_STATE_ROOT
+            )
+        ) {
+            revert ErrorInvalidPublicDataInfo();
+        }
+
+        if (depositMessageCount == 0) {
+            return;
+        }
+
+        // pull first n messages from the messageQueue via l1BridgeMessenger
+        bytes32[] memory depositMessageHashes = l1BridgeMessenger.popMessages(depositMessageCount);
+
+        if (l1MessageHash == bytes32(0)) {
+            if (depositMessageCount == 1) {
+                l1MessageHash = depositMessageHashes[0];
+            } else {
+                bytes32 l1MessageHashLocal = depositMessageHashes[0];
+                for (uint256 messageHashIndex = 1; messageHashIndex < depositMessageCount; messageHashIndex++) {
+                    l1MessageHashLocal =
+                                    keccak256(abi.encode(l1MessageHashLocal, depositMessageHashes[messageHashIndex]));
+                }
+                l1MessageHash = l1MessageHashLocal;
+            }
+        } else {
+            bytes32 l1MessageHashLocal = l1MessageHash;
+            for (uint256 messageHashIndex = 0; messageHashIndex < depositMessageCount; messageHashIndex++) {
+                l1MessageHashLocal =
+                                keccak256(abi.encode(depositMessageHashes[messageHashIndex], l1MessageHashLocal));
+            }
+            l1MessageHash = l1MessageHashLocal;
+        }
+
+        // Check if the l1MessageHash in publicDataInput is the same as the l1MessageHash computed above
+        if (l1MessageHash != publicDataInfo.l1MessageHash) {
+            revert ErrorL1MessageHashMismatch(l1MessageHash, publicDataInfo.l1MessageHash);
+        }
     }
 
     /// @inheritdoc INilRollup

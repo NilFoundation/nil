@@ -489,7 +489,7 @@ func (s *BlockStorageTestSuite) Test_TryGetNextProposalData_Concurrently() {
 			default:
 				data, err := s.bs.TryGetNextProposalData(s.ctx)
 				if err != nil {
-					s.Require().ErrorIs(err, scTypes.ErrStateRootNotInitialized)
+					s.Require().ErrorIs(err, scTypes.ErrLocalStateRootNotInitialized)
 					continue
 				}
 				if data == nil {

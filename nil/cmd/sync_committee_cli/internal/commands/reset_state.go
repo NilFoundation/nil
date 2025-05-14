@@ -27,5 +27,5 @@ func ResetState(ctx context.Context, params *ResetStateParams, logger logging.Lo
 	}
 
 	targetStateRoot := common.HexToHash(params.TargetStateRoot)
-	return wrapper.ResetState(ctx, targetStateRoot)
+	return wrapper.RollbackState(ctx, targetStateRoot)
 }
