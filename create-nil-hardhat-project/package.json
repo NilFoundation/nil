@@ -1,6 +1,6 @@
 {
   "name": "create-nil-hardhat-project",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "main": "index.js",
   "bin": {
     "create-nil-hardhat-template": "scripts/cli.js"
@@ -28,7 +28,6 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "dotenv": "^16.4.5",
-    "ts-node": "^10.9.2",
-    "@nilfoundation/smart-contracts": "0.7.0"
+    "ts-node": "^10.9.2"
   }
 }
