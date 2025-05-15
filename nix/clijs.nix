@@ -1,4 +1,4 @@
-{ pkgs, lib, stdenv, biome, jq, moreutils, callPackage, pnpm_10, nil, enableTesting ? false }:
+{ pkgs, lib, stdenv, biome, jq, moreutils, callPackage, pnpm_10, nil, solc, solc-select, enableTesting ? false }:
 
 let
   sigtool = callPackage ./sigtool.nix { };
@@ -24,7 +24,7 @@ stdenv.mkDerivation rec {
 
   NODE_PATH = "$npmDeps";
 
-  nativeBuildInputs = [ nodejs_static pnpm_static.configHook biome jq moreutils ]
+  nativeBuildInputs = [ nodejs_static pnpm_static.configHook biome jq moreutils solc ]
     ++ lib.optionals stdenv.buildPlatform.isDarwin [ sigtool ]
     ++ (if enableTesting then [ nil ] else [ ]);
 

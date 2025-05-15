@@ -20,8 +20,10 @@ export default class ConfigSet extends BaseCommand {
 
   public async run(): Promise<void> {
     const { args } = await this.parse(ConfigSet);
-
-    this.configManager!.updateConfig(ConfigKeys.NilSection, args.key, args.value);
+    if (!this.configManager) {
+      throw new Error("Config is not initialized");
+    }
+    this.configManager.updateConfig(ConfigKeys.NilSection, args.key, args.value);
     this.log(`Set ${args.key} to ${args.value}`);
   }
 }

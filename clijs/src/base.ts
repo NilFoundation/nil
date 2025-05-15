@@ -7,6 +7,7 @@ import {
   FaucetClient,
   type Hex,
   HttpTransport,
+  type IAddress,
   LocalECDSAKeySigner,
   PublicClient,
   SmartAccountV1,
@@ -131,7 +132,7 @@ abstract class BaseCommand extends Command {
     }
   }
 
-  protected async setupSmartAccount() {
+  protected async setupSmartAccount(address: IAddress | undefined = undefined) {
     const privateKey = this.configManager?.getConfigValue(
       ConfigKeys.NilSection,
       ConfigKeys.PrivateKey,
@@ -155,7 +156,7 @@ abstract class BaseCommand extends Command {
     const publicKey = signer.getPublicKey();
     const smartAccount = new SmartAccountV1({
       pubkey: publicKey,
-      address: smartAccountAddress,
+      address: address ?? smartAccountAddress,
       client:
         this.rpcClient ??
         (() => {

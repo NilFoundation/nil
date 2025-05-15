@@ -12,8 +12,8 @@ describe("smart-account:estimate", () => {
         "smart-account",
         "deploy",
         "-a",
-        "../nil/contracts/compiled/tests/Counter.abi",
-        "../nil/contracts/compiled/tests/Counter.bin",
+        "./test/contracts/Counter/Counter.abi",
+        "./test/contracts/Counter/Counter.bin",
         "-t",
         Math.round(Math.random() * 1000000).toString(),
       ])
@@ -25,10 +25,9 @@ describe("smart-account:estimate", () => {
         "smart-account",
         "estimate-fee",
         "-a",
-        "../nil/contracts/compiled/tests/Counter.abi",
+        "./test/contracts/Counter/Counter.abi",
         contractAddress,
-        "add",
-        "20",
+        "increment",
       ])
     ).result as Hex;
     expect(BigInt(estimation)).greaterThan(0);

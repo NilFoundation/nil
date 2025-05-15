@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcess, exec, spawn } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import { testEnv } from "./testEnv.js";
 
@@ -13,6 +13,7 @@ let nildInstance: Nild;
 export async function setup() {
   console.log("launching nild:", testEnv.nild);
   const logFd = openSync("nild.log", "w");
+  await exec(COUNTER_COMPILATION_COMMAND);
   const nild = spawn(testEnv.nild, ["run", "--http-port", "8529", "--collator-tick-ms", "100"], {
     stdio: ["ignore", logFd, logFd],
   });
@@ -44,3 +45,6 @@ export async function teardown() {
     });
   });
 }
+
+const COUNTER_COMPILATION_COMMAND =
+  "solc -o ./test/contracts/Counter --bin --abi ./test/contracts/Counter.sol --overwrite";

@@ -13,6 +13,9 @@ export default class ChainId extends BaseCommand {
 
     try {
       const chainId = await rpcClient.chainId();
+
+      this.log(chainId.toString());
+
       return chainId;
     } catch (error) {
       this.error(`Failed to get chain ID: ${error}`);

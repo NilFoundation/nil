@@ -7,7 +7,10 @@ export default class ConfigShow extends BaseCommand {
   static override examples = ["$ nil config show"];
 
   public async run(): Promise<string> {
-    const config = this.configManager!.loadConfig();
+    if (!this.configManager) {
+      throw new Error("Config is not initialized");
+    }
+    const config = this.configManager.loadConfig();
     const nilSection = config[ConfigKeys.NilSection] as Record<string, string>;
 
     let formattedOutput = "";

@@ -18,7 +18,10 @@ export default class ConfigGet extends BaseCommand {
   public async run(): Promise<string | null> {
     const { args } = await this.parse(ConfigGet);
 
-    const value = this.configManager!.getConfigValue(ConfigKeys.NilSection, args.name);
+    if (!this.configManager) {
+      throw new Error("Config is not initialized");
+    }
+    const value = this.configManager.getConfigValue(ConfigKeys.NilSection, args.name);
     if (!value) {
       return null;
     }
