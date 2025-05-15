@@ -1,7 +1,6 @@
 package clickhouse
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -276,25 +275,11 @@ func (d *ClickhouseDriver) Reconnect() error {
 	return err
 }
 
-func (d *ClickhouseDriver) SetupScheme(ctx context.Context, params indexerdriver.SetupParams) error {
-	version, err := readVersion(ctx, d.conn)
-	if err != nil {
-		return fmt.Errorf("failed to read version: %w", err)
-	}
-	if bytes.Equal(version[:], params.Version[:]) {
-		return nil
-	}
+func (d *ClickhouseDriver) FetchVersion(ctx context.Context) (common.Hash, error) {
+	return readVersion(ctx, d.conn)
+}
 
-	if !params.AllowDbDrop {
-		return fmt.Errorf("version mismatch: blockchain %x, indexer %x", params.Version, version)
-	}
-
-	if version.Empty() {
-		logger.Info().Msg("Database is empty. Recreating...")
-	} else {
-		logger.Info().Msgf("Version mismatch: blockchain %x, indexer %x. Dropping database...", params.Version, version)
-	}
-
+func (d *ClickhouseDriver) ResetDB(ctx context.Context) error {
 	for table := range getTableScheme() {
 		if err := d.conn.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", d.options.Auth.Database, table)); err != nil {
 			return fmt.Errorf("failed to drop table %s: %w", table, err)
