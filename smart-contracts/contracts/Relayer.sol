@@ -6,8 +6,6 @@ import "../../nil/contracts/solidity/system/console.sol";
 // import "../system/console.sol";
 import "./IterableMapping.sol";
 
-uint constant SHARDS_NUM = 5;
-
 /**
  * @title Relayer
  * @dev This contract facilitates relaying transactions, handling responses, and managing token credits.
@@ -26,7 +24,7 @@ contract Relayer {
 
     // Structure for cross-shard messages
     struct Message {
-        uint160 id;                  // Unique message identifier
+        uint64 id;                   // Unique message identifier
         address from;                // Source address
         address to;                  // Destination address
         address refundTo;            // Refund address
@@ -40,27 +38,26 @@ contract Relayer {
         uint256 responseFeeCredit;   // Fee credit allocated for response
         bool isDeploy;               // Whether this is a deploy message
         uint256 salt;                // For deploy messages
-        MessageStatus status;        // Message status
     }
     
     // Message queue data
-    uint160 private nextMessageId = 1;
-    mapping(uint160 => Message) private messages;
-    IterableMapping.Map private pendingMessageIds;   // Messages waiting for fee allocation
-    IterableMapping.Map private readyMessageIds;     // Messages ready to be processed
-    IterableMapping.Map private processedMessageIds; // Delivered or failed messages
+    mapping(uint32 => Message[]) messages;
+    mapping(uint32 => uint64) private inMsgCount;
+    mapping(uint32 => uint64) private outMsgCount;
+
+    struct MessageRef {
+        uint32 shardId;
+        uint32 messageIndex;
+        uint64 messageId;
+    }
     
     // For async call management
-    uint8[] private msgsForwardedRemaining;
-    uint8[] private msgsForwardedPercentage;
-    uint8[] private msgsForwardedValue;
+    MessageRef[] private msgsForwardedRemaining;
+    MessageRef[] private msgsForwardedPercentage;
+    MessageRef[] private msgsForwardedValue;
     uint32 private numMsgsWithForwardGas;
     bool private forwardingInitialized;
     mapping(address => uint256) private pendingRefund;
-
-    // For pending messages traversal 
-    uint64[SHARDS_NUM] private currentBlockNumber;
-    uint32[SHARDS_NUM] private currentMessageId;
 
     // Events
 
@@ -164,8 +161,9 @@ contract Relayer {
         uint256 responseFeeCredit,
         bool isDeploy,
         uint256 salt
-    ) public returns (uint160) {
-        uint160 messageId = nextMessageId++;
+    ) public returns (MessageRef memory) {
+        uint32 shardId = uint32(Nil.getShardId(to));
+        uint64 messageId = outMsgCount[shardId]++;
         
         // Create a deep copy of tokens
         Nil.Token[] memory tokensCopy = new Nil.Token[](tokens.length);
@@ -173,7 +171,7 @@ contract Relayer {
             tokensCopy[i] = tokens[i];
         }
         
-        messages[messageId] = Message({
+        messages[shardId].push(Message({
             id: messageId,
             from: from,
             to: to,
@@ -187,84 +185,39 @@ contract Relayer {
             requestId: requestId,
             responseFeeCredit: responseFeeCredit,
             isDeploy: isDeploy,
-            salt: salt,
-            status: MessageStatus.Pending
-        });
-        
-        pendingMessageIds.set(address(uint160(messageId)), 1);
+            salt: salt
+        }));
         
         emit MessageEnqueued(messageId, from, to, value);
         
-        return messageId;
+        return MessageRef({
+            shardId: shardId,
+            messageIndex: uint32(messages[shardId].length - 1),
+            messageId: messageId
+        });
     }
     
-    /**
-     * @dev Marks a message as ready for processing (with fee allocation)
-     * @param messageId ID of the message
-     */
-    function markMessageReady(uint160 messageId) internal {
-        require(messages[messageId].id == messageId, "Message doesn't exist");
-        require(messages[messageId].status == MessageStatus.Pending, "Message not pending");
-        
-        messages[messageId].status = MessageStatus.Ready;
-        pendingMessageIds.remove(address(uint160(messageId)));
-        readyMessageIds.set(address(uint160(messageId)), 1);
-        
-        emit MessageReady(messageId);
-    }
+
     
     /**
-     * @dev Marks a message as delivered (called by validators after processing)
-     * @param messageId ID of the message
-     * @param success   Whether the message was successfully processed
-     * It must be called by the validator when block with this message is finalized 
+     * @dev Gets pending messages for a specific shard
+     * @param shardId The shard ID to get messages from
+     * @param count The maximum number of messages to return
+     * @return An array of pending messages
      */
-    function markMessageDelivered(uint160 messageId, bool success) external {
-        require(messages[messageId].id == messageId, "Message doesn't exist");
-        require(messages[messageId].status == MessageStatus.Ready, "Message not ready");
+    function getPendingMessages(uint32 shardId, uint32 count) external view returns (Message[] memory) {
+        uint256 pendingCount = messages[shardId].length;
+        uint256 resultCount = pendingCount < count ? pendingCount : count;
         
-        messages[messageId].status = success ? MessageStatus.Delivered : MessageStatus.Failed;
-        readyMessageIds.remove(address(uint160(messageId)));
-        processedMessageIds.set(address(uint160(messageId)), 1);
-        
-        emit MessageDelivered(messageId, success);
-    }
-    
-    /**
-     * @dev Gets pending messages (waiting for fee allocation)
-     * @param count Maximum number of messages to return
-     * @return messageIds Array of message IDs
-     */
-    function getPendingMessages(uint256 count) external view returns (uint160[] memory) {
-        return _getMessagesFromMap(pendingMessageIds, count);
-    }
-    
-    /**
-     * @dev Gets ready messages (with allocated fee credit, ready for processing)
-     * @param count Maximum number of messages to return
-     * @return messageIds Array of message IDs
-     * It must be called by the validator when it is assembling a block.
-     */
-    function getReadyMessages(uint32 count) external view returns (uint160[] memory) {
-        return _getMessagesFromMap(readyMessageIds, count);
-    }
-    
-    /**
-     * @dev Helper function to get messages from a map
-     */
-    function _getMessagesFromMap(IterableMapping.Map storage map, uint256 count) private view returns (uint160[] memory) {
-        uint256 mapSize = map.size();
-        uint256 resultCount = mapSize < count ? mapSize : count;
-        
-        uint160[] memory result = new uint160[](resultCount);
+        Message[] memory result = new Message[](resultCount);
         
         for (uint256 i = 0; i < resultCount; i++) {
-            address messageIdAddress = map.getKeyAtIndex(i);
-            result[i] = uint160(messageIdAddress);
+            result[i] = messages[shardId][i];
         }
         
         return result;
     }
+
     
     /**
     * @dev Gets a specific message by ID
@@ -284,87 +237,77 @@ contract Relayer {
     * @return salt The salt for deploy messages
     * @return status The message status
     */
-    function getMessage(uint160 messageId) external view returns (
-        address from,
-        address to,
-        address refundTo,
-        address bounceTo,
-        uint256 value,
-        Nil.Token[] memory tokens,
-        uint8 forwardKind,
-        uint256 feeCredit,
-        bytes memory data,
-        uint256 requestId,
-        uint256 responseFeeCredit,
-        bool isDeploy,
-        uint256 salt,
-        MessageStatus status
-    ) {
-        Message storage message = messages[messageId];
-        require(message.id == messageId, "Message doesn't exist");
+    // function getMessage(uint160 messageId) external view returns (
+    //     address from,
+    //     address to,
+    //     address refundTo,
+    //     address bounceTo,
+    //     uint256 value,
+    //     Nil.Token[] memory tokens,
+    //     uint8 forwardKind,
+    //     uint256 feeCredit,
+    //     bytes memory data,
+    //     uint256 requestId,
+    //     uint256 responseFeeCredit,
+    //     bool isDeploy,
+    //     uint256 salt,
+    //     MessageStatus status
+    // ) {
+    //     Message storage message = messages[messageId];
+    //     require(message.id == messageId, "Message doesn't exist");
         
-        return (
-            message.from,
-            message.to,
-            message.refundTo,
-            message.bounceTo,
-            message.value,
-            message.tokens,
-            message.forwardKind,
-            message.feeCredit,
-            message.data,
-            message.requestId,
-            message.responseFeeCredit,
-            message.isDeploy,
-            message.salt,
-            message.status
-        );
-    }
+    //     return (
+    //         message.from,
+    //         message.to,
+    //         message.refundTo,
+    //         message.bounceTo,
+    //         message.value,
+    //         message.tokens,
+    //         message.forwardKind,
+    //         message.feeCredit,
+    //         message.data,
+    //         message.requestId,
+    //         message.responseFeeCredit,
+    //         message.isDeploy,
+    //         message.salt,
+    //         message.status
+    //     );
+    // }
     
     /**
      * @dev Prunes processed messages (delivered or failed)
-     * @param count Maximum number of messages to prune
+     * @param inMsgIds is an array that stores for every shard the last message ID that has been processed
      * @return Number of messages pruned
      * It must be called by validator periodically(for example, once per block)
      */
-    function pruneProcessedMessages(uint256 count) external returns (uint256) {
-        uint256 processedCount = processedMessageIds.size();
-        uint256 prunedCount = 0;
-        
-        for (uint256 i = 0; i < processedCount && i < count; i++) {
-            address messageIdAddress = processedMessageIds.getKeyAtIndex(0); // Always remove first
-            uint160 messageId = uint160(messageIdAddress);
-            
-            // Delete the message data
-            delete messages[messageId];
-            // Remove from the processed list
-            processedMessageIds.remove(messageIdAddress);
-            prunedCount++;
+    function pruneProcessedMessages(uint64[] memory inMsgIds) external returns (uint32) {
+        uint32 prunedCount = 0;
+        for (uint32 i = 0; i < Nil.SHARDS_NUM; i++) {
+            uint64 lastId = inMsgIds[i];
+            require(lastId <= outMsgCount[i], "pruneProcessedMessages: invalid lastId");
+            while (messages[i].length > 0 && messages[i][0].id <= lastId) {
+                messages[i].pop();
+                prunedCount++;
+            }
         }
-        
         return prunedCount;
     }
 
     /**
-     * @dev Execute a ready message - used by validators to process messages
-     * @param messageId ID of the message to process
-     * @return success Whether processing was successful
-     * @return returnData Response data from processing
-     * This function must be called by the validator to process the message
+     * @dev Executes a message that is ready for processing
+     * @param message The message to execute
+     * @return success Whether the execution was successful
+     * @return returnData The data returned from the execution
      */
-    function executeMessage(uint160 messageId) external returns (bool success, bytes memory returnData) {
-        Message storage message = messages[messageId];
-        require(message.id == messageId, "Message doesn't exist");
-        require(message.status == MessageStatus.Ready, "Message not ready for execution");
-        
-        if (message.isDeploy) {
-            // Handle deploy message
-            return _processDeploy(message);
-        } else {
-            // Handle regular execution message
-            return _processCall(message);
-        }
-    }
+    // function executeMessage(Message memory message) external returns (bool success, bytes memory returnData) {
+    //     if (message.isDeploy) {
+    //         // Handle deploy message
+    //         return _processDeploy(message);
+    //     } else {
+    //         // Handle regular execution message
+    //         return _processCall(message);
+    //     }
+    // }
     
     /**
      * @dev Process a deploy message
@@ -548,22 +491,20 @@ contract Relayer {
 
         // Process VALUE forwarded messages first
         for (uint256 i = 0; i < msgsForwardedValue.length; i++) {
-            uint160 messageId = uint160(pendingMessageIds.getKeyAtIndex(msgsForwardedValue[i]));
-            Message storage message = messages[messageId];
+            MessageRef memory messageRef = msgsForwardedValue[i];
+            Message storage message = messages[messageRef.shardId][messageRef.messageIndex];
         
             console.log("_forwardGas value: to=%_, fee=%_", message.to, message.feeCredit);
             require(feeCredit >= message.feeCredit, "forwardGas: not enough feeCredit for ForwardValue");
             feeCredit -= message.feeCredit;
-        
-            markMessageReady(messageId);
         }
 
         // Process PERCENTAGE forwarded messages
         uint percentageTotal = 0;
         uint baseFeeCredit = feeCredit;
         for (uint256 i = 0; i < msgsForwardedPercentage.length; i++) {
-            uint160 messageId = uint160(pendingMessageIds.getKeyAtIndex(msgsForwardedPercentage[i]));
-            Message storage message = messages[messageId];
+            MessageRef memory messageRef = msgsForwardedPercentage[i];
+            Message storage message = messages[messageRef.shardId][messageRef.messageIndex];
             
             require(message.forwardKind == Nil.FORWARD_PERCENTAGE, "forwardGas: invalid percentage forwarding");
 
@@ -582,7 +523,6 @@ contract Relayer {
             }
 
             console.log("_forwardGas percentage: fee=%_", message.feeCredit);
-            markMessageReady(messageId);
         }
 
         // Process REMAINING forwarded messages
@@ -594,14 +534,13 @@ contract Relayer {
             feeCredit = 0;
             
             for (uint256 i = 0; i < msgsForwardedRemaining.length; i++) {
-                uint160 messageId = uint160(pendingMessageIds.getKeyAtIndex(msgsForwardedRemaining[i]));
-                Message storage message = messages[messageId];
+                MessageRef memory messageRef = msgsForwardedRemaining[i];
+                Message storage message = messages[messageRef.shardId][messageRef.messageIndex];
 
                 console.log("_forwardGas remaining: to=%_, fee=%_", message.to, feeCreditForward);
 
                 require(message.forwardKind == Nil.FORWARD_REMAINING);
                 message.feeCredit = feeCreditForward;
-                markMessageReady(messageId);
             }
         }
 
@@ -621,6 +560,34 @@ contract Relayer {
         delete msgsForwardedPercentage;
         delete msgsForwardedValue;
         forwardingInitialized = false;
+    }
+
+    /**
+     * @dev Processes the forwarding kind of a message.
+     * @param forwardKind The forwarding type.
+     * @param messageRef The reference to the message.
+     */
+    function processForwardKind(
+        uint8 forwardKind,
+        MessageRef memory messageRef
+    ) internal {
+        if (forwardKind == Nil.FORWARD_REMAINING) {
+            msgsForwardedRemaining.push(messageRef);
+            numMsgsWithForwardGas++;
+            console.log("processForwardKind FORWARD_REMAINING: num=%_", numMsgsWithForwardGas);
+        } else if (forwardKind == Nil.FORWARD_PERCENTAGE) {
+            msgsForwardedPercentage.push(messageRef);
+            numMsgsWithForwardGas++;
+            console.log("processForwardKind FORWARD_PERCENTAGE: num=%_", numMsgsWithForwardGas);
+        } else if (forwardKind == Nil.FORWARD_VALUE) {
+            msgsForwardedValue.push(messageRef);
+            numMsgsWithForwardGas++;
+            console.log("processForwardKind FORWARD_VALUE: num=%_", numMsgsWithForwardGas);
+        } else if (forwardKind == Nil.FORWARD_NONE) {
+            numMsgsWithForwardGas++;
+        } else {
+            revert("processForwardKind: invalid forwardKind");
+        }
     }
 
     /**
@@ -651,24 +618,6 @@ contract Relayer {
         console.log("sendTx: to=%_, from=%_", to, msg.sender);
 
         require(forwardingInitialized, "Relayer not initialized");
-
-        if (forwardKind == Nil.FORWARD_REMAINING) {
-            msgsForwardedRemaining.push(uint8(pendingMessageIds.size()));
-            numMsgsWithForwardGas++;
-            console.log("sendTx FORWARD_REMAINING: num=%_", numMsgsWithForwardGas);
-        } else if (forwardKind == Nil.FORWARD_PERCENTAGE) {
-            msgsForwardedPercentage.push(uint8(pendingMessageIds.size()));
-            numMsgsWithForwardGas++;
-            console.log("sendTx FORWARD_PERCENTAGE: num=%_", numMsgsWithForwardGas);
-        } else if (forwardKind == Nil.FORWARD_VALUE) {
-            msgsForwardedValue.push(uint8(pendingMessageIds.size()));
-            numMsgsWithForwardGas++;
-            console.log("sendTx FORWARD_VALUE: num=%_", numMsgsWithForwardGas);
-        } else if (forwardKind == Nil.FORWARD_NONE) {
-            numMsgsWithForwardGas++;
-        } else {
-            revert("sendTx: invalid forwardKind");
-        }
 
         uint256 responseFeeCredit;
         if (requestId != 0) {
@@ -702,7 +651,7 @@ contract Relayer {
         );
 
         // Enqueue the message
-        uint256 messageId = enqueueMessage(
+        MessageRef memory messageRef = enqueueMessage(
             msg.sender,
             Nil.getRelayerAddress(Nil.getShardId(to)),
             refundTo,
@@ -717,8 +666,10 @@ contract Relayer {
             false,
             0
         );
-        
-        console.log("sendTx done: messageId=%_", messageId);
+
+        processForwardKind(forwardKind, messageRef);
+
+        console.log("sendTx done: shardId=%_, messageId=%_", messageRef.shardId, messageRef.messageIndex);
     }
 
     /**
@@ -746,24 +697,6 @@ contract Relayer {
 
         require(forwardingInitialized, "Relayer not initialized");
 
-        if (forwardKind == Nil.FORWARD_REMAINING) {
-            msgsForwardedRemaining.push(uint8(pendingMessageIds.size()));
-            numMsgsWithForwardGas++;
-            console.log("sendTxDeploy FORWARD_REMAINING: num=%_", numMsgsWithForwardGas);
-        } else if (forwardKind == Nil.FORWARD_PERCENTAGE) {
-            msgsForwardedPercentage.push(uint8(pendingMessageIds.size()));
-            numMsgsWithForwardGas++;
-            console.log("sendTxDeploy FORWARD_PERCENTAGE: num=%_", numMsgsWithForwardGas);
-        } else if (forwardKind == Nil.FORWARD_VALUE) {
-            msgsForwardedValue.push(uint8(pendingMessageIds.size()));
-            numMsgsWithForwardGas++;
-            console.log("sendTxDeploy FORWARD_VALUE: num=%_", numMsgsWithForwardGas);
-        } else if (forwardKind == Nil.FORWARD_NONE) {
-            numMsgsWithForwardGas++;
-        } else {
-            revert("sendTxDeploy: invalid forwardKind");
-        }
-
         if (refundTo == address(0)) {
             refundTo = msg.sender;
         }
@@ -783,7 +716,7 @@ contract Relayer {
         );
 
         // Enqueue the message
-        uint256 messageId = enqueueMessage(
+        MessageRef memory messageRef = enqueueMessage(
             msg.sender,
             Nil.getRelayerAddress(Nil.getShardId(to)),
             refundTo,
@@ -798,8 +731,10 @@ contract Relayer {
             true,           // Is deploy
             salt
         );
+
+        processForwardKind(forwardKind, messageRef);
         
-        console.log("sendTxDeploy pushed: messageId=%_", messageId);
+        console.log("sendTxDeploy pushed: shardId=%_, messageId=%_", messageRef.shardId, messageRef.messageIndex);
     }
 
     /**
@@ -817,6 +752,7 @@ contract Relayer {
     function receiveTx(
         address from,
         address to,
+        uint64 messageId,
         address bounceTo,
         uint value,
         Nil.Token[] memory tokens,
@@ -824,7 +760,9 @@ contract Relayer {
         uint256 requestId,
         uint responseFeeCredit
     ) public payable returns(bytes memory) {
-        console.log("receiveTx: gas=%_, to=%_, from=%_", gasleft(), to, from);
+        require(inMsgCount[uint32(Nil.getShardId(from))]++ == messageId, "Invalid message ID");
+
+        console.log("receiveTx: gas=%_, to=%_, from=%_, messageId=%_", gasleft(), to, from, messageId);
 
         // Credit tokens to the recipient
         NilTokenManager(Nil.getTokenManagerAddress()).creditForRelay(to, tokens);
@@ -930,12 +868,15 @@ contract Relayer {
     function receiveTxDeploy(
         address from,
         address to,
+        uint64 messageId,
         address bounceTo,
         uint256 value,
         uint256 salt,
         bytes memory code
     ) public payable returns(bytes memory) {
-        console.log("receiveTxDeploy: gas=%_, to=%_, salt=%_", gasleft(), to, salt);
+        require(inMsgCount[uint32(Nil.getShardId(from))]++  == messageId, "Invalid message ID");
+
+        console.log("receiveTxDeploy: gas=%_, to=%_, salt=%_, messageId=%_", gasleft(), to, salt, messageId);
 
         // Deploy the contract using CREATE2
         address addr;
@@ -994,12 +935,14 @@ contract Relayer {
     function receiveTxResponse(
         address from,
         address to,
+        uint64 messageId,
         uint256 value,
         bool success,
         bytes memory response,
         uint256 requestId,
         uint256 responseFeeCredit
     ) public payable {
+        require(inMsgCount[uint32(Nil.getShardId(from))]++ == messageId, "Invalid message ID");
         // Calculate gas from responseFeeCredit using current gas price
         uint gas = responseFeeCredit / Nil.getGasPrice(address(this));
         
@@ -1026,11 +969,14 @@ contract Relayer {
      * @param callData The calldata of the bounce.
      */
     function receiveTxBounce(
+        address from,
         address to,
+        uint64 messageId,
         uint value,
         Nil.Token[] memory tokens,
         bytes memory callData
     ) public payable {
+        require(inMsgCount[uint32(Nil.getShardId(from))]++ == messageId, "Invalid message ID");
         printRevertData("Bounce tx", callData);
         console.log("bounce: value=%_, to=%_", value, to);
         
@@ -1098,15 +1044,5 @@ contract Relayer {
      */
     function getPendingRefund(address account) external view returns (uint256) {
         return pendingRefund[account];
-    }
-
-    /**
-     * @dev Clear the message queue state 
-     * Must be injected as a first(or at least prior to all async calls) transaction in block by the validator
-     */
-    function clearQueueState() external {
-        IterableMapping.clear(pendingMessageIds);
-        IterableMapping.clear(readyMessageIds);
-        IterableMapping.clear(processedMessageIds);
     }
 }
