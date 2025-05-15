@@ -37,7 +37,7 @@ func (s *ProposerTestSuite) TearDownTest() {
 
 func (s *ProposerTestSuite) newParams() *Params {
 	return &Params{
-		BlockGeneratorParams: execution.NewBlockGeneratorParams(s.shardId, 2),
+		BlockGeneratorParams: execution.NewBlockGeneratorParams(s.shardId, 5),
 	}
 }
 

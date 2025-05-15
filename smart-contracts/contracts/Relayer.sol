@@ -2,12 +2,11 @@
 pragma solidity ^0.8.0;
 
 import "./NilTokenManager.sol";
-// import "../../nil/contracts/solidity/system/console.sol";
 import "../system/console.sol";
 import "./IterableMapping.sol";
 
 // Restated here because of https://github.com/ethereum/solidity/issues/12248
-uint32 constant SHARDS_NUM = 5;
+uint32 constant _N_SHARDS = 5;
 
 /**
  * @title Relayer
@@ -35,11 +34,26 @@ contract Relayer {
         uint256 salt;                // For deploy messages
     }
     
+    // Struct to group message parameters to reduce stack depth
+    struct MessageParams {
+        address from;
+        address to;
+        address refundTo;
+        address bounceTo;
+        uint256 value;
+        uint8 forwardKind;
+        uint256 feeCredit;
+        uint256 requestId;
+        uint256 responseFeeCredit;
+        bool isDeploy;
+        uint256 salt;
+    }
+    
     // Message queue data
     mapping(uint32 => Message[]) messages;
-    uint64[SHARDS_NUM] private inMsgCount;
-    uint64[SHARDS_NUM] private outMsgCount;
-    uint64[SHARDS_NUM] private currentBlockNumber;
+    uint64[_N_SHARDS] private inMsgCount;
+    uint64[_N_SHARDS] private outMsgCount;
+    uint64[_N_SHARDS] private currentBlockNumber;
 
     struct MessageRef {
         uint32 shardId;
@@ -55,42 +69,9 @@ contract Relayer {
     mapping(address => uint256) private pendingRefund;
 
     // Events
-
-    /**
-     * @dev Emitted when a message is enqueued for processing.
-     * @param messageId The ID of the message.
-     * @param from The address of the sender.
-     * @param to The address of the recipient.
-     * @param value The value transferred with the message.
-     */
-    event MessageEnqueued(
-        uint160 indexed messageId, 
-        address indexed from, 
-        address indexed to, 
-        uint256 value
-    );
-
-    /**
-     * @dev Emitted when a message is ready to be processed.
-     * @param messageId The ID of the message that is ready.
-     */
+    event MessageEnqueued(uint160 indexed messageId, address indexed from, address indexed to, uint256 value);
     event MessageReady(uint160 indexed messageId);
-    
-    /**
-     * @dev Emitted when a message has been successfully delivered.
-     * @param messageId The ID of the delivered message.
-     * @param success Whether the message execution was successful.
-     */
     event MessageDelivered(uint160 indexed messageId, bool success);
-    
-    /**
-     * @dev Emitted when a response fails to execute.
-     * @param from The address that initiated the call.
-     * @param to The target address of the call.
-     * @param success Whether the response was successful.
-     * @param response The response data.
-     * @param requestId The ID of the request.
-     */
     event ResponseFailed(
         address indexed from,
         address indexed to,
@@ -99,15 +80,6 @@ contract Relayer {
         uint256 requestId,
         uint256 responseFeeCredit
     );
-
-    /**
-     * @dev Emitted when a call fails to execute.
-     * @param from The address that initiated the call.
-     * @param to The target address of the call.
-     * @param value The amount of Ether sent with the call.
-     * @param tokens The tokens involved in the call.
-     * @param callData The calldata of the call.
-     */
     event CallFailed(
         address indexed from,
         address indexed to,
@@ -115,75 +87,47 @@ contract Relayer {
         Nil.Token[] tokens,
         bytes callData
     );
-
-    /**
-     * @dev Emitted when a refund is claimed.
-     * @param recipient The address that received the refund.
-     * @param amount The amount of Ether refunded.
-     */
     event RefundClaimed(address indexed recipient, uint256 amount);
 
-    // Queue management functions
-
-    /**
-     * @dev Enqueues a message for asynchronous processing
-     * @param from Source address
-     * @param to Destination address
-     * @param refundTo Address to refund in case of failure
-     * @param bounceTo Address to bounce to in case of failure
-     * @param value Value to send
-     * @param tokens Tokens to send
-     * @param forwardKind Type of gas forwarding
-     * @param feeCredit Fee credit to use
-     * @param data Call data
-     * @param requestId Request ID for responses
-     * @param responseFeeCredit Fee credit allocated for response
-     * @param isDeploy Whether this is a deploy message
-     * @param salt Salt for deploy messages
-     * @return id The ID of the enqueued message
-     */
-    function enqueueMessage(
-        address from,
-        address to,
-        address refundTo,
-        address bounceTo,
-        uint256 value,
-        Nil.Token[] memory tokens,
-        uint8 forwardKind,
-        uint256 feeCredit,
-        bytes memory data,
-        uint256 requestId,
-        uint256 responseFeeCredit,
-        bool isDeploy,
-        uint256 salt
-    ) public returns (MessageRef memory) {
-        uint32 shardId = uint32(Nil.getShardId(to));
-        uint64 messageId = outMsgCount[shardId]++;
-        
-        // Create a deep copy of tokens
+    // Helper function to create a deep copy of tokens array
+    function _copyTokens(Nil.Token[] memory tokens) internal pure returns (Nil.Token[] memory) {
         Nil.Token[] memory tokensCopy = new Nil.Token[](tokens.length);
         for (uint i = 0; i < tokens.length; i++) {
             tokensCopy[i] = tokens[i];
         }
+        return tokensCopy;
+    }
+
+    // Queue management functions
+    function enqueueMessage(
+        MessageParams memory params,
+        Nil.Token[] memory tokens,
+        bytes memory data
+    ) internal returns (MessageRef memory) {
+        uint32 shardId = uint32(Nil.getShardId(params.to));
+        uint64 messageId = outMsgCount[shardId]++;
+        
+        // Create a deep copy of tokens
+        Nil.Token[] memory tokensCopy = _copyTokens(tokens);
         
         messages[shardId].push(Message({
             id: messageId,
-            from: from,
-            to: to,
-            refundTo: refundTo,
-            bounceTo: bounceTo,
-            value: value,
+            from: params.from,
+            to: params.to,
+            refundTo: params.refundTo,
+            bounceTo: params.bounceTo,
+            value: params.value,
             tokens: tokensCopy,
-            forwardKind: forwardKind,
-            feeCredit: feeCredit,
+            forwardKind: params.forwardKind,
+            feeCredit: params.feeCredit,
             data: data,
-            requestId: requestId,
-            responseFeeCredit: responseFeeCredit,
-            isDeploy: isDeploy,
-            salt: salt
+            requestId: params.requestId,
+            responseFeeCredit: params.responseFeeCredit,
+            isDeploy: params.isDeploy,
+            salt: params.salt
         }));
         
-        emit MessageEnqueued(messageId, from, to, value);
+        emit MessageEnqueued(messageId, params.from, params.to, params.value);
         
         return MessageRef({
             shardId: shardId,
@@ -193,10 +137,6 @@ contract Relayer {
     
     /**
      * @dev Gets pending messages for a specific shard
-     * @param shardId The shard ID to get messages from
-     * @param fromId The ID of the first message to return
-     * @param count The maximum number of messages to return
-     * @return An array of pending messages
      */
     function getPendingMessages(uint32 shardId, uint64 fromId, uint32 count) external view returns (Message[] memory) {
         require(count > 0, "Invalid count");
@@ -210,36 +150,43 @@ contract Relayer {
         uint32 resultCount = uint32(toId - fromId);
         Message[] memory result = new Message[](resultCount);
         
-        uint64 currentId = fromId;
-        uint32 index = 0;
-        while (currentId < toId && index < resultCount) {
-            result[index] = messages[shardId][currentId - fromId];
-            currentId++;
-            index++;
+        for (uint32 i = 0; i < resultCount; i++) {
+            result[i] = messages[shardId][fromId + i];
         }
         
         return result;
     }
 
     /**
-     * @dev Prunes processed messages (delivered or failed)
-     * @param inMsgIds is an array that stores for every shard the last message ID that has been processed
-     * @return Number of messages pruned
-     * It must be called by validator periodically(for example, once per block)
+     * @dev Prunes processed messages
      */
     function pruneProcessedMessages(uint64[] memory inMsgIds) external returns (uint32) {
         uint32 prunedCount = 0;
+        
         for (uint32 i = 0; i < Nil.SHARDS_NUM; i++) {
             uint64 lastId = inMsgIds[i];
-            require(lastId <= outMsgCount[i], "pruneProcessedMessages: invalid lastId");
+            require(lastId <= outMsgCount[i], "Invalid lastId");
+            
             while (messages[i].length > 0 && messages[i][0].id <= lastId) {
-                messages[i].pop();
+                _removeOldestMessage(i);
                 prunedCount++;
             }
         }
+        
         return prunedCount;
     }
+    
+    // Helper to remove the oldest message from a shard queue
+    function _removeOldestMessage(uint32 shardId) private {
+        if (messages[shardId].length == 0) return;
+        
+        for (uint j = 0; j < messages[shardId].length - 1; j++) {
+            messages[shardId][j] = messages[shardId][j + 1];
+        }
+        messages[shardId].pop();
+    }
 
+    // Async processing functions
     function startAsync() public payable {
         require(!forwardingInitialized, "Relayer already initialized");
         console.log("Relayer start");
@@ -264,28 +211,29 @@ contract Relayer {
             return;
         }
 
-        // Process VALUE forwarded messages first
+        // Process VALUE forwarded messages
         for (uint256 i = 0; i < msgsForwardedValue.length; i++) {
             MessageRef memory messageRef = msgsForwardedValue[i];
             Message storage message = messages[messageRef.shardId][messageRef.messageIndex];
         
             console.log("_forwardGas value: to=%_, fee=%_", message.to, message.feeCredit);
-            require(feeCredit >= message.feeCredit, "forwardGas: not enough feeCredit for ForwardValue");
+            require(feeCredit >= message.feeCredit, "Not enough feeCredit for ForwardValue");
             feeCredit -= message.feeCredit;
         }
 
         // Process PERCENTAGE forwarded messages
         uint percentageTotal = 0;
         uint baseFeeCredit = feeCredit;
+        
         for (uint256 i = 0; i < msgsForwardedPercentage.length; i++) {
             MessageRef memory messageRef = msgsForwardedPercentage[i];
             Message storage message = messages[messageRef.shardId][messageRef.messageIndex];
             
-            require(message.forwardKind == Nil.FORWARD_PERCENTAGE, "forwardGas: invalid percentage forwarding");
+            require(message.forwardKind == Nil.FORWARD_PERCENTAGE, "Invalid percentage forwarding");
 
             percentageTotal += message.feeCredit;
             if (percentageTotal > 100) {
-                revert("forwardGas: total percentage is greater than 100");
+                revert("Total percentage is greater than 100");
             }
 
             message.feeCredit = (message.feeCredit * baseFeeCredit) / 100;
@@ -303,7 +251,7 @@ contract Relayer {
         // Process REMAINING forwarded messages
         if (msgsForwardedRemaining.length != 0) {
             if (feeCredit == 0) {
-                revert("forwardGas: not enough feeCredit for ForwardRemaining");
+                revert("Not enough feeCredit for ForwardRemaining");
             }
             uint feeCreditForward = feeCredit / msgsForwardedRemaining.length;
             feeCredit = 0;
@@ -324,7 +272,7 @@ contract Relayer {
             bytes memory data = abi.encodeWithSignature("nilReceive()");
             (bool success,) = payable(msg.sender).call{value: feeCredit}(data);
             if (!success) {
-                revert("forwardGas: failed to return feeCredit(probably nilReceive is not implemented)");
+                revert("Failed to return feeCredit");
             }
         }
     }
@@ -339,8 +287,6 @@ contract Relayer {
 
     /**
      * @dev Processes the forwarding kind of a message.
-     * @param forwardKind The forwarding type.
-     * @param messageRef The reference to the message.
      */
     function processForwardKind(
         uint8 forwardKind,
@@ -361,22 +307,12 @@ contract Relayer {
         } else if (forwardKind == Nil.FORWARD_NONE) {
             numMsgsWithForwardGas++;
         } else {
-            revert("processForwardKind: invalid forwardKind");
+            revert("Invalid forwardKind");
         }
     }
 
     /**
-     * @dev Sends a transaction to a target address with optional refund and bounce handling.
-     * @param to The target address.
-     * @param refundTo The address to refund in case of failure.
-     * @param bounceTo The address to bounce the transaction to in case of failure.
-     * @param feeCredit The fee credit for the transaction.
-     * @param forwardKind The forwarding type.
-     * @param value The amount of Ether to send.
-     * @param tokens The tokens to relay.
-     * @param callData The calldata for the transaction.
-     * @param requestId The ID of the request.
-     * @param responseGas The gas allocated for the response.
+     * @dev Sends a transaction to a target address
      */
     function sendTx(
         address to,
@@ -394,23 +330,36 @@ contract Relayer {
 
         require(forwardingInitialized, "Relayer not initialized");
 
-        uint256 responseFeeCredit;
+        // Process request ID and response gas
+        uint256 responseFeeCredit = 0;
         if (requestId != 0) {
-            require(responseGas > 0, "sendTx: responseGas must be greater than 0");
+            require(responseGas > 0, "responseGas must be greater than 0");
             responseFeeCredit = responseGas * Nil.getGasPrice(address(this));
-            require(feeCredit >= responseFeeCredit, "sendTx: feeCredit must be greater than responseFeeCredit");
+            require(feeCredit >= responseFeeCredit, "feeCredit must be greater than responseFeeCredit");
             feeCredit -= responseFeeCredit;
         }
 
-        if (refundTo == address(0)) {
-            refundTo = msg.sender;
-        }
-        if (bounceTo == address(0)) {
-            bounceTo = msg.sender;
-        }
+        // Set default addresses
+        address actualRefundTo = refundTo == address(0) ? msg.sender : refundTo;
+        address actualBounceTo = bounceTo == address(0) ? msg.sender : bounceTo;
 
         // Deduct tokens from sender
         NilTokenManager(Nil.getTokenManagerAddress()).deductForRelay(msg.sender, to, tokens);
+
+        // Create parameters struct to reduce stack depth
+        MessageParams memory params = MessageParams({
+            from: msg.sender,
+            to: Nil.getRelayerAddress(Nil.getShardId(to)),
+            refundTo: actualRefundTo,
+            bounceTo: actualBounceTo,
+            value: value,
+            forwardKind: forwardKind,
+            feeCredit: feeCredit,
+            requestId: requestId,
+            responseFeeCredit: responseFeeCredit,
+            isDeploy: false,
+            salt: 0
+        });
 
         // Prepare the receiveTx calldata
         bytes memory data = abi.encodeWithSelector(
@@ -418,7 +367,7 @@ contract Relayer {
             msg.sender, 
             to,
             outMsgCount[uint32(Nil.getShardId(to))],
-            bounceTo, 
+            actualBounceTo, 
             value, 
             tokens, 
             callData, 
@@ -427,22 +376,7 @@ contract Relayer {
         );
 
         // Enqueue the message
-        MessageRef memory messageRef = enqueueMessage(
-            msg.sender,
-            Nil.getRelayerAddress(Nil.getShardId(to)),
-            refundTo,
-            bounceTo,
-            value,
-            tokens,
-            forwardKind,
-            feeCredit,
-            data,
-            requestId,
-            responseFeeCredit,
-            false,
-            0
-        );
-
+        MessageRef memory messageRef = enqueueMessage(params, tokens, data);
         processForwardKind(forwardKind, messageRef);
 
         console.log("sendTx done: shardId=%_, messageId=%_", messageRef.shardId, messageRef.messageIndex);
@@ -450,14 +384,6 @@ contract Relayer {
 
     /**
      * @dev Sends a deploy transaction.
-     * @param to The target address (pre-computed contract address).
-     * @param refundTo The address to refund in case of failure.
-     * @param bounceTo The address to bounce the transaction to in case of failure.
-     * @param feeCredit The fee credit for the transaction.
-     * @param forwardKind The forwarding type.
-     * @param value The amount of Ether to send.
-     * @param salt The salt for the contract address creation.
-     * @param callData The contract code.
      */
     function sendTxDeploy(
         address to,
@@ -473,12 +399,24 @@ contract Relayer {
 
         require(forwardingInitialized, "Relayer not initialized");
 
-        if (refundTo == address(0)) {
-            refundTo = msg.sender;
-        }
-        if (bounceTo == address(0)) {
-            bounceTo = msg.sender;
-        }
+        // Set default addresses
+        address actualRefundTo = refundTo == address(0) ? msg.sender : refundTo;
+        address actualBounceTo = bounceTo == address(0) ? msg.sender : bounceTo;
+
+        // Create parameters struct to reduce stack depth
+        MessageParams memory params = MessageParams({
+            from: msg.sender,
+            to: Nil.getRelayerAddress(Nil.getShardId(to)),
+            refundTo: actualRefundTo,
+            bounceTo: actualBounceTo,
+            value: value,
+            forwardKind: forwardKind,
+            feeCredit: feeCredit,
+            requestId: 0,
+            responseFeeCredit: 0,
+            isDeploy: true,
+            salt: salt
+        });
 
         // Prepare the receiveTxDeploy calldata
         bytes memory data = abi.encodeWithSelector(
@@ -486,29 +424,15 @@ contract Relayer {
             msg.sender,
             to,
             outMsgCount[uint32(Nil.getShardId(to))],
-            bounceTo,
+            actualBounceTo,
             value,
             salt,
             callData
         );
 
-        // Enqueue the message
-        MessageRef memory messageRef = enqueueMessage(
-            msg.sender,
-            Nil.getRelayerAddress(Nil.getShardId(to)),
-            refundTo,
-            bounceTo,
-            value,
-            new Nil.Token[](0),
-            forwardKind,
-            feeCredit,
-            data,
-            0,              // No request ID for deploy
-            0,              // No response fee credit for deploy
-            true,           // Is deploy
-            salt
-        );
-
+        // Enqueue the message with empty tokens array
+        Nil.Token[] memory emptyTokens = new Nil.Token[](0);
+        MessageRef memory messageRef = enqueueMessage(params, emptyTokens, data);
         processForwardKind(forwardKind, messageRef);
         
         console.log("sendTxDeploy pushed: shardId=%_, messageId=%_", messageRef.shardId, messageRef.messageIndex);
@@ -516,15 +440,6 @@ contract Relayer {
 
     /**
      * @dev Handles the receipt of a transaction.
-     * @param from The address that initiated the transaction.
-     * @param to The target address of the transaction.
-     * @param bounceTo The address to bounce to in case of failure.
-     * @param value The amount of Ether sent with the transaction.
-     * @param tokens The tokens involved in the transaction.
-     * @param callData The calldata of the transaction.
-     * @param requestId The ID of the request.
-     * @param responseFeeCredit The fee credit allocated for the response.
-     * @return The return data from the transaction.
      */
     function receiveTx(
         address from,
@@ -537,7 +452,8 @@ contract Relayer {
         uint256 requestId,
         uint responseFeeCredit
     ) public payable returns(bytes memory) {
-        require(inMsgCount[uint32(Nil.getShardId(from))]++ == messageId, "Invalid message ID");
+        uint32 shardId = uint32(Nil.getShardId(from));
+        require(inMsgCount[shardId]++ == messageId, "Invalid message ID");
 
         console.log("receiveTx: gas=%_, to=%_, from=%_, messageId=%_", gasleft(), to, from, messageId);
 
@@ -552,98 +468,119 @@ contract Relayer {
 
         console.log("receiveTx: success=%_, gasleft=%_", success, gasleft());
 
+        // Handle response or bounce based on outcome
         if (requestId != 0) {
-                        // This is a transaction that requires a response
-            printRevertData("receiveTx request", returnData);
-            uint256 returnValue = 0;
-            if (!success) {
-                returnValue = value;
-            }
-            
-            // Prepare response data
-            bytes memory data = abi.encodeWithSelector(
-                this.receiveTxResponse.selector, 
-                to, 
-                from, 
-                outMsgCount[uint32(Nil.getShardId(from))],
-                returnValue, 
-                success, 
-                returnData, 
-                requestId, 
-                responseFeeCredit
-            );
-            
-            // Enqueue response message
-            enqueueMessage(
-                to,
-                Nil.getRelayerAddress(Nil.getShardId(from)),
-                from,
-                from,
-                returnValue,
-                new Nil.Token[](0),
-                Nil.FORWARD_REMAINING,
-                0,
-                data,
-                0,
-                0,
-                false,
-                0
-            );
-            
-            return bytes("");
-        }
-
-        if (!success) {
-            printRevertData("receiveTx call failed", returnData);
-
-            emit CallFailed(from, to, value, tokens, callData);
-
-            // Deduct tokens from recipient for bounce
-            NilTokenManager(Nil.getTokenManagerAddress()).deductForRelay(to, address(this), tokens);
-            
-            // Prepare bounce data
-            bytes memory data = abi.encodeWithSelector(
-                this.receiveTxBounce.selector, 
-                to,
-                bounceTo, 
-                outMsgCount[uint32(Nil.getShardId(bounceTo))],
-                value, 
-                tokens, 
-                returnData
-            );
-            
-            // Enqueue bounce message
-            enqueueMessage(
-                to,
-                Nil.getRelayerAddress(Nil.getShardId(from)),
-                address(this),
-                address(this),
-                value,
-                tokens,
-                Nil.FORWARD_REMAINING,
-                100_000 * tx.gasprice,
-                data,
-                0,
-                0,
-                false,
-                0
-            );
-            
-            return bytes("");
+            return _processResponseMessage(from, to, success, value, returnData, requestId, responseFeeCredit);
+        } else if (!success) {
+            return _processBounceMessage(from, to, bounceTo, value, tokens, callData, returnData);
         }
 
         return returnData;
     }
 
     /**
+     * @dev Process a message that requires a response
+     */
+    function _processResponseMessage(
+        address from,
+        address to,
+        bool success,
+        uint256 value,
+        bytes memory returnData,
+        uint256 requestId,
+        uint256 responseFeeCredit
+    ) internal returns (bytes memory) {
+        printRevertData("receiveTx request", returnData);
+        uint256 returnValue = success ? 0 : value;
+        
+        // Create response parameters
+        MessageParams memory params = MessageParams({
+            from: to,
+            to: Nil.getRelayerAddress(Nil.getShardId(from)),
+            refundTo: from,
+            bounceTo: from,
+            value: returnValue,
+            forwardKind: Nil.FORWARD_REMAINING,
+            feeCredit: 0,
+            requestId: 0,
+            responseFeeCredit: 0,
+            isDeploy: false,
+            salt: 0
+        });
+
+        // Prepare response data
+        bytes memory data = abi.encodeWithSelector(
+            this.receiveTxResponse.selector, 
+            to, 
+            from, 
+            outMsgCount[uint32(Nil.getShardId(from))],
+            returnValue, 
+            success, 
+            returnData, 
+            requestId, 
+            responseFeeCredit
+        );
+        
+        // Enqueue response message
+        Nil.Token[] memory emptyTokens = new Nil.Token[](0);
+        enqueueMessage(params, emptyTokens, data);
+        
+        return bytes("");
+    }
+
+    /**
+     * @dev Process a bounce message for failed transactions
+     */
+    function _processBounceMessage(
+        address from,
+        address to,
+        address bounceTo,
+        uint256 value,
+        Nil.Token[] memory tokens,
+        bytes memory callData,
+        bytes memory returnData
+    ) internal returns (bytes memory) {
+        printRevertData("receiveTx call failed", returnData);
+
+        emit CallFailed(from, to, value, tokens, callData);
+
+        // Deduct tokens from recipient for bounce
+        NilTokenManager(Nil.getTokenManagerAddress()).deductForRelay(to, address(this), tokens);
+        
+        // Create bounce parameters
+        MessageParams memory params = MessageParams({
+            from: to,
+            to: Nil.getRelayerAddress(Nil.getShardId(from)),
+            refundTo: address(this),
+            bounceTo: address(this),
+            value: value,
+            forwardKind: Nil.FORWARD_REMAINING,
+            feeCredit: 100_000 * tx.gasprice,
+            requestId: 0,
+            responseFeeCredit: 0,
+            isDeploy: false,
+            salt: 0
+        });
+        
+        // Prepare bounce data
+        bytes memory data = abi.encodeWithSelector(
+            this.receiveTxBounce.selector, 
+            to,
+            bounceTo, 
+            outMsgCount[uint32(Nil.getShardId(bounceTo))],
+            value, 
+            tokens, 
+            returnData
+        );
+        
+        // Enqueue bounce message
+        enqueueMessage(params, tokens, data);
+        
+        return bytes("");
+    }
+
+    /**
      * @dev Handles the deployment of a contract.
-     * @param from The address that initiated the deployment.
-     * @param to The target address (pre-computed contract address).
-     * @param bounceTo The address to bounce to in case of failure.
-     * @param value The amount of Ether sent with the deployment.
-     * @param salt The salt for the contract address creation.
-     * @param code The contract code.
-     * @return The return data from the deployment.
      */
     function receiveTxDeploy(
         address from,
@@ -654,7 +591,8 @@ contract Relayer {
         uint256 salt,
         bytes memory code
     ) public payable returns(bytes memory) {
-        require(inMsgCount[uint32(Nil.getShardId(from))]++  == messageId, "Invalid message ID");
+        uint32 shardId = uint32(Nil.getShardId(from));
+        require(inMsgCount[shardId]++ == messageId, "Invalid message ID");
 
         console.log("receiveTxDeploy: gas=%_, to=%_, salt=%_, messageId=%_", gasleft(), to, salt, messageId);
 
@@ -668,51 +606,57 @@ contract Relayer {
         console.log("receiveTxDeploy: addr=%_", addr);
 
         if (!success) {
-            printRevertData("receiveTxDeploy call failed", "");
-
-            // Prepare bounce data
-            bytes memory data = abi.encodeWithSelector(
-                this.receiveTxBounce.selector, 
-                address(this),
-                bounceTo, 
-                outMsgCount[uint32(Nil.getShardId(bounceTo))],
-                value, 
-                new Nil.Token[](0), 
-                bytes("")
-            );
-            
-            // Enqueue bounce message
-            enqueueMessage(
-                address(this),
-                Nil.getRelayerAddress(Nil.getShardId(from)),
-                address(this),
-                address(this),
-                value,
-                new Nil.Token[](0),
-                Nil.FORWARD_REMAINING,
-                100_000 * tx.gasprice,
-                data,
-                0,
-                0,
-                false,
-                0
-            );
-            
-            return bytes("");
+            return _processDeployBounce(from, bounceTo, value);
         }
 
         return bytes("");
     }
 
     /**
+     * @dev Process a bounce message for failed deployments
+     */
+    function _processDeployBounce(
+        address from,
+        address bounceTo,
+        uint256 value
+    ) internal returns (bytes memory) {
+        printRevertData("receiveTxDeploy call failed", "");
+
+        // Create bounce parameters
+        MessageParams memory params = MessageParams({
+            from: address(this),
+            to: Nil.getRelayerAddress(Nil.getShardId(from)),
+            refundTo: address(this),
+            bounceTo: address(this),
+            value: value,
+            forwardKind: Nil.FORWARD_REMAINING,
+            feeCredit: 100_000 * tx.gasprice,
+            requestId: 0,
+            responseFeeCredit: 0,
+            isDeploy: false,
+            salt: 0
+        });
+        
+        // Prepare bounce data
+        bytes memory data = abi.encodeWithSelector(
+            this.receiveTxBounce.selector, 
+            address(this),
+            bounceTo, 
+            outMsgCount[uint32(Nil.getShardId(bounceTo))],
+            value, 
+            new Nil.Token[](0), 
+            bytes("")
+        );
+        
+        // Enqueue bounce message
+        Nil.Token[] memory emptyTokens = new Nil.Token[](0);
+        enqueueMessage(params, emptyTokens, data);
+        
+        return bytes("");
+    }
+
+    /**
      * @dev Handles the response of a transaction.
-     * @param from The address that initiated the transaction.
-     * @param to The target address of the transaction.
-     * @param value The amount of Ether sent with the transaction.
-     * @param success Indicates whether the transaction was successful.
-     * @param response The response data.
-     * @param requestId The ID of the request.
-     * @param responseFeeCredit The fee credit allocated for the response.
      */
     function receiveTxResponse(
         address from,
@@ -724,7 +668,9 @@ contract Relayer {
         uint256 requestId,
         uint256 responseFeeCredit
     ) public payable {
-        require(inMsgCount[uint32(Nil.getShardId(from))]++ == messageId, "Invalid message ID");
+        uint32 shardId = uint32(Nil.getShardId(from));
+        require(inMsgCount[shardId]++ == messageId, "Invalid message ID");
+        
         // Calculate gas from responseFeeCredit using current gas price
         uint gas = responseFeeCredit / Nil.getGasPrice(address(this));
         
@@ -745,10 +691,6 @@ contract Relayer {
 
     /**
      * @dev Handles the bounce of a failed transaction.
-     * @param to The target address of the bounce.
-     * @param value The amount of Ether sent with the bounce.
-     * @param tokens The tokens involved in the bounce.
-     * @param callData The calldata of the bounce.
      */
     function receiveTxBounce(
         address from,
@@ -758,7 +700,9 @@ contract Relayer {
         Nil.Token[] memory tokens,
         bytes memory callData
     ) public payable {
-        require(inMsgCount[uint32(Nil.getShardId(from))]++ == messageId, "Invalid message ID");
+        uint32 shardId = uint32(Nil.getShardId(from));
+        require(inMsgCount[shardId]++ == messageId, "Invalid message ID");
+        
         printRevertData("Bounce tx", callData);
         console.log("bounce: value=%_, to=%_", value, to);
         
@@ -780,8 +724,6 @@ contract Relayer {
 
     /**
      * @dev Utility function to print revert data in a readable format.
-     * @param str A string to prefix the revert data.
-     * @param returnData The return data containing revert information.
      */
     function printRevertData(string memory str, bytes memory returnData) internal pure {
         if (returnData.length > 68) {
@@ -797,7 +739,6 @@ contract Relayer {
 
     /**
      * @dev Allows users to claim their pending refunds
-     * @return The amount claimed
      */
     function claimPendingRefund() external returns (uint256) {
         uint256 amount = pendingRefund[msg.sender];
@@ -812,47 +753,81 @@ contract Relayer {
         // If transfer fails, restore the pending refund
         if (!success) {
             pendingRefund[msg.sender] = amount;
-            revert("Failed to send refund via nilReceive()");
+            revert("Failed to send refund");
         }
         
         emit RefundClaimed(msg.sender, amount);
         return amount;
     }
 
-    /**
+        /**
      * @dev Returns the pending refund amount for an address
-     * @param account The address to check
-     * @return The pending refund amount
      */
     function getPendingRefund(address account) external view returns (uint256) {
         return pendingRefund[account];
     }
 
-    
-    /**
-     * @dev Returns the current count of incoming messages for each shard
-     * @return An array containing the count of incoming messages for each shard
-     */
-    function getInMsgCount() public view returns (uint64[SHARDS_NUM] memory) {
-        return inMsgCount;
+    function castToArray(uint64[_N_SHARDS] memory arr) internal pure returns (uint64[] memory) {
+        uint64[] memory result = new uint64[](arr.length);
+        for (uint32 i = 0; i < arr.length; i++) {
+            result[i] = uint64(arr[i]);
+        }
+        return result;
     }
 
+    /**
+     * @dev Returns the current count of incoming messages for each shard
+     */
+    function getInMsgCount() public view returns (uint64[] memory) {
+        return castToArray(inMsgCount);
+    }
+
+    /**
+     * @dev Returns the current count of outgoing messages for each shard
+     */
+    function getOutMsgCount() public view returns (uint64[] memory) {
+        return castToArray(outMsgCount);
+    }
 
     /**
      * @dev Returns the current block number for each shard
-     * @return An array containing the current block number for each shard
      */
-    function getCurrentBlockNumber() public view returns (uint64[SHARDS_NUM] memory) {
-        return currentBlockNumber;
+    function getCurrentBlockNumber() public view returns (uint64[] memory) {
+        return castToArray(currentBlockNumber);
     }
 
     /**
      * @dev Updates the current block number for each shard
-     * @param blockNumbers An array containing the new block numbers for each shard
      */
-    function updateCurrentBlockNumber(uint64[SHARDS_NUM] memory blockNumbers) public {
-        for (uint32 i = 0; i < SHARDS_NUM; i++) {
+    function updateCurrentBlockNumber(uint64[_N_SHARDS] memory blockNumbers) public {
+        for (uint32 i = 0; i < _N_SHARDS; i++) {
             currentBlockNumber[i] = blockNumbers[i];
         }
+    }
+
+    /**
+     * @dev Returns the message queue length for a specific shard
+     */
+    function getMessageQueueLength(uint32 shardId) public view returns (uint256) {
+        return messages[shardId].length;
+    }
+
+    /**
+     * @dev Returns the current state of the forwarding
+     */
+    function getForwardingState() public view returns (
+        bool initialized,
+        uint32 messageCount,
+        uint256 remainingCount,
+        uint256 percentageCount,
+        uint256 valueCount
+    ) {
+        return (
+            forwardingInitialized,
+            numMsgsWithForwardGas,
+            msgsForwardedRemaining.length,
+            msgsForwardedPercentage.length,
+            msgsForwardedValue.length
+        );
     }
 }

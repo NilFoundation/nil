@@ -486,22 +486,11 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 	if err != nil {
 		return fmt.Errorf("failed to get Relayer ABI: %w", err)
 	}
-	data, err := abi.Unpack("getCurrentBlockNumber", currBlockNumData)
-	if err != nil {
+	if err := abi.UnpackIntoInterface(&currentBlockNumbers, "getCurrentBlockNumber", currBlockNumData); err != nil {
 		return fmt.Errorf("failed to unpack getCurrentBlockNumber result: %w", err)
 	}
-
-	if uint32(len(data)) != p.params.NShards {
-		return fmt.Errorf("unexpected number of block numbers returned: %d", len(data))
-	}
-
-	// Convert data ([]any) to []uint64 before copying
-	for i, val := range data {
-		if i < len(currentBlockNumbers) {
-			if num, ok := val.(uint64); ok {
-				currentBlockNumbers[i] = num
-			}
-		}
+	if len(currentBlockNumbers) != int(p.params.NShards) {
+		return fmt.Errorf("unexpected number of block numbers returned: %d", len(currentBlockNumbers))
 	}
 
 	// Track if we need to update block numbers
