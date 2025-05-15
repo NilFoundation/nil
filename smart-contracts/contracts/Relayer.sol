@@ -2,9 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "./NilTokenManager.sol";
-import "../../nil/contracts/solidity/system/console.sol";
-// import "../system/console.sol";
+// import "../../nil/contracts/solidity/system/console.sol";
+import "../system/console.sol";
 import "./IterableMapping.sol";
+
+// Restated here because of https://github.com/ethereum/solidity/issues/12248
+uint32 constant SHARDS_NUM = 5;
 
 /**
  * @title Relayer
@@ -13,14 +16,6 @@ import "./IterableMapping.sol";
  */
 contract Relayer {
     using IterableMapping for IterableMapping.Map;
-
-    // Message status enum
-    enum MessageStatus {
-        Pending,    // Initial state - waiting for processing
-        Ready,      // Ready to be processed (fee credit allocated)
-        Delivered,  // Successfully delivered and processed
-        Failed      // Failed to process
-    }
 
     // Structure for cross-shard messages
     struct Message {
@@ -42,13 +37,13 @@ contract Relayer {
     
     // Message queue data
     mapping(uint32 => Message[]) messages;
-    mapping(uint32 => uint64) private inMsgCount;
-    mapping(uint32 => uint64) private outMsgCount;
+    uint64[SHARDS_NUM] private inMsgCount;
+    uint64[SHARDS_NUM] private outMsgCount;
+    uint64[SHARDS_NUM] private currentBlockNumber;
 
     struct MessageRef {
         uint32 shardId;
         uint32 messageIndex;
-        uint64 messageId;
     }
     
     // For async call management
@@ -129,7 +124,7 @@ contract Relayer {
     event RefundClaimed(address indexed recipient, uint256 amount);
 
     // Queue management functions
-    
+
     /**
      * @dev Enqueues a message for asynchronous processing
      * @param from Source address
@@ -192,88 +187,40 @@ contract Relayer {
         
         return MessageRef({
             shardId: shardId,
-            messageIndex: uint32(messages[shardId].length - 1),
-            messageId: messageId
+            messageIndex: uint32(messages[shardId].length - 1)
         });
     }
-    
-
     
     /**
      * @dev Gets pending messages for a specific shard
      * @param shardId The shard ID to get messages from
+     * @param fromId The ID of the first message to return
      * @param count The maximum number of messages to return
      * @return An array of pending messages
      */
-    function getPendingMessages(uint32 shardId, uint32 count) external view returns (Message[] memory) {
-        uint256 pendingCount = messages[shardId].length;
-        uint256 resultCount = pendingCount < count ? pendingCount : count;
+    function getPendingMessages(uint32 shardId, uint64 fromId, uint32 count) external view returns (Message[] memory) {
+        require(count > 0, "Invalid count");
+        require(fromId < outMsgCount[shardId], "Invalid fromId");
         
+        uint64 toId = fromId + uint64(count);
+        if (toId > outMsgCount[shardId]) {
+            toId = outMsgCount[shardId];
+        }
+        
+        uint32 resultCount = uint32(toId - fromId);
         Message[] memory result = new Message[](resultCount);
         
-        for (uint256 i = 0; i < resultCount; i++) {
-            result[i] = messages[shardId][i];
+        uint64 currentId = fromId;
+        uint32 index = 0;
+        while (currentId < toId && index < resultCount) {
+            result[index] = messages[shardId][currentId - fromId];
+            currentId++;
+            index++;
         }
         
         return result;
     }
 
-    
-    /**
-    * @dev Gets a specific message by ID
-    * @param messageId ID of the message
-    * @return from The address that sent the message
-    * @return to The destination address of the message
-    * @return refundTo The address to refund in case of failure
-    * @return bounceTo The address to bounce to in case of failure
-    * @return value The value to transfer
-    * @return tokens The tokens to transfer
-    * @return forwardKind The forwarding kind
-    * @return feeCredit The fee credit
-    * @return data The call data
-    * @return requestId The request ID for responses
-    * @return responseFeeCredit The fee credit allocated for response
-    * @return isDeploy Whether this is a deploy message
-    * @return salt The salt for deploy messages
-    * @return status The message status
-    */
-    // function getMessage(uint160 messageId) external view returns (
-    //     address from,
-    //     address to,
-    //     address refundTo,
-    //     address bounceTo,
-    //     uint256 value,
-    //     Nil.Token[] memory tokens,
-    //     uint8 forwardKind,
-    //     uint256 feeCredit,
-    //     bytes memory data,
-    //     uint256 requestId,
-    //     uint256 responseFeeCredit,
-    //     bool isDeploy,
-    //     uint256 salt,
-    //     MessageStatus status
-    // ) {
-    //     Message storage message = messages[messageId];
-    //     require(message.id == messageId, "Message doesn't exist");
-        
-    //     return (
-    //         message.from,
-    //         message.to,
-    //         message.refundTo,
-    //         message.bounceTo,
-    //         message.value,
-    //         message.tokens,
-    //         message.forwardKind,
-    //         message.feeCredit,
-    //         message.data,
-    //         message.requestId,
-    //         message.responseFeeCredit,
-    //         message.isDeploy,
-    //         message.salt,
-    //         message.status
-    //     );
-    // }
-    
     /**
      * @dev Prunes processed messages (delivered or failed)
      * @param inMsgIds is an array that stores for every shard the last message ID that has been processed
@@ -291,178 +238,6 @@ contract Relayer {
             }
         }
         return prunedCount;
-    }
-
-    /**
-     * @dev Executes a message that is ready for processing
-     * @param message The message to execute
-     * @return success Whether the execution was successful
-     * @return returnData The data returned from the execution
-     */
-    // function executeMessage(Message memory message) external returns (bool success, bytes memory returnData) {
-    //     if (message.isDeploy) {
-    //         // Handle deploy message
-    //         return _processDeploy(message);
-    //     } else {
-    //         // Handle regular execution message
-    //         return _processCall(message);
-    //     }
-    // }
-    
-    /**
-     * @dev Process a deploy message
-     */
-    function _processDeploy(Message storage message) internal returns (bool success, bytes memory returnData) {
-        address addr;
-        
-        // Credit any tokens to the new contract address
-        if (message.tokens.length > 0) {
-            NilTokenManager(Nil.getTokenManagerAddress()).creditForRelay(message.to, message.tokens);
-        }
-        
-        // Deploy the contract using CREATE2
-        bytes memory code = message.data;
-        assembly {
-            addr := create2(
-                mload(add(message.slot, 0x60)), // message.value
-                add(code, 0x20),
-                mload(code),
-                mload(add(message.slot, 0x1A0)) // message.salt
-            )
-        }
-        
-        success = addr != address(0);
-        
-        // Reset tokens after deployment attempt
-        if (message.tokens.length > 0) {
-            NilTokenManager(Nil.getTokenManagerAddress()).resetTxTokens();
-        }
-        
-        if (!success) {
-            // Handle failed deployment - prepare bounce message
-            bytes memory bounceData = abi.encodeWithSelector(
-                this.receiveTxBounce.selector, 
-                message.bounceTo, 
-                message.value, 
-                message.tokens, 
-                bytes("")
-            );
-            
-            // Enqueue bounce message
-            enqueueMessage(
-                address(this),
-                Nil.getRelayerAddress(Nil.getShardId(message.from)),
-                message.refundTo,
-                message.bounceTo,
-                message.value,
-                message.tokens,
-                Nil.FORWARD_REMAINING,
-                100_000 * tx.gasprice, // Standard fee for bounce
-                bounceData,
-                0,
-                0,
-                false,
-                0
-            );
-            
-            returnData = bytes("Deployment failed");
-        } else {
-            returnData = abi.encodePacked(addr);
-        }
-        
-        return (success, returnData);
-    }
-    
-    /**
-     * @dev Process a regular call message
-     */
-    function _processCall(Message storage message) internal returns (bool success, bytes memory returnData) {
-        // Credit tokens to destination before call
-        if (message.tokens.length > 0) {
-            NilTokenManager(Nil.getTokenManagerAddress()).creditForRelay(message.to, message.tokens);
-        }
-        
-        // Execute the call
-        (success, returnData) = message.to.call{value: message.value}(message.data);
-        
-        // Reset tokens after call
-        if (message.tokens.length > 0) {
-            NilTokenManager(Nil.getTokenManagerAddress()).resetTxTokens();
-        }
-        
-        if (message.requestId != 0) {
-            // This is a request with expected response
-            uint256 returnValue = success ? 0 : message.value;
-            
-            // Prepare response data
-            bytes memory responseData = abi.encodeWithSelector(
-                this.receiveTxResponse.selector, 
-                message.to, 
-                message.from, 
-                returnValue, 
-                success, 
-                returnData, 
-                message.requestId, 
-                message.responseFeeCredit
-            );
-            
-            // Enqueue response message
-            enqueueMessage(
-                message.to,
-                Nil.getRelayerAddress(Nil.getShardId(message.from)),
-                message.refundTo,
-                message.bounceTo,
-                returnValue,
-                new Nil.Token[](0), // No tokens in response
-                Nil.FORWARD_REMAINING,
-                0, // No fee credit needed for response handling
-                responseData,
-                0, // No request ID for response
-                0, // No response fee credit for response
-                false,
-                0
-            );
-            
-            return (success, returnData);
-        }
-        
-        if (!success) {
-            // Failed call, emit event
-            emit CallFailed(message.from, message.to, message.value, message.tokens, message.data);
-            
-            // Deduct tokens from destination before bounce
-            if (message.tokens.length > 0) {
-                NilTokenManager(Nil.getTokenManagerAddress()).deductForRelay(message.to, address(this), message.tokens);
-            }
-            
-            // Prepare bounce data
-            bytes memory bounceData = abi.encodeWithSelector(
-                this.receiveTxBounce.selector, 
-                message.bounceTo, 
-                message.value, 
-                message.tokens, 
-                returnData
-            );
-            
-            // Enqueue bounce message
-            enqueueMessage(
-                address(this),
-                Nil.getRelayerAddress(Nil.getShardId(message.from)),
-                message.refundTo,
-                message.bounceTo,
-                message.value,
-                message.tokens,
-                Nil.FORWARD_REMAINING,
-                100_000 * tx.gasprice, // Standard fee for bounce
-                bounceData,
-                0,
-                0,
-                false,
-                0
-            );
-        }
-        
-        return (success, returnData);
     }
 
     function startAsync() public payable {
@@ -641,7 +416,8 @@ contract Relayer {
         bytes memory data = abi.encodeWithSelector(
             this.receiveTx.selector, 
             msg.sender, 
-            to, 
+            to,
+            outMsgCount[uint32(Nil.getShardId(to))],
             bounceTo, 
             value, 
             tokens, 
@@ -709,6 +485,7 @@ contract Relayer {
             this.receiveTxDeploy.selector,
             msg.sender,
             to,
+            outMsgCount[uint32(Nil.getShardId(to))],
             bounceTo,
             value,
             salt,
@@ -788,6 +565,7 @@ contract Relayer {
                 this.receiveTxResponse.selector, 
                 to, 
                 from, 
+                outMsgCount[uint32(Nil.getShardId(from))],
                 returnValue, 
                 success, 
                 returnData, 
@@ -826,7 +604,9 @@ contract Relayer {
             // Prepare bounce data
             bytes memory data = abi.encodeWithSelector(
                 this.receiveTxBounce.selector, 
+                to,
                 bounceTo, 
+                outMsgCount[uint32(Nil.getShardId(bounceTo))],
                 value, 
                 tokens, 
                 returnData
@@ -834,7 +614,7 @@ contract Relayer {
             
             // Enqueue bounce message
             enqueueMessage(
-                address(this),
+                to,
                 Nil.getRelayerAddress(Nil.getShardId(from)),
                 address(this),
                 address(this),
@@ -893,7 +673,9 @@ contract Relayer {
             // Prepare bounce data
             bytes memory data = abi.encodeWithSelector(
                 this.receiveTxBounce.selector, 
+                address(this),
                 bounceTo, 
+                outMsgCount[uint32(Nil.getShardId(bounceTo))],
                 value, 
                 new Nil.Token[](0), 
                 bytes("")
@@ -1044,5 +826,33 @@ contract Relayer {
      */
     function getPendingRefund(address account) external view returns (uint256) {
         return pendingRefund[account];
+    }
+
+    
+    /**
+     * @dev Returns the current count of incoming messages for each shard
+     * @return An array containing the count of incoming messages for each shard
+     */
+    function getInMsgCount() public view returns (uint64[SHARDS_NUM] memory) {
+        return inMsgCount;
+    }
+
+
+    /**
+     * @dev Returns the current block number for each shard
+     * @return An array containing the current block number for each shard
+     */
+    function getCurrentBlockNumber() public view returns (uint64[SHARDS_NUM] memory) {
+        return currentBlockNumber;
+    }
+
+    /**
+     * @dev Updates the current block number for each shard
+     * @param blockNumbers An array containing the new block numbers for each shard
+     */
+    function updateCurrentBlockNumber(uint64[SHARDS_NUM] memory blockNumbers) public {
+        for (uint32 i = 0; i < SHARDS_NUM; i++) {
+            currentBlockNumber[i] = blockNumbers[i];
+        }
     }
 }
