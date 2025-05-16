@@ -20,6 +20,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
@@ -566,7 +567,11 @@ func (es *ExecutionState) GetStorageRoot(addr types.Address) (common.Hash, error
 	if err != nil || acc == nil {
 		return common.EmptyHash, err
 	}
-	return acc.StorageTree.RootHash(), nil
+	storageRootHash := acc.StorageTree.RootHash()
+	if storageRootHash == mpt.EmptyRootHash {
+		return common.EmptyHash, nil
+	}
+	return storageRootHash, nil
 }
 
 // SetTransientState sets transient storage for a given account. It
@@ -1246,7 +1251,6 @@ func (es *ExecutionState) handleDeployTransaction(_ context.Context, transaction
 	gas, exceedBlockLimit := es.calcGasLimit(es.txnFeeCredit.ToGas(es.GasPrice))
 	ret, addr, leftOver, err := es.evm.Deploy(
 		addr, (vm.AccountRef)(transaction.From), deployTxn.Code(), gas.Uint64(), transaction.Value.Int())
-
 	if exceedBlockLimit && types.IsOutOfGasError(err) {
 		err = types.NewError(types.ErrorTransactionExceedsBlockGasLimit)
 	}

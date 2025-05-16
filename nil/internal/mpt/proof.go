@@ -6,13 +6,13 @@ import (
 	"encoding/binary"
 	"errors"
 
+	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/trie"
-
-	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/db"
 )
 
 type MPTOperation uint32
@@ -36,9 +36,10 @@ func BuildProof(r *Reader, key []byte, op MPTOperation) (Proof, error) {
 		key = crypto.Keccak256(key)
 	}
 
-	// Special case: empty trie (EmptyRootHash)
 	if r.RootHash() == EmptyRootHash {
 		emptyNode := []byte{0x80}
+		emptyHash := crypto.Keccak256Hash(emptyNode)
+		check.PanicIfNotf(emptyHash == ethcommon.Hash(EmptyRootHash), "empty node hash mismatch")
 		return Proof{
 			operation: op,
 			key:       key,
@@ -52,8 +53,7 @@ func BuildProof(r *Reader, key []byte, op MPTOperation) (Proof, error) {
 		return Proof{}, err
 	}
 
-	nodes := make(map[ethcommon.Hash][]byte)
-	collector := &proofNodeCollector{nodes: nodes}
+	collector := &proofNodeCollector{}
 
 	if err = t.Prove(key, collector); err != nil {
 		return Proof{}, err
@@ -61,7 +61,7 @@ func BuildProof(r *Reader, key []byte, op MPTOperation) (Proof, error) {
 
 	nodeList := make([][]byte, 0, len(collector.nodes))
 	for _, node := range collector.nodes {
-		nodeList = append(nodeList, node)
+		nodeList = append(nodeList, node.value)
 	}
 
 	return Proof{
@@ -69,17 +69,6 @@ func BuildProof(r *Reader, key []byte, op MPTOperation) (Proof, error) {
 		key:       key,
 		Nodes:     nodeList,
 	}, nil
-}
-
-func (p *Proof) PathToNode() SimpleProof {
-	proof := make(SimpleProof, 0, len(p.Nodes))
-	for _, encoded := range p.Nodes {
-		node, err := DecodeNode(encoded)
-		if err == nil {
-			proof = append(proof, node)
-		}
-	}
-	return proof
 }
 
 func (p *Proof) ToBytesSlice() [][]byte {
@@ -94,6 +83,17 @@ func (p *Proof) VerifyRead(key, value []byte, root common.Hash) (bool, error) {
 		return false, nil
 	}
 
+	// Empty trie special case
+	if root == EmptyRootHash {
+		if len(p.Nodes) != 1 {
+			return false, errors.New("invalid empty proof: unexpected number of nodes")
+		}
+		if !bytes.Equal(p.Nodes[0], []byte{0x80}) {
+			return false, errors.New("invalid empty proof: expected RLP(nil)")
+		}
+		return len(value) == 0, nil
+	}
+
 	val, err := trie.VerifyProof(ethcommon.Hash(root), key, proofNodes(p.Nodes))
 	if err != nil && err.Error() != "missing node" {
 		return false, err
@@ -103,6 +103,19 @@ func (p *Proof) VerifyRead(key, value []byte, root common.Hash) (bool, error) {
 		return bytes.Equal(val, value), nil
 	}
 	return val == nil, nil
+}
+
+func VerifyProof(rootHash common.Hash, key []byte, nodes [][]byte) ([]byte, error) {
+	if len(key) > maxRawKeyLen {
+		key = crypto.Keccak256(key)
+	}
+	if rootHash == EmptyRootHash {
+		if len(nodes) != 1 || !bytes.Equal(nodes[0], []byte{0x80}) {
+			return nil, errors.New("invalid proof for empty trie")
+		}
+		return nil, nil
+	}
+	return trie.VerifyProof(ethcommon.Hash(rootHash), key, proofNodes(nodes))
 }
 
 func (p *Proof) VerifyDelete(key []byte, deleted bool, root, newRoot common.Hash) (bool, error) {
@@ -189,7 +202,7 @@ func DecodeProof(data []byte) (Proof, error) {
 	n := int(data[off])
 	off++
 	p.Nodes = make([][]byte, 0, n)
-	for i := 0; i < n; i++ {
+	for range n {
 		if len(data[off:]) < 4 {
 			return p, errors.New("truncated node")
 		}
@@ -204,13 +217,21 @@ func DecodeProof(data []byte) (Proof, error) {
 	return p, nil
 }
 
+type kvPair struct {
+	key   common.Hash
+	value []byte
+}
+
 // proofNodeCollector implements trie.ProofWriter
 type proofNodeCollector struct {
-	nodes map[ethcommon.Hash][]byte
+	nodes []kvPair
 }
 
 func (p *proofNodeCollector) Put(key, value []byte) error {
-	p.nodes[ethcommon.BytesToHash(key)] = value
+	p.nodes = append(p.nodes, kvPair{
+		key:   common.BytesToHash(key),
+		value: value,
+	})
 	return nil
 }
 
@@ -244,29 +265,4 @@ func (p *proofNodeReader) Has(key []byte) (bool, error) {
 
 func proofNodes(nodes [][]byte) ethdb.KeyValueReader {
 	return &proofNodeReader{nodes: nodes}
-}
-
-// SimpleProof is a parsed list of MPT nodes
-// useful for visual inspection or transformation
-// (e.g. PathToNode)
-type SimpleProof []Node
-
-func (sp SimpleProof) ToBytesSlice() ([][]byte, error) {
-	res := make([][]byte, 0, len(sp))
-	for _, node := range sp {
-		encoded, err := node.Encode()
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, encoded)
-	}
-	return res, nil
-}
-
-func (sp SimpleProof) Verify(root common.Hash, key []byte) ([]byte, error) {
-	encoded, err := sp.ToBytesSlice()
-	if err != nil {
-		return nil, err
-	}
-	return trie.VerifyProof(ethcommon.Hash(root), key, proofNodes(encoded))
 }

@@ -125,7 +125,7 @@ $(root_sc)/prover/proto/traces.pb.go: $(root_sc)/prover/proto/traces.proto
 	@echo "Generating traces.pb.go..."
 	protoc \
 		--proto_path=$(root_sc)/prover/proto \
-		--go_out=$(root_sc)/prover/ $(root_sc)/prover/proto/traces.proto $(root_sc)/prover/proto/verbose_mpt.proto
+		--go_out=$(root_sc)/prover/ $(root_sc)/prover/proto/traces.proto
 
 $(root_sc)/internal/types/proto/blob_transaction.pb.go: $(root_sc)/internal/types/proto/blob_transaction.proto
 	protoc --go_out=$(root_sc)/internal/types/ $(root_sc)/internal/types/proto/blob_transaction.proto

@@ -1,13 +1,10 @@
 package mpt
 
 import (
-	"bytes"
 	"maps"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -140,11 +137,11 @@ func TestSparseMPT(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, PopulateMptWithProof(sparse, &p))
-		if len(p.PathToNode()) > 0 {
-			encodedNode, err := p.PathToNode()[0].Encode()
-			require.NoError(t, err)
-			require.Equal(t, sparse.RootHash().Bytes(), calcNodeKey(encodedNode))
-		}
+		sparse.SetRootHash(mpt.RootHash())
+
+		val, err := sparse.Get([]byte(k))
+		require.NoError(t, err)
+		require.Equal(t, data[k], string(val))
 	}
 
 	t.Run("Check original keys", func(t *testing.T) {
@@ -172,65 +169,6 @@ func TestSparseMPT(t *testing.T) {
 			require.ErrorIs(t, err, db.ErrKeyNotFound)
 			require.Nil(t, val)
 		}
-	})
-
-	t.Run("Check manipulated proof", func(t *testing.T) {
-		t.Parallel()
-
-		modifiedVal := []byte("val-modified")
-		holder := maps.Clone(sparseHolder)
-		for k, v := range sparseHolder {
-			var manipulatedNode Node
-
-			var nodeKind nodeKind
-			require.NoError(t, rlp.DecodeBytes(v[:1], &nodeKind))
-			switch nodeKind {
-			case extensionNodeKind:
-				continue
-			case leafNodeKind:
-				node := &LeafNode{}
-				require.NoError(t, node.UnmarshalNil(v[1:]))
-
-				node.LeafData = modifiedVal
-				manipulatedNode = node
-			case branchNodeKind:
-				node := &BranchNode{}
-				require.NoError(t, node.UnmarshalNil(v[1:]))
-				if len(node.Value) == 0 {
-					continue
-				}
-
-				node.Value = modifiedVal
-				manipulatedNode = node
-			}
-
-			modified, err := manipulatedNode.Encode()
-			require.NoError(t, err)
-			holder[k] = modified
-			break
-		}
-
-		// But we still get values from the MPT, because we don't validate it on Get
-		manipulatedSparse := NewMPTFromMap(holder)
-		manipulatedSparse.SetRootHash(sparse.RootHash())
-		manipulatedKey := ""
-		for k, v := range data {
-			if !filter(k) {
-				continue
-			}
-
-			val, err := manipulatedSparse.Get([]byte(k))
-			require.NoError(t, err)
-
-			if bytes.Equal(val, modifiedVal) {
-				manipulatedKey = k
-			} else {
-				assert.Equal(t, v, string(val))
-			}
-		}
-
-		// There must be a manipulated key
-		assert.NotEmpty(t, manipulatedKey)
 	})
 }
 
@@ -473,69 +411,8 @@ func TestProofEncoding(t *testing.T) {
 
 	require.Equal(t, p.operation, decoded.operation)
 	require.Equal(t, p.key, decoded.key)
-	require.Len(t, decoded.PathToNode, len(p.PathToNode()))
-	for i, n := range p.PathToNode() {
-		require.Equal(t, n, decoded.PathToNode()[i])
+	require.Len(t, decoded.Nodes, len(p.Nodes))
+	for i, n := range p.Nodes {
+		require.Equal(t, n, decoded.Nodes[i])
 	}
-}
-
-func BuildSimpleProof(r *Reader, key []byte) (SimpleProof, error) {
-	p, err := BuildProof(r, key, ReadMPTOperation)
-	if err != nil {
-		return nil, err
-	}
-	return p.PathToNode(), nil
-}
-
-func TestSimpleProof(t *testing.T) {
-	t.Parallel()
-
-	data := defaultMPTData
-	mpt, _ := mptFromData(t, data)
-
-	t.Run("Prove existing keys", func(t *testing.T) {
-		t.Parallel()
-
-		for k, v := range data {
-			key := []byte(k)
-			p, err := BuildSimpleProof(mpt.Reader, key)
-			require.NoError(t, err)
-
-			valFromProof, err := p.Verify(mpt.RootHash(), key)
-			require.NoError(t, err)
-			require.Equal(t, []byte(v), valFromProof)
-		}
-	})
-
-	t.Run("Prove missing keys", func(t *testing.T) {
-		t.Parallel()
-
-		verify := func(key []byte) {
-			t.Helper()
-			p, err := BuildSimpleProof(mpt.Reader, key)
-			require.NoError(t, err)
-
-			valFromProof, err := p.Verify(mpt.RootHash(), key)
-			require.NoError(t, err)
-			require.Nil(t, valFromProof)
-		}
-
-		verify([]byte{0xf, 0xf, 0xc})
-
-		verify([]byte{0xa})
-	})
-
-	t.Run("Prove empty mpt", func(t *testing.T) {
-		t.Parallel()
-
-		tree := NewInMemMPT()
-		key := []byte{0x1}
-
-		p, err := BuildSimpleProof(tree.Reader, key)
-		require.NoError(t, err)
-
-		valFromProof, err := p.Verify(tree.RootHash(), key)
-		require.NoError(t, err)
-		require.Nil(t, valFromProof)
-	})
 }

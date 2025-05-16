@@ -236,22 +236,10 @@ func (suite *SuiteEthAccounts) TestGetProof() {
 	suite.Len(resNonExisting.StorageProof, 2)
 	suite.EqualValues(1, resNonExisting.StorageProof[0].Key.Uint64())
 	suite.EqualValues(0, resNonExisting.StorageProof[0].Value.Uint64())
-	suite.Nil(resNonExisting.StorageProof[0].Proof)
+	suite.Equal([]hexutil.Bytes{{0x80}}, resNonExisting.StorageProof[0].Proof)
 	suite.EqualValues(2, resNonExisting.StorageProof[1].Key.Uint64())
 	suite.EqualValues(0, resNonExisting.StorageProof[1].Value.Uint64())
-	suite.Nil(resNonExisting.StorageProof[1].Proof)
-}
-
-func SimpleProofFromBytesSlice(nodes [][]byte) (mpt.SimpleProof, error) {
-	proof := make(mpt.SimpleProof, 0, len(nodes))
-	for _, encoded := range nodes {
-		node, err := mpt.DecodeNode(encoded)
-		if err != nil {
-			return nil, err
-		}
-		proof = append(proof, node)
-	}
-	return proof, nil
+	suite.Equal([]hexutil.Bytes{{0x80}}, resNonExisting.StorageProof[1].Proof)
 }
 
 // verifyProofResult verifies both account proof and storage proofs in the response
@@ -259,10 +247,8 @@ func (suite *SuiteEthAccounts) verifyProofResult(res *EthProof, smartContractsRo
 	suite.T().Helper()
 
 	// Verify account proof
-	proof, err := SimpleProofFromBytesSlice(hexutil.ToBytesSlice(res.AccountProof))
-	suite.Require().NoError(err)
-
-	val, err := proof.Verify(smartContractsRoot, suite.smcAddr.Hash().Bytes())
+	val, err := mpt.VerifyProof(smartContractsRoot,
+		suite.smcAddr.Hash().Bytes(), hexutil.ToBytesSlice(res.AccountProof))
 	suite.Require().NoError(err)
 
 	var sc types.SmartContract
@@ -314,10 +300,7 @@ func (suite *SuiteEthAccounts) verifyStorageProof(
 		suite.Require().Equal(expectedValue.Uint256(), u.Int())
 	}
 
-	proof, err := SimpleProofFromBytesSlice(hexutil.ToBytesSlice(storageProof.Proof))
-	suite.Require().NoError(err)
-
-	val, err := proof.Verify(storageRoot, key.Bytes())
+	val, err := mpt.VerifyProof(storageRoot, key.Bytes(), hexutil.ToBytesSlice(storageProof.Proof))
 	suite.Require().NoError(err)
 
 	if expectNil {

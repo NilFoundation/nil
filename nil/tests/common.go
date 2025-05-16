@@ -67,7 +67,7 @@ func GasToValue(gas uint64) types.Value {
 }
 
 // Deploy contract to specific shard
-func DeployContractViaSmartAccount(
+func DeployContractViaSmartAccountNoCheck(
 	t *testing.T,
 	client client.Client,
 	addrFrom types.Address,
@@ -79,27 +79,47 @@ func DeployContractViaSmartAccount(
 	t.Helper()
 
 	contractAddr := types.CreateAddress(shardId, payload)
-	txHash, err := client.SendTransactionViaSmartAccount(
-		t.Context(),
-		addrFrom,
-		types.Code{},
-		types.NewFeePackFromGas(10_000_000),
-		initialAmount,
-		[]types.TokenBalance{},
-		contractAddr,
-		key)
-	require.NoError(t, err)
-	receipt := WaitForReceipt(t, client, txHash)
-	require.True(t, receipt.Success)
-	require.Equal(t, "Success", receipt.Status)
-	require.Len(t, receipt.OutReceipts, 1)
+
+	if !initialAmount.IsZero() {
+		txHash, err := client.SendTransactionViaSmartAccount(
+			t.Context(),
+			addrFrom,
+			types.Code{},
+			types.NewFeePackFromGas(10_000_000),
+			initialAmount,
+			[]types.TokenBalance{},
+			contractAddr,
+			key)
+		require.NoError(t, err)
+		receipt := WaitForReceipt(t, client, txHash)
+		require.True(t, receipt.Success)
+		require.Equal(t, "Success", receipt.Status)
+		require.Len(t, receipt.OutReceipts, 1)
+	}
 
 	txHash, addr, err := client.DeployContract(t.Context(), shardId, addrFrom, payload, types.Value{},
 		types.NewFeePackFromGas(10_000_000), key)
 	require.NoError(t, err)
 	require.Equal(t, contractAddr, addr)
 
-	receipt = WaitIncludedInMain(t, client, txHash)
+	receipt := WaitIncludedInMain(t, client, txHash)
+	return addr, receipt
+}
+
+// Deploy contract to specific shard
+func DeployContractViaSmartAccount(
+	t *testing.T,
+	client client.Client,
+	addrFrom types.Address,
+	key *ecdsa.PrivateKey,
+	shardId types.ShardId,
+	payload types.DeployPayload,
+	initialAmount types.Value,
+) (types.Address, *jsonrpc.RPCReceipt) {
+	t.Helper()
+
+	addr, receipt := DeployContractViaSmartAccountNoCheck(t, client, addrFrom, key, shardId, payload,
+		initialAmount)
 	require.True(t, receipt.Success)
 	require.Equal(t, "Success", receipt.Status)
 	require.Len(t, receipt.OutReceipts, 1)

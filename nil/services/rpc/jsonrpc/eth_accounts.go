@@ -123,7 +123,7 @@ func extractAccountProofBytes(proofEncoded []byte) ([][]byte, error) {
 		return nil, err
 	}
 
-	return proof.PathToNode().ToBytesSlice()
+	return proof.ToBytesSlice(), nil
 }
 
 // extractStorageKeyValues extracts keys and values from storage map
@@ -170,10 +170,7 @@ func generateStorageProofs(trie *mpt.Reader, storageKeys []common.Hash) ([]Stora
 		}
 
 		// Convert proof to bytes
-		proofBytesSlice, err := proof.PathToNode().ToBytesSlice()
-		if err != nil {
-			return nil, err
-		}
+		proofBytesSlice := proof.ToBytesSlice()
 
 		// Create storage proof for the key
 		storageProof := StorageProof{

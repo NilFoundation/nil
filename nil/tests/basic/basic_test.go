@@ -838,16 +838,6 @@ func (s *SuiteRpc) TestPanicsInDb() {
 
 	code, err := contracts.GetCode(contracts.NameTest)
 	s.Require().NoError(err)
-	abi, err := contracts.GetAbi(contracts.NameTest)
-	s.Require().NoError(err)
-
-	addr, receipt := s.DeployContractViaMainSmartAccount(
-		types.ShardId(3),
-		types.BuildDeployPayload(code, common.Hash{0x42}),
-		tests.DefaultContractValue)
-	s.Require().True(receipt.AllSuccess())
-
-	calldata := s.AbiPack(abi, "getValue")
 
 	origCreateRwTxFunc := s.CreateRwTxFunc
 	defer func() {
@@ -881,7 +871,10 @@ func (s *SuiteRpc) TestPanicsInDb() {
 	}
 	s.lock.Unlock()
 
-	receipt = s.SendExternalTransactionNoCheck(calldata, addr)
+	_, receipt := s.DeployContractViaMainSmartAccountNoCheck(
+		types.ShardId(3),
+		types.BuildDeployPayload(code, common.Hash{0x42}),
+		types.Value0)
 	s.Require().False(receipt.Success)
 	s.Require().Equal("PanicDuringExecution", receipt.Status)
 }

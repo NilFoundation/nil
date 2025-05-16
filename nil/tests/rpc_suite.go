@@ -201,6 +201,23 @@ func (s *RpcSuite) DeployContractViaMainSmartAccount(
 		initialAmount)
 }
 
+func (s *RpcSuite) DeployContractViaMainSmartAccountNoCheck(
+	shardId types.ShardId,
+	payload types.DeployPayload,
+	initialAmount types.Value,
+) (types.Address, *jsonrpc.RPCReceipt) {
+	s.T().Helper()
+
+	return DeployContractViaSmartAccountNoCheck(
+		s.T(),
+		s.Client,
+		types.MainSmartAccountAddress,
+		execution.MainPrivateKey,
+		shardId,
+		payload,
+		initialAmount)
+}
+
 func (s *RpcSuite) SendTransactionViaSmartAccount(
 	addrFrom types.Address,
 	addrTo types.Address,

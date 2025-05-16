@@ -2,23 +2,22 @@
 package mpt
 
 import (
+	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/serialization"
+	"github.com/NilFoundation/nil/nil/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	ethtrie "github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb/database"
-
-	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/serialization"
-	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
 var EmptyRootHash = common.Hash(ethtypes.EmptyRootHash)
 
 type Reader struct {
 	getter Getter
-	root   Reference
+	root   []byte
 }
 
 type MerklePatriciaTrie struct {
@@ -33,7 +32,7 @@ func (m *Reader) SetRootHash(root common.Hash) {
 }
 
 func (m *Reader) RootHash() common.Hash {
-	if m.root == nil || len(m.root) == 0 {
+	if len(m.root) == 0 {
 		return EmptyRootHash
 	}
 	return common.BytesToHash(m.root)
@@ -88,9 +87,11 @@ func (m *MerklePatriciaTrie) SetBatch(keys [][]byte, values [][]byte) error {
 	commitHash, nodeSet := trie.Commit(true)
 	m.SetRootHash(common.Hash(commitHash))
 
-	for hash, blob := range nodeSet.HashSet() {
-		if err := m.setter.Set(hash[:], blob); err != nil {
-			return err
+	if nodeSet != nil {
+		for hash, blob := range nodeSet.HashSet() {
+			if err := m.setter.Set(hash[:], blob); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -101,12 +102,19 @@ func (m *MerklePatriciaTrie) Delete(key []byte) error {
 	if len(key) > maxRawKeyLen {
 		key = crypto.Keccak256(key)
 	}
-	db := newNodeDatabaseWithSet(m.getter, m.setter)
+	nodeDb := newNodeDatabaseWithSet(m.getter, m.setter)
 	hash := ethcommon.Hash(m.RootHash())
-	trie, err := ethtrie.New(ethtrie.TrieID(hash), db)
+	trie, err := ethtrie.New(ethtrie.TrieID(hash), nodeDb)
 	if err != nil {
 		return err
 	}
+
+	if val, err := trie.Get(key); err != nil {
+		return err
+	} else if val == nil {
+		return db.ErrKeyNotFound
+	}
+
 	if err := trie.Delete(key); err != nil {
 		return err
 	}
@@ -114,9 +122,11 @@ func (m *MerklePatriciaTrie) Delete(key []byte) error {
 	commitHash, nodeSet := trie.Commit(true)
 	m.SetRootHash(common.Hash(commitHash))
 
-	for hash, blob := range nodeSet.HashSet() {
-		if err := m.setter.Set(hash[:], blob); err != nil {
-			return err
+	if nodeSet != nil {
+		for hash, blob := range nodeSet.HashSet() {
+			if err := m.setter.Set(hash[:], blob); err != nil {
+				return err
+			}
 		}
 	}
 
