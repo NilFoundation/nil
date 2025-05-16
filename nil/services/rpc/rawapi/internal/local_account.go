@@ -100,7 +100,9 @@ func (api *localShardApiRo) GetTokens(
 	}
 
 	tokenReader := execution.NewDbTokenTrieReader(tx, shardId)
-	tokenReader.SetRootHash(acc.TokenRoot)
+	if err := tokenReader.SetRootHash(acc.TokenRoot); err != nil {
+		return nil, err
+	}
 	entries, err := tokenReader.Entries()
 	if err != nil {
 		return nil, err
@@ -130,7 +132,7 @@ func (api *localShardApiRo) GetContract(
 	}
 
 	// Create proof regardless of whether we have contract data
-	proof, err := proofBuilder(mpt.ReadMPTOperation)
+	proof, err := proofBuilder(mpt.ReadOperation)
 	if err != nil {
 		return nil, err
 	}
@@ -159,21 +161,27 @@ func (api *localShardApiRo) GetContract(
 	}
 
 	storageReader := execution.NewDbStorageTrieReader(tx, address.ShardId())
-	storageReader.SetRootHash(contract.StorageRoot)
+	if err := storageReader.SetRootHash(contract.StorageRoot); err != nil {
+		return nil, err
+	}
 	storageEntries, err := storageReader.Entries()
 	if err != nil {
 		return nil, err
 	}
 
 	tokenReader := execution.NewDbTokenTrieReader(tx, address.ShardId())
-	tokenReader.SetRootHash(contract.TokenRoot)
+	if err := tokenReader.SetRootHash(contract.TokenRoot); err != nil {
+		return nil, err
+	}
 	tokenEntries, err := tokenReader.Entries()
 	if err != nil {
 		return nil, err
 	}
 
 	asyncContextReader := execution.NewDbAsyncContextTrieReader(tx, address.ShardId())
-	asyncContextReader.SetRootHash(contract.AsyncContextRoot)
+	if err := asyncContextReader.SetRootHash(contract.AsyncContextRoot); err != nil {
+		return nil, err
+	}
 	asyncContextEntries, err := asyncContextReader.Entries()
 	if err != nil {
 		return nil, err
@@ -189,10 +197,10 @@ func (api *localShardApiRo) GetContract(
 	}, nil
 }
 
-type proofBuilder = func(operation mpt.MPTOperation) (mpt.Proof, error)
+type proofBuilder = func(operation mpt.Operation) (mpt.Proof, error)
 
 func makeProofBuilder(root *mpt.Reader, key []byte) proofBuilder {
-	return func(operation mpt.MPTOperation) (mpt.Proof, error) {
+	return func(operation mpt.Operation) (mpt.Proof, error) {
 		return mpt.BuildProof(root, key, operation)
 	}
 }
@@ -215,7 +223,9 @@ func (api *localShardApiRo) getRawSmartContract(
 	}
 
 	root := mpt.NewDbReader(tx, api.shardId(), db.ContractTrieTable)
-	root.SetRootHash(block.SmartContractsRoot)
+	if err := root.SetRootHash(block.SmartContractsRoot); err != nil {
+		return nil, nil, err
+	}
 	addressBytes := address.Hash().Bytes()
 	contractRaw, err := root.Get(addressBytes)
 	if err != nil {

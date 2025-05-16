@@ -100,10 +100,12 @@ func (s *SuiteEthFilters) TestLogs() {
 	receiptsMpt := execution.NewDbReceiptTrie(tx, s.shardId)
 	s.Require().NoError(receiptsMpt.Update(0, &types.Receipt{ContractAddress: address1, Logs: logsInput}))
 	s.Require().NoError(receiptsMpt.Update(1, &types.Receipt{ContractAddress: address2, Logs: logsInput2}))
+	receiptRoot, err := receiptsMpt.Commit()
+	s.Require().NoError(err)
 
 	block := types.Block{
 		BlockData: types.BlockData{
-			ReceiptsRoot: receiptsMpt.RootHash(),
+			ReceiptsRoot: receiptRoot,
 		},
 	}
 	blockHash := block.Hash(s.shardId)

@@ -847,8 +847,6 @@ func (s *SuiteRpc) TestPanicsInDb() {
 		tests.DefaultContractValue)
 	s.Require().True(receipt.AllSuccess())
 
-	calldata := s.AbiPack(abi, "getValue")
-
 	origCreateRwTxFunc := s.CreateRwTxFunc
 	defer func() {
 		s.lock.Lock()
@@ -881,9 +879,12 @@ func (s *SuiteRpc) TestPanicsInDb() {
 	}
 	s.lock.Unlock()
 
-	receipt = s.SendExternalTransactionNoCheck(calldata, addr)
-	s.Require().False(receipt.Success)
-	s.Require().Equal("PanicDuringExecution", receipt.Status)
+	receipt = s.SendTransactionViaSmartAccount(
+		types.MainSmartAccountAddress, addr, execution.MainPrivateKey,
+		s.AbiPack(abi, "getValue"))
+	s.Require().True(receipt.Success)
+	s.Require().Len(receipt.OutReceipts, 1)
+	s.Require().Equal("PanicDuringExecution", receipt.OutReceipts[0].Status)
 }
 
 func (s *SuiteRpc) TestConsoleLog() {

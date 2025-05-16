@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
@@ -99,12 +100,15 @@ func NewAccountState(
 		logger:       logger,
 	}
 
+	tokenRoot := mpt.EmptyRootHash
+	storageRoot := mpt.EmptyRootHash
+	asyncContextRoot := mpt.EmptyRootHash
 	if account != nil {
 		accountState.Balance = account.Balance
-		accountState.TokenTree.SetRootHash(account.TokenRoot)
-		accountState.StorageTree.SetRootHash(account.StorageRoot)
+		tokenRoot = account.TokenRoot
+		storageRoot = account.StorageRoot
 		accountState.CodeHash = account.CodeHash
-		accountState.AsyncContextTree.SetRootHash(account.AsyncContextRoot)
+		asyncContextRoot = account.AsyncContextRoot
 		var err error
 		accountState.Code, err = db.ReadCode(es.GetRwTx(), shardId, account.CodeHash)
 		if err != nil {
@@ -113,7 +117,15 @@ func NewAccountState(
 		accountState.ExtSeqno = account.ExtSeqno
 		accountState.Seqno = account.Seqno
 	}
-
+	if err := accountState.TokenTree.SetRootHash(tokenRoot); err != nil {
+		return nil, fmt.Errorf("failed to set token root hash: %w", err)
+	}
+	if err := accountState.StorageTree.SetRootHash(storageRoot); err != nil {
+		return nil, fmt.Errorf("failed to set storage root hash: %w", err)
+	}
+	if err := accountState.AsyncContextTree.SetRootHash(asyncContextRoot); err != nil {
+		return nil, fmt.Errorf("failed to set async context root hash: %w", err)
+	}
 	return accountState, nil
 }
 
@@ -371,12 +383,25 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 		return nil, err
 	}
 
+	storageRoot, err := as.StorageTree.Commit()
+	if err != nil {
+		return nil, err
+	}
+	tokenTree, err := as.TokenTree.Commit()
+	if err != nil {
+		return nil, err
+	}
+	asyncContextTree, err := as.AsyncContextTree.Commit()
+	if err != nil {
+		return nil, err
+	}
+
 	acc := &types.SmartContract{
 		Address:          as.address,
 		Balance:          as.Balance,
-		StorageRoot:      as.StorageTree.RootHash(),
-		TokenRoot:        as.TokenTree.RootHash(),
-		AsyncContextRoot: as.AsyncContextTree.RootHash(),
+		StorageRoot:      storageRoot,
+		TokenRoot:        tokenTree,
+		AsyncContextRoot: asyncContextTree,
 		CodeHash:         as.CodeHash,
 		ExtSeqno:         as.ExtSeqno,
 		Seqno:            as.Seqno,

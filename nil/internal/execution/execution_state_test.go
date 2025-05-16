@@ -98,9 +98,9 @@ func (s *SuiteExecutionState) TestExecState() {
 		s.Require().NotNil(data.Block())
 
 		transactionsRoot := NewDbTransactionTrieReader(tx, es.ShardId)
-		transactionsRoot.SetRootHash(data.Block().InTransactionsRoot)
+		s.Require().NoError(transactionsRoot.SetRootHash(data.Block().InTransactionsRoot))
 		receiptsRoot := NewDbReceiptTrieReader(tx, es.ShardId)
-		receiptsRoot.SetRootHash(data.Block().ReceiptsRoot)
+		s.Require().NoError(receiptsRoot.SetRootHash(data.Block().ReceiptsRoot))
 
 		var transactionIndex types.TransactionIndex
 		for {
@@ -199,7 +199,7 @@ func (s *SuiteExecutionState) TestExecStateMultipleBlocks() {
 		s.Require().NotNil(block)
 
 		transactionsRoot := NewDbTransactionTrieReader(tx, types.BaseShardId)
-		transactionsRoot.SetRootHash(block.InTransactionsRoot)
+		s.Require().NoError(transactionsRoot.SetRootHash(block.InTransactionsRoot))
 		txnRead, err := transactionsRoot.Fetch(idx)
 		s.Require().NoError(err)
 
@@ -376,6 +376,7 @@ func TestAccountState(t *testing.T) {
 
 	// Drop local state account cache
 	delete(state.Accounts, addr)
+	require.NoError(t, state.ContractTree.SetRootHash(state.ContractTree.RootHash()))
 
 	acc, err = state.GetAccount(addr)
 	require.NoError(t, err)
