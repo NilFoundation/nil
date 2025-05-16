@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -47,8 +46,8 @@ func (r *wrapperImpl) UpdateState(ctx context.Context, data *types.UpdateStateDa
 
 	publicDataInputs := INilRollupPublicDataInfo{
 		L2Tol1Root:    data.L2Tol1Root,
-		MessageCount:  big.NewInt(data.MessageCount),
 		L1MessageHash: data.L1MessageHash,
+		DepositNonce:  data.DepositNonce,
 	}
 
 	// The transaction will be simulated (via eth_estimateGas) before submission,

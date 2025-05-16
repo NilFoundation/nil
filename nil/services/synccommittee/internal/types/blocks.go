@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -345,22 +346,22 @@ type UpdateStateData struct {
 	ProposalData
 	ValidityProof ValidityProof
 	L2Tol1Root    common.Hash
-	MessageCount  int64
 	L1MessageHash common.Hash
+	DepositNonce  *big.Int
 }
 
 func NewUpdateStateData(
 	proposalData *ProposalData,
 	validityProof ValidityProof,
 	l2Tol1Root common.Hash,
-	messageCount int64,
 	l1MessageHash common.Hash,
+	depositNonce *big.Int,
 ) *UpdateStateData {
 	return &UpdateStateData{
 		ProposalData:  *proposalData,
 		ValidityProof: validityProof,
 		L2Tol1Root:    l2Tol1Root,
-		MessageCount:  messageCount,
 		L1MessageHash: l1MessageHash,
+		DepositNonce:  depositNonce,
 	}
 }

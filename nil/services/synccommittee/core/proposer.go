@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/bridgecontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
@@ -35,6 +36,7 @@ type proposer struct {
 
 	storage               ProposerStorage
 	resetter              *reset.StateResetLauncher
+	bridgeStateGetter     bridgecontract.BridgeStateGetter
 	rollupContractWrapper rollupcontract.Wrapper
 	metrics               ProposerMetrics
 	logger                logging.Logger
@@ -56,6 +58,7 @@ func NewDefaultProposerConfig() ProposerConfig {
 func NewProposer(
 	config ProposerConfig,
 	storage ProposerStorage,
+	bridgeStateGetter bridgecontract.BridgeStateGetter,
 	contractWrapper rollupcontract.Wrapper,
 	resetter *reset.StateResetLauncher,
 	metrics ProposerMetrics,
@@ -63,6 +66,7 @@ func NewProposer(
 ) (*proposer, error) {
 	p := &proposer{
 		storage:               storage,
+		bridgeStateGetter:     bridgeStateGetter,
 		rollupContractWrapper: contractWrapper,
 		resetter:              resetter,
 		metrics:               metrics,
@@ -110,14 +114,24 @@ func (p *proposer) updateState(
 	ctx context.Context,
 	proposalData *scTypes.ProposalData,
 ) error {
-	// TODO: populate with actual data
+	// NOTE(oclaw) current impl assumes that L2BridgeMessenger is deployed at the main shard
+	// if it is not - we need to expilicitly set shard id and use latest block ref from it
+	lastestMainBlockRef := proposalData.NewProvedStateRoot
+	if lastestMainBlockRef == common.EmptyHash {
+		return errors.New("latest main block ref is empty")
+	}
+
+	bridgeData, err := p.bridgeStateGetter.GetBridgeState(ctx, lastestMainBlockRef)
+	if err != nil {
+		return fmt.Errorf("failed to get bridge state: %w", err)
+	}
 
 	updateStateData := scTypes.NewUpdateStateData(
 		proposalData,
 		[]byte{0x0A, 0x0B, 0x0C},
-		common.EmptyHash,
-		0,
-		common.EmptyHash,
+		common.BigToHash(bridgeData.L2toL1Root),
+		common.BigToHash(bridgeData.L1MessageHash),
+		bridgeData.DepositNonce,
 	)
 
 	log.NewStateUpdateEvent(p.logger, zerolog.InfoLevel, updateStateData).Msg("calling UpdateState L1 method")

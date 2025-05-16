@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/bridgecontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
@@ -111,6 +112,8 @@ func (s *ProposerTestSuite) SetupSuite() {
 	)
 	s.Require().NoError(err)
 
+	l2BridgeMessengerContractAddr := types.HexToAddress("0x1234")
+
 	s.rpcClientMock = &client.ClientMock{
 		GetBlockFunc: func(_ context.Context, shardId types.ShardId, blockId any, _ bool) (*jsonrpc.RPCBlock, error) {
 			strId, ok := blockId.(string)
@@ -126,15 +129,30 @@ func (s *ProposerTestSuite) SetupSuite() {
 			block.Hash = blockHash
 			return block, nil
 		},
+		CallFunc: func(
+			ctx context.Context, args *jsonrpc.CallArgs, blockId any, stateOverride *jsonrpc.StateOverrides,
+		) (*jsonrpc.CallRes, error) {
+			switch {
+			case args.To.Equal(l2BridgeMessengerContractAddr):
+				ret := types.NewUint256(123).Bytes32()
+				return &jsonrpc.CallRes{
+					Data: ret[:],
+				}, nil
+			default:
+				return nil, fmt.Errorf("unexpected contract address: %s", args.To)
+			}
+		},
 	}
 
 	fetcher := fetching.NewFetcher(s.rpcClientMock, logger)
 	l1Syncer := syncer.NewStateRootSyncer(fetcher, contractWrapper, s.storage, logger, syncer.NewDefaultConfig())
 	resetLauncher := reset.NewResetLauncher(s.storage, l1Syncer, nil, logger)
+	bridgeStateGetter := bridgecontract.NewBridgeStateGetter(s.rpcClientMock, l2BridgeMessengerContractAddr)
 
 	s.proposer, err = NewProposer(
 		s.params,
 		s.storage,
+		bridgeStateGetter,
 		contractWrapper,
 		resetLauncher,
 		metricsHandler,
