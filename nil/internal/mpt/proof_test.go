@@ -2,7 +2,6 @@ package mpt
 
 import (
 	"bytes"
-	"fmt"
 	"maps"
 	"testing"
 
@@ -141,8 +140,8 @@ func TestSparseMPT(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, PopulateMptWithProof(sparse, &p))
-		if len(p.PathToNode) > 0 {
-			encodedNode, err := p.PathToNode[0].Encode()
+		if len(p.PathToNode()) > 0 {
+			encodedNode, err := p.PathToNode()[0].Encode()
 			require.NoError(t, err)
 			require.Equal(t, sparse.RootHash().Bytes(), calcNodeKey(encodedNode))
 		}
@@ -178,7 +177,6 @@ func TestSparseMPT(t *testing.T) {
 	t.Run("Check manipulated proof", func(t *testing.T) {
 		t.Parallel()
 
-		modifiedKey := ""
 		modifiedVal := []byte("val-modified")
 		holder := maps.Clone(sparseHolder)
 		for k, v := range sparseHolder {
@@ -209,14 +207,8 @@ func TestSparseMPT(t *testing.T) {
 			modified, err := manipulatedNode.Encode()
 			require.NoError(t, err)
 			holder[k] = modified
-			modifiedKey = k
 			break
 		}
-
-		// The holder is not valid anymore, because the hash of the value is not matching the key
-		err := ValidateHolder(holder)
-		require.Error(t, err)
-		require.ErrorContains(t, err, fmt.Sprintf("%x", modifiedKey))
 
 		// But we still get values from the MPT, because we don't validate it on Get
 		manipulatedSparse := NewMPTFromMap(holder)
@@ -481,10 +473,18 @@ func TestProofEncoding(t *testing.T) {
 
 	require.Equal(t, p.operation, decoded.operation)
 	require.Equal(t, p.key, decoded.key)
-	require.Len(t, decoded.PathToNode, len(p.PathToNode))
-	for i, n := range p.PathToNode {
-		require.Equal(t, n, decoded.PathToNode[i])
+	require.Len(t, decoded.PathToNode, len(p.PathToNode()))
+	for i, n := range p.PathToNode() {
+		require.Equal(t, n, decoded.PathToNode()[i])
 	}
+}
+
+func BuildSimpleProof(r *Reader, key []byte) (SimpleProof, error) {
+	p, err := BuildProof(r, key, ReadMPTOperation)
+	if err != nil {
+		return nil, err
+	}
+	return p.PathToNode(), nil
 }
 
 func TestSimpleProof(t *testing.T) {

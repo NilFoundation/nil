@@ -242,12 +242,24 @@ func (suite *SuiteEthAccounts) TestGetProof() {
 	suite.Nil(resNonExisting.StorageProof[1].Proof)
 }
 
+func SimpleProofFromBytesSlice(nodes [][]byte) (mpt.SimpleProof, error) {
+	proof := make(mpt.SimpleProof, 0, len(nodes))
+	for _, encoded := range nodes {
+		node, err := mpt.DecodeNode(encoded)
+		if err != nil {
+			return nil, err
+		}
+		proof = append(proof, node)
+	}
+	return proof, nil
+}
+
 // verifyProofResult verifies both account proof and storage proofs in the response
 func (suite *SuiteEthAccounts) verifyProofResult(res *EthProof, smartContractsRoot common.Hash) {
 	suite.T().Helper()
 
 	// Verify account proof
-	proof, err := mpt.SimpleProofFromBytesSlice(hexutil.ToBytesSlice(res.AccountProof))
+	proof, err := SimpleProofFromBytesSlice(hexutil.ToBytesSlice(res.AccountProof))
 	suite.Require().NoError(err)
 
 	val, err := proof.Verify(smartContractsRoot, suite.smcAddr.Hash().Bytes())
@@ -302,7 +314,7 @@ func (suite *SuiteEthAccounts) verifyStorageProof(
 		suite.Require().Equal(expectedValue.Uint256(), u.Int())
 	}
 
-	proof, err := mpt.SimpleProofFromBytesSlice(hexutil.ToBytesSlice(storageProof.Proof))
+	proof, err := SimpleProofFromBytesSlice(hexutil.ToBytesSlice(storageProof.Proof))
 	suite.Require().NoError(err)
 
 	val, err := proof.Verify(storageRoot, key.Bytes())

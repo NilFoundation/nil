@@ -209,7 +209,7 @@ func getTrieTraces[V any, VPtr execution.MPTValue[V]](
 		slotChangeTrace := GenericTrieUpdateTrace[VPtr]{
 			Key:        e.Key,
 			RootBefore: trie.RootHash(),
-			PathBefore: proof.PathToNode,
+			PathBefore: proof.PathToNode(),
 			ValueAfter: e.Val,
 			Proof:      proof,
 		}
@@ -230,7 +230,7 @@ func getTrieTraces[V any, VPtr execution.MPTValue[V]](
 		}
 
 		slotChangeTrace.RootAfter = trie.RootHash()
-		slotChangeTrace.PathAfter = proof.PathToNode
+		slotChangeTrace.PathAfter = proof.PathToNode()
 
 		traces = append(traces, slotChangeTrace)
 	}
@@ -246,7 +246,7 @@ func getTrieTraces[V any, VPtr execution.MPTValue[V]](
 		slotChangeTrace := GenericTrieUpdateTrace[VPtr]{
 			Key:         k,
 			RootBefore:  trie.RootHash(),
-			PathBefore:  proof.PathToNode,
+			PathBefore:  proof.PathToNode(),
 			ValueBefore: v,
 			Proof:       proof,
 		}
@@ -262,7 +262,7 @@ func getTrieTraces[V any, VPtr execution.MPTValue[V]](
 		}
 
 		slotChangeTrace.RootAfter = trie.RootHash()
-		slotChangeTrace.PathAfter = proof.PathToNode
+		slotChangeTrace.PathAfter = proof.PathToNode()
 		traces = append(traces, slotChangeTrace)
 	}
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,7 +60,7 @@ func TestInsertGetOneShort(t *testing.T) {
 	assert.Equal(t, value, getValue(t, trie, key))
 
 	gotValue, err := trie.Get([]byte("wrong_key"))
-	require.Error(t, err)
+	require.ErrorIs(t, err, db.ErrKeyNotFound)
 	assert.Empty(t, gotValue)
 }
 
@@ -194,7 +195,7 @@ func TestDeleteLots(t *testing.T) {
 	trie := mpt.NewInMemMPT()
 	const size uint32 = 100
 
-	require.Equal(t, trie.RootHash(), common.EmptyHash)
+	require.Equal(t, trie.RootHash(), mpt.EmptyRootHash)
 
 	var keys [size][]byte
 	var values [size][]byte
@@ -207,13 +208,13 @@ func TestDeleteLots(t *testing.T) {
 		require.NoError(t, trie.Set(key, values[i]))
 	}
 
-	require.NotEqual(t, trie.RootHash(), common.EmptyHash)
+	require.NotEqual(t, trie.RootHash(), mpt.EmptyRootHash)
 
 	for i := range keys {
 		require.NoError(t, trie.Delete(keys[i]))
 	}
 
-	require.Equal(t, trie.RootHash(), common.EmptyHash)
+	require.Equal(t, trie.RootHash(), mpt.EmptyRootHash)
 }
 
 func TestDeleteSmall(t *testing.T) {
@@ -223,7 +224,7 @@ func TestDeleteSmall(t *testing.T) {
 	trie := mpt.NewMPTFromMap(holder)
 	const size uint32 = 2
 
-	require.Equal(t, trie.RootHash(), common.EmptyHash)
+	require.Equal(t, trie.RootHash(), mpt.EmptyRootHash)
 
 	var keys [size][]byte
 	var values [size][]byte
