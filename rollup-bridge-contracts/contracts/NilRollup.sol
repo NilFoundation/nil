@@ -516,6 +516,7 @@ contract NilRollup is OwnableUpgradeable, PausableUpgradeable, NilAccessControlU
    *      linked to valid state roots, while ignoring any unrelated or dangling batch entries.
    * @param targetStateRoot The state root to which the state will be reset. If this state root does not exist
    *        in the stateRootIndex, an error is thrown.
+   * @inheritdoc INilRollup
    */
   function resetState(bytes32 targetStateRoot) external onlyAdmin {
     // Check if targetStateRoot is a valid value

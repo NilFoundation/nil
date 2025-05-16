@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"log"
+	"math/big"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -205,8 +206,8 @@ func NewUpdateStateData() *scTypes.UpdateStateData {
 		NewProposalData(Now),
 		NewValidityProof(),
 		common.EmptyHash,
-		int64(0),
 		common.EmptyHash,
+		new(big.Int),
 	)
 }
 
