@@ -10,7 +10,7 @@ contract CheckEffectsInteraction is NilBase, NilAwaitable {
     //startBadCheckEffectsInteraction
     mapping(address => uint) balances;
 
-    function badCheckEffectsInteraction(address dst, uint amount) public {
+    function badCheckEffectsInteraction(address dst, uint amount) public async(2_000_000) {
         require(balances[msg.sender] >= amount);
 
         balances[msg.sender] -= amount;

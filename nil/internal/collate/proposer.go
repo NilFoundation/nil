@@ -90,7 +90,7 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		Block:          prevBlock,
 		ConfigAccessor: configAccessor,
 		FeeCalculator:  p.params.FeeCalculator,
-		Mode:           execution.ModeProposal,
+		Mode:           execution.ModeProposalGen,
 	})
 	if err != nil {
 		return nil, err

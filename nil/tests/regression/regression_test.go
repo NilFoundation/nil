@@ -87,7 +87,7 @@ func (s *SuiteRegression) TestStaticCall() {
 		addrQuery,
 		execution.MainPrivateKey,
 		data,
-		types.NewFeePackFromGas(200_000),
+		types.NewFeePackFromGas(tests.CommonGasLimit),
 		types.NewZeroValue(),
 		nil)
 	s.Require().True(receipt.AllSuccess())
@@ -98,7 +98,7 @@ func (s *SuiteRegression) TestStaticCall() {
 		addrQuery,
 		execution.MainPrivateKey,
 		data,
-		types.NewFeePackFromGas(200_000),
+		types.NewFeePackFromGas(tests.CommonGasLimit),
 		types.NewZeroValue(),
 		nil)
 	s.Require().True(receipt.AllSuccess())
@@ -109,7 +109,7 @@ func (s *SuiteRegression) TestStaticCall() {
 		addrQuery,
 		execution.MainPrivateKey,
 		data,
-		types.NewFeePackFromGas(200_000),
+		types.NewFeePackFromGas(tests.CommonGasLimit),
 		types.NewZeroValue(),
 		nil)
 	s.Require().True(receipt.AllSuccess())
@@ -212,7 +212,7 @@ func (s *SuiteRegression) TestInsufficientFundsDeploy() {
 		s.T().Context(),
 		types.MainSmartAccountAddress,
 		nil,
-		types.NewFeePackFromGas(100_000),
+		types.NewFeePackFromGas(tests.CommonGasLimit),
 		types.Value10,
 		[]types.TokenBalance{}, addr, execution.MainPrivateKey)
 	s.Require().NoError(err)

@@ -10,7 +10,7 @@ contract Caller {
 
     receive() external payable {}
 
-    function call(address dst) public {
+    function call(address dst) public async(2_000_000) {
         Nil.asyncCall(
             dst,
             msg.sender,

@@ -50,7 +50,7 @@ contract EnglishAuction is Ownable {
      * @notice This function starts the auction and sends a transaction
      * for minting the NFT.
      */
-    function start() public onlyOwner {
+    function start() public onlyOwner async(2_000_000) {
         require(!isOngoing, "the auction has already started");
 
         Nil.asyncCall(
@@ -93,7 +93,7 @@ contract EnglishAuction is Ownable {
      * @notice This function exists so a bidder can withdraw their funds
      * if they change their mind.
      */
-    function withdraw() public {
+    function withdraw() public async(2_000_000) {
         uint256 bal = bids[msg.sender];
         bids[msg.sender] = 0;
 

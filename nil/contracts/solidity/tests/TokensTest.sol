@@ -34,7 +34,7 @@ contract TokensTest is NilTokenBase {
     function testCallWithTokensAsync(
         address dst,
         Nil.Token[] memory tokens
-    ) public onlyExternal {
+    ) public onlyExternal async (500_000) {
         bytes memory callData = abi.encodeCall(
             this.testTransactionTokens,
             tokens

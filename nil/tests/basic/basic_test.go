@@ -216,7 +216,7 @@ func (s *SuiteRpc) TestRpcContractSendTransaction() {
 			callArgs := &jsonrpc.CallArgs{
 				Data:  (*hexutil.Bytes)(&callData),
 				To:    callerAddr,
-				Fee:   types.NewFeePackFromGas(500_000),
+				Fee:   types.NewFeePackFromGas(tests.CommonGasLimit),
 				Seqno: callerSeqno,
 			}
 
@@ -416,7 +416,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 			Data:    extPayload,
 			Seqno:   callerSeqno,
 			Kind:    types.ExecutionTransactionKind,
-			FeePack: types.NewFeePackFromGas(100_000),
+			FeePack: types.NewFeePackFromGas(tests.CommonGasLimit),
 		}
 
 		extBytecode, err := extTxn.MarshalSSZ()
@@ -424,7 +424,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 
 		callArgs := &jsonrpc.CallArgs{
 			Transaction: (*hexutil.Bytes)(&extBytecode),
-			Fee:         types.NewFeePackFromGas(500_000),
+			Fee:         types.NewFeePackFromGas(tests.CommonGasLimit),
 		}
 
 		res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
@@ -453,7 +453,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 			Transaction: (*hexutil.Bytes)(&intBytecode),
 			From:        &smartAccountAddr,
 			Seqno:       callerSeqno,
-			Fee:         types.NewFeePackFromGas(500_000),
+			Fee:         types.NewFeePackFromGas(tests.CommonGasLimit),
 		}
 
 		res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
@@ -646,7 +646,7 @@ func (s *SuiteRpc) TestNoOutTransactionsIfFailure() {
 	calldata, err = abi.Pack("testFailedAsyncCall", addr, int32(10))
 	s.Require().NoError(err)
 
-	txhash, err = s.Client.SendExternalTransaction(s.Context, calldata, addr, nil, types.NewFeePackFromGas(100_000))
+	txhash, err = s.Client.SendExternalTransaction(s.Context, calldata, addr, nil, types.NewFeePackFromGas(500_000))
 	s.Require().NoError(err)
 	receipt = s.WaitForReceipt(txhash)
 	s.Require().True(receipt.Success)
@@ -724,7 +724,7 @@ func (s *SuiteRpc) TestRpcTransactionContent() {
 
 	txn2, err := s.Client.GetInTransactionByHash(s.Context, receipt.OutTransactions[0])
 	s.Require().NoError(err)
-	s.EqualValues(3, txn2.Flags.Bits)
+	s.EqualValues(1, txn2.Flags.Bits)
 }
 
 func (s *SuiteRpc) TestTwoInvalidSignatureTxs() {
