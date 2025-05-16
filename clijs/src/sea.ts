@@ -15,6 +15,18 @@ import ConfigGet from "./commands/config/get";
 import ConfigInit from "./commands/config/init";
 import ConfigSet from "./commands/config/set";
 import ConfigShow from "./commands/config/show";
+import Contract from "./commands/contract";
+import ContractAddress from "./commands/contract/address";
+import ContractBalance from "./commands/contract/balance";
+import ContractCallReadOnly from "./commands/contract/call-readonly";
+import ContractCode from "./commands/contract/code";
+import ContractDeploy from "./commands/contract/deploy";
+import ContractEstimateFee from "./commands/contract/estimate-fee";
+import ContractTokens from "./commands/contract/tokens";
+import MinterCommand from "./commands/minter";
+import MinterBurnTokenCommand from "./commands/minter/burn";
+import MinterCreateTokenCommand from "./commands/minter/create";
+import MinterMintTokenCommand from "./commands/minter/mint";
 import ReceiptCommand from "./commands/receipt";
 import SmartAccountBalance from "./commands/smart-account/balance.js";
 import SmartAccountCallReadOnly from "./commands/smart-account/call-readonly";
@@ -46,9 +58,25 @@ export const COMMANDS: Record<string, Command.Class> = {
   "config:set": ConfigSet,
   "config:show": ConfigShow,
 
+  contract: Contract,
+  "contract:address": ContractAddress,
+  "contract:balance": ContractBalance,
+  "contract:call-readonly": ContractCallReadOnly,
+  "contract:code": ContractCode,
+  "contract:deploy": ContractDeploy,
+  "contract:estimate-fee": ContractEstimateFee,
+  "contract:seqno": SmartAccountSeqno,
+  "contract:tokens": ContractTokens,
+  "contract:top-up": SmartAccountTopup,
+
   keygen: Keygen,
   "keygen:new": KeygenNew,
   "keygen:new-p2p": KeygenNewP2p,
+
+  minter: MinterCommand,
+  "minter:create": MinterCreateTokenCommand,
+  "minter:burn": MinterBurnTokenCommand,
+  "minter:mint": MinterMintTokenCommand,
 
   receipt: ReceiptCommand,
 

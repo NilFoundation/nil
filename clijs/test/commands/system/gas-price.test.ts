@@ -24,6 +24,6 @@ CliTest(
 
     expect(res.result).toBeGreaterThan(0n);
     expect(res.stderr).toBe("");
-    expect(res.stdout).toBe("");
+    expect(res.stdout).not.equal("");
   },
 );

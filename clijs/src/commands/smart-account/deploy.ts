@@ -151,7 +151,6 @@ export default class SmartAccountDeploy extends BaseCommand {
     }
 
     this.info("Waiting for the contract to be deployed...");
-    // await this.waitOnTx(hash);
     await tx.wait();
     this.info("Contract successfully deployed");
 

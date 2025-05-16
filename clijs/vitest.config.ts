@@ -9,6 +9,11 @@ export default defineConfig({
     hookTimeout: 20_000,
     testTimeout: 40_000,
     globals: true,
+    poolOptions: {
+      threads: {
+        singleThread: true,
+      }
+    },
     coverage: {
       reportsDirectory: "./test/coverage",
       provider: "v8",

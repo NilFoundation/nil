@@ -13,6 +13,10 @@ export default class SmartAccountSeqno extends BaseCommand {
 
   public async run(): Promise<number> {
     const { smartAccount } = await this.setupSmartAccount();
-    return await smartAccount.client.getTransactionCount(smartAccount.address);
+    const seqno = await smartAccount.client.getTransactionCount(smartAccount.address);
+
+    this.log(seqno.toString());
+
+    return seqno;
   }
 }

@@ -10,6 +10,7 @@ import {
   LocalECDSAKeySigner,
   SmartAccountV1,
   generateRandomPrivateKey,
+  waitTillCompleted,
 } from "@nilfoundation/niljs";
 import { PublicClient } from "@nilfoundation/niljs";
 import type { Errors } from "@oclif/core";
@@ -135,7 +136,9 @@ export const CliTest = test.extend<CliTestFixture>({
       rpcClient,
     );
 
-    smartAccount.selfDeploy(true);
+    const deployTx = await smartAccount.selfDeploy(true);
+
+    await waitTillCompleted(rpcClient, deployTx.hash);
     await use(smartAccount);
   },
 });

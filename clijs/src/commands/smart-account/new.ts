@@ -103,7 +103,6 @@ export default class SmartAccountNew extends BaseCommand {
       this.rpcClient,
     );
 
-    this.info("Deploying smart account...");
     const tx = await smartAccount.selfDeploy(true);
     this.info(`Successfully deployed smart account with tx hash: ${tx.hash}`);
 

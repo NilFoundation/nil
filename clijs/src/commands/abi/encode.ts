@@ -25,7 +25,7 @@ export default class AbiEncode extends BaseCommand {
     }),
     args: Args.string({
       name: "args",
-      required: true,
+      required: false,
       description: "Method args",
       multiple: true,
     }),
@@ -41,10 +41,12 @@ export default class AbiEncode extends BaseCommand {
     const abiFileContent = fs.readFileSync(abiFullPath, "utf8");
     const abi: Abi = JSON.parse(abiFileContent);
 
-    return encodeFunctionData({
+    const data = encodeFunctionData({
       abi: abi,
       functionName: args.method,
       args: args.args?.split(" ") ?? [],
     });
+    this.log(data);
+    return data;
   }
 }

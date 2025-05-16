@@ -35,10 +35,12 @@ export default class AbiDecode extends BaseCommand {
     const abiFileContent = fs.readFileSync(abiFullPath, "utf8");
     const abi: Abi = JSON.parse(abiFileContent);
 
-    return decodeFunctionData({
+    const data = decodeFunctionData({
       abi: abi,
       // @ts-ignore
       data: args.data,
     });
+    this.log(JSON.stringify(data));
+    return data;
   }
 }
