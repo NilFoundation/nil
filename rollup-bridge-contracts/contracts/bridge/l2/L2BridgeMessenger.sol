@@ -385,8 +385,12 @@ contract L2BridgeMessenger is
     authorisedBridges.remove(bridge);
   }
 
+  function grantRelayerRole(address relayerAddress) external override onlyOwnerOrAdmin {
+    _grantRole(NilConstants.RELAYER_ROLE, relayerAddress);
+  }
+
   /// @inheritdoc IL2BridgeMessenger
-  function setPause(bool _status) external onlyOwnerOrAdmin {
+  function setPause(bool _status) external override onlyOwnerOrAdmin {
     if (_status) {
       _pause();
     } else {
