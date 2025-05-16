@@ -412,14 +412,6 @@ contract NilRollup is OwnableUpgradeable, PausableUpgradeable, NilAccessControlU
     // get the messageCount from the publicInput
     uint256 depositMessageCount = publicDataInfo.depositNonce - l1BridgeMessenger.getQueueHeadIndex();
 
-    // if (
-    //   depositMessageCount == 0 &&
-    //   (publicDataInfo.l2Tol1Root != batchInfoRecords[lastFinalizedBatchIndex].publicDataInfo.l2Tol1Root ||
-    //     publicDataInfo.l1MessageHash != ZERO_STATE_ROOT)
-    // ) {
-    //   revert ErrorInvalidPublicDataInfo();
-    // }
-
     if (
       depositMessageCount > 0 &&
       (publicDataInfo.l2Tol1Root == batchInfoRecords[lastFinalizedBatchIndex].publicDataInfo.l2Tol1Root ||
