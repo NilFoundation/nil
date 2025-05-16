@@ -24,7 +24,7 @@ contract BounceTest is NilBounceable {
 
     constructor() payable {}
 
-    function call(address dst, int32 val) public payable {
+    function call(address dst, int32 val) public payable async(2_000_000) {
         dst.asyncCall(
             address(0), // refundTo
             address(0), // bounceTo
@@ -43,7 +43,7 @@ contract BounceTest is NilBounceable {
         uint8 forwardKind,
         uint value,
         bytes memory callData
-    ) public payable {
+    ) public payable async(2_000_000) {
         Nil.asyncCall(dst, refundTo, bounceTo, feeCredit, forwardKind, value, callData);
     }
 

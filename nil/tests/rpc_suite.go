@@ -326,21 +326,8 @@ func (r *ReceiptInfo) AllSuccess() bool {
 	return true
 }
 
-// ContainsOnly checks that the receipt info contains only the specified addresses.
-func (r *ReceiptInfo) ContainsOnly(addresses ...types.Address) bool {
-	if len(*r) != len(addresses) {
-		return false
-	}
-	for _, addr := range addresses {
-		if _, found := (*r)[addr]; !found {
-			return false
-		}
-	}
-	return true
-}
-
 func (c *ContractInfo) IsSuccess() bool {
-	return c.NumFail == 0 && c.NumSuccess > 0
+	return c.NumFail == 0
 }
 
 // GetValueSpent returns the total value spent by the contract.

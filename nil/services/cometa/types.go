@@ -215,7 +215,11 @@ func (t *CompilerTask) ToCompilerJsonInput() (*CompilerJsonInput, error) {
 	res.Sources = t.Sources
 	res.Settings.Optimizer = t.Settings.Optimizer
 	res.Settings.EvmVersion = t.Settings.EvmVersion
-	res.Settings.Metadata.BytecodeHash = t.Settings.BytecodeHash
+	if t.Settings.BytecodeHash == "" {
+		res.Settings.Metadata.BytecodeHash = "none"
+	} else {
+		res.Settings.Metadata.BytecodeHash = t.Settings.BytecodeHash
+	}
 	res.Settings.ViaIR = t.Settings.ViaIR
 	res.Settings.Metadata.AppendCBOR = t.Settings.AppendCBOR
 	parts := strings.Split(t.ContractName, ":")

@@ -10,7 +10,7 @@ contract CallerAsync {
 
     event CallCompleted(address indexed dst);
 
-    function call(address dst) public payable {
+    function call(address dst) public payable async(2_000_000) {
         dst.asyncCall(
             address(0),
             msg.value,

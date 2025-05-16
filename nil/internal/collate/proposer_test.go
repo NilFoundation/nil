@@ -92,6 +92,8 @@ func (s *ProposerTestSuite) TestBlockGas() {
 func (s *ProposerTestSuite) TestCollator() {
 	to := contracts.CounterAddress(s.T(), s.shardId)
 
+	const asyncGass = 2_000_000
+
 	pool := &MockTxnPool{}
 	params := s.newParams()
 	p := newTestProposer(params, pool)
@@ -141,7 +143,8 @@ func (s *ProposerTestSuite) TestCollator() {
 		// Each transaction subtracts its value + actual gas used from the balance.
 		balance = balance.
 			Sub(txnValue).Sub(r1.GasUsed.ToValue(types.DefaultGasPrice)).Sub(r1.Forwarded).
-			Sub(txnValue).Sub(r2.GasUsed.ToValue(types.DefaultGasPrice)).Sub(r2.Forwarded)
+			Sub(txnValue).Sub(r2.GasUsed.ToValue(types.DefaultGasPrice)).Sub(r2.Forwarded).
+			Sub(types.GasToValue(asyncGass * 2))
 		s.Equal(balance, s.getMainBalance())
 		s.Equal(types.Value{}, s.getBalance(shardId, to))
 	})
@@ -168,7 +171,8 @@ func (s *ProposerTestSuite) TestCollator() {
 		// Two refund transactions
 		s.Len(proposal.InternalTxns, 2)
 
-		balance = balance.Add(r1.Forwarded).Add(r2.Forwarded)
+		balance = balance.Add(r1.Forwarded).Add(r2.Forwarded).Add(types.GasToValue(asyncGass * 2))
+
 		s.Equal(balance, s.getMainBalance())
 
 		s.checkSeqno(shardId)

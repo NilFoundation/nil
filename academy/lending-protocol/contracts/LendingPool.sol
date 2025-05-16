@@ -38,7 +38,7 @@ contract LendingPool is NilBase, NilTokenBase, NilAwaitable {
 
     /// @notice Deposit function to deposit tokens into the lending pool.
     /// @dev The deposited tokens are recorded in the GlobalLedger via an asynchronous call.
-    function deposit() public payable {
+    function deposit() public payable async(2_000_000) {
         /// Retrieve the tokens being sent in the transaction
         Nil.Token[] memory tokens = Nil.txnTokens();
 

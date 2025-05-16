@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"math/big"
 	"sort"
@@ -28,11 +27,12 @@ import (
 )
 
 const (
-	TraceBlocksEnabled                    = false
+	TraceBlocksEnabled                    = true
 	ExternalTransactionVerificationMaxGas = types.Gas(100_000)
 
 	ModeReadOnly     = "read-only"
 	ModeProposal     = "proposal"
+	ModeProposalGen  = "proposal-gen"
 	ModeSyncReplay   = "syncer-replay"
 	ModeManualReplay = "manual-replay"
 	ModeVerify       = "verify"
@@ -311,11 +311,6 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 	}
 	logger := l.Logger()
 
-	// FIXME: remove
-	if params.Mode != "proposal" {
-		logger = logging.NewLoggerWithWriter("", io.Discard)
-	}
-
 	feeCalculator := params.FeeCalculator
 	if feeCalculator == nil {
 		feeCalculator = &MainFeeCalculator{}
@@ -409,6 +404,10 @@ func (es *ExecutionState) initTries() error {
 	}
 
 	return nil
+}
+
+func (es *ExecutionState) Logger() *logging.Logger {
+	return &es.logger
 }
 
 func (es *ExecutionState) GetConfigAccessor() config.ConfigAccessor {
@@ -1132,13 +1131,6 @@ func (es *ExecutionState) HandleTransaction(
 					res.Error = types.NewVerboseError(res.Error.Code(), revString)
 				}
 			}
-		}
-	} else {
-		availableGas := es.txnFeeCredit.Sub(res.CoinsUsed())
-		var err error
-		if res.CoinsForwarded, err = es.CalculateGasForwarding(availableGas); err != nil {
-			es.RevertToSnapshot(es.revertId)
-			res.Error = types.KeepOrWrapError(types.ErrorForwardingFailed, err)
 		}
 	}
 	// Gas is already refunded with the bounce transaction
