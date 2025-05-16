@@ -49,7 +49,7 @@ func (t *Executor[P]) Run(
 	defer stop()
 
 	executorParams := t.params.GetExecutorParams()
-	client := debug.NewClient(executorParams.DebugRpcEndpoint, t.logger)
+	client := debug.NewTasksClient(executorParams.DebugRpcEndpoint, t.logger)
 
 	runIteration := func(ctx context.Context) {
 		output, err := command(ctx, t.params, client)

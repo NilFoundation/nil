@@ -20,7 +20,7 @@ func NewTaskRequestRpcClient(apiEndpoint string, logger logging.Logger) api.Task
 }
 
 func (r *taskRequestRpcClient) GetTask(ctx context.Context, request *api.TaskRequest) (*types.Task, error) {
-	return doRPCCall[*api.TaskRequest, *types.Task](
+	return doRPCCall2[*api.TaskRequest, *types.Task](
 		ctx,
 		r.client,
 		api.TaskRequestHandlerGetTask,
@@ -29,7 +29,7 @@ func (r *taskRequestRpcClient) GetTask(ctx context.Context, request *api.TaskReq
 }
 
 func (r *taskRequestRpcClient) CheckIfTaskIsActive(ctx context.Context, request *api.TaskCheckRequest) (bool, error) {
-	return doRPCCall[*api.TaskCheckRequest, bool](
+	return doRPCCall2[*api.TaskCheckRequest, bool](
 		ctx,
 		r.client,
 		api.TaskRequestHandlerCheckIfTaskExists,
@@ -38,7 +38,7 @@ func (r *taskRequestRpcClient) CheckIfTaskIsActive(ctx context.Context, request 
 }
 
 func (r *taskRequestRpcClient) SetTaskResult(ctx context.Context, result *types.TaskResult) error {
-	_, err := doRPCCall[*types.TaskResult, any](
+	_, err := doRPCCall2[*types.TaskResult, any](
 		ctx,
 		r.client,
 		api.TaskRequestHandlerSetTaskResult,

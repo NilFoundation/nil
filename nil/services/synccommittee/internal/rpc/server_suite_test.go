@@ -7,16 +7,13 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/services/rpc"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/suite"
 )
 
-type RpcServerTestSuite struct {
+type ServerTestSuite struct {
 	suite.Suite
 
 	context      context.Context
@@ -27,12 +24,11 @@ type RpcServerTestSuite struct {
 	metricsHandler *metrics.SyncCommitteeMetricsHandler
 
 	database db.DB
-	storage  *storage.TaskStorage
 
 	serverEndpoint string
 }
 
-func (s *RpcServerTestSuite) SetupSuite() {
+func (s *ServerTestSuite) SetupSuite() {
 	s.context, s.cancellation = context.WithCancel(context.Background())
 	s.clock = testaide.NewTestClock()
 	s.logger = logging.NewLogger("rpc_server_test")
@@ -42,38 +38,34 @@ func (s *RpcServerTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 	s.metricsHandler, err = metrics.NewSyncCommitteeMetrics()
 	s.Require().NoError(err)
-	s.storage = storage.NewTaskStorage(s.database, s.clock, s.metricsHandler, s.logger)
+
+	s.serverEndpoint = rpc.GetSockPath(s.T())
+}
+
+func (s *ServerTestSuite) RunRpcServer(handler Handler) {
+	s.T().Helper()
 
 	started := make(chan struct{})
-	s.serverEndpoint = rpc.GetSockPath(s.T())
 	go func() {
-		err := s.runRpcServer(started)
+		rpcServer := NewServer(
+			NewServerConfig(s.serverEndpoint),
+			s.logger,
+			handler,
+		)
+
+		err := rpcServer.Run(s.context, started)
 		s.NoError(err)
 	}()
-	err = testaide.WaitFor(s.context, started, 10*time.Second)
+
+	err := testaide.WaitFor(s.context, started, 10*time.Second)
 	s.Require().NoError(err, "rpc server did not start in time")
 }
 
-func (s *RpcServerTestSuite) TearDownSuite() {
+func (s *ServerTestSuite) TearDownSuite() {
 	s.cancellation()
 }
 
-func (s *RpcServerTestSuite) TearDownTest() {
+func (s *ServerTestSuite) TearDownTest() {
 	err := s.database.DropAll()
 	s.Require().NoError(err)
-}
-
-func (s *RpcServerTestSuite) runRpcServer(started chan<- struct{}) error {
-	noopStateHandler := &api.TaskStateChangeHandlerMock{}
-	taskScheduler := scheduler.New(s.storage, noopStateHandler, s.metricsHandler, s.logger)
-	taskDebugger := scheduler.NewTaskDebugger(s.storage, s.logger)
-
-	rpcServer := NewServerWithTasks(
-		NewServerConfig(s.serverEndpoint),
-		s.logger,
-		taskScheduler,
-		taskDebugger,
-	)
-
-	return rpcServer.Run(s.context, started)
 }

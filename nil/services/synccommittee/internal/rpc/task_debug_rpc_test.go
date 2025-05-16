@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/debug"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
@@ -13,7 +15,8 @@ import (
 )
 
 type TaskDebugRpcTestSuite struct {
-	RpcServerTestSuite
+	ServerTestSuite
+	storage   *storage.TaskStorage
 	rpcClient public.TaskDebugApi
 }
 
@@ -45,12 +48,19 @@ func newTaskEntries(now time.Time) []*types.TaskEntry {
 }
 
 func (s *TaskDebugRpcTestSuite) SetupSuite() {
-	s.RpcServerTestSuite.SetupSuite()
+	s.ServerTestSuite.SetupSuite()
+
+	s.storage = storage.NewTaskStorage(s.database, s.clock, s.metricsHandler, s.logger)
+	taskDebugger := debug.NewTaskDebugger(s.storage, s.logger)
+
+	handler := DebugTasksServerHandler(taskDebugger)
+	s.RunRpcServer(handler)
+
 	s.rpcClient = NewTaskDebugRpcClient(s.serverEndpoint, s.logger)
 }
 
 func (s *TaskDebugRpcTestSuite) TearDownTest() {
-	s.RpcServerTestSuite.TearDownTest()
+	s.ServerTestSuite.TearDownTest()
 	testaide.ResetTestClock(s.clock)
 }
 

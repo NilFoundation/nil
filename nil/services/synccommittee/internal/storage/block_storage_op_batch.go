@@ -32,7 +32,7 @@ func (batchOp) putBatchEntry(tx db.RwTx, entry *batchEntry) error {
 	return nil
 }
 
-func (batchOp) batchExists(tx db.RwTx, batchId types.BatchId) (bool, error) {
+func (batchOp) batchExists(tx db.RoTx, batchId types.BatchId) (bool, error) {
 	key := batchId.Bytes()
 	exists, err := tx.Exists(batchesTable, key)
 	if err != nil {
@@ -41,7 +41,7 @@ func (batchOp) batchExists(tx db.RwTx, batchId types.BatchId) (bool, error) {
 	return exists, nil
 }
 
-func (batchOp) getBatchEntry(tx db.RoTx, id types.BatchId) (*batchEntry, error) {
+func (o batchOp) getBatchEntry(tx db.RoTx, id types.BatchId) (*batchEntry, error) {
 	idBytes := id.Bytes()
 	value, err := tx.Get(batchesTable, idBytes)
 
@@ -52,7 +52,7 @@ func (batchOp) getBatchEntry(tx db.RoTx, id types.BatchId) (*batchEntry, error) 
 		return nil, err
 
 	case errors.Is(err, db.ErrKeyNotFound):
-		return nil, fmt.Errorf("%w, id=%s", types.ErrBatchNotFound, id)
+		return nil, o.errBatchNotFound(id)
 
 	default:
 		return nil, fmt.Errorf("failed to get batch with id=%s: %w", id, err)
@@ -66,19 +66,35 @@ func (batchOp) getBatchEntry(tx db.RoTx, id types.BatchId) (*batchEntry, error) 
 	return entry, nil
 }
 
+func (o batchOp) errBatchNotFound(id types.BatchId) error {
+	return fmt.Errorf("%w, id=%s", types.ErrBatchNotFound, id)
+}
+
 // getBatchesSeqReversed iterates through a chain of batches between two ids (boundaries included) in reverse order.
 // Batch `from` is expected to be a descendant of the batch `to`.
-func (t batchOp) getBatchesSeqReversed(
-	tx db.RoTx, from types.BatchId, to types.BatchId,
+//
+// When `to` is `nil`, batches are traversed down to the first created batch.
+func (o batchOp) getBatchesSeqReversed(
+	tx db.RoTx, from types.BatchId, to *types.BatchId,
 ) iter.Seq2[*batchEntry, error] {
 	return func(yield func(*batchEntry, error) bool) {
-		startBatch, err := t.getBatchEntry(tx, from)
+		startBatch, err := o.getBatchEntry(tx, from)
 		if err != nil {
 			yield(nil, err)
 			return
 		}
+		if to != nil {
+			exists, err := o.batchExists(tx, *to)
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+			if !exists {
+				yield(nil, o.errBatchNotFound(*to))
+			}
+		}
 
-		if !yield(startBatch, nil) || from == to {
+		if !yield(startBatch, nil) || to != nil && from == *to {
 			return
 		}
 
@@ -86,7 +102,9 @@ func (t batchOp) getBatchesSeqReversed(
 		nextBatchId := startBatch.ParentId
 		for {
 			if nextBatchId == nil {
-				yield(nil, fmt.Errorf("unable to restore batch sequence [%s, %s]", from, to))
+				if to != nil {
+					yield(nil, fmt.Errorf("unable to restore batch sequence [%s, %s]", from, to))
+				}
 				return
 			}
 
@@ -96,13 +114,13 @@ func (t batchOp) getBatchesSeqReversed(
 			}
 			seenBatches[*nextBatchId] = true
 
-			nextBatchEntry, err := t.getBatchEntry(tx, *nextBatchId)
+			nextBatchEntry, err := o.getBatchEntry(tx, *nextBatchId)
 			if err != nil {
 				yield(nil, err)
 				return
 			}
 
-			if !yield(nextBatchEntry, nil) || nextBatchEntry.Id == to {
+			if !yield(nextBatchEntry, nil) || to != nil && nextBatchEntry.Id == *to {
 				return
 			}
 
@@ -140,7 +158,7 @@ func (batchOp) getStoredBatchesSeq(tx db.RoTx) iter.Seq2[*batchEntry, error] {
 	}
 }
 
-func (t batchOp) deleteBatch(tx db.RwTx, batch *batchEntry) error {
+func (o batchOp) deleteBatch(tx db.RwTx, batch *batchEntry) error {
 	if err := tx.Delete(batchesTable, batch.Id.Bytes()); err != nil {
 		return fmt.Errorf("failed to delete batch with id=%s: %w", batch.Id, err)
 	}

@@ -5,18 +5,29 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/api"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/scheduler"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/stretchr/testify/suite"
 )
 
 type TaskRequestHandlerSuite struct {
-	RpcServerTestSuite
+	ServerTestSuite
+	storage   *storage.TaskStorage
 	rpcClient api.TaskRequestHandler
 }
 
 func (s *TaskRequestHandlerSuite) SetupSuite() {
-	s.RpcServerTestSuite.SetupSuite()
+	s.ServerTestSuite.SetupSuite()
+
+	s.storage = storage.NewTaskStorage(s.database, s.clock, s.metricsHandler, s.logger)
+	noopStateHandler := &api.TaskStateChangeHandlerMock{}
+	taskScheduler := scheduler.New(s.storage, noopStateHandler, s.metricsHandler, s.logger)
+
+	handler := TaskRequestServerHandler(taskScheduler)
+	s.RunRpcServer(handler)
+
 	s.rpcClient = NewTaskRequestRpcClient(s.serverEndpoint, s.logger)
 }
 
