@@ -67,6 +67,8 @@ export default class ContractAddress extends BaseCommand {
       constructorData,
       refineSalt(BigInt(flags.salt as number)),
     );
-    return bytesToHex(address);
+    const hexAddress = bytesToHex(address);
+    this.log(hexAddress);
+    return hexAddress;
   }
 }

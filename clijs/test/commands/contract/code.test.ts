@@ -5,9 +5,10 @@ describe("contract:code", () => {
   CliTest("gets the code of a smart contract", async ({ runCommand, smartAccount }) => {
     const contractAddress = smartAccount.address;
 
-    const { result } = await runCommand(["contract", "code", contractAddress]);
+    const { result, stdout } = await runCommand(["contract", "code", contractAddress]);
 
     expect(typeof result).toBe("string");
     expect((result as string).startsWith("0x")).toBe(true);
+    expect(stdout).contains("0x");
   });
 });

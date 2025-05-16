@@ -7,20 +7,21 @@ describe("smart-account:deploy", () => {
     const result = await runCommand(["smart-account", "new"]);
     const smartAccountAddress = result.result as Hex;
     expect(result.error).toBeUndefined();
+    expect(result.stdout).contains(smartAccountAddress);
     expect(smartAccountAddress).toBeTruthy();
 
-    const contractAddress = (
-      await runCommand([
-        "smart-account",
-        "deploy",
-        "-a",
-        "./test/contracts/Counter/Counter.abi",
-        "./test/contracts/Counter/Counter.bin",
-        "-t",
-        Math.round(Math.random() * 1000000).toString(),
-      ])
-    ).result as Hex;
+    const result2 = await runCommand([
+      "smart-account",
+      "deploy",
+      "-a",
+      "./test/contracts/Counter/Counter.abi",
+      "./test/contracts/Counter/Counter.bin",
+      "-t",
+      Math.round(Math.random() * 1000000).toString(),
+    ]);
+    const contractAddress = result2.result as Hex;
     expect(contractAddress).toBeTruthy();
+    expect(result2.stdout).toContain("0x");
 
     const txHash = (
       await runCommand([

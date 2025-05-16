@@ -7,7 +7,6 @@ describe("minter:create", () => {
     const { result, stdout, error } = await runCommand([
       "minter",
       "create",
-      smartAccount.address,
       "1000000",
       "TEST_TOKEN",
     ]);

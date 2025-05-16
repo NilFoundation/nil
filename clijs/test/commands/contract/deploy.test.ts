@@ -22,5 +22,6 @@ describe("contract:deploy", () => {
     expect(typeof result.result).toBe("string");
     expect((result.result as string).startsWith("0x")).toBe(true);
     expect((result.result as string).length).toBe(42);
+    expect(result.stdout).contains("Transaction hash");
   });
 });

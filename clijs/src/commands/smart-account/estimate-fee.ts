@@ -80,7 +80,7 @@ export default class SmartAccountEstimateFee extends BaseCommand {
         "latest",
       );
     }
-
+    this.log(result.feeCredit.toString());
     return result.feeCredit.toString();
   }
 }

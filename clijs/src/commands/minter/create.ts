@@ -8,11 +8,6 @@ export default class MinterCreateTokenCommand extends BaseCommand {
   static override examples = ["<%= config.bin %> <%= command.id %> 0x123... 1000 MyToken"];
 
   static args = {
-    address: Args.string({
-      name: "address",
-      required: true,
-      description: "Address to create token for",
-    }),
     amount: Args.string({
       name: "amount",
       required: true,
@@ -27,7 +22,7 @@ export default class MinterCreateTokenCommand extends BaseCommand {
 
   async run(): Promise<Hex> {
     const { args } = await this.parse(MinterCreateTokenCommand);
-    const { smartAccount } = await this.setupSmartAccount(args.address as Hex);
+    const { smartAccount } = await this.setupSmartAccount();
 
     if (!this.rpcClient) {
       throw new Error("RPC client is not initialized");

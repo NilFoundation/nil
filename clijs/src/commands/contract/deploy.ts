@@ -1,4 +1,9 @@
-import { type Hex, bytesToHex, externalDeploymentTransaction } from "@nilfoundation/niljs";
+import {
+  type Hex,
+  bytesToHex,
+  externalDeploymentTransaction,
+  waitTillCompleted,
+} from "@nilfoundation/niljs";
 import { Args, Flags } from "@oclif/core";
 import type { Abi } from "abitype";
 import { BaseCommand } from "../../base.js";
@@ -91,8 +96,9 @@ export default class ContractDeploy extends BaseCommand {
 
     const hash = await deploymentTransaction.send(this.rpcClient);
     if (!flags.noWait) {
-      this.log(`Transaction hash: ${hash}`);
+      await waitTillCompleted(this.rpcClient, hash);
     }
+    this.log(`Transaction hash: ${hash}`);
     return address;
   }
 }

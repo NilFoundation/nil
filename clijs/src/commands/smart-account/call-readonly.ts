@@ -76,6 +76,11 @@ export default class SmartAccountCallReadOnly extends BaseCommand {
     if (args.bytecodeOrMethod.startsWith("0x")) {
       return result.data;
     }
+    if (result.decodedData) {
+      this.log(result.decodedData.toString());
+    } else {
+      this.log(result.data);
+    }
     return result.decodedData;
   }
 }

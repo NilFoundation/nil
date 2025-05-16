@@ -25,7 +25,7 @@ describe("contract:address", () => {
     fs.writeFileSync(binPath, mockBin);
 
     try {
-      const { result } = await runCommand([
+      const { result, stdout } = await runCommand([
         "contract",
         "address",
         "--abiPath",
@@ -42,6 +42,7 @@ describe("contract:address", () => {
       const expectedAddress = calculateAddress(1, constructorData, refineSalt(BigInt(100)));
 
       expect(result).toBe(bytesToHex(expectedAddress));
+      expect(stdout).contains(bytesToHex(expectedAddress));
     } finally {
       if (fs.existsSync(abiPath)) fs.unlinkSync(abiPath);
       if (fs.existsSync(binPath)) fs.unlinkSync(binPath);

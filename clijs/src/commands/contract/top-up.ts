@@ -30,7 +30,7 @@ export default class ContractTopup extends BaseCommand {
   static override examples = ["<%= config.bin %> <%= command.id %>"];
 
   public async run(): Promise<boolean> {
-    const { args } = await this.parse(ContractTopup);
+    const { args, flags } = await this.parse(ContractTopup);
 
     if (!this.faucetClient) {
       throw new Error("Faucet client is not initialized");
@@ -50,6 +50,16 @@ export default class ContractTopup extends BaseCommand {
       this.rpcClient,
     );
     this.info(`Top-up tx - ${txHash}`);
+    if (!flags.quiet) {
+      if (args.tokenId === "NIL") {
+        const balance = await this.rpcClient.getBalance(args.address);
+        this.log(`Balance: ${balance.toString()}`);
+      } else {
+        const balances = await this.rpcClient.getTokens(args.address, "latest");
+        // biome-ignore lint/style/noNonNullAssertion:
+        this.log(`Token balance: ${balances[args.tokenId!]}`);
+      }
+    }
     return true;
   }
 }

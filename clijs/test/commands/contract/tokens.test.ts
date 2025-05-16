@@ -5,9 +5,10 @@ describe("contract:tokens", () => {
   CliTest("gets tokens held by a contract", async ({ runCommand, smartAccount }) => {
     const contractAddress = smartAccount.address;
 
-    const { result } = await runCommand(["contract", "tokens", contractAddress]);
+    const { result, stdout } = await runCommand(["contract", "tokens", contractAddress]);
 
     expect(typeof result).toBe("object");
+    expect(stdout).equal("\n");
 
     for (const [tokenId, balance] of Object.entries(result as Record<string, bigint>)) {
       expect(typeof tokenId).toBe("string");

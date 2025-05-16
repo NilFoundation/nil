@@ -4,7 +4,7 @@ import { CliTest } from "../../setup.js";
 
 describe("minter:burn", () => {
   CliTest("burns token", async ({ runCommand, smartAccount }) => {
-    await runCommand(["minter", "create", smartAccount.address, "1000000", "TEST_TOKEN"]);
+    await runCommand(["minter", "create", "1000000", "TEST_TOKEN"]);
 
     const { stdout: initialTokensOutput } = await runCommand([
       "contract",

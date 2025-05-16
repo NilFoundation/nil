@@ -20,16 +20,15 @@ describe("smart-account:estimate", () => {
     ).result as Hex;
     expect(contractAddress).toBeTruthy();
 
-    const estimation = (
-      await runCommand([
-        "smart-account",
-        "estimate-fee",
-        "-a",
-        "./test/contracts/Counter/Counter.abi",
-        contractAddress,
-        "increment",
-      ])
-    ).result as Hex;
-    expect(BigInt(estimation)).greaterThan(0);
+    const result = await runCommand([
+      "smart-account",
+      "estimate-fee",
+      "-a",
+      "./test/contracts/Counter/Counter.abi",
+      contractAddress,
+      "increment",
+    ]);
+    expect(BigInt(result.result as Hex)).greaterThan(0);
+    expect(BigInt(result.stdout)).greaterThanOrEqual(0);
   });
 });

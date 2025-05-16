@@ -84,7 +84,7 @@ export default class ContractEstimateFee extends BaseCommand {
       },
       "latest",
     );
-
+    this.log(result.feeCredit.toString());
     return result.feeCredit.toString();
   }
 }
