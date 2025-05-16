@@ -139,8 +139,15 @@ contract Relayer {
      * @dev Gets pending messages for a specific shard
      */
     function getPendingMessages(uint32 shardId, uint64 fromId, uint32 count) external view returns (Message[] memory) {
+        console.log("getPending messages: shardId=%_, fromId=%_, count=%_", shardId, fromId, count);
         require(count > 0, "Invalid count");
-        require(fromId < outMsgCount[shardId], "Invalid fromId");
+        require(fromId <= outMsgCount[shardId], "Invalid fromId");
+        require(shardId < Nil.SHARDS_NUM, "Invalid shardId");
+
+        // Check if there are no messages to return
+        if (fromId == outMsgCount[shardId] || messages[shardId].length == 0) {
+            return new Message[](0);
+        }
         
         uint64 toId = fromId + uint64(count);
         if (toId > outMsgCount[shardId]) {
@@ -150,8 +157,10 @@ contract Relayer {
         uint32 resultCount = uint32(toId - fromId);
         Message[] memory result = new Message[](resultCount);
         
+        uint64 fromIndex = fromId - messages[shardId][0].id;
+        
         for (uint32 i = 0; i < resultCount; i++) {
-            result[i] = messages[shardId][fromId + i];
+            result[i] = messages[shardId][fromIndex + i];
         }
         
         return result;
