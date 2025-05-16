@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -26,12 +27,13 @@ type MPTTracer struct {
 
 var _ execution.IContractMPTRepository = (*MPTTracer)(nil)
 
-func (mt *MPTTracer) SetRootHash(root common.Hash) {
-	mt.ContractSparseTrie.SetRootHash(root)
+func (mt *MPTTracer) SetRootHash(root common.Hash) error {
 	if mt.initialContractRoot == common.EmptyHash {
 		// first call, save this root to compare state with it during traces generation
 		mt.initialContractRoot = root
+		return mt.ContractSparseTrie.SetRootHash(mpt.EmptyRootHash)
 	}
+	return mt.ContractSparseTrie.SetRootHash(root)
 }
 
 func (mt *MPTTracer) GetContract(addr types.Address) (*types.SmartContract, error) {
@@ -53,12 +55,19 @@ func (mt *MPTTracer) GetContract(addr types.Address) (*types.SmartContract, erro
 		return nil, err
 	}
 
-	rootBeforePupulation := mt.ContractSparseTrie.RootHash()
-	err = mpt.PopulateMptWithProof(mt.ContractSparseTrie, &proof)
+	rootBeforePopulation, err := mt.ContractSparseTrie.Commit()
 	if err != nil {
 		return nil, err
 	}
-	mt.ContractSparseTrie.SetRootHash(rootBeforePupulation)
+	if rootBeforePopulation == mpt.EmptyRootHash {
+		rootBeforePopulation = mt.initialContractRoot
+	}
+	if err = mpt.PopulateMptWithProof(mt.ContractSparseTrie, &proof); err != nil {
+		return nil, err
+	}
+	if err := mt.ContractSparseTrie.SetRootHash(rootBeforePopulation); err != nil {
+		return nil, err
+	}
 
 	if contract == nil {
 		err = db.ErrKeyNotFound
@@ -81,12 +90,18 @@ func (mt *MPTTracer) UpdateContracts(contracts map[types.Address]*execution.Acco
 	}
 	contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
 
-	err := contractTrie.UpdateBatch(keys, values)
-	return err
+	return contractTrie.UpdateBatch(keys, values)
 }
 
 func (mt *MPTTracer) RootHash() common.Hash {
 	return mt.ContractSparseTrie.RootHash()
+}
+
+func (mt *MPTTracer) Commit() (common.Hash, error) {
+	if len(mt.touchedAccounts) == 0 {
+		return mt.initialContractRoot, nil
+	}
+	return mt.ContractSparseTrie.Commit()
 }
 
 // New creates a new MPTTracer using a debug API client
@@ -106,7 +121,8 @@ func NewWithReader(
 	rwTx db.RwTx,
 	shardId types.ShardId,
 ) *MPTTracer {
-	contractSparseTrie := mpt.NewDbMPT(rwTx, shardId, db.ConfigTrieTable)
+	contractSparseTrie := mpt.NewDbMPT(rwTx, shardId, db.ContractTrieTable)
+	check.PanicIfErr(contractSparseTrie.SetRootHash(mpt.EmptyRootHash))
 	return &MPTTracer{
 		contractReader:     contractReader,
 		rwTx:               rwTx,
@@ -127,13 +143,17 @@ func (mt *MPTTracer) GetMPTTraces() (MPTTraces, error) {
 	for addr := range mt.touchedAccounts {
 		// contractTrie.SetRootHash() affects underlying ContractSparseTrie, so we need to change
 		// it each time we switch between current and initial tries
-		contractTrie.SetRootHash(mt.initialContractRoot)
+		if err := contractTrie.SetRootHash(mt.initialContractRoot); err != nil {
+			return MPTTraces{}, err
+		}
 		initialSmartContract, err := contractTrie.Fetch(addr.Hash())
 		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return MPTTraces{}, err
 		}
 
-		contractTrie.SetRootHash(curRoot)
+		if err := contractTrie.SetRootHash(curRoot); err != nil {
+			return MPTTraces{}, err
+		}
 		currentSmartContract, err := contractTrie.Fetch(addr.Hash())
 		if err != nil {
 			return MPTTraces{}, err
@@ -168,9 +188,14 @@ func getTrieTraces[V any, VPtr execution.MPTValue[V]](
 	initialRoot common.Hash,
 	currentRoot common.Hash,
 ) ([]GenericTrieUpdateTrace[VPtr], error) {
+	_ = initialRoot
+
 	trie := trieCtor(rawTrie)
 
-	trie.SetRootHash(initialRoot)
+	// TODO: use initialRoot to set initial state of trie
+	if err := trie.SetRootHash(mpt.EmptyRootHash); err != nil {
+		return nil, err
+	}
 	initialEntries, err := trie.Entries()
 	if err != nil {
 		return nil, err
@@ -180,14 +205,19 @@ func getTrieTraces[V any, VPtr execution.MPTValue[V]](
 		initialEntriesMap[e.Key] = e.Val
 	}
 
-	trie.SetRootHash(currentRoot)
+	if err := trie.SetRootHash(currentRoot); err != nil {
+		return nil, err
+	}
 	currentEntries, err := trie.Entries()
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO: use initialRoot to set initial state of trie
+	if err := trie.SetRootHash(mpt.EmptyRootHash); err != nil {
+		return nil, err
+	}
 	traces := make([]GenericTrieUpdateTrace[VPtr], 0, len(currentEntries)) // can't establish final size here
-	trie.SetRootHash(initialRoot)
 	for _, e := range currentEntries {
 		initialValue, exists := initialEntriesMap[e.Key]
 		if exists {
@@ -200,8 +230,8 @@ func getTrieTraces[V any, VPtr execution.MPTValue[V]](
 			}
 		}
 
-		// ReadMPTOperation plays no role here, could be any
-		proof, err := mpt.BuildProof(trie.Reader, e.Key.Bytes(), mpt.ReadMPTOperation)
+		// ReadOperation plays no role here, could be any
+		proof, err := mpt.BuildProof(trie.Reader, e.Key.Bytes(), mpt.ReadOperation)
 		if err != nil {
 			return nil, err
 		}
@@ -209,7 +239,7 @@ func getTrieTraces[V any, VPtr execution.MPTValue[V]](
 		slotChangeTrace := GenericTrieUpdateTrace[VPtr]{
 			Key:        e.Key,
 			RootBefore: trie.RootHash(),
-			PathBefore: proof.PathToNode,
+			PathBefore: proof.Nodes,
 			ValueAfter: e.Val,
 			Proof:      proof,
 		}
@@ -223,22 +253,30 @@ func getTrieTraces[V any, VPtr execution.MPTValue[V]](
 			return nil, err
 		}
 
-		// ReadMPTOperation plays no role here, could be any
-		proof, err = mpt.BuildProof(trie.Reader, e.Key.Bytes(), mpt.ReadMPTOperation)
+		rootHash, err := trie.Commit()
+		if err != nil {
+			return nil, err
+		}
+		if err := trie.SetRootHash(rootHash); err != nil {
+			return nil, err
+		}
+
+		// ReadOperation plays no role here, could be any
+		proof, err = mpt.BuildProof(trie.Reader, e.Key.Bytes(), mpt.ReadOperation)
 		if err != nil {
 			return nil, err
 		}
 
-		slotChangeTrace.RootAfter = trie.RootHash()
-		slotChangeTrace.PathAfter = proof.PathToNode
+		slotChangeTrace.RootAfter = rootHash
+		slotChangeTrace.PathAfter = proof.Nodes
 
 		traces = append(traces, slotChangeTrace)
 	}
 	for k, v := range initialEntriesMap {
 		// deletion happened
 
-		// ReadMPTOperation plays no role here, could be any
-		proof, err := mpt.BuildProof(trie.Reader, k.Bytes(), mpt.ReadMPTOperation)
+		// ReadOperation plays no role here, could be any
+		proof, err := mpt.BuildProof(trie.Reader, k.Bytes(), mpt.ReadOperation)
 		if err != nil {
 			return nil, err
 		}
@@ -246,7 +284,7 @@ func getTrieTraces[V any, VPtr execution.MPTValue[V]](
 		slotChangeTrace := GenericTrieUpdateTrace[VPtr]{
 			Key:         k,
 			RootBefore:  trie.RootHash(),
-			PathBefore:  proof.PathToNode,
+			PathBefore:  proof.Nodes,
 			ValueBefore: v,
 			Proof:       proof,
 		}
@@ -255,14 +293,22 @@ func getTrieTraces[V any, VPtr execution.MPTValue[V]](
 			return nil, err
 		}
 
-		// ReadMPTOperation plays no role here, could be any
-		proof, err = mpt.BuildProof(trie.Reader, k.Bytes(), mpt.ReadMPTOperation)
+		rootHash, err := trie.Commit()
+		if err != nil {
+			return nil, err
+		}
+		if err := trie.SetRootHash(rootHash); err != nil {
+			return nil, err
+		}
+
+		// ReadOperation plays no role here, could be any
+		proof, err = mpt.BuildProof(trie.Reader, k.Bytes(), mpt.ReadOperation)
 		if err != nil {
 			return nil, err
 		}
 
-		slotChangeTrace.RootAfter = trie.RootHash()
-		slotChangeTrace.PathAfter = proof.PathToNode
+		slotChangeTrace.RootAfter = rootHash
+		slotChangeTrace.PathAfter = proof.Nodes
 		traces = append(traces, slotChangeTrace)
 	}
 
@@ -282,6 +328,6 @@ func (mt *MPTTracer) getStorageTraces(
 func (mt *MPTTracer) getAccountTrieTraces(
 	initialRoot common.Hash, currentRoot common.Hash,
 ) ([]ContractTrieUpdateTrace, error) {
-	rawMpt := mpt.NewDbMPT(mt.rwTx, mt.shardId, db.ConfigTrieTable)
+	rawMpt := mpt.NewDbMPT(mt.rwTx, mt.shardId, db.ContractTrieTable)
 	return getTrieTraces(rawMpt, execution.NewContractTrie, initialRoot, currentRoot)
 }

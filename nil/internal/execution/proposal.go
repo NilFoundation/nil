@@ -88,12 +88,10 @@ func NewParentBlock(shardId types.ShardId, block *types.Block) *ParentBlock {
 
 func NewParentBlockFromSerializable(b *ParentBlockSerializable) (*ParentBlock, error) {
 	holder := mpt.InMemHolder(b.TxnTrieHolder.ToMap())
-	if err := mpt.ValidateHolder(holder); err != nil {
+	trie := NewTransactionTrie(mpt.NewMPTFromMap(holder))
+	if err := trie.SetRootHash(b.Block.OutTransactionsRoot); err != nil {
 		return nil, err
 	}
-
-	trie := NewTransactionTrie(mpt.NewMPTFromMap(holder))
-	trie.SetRootHash(b.Block.OutTransactionsRoot)
 	return &ParentBlock{
 		ShardId:       b.ShardId,
 		Block:         b.Block,

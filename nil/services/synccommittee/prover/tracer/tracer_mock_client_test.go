@@ -58,7 +58,7 @@ func newDummyMptTracer(
 	}, nil
 }
 
-func (t *dummyMptTracer) SetRootHash(root common.Hash) {}
+func (t *dummyMptTracer) SetRootHash(root common.Hash) error { return nil }
 func (t *dummyMptTracer) GetContract(addr types.Address) (*types.SmartContract, error) {
 	code, ok := t.accountCodes[addr]
 	if !ok {
@@ -76,6 +76,10 @@ func (t *dummyMptTracer) UpdateContracts(contracts map[types.Address]*execution.
 
 func (t *dummyMptTracer) RootHash() common.Hash {
 	return common.EmptyHash
+}
+
+func (t *dummyMptTracer) Commit() (common.Hash, error) {
+	return common.EmptyHash, nil
 }
 
 func TestTracerMockClientTestSuite(t *testing.T) {
@@ -156,7 +160,7 @@ func (s *TracerMockClientTestSuite) makeClient() client.Client {
 
 		// Build empty proof
 		key := []byte{0x1}
-		proof, err := mpt.BuildProof(mpt.NewInMemMPT().Reader, key, mpt.ReadMPTOperation)
+		proof, err := mpt.BuildProof(mpt.NewInMemMPT().Reader, key, mpt.ReadOperation)
 		s.Require().NoError(err)
 		encodedProof, err := proof.Encode()
 		s.Require().NoError(err)
@@ -230,21 +234,21 @@ func (s *TracerMockClientTestSuite) simpleContractCallTrace(code []byte) *Execut
 	s.Require().NoError(err)
 	configAccessor := config.NewConfigAccessorFromMap(configMap)
 
+	mptTracer, err := newDummyMptTracer(s.accounts, s.shardId, rwTx)
+	s.Require().NoError(err)
+
 	es, err := execution.NewExecutionState(
 		rwTx,
 		s.shardId,
 		execution.StateParams{
-			Block:          prevBlock.Block,
-			ConfigAccessor: configAccessor,
+			Block:                 prevBlock.Block,
+			ConfigAccessor:        configAccessor,
+			ContractMptRepository: mptTracer,
 		},
 	)
 	s.Require().NoError(err)
 
 	esTracer := NewEVMTracer(es)
-
-	mptTracer, err := newDummyMptTracer(s.accounts, s.shardId, rwTx)
-	s.Require().NoError(err)
-	es.ContractTree = mptTracer
 
 	es.EvmTracingHooks = esTracer.getTracingHooks()
 

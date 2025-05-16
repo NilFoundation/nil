@@ -415,6 +415,10 @@ func (m *BaseMPT[K, V, VPtr]) MPT() *mpt.MerklePatriciaTrie {
 	return m.rwTrie
 }
 
+func (m *BaseMPT[K, V, VPtr]) Commit() (common.Hash, error) {
+	return m.rwTrie.Commit()
+}
+
 func ConvertTrieEntriesToMap[K comparable, V any](entries []Entry[K, *V]) map[K]V {
 	return common.SliceToMap(
 		entries,

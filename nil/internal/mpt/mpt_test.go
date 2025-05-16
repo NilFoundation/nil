@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,8 +60,12 @@ func TestInsertGetOneShort(t *testing.T) {
 	assert.Equal(t, value, getValue(t, trie, key))
 
 	gotValue, err := trie.Get([]byte("wrong_key"))
-	require.Error(t, err)
+	require.ErrorIs(t, err, db.ErrKeyNotFound)
 	assert.Empty(t, gotValue)
+
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.NotEqual(t, mpt.EmptyRootHash, rootHash)
 }
 
 func TestInsertGetOneLong(t *testing.T) {
@@ -72,6 +77,10 @@ func TestInsertGetOneLong(t *testing.T) {
 	value := []byte("value_0000000000000000000000000000000000000000000000000000000000000000")
 	require.NoError(t, trie.Set(key, value))
 	require.Equal(t, value, getValue(t, trie, key))
+
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.NotEqual(t, mpt.EmptyRootHash, rootHash)
 }
 
 func TestInsertGetMany(t *testing.T) {
@@ -96,6 +105,10 @@ func TestInsertGetMany(t *testing.T) {
 	for _, c := range cases {
 		assert.Equal(t, []byte(c.v), getValue(t, trie, []byte(c.k)))
 	}
+
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.NotEqual(t, mpt.EmptyRootHash, rootHash)
 }
 
 func TestIterate(t *testing.T) {
@@ -121,6 +134,10 @@ func TestIterate(t *testing.T) {
 		i++
 	}
 	require.Len(t, keys, i)
+
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.NotEqual(t, mpt.EmptyRootHash, rootHash)
 }
 
 func TestInsertGetLots(t *testing.T) {
@@ -144,6 +161,10 @@ func TestInsertGetLots(t *testing.T) {
 	for i := range keys {
 		assert.Equal(t, values[i], getValue(t, trie, keys[i]))
 	}
+
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.NotEqual(t, mpt.EmptyRootHash, rootHash)
 }
 
 func TestDeleteOne(t *testing.T) {
@@ -157,6 +178,10 @@ func TestDeleteOne(t *testing.T) {
 	value, err := trie.Get([]byte("key"))
 	require.Equal(t, value, []byte(nil))
 	require.Error(t, err)
+
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.Equal(t, mpt.EmptyRootHash, rootHash)
 }
 
 func TestDeleteMany(t *testing.T) {
@@ -186,6 +211,10 @@ func TestDeleteMany(t *testing.T) {
 	newRootHash = trie.RootHash()
 
 	require.Equal(t, rootHash, newRootHash)
+
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.NotEqual(t, mpt.EmptyRootHash, rootHash)
 }
 
 func TestDeleteLots(t *testing.T) {
@@ -194,7 +223,7 @@ func TestDeleteLots(t *testing.T) {
 	trie := mpt.NewInMemMPT()
 	const size uint32 = 100
 
-	require.Equal(t, trie.RootHash(), common.EmptyHash)
+	require.Equal(t, mpt.EmptyRootHash, trie.RootHash())
 
 	var keys [size][]byte
 	var values [size][]byte
@@ -207,13 +236,17 @@ func TestDeleteLots(t *testing.T) {
 		require.NoError(t, trie.Set(key, values[i]))
 	}
 
-	require.NotEqual(t, trie.RootHash(), common.EmptyHash)
+	require.NotEqual(t, trie.RootHash(), mpt.EmptyRootHash)
 
 	for i := range keys {
 		require.NoError(t, trie.Delete(keys[i]))
 	}
 
-	require.Equal(t, trie.RootHash(), common.EmptyHash)
+	require.Equal(t, mpt.EmptyRootHash, trie.RootHash())
+
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.Equal(t, mpt.EmptyRootHash, rootHash)
 }
 
 func TestDeleteSmall(t *testing.T) {
@@ -223,7 +256,7 @@ func TestDeleteSmall(t *testing.T) {
 	trie := mpt.NewMPTFromMap(holder)
 	const size uint32 = 2
 
-	require.Equal(t, trie.RootHash(), common.EmptyHash)
+	require.Equal(t, mpt.EmptyRootHash, trie.RootHash())
 
 	var keys [size][]byte
 	var values [size][]byte
@@ -243,8 +276,11 @@ func TestDeleteSmall(t *testing.T) {
 	}
 	require.Len(t, data, 1)
 
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+
 	trie2 := mpt.NewMPTFromMap(holder)
-	trie2.SetRootHash(trie.RootHash())
+	require.NoError(t, trie2.SetRootHash(rootHash))
 	data2 := make(map[string][]byte)
 	for k, v := range trie2.Iterate() {
 		data2[string(k)] = v
@@ -261,8 +297,11 @@ func TestTrieFromOldRoot(t *testing.T) {
 	require.NoError(t, trie.Set([]byte("do"), []byte("verb")))
 	require.NoError(t, trie.Set([]byte("dog"), []byte("puppy")))
 
-	rootHash := trie.RootHash()
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.NotEqual(t, mpt.EmptyRootHash, rootHash)
 
+	require.NoError(t, trie.SetRootHash(rootHash))
 	require.NoError(t, trie.Delete([]byte("dog")))
 	require.NoError(t, trie.Set([]byte("do"), []byte("not_a_verb")))
 
@@ -272,8 +311,12 @@ func TestTrieFromOldRoot(t *testing.T) {
 	require.Error(t, err)
 	require.Empty(t, value)
 
+	newRootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.NotEqual(t, mpt.EmptyRootHash, newRootHash)
+
 	// Old
-	trie.SetRootHash(rootHash)
+	require.NoError(t, trie.SetRootHash(rootHash))
 	require.Equal(t, []byte("verb"), getValue(t, trie, []byte("do")))
 	require.Equal(t, []byte("puppy"), getValue(t, trie, []byte("dog")))
 }
@@ -290,8 +333,12 @@ func TestSmallRootHash(t *testing.T) {
 	require.NoError(t, trie.Set(key, value))
 	assert.Equal(t, value, getValue(t, trie, key))
 
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.NotEqual(t, mpt.EmptyRootHash, rootHash)
+
 	trie2 := mpt.NewMPTFromMap(holder)
-	trie2.SetRootHash(trie.RootHash())
+	require.NoError(t, trie2.SetRootHash(trie.RootHash()))
 
 	assert.Equal(t, value, getValue(t, trie2, key))
 }
@@ -357,6 +404,16 @@ func TestInsertBatch(t *testing.T) {
 	require.NoError(t, trieBatch.SetBatch(keys, values))
 
 	checkTreesEqual(t)
+
+	rootHash, err := trie.Commit()
+	require.NoError(t, err)
+	assert.NotEqual(t, mpt.EmptyRootHash, rootHash)
+
+	rootHashBatch, err := trieBatch.Commit()
+	require.NoError(t, err)
+	assert.NotEqual(t, mpt.EmptyRootHash, rootHashBatch)
+
+	assert.Equal(t, rootHash, rootHashBatch)
 }
 
 func BenchmarkTreeInsertions(b *testing.B) {

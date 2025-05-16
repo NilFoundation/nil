@@ -1,16 +1,12 @@
 package mpttracer
 
 import (
-	"encoding/hex"
-	"errors"
-
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	pb "github.com/NilFoundation/nil/nil/services/synccommittee/prover/proto"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer/internal/constants"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func TracesFromProto(pbMptTraces *pb.MPTTraces) (*MPTTraces, error) {
@@ -76,14 +72,6 @@ func TracesToProto(mptTraces *MPTTraces, traceIdx uint64) (*pb.MPTTraces, error)
 			if err != nil {
 				return nil, err
 			}
-			proofPathBefore, err := proofPathToProto(storageUpdateTrace.PathBefore)
-			if err != nil {
-				return nil, err
-			}
-			proofPathAfter, err := proofPathToProto(storageUpdateTrace.PathAfter)
-			if err != nil {
-				return nil, err
-			}
 
 			pbStorageTraces[i] = &pb.StorageTrieUpdateTrace{
 				Key:             storageUpdateTrace.Key.Hex(),
@@ -92,8 +80,8 @@ func TracesToProto(mptTraces *MPTTraces, traceIdx uint64) (*pb.MPTTraces, error)
 				ValueBefore:     pb.Uint256ToProtoUint256(storageUpdateTrace.ValueBefore),
 				ValueAfter:      pb.Uint256ToProtoUint256(storageUpdateTrace.ValueAfter),
 				SerializedProof: proof,
-				ProofBefore:     proofPathBefore,
-				ProofAfter:      proofPathAfter,
+				ProofBefore:     storageUpdateTrace.PathBefore,
+				ProofAfter:      storageUpdateTrace.PathAfter,
 			}
 		}
 
@@ -107,15 +95,6 @@ func TracesToProto(mptTraces *MPTTraces, traceIdx uint64) (*pb.MPTTraces, error)
 			return nil, err
 		}
 
-		proofPathBefore, err := proofPathToProto(contractTrieUpdate.PathBefore)
-		if err != nil {
-			return nil, err
-		}
-		proofPathAfter, err := proofPathToProto(contractTrieUpdate.PathAfter)
-		if err != nil {
-			return nil, err
-		}
-
 		pbContractTrieTraces[i] = &pb.ContractTrieUpdateTrace{
 			Key:             contractTrieUpdate.Key.Hex(),
 			RootBefore:      contractTrieUpdate.RootBefore.Hex(),
@@ -123,8 +102,8 @@ func TracesToProto(mptTraces *MPTTraces, traceIdx uint64) (*pb.MPTTraces, error)
 			ValueBefore:     smartContractToProto(contractTrieUpdate.ValueBefore),
 			ValueAfter:      smartContractToProto(contractTrieUpdate.ValueAfter),
 			SerializedProof: proof,
-			ProofBefore:     proofPathBefore,
-			ProofAfter:      proofPathAfter,
+			ProofBefore:     contractTrieUpdate.PathBefore,
+			ProofAfter:      contractTrieUpdate.PathAfter,
 		}
 	}
 
@@ -193,99 +172,4 @@ func smartContractToProto(smartContract *types.SmartContract) *pb.SmartContract 
 		Seqno:            uint64(smartContract.Seqno),
 		ExtSeqno:         uint64(smartContract.ExtSeqno),
 	}
-}
-
-func proofPathToProto(pathToNode mpt.SimpleProof) (*pb.HumanReadableProof, error) {
-	nodes := make([]*pb.Node, len(pathToNode))
-	for i, node := range pathToNode {
-		pbNode, err := nodeToProto(node)
-		if err != nil {
-			return nil, err
-		}
-		nodes[i] = pbNode
-	}
-	return &pb.HumanReadableProof{Nodes: nodes}, nil
-}
-
-func nodeToProto(node mpt.Node) (*pb.Node, error) {
-	switch n := node.(type) {
-	case *mpt.LeafNode:
-		return leafNodeToProto(n)
-	case *mpt.ExtensionNode:
-		return extensionNodeToProto(n)
-	case *mpt.BranchNode:
-		return branchNodeToProto(n)
-	default:
-		return nil, errors.New("unknown node type")
-	}
-}
-
-func leafNodeToProto(node *mpt.LeafNode) (*pb.Node, error) {
-	hash, err := nodeHash(node)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.Node{
-		NodeType: &pb.Node_Leaf{
-			Leaf: &pb.LeafNode{
-				Key:   node.NodePath.Hex(),
-				Value: hex.EncodeToString(node.LeafData),
-			},
-		},
-		Hash: hash.Hex(),
-	}, nil
-}
-
-func extensionNodeToProto(node *mpt.ExtensionNode) (*pb.Node, error) {
-	hash, err := nodeHash(node)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.Node{
-		NodeType: &pb.Node_Extension{
-			Extension: &pb.ExtensionNode{
-				Prefix:   node.NodePath.Hex(),
-				NextHash: common.BytesToHash(node.NextRef).Hex(),
-			},
-		},
-		Hash: hash.Hex(),
-	}, nil
-}
-
-func referencesToHex(references []mpt.Reference) []string {
-	protoBytes := make([]string, len(references))
-	for i, ref := range references {
-		protoBytes[i] = common.BytesToHash(ref).Hex() // since Reference is []byte, this assignment is direct
-	}
-	return protoBytes
-}
-
-func branchNodeToProto(node *mpt.BranchNode) (*pb.Node, error) {
-	hash, err := nodeHash(node)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.Node{
-		NodeType: &pb.Node_Branch{
-			Branch: &pb.BranchNode{
-				ChildHashes: referencesToHex(node.Branches[:]),
-				Value:       hex.EncodeToString(node.Value),
-			},
-		},
-		Hash: hash.Hex(),
-	}, nil
-}
-
-// Helper function to compute the hash of node
-func nodeHash(node mpt.Node) (common.Hash, error) {
-	data, err := node.Encode()
-	if err != nil {
-		return common.EmptyHash, err
-	}
-
-	if len(data) < 32 {
-		return common.EmptyHash, nil
-	}
-
-	return common.BytesToHash(crypto.Keccak256(data)), nil
 }

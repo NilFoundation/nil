@@ -46,7 +46,9 @@ func (api *localShardApiRo) GetShardIdList(ctx context.Context) ([]types.ShardId
 	}
 
 	treeShards := execution.NewDbShardBlocksTrieReader(tx, types.MainShardId, block.Id)
-	treeShards.SetRootHash(block.ChildBlocksRootHash)
+	if err := treeShards.SetRootHash(block.ChildBlocksRootHash); err != nil {
+		return nil, err
+	}
 	return treeShards.Keys()
 }
 

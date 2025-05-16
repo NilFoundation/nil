@@ -4,344 +4,253 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
-type MPTOperation uint32
-
-var ErrListTooBig = errors.New("list too big")
+type Operation uint32
 
 const (
-	ReadMPTOperation MPTOperation = iota
-	SetMPTOperation
-	DeleteMPTOperation
+	ReadOperation Operation = iota
+	SetOperation
+	DeleteOperation
 )
 
-type SimpleProof []Node
-
 type Proof struct {
-	operation MPTOperation
-	key       []byte
-	// path from root to the node with max matching to key prefix
-	// if key is presented in the MPT this'll be simply path to corresponding node
-	PathToNode SimpleProof
+	Operation Operation
+	Key       []byte
+	Nodes     [][]byte // RLP-encoded trie nodes forming the proof
 }
 
-// BuildProof constructs a proof for the given key in the MPT.
-// If no common path is found, the root node is included to prove that the key does not exist in the trie.
-func BuildProof(tree *Reader, key []byte, op MPTOperation) (Proof, error) {
+func BuildProof(r *Reader, key []byte, op Operation) (Proof, error) {
 	if len(key) > maxRawKeyLen {
 		key = crypto.Keccak256(key)
 	}
-	p := Proof{operation: op, key: key}
 
-	pathToNode, err := BuildSimpleProof(tree, key)
-	if err != nil {
-		return p, err
+	if r.RootHash() == EmptyRootHash {
+		emptyNode := []byte{0x80}
+		emptyHash := common.Keccak256Hash(emptyNode)
+		check.PanicIfNotf(emptyHash == EmptyRootHash, "empty node hash mismatch")
+		return Proof{
+			Operation: op,
+			Key:       key,
+			Nodes:     [][]byte{emptyNode},
+		}, nil
 	}
-	p.PathToNode = pathToNode
 
-	return p, nil
+	collector := &proofNodeCollector{}
+	if err := r.trie.Prove(key, collector); err != nil {
+		return Proof{}, err
+	}
+
+	nodeList := make([][]byte, 0, len(collector.nodes))
+	for _, node := range collector.nodes {
+		nodeList = append(nodeList, node.value)
+	}
+
+	return Proof{
+		Operation: op,
+		Key:       key,
+		Nodes:     nodeList,
+	}, nil
 }
 
-/*
-verifies the merkle proof for read operation
-@value: an actual value returned by read. should be nil for read that finished with ErrKeyNotFound
-@rootHash: hash of MPT after the operation
-*/
-func (p *Proof) VerifyRead(key []byte, value []byte, rootHash common.Hash) (bool, error) {
+func (p *Proof) ToBytesSlice() [][]byte {
+	return p.Nodes
+}
+
+func (p *Proof) VerifyRead(key, value []byte, root common.Hash) (bool, error) {
 	if len(key) > maxRawKeyLen {
 		key = crypto.Keccak256(key)
 	}
-	if p.operation != ReadMPTOperation || !bytes.Equal(p.key, key) {
+	if p.Operation != ReadOperation || !bytes.Equal(p.Key, key) {
 		return false, nil
 	}
 
-	mpt, err := unwrapSparseMpt(p)
-	if err != nil {
-		return false, err
+	// Empty trie special case
+	if root == EmptyRootHash {
+		if len(p.Nodes) != 1 {
+			return false, errors.New("invalid empty proof: unexpected number of nodes")
+		}
+		if !bytes.Equal(p.Nodes[0], []byte{0x80}) {
+			return false, errors.New("invalid empty proof: expected RLP(nil)")
+		}
+		return len(value) == 0, nil
 	}
 
-	// first check that the tree root is the same as given
-	if !rootHash.Uint256().Eq(mpt.RootHash().Uint256()) {
-		return false, nil
-	}
-
-	val, err := mpt.Get(p.key)
-
-	if len(value) != 0 {
-		// read op was successful and returned some value
-		// now we need to check that the proof contains the same value
-		return bytes.Equal(val, value), nil
-	}
-
-	// otherwise read op finished with ErrKeyNotFound
-	// check that we also don't have this key in our tree
-	return errors.Is(err, db.ErrKeyNotFound), nil
-}
-
-/*
-verifies the merkle proof for delete operation
-@deleted: whether key was actually removed
-@rootHash: root hash of the original MPT
-@newRootHash: root hash of MPT after the operation
-*/
-func (p *Proof) VerifyDelete(key []byte, deleted bool, rootHash, newRootHash common.Hash) (bool, error) {
-	if len(key) > maxRawKeyLen {
-		key = crypto.Keccak256(key)
-	}
-	if p.operation != DeleteMPTOperation || !bytes.Equal(p.key, key) {
-		return false, nil
-	}
-
-	mpt, err := unwrapSparseMpt(p)
+	val, err := trie.VerifyProof(ethcommon.Hash(root), key, proofNodes(p.Nodes))
 	if err != nil {
 		return false, err
 	}
+	return bytes.Equal(val, value), nil
+}
 
-	if !rootHash.Uint256().Eq(mpt.RootHash().Uint256()) {
+func VerifyProof(rootHash common.Hash, key []byte, nodes [][]byte) ([]byte, error) {
+	if len(key) > maxRawKeyLen {
+		key = crypto.Keccak256(key)
+	}
+	if rootHash == EmptyRootHash {
+		if len(nodes) != 1 || !bytes.Equal(nodes[0], []byte{0x80}) {
+			return nil, errors.New("invalid proof for empty trie")
+		}
+		return nil, nil
+	}
+	return trie.VerifyProof(ethcommon.Hash(rootHash), key, proofNodes(nodes))
+}
+
+func (p *Proof) VerifyDelete(key []byte, deleted bool, root, newRoot common.Hash) (bool, error) {
+	if len(key) > maxRawKeyLen {
+		key = crypto.Keccak256(key)
+	}
+	if p.Operation != DeleteOperation || !bytes.Equal(p.Key, key) {
 		return false, nil
 	}
 
-	err = mpt.Delete(key)
+	mpt := NewInMemMPT()
+	if err := PopulateTrieWithProof(mpt, p, root); err != nil {
+		return false, err
+	}
+
+	err := mpt.Delete(key)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return false, err
 	}
-
-	// now check that the tree root after deletion is the same as given in proof
-	if !newRootHash.Uint256().Eq(mpt.RootHash().Uint256()) {
-		return false, nil
-	}
-
-	return deleted == (err == nil), nil
+	return mpt.RootHash() == newRoot && deleted == (err == nil), nil
 }
 
-/*
-verifies the merkle proof for set operation
-@rootHash: root hash of the original MPT
-@newRootHash: root hash of MPT after the operation
-*/
-func (p *Proof) VerifySet(key []byte, value []byte, rootHash, newRootHash common.Hash) (bool, error) {
+func (p *Proof) VerifySet(key, value []byte, root, newRoot common.Hash) (bool, error) {
 	if len(key) > maxRawKeyLen {
 		key = crypto.Keccak256(key)
 	}
-	if p.operation != SetMPTOperation || !bytes.Equal(p.key, key) {
+	if p.Operation != SetOperation || !bytes.Equal(p.Key, key) {
 		return false, nil
 	}
 
-	mpt, err := unwrapSparseMpt(p)
-	if err != nil {
-		return false, err
-	}
-
-	if !rootHash.Uint256().Eq(mpt.RootHash().Uint256()) {
-		return false, nil
-	}
-
-	// first modify the original tree
-	if err := mpt.Set(p.key, value); err != nil {
-		return false, err
-	}
-
-	// now check that the tree root after modification is the same as given in proof
-	return newRootHash.Uint256().Eq(mpt.RootHash().Uint256()), nil
-}
-
-// unwrapSparseMpt creates sparse MPT trie from proof
-func unwrapSparseMpt(p *Proof) (*MerklePatriciaTrie, error) {
 	mpt := NewInMemMPT()
+	if err := PopulateTrieWithProof(mpt, p, root); err != nil {
+		return false, err
+	}
+
+	if err := mpt.Set(key, value); err != nil {
+		return false, err
+	}
+	return mpt.RootHash() == newRoot, nil
+}
+
+func PopulateTrieWithProof(mpt *MerklePatriciaTrie, p *Proof, root common.Hash) error {
 	if err := PopulateMptWithProof(mpt, p); err != nil {
-		return nil, err
+		return err
 	}
-	return mpt, nil
+	return mpt.SetRootHash(root)
 }
 
-// PopulateMptWithProofNodes populates it with nodes contained in the proof, setting the root of the `mpt` instance
-// to the first node from the `PathToNode` slice.
+// PopulateMptWithProof sets proof nodes to MPT without modifying root
 func PopulateMptWithProof(mpt *MerklePatriciaTrie, p *Proof) error {
-	return populateMptWithProofNodes(mpt, p.PathToNode, true)
-}
-
-// populateMptWithProofNodes populates it with nodes contained in the proof, if `setRoot` is true,
-// also sets the root of the `mpt` instance to the first node from the slice.
-func populateMptWithProofNodes(mpt *MerklePatriciaTrie, proofNodes SimpleProof, setRoot bool) error {
-	for i, node := range proofNodes {
-		if nodeRef, err := mpt.storeNode(node); err != nil {
+	for _, node := range p.Nodes {
+		hash := common.Keccak256Hash(node)
+		if err := mpt.setter.Set(hash[:], node); err != nil {
 			return err
-		} else if i == 0 && setRoot {
-			mpt.root = nodeRef
 		}
 	}
 	return nil
-}
-
-func ValidateHolder(holder InMemHolder) error {
-	for key, value := range holder {
-		expectedKey := calcNodeKey(value)
-		if !bytes.Equal([]byte(key), expectedKey) {
-			return fmt.Errorf("key %x doesn't match the hash %x of value", key, expectedKey)
-		}
-	}
-	return nil
-}
-
-func getMaxMatchingRoute(tree *Reader, key []byte) ([]Node, error) {
-	if tree.root == nil {
-		return []Node{}, nil
-	}
-
-	nodes := make([]Node, 0)
-	_, err := tree.descendWithCallback(tree.root, *newPath(key, false), func(n Node) {
-		nodes = append(nodes, n)
-	})
-	if errors.Is(err, db.ErrKeyNotFound) {
-		err = nil
-	}
-
-	return nodes, err
 }
 
 func (p *Proof) Encode() ([]byte, error) {
-	if len(p.key) > maxRawKeyLen || len(p.PathToNode) >= (1<<8) {
+	if len(p.Key) > maxRawKeyLen || len(p.Nodes) >= 256 {
 		return nil, ErrListTooBig
 	}
-
-	buf := make([]byte, 0, len(p.key)+5)
-	buf = binary.BigEndian.AppendUint32(buf, uint32(p.operation))
-	buf = append(buf, byte(len(p.key)))
-	buf = append(buf, p.key...)
-
-	encodedPath, err := p.PathToNode.Encode()
-	if err != nil {
-		return nil, err
+	buf := make([]byte, 0)
+	buf = binary.BigEndian.AppendUint32(buf, uint32(p.Operation))
+	buf = append(buf, byte(len(p.Key)))
+	buf = append(buf, p.Key...)
+	buf = append(buf, byte(len(p.Nodes)))
+	for _, node := range p.Nodes {
+		buf = binary.BigEndian.AppendUint32(buf, uint32(len(node)))
+		buf = append(buf, node...)
 	}
-	buf = append(buf, encodedPath...)
-
 	return buf, nil
 }
 
 func DecodeProof(data []byte) (Proof, error) {
-	// here we deserialize proof from the data piece by piece
-	// and each time advance the offset on correct amount of bytes
-
-	p := Proof{}
-	p.operation = MPTOperation(binary.BigEndian.Uint32(data[:4]))
-	keyLen := data[4]
-	data = data[5:]
-
-	p.key = data[0:keyLen]
-	data = data[keyLen:]
-
-	sp, err := DecodeSimpleProof(data)
-	if err != nil {
-		return p, err
+	var p Proof
+	if len(data) < 6 {
+		return p, errors.New("too short")
 	}
-	p.PathToNode = sp
-
+	p.Operation = Operation(binary.BigEndian.Uint32(data[0:4]))
+	keyLen := int(data[4])
+	p.Key = make([]byte, keyLen)
+	copy(p.Key, data[5:5+keyLen])
+	off := 5 + keyLen
+	n := int(data[off])
+	off++
+	p.Nodes = make([][]byte, 0, n)
+	for range n {
+		if len(data[off:]) < 4 {
+			return p, errors.New("truncated node")
+		}
+		ln := binary.BigEndian.Uint32(data[off : off+4])
+		off += 4
+		if len(data[off:]) < int(ln) {
+			return p, errors.New("truncated blob")
+		}
+		p.Nodes = append(p.Nodes, data[off:off+int(ln)])
+		off += int(ln)
+	}
 	return p, nil
 }
 
-// BuildSimpleProof constructs a `SimpleProof` for the given key in the MPT.
-// If no common path is found, the root node is included to prove that the key does not exist in the trie.
-func BuildSimpleProof(tree *Reader, key []byte) (SimpleProof, error) {
-	if len(key) > maxRawKeyLen {
-		key = crypto.Keccak256(key)
-	}
-
-	path, err := getMaxMatchingRoute(tree, key)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(path) == 0 && tree.root != nil {
-		if rootNode, err := tree.getNode(tree.root); err != nil {
-			if !errors.Is(err, db.ErrKeyNotFound) {
-				return nil, err
-			}
-		} else {
-			path = []Node{rootNode}
-		}
-	}
-
-	return path, nil
+type kvPair struct {
+	key   common.Hash
+	value []byte
 }
 
-func (sp *SimpleProof) Encode() ([]byte, error) {
-	buf := make([]byte, 0, 1)
-	buf = append(buf, byte(len(*sp)))
-	for i := range *sp {
-		node, err := (*sp)[i].Encode()
-		if err != nil {
-			return nil, err
-		}
-
-		buf = binary.BigEndian.AppendUint32(buf, uint32(len(node)))
-		buf = append(buf, node...)
-	}
-
-	return buf, nil
+// proofNodeCollector implements trie.ProofWriter
+type proofNodeCollector struct {
+	nodes []kvPair
 }
 
-func DecodeSimpleProof(data []byte) (SimpleProof, error) {
-	// here we deserialize simple proof from the data piece by piece
-	// and each time advance the offset on correct amount of bytes
-
-	sp := make(SimpleProof, 0)
-	proofLen := data[0]
-	data = data[1:]
-	for range proofLen {
-		nodeLen := binary.BigEndian.Uint32(data[:4])
-		node, err := DecodeNode(data[4 : 4+nodeLen])
-		if err != nil {
-			return nil, err
-		}
-
-		sp = append(sp, node)
-		data = data[4+nodeLen:]
-	}
-
-	return sp, nil
+func (p *proofNodeCollector) Put(key, value []byte) error {
+	p.nodes = append(p.nodes, kvPair{
+		key:   common.BytesToHash(key),
+		value: value,
+	})
+	return nil
 }
 
-func (sp *SimpleProof) ToBytesSlice() ([][]byte, error) {
-	bytesSlice := make([][]byte, 0, len(*sp))
-	for i := range *sp {
-		encodedNode, err := (*sp)[i].Encode()
-		if err != nil {
-			return nil, err
-		}
-		bytesSlice = append(bytesSlice, encodedNode)
-	}
-
-	return bytesSlice, nil
+func (p *proofNodeCollector) Delete(key []byte) error {
+	// noop: not used for proof construction
+	return nil
 }
 
-func SimpleProofFromBytesSlice(data [][]byte) (SimpleProof, error) {
-	sp := make(SimpleProof, 0, len(data))
-	for _, encodedNode := range data {
-		node, err := DecodeNode(encodedNode)
-		if err != nil {
-			return nil, err
-		}
-		sp = append(sp, node)
-	}
-	return sp, nil
+// proofNodes implements ethdb.KeyValueReader using proof node slices
+type proofNodeReader struct {
+	nodes [][]byte
 }
 
-func (sp *SimpleProof) Verify(rootHash common.Hash, key []byte) ([]byte, error) {
-	trie := NewInMemMPT()
-	// populate without setting the root
-	if err := populateMptWithProofNodes(trie, *sp, false); err != nil {
-		return nil, err
+func (p *proofNodeReader) Get(key []byte) ([]byte, error) {
+	hash := ethcommon.BytesToHash(key)
+	for _, node := range p.nodes {
+		if crypto.Keccak256Hash(node) == hash {
+			return node, nil
+		}
 	}
-	trie.root = rootHash[:]
-	val, err := trie.Get(key)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
+	return nil, errMissingNode
+}
+
+func (p *proofNodeReader) Has(key []byte) (bool, error) {
+	_, err := p.Get(key)
+	if err != nil && !errors.Is(err, errMissingNode) {
+		return false, err
 	}
-	return val, err
+	return err == nil, nil
+}
+
+func proofNodes(nodes [][]byte) ethdb.KeyValueReader {
+	return &proofNodeReader{nodes: nodes}
 }

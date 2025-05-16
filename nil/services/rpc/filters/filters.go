@@ -238,7 +238,9 @@ func (m *FiltersManager) processBlocksRange(filter *Filter) error {
 
 func (m *FiltersManager) readReceipts(tx db.RoTx, block *types.Block) ([]*types.Receipt, error) {
 	reader := execution.NewDbReceiptTrieReader(tx, m.shardId)
-	reader.SetRootHash(block.ReceiptsRoot)
+	if err := reader.SetRootHash(block.ReceiptsRoot); err != nil {
+		return nil, err
+	}
 	return reader.Values()
 }
 

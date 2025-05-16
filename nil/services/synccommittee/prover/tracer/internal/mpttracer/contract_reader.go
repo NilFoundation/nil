@@ -140,6 +140,9 @@ func insertTrieValues[K comparable, V any, VPtr execution.MPTValue[V]](
 	}
 
 	trie := trieCreator(tx, shardId)
+	if err := trie.SetRootHash(mpt.EmptyRootHash); err != nil {
+		return err
+	}
 
 	keys := make([]K, 0, len(entries))
 	values := make([]VPtr, 0, len(entries))
@@ -149,5 +152,11 @@ func insertTrieValues[K comparable, V any, VPtr execution.MPTValue[V]](
 		values = append(values, &val)
 	}
 
-	return trie.UpdateBatch(keys, values)
+	if err := trie.UpdateBatch(keys, values); err != nil {
+		return err
+	}
+	if _, err := trie.Commit(); err != nil {
+		return err
+	}
+	return nil
 }

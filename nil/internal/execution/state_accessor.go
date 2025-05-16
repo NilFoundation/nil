@@ -158,7 +158,7 @@ func collectSerializedShardCounts(
 		return
 	}
 	root := mpt.NewDbReader(sa.tx, sa.shardId, tableName)
-	root.SetRootHash(rootHash)
+	check.PanicIfErr(root.SetRootHash(rootHash))
 
 	items := make([][]byte, 0, 16)
 	for k, v := range root.Iterate() {
@@ -198,7 +198,9 @@ func collectSerializedBlockEntities(
 	}
 
 	root := mpt.NewDbReader(sa.tx, sa.shardId, tableName)
-	root.SetRootHash(rootHash)
+	if err := root.SetRootHash(rootHash); err != nil {
+		return err
+	}
 
 	items := make([][]byte, 0, 1024)
 	var index types.TransactionIndex
@@ -239,10 +241,9 @@ func unmashalSerializedEntities[
 	return nil
 }
 
-func (s *shardAccessor) mptReader(tableName db.ShardedTableName, rootHash common.Hash) *mpt.Reader {
+func (s *shardAccessor) mptReader(tableName db.ShardedTableName, rootHash common.Hash) (*mpt.Reader, error) {
 	res := mpt.NewDbReader(s.tx, s.shardId, tableName)
-	res.SetRootHash(rootHash)
-	return res
+	return res, res.SetRootHash(rootHash)
 }
 
 func (s *shardAccessor) GetBlock() blockAccessor {
@@ -452,7 +453,9 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 
 	if b.withChildBlocks {
 		treeShards := NewDbShardBlocksTrieReader(sa.tx, sa.shardId, block.Id)
-		treeShards.SetRootHash(block.ChildBlocksRootHash)
+		if err := treeShards.SetRootHash(block.ChildBlocksRootHash); err != nil {
+			return rawBlockAccessorResult{}, err
+		}
 
 		shards := make(map[types.ShardId]common.Hash)
 		for key, value := range treeShards.Iterate() {
@@ -485,7 +488,9 @@ func (b rawBlockAccessor) ByHash(hash common.Hash) (rawBlockAccessorResult, erro
 	// config is included only for main shard, empty for others
 	if b.withConfig {
 		root := mpt.NewDbReader(sa.tx, sa.shardId, db.ConfigTrieTable)
-		root.SetRootHash(block.ConfigRoot)
+		if err := root.SetRootHash(block.ConfigRoot); err != nil {
+			return rawBlockAccessorResult{}, err
+		}
 		configMap := make(map[string][]byte)
 		for key, value := range root.Iterate() {
 			configMap[string(key)] = value
@@ -725,7 +730,10 @@ func baseGetTxnByIndex(
 	if !incoming {
 		root = block.OutTransactionsRoot
 	}
-	txnTrie := sa.mptReader(db.TransactionTrieTable, root)
+	txnTrie, err := sa.mptReader(db.TransactionTrieTable, root)
+	if err != nil {
+		return transactionAccessorResult{}, err
+	}
 	txn, err := mpt.GetEntity[*types.Transaction](txnTrie, idx.Bytes())
 	if err != nil {
 		return transactionAccessorResult{}, err
@@ -819,7 +827,10 @@ func (a inTransactionAccessor) addReceipt(
 		accessResult.receipt = initWith[*types.Receipt](nil)
 		return accessResult, nil
 	}
-	receiptTrie := a.shardAccessor.mptReader(db.ReceiptTrieTable, accessResult.Block().ReceiptsRoot)
+	receiptTrie, err := a.shardAccessor.mptReader(db.ReceiptTrieTable, accessResult.Block().ReceiptsRoot)
+	if err != nil {
+		return inTransactionAccessorResult{}, err
+	}
 	receipt, err := mpt.GetEntity[*types.Receipt](receiptTrie, accessResult.Index().Bytes())
 	if err != nil {
 		return inTransactionAccessorResult{}, err

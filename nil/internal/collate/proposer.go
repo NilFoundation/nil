@@ -400,7 +400,9 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 			}
 
 			outTxnTrie := execution.NewDbTransactionTrieReader(tx, neighborId)
-			outTxnTrie.SetRootHash(block.OutTransactionsRoot)
+			if err := outTxnTrie.SetRootHash(block.OutTransactionsRoot); err != nil {
+				return fmt.Errorf("failed to set root hash for out transaction trie: %w", err)
+			}
 
 			saveProof := func() (*execution.InternalTxnReference, error) {
 				if len(parents) == 0 ||
@@ -410,7 +412,7 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 				}
 
 				blockIndex := uint32(len(parents) - 1)
-				proof, err := mpt.BuildProof(outTxnTrie.Reader, neighbor.TransactionIndex.Bytes(), mpt.ReadMPTOperation)
+				proof, err := mpt.BuildProof(outTxnTrie.Reader, neighbor.TransactionIndex.Bytes(), mpt.ReadOperation)
 				if err != nil {
 					return nil, err
 				}

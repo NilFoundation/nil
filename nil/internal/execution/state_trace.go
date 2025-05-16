@@ -93,7 +93,9 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block, blockHash 
 	defer bt.lock.Unlock()
 
 	root := mpt.NewDbReader(es.tx, es.ShardId, db.ContractTrieTable)
-	root.SetRootHash(block.SmartContractsRoot)
+	if err := root.SetRootHash(block.SmartContractsRoot); err != nil {
+		panic(err)
+	}
 	contractsNum := 0
 	for range root.Iterate() {
 		contractsNum++

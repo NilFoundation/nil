@@ -53,7 +53,6 @@ $(SC_COMMANDS:%=%.cmd): gen_rollup_contracts_bindings
 
 include nil/internal/serialization/Makefile.inc
 include nil/internal/db/Makefile.inc
-include nil/internal/mpt/Makefile.inc
 include nil/internal/types/Makefile.inc
 include nil/internal/config/Makefile.inc
 include nil/internal/execution/Makefile.inc
@@ -62,7 +61,7 @@ include nil/go-ibft/messages/proto/Makefile.inc
 include nil/Makefile.inc
 
 .PHONY: rlp
-rlp: rlp_types rlp_config rlp_execution rlp_srlz rlp_db rlp_mpt
+rlp: rlp_types rlp_config rlp_execution rlp_srlz rlp_db
 
 .PHONY: pb
 pb: pb_rawapi pb_ibft

@@ -165,7 +165,9 @@ func (s *ReplayScheduler) buildProposalFromPrevBlock(
 
 func (s *ReplayScheduler) collectTxns(roTx db.RoTx, root common.Hash) ([]*types.Transaction, error) {
 	inTxnsReader := execution.NewDbTransactionTrieReader(roTx, s.params.ShardId)
-	inTxnsReader.SetRootHash(root)
+	if err := inTxnsReader.SetRootHash(root); err != nil {
+		return nil, err
+	}
 	entries, err := inTxnsReader.Entries()
 	if err != nil {
 		return nil, err

@@ -286,7 +286,7 @@ func (s *ProposerTestSuite) checkReceipt(shardId types.ShardId, m *types.Transac
 	s.Require().NoError(err)
 
 	receiptsTrie := execution.NewDbReceiptTrieReader(tx, shardId)
-	receiptsTrie.SetRootHash(txnData.Block().ReceiptsRoot)
+	s.Require().NoError(receiptsTrie.SetRootHash(txnData.Block().ReceiptsRoot))
 	receipt, err := receiptsTrie.Fetch(txnData.Index())
 	s.Require().NoError(err)
 	s.Equal(m.Hash(), receipt.TxnHash)

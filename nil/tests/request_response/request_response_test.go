@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
@@ -343,7 +343,7 @@ func (s *SuiteRequestResponse) checkAsyncContextEmpty(address types.Address) {
 	s.T().Helper()
 
 	contract := tests.GetContract(s.T(), s.DefaultClient, address)
-	s.Require().Equal(common.EmptyHash, contract.AsyncContextRoot)
+	s.Require().Equal(mpt.EmptyRootHash, contract.AsyncContextRoot)
 }
 
 func TestRequestResponse(t *testing.T) {

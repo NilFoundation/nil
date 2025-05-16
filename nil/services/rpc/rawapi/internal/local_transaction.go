@@ -43,7 +43,9 @@ func getRawBlockEntity(
 	tx db.RoTx, shardId types.ShardId, tableName db.ShardedTableName, rootHash common.Hash, entityKey []byte,
 ) ([]byte, error) {
 	root := mpt.NewDbReader(tx, shardId, tableName)
-	root.SetRootHash(rootHash)
+	if err := root.SetRootHash(rootHash); err != nil {
+		return nil, err
+	}
 	entityBytes, err := root.Get(entityKey)
 	if err != nil {
 		return nil, err

@@ -20,6 +20,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
@@ -63,10 +64,11 @@ type RollbackParams struct {
 }
 
 type IContractMPTRepository interface {
-	SetRootHash(root common.Hash)
+	SetRootHash(root common.Hash) error
 	GetContract(addr types.Address) (*types.SmartContract, error)
 	UpdateContracts(contracts map[types.Address]*AccountState) error
 	RootHash() common.Hash
+	Commit() (common.Hash, error)
 }
 
 type TxCounts map[types.ShardId]types.TransactionIndex
@@ -285,11 +287,12 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 }
 
 type StateParams struct {
-	Block          *types.Block
-	ConfigAccessor config.ConfigAccessor
-	FeeCalculator  FeeCalculator
-	Mode           string
-	GasLimit       types.Gas
+	Block                 *types.Block
+	ConfigAccessor        config.ConfigAccessor
+	FeeCalculator         FeeCalculator
+	Mode                  string
+	GasLimit              types.Gas
+	ContractMptRepository IContractMPTRepository
 }
 
 func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*ExecutionState, error) {
@@ -363,7 +366,7 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		logger: logger,
 	}
 
-	return res, res.initTries()
+	return res, res.initTries(&params)
 }
 
 type DbContractAccessor struct {
@@ -389,21 +392,37 @@ func (ca *DbContractAccessor) UpdateContracts(contracts map[types.Address]*Accou
 	return ca.UpdateBatch(keys, values)
 }
 
-func (es *ExecutionState) initTries() error {
+func (es *ExecutionState) initTries(params *StateParams) error {
 	data, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return err
 	}
 
-	es.ContractTree = &DbContractAccessor{NewDbContractTrie(es.tx, es.ShardId)}
 	es.ReceiptTree = NewDbReceiptTrie(es.tx, es.ShardId)
+	smartContractsRoot := mpt.EmptyRootHash
+	outTransactionsRoot := mpt.EmptyRootHash
+	inTransactionsRoot := mpt.EmptyRootHash
 	if err == nil {
 		block := data.Block()
-		es.ContractTree.SetRootHash(block.SmartContractsRoot)
-		es.fetchTxCounts(block.OutTransactionsRoot, es.OutTxCounts)
-		es.fetchTxCounts(block.InTransactionsRoot, es.InTxCounts)
+		smartContractsRoot = block.SmartContractsRoot
+		outTransactionsRoot = block.OutTransactionsRoot
+		inTransactionsRoot = block.InTransactionsRoot
+	}
+	if err := es.fetchTxCounts(outTransactionsRoot, es.OutTxCounts); err != nil {
+		return err
+	}
+	if err := es.fetchTxCounts(inTransactionsRoot, es.InTxCounts); err != nil {
+		return err
 	}
 
+	if params.ContractMptRepository != nil {
+		es.ContractTree = params.ContractMptRepository
+	} else {
+		es.ContractTree = &DbContractAccessor{NewDbContractTrie(es.tx, es.ShardId)}
+		if err := es.ContractTree.SetRootHash(smartContractsRoot); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -411,12 +430,15 @@ func (es *ExecutionState) GetConfigAccessor() config.ConfigAccessor {
 	return es.configAccessor
 }
 
-func (es *ExecutionState) fetchTxCounts(root common.Hash, counts TxCounts) {
+func (es *ExecutionState) fetchTxCounts(root common.Hash, counts TxCounts) error {
 	reader := NewDbTxCountTrieReader(es.tx, es.ShardId)
-	reader.SetRootHash(root)
+	if err := reader.SetRootHash(root); err != nil {
+		return err
+	}
 	for shardId, count := range reader.Items() {
 		counts[shardId] = count
 	}
+	return nil
 }
 
 func (es *ExecutionState) GetReceipt(txnIndex types.TransactionIndex) (*types.Receipt, error) {
@@ -566,7 +588,11 @@ func (es *ExecutionState) GetStorageRoot(addr types.Address) (common.Hash, error
 	if err != nil || acc == nil {
 		return common.EmptyHash, err
 	}
-	return acc.StorageTree.RootHash(), nil
+	storageRootHash := acc.StorageTree.RootHash()
+	if storageRootHash == mpt.EmptyRootHash {
+		return common.EmptyHash, nil
+	}
+	return storageRootHash, nil
 }
 
 // SetTransientState sets transient storage for a given account. It
@@ -1246,7 +1272,6 @@ func (es *ExecutionState) handleDeployTransaction(_ context.Context, transaction
 	gas, exceedBlockLimit := es.calcGasLimit(es.txnFeeCredit.ToGas(es.GasPrice))
 	ret, addr, leftOver, err := es.evm.Deploy(
 		addr, (vm.AccountRef)(transaction.From), deployTxn.Code(), gas.Uint64(), transaction.Value.Int())
-
 	if exceedBlockLimit && types.IsOutOfGasError(err) {
 		err = types.NewError(types.ErrorTransactionExceedsBlockGasLimit)
 	}
@@ -1441,9 +1466,9 @@ func getOutTransactions(es *ExecutionState) ([]*types.Transaction, []common.Hash
 	return txns, hashes
 }
 
-func (es *ExecutionState) writeTxCounts(root common.Hash, counts TxCounts) common.Hash {
+func (es *ExecutionState) writeTxCounts(root common.Hash, counts TxCounts) (common.Hash, error) {
 	if len(counts) == 0 {
-		return root
+		return root, nil
 	}
 	keys := make([]types.ShardId, 0, len(counts))
 	values := make([]*types.TransactionIndex, 0, len(counts))
@@ -1455,11 +1480,13 @@ func (es *ExecutionState) writeTxCounts(root common.Hash, counts TxCounts) commo
 		}
 	}
 	trie := NewDbTxCountTrie(es.tx, es.ShardId)
-	trie.SetRootHash(root)
-	if err := trie.UpdateBatch(keys, values); err != nil {
-		panic(fmt.Errorf("failed to update tx count trie: %w", err))
+	if err := trie.SetRootHash(root); err != nil {
+		return common.EmptyHash, fmt.Errorf("failed to set tx count trie root hash: %w", err)
 	}
-	return trie.RootHash()
+	if err := trie.UpdateBatch(keys, values); err != nil {
+		return common.EmptyHash, fmt.Errorf("failed to update tx count trie: %w", err)
+	}
+	return trie.Commit()
 }
 
 func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGenerationResult, error) {
@@ -1467,7 +1494,8 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 		return nil, err
 	}
 
-	treeShardsRootHash := common.EmptyHash
+	var err error
+	treeShardsRootHash := mpt.EmptyRootHash
 	if len(es.ChildShardBlocks) > 0 {
 		treeShards := NewDbShardBlocksTrie(es.tx, es.ShardId, blockId)
 		if err := UpdateFromMap(
@@ -1475,7 +1503,9 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 		); err != nil {
 			return nil, err
 		}
-		treeShardsRootHash = treeShards.RootHash()
+		if treeShardsRootHash, err = treeShards.Commit(); err != nil {
+			return nil, err
+		}
 	}
 
 	inTxnKeys := make([]types.TransactionIndex, 0, len(es.InTransactions))
@@ -1495,13 +1525,27 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 	if err := inTransactionTree.UpdateBatch(inTxnKeys, inTxnValues); err != nil {
 		return nil, err
 	}
-	inTxRoot := es.writeTxCounts(inTransactionTree.RootHash(), es.InTxCounts)
+	inTransactionTreeHash, err := inTransactionTree.Commit()
+	if err != nil {
+		return nil, err
+	}
+	inTxRoot, err := es.writeTxCounts(inTransactionTreeHash, es.InTxCounts)
+	if err != nil {
+		return nil, err
+	}
 
 	outTransactionTree := NewDbTransactionTrie(es.tx, es.ShardId)
 	if err := outTransactionTree.UpdateBatch(outTxnKeys, outTxnValues); err != nil {
 		return nil, err
 	}
-	outTxRoot := es.writeTxCounts(outTransactionTree.RootHash(), es.OutTxCounts)
+	outTransactionTreeHash, err := outTransactionTree.Commit()
+	if err != nil {
+		return nil, err
+	}
+	outTxRoot, err := es.writeTxCounts(outTransactionTreeHash, es.OutTxCounts)
+	if err != nil {
+		return nil, err
+	}
 
 	if assert.Enable {
 		// Check that each outbound transaction belongs to some inbound transaction
@@ -1558,7 +1602,7 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 		}
 	}
 
-	configRoot := common.EmptyHash
+	configRoot := mpt.EmptyRootHash
 	var configParams map[string][]byte
 	if es.ShardId.IsMainShard() {
 		var err error
@@ -1577,16 +1621,25 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 		}
 	}
 
+	contractTree, err := es.ContractTree.Commit()
+	if err != nil {
+		return nil, err
+	}
+	receiptTree, err := es.ReceiptTree.Commit()
+	if err != nil {
+		return nil, err
+	}
+
 	block := &types.Block{
 		BlockData: types.BlockData{
 			Id:                  blockId,
 			PrevBlock:           es.PrevBlock,
-			SmartContractsRoot:  es.ContractTree.RootHash(),
+			SmartContractsRoot:  contractTree,
 			InTransactionsRoot:  inTxRoot,
 			OutTransactionsRoot: outTxRoot,
 			ConfigRoot:          configRoot,
 			OutTransactionsNum:  types.TransactionIndex(len(outTxnKeys)),
-			ReceiptsRoot:        es.ReceiptTree.RootHash(),
+			ReceiptsRoot:        receiptTree,
 			ChildBlocksRootHash: treeShardsRootHash,
 			MainShardHash:       es.MainShardHash,
 			BaseFee:             es.BaseFee,

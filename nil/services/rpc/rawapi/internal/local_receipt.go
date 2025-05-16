@@ -200,6 +200,8 @@ func getBlockEntity[
 	entityKey []byte,
 ) (*S, error) {
 	root := mpt.NewDbReader(tx, shardId, tableName)
-	root.SetRootHash(rootHash)
+	if err := root.SetRootHash(rootHash); err != nil {
+		return nil, err
+	}
 	return mpt.GetEntity[T](root, entityKey)
 }
