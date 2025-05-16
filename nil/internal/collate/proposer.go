@@ -352,7 +352,7 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 	neighbors := p.topology.GetNeighbors(p.params.ShardId, p.params.NShards, true)
 
 	// Create a new RelayerReader to handle cross-shard messages
-	reader, err := NewRelayerReader(
+	reader, err := NewRelayerMessageQueueReader(
 		p.ctx,
 		tx,
 		p.params.NShards,
