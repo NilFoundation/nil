@@ -102,6 +102,8 @@ wait_for_http_service "http://127.0.0.1:8529"
 
 npx hardhat l2-task-runner --networkname local --l1networkname geth
 
+npx hardhat run scripts/wiring/bridges/l1/set-counterparty-in-bridges.ts --network geth
+
 echo "Starting relayer"
 $RELAYER_BIN run \
     --db-path=/tmp/relayer.db \
