@@ -14,6 +14,7 @@ export interface L1Config {
 
 export interface L1NetworkConfig {
     l1DeployerConfig: L1DeployerConfig;
+    l1TestConfig: L1TestConfig;
     l1CommonContracts: L1CommonContracts;
     nilRollup: NilRollup;
     l1BridgeRouter: L1BridgeRouter;
@@ -21,6 +22,18 @@ export interface L1NetworkConfig {
     l1ERC20Bridge: L1ERC20Bridge;
     l1ETHBridge: L1ETHBridge;
     nilGasPriceOracle: NilGasPriceOracle;
+}
+
+export interface L1TestConfig {
+    ethDepositTestConfig: L1ETHDepositTestConfig;
+}
+
+export interface L1ETHDepositTestConfig {
+    ethAmount: number; // Amount of ETH to deposit on L1
+    gasLimit: number;
+    totalNativeAmount: number;
+    userMaxFeePerGas: number;
+    userMaxPriorityFeePerGas: number;
 }
 
 export interface L1DeployerConfig {
@@ -279,6 +292,8 @@ export interface L2CommonConfig {
     owner: string;
     admin: string;
     relayer: string;
+    depositRecipient: string;
+    feeRefundRecipient: string;
     tokens: EnshrinedToken[];
     mockL1Bridge?: string; // Optional field to retain backward compatibility
 }
@@ -311,7 +326,6 @@ export interface L2BridgeMessengerConfig {
         l2BridgeMessengerImplementation: string;
     };
     l2BridgeMessengerDeployerConfig: {
-        relayerAddress: string;
         messageExpiryDeltaValue: number;
     };
 }
