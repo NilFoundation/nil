@@ -278,6 +278,7 @@ export interface L2NetworkConfig {
 export interface L2CommonConfig {
     owner: string;
     admin: string;
+    relayer: string;
     tokens: EnshrinedToken[];
     mockL1Bridge?: string; // Optional field to retain backward compatibility
 }
