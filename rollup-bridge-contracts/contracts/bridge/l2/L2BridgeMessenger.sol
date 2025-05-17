@@ -419,6 +419,11 @@ contract L2BridgeMessenger is
     return interfaceId == type(IL2BridgeMessenger).interfaceId || super.supportsInterface(interfaceId);
   }
 
+  /// @inheritdoc IL2BridgeMessenger
+  function hasRelayerRole(address relayerAddress) external view override returns (bool) {
+    return hasRole(NilConstants.RELAYER_ROLE, relayerAddress);
+  }
+
   function getL2ToL1Root() external view override returns (bytes32) {
     return INilMessageTree(nilMessageTree).getMessageRoot();
   }
