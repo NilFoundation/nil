@@ -14,12 +14,13 @@ task("clear-l2-deployments", "Clears L2DeploymentConfig entries in nil-deploymen
         config.l2CommonConfig.admin = "";
         config.l2CommonConfig.owner = "";
         config.l2CommonConfig.mockL1Bridge = "";
+        config.l2CommonConfig.depositRecipient = "";
+        config.l2CommonConfig.feeRefundRecipient = "";
 
         // clear all deployed contract address under config
         config.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerImplementation = "";
         config.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy = "";
         config.l2BridgeMessengerConfig.l2BridgeMessengerContracts.proxyAdmin = "";
-        config.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.relayerAddress = "";
 
         config.l2CommonConfig.mockL1Bridge = "";
 

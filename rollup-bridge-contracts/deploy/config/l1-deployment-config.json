@@ -6,6 +6,13 @@
         "admin": "",
         "shardId": 1
       },
+      "l1TestConfig": {
+        "ethAmount": 1000000000000,
+        "gasLimit": 1000,
+        "totalNativeAmount": 1200000000, 
+        "userMaxFeePerGas": 0,
+        "userMaxPriorityFeePerGas": 0
+      },
       "l1CommonContracts": {
         "weth": ""
       },

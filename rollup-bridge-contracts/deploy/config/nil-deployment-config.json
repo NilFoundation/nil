@@ -4,6 +4,9 @@
       "l2CommonConfig": {
         "owner": "",
         "admin": "",
+        "relayer": "",
+        "depositRecipient": "",
+        "feeRefundRecipient": "",
         "tokens": [
           {
             "name": "USD Coin",

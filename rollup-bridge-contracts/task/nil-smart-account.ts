@@ -77,6 +77,31 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
         console.log("🆕 New Smart Account Generated:", smartAccount.address);
     }
 
+    //DEPOSIT_RECIPIENT_PRIVATE_KEY = "0xe4d6ddfd7479614249381d4bd240fa2408efc53dad5f7f31cb7ae7e5962fc1d0"
+    const depositRecipientPrivateKey = process.env.DEPOSIT_RECIPIENT_PRIVATE_KEY as `0x${string}`;
+    let signer = new LocalECDSAKeySigner({ privateKey: depositRecipientPrivateKey });
+    const depositRecipientSmartAccount = new SmartAccountV1({
+        signer,
+        client,
+        salt: BigInt(Math.floor(Math.random() * 10000)),
+        shardId: 1,
+        pubkey: signer.getPublicKey(),
+    });
+    const depositRecipientSmartAccountAddress = depositRecipientSmartAccount.address;
+    console.log("🆕 New Smart Account Generated:", depositRecipientSmartAccountAddress);
+
+
+    const nilFeeRefundAddressPrivateKey = process.env.NIL_FEE_REFUND_PRIVATE_KEY as `0x${string}`;
+    signer = new LocalECDSAKeySigner({ privateKey: depositRecipientPrivateKey });
+    const feeRefundSmartAccount = new SmartAccountV1({
+        signer,
+        client,
+        salt: BigInt(Math.floor(Math.random() * 10000)),
+        shardId: 1,
+        pubkey: signer.getPublicKey(),
+    });
+    const feeRefundSmartAccountAddress = feeRefundSmartAccount.address;
+
     const topUpFaucet = await faucetClient.topUp({
         smartAccountAddress: smartAccount.address,
         amount: convertEthToWei(0.1),
@@ -96,7 +121,8 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
 
     config.l2CommonConfig.owner = getCheckSummedAddress(smartAccountAddress);
     config.l2CommonConfig.admin = getCheckSummedAddress(smartAccountAddress);
-    config.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.relayerAddress = getCheckSummedAddress(smartAccountAddress);
+    config.l2CommonConfig.depositRecipient = getCheckSummedAddress(depositRecipientSmartAccountAddress);
+    config.l2CommonConfig.feeRefundRecipient = getCheckSummedAddress(feeRefundSmartAccountAddress);
 
     // Save the updated config
     saveNilNetworkConfig(networkName, config);
