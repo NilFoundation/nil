@@ -102,6 +102,8 @@ wait_for_http_service "http://127.0.0.1:8529"
 
 npx hardhat l2-task-runner --networkname local --l1networkname geth
 
+npx hardhat run scripts/wiring/bridges/l1/set-counterparty-in-bridges.ts --network geth
+
 echo "Starting relayer"
 $RELAYER_BIN run \
     --db-path=/tmp/relayer.db \
@@ -123,6 +125,8 @@ curl -XPOST http://127.0.0.1:7777 -H "Content-Type: application/json" --data '{"
 echo "TODO: L2 contract deployment is not ready yet"
 
 echo "Triggering L1 deposit event"
+
+npx hardhat grant-relayer-role --networkname local
 npx hardhat run scripts/bridge-test/bridge-eth.ts --network geth
 
 echo "TODO: ensure that event was received and processed by the L2 side"

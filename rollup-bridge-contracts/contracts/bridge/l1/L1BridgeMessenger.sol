@@ -544,4 +544,8 @@ contract L1BridgeMessenger is
   ) public view override(AccessControlEnumerableUpgradeable, IERC165) returns (bool) {
     return interfaceId == type(IL1BridgeMessenger).interfaceId || super.supportsInterface(interfaceId);
   }
+
+  function getQueueHeadIndex() external view override returns (uint256) {
+    return messageQueue.getFirstUnprocessedMessageHash();
+  }
 }

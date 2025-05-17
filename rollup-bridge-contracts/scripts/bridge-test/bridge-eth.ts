@@ -5,6 +5,8 @@ import * as path from 'path';
 import {
     loadL1NetworkConfig,
     isValidAddress,
+    loadNilNetworkConfig,
+    L2NetworkConfig,
 } from '../../deploy/config/config-helper';
 import { bigIntReplacer, extractAndParseMessageSentEventLog, MessageSentEvent } from './get-messenger-events';
 
@@ -34,13 +36,17 @@ export async function bridgeETH() {
         signer,
     ) as Contract;
 
-    const l2DepositRecipient = "0x66bFaD51E02513C5B6bEfe1Acc9a31Cb6eE152F1";
-    const l2FeeRefundAddress = "0x878f824Ffde85B7Bd6ad6c6Fd97275bb6724c55a";
-    const eth_amount = 100;
-    const gasLimit = 1000;
-    const total_native_amount = 1200000000;
-    const userMaxFeePerGas = 0;
-    const userMaxPriorityFeePerGas = 0;
+
+    // save the nilMessageTree Address in the json config for l2
+    const l2NetworkConfig: L2NetworkConfig = loadNilNetworkConfig("local");
+
+    const l2DepositRecipient = l2NetworkConfig.l2CommonConfig.depositRecipient;
+    const l2FeeRefundAddress = l2NetworkConfig.l2CommonConfig.feeRefundRecipient;
+    const eth_amount = config.l1TestConfig.ethDepositTestConfig.ethAmount;
+    const gasLimit = config.l1TestConfig.ethDepositTestConfig.gasLimit;
+    const total_native_amount = config.l1TestConfig.ethDepositTestConfig.totalNativeAmount;
+    const userMaxFeePerGas = config.l1TestConfig.ethDepositTestConfig.userMaxFeePerGas;
+    const userMaxPriorityFeePerGas = config.l1TestConfig.ethDepositTestConfig.userMaxPriorityFeePerGas;
 
     console.log(`bridging ${eth_amount} (WEI) to recipient: ${l2DepositRecipient}`);
 

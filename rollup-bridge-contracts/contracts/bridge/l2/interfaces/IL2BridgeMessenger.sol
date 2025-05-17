@@ -148,6 +148,8 @@ interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage {
                          OWNER RESTRICTED FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
+  function grantRelayerRole(address relayerAddress) external;
+
   function setCounterpartyBridgeMessenger(address counterpartyBridgeMessengerAddress) external;
 
   /// @notice Authorize a bridge addresses
@@ -169,5 +171,9 @@ interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage {
    */
   function setPause(bool _status) external;
 
+  function hasRelayerRole(address relayerAddress) external view returns (bool);
+
   function getL2ToL1Root() external view returns (bytes32);
+
+  function getLatestDepositNonce() external view returns (uint256);
 }

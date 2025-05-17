@@ -385,8 +385,12 @@ contract L2BridgeMessenger is
     authorisedBridges.remove(bridge);
   }
 
+  function grantRelayerRole(address relayerAddress) external override onlyOwnerOrAdmin {
+    _grantRole(NilConstants.RELAYER_ROLE, relayerAddress);
+  }
+
   /// @inheritdoc IL2BridgeMessenger
-  function setPause(bool _status) external onlyOwnerOrAdmin {
+  function setPause(bool _status) external override onlyOwnerOrAdmin {
     if (_status) {
       _pause();
     } else {
@@ -415,7 +419,17 @@ contract L2BridgeMessenger is
     return interfaceId == type(IL2BridgeMessenger).interfaceId || super.supportsInterface(interfaceId);
   }
 
+  /// @inheritdoc IL2BridgeMessenger
+  function hasRelayerRole(address relayerAddress) external view override returns (bool) {
+    return hasRole(NilConstants.RELAYER_ROLE, relayerAddress);
+  }
+
   function getL2ToL1Root() external view override returns (bytes32) {
     return INilMessageTree(nilMessageTree).getMessageRoot();
+  }
+
+  /// @inheritdoc IL2BridgeMessenger
+  function getLatestDepositNonce() external view returns (uint256) {
+    return relayedMessageHashStore.length();
   }
 }
