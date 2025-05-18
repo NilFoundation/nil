@@ -20,3 +20,4 @@ export interface BatchInfo {
 
 export const proposerRoleHash = ethers.keccak256(ethers.toUtf8Bytes("PROPOSER_ROLE"));
 
+export const relayerRoleHash = ethers.keccak256(ethers.toUtf8Bytes("RELAYER_ROLE"));

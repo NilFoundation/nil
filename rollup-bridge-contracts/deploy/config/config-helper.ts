@@ -25,11 +25,23 @@ export interface L1NetworkConfig {
 }
 
 export interface L1TestConfig {
-    ethDepositTestConfig: L1ETHDepositTestConfig;
+    l2DepositRecipient: string;
+    l2FeeRefundRecipient: string;
+    l1ETHDepositTestConfig: L1ETHDepositTestConfig;
+    l1ERC20DepositTestConfig: L1ERC20DepositTestConfig;
 }
 
 export interface L1ETHDepositTestConfig {
-    ethAmount: number; // Amount of ETH to deposit on L1
+    amount: number; // Amount of ETH to deposit on L1
+    gasLimit: number;
+    totalNativeAmount: number;
+    userMaxFeePerGas: number;
+    userMaxPriorityFeePerGas: number;
+}
+
+export interface L1ERC20DepositTestConfig {
+    tokenAddress: string;
+    amount: number;
     gasLimit: number;
     totalNativeAmount: number;
     userMaxFeePerGas: number;
@@ -286,14 +298,13 @@ export interface L2NetworkConfig {
     l2BridgeMessengerConfig: L2BridgeMessengerConfig;
     l2EnshrinedTokenBridgeConfig: L2EnshrinedTokenBridgeConfig;
     l2ETHBridgeConfig: L2ETHBridgeConfig;
+    l2TestConfig: L2TestConfig;
 }
 
 export interface L2CommonConfig {
     owner: string;
     admin: string;
     relayer: string;
-    depositRecipient: string;
-    feeRefundRecipient: string;
     tokens: EnshrinedToken[];
     mockL1Bridge?: string; // Optional field to retain backward compatibility
 }
@@ -344,6 +355,19 @@ export interface L2ETHBridgeConfig {
         l2ETHBridgeProxy: string;
         l2ETHBridgeImplementation: string;
     }
+}
+
+export interface L2TestConfig {
+    ethTestEventData: ETHTestEventData;
+    erc20TestEventData: ERC20TestEventData;
+}
+
+export interface ETHTestEventData {
+    messageHash: string;
+}
+
+export interface ERC20TestEventData {
+    messageHash: string;
 }
 
 const nilNetworkConfigFilePath = path.join(__dirname, 'nil-deployment-config.json');

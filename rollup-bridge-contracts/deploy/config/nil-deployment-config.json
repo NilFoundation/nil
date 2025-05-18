@@ -5,8 +5,6 @@
         "owner": "",
         "admin": "",
         "relayer": "",
-        "depositRecipient": "",
-        "feeRefundRecipient": "",
         "tokens": [
           {
             "name": "USD Coin",
@@ -64,6 +62,14 @@
           "proxyAdmin": "",
           "l2ETHBridgeProxy": "",
           "l2ETHBridgeImplementation": ""
+        }
+      },
+      "l2TestConfig": {
+        "ethTestEventData": {
+          "messageHash": ""
+        },
+        "erc20TestEventData": {
+          "messageHash": ""
         }
       }
     }

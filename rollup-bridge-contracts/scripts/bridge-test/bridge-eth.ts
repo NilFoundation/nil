@@ -7,6 +7,7 @@ import {
     isValidAddress,
     loadNilNetworkConfig,
     L2NetworkConfig,
+    L1NetworkConfig,
 } from '../../deploy/config/config-helper';
 import { bigIntReplacer, extractAndParseMessageSentEventLog, MessageSentEvent } from './get-messenger-events';
 
@@ -19,7 +20,7 @@ const l1EthBridgeABI = JSON.parse(fs.readFileSync(l1EthBridgeABIPath, 'utf8')).a
 // npx hardhat run scripts/bridge-test/bridge-eth.ts --network geth
 export async function bridgeETH() {
     const networkName = network.name;
-    const config = loadL1NetworkConfig(networkName);
+    const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     if (!isValidAddress(config.l1ETHBridge.l1ETHBridgeProxy)) {
         throw new Error('Invalid l1ETHBridgeProxy address in config');
@@ -42,11 +43,11 @@ export async function bridgeETH() {
 
     const l2DepositRecipient = l2NetworkConfig.l2CommonConfig.depositRecipient;
     const l2FeeRefundAddress = l2NetworkConfig.l2CommonConfig.feeRefundRecipient;
-    const eth_amount = config.l1TestConfig.ethDepositTestConfig.ethAmount;
-    const gasLimit = config.l1TestConfig.ethDepositTestConfig.gasLimit;
-    const total_native_amount = config.l1TestConfig.ethDepositTestConfig.totalNativeAmount;
-    const userMaxFeePerGas = config.l1TestConfig.ethDepositTestConfig.userMaxFeePerGas;
-    const userMaxPriorityFeePerGas = config.l1TestConfig.ethDepositTestConfig.userMaxPriorityFeePerGas;
+    const eth_amount = config.l1TestConfig.l1ETHDepositTestConfig.amount;
+    const gasLimit = config.l1TestConfig.l1ETHDepositTestConfig.gasLimit;
+    const total_native_amount = config.l1TestConfig.l1ETHDepositTestConfig.totalNativeAmount;
+    const userMaxFeePerGas = config.l1TestConfig.l1ETHDepositTestConfig.userMaxFeePerGas;
+    const userMaxPriorityFeePerGas = config.l1TestConfig.l1ETHDepositTestConfig.userMaxPriorityFeePerGas;
 
     console.log(`bridging ${eth_amount} (WEI) to recipient: ${l2DepositRecipient}`);
 
@@ -77,6 +78,9 @@ export async function bridgeETH() {
     const messageSentEvent: MessageSentEvent = messageSentEventLogData;
 
     console.log(`messageSentEvent for depositETH is: ${JSON.stringify(messageSentEvent, bigIntReplacer, 2)}`);
+
+    const messageHash = messageSentEvent.messageHash;
+
 }
 
 async function main() {

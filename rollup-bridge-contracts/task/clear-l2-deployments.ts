@@ -14,8 +14,7 @@ task("clear-l2-deployments", "Clears L2DeploymentConfig entries in nil-deploymen
         config.l2CommonConfig.admin = "";
         config.l2CommonConfig.owner = "";
         config.l2CommonConfig.mockL1Bridge = "";
-        config.l2CommonConfig.depositRecipient = "";
-        config.l2CommonConfig.feeRefundRecipient = "";
+        config.l2CommonConfig.relayer = "";
 
         // clear all deployed contract address under config
         config.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerImplementation = "";
@@ -23,6 +22,9 @@ task("clear-l2-deployments", "Clears L2DeploymentConfig entries in nil-deploymen
         config.l2BridgeMessengerConfig.l2BridgeMessengerContracts.proxyAdmin = "";
 
         config.l2CommonConfig.mockL1Bridge = "";
+
+        config.l2TestConfig.erc20TestEventData.messageHash = "";
+        config.l2TestConfig.ethTestEventData.messageHash = "";
 
         config.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeImplementation = "";
         config.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy = "";
