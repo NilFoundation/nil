@@ -10,7 +10,7 @@ import {
     waitTillCompleted,
 } from "@nilfoundation/niljs";
 import "dotenv/config";
-import { L2NetworkConfig, loadNilNetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
+import { L2NetworkConfig, loadL1NetworkConfig, loadNilNetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
 import { getCheckSummedAddress } from '../scripts/utils/validate-config';
 
 let smartAccount: SmartAccountV1 | null = null;
@@ -74,10 +74,9 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
             PRIVATE_KEY: privateKey,
             SMART_ACCOUNT_ADDRESS: smartAccount.address,
         }));
-        console.log("🆕 New Smart Account Generated:", smartAccount.address);
+        console.log("🆕 owner Smart Account Generated:", smartAccount.address);
     }
 
-    //DEPOSIT_RECIPIENT_PRIVATE_KEY = "0xe4d6ddfd7479614249381d4bd240fa2408efc53dad5f7f31cb7ae7e5962fc1d0"
     const depositRecipientPrivateKey = process.env.DEPOSIT_RECIPIENT_PRIVATE_KEY as `0x${string}`;
     let signer = new LocalECDSAKeySigner({ privateKey: depositRecipientPrivateKey });
     const depositRecipientSmartAccount = new SmartAccountV1({
@@ -88,11 +87,11 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
         pubkey: signer.getPublicKey(),
     });
     const depositRecipientSmartAccountAddress = depositRecipientSmartAccount.address;
-    console.log("🆕 New Smart Account Generated:", depositRecipientSmartAccountAddress);
+    console.log("🆕 depositRecipient Smart Account Generated:", depositRecipientSmartAccountAddress);
 
 
     const nilFeeRefundAddressPrivateKey = process.env.NIL_FEE_REFUND_PRIVATE_KEY as `0x${string}`;
-    signer = new LocalECDSAKeySigner({ privateKey: depositRecipientPrivateKey });
+    signer = new LocalECDSAKeySigner({ privateKey: nilFeeRefundAddressPrivateKey });
     const feeRefundSmartAccount = new SmartAccountV1({
         signer,
         client,
@@ -101,12 +100,16 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
         pubkey: signer.getPublicKey(),
     });
     const feeRefundSmartAccountAddress = feeRefundSmartAccount.address;
+    console.log("🆕 feeRefund Smart Account Generated:", feeRefundSmartAccountAddress);
 
+    console.log(`about to topup  owner via faucet`);
     const topUpFaucet = await faucetClient.topUp({
         smartAccountAddress: smartAccount.address,
         amount: convertEthToWei(0.1),
         faucetAddress: process.env.NIL as `0x${string}`,
     });
+
+    console.log(`faucet topup initiation done`);
 
     await waitTillCompleted(client, topUpFaucet);
 
@@ -121,8 +124,11 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
 
     config.l2CommonConfig.owner = getCheckSummedAddress(smartAccountAddress);
     config.l2CommonConfig.admin = getCheckSummedAddress(smartAccountAddress);
-    config.l2CommonConfig.depositRecipient = getCheckSummedAddress(depositRecipientSmartAccountAddress);
-    config.l2CommonConfig.feeRefundRecipient = getCheckSummedAddress(feeRefundSmartAccountAddress);
+
+    const l1Config = loadL1NetworkConfig(networkName);
+
+    l1Config.l1TestConfig.l2DepositRecipient = getCheckSummedAddress(depositRecipientSmartAccountAddress);
+    l1Config.l1TestConfig.l2FeeRefundRecipient = getCheckSummedAddress(feeRefundSmartAccountAddress);
 
     // Save the updated config
     saveNilNetworkConfig(networkName, config);

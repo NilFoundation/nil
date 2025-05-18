@@ -41,8 +41,8 @@ export async function bridgeETH() {
     // save the nilMessageTree Address in the json config for l2
     const l2NetworkConfig: L2NetworkConfig = loadNilNetworkConfig("local");
 
-    const l2DepositRecipient = l2NetworkConfig.l2CommonConfig.depositRecipient;
-    const l2FeeRefundAddress = l2NetworkConfig.l2CommonConfig.feeRefundRecipient;
+    const l2DepositRecipient = config.l1TestConfig.l2DepositRecipient;
+    const l2FeeRefundAddress = config.l1TestConfig.l2FeeRefundRecipient;
     const eth_amount = config.l1TestConfig.l1ETHDepositTestConfig.amount;
     const gasLimit = config.l1TestConfig.l1ETHDepositTestConfig.gasLimit;
     const total_native_amount = config.l1TestConfig.l1ETHDepositTestConfig.totalNativeAmount;
