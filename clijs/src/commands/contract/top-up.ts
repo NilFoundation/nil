@@ -50,14 +50,21 @@ export default class ContractTopup extends BaseCommand {
       this.rpcClient,
     );
     this.info(`Top-up tx - ${txHash}`);
+    const balance = await this.rpcClient.getBalance(args.address);
+    const balances = await this.rpcClient.getTokens(args.address, "latest");
     if (!flags.quiet) {
       if (args.tokenId === "NIL") {
-        const balance = await this.rpcClient.getBalance(args.address);
         this.log(`Balance: ${balance.toString()}`);
       } else {
-        const balances = await this.rpcClient.getTokens(args.address, "latest");
         // biome-ignore lint/style/noNonNullAssertion:
         this.log(`Token balance: ${balances[args.tokenId!]}`);
+      }
+    } else {
+      if (args.tokenId === "NIL") {
+        this.log(balance.toString());
+      } else {
+        // biome-ignore lint/style/noNonNullAssertion:
+        this.log(balances[args.tokenId!].toString());
       }
     }
     return true;

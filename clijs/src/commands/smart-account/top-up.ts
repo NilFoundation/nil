@@ -25,7 +25,7 @@ export default class SmartAccountTopup extends BaseCommand {
   static override examples = ["<%= config.bin %> <%= command.id %>"];
 
   public async run(): Promise<boolean> {
-    const { args } = await this.parse(SmartAccountTopup);
+    const { args, flags } = await this.parse(SmartAccountTopup);
 
     if (!this.faucetClient) {
       throw new Error("Faucet client is not initialized");
@@ -45,7 +45,9 @@ export default class SmartAccountTopup extends BaseCommand {
       },
       this.rpcClient,
     );
-    this.info(`Top-up tx - ${txHash}`);
+    if (!flags.quiet) {
+      this.info(`Top-up tx - ${txHash}`);
+    }
     return true;
   }
 }

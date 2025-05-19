@@ -76,9 +76,11 @@ export default class ContractCallReadOnly extends BaseCommand {
       );
     }
 
-    if (args.bytecodeOrMethod.startsWith("0x")) {
-      return result.data;
+    if (result.decodedData) {
+      this.log(result.decodedData.toString());
+      return result.decodedData;
     }
-    return result.decodedData;
+    this.log(result.data);
+    return result.data;
   }
 }
