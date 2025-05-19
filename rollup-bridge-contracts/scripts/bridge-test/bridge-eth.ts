@@ -49,9 +49,29 @@ export async function bridgeETH() {
     const userMaxFeePerGas = config.l1TestConfig.l1ETHDepositTestConfig.userMaxFeePerGas;
     const userMaxPriorityFeePerGas = config.l1TestConfig.l1ETHDepositTestConfig.userMaxPriorityFeePerGas;
 
-    console.log(`bridging ${eth_amount} (WEI) to recipient: ${l2DepositRecipient}`);
+    // Log all test input parameters
+    console.log("Test Input Parameters:");
+    console.log(`L2 Deposit Recipient: ${l2DepositRecipient}`);
+    console.log(`L2 Fee Refund Address: ${l2FeeRefundAddress}`);
+    console.log(`ETH Amount (WEI): ${eth_amount}`);
+    console.log(`Gas Limit: ${gasLimit}`);
+    console.log(`Total Native Amount (WEI): ${total_native_amount}`);
+    console.log(`User Max Fee Per Gas: ${userMaxFeePerGas}`);
+    console.log(`User Max Priority Fee Per Gas: ${userMaxPriorityFeePerGas}`);
 
-    const tx = await l1ETHBridgeInstance.depositETH(eth_amount, l2DepositRecipient, l2FeeRefundAddress, gasLimit, userMaxFeePerGas, userMaxPriorityFeePerGas, { value: total_native_amount });
+    console.log(`Bridging ${eth_amount} (WEI) to recipient: ${l2DepositRecipient}`);
+
+    // Perform the depositETH transaction
+    const tx = await l1ETHBridgeInstance.depositETH(
+        eth_amount,
+        l2DepositRecipient,
+        l2FeeRefundAddress,
+        gasLimit,
+        userMaxFeePerGas,
+        userMaxPriorityFeePerGas,
+        { value: total_native_amount }
+    );
+
     await tx.wait();
 
     const transactionHash = tx.hash;

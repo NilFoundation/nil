@@ -10,7 +10,7 @@ import {
     waitTillCompleted,
 } from "@nilfoundation/niljs";
 import "dotenv/config";
-import { L2NetworkConfig, loadL1NetworkConfig, loadNilNetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
+import { L2NetworkConfig, loadL1NetworkConfig, loadNilNetworkConfig, saveL1NetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
 import { getCheckSummedAddress } from '../scripts/utils/validate-config';
 
 let smartAccount: SmartAccountV1 | null = null;
@@ -42,9 +42,6 @@ export async function loadNilSmartAccount(): Promise<SmartAccountV1> {
 export async function generateNilSmartAccount(networkName: string): Promise<SmartAccountV1> {
     const rpcEndpoint = process.env.NIL_RPC_ENDPOINT as string;
     const client = new PublicClient({
-        transport: new HttpTransport({ endpoint: rpcEndpoint }),
-    });
-    const faucetClient = new FaucetClient({
         transport: new HttpTransport({ endpoint: rpcEndpoint }),
     });
 
@@ -102,6 +99,10 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
     const feeRefundSmartAccountAddress = feeRefundSmartAccount.address;
     console.log("🆕 feeRefund Smart Account Generated:", feeRefundSmartAccountAddress);
 
+    const faucetClient = new FaucetClient({
+        transport: new HttpTransport({ endpoint: rpcEndpoint }),
+    });
+
     console.log(`about to topup  owner via faucet`);
     const topUpFaucet = await faucetClient.topUp({
         smartAccountAddress: smartAccount.address,
@@ -125,13 +126,14 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
     config.l2CommonConfig.owner = getCheckSummedAddress(smartAccountAddress);
     config.l2CommonConfig.admin = getCheckSummedAddress(smartAccountAddress);
 
-    const l1Config = loadL1NetworkConfig(networkName);
+    const l1Config = loadL1NetworkConfig("geth");
 
     l1Config.l1TestConfig.l2DepositRecipient = getCheckSummedAddress(depositRecipientSmartAccountAddress);
     l1Config.l1TestConfig.l2FeeRefundRecipient = getCheckSummedAddress(feeRefundSmartAccountAddress);
 
     // Save the updated config
     saveNilNetworkConfig(networkName, config);
+    saveL1NetworkConfig("geth", l1Config);
 
     return smartAccount;
 }
