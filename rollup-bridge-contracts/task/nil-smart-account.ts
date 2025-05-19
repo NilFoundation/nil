@@ -10,7 +10,7 @@ import {
     waitTillCompleted,
 } from "@nilfoundation/niljs";
 import "dotenv/config";
-import { L2NetworkConfig, loadL1NetworkConfig, loadNilNetworkConfig, saveL1NetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
+import { L1NetworkConfig, L2NetworkConfig, loadL1NetworkConfig, loadNilNetworkConfig, saveL1NetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
 import { getCheckSummedAddress } from '../scripts/utils/validate-config';
 
 let smartAccount: SmartAccountV1 | null = null;
@@ -28,6 +28,26 @@ export async function loadNilSmartAccount(): Promise<SmartAccountV1> {
     const config: L2NetworkConfig = loadNilNetworkConfig("local");
     let smartAccountAddress = config.l2CommonConfig.owner;
 
+    const signer = new LocalECDSAKeySigner({ privateKey });
+    smartAccount = new SmartAccountV1({
+        signer,
+        client,
+        address: smartAccountAddress as `0x${string}`,
+        pubkey: signer.getPublicKey(),
+    });
+
+    return smartAccount;
+}
+
+export async function loadL2DepositRecipientSmartAccount(): Promise<SmartAccountV1> {
+    const rpcEndpoint = process.env.NIL_RPC_ENDPOINT as string;
+    const client = new PublicClient({
+        transport: new HttpTransport({ endpoint: rpcEndpoint }),
+    });
+
+    const privateKey = process.env.DEPOSIT_RECIPIENT_PRIVATE_KEY as `0x${string}`;
+    const config: L1NetworkConfig = loadL1NetworkConfig("geth");
+    let smartAccountAddress = config.l1TestConfig.l2DepositRecipient;
     const signer = new LocalECDSAKeySigner({ privateKey });
     smartAccount = new SmartAccountV1({
         signer,

@@ -13,7 +13,7 @@ import {
     getContract,
     ProcessedReceipt,
 } from "@nilfoundation/niljs";
-import { loadNilSmartAccount } from "./nil-smart-account";
+import { loadL2DepositRecipientSmartAccount, loadNilSmartAccount } from "./nil-smart-account";
 import { L2NetworkConfig, loadNilNetworkConfig } from "../deploy/config/config-helper";
 
 // npx hardhat validate-l2-eth-bridging --networkname local
@@ -78,6 +78,21 @@ task("validate-l2-eth-bridging", "Validates the state changes of l2BridgeMesseng
         }
 
         console.log(`Successfully verified that relayedMessageHash: ${messageHash} inclusion in L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy}`);
+
+        // get depositRecipientBalance
+        const depositRecipientSmartAccount = await loadL2DepositRecipientSmartAccount();
+
+        if (!depositRecipientSmartAccount) {
+            throw Error(`Invalid depositRecipientSmartAccount`);
+        }
+
+        const balance = await depositRecipientSmartAccount.getBalance();
+
+        if (!(balance > BigInt(0))) {
+            throw Error(`Insufficient or Zero balance for smart-account: ${depositRecipientSmartAccount.address}`);
+        }
+
+        console.log(`deposit-recipient has eth balance: ${balance}`);
     });
 
 function sleepInMilliSeconds(ms: number) {
