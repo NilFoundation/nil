@@ -23,7 +23,7 @@ func (c *taskDebugRpcClient) GetTasks(
 	ctx context.Context,
 	request *public.TaskDebugRequest,
 ) ([]*public.TaskView, error) {
-	return doRPCCall[*public.TaskDebugRequest, []*public.TaskView](
+	return doRPCCall2[*public.TaskDebugRequest, []*public.TaskView](
 		ctx,
 		c.client,
 		public.DebugGetTasks,
@@ -32,7 +32,7 @@ func (c *taskDebugRpcClient) GetTasks(
 }
 
 func (c *taskDebugRpcClient) GetTaskTree(ctx context.Context, taskId types.TaskId) (*public.TaskTreeView, error) {
-	return doRPCCall[types.TaskId, *public.TaskTreeView](
+	return doRPCCall2[types.TaskId, *public.TaskTreeView](
 		ctx,
 		c.client,
 		public.DebugGetTaskTree,

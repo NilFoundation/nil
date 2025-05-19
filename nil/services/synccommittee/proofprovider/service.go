@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/debug"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/executor"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/metrics"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
@@ -87,7 +88,7 @@ func New(config *Config, database db.DB) (*ProofProvider, error) {
 		rpc.NewServerConfig(config.OwnRpcEndpoint),
 		logger,
 		taskScheduler,
-		scheduler.NewTaskDebugger(taskStorage, logger),
+		debug.NewTaskDebugger(taskStorage, logger),
 	)
 
 	taskCancelChecker := scheduler.NewTaskCancelChecker(

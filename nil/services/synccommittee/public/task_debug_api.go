@@ -10,14 +10,9 @@ import (
 )
 
 const (
-	DebugNamespace   = "Debug"
-	DebugGetTasks    = DebugNamespace + "_getTasks"
-	DebugGetTaskTree = DebugNamespace + "_getTaskTree"
-)
-
-const (
-	TaskDebugMinLimit = 1
-	TaskDebugMaxLimit = 1000
+	DebugTasksNamespace = "DebugTasks"
+	DebugGetTasks       = DebugTasksNamespace + "_getTasks"
+	DebugGetTaskTree    = DebugTasksNamespace + "_getTaskTree"
 )
 
 type TaskDebugOrder int8
@@ -55,22 +50,22 @@ const (
 	DefaultDebugTaskType   = types.TaskTypeNone
 	DefaultDebugTaskOwner  = types.UnknownExecutorId
 	DefaultDebugTaskOrder  = OrderByCreatedAt
-	DefaultDebugTaskLimit  = 20
 )
 
 type TaskDebugRequest struct {
+	listRequestCommon
+
 	Status TaskStatus     `json:"status,omitempty"`
 	Type   TaskType       `json:"type,omitempty"`
 	Owner  TaskExecutorId `json:"owner,omitempty"`
 
 	Order     TaskDebugOrder `json:"order"`
 	Ascending bool           `json:"ascending,omitempty"`
-	Limit     int            `json:"limit"`
 }
 
 func DefaultTaskDebugRequest() TaskDebugRequest {
 	defaultOrder := DefaultDebugTaskOrder
-	defaultLimit := DefaultDebugTaskLimit
+	defaultLimit := DefaultLimit
 	return *NewTaskDebugRequest(nil, nil, nil, &defaultOrder, false, &defaultLimit)
 }
 
@@ -102,28 +97,15 @@ func NewTaskDebugRequest(
 		targetOrder = *order
 	}
 
-	targetLimit := DefaultDebugTaskLimit
-	if limit != nil {
-		targetLimit = *limit
-	}
-
 	return &TaskDebugRequest{
+		listRequestCommon: newListRequestCommon(limit),
+
 		Status:    targetStatus,
 		Type:      targetType,
 		Owner:     targetOwner,
 		Order:     targetOrder,
 		Ascending: ascending,
-		Limit:     targetLimit,
 	}
-}
-
-func (r *TaskDebugRequest) Validate() error {
-	if r.Limit < TaskDebugMinLimit || r.Limit > TaskDebugMaxLimit {
-		return fmt.Errorf(
-			"limit must be between %d and %d, actual is %d", TaskDebugMinLimit, TaskDebugMaxLimit, r.Limit)
-	}
-
-	return nil
 }
 
 // TaskDebugApi provides methods to retrieve debug information on tasks.

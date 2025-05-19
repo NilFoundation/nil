@@ -6,6 +6,10 @@ import (
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
 )
 
-func NewClient(endpoint string, logger logging.Logger) public.TaskDebugApi {
+func NewTasksClient(endpoint string, logger logging.Logger) public.TaskDebugApi {
 	return rpc.NewTaskDebugRpcClient(endpoint, logger)
+}
+
+func NewBlocksClient(endpoint string, logger logging.Logger) public.BlockDebugApi {
+	return rpc.NewBlockDebugRpcClient(endpoint, logger)
 }

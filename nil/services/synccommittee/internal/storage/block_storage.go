@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"slices"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -12,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
 	"github.com/jonboulle/clockwork"
 )
 
@@ -479,16 +481,7 @@ func (bs *BlockStorage) resetBatchesPartialImpl(
 		return nil, err
 	}
 
-	latestBatch, err := bs.ops.getLatestBatchId(tx)
-	if err != nil {
-		return nil, err
-	}
-	if latestBatch == nil {
-		bs.logger.Debug().Msg("no batches created, nothing to purge")
-		return nil, nil
-	}
-
-	for batch, err := range bs.ops.getBatchesSeqReversed(tx, *latestBatch, firstBatchToPurge) {
+	for batch, err := range bs.getLatestBatchesSeqReversed(tx, &firstBatchToPurge) {
 		if err != nil {
 			return nil, err
 		}
@@ -616,4 +609,125 @@ func (bs *BlockStorage) deleteBatchWithBlocks(tx db.RwTx, batch *batchEntry) err
 	}
 
 	return nil
+}
+
+// getLatestBatchesSeqReversed iterates through a chain of batches starting
+// from the latest created batch down to the batch with id = `to`.
+//
+// When `to` is `nil`, batches are traversed down to the first created batch.
+func (bs *BlockStorage) getLatestBatchesSeqReversed(tx db.RoTx, to *scTypes.BatchId) iter.Seq2[*batchEntry, error] {
+	return func(yield func(*batchEntry, error) bool) {
+		latestBatch, err := bs.ops.getLatestBatchId(tx)
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+		if latestBatch == nil {
+			return
+		}
+
+		for batch, err := range bs.ops.getBatchesSeqReversed(tx, *latestBatch, to) {
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+			if !yield(batch, nil) {
+				return
+			}
+		}
+	}
+}
+
+func (bs *BlockStorage) GetBatchView(ctx context.Context, batchId public.BatchId) (*public.BatchViewDetailed, error) {
+	tx, err := bs.database.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	entry, err := bs.ops.getBatchEntry(tx, batchId)
+
+	switch {
+	case errors.Is(err, scTypes.ErrBatchNotFound):
+		return nil, nil
+	case err != nil:
+		return nil, err
+	}
+
+	batch, err := bs.reconstructBatch(tx, entry)
+	if err != nil {
+		return nil, err
+	}
+
+	batchView := public.NewBatchViewDetailed(batch)
+	return batchView, nil
+}
+
+func (bs *BlockStorage) GetBatchViews(
+	ctx context.Context,
+	request public.BatchDebugRequest,
+) ([]*public.BatchViewCompact, error) {
+	if err := request.Validate(); err != nil {
+		return nil, err
+	}
+
+	tx, err := bs.database.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	views := make([]*public.BatchViewCompact, 0)
+
+	for batch, err := range bs.getLatestBatchesSeqReversed(tx, nil) {
+		if err != nil {
+			return nil, err
+		}
+
+		view := public.NewBatchViewCompact(
+			batch.Id,
+			batch.ParentId,
+			batch.IsSealed,
+			batch.CreatedAt,
+			batch.UpdatedAt,
+			len(batch.BlockIds),
+		)
+
+		views = append(views, view)
+
+		if len(views) >= request.Limit {
+			break
+		}
+	}
+
+	return views, nil
+}
+
+func (bs *BlockStorage) GetBatchStats(ctx context.Context) (*public.BatchStats, error) {
+	tx, err := bs.database.CreateRoTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	totalCount := 0
+	sealedCount := 0
+	provedCount := 0
+
+	for batch, err := range bs.getLatestBatchesSeqReversed(tx, nil) {
+		if err != nil {
+			return nil, err
+		}
+
+		totalCount++
+		if batch.IsSealed {
+			sealedCount++
+		}
+		if batch.IsProved {
+			provedCount++
+		}
+	}
+
+	stats := public.NewBatchStats(totalCount, sealedCount, provedCount)
+	return stats, nil
 }
