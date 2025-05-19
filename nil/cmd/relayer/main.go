@@ -118,6 +118,14 @@ func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) error {
 		"",
 		"Address of L1BridgeMessenger contract to fetch events from",
 	)
+
+	runCmd.Flags().StringSliceVar(
+		&cfg.EventListenerConfig.L2BridgeAddresses,
+		"l2-bridges-addresses",
+		[]string{},
+		"Addresses of L2 token bridges to filter events",
+	)
+
 	runCmd.Flags().DurationVar(&cfg.L1ClientConfig.Timeout,
 		"l1-timeout", time.Second, "Max timeout for ETH client to timeout",
 	)

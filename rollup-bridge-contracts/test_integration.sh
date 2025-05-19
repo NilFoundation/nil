@@ -101,6 +101,13 @@ pids+=("$!")
 wait_for_http_service "http://127.0.0.1:8529"
 
 npx hardhat l2-task-runner --networkname local --l1networkname geth
+l2_contract_addr=$(jq -r '.networks.local.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy' deploy/config/nil-deployment-config.json)
+l2_eth_bridge_addr=$(jq -r '.networks.local.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy' deploy/config/nil-deployment-config.json)
+l2_enshrined_token_bridge_addr=$(jq -r '.networks.local.l2EnshrinedTokenBridgeConfig.l2EnshrinedTokenBridgeContracts.l2EnshrinedTokenBridgeProxy' deploy/config/nil-deployment-config.json)
+
+echo "L2BridgeMessenger deployed to: $l2_contract_addr"
+echo "L2ETHBridge deployed to: $l2_eth_bridge_addr"
+echo "L2EnshrinedTokenBridge deployed to: $l2_enshrined_token_bridge_addr"
 
 npx hardhat run scripts/wiring/bridges/l1/set-counterparty-in-bridges.ts --network geth
 
@@ -114,7 +121,8 @@ $RELAYER_BIN run \
     --l2-debug-mode=true \
     --l2-smart-account-salt=1234567890 \
     --l2-faucet-address=http://127.0.0.1:8529 \
-    --l2-contract-addr=0xdeadbeef \
+    --l2-contract-addr=$l2_contract_addr \
+    --l2-bridges-addresses=$l2_eth_bridge_addr,$l2_enshrined_token_bridge_addr \
     >$LOG_DIR/relayer.log 2>&1 &
 pids+=("$!")
 wait_for_http_service "http://127.0.0.1:7777"

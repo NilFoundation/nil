@@ -54,20 +54,22 @@ task("validate-l2-eth-bridging", "Validates the state changes of l2BridgeMesseng
         let isDepositMessageRelayed: boolean = false;
 
         for (let i = 0; i < 6; i++) {
+            console.log(`Verifying relayedMessageHash: ${messageHash} inclusion in L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy}... attempt ${i + 1}/${retries}`);
             try {
                 isDepositMessageRelayed = await l2BridgeMessengerProxyInstance.read.isDepositMessageRelayed([messageHash]);
                 if (isDepositMessageRelayed) {
                     break;
                 }
             } catch (error) {
-                if (i < retries - 1) {
-                    console.log(`Retrying verification... (${i + 1}/${retries})`);
-                    await sleepInMilliSeconds(1000 * Math.pow(2, i)); // Exponential backoff delay
-                } else {
-                    throw new Error(
-                        `Failed to verify relayedMessageHash: ${messageHash} inclusion in L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy} after ${retries} attempts`,
-                    );
-                }
+                console.error(`Error verifying relayedMessageHash: ${messageHash} inclusion in L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy}`, error);
+            }
+            if (i < retries - 1) {
+                console.log(`Retrying verification... (${i + 1}/${retries})`);
+                await sleepInMilliSeconds(1000 * Math.pow(2, i)); // Exponential backoff delay
+            } else {
+                throw new Error(
+                    `Failed to verify relayedMessageHash: ${messageHash} inclusion in L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy} after ${retries} attempts`,
+                );
             }
         }
 
