@@ -60,7 +60,7 @@ task("grant-relayer-role", "Grant relayer role to the smart-account of relayer n
         const grantRelayerRoleResponseTxnReceipt: ProcessedReceipt[] = await grantRelayerRoleResponse.wait();
 
         // check the first element in the ProcessedReceipt and verify if it is successful
-        if (!grantRelayerRoleResponse[0].success) {
+        if (!grantRelayerRoleResponseTxnReceipt[0].success) {
             throw Error(`Failed to grant relayerRole for: ${l2NetworkConfig.l2CommonConfig.relayer} 
             on the L2EnshrinedTokenBridge contract: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy}`);
         }
@@ -76,4 +76,6 @@ task("grant-relayer-role", "Grant relayer role to the smart-account of relayer n
         if (!hasRelayerRole) {
             throw Error(`RELAYER role is not granted for ${l2NetworkConfig.l2CommonConfig.relayer} on L2BridgeMessenger`);
         }
+
+        console.log(`successfully granted RELAYER role for ${l2NetworkConfig.l2CommonConfig.relayer} on L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy}`);
     });

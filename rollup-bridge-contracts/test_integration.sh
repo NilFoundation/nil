@@ -122,8 +122,6 @@ wait_for_http_service "http://127.0.0.1:7777"
 # example query to get relayer stats
 curl -XPOST http://127.0.0.1:7777 -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"relayerDebug_getStats", "params": [], "id": 1}'
 
-echo "TODO: L2 contract deployment is not ready yet"
-
 echo "Triggering L1 deposit event"
 
 npx hardhat grant-relayer-role --networkname local
