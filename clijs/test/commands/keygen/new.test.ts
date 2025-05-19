@@ -5,10 +5,11 @@ import { CliTest } from "../../setup.js";
 
 describe("keygen:new", () => {
   CliTest("runs keygen:new cmd", async ({ cfgPath, runCommand }) => {
-    const { result } = await runCommand(["keygen", "new"]);
+    const { result, stdout } = await runCommand(["keygen", "new"]);
     const configManager = new ConfigManager(cfgPath);
     expect(result).to.equal(
       configManager.getConfigValue(ConfigKeys.NilSection, ConfigKeys.PrivateKey),
     );
+    expect(stdout).toContain("Private key");
   });
 });

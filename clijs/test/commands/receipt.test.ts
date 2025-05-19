@@ -18,19 +18,21 @@ describe("receipt:get_receipt", () => {
     expect(txHash).toBeTruthy();
 
     {
-      const { result, stdout } = await runCommand(["receipt", txHash]);
+      const { result, stdout, stderr } = await runCommand(["receipt", txHash]);
       expect((result as ProcessedReceipt).success).toBeTruthy();
       expect(stdout).to.contains("Receipt data: ");
       expect(JSON.parse(stdout.substring("Receipt data: ".length)).transactionHash).to.equal(
         txHash,
       );
+      expect(stderr).to.equal("");
     }
 
     {
-      const { result, stdout } = await runCommand(["receipt", "-q", txHash]);
+      const { result, stdout, stderr } = await runCommand(["receipt", "-q", txHash]);
       expect((result as ProcessedReceipt).success).toBeTruthy();
       expect(stdout).to.not.contains("Receipt data: ");
       expect(JSON.parse(stdout).transactionHash).to.equal(txHash);
+      expect(stderr).to.equal("");
     }
   });
 });

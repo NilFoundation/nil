@@ -24,6 +24,6 @@ CliTest(
 
     expect(res.result.length).toBeGreaterThan(0);
     expect(res.stderr).toBe("");
-    expect(res.stdout).toBe("");
+    expect(res.stdout).toBe("[1,2,3,4]\n");
   },
 );

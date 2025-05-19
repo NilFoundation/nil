@@ -5,10 +5,8 @@ import { BaseCommand } from "../../base.js";
 import { readJsonFile } from "../../common/utils.js";
 import { bigintFlag, hexArg } from "../../types.js";
 
-export default class SmartAccountEstimateFee extends BaseCommand {
-  static override summary = "Get the recommended fees";
-  static override description =
-    "Get the recommended fees (internal and external) for a transaction sent by the smart account";
+export default class ContractEstimateFee extends BaseCommand {
+  static override summary = "Get the recommended fee credit for a transaction";
 
   static flags = {
     abiPath: Flags.string({
@@ -21,6 +19,18 @@ export default class SmartAccountEstimateFee extends BaseCommand {
       description: "The amount of default tokens to send",
       required: false,
     }),
+    internal: Flags.boolean({
+      char: "i",
+      description: "if true, the transaction is internal",
+      required: false,
+      default: false,
+    }),
+    deploy: Flags.boolean({
+      char: "d",
+      description: "if true, the transaction is for deployment",
+      required: false,
+      default: false,
+    }),
   };
 
   static args = {
@@ -29,10 +39,10 @@ export default class SmartAccountEstimateFee extends BaseCommand {
       required: true,
       description: "The address of the smart contract",
     }),
-    bytecodeOrMethod: Args.string({
-      name: "bytecodeOrMethod",
+    method: Args.string({
+      name: "method",
       required: true,
-      description: "The bytecode or method to send",
+      description: "The method to call",
     }),
     args: Args.string({
       name: "args",
@@ -45,7 +55,7 @@ export default class SmartAccountEstimateFee extends BaseCommand {
   static override examples = ["<%= config.bin %> <%= command.id %>"];
 
   public async run(): Promise<string> {
-    const { flags, args } = await this.parse(SmartAccountEstimateFee);
+    const { flags, args } = await this.parse(ContractEstimateFee);
     const { smartAccount } = await this.setupSmartAccount();
     const address = args.address as Hex;
 
@@ -55,31 +65,25 @@ export default class SmartAccountEstimateFee extends BaseCommand {
     } catch (e) {
       this.error(`Invalid ABI file: ${e}`);
     }
-
-    let result: EstimateFeeResult;
-
-    if (args.bytecodeOrMethod.startsWith("0x")) {
-      const data = args.bytecodeOrMethod as Hex;
-      result = await smartAccount.client.estimateGas(
-        {
-          to: address,
-          value: flags.amount ?? 0n,
-          data: data,
-        },
-        "latest",
-      );
-    } else {
-      result = await smartAccount.client.estimateGas(
-        {
-          to: address,
-          value: flags.amount ?? 0n,
-          args: args.args?.split(" ") ?? [],
-          abi: abi,
-          functionName: args.bytecodeOrMethod,
-        },
-        "latest",
-      );
+    const txFlags: string[] = [];
+    if (flags.internal) {
+      txFlags.push("Internal");
     }
+    if (flags.deploy) {
+      txFlags.push("Deploy");
+    }
+
+    const result: EstimateFeeResult = await smartAccount.client.estimateGas(
+      {
+        to: address,
+        value: flags.amount ?? 0n,
+        args: args.args?.split(" ") ?? [],
+        abi: abi,
+        functionName: args.method,
+        flags: txFlags,
+      },
+      "latest",
+    );
     this.log(result.feeCredit.toString());
     return result.feeCredit.toString();
   }

@@ -5,8 +5,8 @@ import { BaseCommand } from "../../base.js";
 import { readJsonFile } from "../../common/utils.js";
 import { hexArg } from "../../types.js";
 
-export default class SmartAccountCallReadOnly extends BaseCommand {
-  static override summary = "Call view method of field of a smart account";
+export default class ContractCallReadOnly extends BaseCommand {
+  static override summary = "Perform a read-only call to a smart contract";
   static override description =
     "Perform a read-only call to the smart contract with the given address and calldata";
 
@@ -40,8 +40,11 @@ export default class SmartAccountCallReadOnly extends BaseCommand {
   static override examples = ["<%= config.bin %> <%= command.id %>"];
 
   public async run(): Promise<unknown> {
-    const { flags, args } = await this.parse(SmartAccountCallReadOnly);
-    const { smartAccount } = await this.setupSmartAccount();
+    const { flags, args } = await this.parse(ContractCallReadOnly);
+    if (!this.rpcClient) {
+      throw new Error("RPC client is not initialized");
+    }
+    const client = this.rpcClient;
     const address = args.address as Hex;
     let abi: Abi;
     try {
@@ -54,7 +57,7 @@ export default class SmartAccountCallReadOnly extends BaseCommand {
 
     if (args.bytecodeOrMethod.startsWith("0x")) {
       const data = args.bytecodeOrMethod as Hex;
-      result = await smartAccount.client.call(
+      result = await client.call(
         {
           to: address,
           data,
@@ -62,7 +65,7 @@ export default class SmartAccountCallReadOnly extends BaseCommand {
         "latest",
       );
     } else {
-      result = await smartAccount.client.call(
+      result = await client.call(
         {
           to: address,
           functionName: args.bytecodeOrMethod,
