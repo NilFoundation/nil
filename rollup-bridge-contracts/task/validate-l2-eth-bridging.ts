@@ -50,8 +50,34 @@ task("validate-l2-eth-bridging", "Validates the state changes of l2BridgeMesseng
             throw Error(`DepositMessageHash is invalid in testJson which is to be asserted on L2BridgeMessenger`);
         }
 
-        const isDepositMessageRelayed = await l2BridgeMessengerProxyInstance.read.isDepositMessageRelayed([messageHash]);
-        if (!isDepositMessageRelayed) {
-            throw Error(`messageHash: ${messageHash} is not processed yet by L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy}`);
+        const retries: number = 10
+        let isDepositMessageRelayed: boolean = false;
+
+        for (let i = 0; i < 6; i++) {
+            try {
+                isDepositMessageRelayed = await l2BridgeMessengerProxyInstance.read.isDepositMessageRelayed([messageHash]);
+                if (isDepositMessageRelayed) {
+                    break;
+                }
+            } catch (error) {
+                if (i < retries - 1) {
+                    console.log(`Retrying verification... (${i + 1}/${retries})`);
+                    await sleepInMilliSeconds(1000 * Math.pow(2, i)); // Exponential backoff delay
+                } else {
+                    throw new Error(
+                        `Failed to verify relayedMessageHash: ${messageHash} inclusion in L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy} after ${retries} attempts`,
+                    );
+                }
+            }
         }
+
+        if (!isDepositMessageRelayed) {
+            throw Error(`Failed to verify relayedMessageHash: ${messageHash} inclusion in L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy}`);
+        }
+
+        console.log(`Successfully verified that relayedMessageHash: ${messageHash} inclusion in L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy}`);
     });
+
+function sleepInMilliSeconds(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
