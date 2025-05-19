@@ -1,9 +1,26 @@
-{ pkgs, lib, stdenv, biome, jq, moreutils, callPackage, pnpm_10, nil, solc, solc-select, enableTesting ? false }:
+{ pkgs
+, lib
+, buildGo124Module
+, stdenv
+, biome
+, jq
+, moreutils
+, callPackage
+, pnpm_10
+, nil
+, solc
+, gotools
+, protobuf
+, protoc-gen-go
+, python3
+, enableTesting ? false
+}:
 
 let
   sigtool = callPackage ./sigtool.nix { };
   nodejs_static = pkgs.pkgsStatic.nodejs_22;
   pnpm_static = (pnpm_10.override { nodejs = nodejs_static; });
+  overrideBuildGoModule = pkg: pkg.override { buildGoModule = buildGo124Module; };
 in
 stdenv.mkDerivation rec {
   name = "clijs";
@@ -18,14 +35,30 @@ stdenv.mkDerivation rec {
     "^niljs(/.*)?$"
     "^smart-contracts(/.*)?$"
     "biome.json"
-  ];
 
+    "Makefile"
+    "go.mod"
+    "go.sum"
+    "^nil(/.*)?$"
+  ];
   pnpmDeps = (callPackage ./npmdeps.nix { });
 
   NODE_PATH = "$npmDeps";
 
-  nativeBuildInputs = [ nodejs_static pnpm_static.configHook biome jq moreutils solc ]
-    ++ lib.optionals stdenv.buildPlatform.isDarwin [ sigtool ]
+  nativeBuildInputs = [
+    nodejs_static
+    pnpm_static.configHook
+    biome
+    jq
+    moreutils
+    solc
+    protobuf
+    (overrideBuildGoModule gotools)
+    (overrideBuildGoModule protoc-gen-go)
+    (python3.withPackages (ps: with ps; [
+      safe-pysha3
+    ]))
+  ] ++ lib.optionals stdenv.buildPlatform.isDarwin [ sigtool ]
     ++ (if enableTesting then [ nil ] else [ ]);
 
   preUnpack = ''
@@ -34,8 +67,8 @@ stdenv.mkDerivation rec {
   '';
 
   postUnpack = ''
-    mkdir source/nil
-    cp -R ${nil}/contracts source/nil
+    mkdir -p source/nil
+    cp -R ${nil}/* source/nil
   '';
 
   buildPhase = ''
@@ -75,17 +108,31 @@ stdenv.mkDerivation rec {
 
     echo "smoke check passed"
 
+    echo "running js tests"
+
     env NILD=nild pnpm run test:ci || {
       echo "tests failed. nild.log:"
       cat nild.log
       exit 1
     }
 
+    echo "running golang tests"
+    cd ..
+
+    export PATH="${nil.go}/bin:$PATH"
+    make -j$NIX_BUILD_CORES rlp pb solidity_console generate_mocks
+
+    testPkgs=$(go list "./nil/tests/..." | grep "tests/cli" | sed -e 's,^[.]/,,' | LC_ALL=C sort -u)
+    for pkg in $testPkgs; do
+      echo "testing $pkg"
+      go test ${(builtins.concatStringsSep " " nil.checkFlags)} $pkg
+    done
+
     echo "tests finished successfully"
   '';
 
   installPhase = ''
     mkdir -p $out
-    mv ./dist/clijs $out/${pname}
+    mv ./clijs/dist/clijs $out/${pname}
   '';
 }

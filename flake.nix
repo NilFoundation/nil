@@ -62,7 +62,7 @@
               enableTesting = false;
               enableRaceDetector = false;
               testGroup = "none";
-              subPackages = [ "nil/cmd/nil" "nil/cmd/nild" "nil/cmd/relayer" ];
+              subPackages = [ "nil/cmd/nild" "nil/cmd/relayer" ];
             };
           in
           rec {
@@ -101,7 +101,9 @@
               enableTesting = true;
             });
             nildocs = (pkgs.callPackage ./nix/nildocs.nix {
-              nil = nilMinimal;
+              nil = nilMinimal.override {
+                subPackages = [ "nil/cmd/nil" "nil/cmd/nild" "nil/cmd/relayer" ];
+              };
               enableTesting = true;
               solc = packages.solc;
             });

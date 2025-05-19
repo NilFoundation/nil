@@ -98,7 +98,7 @@ buildGo124Module rec {
     case ${testGroup} in
       all) ;; # build everything
       others)
-        getGoDirs test | sed -e 's,^[.]/,,' | LC_ALL=C sort -u > all-tests.txt
+        getGoDirs test | grep -v "tests/cli" | sed -e 's,^[.]/,,' | LC_ALL=C sort -u > all-tests.txt
         LC_ALL=C sort -u nix/tests-*.txt > all-groups.txt
 
         # run only tests that do not belong to a group
@@ -115,10 +115,11 @@ buildGo124Module rec {
     export GOFLAGS=''${GOFLAGS//-trimpath/}
 
     parallel=${if parallelTesting then "true" else "false"}
+    testDirs=$(getGoDirs | grep -v 'tests/cli')
     if $parallel ; then
-      buildGoDir test "$(getGoDirs test)"
+      buildGoDir test $testDirs
     else
-      for pkg in $(getGoDirs test); do
+      for pkg in $testDirs; do
         buildGoDir test "$pkg"
       done
     fi

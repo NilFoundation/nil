@@ -30,8 +30,8 @@ func runCliNoCheck(t *testing.T, binPath string, args ...string) (string, error)
 	t.Helper()
 
 	if _, err := os.Stat(binPath); err != nil {
-		mainPath := common.GetAbsolutePath("../../cmd/nil/main.go")
-		cmd := exec.Command("go", "build", "-o", binPath, mainPath)
+		mainPath := common.GetAbsolutePath("../../../clijs/dist/clijs")
+		cmd := exec.Command("cp", mainPath, binPath)
 		require.NoError(t, cmd.Run())
 	}
 
