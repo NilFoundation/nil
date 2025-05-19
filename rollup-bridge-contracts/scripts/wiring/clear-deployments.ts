@@ -12,6 +12,9 @@ import {
 export async function clearDeployments(networkName: string) {
     const config = loadL1NetworkConfig(networkName);
 
+    config.l1TestConfig.l2DepositRecipient = "";
+    config.l1TestConfig.l2FeeRefundRecipient = "";
+
     // clear all deployed contract address under config
     config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy = "";
     config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerImplementation = "";
@@ -67,12 +70,12 @@ export async function clearDeployments(networkName: string) {
     saveL1MockConfig(networkName, l1MockContracts);
 }
 
-// async function main() {
-//     const networkName = network.name;
-//     await clearDeployments(networkName);
-// }
+async function main() {
+    const networkName = network.name;
+    await clearDeployments(networkName);
+}
 
-// main().catch((error) => {
-//     console.error(error);
-//     process.exit(1);
-// });
+main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+});

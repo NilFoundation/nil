@@ -23,8 +23,25 @@ task("clear-l2-deployments", "Clears L2DeploymentConfig entries in nil-deploymen
 
         config.l2CommonConfig.mockL1Bridge = "";
 
-        config.l2TestConfig.erc20TestEventData.messageHash = "";
-        config.l2TestConfig.ethTestEventData.messageHash = "";
+        config.l2TestConfig.ethBalanceBefBridge = BigInt(0);
+
+        config.l2TestConfig.messageSentEvent = {
+            messageSender: "",
+            messageTarget: "",
+            messageNonce: "0",
+            message: "",
+            messageHash: "",
+            messageType: 0,
+            messageCreatedAt: "",
+            messageExpiryTime: "",
+            l2FeeRefundAddress: "",
+            feeCreditData: {
+                nilGasLimit: "0",
+                maxFeePerGas: "0",
+                maxPriorityFeePerGas: "0",
+                feeCredit: "0",
+            },
+        };
 
         config.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeImplementation = "";
         config.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy = "";

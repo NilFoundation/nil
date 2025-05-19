@@ -65,11 +65,23 @@
         }
       },
       "l2TestConfig": {
-        "ethTestEventData": {
-          "messageHash": ""
-        },
-        "erc20TestEventData": {
-          "messageHash": ""
+        "ethBalanceBefBridge": "0",
+        "messageSentEvent": {
+          "messageSender": "",
+          "messageTarget": "",
+          "messageNonce": "0",
+          "message": "",
+          "messageHash": "",
+          "messageType": 0,
+          "messageCreatedAt": "",
+          "messageExpiryTime": "",
+          "l2FeeRefundAddress": "",
+          "feeCreditData": {
+            "nilGasLimit": "0",
+            "maxFeePerGas": "0",
+            "maxPriorityFeePerGas": "0",
+            "feeCredit": "0"
+          }
         }
       }
     }

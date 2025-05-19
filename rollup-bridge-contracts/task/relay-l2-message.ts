@@ -1,16 +1,7 @@
 import type { Abi } from "abitype";
 import { task } from "hardhat/config";
 import {
-    FaucetClient,
-    HttpTransport,
-    LocalECDSAKeySigner,
-    PublicClient,
-    SmartAccountV1,
     convertEthToWei,
-    Transaction,
-    generateRandomPrivateKey,
-    waitTillCompleted,
-    getContract,
     ProcessedReceipt,
 } from "@nilfoundation/niljs";
 import { loadNilSmartAccount } from "./nil-smart-account";
@@ -45,12 +36,12 @@ task("relay-l2-message", "relay the l1-rbidge event data as message on to L2Brid
         // save the L2BridgeMessenger Address in the json config for l2
         const l2NetworkConfig: L2NetworkConfig = loadNilNetworkConfig(networkName);
 
-        const messageSender = "0x4735b6AEe529640b265D50d1409c4503e4Ef2c23";
-        const messageTarget = "0x00012B0Cb7E43d2C7afBb4FD56d27Ea4Ee46Ad8a";
-        const messageType = 1;
-        const messageNonce = 10;
-        const message = "0x3d6cec8c000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266000000000000000000000000000000000000000000000000000000e8d4a5100000000000000000000000000000017738fceb3c66d324b7845d60a5a456053be000000000000000000000000000012062f5b81613471751e2c4ff8a30eac06b2b";
-        const messageExpiryTime = 1747681666;
+        const messageSender = l2NetworkConfig.l2TestConfig.messageSentEvent.messageSender;
+        const messageTarget = l2NetworkConfig.l2TestConfig.messageSentEvent.messageTarget;
+        const messageType = l2NetworkConfig.l2TestConfig.messageSentEvent.messageType;
+        const messageNonce = l2NetworkConfig.l2TestConfig.messageSentEvent.messageNonce;
+        const message = l2NetworkConfig.l2TestConfig.messageSentEvent.message;
+        const messageExpiryTime = l2NetworkConfig.l2TestConfig.messageSentEvent.messageExpiryTime;
 
         const relayMessage = encodeFunctionData({
             abi: L2BridgeMessengerJson.default.abi as Abi,

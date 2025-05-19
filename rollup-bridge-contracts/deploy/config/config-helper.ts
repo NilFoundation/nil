@@ -6,6 +6,28 @@ import * as ethers from 'ethers';
  * L1 CONFIG SCHEMA
  */
 
+export function bigIntReplacer(unusedKey: string, value: unknown): unknown {
+    return typeof value === "bigint" ? value.toString() : value;
+}
+
+export type MessageSentEvent = {
+    messageSender: string;
+    messageTarget: string;
+    messageNonce: string;
+    message: string;
+    messageHash: string;
+    messageType: number;
+    messageCreatedAt: string;
+    messageExpiryTime: string;
+    l2FeeRefundAddress: string;
+    feeCreditData: {
+        nilGasLimit: string;
+        maxFeePerGas: string;
+        maxPriorityFeePerGas: string;
+        feeCredit: string;
+    };
+};
+
 export interface L1Config {
     networks: {
         [network: string]: L1NetworkConfig;
@@ -358,16 +380,8 @@ export interface L2ETHBridgeConfig {
 }
 
 export interface L2TestConfig {
-    ethTestEventData: ETHTestEventData;
-    erc20TestEventData: ERC20TestEventData;
-}
-
-export interface ETHTestEventData {
-    messageHash: string;
-}
-
-export interface ERC20TestEventData {
-    messageHash: string;
+    ethBalanceBefBridge: bigint;
+    messageSentEvent: MessageSentEvent;
 }
 
 const nilNetworkConfigFilePath = path.join(__dirname, 'nil-deployment-config.json');
@@ -390,7 +404,8 @@ export const saveNilNetworkConfig = (
 ): void => {
     const config: L2Config = JSON.parse(fs.readFileSync(nilNetworkConfigFilePath, 'utf8'));
     config.networks[network] = networkConfig;
-    fs.writeFileSync(nilNetworkConfigFilePath, JSON.stringify(config, null, 2), 'utf8');
+    console.log(`about to write to file`);
+    fs.writeFileSync(nilNetworkConfigFilePath, JSON.stringify(config, bigIntReplacer, 2), 'utf8');
 };
 
 // Archive old configuration

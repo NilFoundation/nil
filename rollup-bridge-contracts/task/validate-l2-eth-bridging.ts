@@ -1,20 +1,8 @@
 import type { Abi } from "abitype";
 import { task } from "hardhat/config";
-import {
-    FaucetClient,
-    HttpTransport,
-    LocalECDSAKeySigner,
-    PublicClient,
-    SmartAccountV1,
-    convertEthToWei,
-    Transaction,
-    generateRandomPrivateKey,
-    waitTillCompleted,
-    getContract,
-    ProcessedReceipt,
-} from "@nilfoundation/niljs";
+import { getContract } from "@nilfoundation/niljs";
 import { loadL2DepositRecipientSmartAccount, loadNilSmartAccount } from "./nil-smart-account";
-import { L2NetworkConfig, loadNilNetworkConfig } from "../deploy/config/config-helper";
+import { L2NetworkConfig, loadL1NetworkConfig, loadNilNetworkConfig } from "../deploy/config/config-helper";
 
 // npx hardhat validate-l2-eth-bridging --networkname local
 task("validate-l2-eth-bridging", "Validates the state changes of l2BridgeMessenger after ethBridge data is relayed to Nil")
@@ -44,7 +32,7 @@ task("validate-l2-eth-bridging", "Validates the state changes of l2BridgeMesseng
             address: l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy as `0x${string}`
         });
 
-        const messageHash = l2NetworkConfig.l2TestConfig.ethTestEventData.messageHash;
+        const messageHash = l2NetworkConfig.l2TestConfig.messageSentEvent.messageHash;
 
         if (!messageHash) {
             throw Error(`DepositMessageHash is invalid in testJson which is to be asserted on L2BridgeMessenger`);
@@ -86,13 +74,22 @@ task("validate-l2-eth-bridging", "Validates the state changes of l2BridgeMesseng
             throw Error(`Invalid depositRecipientSmartAccount`);
         }
 
-        const balance = await depositRecipientSmartAccount.getBalance();
+        const ethBalanceBefBridge = l2NetworkConfig.l2TestConfig.ethBalanceBefBridge;
+        const ethBalanceAftBridgeFinality = await depositRecipientSmartAccount.getBalance();
+        const depositAmount = loadL1NetworkConfig("geth").l1TestConfig.l1ETHDepositTestConfig.amount;
 
-        if (!(balance > BigInt(0))) {
+        // Convert depositAmount to BigInt for comparison
+        const diffBalance = BigInt(ethBalanceAftBridgeFinality) - BigInt(ethBalanceBefBridge);
+
+        if (diffBalance !== BigInt(depositAmount)) {
+            throw new Error(`Balance mismatch: Expected ${BigInt(depositAmount)}, but got ${diffBalance}`);
+        }
+
+        if (!(ethBalanceAftBridgeFinality > BigInt(0))) {
             throw Error(`Insufficient or Zero balance for smart-account: ${depositRecipientSmartAccount.address}`);
         }
 
-        console.log(`deposit-recipient has eth balance: ${balance}`);
+        console.log(`Deposit-recipient has ETH balance: ${ethBalanceAftBridgeFinality}`);
     });
 
 function sleepInMilliSeconds(ms: number) {

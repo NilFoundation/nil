@@ -11,6 +11,7 @@ import {
     saveNilNetworkConfig,
 } from '../../deploy/config/config-helper';
 import { bigIntReplacer, extractAndParseMessageSentEventLog, MessageSentEvent } from './get-messenger-events';
+import { loadL2DepositRecipientSmartAccount } from "../../task/nil-smart-account";
 
 const l1EthBridgeABIPath = path.join(
     __dirname,
@@ -18,13 +19,11 @@ const l1EthBridgeABIPath = path.join(
 );
 const l1EthBridgeABI = JSON.parse(fs.readFileSync(l1EthBridgeABIPath, 'utf8')).abi;
 
-
 const nilGasPriceOracleABIPath = path.join(
     __dirname,
     '../../artifacts/contracts/bridge/l1/interfaces/INilGasPriceOracle.sol/INilGasPriceOracle.json',
 );
 const nilGasPriceOracleABI = JSON.parse(fs.readFileSync(nilGasPriceOracleABIPath, 'utf8')).abi;
-
 
 // npx hardhat run scripts/bridge-test/bridge-eth.ts --network geth
 export async function bridgeETH() {
@@ -90,6 +89,19 @@ export async function bridgeETH() {
 
     console.log(`Bridging ${eth_amount} (WEI) to recipient: ${l2DepositRecipient}`);
 
+    // get depositRecipientBalance
+    const depositRecipientSmartAccount = await loadL2DepositRecipientSmartAccount();
+
+    if (!depositRecipientSmartAccount) {
+        throw Error(`Invalid depositRecipientSmartAccount`);
+    }
+
+    const balance = await depositRecipientSmartAccount.getBalance();
+
+    let nilNetworkConfig: L2NetworkConfig = loadNilNetworkConfig("local");
+    nilNetworkConfig.l2TestConfig.ethBalanceBefBridge = balance;
+    saveNilNetworkConfig("local", nilNetworkConfig);
+
     // Perform the depositETH transaction
     const tx = await l1ETHBridgeInstance.depositETH(
         eth_amount,
@@ -128,12 +140,10 @@ export async function bridgeETH() {
 
     console.log(`messageSentEvent for depositETH is: ${JSON.stringify(messageSentEvent, bigIntReplacer, 2)}`);
 
-    const messageHash = messageSentEvent.messageHash;
-
     // save the messageHash in the json config for l2
     const l2NetworkConfig: L2NetworkConfig = loadNilNetworkConfig("local");
 
-    l2NetworkConfig.l2TestConfig.ethTestEventData.messageHash = messageHash;
+    l2NetworkConfig.l2TestConfig.messageSentEvent = messageSentEvent;
 
     saveNilNetworkConfig("local", l2NetworkConfig);
 }

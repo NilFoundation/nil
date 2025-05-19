@@ -10,20 +10,20 @@
         "l2DepositRecipient": "",
         "l2FeeRefundRecipient": "",
         "l1ETHDepositTestConfig": {
-        "amount": 1000000000000,
-        "gasLimit": 1000,
-        "totalNativeAmount": 1200000000, 
-        "userMaxFeePerGas": 0,
-        "userMaxPriorityFeePerGas": 0
-       },
+          "amount": 1000000000000,
+          "gasLimit": 1000,
+          "totalNativeAmount": 1200000000,
+          "userMaxFeePerGas": 0,
+          "userMaxPriorityFeePerGas": 0
+        },
         "l1ERC20DepositTestConfig": {
           "tokenAddress": "",
           "amount": 0,
           "gasLimit": 0,
-          "totalNativeAmount": 0, 
+          "totalNativeAmount": 0,
           "userMaxFeePerGas": 0,
           "userMaxPriorityFeePerGas": 0
-       }
+        }
       },
       "l1CommonContracts": {
         "weth": ""
