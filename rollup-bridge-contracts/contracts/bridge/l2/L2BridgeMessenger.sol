@@ -432,4 +432,9 @@ contract L2BridgeMessenger is
   function getLatestDepositNonce() external view returns (uint256) {
     return relayedMessageHashStore.length();
   }
+
+  /// @inheritdoc IL2BridgeMessenger
+  function isDepositMessageRelayed(bytes32 messageHash) external view returns (bool) {
+    return relayedMessageHashStore.contains(messageHash);
+  }
 }

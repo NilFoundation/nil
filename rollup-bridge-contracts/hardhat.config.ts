@@ -33,6 +33,7 @@ import "./task/authorise-l2-bridges-in-messenger";
 import "./task/fund-l2-eth-bridge-vault";
 import "./task/grant-relayer-role";
 import "./task/l2-task-runner";
+import "./task/validate-l2-eth-bridging";
 
 const config: HardhatUserConfig = {
   ignition: {

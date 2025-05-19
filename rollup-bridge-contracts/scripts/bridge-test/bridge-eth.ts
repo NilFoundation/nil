@@ -8,6 +8,7 @@ import {
     loadNilNetworkConfig,
     L2NetworkConfig,
     L1NetworkConfig,
+    saveNilNetworkConfig,
 } from '../../deploy/config/config-helper';
 import { bigIntReplacer, extractAndParseMessageSentEventLog, MessageSentEvent } from './get-messenger-events';
 
@@ -16,6 +17,14 @@ const l1EthBridgeABIPath = path.join(
     '../../artifacts/contracts/bridge/l1/interfaces/IL1ETHBridge.sol/IL1ETHBridge.json',
 );
 const l1EthBridgeABI = JSON.parse(fs.readFileSync(l1EthBridgeABIPath, 'utf8')).abi;
+
+
+const nilGasPriceOracleABIPath = path.join(
+    __dirname,
+    '../../artifacts/contracts/bridge/l1/interfaces/INilGasPriceOracle.sol/INilGasPriceOracle.json',
+);
+const nilGasPriceOracleABI = JSON.parse(fs.readFileSync(nilGasPriceOracleABIPath, 'utf8')).abi;
+
 
 // npx hardhat run scripts/bridge-test/bridge-eth.ts --network geth
 export async function bridgeETH() {
@@ -37,10 +46,6 @@ export async function bridgeETH() {
         signer,
     ) as Contract;
 
-
-    // save the nilMessageTree Address in the json config for l2
-    const l2NetworkConfig: L2NetworkConfig = loadNilNetworkConfig("local");
-
     const l2DepositRecipient = config.l1TestConfig.l2DepositRecipient;
     const l2FeeRefundAddress = config.l1TestConfig.l2FeeRefundRecipient;
     const eth_amount = config.l1TestConfig.l1ETHDepositTestConfig.amount;
@@ -48,6 +53,30 @@ export async function bridgeETH() {
     const total_native_amount = config.l1TestConfig.l1ETHDepositTestConfig.totalNativeAmount;
     const userMaxFeePerGas = config.l1TestConfig.l1ETHDepositTestConfig.userMaxFeePerGas;
     const userMaxPriorityFeePerGas = config.l1TestConfig.l1ETHDepositTestConfig.userMaxPriorityFeePerGas;
+
+    const nilGasPriceOracleInstance = new ethers.Contract(
+        config.nilGasPriceOracle.nilGasPriceOracleContracts.nilGasPriceOracleProxy,
+        nilGasPriceOracleABI,
+        signer,
+    ) as Contract;
+
+    const feeCreditData = await nilGasPriceOracleInstance.computeFeeCredit(
+        gasLimit,
+        userMaxFeePerGas,
+        userMaxPriorityFeePerGas
+    );
+
+    // Log the parsed FeeCreditData struct
+    console.log("Parsed FeeCreditData:");
+    console.log(`Nil Gas Limit: ${feeCreditData.nilGasLimit.toString()}`);
+    console.log(`Max Fee Per Gas: ${feeCreditData.maxFeePerGas.toString()}`);
+    console.log(`Max Priority Fee Per Gas: ${feeCreditData.maxPriorityFeePerGas.toString()}`);
+    console.log(`Fee Credit: ${feeCreditData.feeCredit.toString()}`);
+
+
+    // Use the feeCredit value in your calculations
+    const totalNativeAmount = BigInt(eth_amount) + feeCreditData.feeCredit;
+    console.log(`totalNativeAmoutn computed to be used in bridge is: ${totalNativeAmount}`);
 
     // Log all test input parameters
     console.log("Test Input Parameters:");
@@ -69,7 +98,7 @@ export async function bridgeETH() {
         gasLimit,
         userMaxFeePerGas,
         userMaxPriorityFeePerGas,
-        { value: total_native_amount }
+        { value: totalNativeAmount }
     );
 
     await tx.wait();
@@ -101,6 +130,12 @@ export async function bridgeETH() {
 
     const messageHash = messageSentEvent.messageHash;
 
+    // save the messageHash in the json config for l2
+    const l2NetworkConfig: L2NetworkConfig = loadNilNetworkConfig("local");
+
+    l2NetworkConfig.l2TestConfig.ethTestEventData.messageHash = messageHash;
+
+    saveNilNetworkConfig("local", l2NetworkConfig);
 }
 
 async function main() {

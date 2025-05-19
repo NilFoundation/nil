@@ -1,0 +1,57 @@
+import type { Abi } from "abitype";
+import { task } from "hardhat/config";
+import {
+    FaucetClient,
+    HttpTransport,
+    LocalECDSAKeySigner,
+    PublicClient,
+    SmartAccountV1,
+    convertEthToWei,
+    Transaction,
+    generateRandomPrivateKey,
+    waitTillCompleted,
+    getContract,
+    ProcessedReceipt,
+} from "@nilfoundation/niljs";
+import { loadNilSmartAccount } from "./nil-smart-account";
+import { L2NetworkConfig, loadNilNetworkConfig } from "../deploy/config/config-helper";
+
+// npx hardhat validate-l2-eth-bridging --networkname local
+task("validate-l2-eth-bridging", "Validates the state changes of l2BridgeMessenger after ethBridge data is relayed to Nil")
+    .addParam("networkname", "The network to use") // Mandatory parameter
+    .setAction(async (taskArgs) => {
+
+        // Dynamically load artifacts
+        const L2BridgeMessengerJson = await import("../artifacts/contracts/bridge/l2/L2BridgeMessenger.sol/L2BridgeMessenger.json");
+        if (!L2BridgeMessengerJson || !L2BridgeMessengerJson.default || !L2BridgeMessengerJson.default.abi || !L2BridgeMessengerJson.default.bytecode) {
+            throw Error(`Invalid L2BridgeMessengerJson ABI`);
+        }
+
+        const networkName = taskArgs.networkname;
+        const deployerAccount = await loadNilSmartAccount();
+
+        if (!deployerAccount) {
+            throw Error(`Invalid Deployer SmartAccount`);
+        }
+
+        // save the L2BridgeMessenger Address in the json config for l2
+        const l2NetworkConfig: L2NetworkConfig = loadNilNetworkConfig(networkName);
+
+        // verify if the bridges are really authorised
+        const l2BridgeMessengerProxyInstance = getContract({
+            client: deployerAccount.client,
+            abi: L2BridgeMessengerJson.default.abi as Abi,
+            address: l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy as `0x${string}`
+        });
+
+        const messageHash = l2NetworkConfig.l2TestConfig.ethTestEventData.messageHash;
+
+        if (!messageHash) {
+            throw Error(`DepositMessageHash is invalid in testJson which is to be asserted on L2BridgeMessenger`);
+        }
+
+        const isDepositMessageRelayed = await l2BridgeMessengerProxyInstance.read.isDepositMessageRelayed([messageHash]);
+        if (!isDepositMessageRelayed) {
+            throw Error(`messageHash: ${messageHash} is not processed yet by L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy}`);
+        }
+    });

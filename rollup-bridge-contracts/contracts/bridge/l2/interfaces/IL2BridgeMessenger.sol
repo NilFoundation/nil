@@ -176,4 +176,6 @@ interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage {
   function getL2ToL1Root() external view returns (bytes32);
 
   function getLatestDepositNonce() external view returns (uint256);
+
+  function isDepositMessageRelayed(bytes32 messageHash) external view returns (bool);
 }
