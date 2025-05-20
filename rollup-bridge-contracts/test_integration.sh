@@ -134,4 +134,5 @@ echo "Triggering L1 deposit event"
 
 npx hardhat grant-relayer-role --networkname local
 npx hardhat run scripts/bridge-test/bridge-eth.ts --network geth
+npx hardhat relay-l2-message --networkname local
 npx hardhat validate-l2-eth-bridging --networkname local
