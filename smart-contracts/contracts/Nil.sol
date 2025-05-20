@@ -195,7 +195,7 @@ library Nil {
             value,
             tokens,
             callData,
-            requestId,
+            uint64(requestId),
             responseGas
         );
     }

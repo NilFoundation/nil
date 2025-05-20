@@ -27,7 +27,7 @@ contract Relayer {
         uint8 forwardKind;           // Forwarding kind
         uint256 feeCredit;           // Fee credit
         bytes data;                  // Call data
-        uint256 requestId;           // For response tracking
+        uint64 requestId;           // For response tracking
         uint256 responseFeeCredit;   // Fee credit allocated for response
         bool isDeploy;               // Whether this is a deploy message
         uint256 salt;                // For deploy messages
@@ -42,7 +42,7 @@ contract Relayer {
         uint256 value;
         uint8 forwardKind;
         uint256 feeCredit;
-        uint256 requestId;
+        uint64 requestId;
         uint256 responseFeeCredit;
         bool isDeploy;
         uint256 salt;
@@ -82,7 +82,7 @@ contract Relayer {
         address indexed to,
         bool success,
         bytes response,
-        uint256 requestId,
+        uint64 requestId,
         uint256 responseFeeCredit
     );
     event CallFailed(
@@ -146,7 +146,7 @@ contract Relayer {
     function getPendingMessages(uint32 shardId, uint64 fromId, uint32 count) external view returns (Message[] memory) {
         ////console.log("getPending messages: shardId=%_, fromId=%_, count=%_", shardId, fromId, count);
         require(count > 0, "Invalid count");
-        require(fromId <= outMsgCount[shardId], "Invalid fromId");
+        require(fromId <= outMsgCount[shardId], "Trying to get messages from the future");
         require(shardId < _N_SHARDS, "Invalid shardId");
 
         // Check if there are no messages to return
@@ -171,6 +171,13 @@ contract Relayer {
         return result;
     }
 
+    function getMessageById(uint32 shardId, uint64 messageId) external view returns (Message memory) {
+        require(shardId < _N_SHARDS, "Invalid shardId");
+        require(messageId <= outMsgCount[shardId], "Requesting message from the future");
+        require(messageId >= messages[shardId][0].id, "Requesting message from the past");
+        return messages[shardId][messageId - messages[shardId][0].id];
+    }
+
     /**
      * @dev Prunes processed messages
      */
@@ -179,25 +186,32 @@ contract Relayer {
         
         for (uint32 i = 0; i < _N_SHARDS; i++) {
             uint64 lastId = inMsgIds[i];
-            require(lastId <= outMsgCount[i], "Invalid lastId");
+            require(lastId <= outMsgCount[i], "Trying to prune non-existing messages");
             
-            while (messages[i].length > 0 && messages[i][0].id <= lastId) {
-                _removeOldestMessage(i);
-                prunedCount++;
+            if (messages[i].length > 0) {
+                uint64 firstId = messages[i][0].id;
+                require(lastId >= firstId, "Trying to prune already pruned messages");
+                uint64 removeCount = lastId - firstId + 1;
+                if (removeCount > messages[i].length) {
+                    removeCount = uint64(messages[i].length);
+                }
+                
+                // Create a new array without the pruned messages
+                uint newLength = messages[i].length - removeCount;
+                for (uint j = 0; j < newLength; j++) {
+                    messages[i][j] = messages[i][j + removeCount];
+                }
+                
+                // Resize the array
+                for (uint j = 0; j < removeCount; j++) {
+                    messages[i].pop();
+                }
+                
+                prunedCount += uint32(removeCount);
             }
         }
         
         return prunedCount;
-    }
-    
-    // Helper to remove the oldest message from a shard queue
-    function _removeOldestMessage(uint32 shardId) private {
-        if (messages[shardId].length == 0) return;
-        
-        for (uint j = 0; j < messages[shardId].length - 1; j++) {
-            messages[shardId][j] = messages[shardId][j + 1];
-        }
-        messages[shardId].pop();
     }
 
     /**
@@ -365,7 +379,7 @@ contract Relayer {
         uint256 value,
         Nil.Token[] memory tokens,
                 bytes memory callData,
-        uint256 requestId,
+        uint64 requestId,
         uint256 responseGas
     ) public payable {
         //console.log("sendTx: to=%_, from=%_", to, msg.sender);
@@ -729,7 +743,7 @@ contract Relayer {
         uint256 value,
         bool success,
         bytes memory response,
-        uint256 requestId,
+        uint64 requestId,
         uint256 responseFeeCredit
     ) public payable {
         uint32 shardId = uint32(Nil.getShardId(from));

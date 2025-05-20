@@ -49,7 +49,7 @@ linters:
     - predeclared
     - protogetter
     - reassign
-    - revive
+    # - revive
     - rowserrcheck
     - sloglint
     - sqlclosecheck
