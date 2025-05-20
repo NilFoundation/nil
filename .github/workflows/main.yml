@@ -5,6 +5,10 @@ on:
   workflow_dispatch:
   merge_group:
 
+permissions:
+  id-token: write
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -26,54 +30,118 @@ jobs:
       - name: run check
         run: nix build .#checks.x86_64-linux.${{ matrix.check == 'nil' && 'others' || matrix.check }} -L
 
-  # TODO: enable check after adding caches to the build
-  # nix_check_macos:
-  #   name: macOS CI (${{ matrix.platform.os}}, ${{ matrix.platform.arch }}) - ${{ matrix.check }}
-  #   environment: prod
-  #   runs-on: ${{ matrix.platform.os }}
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       # Add other checks later, when they are stabilized, and caching will be configured for Nix.
-  #       check: ["clijs"]
-  #       platform:
-  #         # N.B. The architecture is chosen by GitHub at `runs-on` depending on the label (`os`)
-  #         # See https://github.com/actions/runner-images?tab=readme-ov-file#available-images
-  #         # The other fields only affect the logic of our steps
-  #         - os: macos-latest
-  #           arch: aarch64
-  #           nixArch: aarch64-darwin
-  #         # we're out of CI runners capacity right now. this needs to be returned later
-  #         # - os: macos-15-large
-  #         #   arch: x64
-  #         #   nixArch: x86_64-darwin
-  #   steps:
-  #     - name: checkout local actions
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
+  nix_check_macos:
+    name: macOS CI (${{ matrix.platform.os}}, ${{ matrix.platform.arch }}) - ${{ matrix.check }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        check: ["nil", "clijs"]
+        platform:
+          # N.B. The architecture is chosen by GitHub at `runs-on` depending on the label (`os`)
+          # See https://github.com/actions/runner-images?tab=readme-ov-file#available-images
+          # The other fields only affect the logic of our steps
+          - os: macos-latest
+            arch: aarch64
+            nixArch: aarch64-darwin
+          - os: macos-15-large
+            arch: x64
+            nixArch: x86_64-darwin
+        exclude:
+          # nil/services/indexer/clickhouse/clickhouse_test.go:79
+          # Received unexpected error:
+          # dial tcp 127.0.0.1:9003: connect: connection refused
+          - check: nil
+            platform:
+              arch: x64
+    env:
+      AWS_ACCOUNT_ID: "070427263827"
+      SSM_CONFIG_PATH: /github-action-runners/nil-githhub-actions/runners/config
+      S3_LOCATION_NIX_CACHE: s3://nil-githhub-actions-nix-cache-qrba32i47dik503juihjai4x
+    steps:
+      - name: Checkout local actions
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-  #     # https://github.com/NixOS/nix/issues/2242#issuecomment-2336841344
-  #     - name: macOS 15 eDSRecordAlreadyExists workaround
-  #       run: echo "NIX_FIRST_BUILD_UID=30001" >> "$GITHUB_ENV"
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions/gha_nix_cache
+          aws-region: eu-west-2
+          role-duration-seconds: 7200 # 2h
 
-  #     - name: Install Nix
-  #       uses: cachix/install-nix-action@v27
-  #       with:
-  #         github_access_token: ${{ secrets.GITHUB_TOKEN }}
-  #         extra_nix_config: |
-  #           max-jobs = 1
+      - name: Show AWS identity
+        run: aws sts get-caller-identity
 
-  #     - name: Run check
-  #       run: nix build .#checks.${{ matrix.platform.nixArch }}.${{ matrix.check == 'nil' && 'others' || matrix.check }} -L
+      - name: Get nix_cache_key_pub from SSM
+        id: get_nix_cache_key_pub
+        run: |
+          param=$(aws ssm get-parameter \
+            --name arn:aws:ssm:${{ env.AWS_REGION }}:${{ env.AWS_ACCOUNT_ID }}:parameter${{ env.SSM_CONFIG_PATH }}/nix_cache_key_pub \
+            --with-decryption \
+            | jq -r '.Parameter.Value')
+          echo "NIX_CACHE_KEY_PUB=$param" >>"$GITHUB_OUTPUT"
 
-  #     - name: Upload nil binary as artifact
-  #       if: github.event_name == 'workflow_dispatch'
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: clijs-darwin-${{ matrix.platform.arch }}
-  #         path: |
-  #           result/clijs
+      - name: Get nix_cache_key_sec from SSM
+        id: get_nix_cache_key_sec
+        run: |
+          param=$(aws ssm get-parameter \
+            --name arn:aws:ssm:${{ env.AWS_REGION }}:${{ env.AWS_ACCOUNT_ID }}:parameter${{ env.SSM_CONFIG_PATH }}/nix_cache_key_sec \
+            --with-decryption \
+            | jq -r '.Parameter.Value')
+          echo "$param" | sudo cp /dev/stdin /private/nix-signing-key
+
+      - name: Create /etc/nix/upload-to-cache.sh
+        run: |
+          sudo mkdir -p /etc/nix
+          sudo tee /etc/nix/upload-to-cache.sh <<EOL
+          #!/bin/bash
+
+          set -f # disable globbing
+          export IFS=' '
+          echo "Signing and uploading paths" \$OUT_PATHS
+
+          exec /nix/var/nix/profiles/default/bin/nix copy --to '${{ env.S3_LOCATION_NIX_CACHE }}?region=${{ env.AWS_REGION }}&secret-key=/private/nix-signing-key' \$OUT_PATHS
+          EOL
+          sudo chmod a+x /etc/nix/upload-to-cache.sh
+
+      - name: Expose AWS credentials to the nix-daemon
+        run: |
+          sudo launchctl setenv AWS_ACCESS_KEY_ID     "$AWS_ACCESS_KEY_ID"
+          sudo launchctl setenv AWS_SECRET_ACCESS_KEY "$AWS_SECRET_ACCESS_KEY"
+          sudo launchctl setenv AWS_SESSION_TOKEN     "$AWS_SESSION_TOKEN"
+
+      # https://github.com/NixOS/nix/issues/2242#issuecomment-2336841344
+      - name: macOS 15 eDSRecordAlreadyExists workaround
+        run: echo "NIX_FIRST_BUILD_UID=30001" >> "$GITHUB_ENV"
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: |
+            max-jobs = 1
+            extra-substituters = ${{ env.S3_LOCATION_NIX_CACHE }}?region=${{ env.AWS_REGION }}
+            extra-trusted-public-keys = ${{ steps.get_nix_cache_key_pub.outputs.NIX_CACHE_KEY_PUB }}
+            post-build-hook = /etc/nix/upload-to-cache.sh
+
+      - name: Show /etc/nix/nix.conf
+        run: cat /etc/nix/nix.conf
+
+      # The following "build" command can be used for debugging without having to wait a long time:
+      # nix-build -E 'let pkgs = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-24.05.tar.gz") {}; in pkgs.writeText "example" "001"'
+      # Counter 001 can be modified to check for cache hits or misses.
+      - name: Run check
+        run: nix build .#checks.${{ matrix.platform.nixArch }}.${{ matrix.check == 'nil' && 'others' || matrix.check }} -L
+
+      - name: Upload nil binary as artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: clijs-darwin-${{ matrix.platform.arch }}
+          path: |
+            result/clijs
 
   ensure_cluster_builds_macos:
     runs-on: ${{ matrix.os }}
