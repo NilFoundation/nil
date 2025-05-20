@@ -5,11 +5,94 @@ on:
   workflow_dispatch:
   merge_group:
 
+permissions:
+  id-token: write
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  test-sts:
+    runs-on: macos-latest
+    env:
+      AWS_ACCOUNT_ID: "070427263827"
+      SSM_CONFIG_PATH: /github-action-runners/nil-githhub-actions/runners/config
+      S3_LOCATION_NIX_CACHE: s3://nil-githhub-actions-nix-cache-qrba32i47dik503juihjai4x
+    steps:
+      - name: Checkout local actions
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions/gha_nix_cache
+          aws-region: eu-west-2
+          role-duration-seconds: 7200 # 2h
+
+      - name: Show AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Get nix_cache_key_pub from SSM
+        id: get_nix_cache_key_pub
+        run: |
+          param=$(aws ssm get-parameter \
+            --name arn:aws:ssm:${{ env.AWS_REGION }}:${{ env.AWS_ACCOUNT_ID }}:parameter${{ env.SSM_CONFIG_PATH }}/nix_cache_key_pub \
+            --with-decryption \
+            | jq -r '.Parameter.Value')
+          echo "NIX_CACHE_KEY_PUB=$param" >>"$GITHUB_OUTPUT"
+
+      - name: Get nix_cache_key_sec from SSM
+        id: get_nix_cache_key_sec
+        run: |
+          param=$(aws ssm get-parameter \
+            --name arn:aws:ssm:${{ env.AWS_REGION }}:${{ env.AWS_ACCOUNT_ID }}:parameter${{ env.SSM_CONFIG_PATH }}/nix_cache_key_sec \
+            --with-decryption \
+            | jq -r '.Parameter.Value')
+          echo "$param" | sudo cp /dev/stdin /private/nix-signing-key
+
+      - name: Create /etc/nix/upload-to-cache.sh
+        run: |
+          sudo mkdir -p /etc/nix
+          sudo tee /etc/nix/upload-to-cache.sh <<EOL
+          #!/bin/bash
+
+          set -f # disable globbing
+          export IFS=' '
+          echo "Signing and uploading paths" \$OUT_PATHS
+
+          exec /nix/var/nix/profiles/default/bin/nix copy --to '${{ env.S3_LOCATION_NIX_CACHE }}?region=${{ env.AWS_REGION }}&secret-key=/private/nix-signing-key' \$OUT_PATHS
+          EOL
+          sudo chmod a+x /etc/nix/upload-to-cache.sh
+
+      - name: Expose AWS credentials to the nix-daemon
+        run: |
+          sudo launchctl setenv AWS_ACCESS_KEY_ID     "$AWS_ACCESS_KEY_ID"
+          sudo launchctl setenv AWS_SECRET_ACCESS_KEY "$AWS_SECRET_ACCESS_KEY"
+          sudo launchctl setenv AWS_SESSION_TOKEN     "$AWS_SESSION_TOKEN"
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: |
+            max-jobs = 1
+            extra-substituters = ${{ env.S3_LOCATION_NIX_CACHE }}?region=${{ env.AWS_REGION }}
+            extra-trusted-public-keys = ${{ steps.get_nix_cache_key_pub.outputs.NIX_CACHE_KEY_PUB }}
+            post-build-hook = /etc/nix/upload-to-cache.sh
+
+      - name: Show /etc/nix/nix.conf
+        run: cat /etc/nix/nix.conf
+
+      # The following "build" command can be used for debugging without having to wait a long time:
+      # nix-build -E 'let pkgs = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-24.05.tar.gz") {}; in pkgs.writeText "example" "001"'
+      # Counter 001 can be modified to check for cache hits or misses.
+      - name: Build
+        run: nix build .#checks.aarch64-darwin.clijs -L
+
   nix_check:
     name: Test - ${{ matrix.check }}
     runs-on: ["self-hosted", "aws_autoscaling"]
