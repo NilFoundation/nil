@@ -2,6 +2,7 @@ package concurrent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"sync"
@@ -16,6 +17,9 @@ const (
 	TaskNameLabel                        = "taskName"
 	RootContextNameLabel LabelContextKey = "rootContextName"
 )
+
+// ErrStopIteration indicates that the iteration should stop without producing an error.
+var ErrStopIteration = errors.New("stop iteration")
 
 type Func = func(context.Context) error
 
@@ -130,6 +134,27 @@ func RunTickerLoop(ctx context.Context, interval time.Duration, onTick func(cont
 			onTick(ctx)
 		case <-ctx.Done():
 			return
+		}
+	}
+}
+
+// RunTickerLoopWithErr runs a loop that executes a function at regular intervals
+// and returns an error if the function returns one.
+func RunTickerLoopWithErr(ctx context.Context, interval time.Duration, onTick func(context.Context) error) error {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if err := onTick(ctx); err != nil {
+				if errors.Is(err, ErrStopIteration) {
+					return nil
+				}
+				return err
+			}
+		case <-ctx.Done():
+			return nil
 		}
 	}
 }

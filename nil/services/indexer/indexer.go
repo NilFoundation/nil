@@ -2,8 +2,8 @@ package indexer
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	BlockBufferSize     = 10000
-	InitialRoundsAmount = 1000
+	BlockBufferSize = 10000
 
 	maxFetchSize = 500
 
@@ -30,24 +29,28 @@ type Indexer struct {
 	allowDbDrop bool
 
 	blocksChan chan *driver.BlockWithShardId
-	indexRound atomic.Uint32
+
+	logger logging.Logger
 }
 
 func NewIndexerWithClient(client client.Client) *Indexer {
 	return &Indexer{
 		client: client,
+		logger: logging.NewLogger("indexer"),
 	}
 }
 
 func StartIndexer(ctx context.Context, cfg *Cfg) error {
-	logger.Info().Msg("Starting indexer...")
-
 	e := &Indexer{
 		driver:      cfg.IndexerDriver,
 		client:      cfg.Client,
 		allowDbDrop: cfg.AllowDbDrop,
 		blocksChan:  make(chan *driver.BlockWithShardId, BlockBufferSize),
+		logger:      logging.NewLogger("indexer"),
 	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	if err := e.waitForRpc(ctx, timeoutWaitingRpc); err != nil {
 		return fmt.Errorf("failed to wait for rpc node: %w", err)
@@ -58,7 +61,7 @@ func StartIndexer(ctx context.Context, cfg *Cfg) error {
 		return fmt.Errorf("failed to setup indexer: %w", err)
 	}
 
-	workers := make([]concurrent.Task, 0, len(shards)+1)
+	workers := make([]concurrent.Task, 0, len(shards)+2)
 	for i, shard := range shards {
 		workers = append(workers, concurrent.MakeTask(
 			fmt.Sprintf("[%d] fetcher", i),
@@ -66,17 +69,16 @@ func StartIndexer(ctx context.Context, cfg *Cfg) error {
 				return e.startFetchers(ctx, shard)
 			}))
 	}
-	workers = append(workers, concurrent.MakeTask(
-		"driver export",
-		func(ctx context.Context) error {
-			return e.startDriverIndex(ctx)
-		}))
+	workers = append(workers,
+		concurrent.MakeTask("driver export", e.startDriverIndex),
+		concurrent.MakeTask("version check", e.runVersionCheckLoop),
+	)
 
 	if cfg.DoIndexTxpool {
-		workers = append(workers, concurrent.MakeTask("txpool indexer", func(ctx context.Context) error {
-			return e.runTxPoolFetcher(ctx)
-		}))
+		workers = append(workers, concurrent.MakeTask("txpool indexer", e.runTxPoolFetcher))
 	}
+
+	e.logger.Info().Msg("Starting indexer...")
 
 	return concurrent.Run(ctx, workers...)
 }
@@ -87,7 +89,7 @@ func (e *Indexer) waitForRpc(ctx context.Context, timeout time.Duration) error {
 		version, err := e.client.ClientVersion(ctx)
 		res := version != "" && err == nil
 		if !res && !notFirstTry {
-			logger.Warn().Err(err).Msg("RPC is not ready, waiting...")
+			e.logger.Warn().Err(err).Msg("RPC is not ready, waiting...")
 			notFirstTry = true
 		}
 		return res
@@ -95,15 +97,31 @@ func (e *Indexer) waitForRpc(ctx context.Context, timeout time.Duration) error {
 }
 
 func (e *Indexer) setup(ctx context.Context) ([]types.ShardId, error) {
-	version, err := e.readVersionFromClient(ctx)
+	remoteVersion, err := e.readVersionFromClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := e.driver.SetupScheme(ctx, driver.SetupParams{
-		AllowDbDrop: e.allowDbDrop,
-		Version:     version,
-	}); err != nil {
+
+	localVersion, err := e.driver.FetchVersion(ctx)
+	if err != nil {
 		return nil, err
+	}
+
+	if localVersion != remoteVersion {
+		if localVersion.Empty() {
+			e.logger.Info().Msg("Database is empty. Recreating...")
+		} else {
+			if !e.allowDbDrop {
+				return nil, fmt.Errorf("version mismatch: blockchain %x, indexer %x", remoteVersion, localVersion)
+			}
+
+			e.logger.Info().Msgf("Version mismatch: blockchain %x, indexer %x. Dropping database...",
+				remoteVersion, localVersion)
+		}
+
+		if err := e.driver.ResetDB(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	shards, err := e.FetchShards(ctx)
@@ -123,8 +141,7 @@ func (e *Indexer) readVersionFromClient(ctx context.Context) (common.Hash, error
 }
 
 func (e *Indexer) startFetchers(ctx context.Context, shardId types.ShardId) error {
-	logger := logger.With().Stringer(logging.FieldShardId, shardId).Logger()
-	logger.Info().Msg("Starting fetchers...")
+	logger := e.logger.With().Stringer(logging.FieldShardId, shardId).Logger()
 
 	lastProcessedBlock, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (*types.BlockNumber, error) {
 		return e.driver.FetchLatestProcessedBlockId(ctx, shardId)
@@ -165,6 +182,39 @@ func (e *Indexer) startFetchers(ctx context.Context, shardId types.ShardId) erro
 	)
 }
 
+func (e *Indexer) runVersionCheckLoop(ctx context.Context) error {
+	// Wait (if needed, e.g., starting from scratch) for the genesis block to be fetched.
+	version, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (common.Hash, error) {
+		version, err := e.driver.FetchVersion(ctx)
+		if err != nil {
+			return common.EmptyHash, err
+		}
+		if version.Empty() {
+			// this will cause the retry, not the error
+			return common.EmptyHash, errors.New("version is empty")
+		}
+		return version, nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to fetch local version: %w", err)
+	}
+
+	e.logger.Info().Msgf("Running version check loop. Local version: %s", version)
+
+	return concurrent.RunTickerLoopWithErr(ctx, 10*time.Second, func(ctx context.Context) error {
+		remoteVersion, err := e.readVersionFromClient(ctx)
+		if err != nil {
+			e.logger.Warn().Err(err).Msg("Failed to fetch remote version")
+			return nil
+		}
+
+		if version != remoteVersion {
+			return fmt.Errorf("local version is outdated; local: %s, remote: %s", version, remoteVersion)
+		}
+		return nil
+	})
+}
+
 func (e *Indexer) pushBlocks(
 	ctx context.Context,
 	shardId types.ShardId,
@@ -190,53 +240,55 @@ func (e *Indexer) pushBlocks(
 
 // runTopFetcher fetches blocks from `from` and indefinitely.
 func (e *Indexer) runTopFetcher(ctx context.Context, shardId types.ShardId, from types.BlockNumber) error {
-	logger := logger.With().Stringer(logging.FieldShardId, shardId).Logger()
+	logger := e.logger.With().Stringer(logging.FieldShardId, shardId).Logger()
 	logger.Info().Msgf("Starting top fetcher from %d", from)
 
-	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := e.indexRound.Load() + InitialRoundsAmount
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-			newExportRound := e.indexRound.Load()
-			if curExportRound == newExportRound {
-				continue
-			}
-
-			topBlock, err := e.FetchBlock(ctx, shardId, "latest")
-			if err != nil {
-				logger.Error().Err(err).Msg("Failed to fetch latest block")
-				continue
-			}
-
-			// totally synced on top level
-			if topBlock.Id < from {
-				continue
-			}
-
-			next := min(topBlock.Id, from+maxFetchSize)
-			logger.Info().Msgf("Fetching blocks from %d to %d", from, next)
-			from, err = e.pushBlocks(ctx, shardId, from, next)
-			if err != nil {
-				logger.Error().Err(err).Msg("Failed to fetch blocks")
-				continue
-			}
-
-			if from == topBlock.Id {
-				e.blocksChan <- &driver.BlockWithShardId{BlockWithExtractedData: topBlock, ShardId: shardId}
-				from++
-			}
-
-			curExportRound = newExportRound
+	const fetchInterval = 1 * time.Second
+	skippedTicks := 0
+	const skippedTicksReportPeriod = 5
+	concurrent.RunTickerLoop(ctx, fetchInterval, func(ctx context.Context) {
+		topBlock, err := e.FetchBlock(ctx, shardId, "latest")
+		if err != nil {
+			logger.Warn().Err(err).Msg("Failed to fetch latest block")
+			return
 		}
-	}
+
+		// totally synced on top level
+		if topBlock.Id < from {
+			skippedTicks++
+			if skippedTicks%skippedTicksReportPeriod == 0 {
+				logger.Warn().Msgf("No new blocks for %s, remote top block %d, local top block %d",
+					time.Duration(skippedTicks)*fetchInterval, topBlock.Id, from)
+			}
+			return
+		}
+		skippedTicks = 0
+
+		next := min(topBlock.Id, from+maxFetchSize)
+		logger.Info().Msgf("Fetching blocks from %d to %d", from, next)
+		from, err = e.pushBlocks(ctx, shardId, from, next)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to fetch blocks")
+			return
+		}
+
+		if from == topBlock.Id {
+			e.blocksChan <- &driver.BlockWithShardId{BlockWithExtractedData: topBlock, ShardId: shardId}
+			from++
+		}
+	})
+
+	return nil
 }
 
 // runBottomFetcher fetches blocks from the earliest absent block up to the `to`.
 func (e *Indexer) runBottomFetcher(ctx context.Context, shardId types.ShardId, to types.BlockNumber) error {
-	logger := logger.With().Stringer(logging.FieldShardId, shardId).Logger()
+	logger := e.logger.With().Stringer(logging.FieldShardId, shardId).Logger()
+
+	if to == 0 {
+		logger.Info().Msg("Bottom fetcher has no blocks to fetch")
+		return nil
+	}
 
 	from, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (types.BlockNumber, error) {
 		return e.driver.FetchEarliestAbsentBlockId(ctx, shardId)
@@ -260,38 +312,31 @@ func (e *Indexer) runBottomFetcher(ctx context.Context, shardId types.ShardId, t
 		from = 0
 	}
 
-	next, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (types.BlockNumber, error) {
+	upTo, err := concurrent.RunWithRetries(ctx, 1*time.Second, 10, func() (types.BlockNumber, error) {
 		return e.driver.FetchNextPresentBlockId(ctx, shardId, from)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to fetch next present block id: %w", err)
 	}
-	check.PanicIfNot(next <= to)
-	to = next
+	check.PanicIfNot(upTo <= to)
+	to = upTo
 
 	logger.Info().Msgf("Starting bottom fetcher from %d to %d", from, to)
 
-	ticker := time.NewTicker(1 * time.Second)
-	curExportRound := e.indexRound.Load() + InitialRoundsAmount
-	for from < to {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-			newExportRound := e.indexRound.Load()
-			if curExportRound == newExportRound {
-				continue
-			}
-
-			next := min(next+maxFetchSize, to)
-			logger.Info().Msgf("Fetching blocks from %d to %d", from, next)
-			from, err = e.pushBlocks(ctx, shardId, from, next)
-			if err != nil {
-				logger.Error().Err(err).Msg("Failed to fetch blocks")
-				continue
-			}
-			curExportRound = newExportRound
+	if err := concurrent.RunTickerLoopWithErr(ctx, 1*time.Second, func(ctx context.Context) error {
+		next := min(from+maxFetchSize, to)
+		if from == next {
+			return concurrent.ErrStopIteration
 		}
+
+		logger.Debug().Msgf("Fetching blocks from %d to %d", from, next)
+		from, err = e.pushBlocks(ctx, shardId, from, next)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to fetch blocks")
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to fetch blocks: %w", err)
 	}
 
 	logger.Info().Msgf("Bottom fetcher finished fetching blocks up to %d", to)
@@ -310,7 +355,7 @@ func (e *Indexer) runTxPoolFetcher(ctx context.Context) error {
 				return
 			case txs := <-txPoolChan:
 				if err := e.driver.IndexTxPool(ctx, txs); err != nil {
-					logger.Error().Err(err).Msg("Failed to export tx pool")
+					e.logger.Error().Err(err).Msg("Failed to export tx pool")
 					continue
 				}
 			}
@@ -319,60 +364,53 @@ func (e *Indexer) runTxPoolFetcher(ctx context.Context) error {
 
 	numShards, err := e.client.GetNumShards(ctx)
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to get number of shards")
+		return fmt.Errorf("failed to get number of shards: %w", err)
 	}
 
 	concurrent.RunTickerLoop(ctx, 1*time.Second, func(ctx context.Context) {
 		statuses := make([]*driver.TxPoolStatus, 0, numShards)
-		for shardId := range numShards {
-			txPool, err := e.client.GetTxpoolStatus(ctx, types.ShardId(shardId))
+		for i := range numShards {
+			shardId := types.ShardId(i)
+			txPool, err := e.client.GetTxpoolStatus(ctx, shardId)
 			if err != nil {
-				logger.Error().Err(err).Int(logging.FieldShardId, int(shardId)).Msg("Failed to get tx pool status")
+				e.logger.Error().Err(err).
+					Stringer(logging.FieldShardId, shardId).
+					Msg("Failed to get tx pool status")
 				continue
 			}
 			tx := &driver.TxPoolStatus{
 				TxPoolStatus: txPool,
-				ShardId:      types.ShardId(shardId),
+				ShardId:      shardId,
 				Timestamp:    time.Now(),
 			}
 			statuses = append(statuses, tx)
 		}
-		logger.Info().Msgf("Fetched tx pool statuses for %d shards", len(statuses))
+		e.logger.Info().Msgf("Fetched tx pool statuses for %d shards", len(statuses))
 		txPoolChan <- statuses
 	})
 	return nil
 }
 
 func (e *Indexer) startDriverIndex(ctx context.Context) error {
-	logger.Info().Msg("Starting driver export...")
+	e.logger.Info().Msg("Starting driver export...")
 
-	ticker := time.NewTicker(1 * time.Second)
 	var blockBuffer []*driver.BlockWithShardId
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-			// read available blocks
-			for len(e.blocksChan) > 0 && len(blockBuffer) < BlockBufferSize {
-				blockBuffer = append(blockBuffer, <-e.blocksChan)
-			}
-
-			if len(blockBuffer) == 0 {
-				continue
-			}
-
-			if err := e.driver.IndexBlocks(ctx, blockBuffer); err != nil {
-				logger.Error().Err(err).Msg("Failed to export blocks; will retry in the next round.")
-				continue
-			}
-			blockBuffer = blockBuffer[:0]
-			e.incrementRound()
+	concurrent.RunTickerLoop(ctx, 1*time.Second, func(ctx context.Context) {
+		// read available blocks
+		for len(e.blocksChan) > 0 && len(blockBuffer) < BlockBufferSize {
+			blockBuffer = append(blockBuffer, <-e.blocksChan)
 		}
-	}
-}
 
-func (e *Indexer) incrementRound() {
-	e.indexRound.CompareAndSwap(100000, 0)
-	e.indexRound.Add(1)
+		if len(blockBuffer) == 0 {
+			return
+		}
+
+		if err := e.driver.IndexBlocks(ctx, blockBuffer); err != nil {
+			e.logger.Error().Err(err).Msg("Failed to export blocks; will retry in the next round.")
+			return
+		}
+		blockBuffer = blockBuffer[:0]
+	})
+
+	return nil
 }
