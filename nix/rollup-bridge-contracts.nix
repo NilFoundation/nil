@@ -80,10 +80,11 @@ stdenv.mkDerivation rec {
 
     cd rollup-bridge-contracts
     cp .env.example .env
-    pnpm run build
 
     echo "Start Hardhat compiling:"
     npx hardhat clean && npx hardhat compile
+
+    pnpm run build
   '';
 
   doCheck = enableTesting;
