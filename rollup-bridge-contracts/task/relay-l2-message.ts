@@ -1,13 +1,11 @@
 import type { Abi } from "abitype";
 import { task } from "hardhat/config";
 import {
-    convertEthToWei,
     ProcessedReceipt,
 } from "@nilfoundation/niljs";
 import { loadNilSmartAccount } from "./nil-smart-account";
-import { L2NetworkConfig, loadNilNetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
-import { getCheckSummedAddress } from "../scripts/utils/validate-config";
-import { decodeFunctionResult, encodeFunctionData } from "viem";
+import { L2NetworkConfig, loadNilNetworkConfig } from "../deploy/config/config-helper";
+import { encodeFunctionData } from "viem";
 
 // npx hardhat relay-l2-message --networkname local
 task("relay-l2-message", "relay the l1-rbidge event data as message on to L2BridgeMessenger from Nil Chain")

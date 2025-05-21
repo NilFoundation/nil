@@ -1,20 +1,13 @@
 import type { Abi } from "abitype";
 import { task } from "hardhat/config";
 import {
-    FaucetClient,
-    HttpTransport,
-    LocalECDSAKeySigner,
-    PublicClient,
-    SmartAccountV1,
     convertEthToWei,
-    Transaction,
-    generateRandomPrivateKey,
     waitTillCompleted,
     getContract,
 } from "@nilfoundation/niljs";
 import { loadNilSmartAccount } from "./nil-smart-account";
 import { L2NetworkConfig, loadNilNetworkConfig, saveNilNetworkConfig } from "../deploy/config/config-helper";
-import { decodeFunctionResult, encodeFunctionData } from "viem";
+import { encodeFunctionData } from "viem";
 import { getCheckSummedAddress, validateAddress } from "../scripts/utils/validate-config";
 
 // npx hardhat deploy-l2-eth-bridge --networkname local
