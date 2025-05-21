@@ -9,7 +9,7 @@ import { createBanner, listDependencies } from "./rollupUtils.js";
 const externalizedDeps = listDependencies(packageJson);
 
 const getConfig = ({ outputFile, format }) => ({
-  input: "src/index.ts",
+  input: "./index.ts",
   output: {
     file: outputFile,
     format,
@@ -30,7 +30,7 @@ const getConfig = ({ outputFile, format }) => ({
 });
 
 const dtsConfig = {
-  input: "src/index.ts",
+  input: "./index.ts",
   output: {
     file: packageJson.types,
     format: "es",
