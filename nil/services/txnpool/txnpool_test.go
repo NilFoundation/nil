@@ -153,6 +153,19 @@ func (s *SuiteTxnPool) TestAdd() {
 	s.addTransactionWithDiscardReason(
 		newTransaction(defaultAddress, 0, 124), SeqnoTooLow)
 
+	s.Run("TooSmallMaxFee", func() {
+		baseFee := s.pool.baseFee
+		s.pool.baseFee = types.NewValueFromUint64(500_000)
+		defer func() {
+			s.pool.baseFee = baseFee
+		}()
+
+		txn3 := newTransaction(defaultAddress, 2, 124)
+		txn3.MaxFeePerGas = types.NewValueFromUint64(1)
+		s.addTransactionWithDiscardReason(
+			txn3, TooSmallMaxFee)
+	})
+
 	// Add a transaction with higher seqno to a new receiver
 	otherAddressTxn := newTransaction(types.ShardAndHexToAddress(0, "deadbeef01"), 1, 124)
 	s.addTransactionsSuccessfully(otherAddressTxn)

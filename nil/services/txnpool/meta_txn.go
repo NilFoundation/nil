@@ -9,15 +9,20 @@ type metaTxn struct {
 	*types.TxnWithHash
 	effectivePriorityFee types.Value
 	bestIndex            int
-	valid                bool
+	discardReason        DiscardReason
 }
 
 func newMetaTxn(txn *types.Transaction, baseFee types.Value) *metaTxn {
 	effectivePriorityFee, valid := execution.GetEffectivePriorityFee(baseFee, txn)
+	var discardReason DiscardReason
+	if !valid {
+		discardReason = TooSmallMaxFee
+	}
+
 	return &metaTxn{
 		TxnWithHash:          types.NewTxnWithHash(txn),
 		effectivePriorityFee: effectivePriorityFee,
-		valid:                valid,
+		discardReason:        discardReason,
 		bestIndex:            -1,
 	}
 }
@@ -27,12 +32,16 @@ func (m *metaTxn) Clone() *metaTxn {
 		TxnWithHash:          m.TxnWithHash,
 		effectivePriorityFee: m.effectivePriorityFee,
 		bestIndex:            m.bestIndex,
-		valid:                m.valid,
+		discardReason:        m.discardReason,
 	}
 }
 
 func (m *metaTxn) IsValid() bool {
-	return m.valid
+	return m.discardReason == NotSet
+}
+
+func (m *metaTxn) GetDiscardReason() DiscardReason {
+	return m.discardReason
 }
 
 func (m *metaTxn) IsInQueue() bool {

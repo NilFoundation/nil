@@ -185,6 +185,10 @@ func (p *TxnPool) add(txns ...*metaTxn) ([]DiscardReason, error) {
 }
 
 func (p *TxnPool) validateTxn(txn *metaTxn) (DiscardReason, bool) {
+	if dsc := txn.GetDiscardReason(); dsc != NotSet {
+		return dsc, false
+	}
+
 	if txn.ChainId != types.DefaultChainId {
 		return InvalidChainId, false
 	}
@@ -286,7 +290,7 @@ func (p *TxnPool) addLocked(txn *metaTxn) DiscardReason {
 	replaced := p.all.replaceOrInsert(txn)
 	check.PanicIfNot(replaced == nil)
 
-	if needToAdd := txn.valid; needToAdd {
+	if needToAdd := txn.IsValid(); needToAdd {
 		for _, t := range p.queue.txns {
 			if t.To == txn.To {
 				if t.Seqno > txn.Seqno {
@@ -300,6 +304,10 @@ func (p *TxnPool) addLocked(txn *metaTxn) DiscardReason {
 		if needToAdd {
 			heap.Push(p.queue, txn)
 		}
+	} else {
+		p.logger.Warn().
+			Stringer(logging.FieldTransactionHash, txn.Hash()).
+			Msg("attempt to put invalid transaction into the pool")
 	}
 
 	return NotSet
@@ -365,11 +373,15 @@ func (p *TxnPool) OnCommitted(_ context.Context, baseFee types.Value, committed 
 
 func (p *TxnPool) updateTransactionsLocked() {
 	p.all.ascendAll(func(txn *metaTxn) bool {
-		txn.effectivePriorityFee, txn.valid = execution.GetEffectivePriorityFee(p.baseFee, txn.Transaction)
+		var valid bool
+		txn.effectivePriorityFee, valid = execution.GetEffectivePriorityFee(p.baseFee, txn.Transaction)
+		if !valid {
+			txn.discardReason = TooSmallMaxFee
+		}
 		return true
 	})
 	p.all.ascendAll(func(txn *metaTxn) bool {
-		if !txn.valid && txn.bestIndex >= 0 {
+		if !txn.IsValid() && txn.bestIndex >= 0 {
 			p.queue.Remove(txn)
 			if t := p.nextSenderTxnLocked(txn.To, txn.Seqno); t != nil {
 				heap.Push(p.queue, t)
