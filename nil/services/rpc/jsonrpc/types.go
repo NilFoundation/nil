@@ -613,7 +613,7 @@ type EthProof struct {
 // @componentprop Value value string true the storage value
 // @componentprop Proof proof array false Array of serialized MerkleTree-Nodes, starting with the stateRoot-Node, following the path of the key hash as path.
 type StorageProof struct {
-	Key   hexutil.Big     `json:"key"`
-	Value hexutil.Big     `json:"value"`
+	Key   common.Hash     `json:"key"`
+	Value common.Hash     `json:"value"`
 	Proof []hexutil.Bytes `json:"proof,omitempty"`
 }

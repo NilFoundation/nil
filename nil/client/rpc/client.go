@@ -588,11 +588,7 @@ func (c *Client) GetBalance(ctx context.Context, address types.Address, blockId 
 		return types.Value{}, err
 	}
 
-	bigVal, err := simpleCall[hexutil.Big](ctx, c, Eth_getBalance, address, transport.BlockNumberOrHash(blockNrOrHash))
-	if err != nil {
-		return types.Value{}, err
-	}
-	return types.NewValueFromBigMust(bigVal.ToInt()), nil
+	return simpleCall[types.Value](ctx, c, Eth_getBalance, address, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
 func (c *Client) GetTokens(ctx context.Context, address types.Address, blockId any) (types.TokensMap, error) {

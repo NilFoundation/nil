@@ -163,7 +163,7 @@ type EthAPIRo interface {
 		@returns balance Balance
 	*/
 	GetBalance(
-		ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (*hexutil.Big, error)
+		ctx context.Context, address types.Address, blockNrOrHash transport.BlockNumberOrHash) (types.Value, error)
 
 	/*
 		@name GasPrice

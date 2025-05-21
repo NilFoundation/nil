@@ -21,12 +21,12 @@ func (api *APIImplRo) GetBalance(
 	ctx context.Context,
 	address types.Address,
 	blockNrOrHash transport.BlockNumberOrHash,
-) (*hexutil.Big, error) {
+) (types.Value, error) {
 	balance, err := api.rawapi.GetBalance(ctx, address, toBlockReference(blockNrOrHash))
 	if err != nil {
-		return nil, err
+		return types.Value{}, err
 	}
-	return hexutil.NewBig(balance.ToBig()), nil
+	return balance, nil
 }
 
 // GetTokens implements eth_getTokens. Returns the balance of all tokens of account for a given address.
@@ -177,8 +177,8 @@ func generateStorageProofs(trie *mpt.Reader, storageKeys []common.Hash) ([]Stora
 
 		// Create storage proof for the key
 		storageProof := StorageProof{
-			Key:   hexutil.Big(*key.Big()),
-			Value: *hexutil.NewBig(common.BytesToHash(value).Big()),
+			Key:   key,
+			Value: common.BytesToHash(value),
 		}
 
 		// Add proof bytes if available

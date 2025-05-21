@@ -91,12 +91,12 @@ func (suite *SuiteEthAccounts) TestGetBalance() {
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err := suite.api.GetBalance(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.NewBigFromInt64(1234), res)
+	suite.Equal(types.NewValueFromUint64(1234), res)
 
 	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
 	res, err = suite.api.GetBalance(ctx, suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.NewBigFromInt64(1234), res)
+	suite.Equal(types.NewValueFromUint64(1234), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err = suite.api.GetBalance(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
@@ -234,11 +234,11 @@ func (suite *SuiteEthAccounts) TestGetProof() {
 	suite.Zero(resNonExisting.Nonce)
 	suite.Zero(resNonExisting.StorageHash)
 	suite.Len(resNonExisting.StorageProof, 2)
-	suite.EqualValues(1, resNonExisting.StorageProof[0].Key.Uint64())
-	suite.EqualValues(0, resNonExisting.StorageProof[0].Value.Uint64())
+	suite.Equal(common.BytesToHash([]byte{0x1}), resNonExisting.StorageProof[0].Key)
+	suite.Equal(common.BytesToHash([]byte{0x0}), resNonExisting.StorageProof[0].Value)
 	suite.Nil(resNonExisting.StorageProof[0].Proof)
-	suite.EqualValues(2, resNonExisting.StorageProof[1].Key.Uint64())
-	suite.EqualValues(0, resNonExisting.StorageProof[1].Value.Uint64())
+	suite.Equal(common.BytesToHash([]byte{0x2}), resNonExisting.StorageProof[1].Key)
+	suite.Equal(common.BytesToHash([]byte{0x0}), resNonExisting.StorageProof[1].Value)
 	suite.Nil(resNonExisting.StorageProof[1].Proof)
 }
 
@@ -292,14 +292,12 @@ func (suite *SuiteEthAccounts) verifyStorageProof(
 ) {
 	suite.T().Helper()
 
-	suite.Require().Equal(key.Big().Uint64(), storageProof.Key.Uint64())
+	suite.Require().Equal(key, storageProof.Key)
 
 	if expectNil {
-		suite.Require().Equal(uint64(0), storageProof.Value.Uint64()) // no value for such key
+		suite.Require().Equal(common.EmptyHash, storageProof.Value) // no value for such key
 	} else {
-		var u types.Uint256
-		suite.Require().NoError(u.UnmarshalNil(storageProof.Value.ToInt().Bytes()))
-		suite.Require().Equal(expectedValue.Uint256(), u.Int())
+		suite.Require().Equal(expectedValue, storageProof.Value)
 	}
 
 	proof, err := mpt.SimpleProofFromBytesSlice(hexutil.ToBytesSlice(storageProof.Proof))

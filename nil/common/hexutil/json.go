@@ -3,95 +3,14 @@ package hexutil
 import (
 	"encoding/json"
 	"errors"
-	"math/big"
 	"reflect"
 	"strconv"
 )
 
 var (
-	bigT    = reflect.TypeOf((*Big)(nil))
 	uintT   = reflect.TypeOf(Uint(0))
 	uint64T = reflect.TypeOf(Uint64(0))
 )
-
-// Big marshals/unmarshals as a JSON string with 0x prefix.
-// The zero value marshals as "0x0".
-//
-// Negative integers are not supported at this time. Attempting to marshal them will
-// return an error. Values larger than 256bits are rejected by Unmarshal but will be
-// marshaled without error.
-type Big big.Int
-
-func NewBig(i *big.Int) *Big {
-	return (*Big)(i)
-}
-
-func NewBigFromInt64(i int64) *Big {
-	return (*Big)(big.NewInt(i))
-}
-
-// MarshalText implements encoding.TextMarshaler
-func (b Big) MarshalText() ([]byte, error) {
-	return []byte(EncodeBig((*big.Int)(&b))), nil
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (b *Big) UnmarshalJSON(input []byte) error {
-	if !isString(input) {
-		return errNonString(bigT)
-	}
-	return wrapTypeError(b.UnmarshalText(input[1:len(input)-1]), bigT)
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler
-func (b *Big) UnmarshalText(input []byte) error {
-	raw, err := checkNumberText(input)
-	if err != nil {
-		return err
-	}
-	if len(raw) > 64 {
-		return ErrBig256Range
-	}
-	words := make([]big.Word, len(raw)/bigWordNibbles+1)
-	end := len(raw)
-	for i := range words {
-		start := end - bigWordNibbles
-		if start < 0 {
-			start = 0
-		}
-		for ri := start; ri < end; ri++ {
-			nib := decodeNibble(raw[ri])
-			if nib == badNibble {
-				return ErrSyntax
-			}
-			words[i] *= 16
-			words[i] += big.Word(nib)
-		}
-		end = start
-	}
-	var dec big.Int
-	dec.SetBits(words)
-	*b = (Big)(dec)
-	return nil
-}
-
-// ToInt converts b to a big.Int.
-func (b *Big) ToInt() *big.Int {
-	return (*big.Int)(b)
-}
-
-func (b *Big) IsZero() bool {
-	return b.ToInt().Sign() == 0
-}
-
-// String returns the hex encoding of b.
-func (b *Big) String() string {
-	return EncodeBig(b.ToInt())
-}
-
-func (b *Big) Uint64() uint64 {
-	return ((*big.Int)(b)).Uint64()
-}
 
 // Uint64 marshals/unmarshals as a JSON string with 0x prefix.
 // The zero value marshals as "0x0".

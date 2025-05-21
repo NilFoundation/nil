@@ -240,7 +240,7 @@ func (c *DirectClient) GetBalance(ctx context.Context, address types.Address, bl
 		return types.Value{}, err
 	}
 
-	return types.NewValueFromBigMust(res.ToInt()), nil
+	return res, nil
 }
 
 func (c *DirectClient) GetTokens(ctx context.Context, address types.Address, blockId any) (types.TokensMap, error) {
