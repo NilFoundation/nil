@@ -1,15 +1,16 @@
 import { COLORS } from "@nilfoundation/ui-kit";
 import type { UTCTimestamp } from "lightweight-charts";
 import type { ChartOptions, DeepPartial } from "lightweight-charts";
-import { formatNumber } from "../../../shared";
+import { formatToK } from "../../../shared";
 import { formatUTCTimestamp } from "../../../shared/utils/formatUTCTimestamp";
 import { TimeInterval } from "../../types/TimeInterval";
 
 const getTimeFormatter = (timeInterval: TimeInterval) => (t: UTCTimestamp) =>
-  formatUTCTimestamp(t, timeInterval === TimeInterval.OneDay ? "YYYY DD.MM" : "YYYY DD.MM HH:mm");
-const priceFormatter = (p: number) => formatNumber(p);
+  formatUTCTimestamp(t, timeInterval === TimeInterval.OneDay ? "HH:mm" : "DD.MM");
+const priceFormatter = (p: number) => formatToK(p);
 
 export const getChartDefaultOptions = (timeInterval: TimeInterval): DeepPartial<ChartOptions> => ({
+  autoSize: true,
   layout: {
     background: {
       color: "transparent",
@@ -29,15 +30,12 @@ export const getChartDefaultOptions = (timeInterval: TimeInterval): DeepPartial<
   crosshair: {
     vertLine: {
       color: COLORS.gray400,
-      width: 2,
-      style: 0,
+      width: 1,
+      style: 1,
       labelVisible: true,
       visible: true,
     },
     horzLine: {
-      color: COLORS.gray400,
-      width: 1,
-      style: 0,
       visible: false,
       labelVisible: false,
     },
@@ -49,6 +47,10 @@ export const getChartDefaultOptions = (timeInterval: TimeInterval): DeepPartial<
       bottom: 0,
     },
     visible: true,
+    borderVisible: false,
+  },
+  rightPriceScale: {
+    visible: false,
     borderVisible: false,
   },
 });
