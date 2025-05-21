@@ -2,10 +2,6 @@ import { ethers, network } from 'hardhat';
 import { Contract } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
-import {
-    isValidAddress,
-    loadConfig,
-} from '../../../deploy/config/config-helper';
 import { hasRole } from '../has-a-role';
 import { DEFAULT_ADMIN_ROLE } from '../../utils/roles';
 

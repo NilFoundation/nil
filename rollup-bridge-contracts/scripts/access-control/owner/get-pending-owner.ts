@@ -3,7 +3,7 @@ import { Contract } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-    loadConfig,
+    loadL1NetworkConfig,
     isValidAddress,
 } from '../../../deploy/config/config-helper';
 
@@ -16,16 +16,16 @@ const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
 export async function getRollupPendingOwner() {
     const networkName = network.name;
-    const config = loadConfig(networkName);
+    const config = loadL1NetworkConfig(networkName);
 
-    if (!isValidAddress(config.nilRollupProxy)) {
+    if (!isValidAddress(config.nilRollup.nilRollupContracts.nilRollupProxy)) {
         throw new Error('Invalid nilRollupProxy address in config');
     }
 
     const [signer] = await ethers.getSigners();
 
     const nilRollupInstance = new ethers.Contract(
-        config.nilRollupProxy,
+        config.nilRollup.nilRollupContracts.nilRollupProxy,
         abi,
         signer,
     ) as Contract;

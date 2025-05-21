@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
     isValidAddress,
-    loadConfig,
+    loadL1NetworkConfig,
 } from '../../../deploy/config/config-helper';
 
 const abiPath = path.join(
@@ -15,16 +15,16 @@ const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
 export async function isAProposer(proposerAddress: string) {
     const networkName = network.name;
-    const config = loadConfig(networkName);
+    const config = loadL1NetworkConfig(networkName);
 
-    if (!isValidAddress(config.nilRollupProxy)) {
+    if (!isValidAddress(config.nilRollup.nilRollupContracts.nilRollupProxy)) {
         throw new Error('Invalid nilRollupProxy address in config');
     }
 
     const [signer] = await ethers.getSigners();
 
     const nilAccessControlInstance: Contract = new ethers.Contract(
-        config.nilRollupProxy,
+        config.nilRollup.nilRollupContracts.nilRollupProxy,
         abi,
         signer,
     ) as Contract;

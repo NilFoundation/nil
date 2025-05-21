@@ -2,13 +2,10 @@ import { ethers, network } from 'hardhat';
 import { Contract } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
-import {
-    loadConfig,
-    isValidAddress,
-} from '../../../deploy/config/config-helper';
 import { getRoleMembers } from '../get-role-members';
 import { DEFAULT_ADMIN_ROLE } from '../../utils/roles';
 import { isAnAdmin } from './is-an-admin';
+import { isValidAddress, loadL1NetworkConfig } from '../../../deploy/config/config-helper';
 
 // Load the ABI from the JSON file
 const abiPath = path.join(
@@ -21,10 +18,10 @@ const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 // Function to revoke-admin-access
 export async function revokeAdminAccess(adminAddress: string) {
     const networkName = network.name;
-    const config = loadConfig(networkName);
+    const config = loadL1NetworkConfig(networkName);
 
     // Validate configuration parameters
-    if (!isValidAddress(config.nilRollupProxy)) {
+    if (!isValidAddress(config.nilRollup.nilRollupContracts.nilRollupProxy)) {
         throw new Error('Invalid nilRollupProxy address in config');
     }
 
@@ -41,7 +38,7 @@ export async function revokeAdminAccess(adminAddress: string) {
 
     // Create a contract instance
     const nilRollupInstance = new ethers.Contract(
-        config.nilRollupProxy,
+        config.nilRollup.nilRollupContracts.nilRollupProxy,
         abi,
         signer,
     ) as Contract;
