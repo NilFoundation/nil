@@ -42,6 +42,20 @@ task("relay-l2-message", "relay the l1-rbidge event data as message on to L2Brid
         const messageNonce = l2NetworkConfig.l2TestConfig.messageSentEvent.messageNonce;
         const message = l2NetworkConfig.l2TestConfig.messageSentEvent.message;
         const messageExpiryTime = l2NetworkConfig.l2TestConfig.messageSentEvent.messageExpiryTime;
+        const feeCredit = l2NetworkConfig.l2TestConfig.messageSentEvent.feeCreditData.feeCredit;
+        const maxFeePerGas = l2NetworkConfig.l2TestConfig.messageSentEvent.feeCreditData.maxFeePerGas;
+        const maxPriorityFeePerGas = l2NetworkConfig.l2TestConfig.messageSentEvent.feeCreditData.maxPriorityFeePerGas;
+
+        console.log(`EventData to be relayed is: \n `);
+        console.log(`Message Sender: ${messageSender}`);
+        console.log(`Message Target: ${messageTarget}`);
+        console.log(`Message Type: ${messageType}`);
+        console.log(`Message Nonce: ${messageNonce}`);
+        console.log(`Message: ${message}`);
+        console.log(`Message Expiry Time: ${messageExpiryTime}`);
+        console.log(`Fee Credit: ${feeCredit}`);
+        console.log(`Max Fee Per Gas: ${maxFeePerGas}`);
+        console.log(`Max Priority Fee Per Gas: ${maxPriorityFeePerGas}`);
 
         const relayMessage = encodeFunctionData({
             abi: L2BridgeMessengerJson.default.abi as Abi,
@@ -52,7 +66,9 @@ task("relay-l2-message", "relay the l1-rbidge event data as message on to L2Brid
         const relayEthDepositMessageResponse = await deployerAccount.sendTransaction({
             to: l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy as `0x${string}`,
             data: relayMessage,
-            feeCredit: convertEthToWei(0.001),
+            feeCredit: BigInt(feeCredit),
+            maxFeePerGas: BigInt(maxFeePerGas),
+            maxPriorityFeePerGas: BigInt(maxPriorityFeePerGas)
         });
 
         const relayEthDepositMessageTxnReceipts: ProcessedReceipt[] = await relayEthDepositMessageResponse.wait();
@@ -60,6 +76,8 @@ task("relay-l2-message", "relay the l1-rbidge event data as message on to L2Brid
         const relayedEthDepositMessageTxnReceipt: ProcessedReceipt = relayEthDepositMessageTxnReceipts[0] as ProcessedReceipt;
 
         const outputReceipts: ProcessedReceipt[] = relayedEthDepositMessageTxnReceipt.outputReceipts as ProcessedReceipt[];
+
+        console.log(`outputReceipt is: ${JSON.stringify(outputReceipts, bigIntReplacer, 2)}`)
 
         const outputReceipt: ProcessedReceipt = outputReceipts[0] as ProcessedReceipt;
 
