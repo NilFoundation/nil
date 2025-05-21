@@ -1,7 +1,7 @@
 import { COLORS, SPACE } from "@nilfoundation/ui-kit";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { StyleObject } from "styletron-react";
-import { getTabletStyles } from "../../../../styleHelpers";
+import { getMobileStyles, getTabletStyles } from "../../../../styleHelpers";
 
 const linkOutlineStyles = {
   borderRadius: "4px",
@@ -87,6 +87,21 @@ const navLink = {
   ...linkOutlineStyles,
 };
 
+const playgroundContainer = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  justifyContent: "center",
+  width: "100%",
+  height: "100vh",
+  backgroundColor: "transparent",
+  ...expandProperty("paddingInline", "16px"),
+  paddingBottom: "16px",
+  ...getMobileStyles({
+    height: "auto",
+  }),
+};
+
 export const styles = {
   container,
   logo,
@@ -97,6 +112,7 @@ export const styles = {
   navLink,
   playgroundText,
   tutorialText,
+  playgroundContainer,
 };
 
 export const mobileContainerStyle: StyleObject = {
