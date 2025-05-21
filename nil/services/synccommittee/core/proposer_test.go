@@ -172,8 +172,20 @@ func (s *ProposerTestSuite) TearDownSuite() {
 	s.cancellation()
 }
 
+func (s *ProposerTestSuite) putTestBlockBatch() {
+	s.T().Helper()
+	batch, err := testaide.NewBlockBatch(testaide.ShardsCount).Seal(scTypes.DataProofs{[]byte{}}, testaide.Now)
+	s.Require().NoError(err)
+	batch.Id = s.testData.BatchId
+	mainBlock := batch.Blocks[types.MainShardId].Latest()
+	mainBlock.ParentHash = s.testData.OldProvedStateRoot
+	s.Require().NoError(s.storage.PutBlockBatch(s.ctx, batch))
+}
+
 // Normal execution
 func (s *ProposerTestSuite) TestSendProofCommittedBatch() {
+	s.putTestBlockBatch()
+
 	// Calls inside UpdateState
 	s.callContractMock.AddExpectedCall("isBatchFinalized", false)
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
@@ -189,6 +201,8 @@ func (s *ProposerTestSuite) TestSendProofCommittedBatch() {
 
 // Batch not committed, should fail
 func (s *ProposerTestSuite) TestSendProofNotCommitedBatch() {
+	s.putTestBlockBatch()
+
 	// Calls inside UpdateState
 	s.callContractMock.AddExpectedCall("isBatchFinalized", false)
 	s.callContractMock.AddExpectedCall("isBatchCommitted", false)
@@ -202,6 +216,8 @@ func (s *ProposerTestSuite) TestSendProofNotCommitedBatch() {
 
 // Batch already finalized, should fail
 func (s *ProposerTestSuite) TestSendProofFinalizedBatch() {
+	s.putTestBlockBatch()
+
 	// Calls inside UpdateState
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
 	s.callContractMock.AddExpectedCall("isBatchFinalized", true)

@@ -16,7 +16,7 @@ type Config struct {
 	NilRpcEndpoint            string                           `yaml:"endpoint,omitempty"`
 	OwnRpcEndpoint            string                           `yaml:"ownEndpoint,omitempty"`
 	AggregatorConfig          fetching.AggregatorConfig        `yaml:",inline"`
-	ProposerParams            ProposerConfig                   `yaml:"-"`
+	ProposerParams            ProposerConfig                   `yaml:",inline"`
 	ContractWrapperConfig     rollupcontract.WrapperConfig     `yaml:",inline"`
 	L1FeeUpdateConfig         feeupdater.Config                `yaml:",inline"`
 	L1FeeUpdateContractConfig feeupdater.ContractWrapperConfig `yaml:",inline"`

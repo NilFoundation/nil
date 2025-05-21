@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/bridgecontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
@@ -24,6 +25,8 @@ type ProposerStorage interface {
 	TryGetNextProposalData(ctx context.Context) (*scTypes.ProposalData, error)
 
 	SetBatchAsProposed(ctx context.Context, id scTypes.BatchId) error
+
+	GetBatch(ctx context.Context, batchId scTypes.BatchId) (*scTypes.BlockBatch, error)
 }
 
 type ProposerMetrics interface {
@@ -34,6 +37,7 @@ type ProposerMetrics interface {
 type proposer struct {
 	concurrent.Suspendable
 
+	config                ProposerConfig
 	storage               ProposerStorage
 	resetter              *reset.StateResetLauncher
 	bridgeStateGetter     bridgecontract.BridgeStateGetter
@@ -45,12 +49,14 @@ type proposer struct {
 var _ reset.PausableComponent = (*proposer)(nil)
 
 type ProposerConfig struct {
-	ProposingInterval time.Duration
+	ProposingInterval        time.Duration `yaml:"-"`
+	BridgeStateKeeperShardId int           `yaml:"bridgeStateKeeperShardId"`
 }
 
 func NewDefaultProposerConfig() ProposerConfig {
 	return ProposerConfig{
-		ProposingInterval: 10 * time.Second,
+		ProposingInterval:        10 * time.Second,
+		BridgeStateKeeperShardId: int(types.BaseShardId),
 	}
 }
 
@@ -65,6 +71,7 @@ func NewProposer(
 	logger logging.Logger,
 ) (*proposer, error) {
 	p := &proposer{
+		config:                config,
 		storage:               storage,
 		bridgeStateGetter:     bridgeStateGetter,
 		rollupContractWrapper: contractWrapper,
@@ -114,21 +121,24 @@ func (p *proposer) updateState(
 	ctx context.Context,
 	proposalData *scTypes.ProposalData,
 ) error {
-	// NOTE(oclaw) current impl assumes that L2BridgeMessenger is deployed at the main shard
-	// if it is not - we need to expilicitly set shard id and use latest block ref from it
-	lastestMainBlockRef := proposalData.NewProvedStateRoot
-	if lastestMainBlockRef == common.EmptyHash {
-		return errors.New("latest main block ref is empty")
+	batch, err := p.storage.GetBatch(ctx, proposalData.BatchId)
+	if err != nil {
+		return fmt.Errorf("failed to get batch with id=%s: %w", proposalData.BatchId, err)
 	}
 
-	bridgeData, err := p.bridgeStateGetter.GetBridgeState(ctx, lastestMainBlockRef)
+	blockRef, ok := batch.LatestRefs()[types.ShardId(p.config.BridgeStateKeeperShardId)]
+	if !ok {
+		return fmt.Errorf("failed to get latest block ref for shard %d", p.config.BridgeStateKeeperShardId)
+	}
+
+	bridgeData, err := p.bridgeStateGetter.GetBridgeState(ctx, blockRef)
 	if err != nil {
 		return fmt.Errorf("failed to get bridge state: %w", err)
 	}
 
 	updateStateData := scTypes.NewUpdateStateData(
 		proposalData,
-		[]byte{0x0A, 0x0B, 0x0C},
+		[]byte{0x0A, 0x0B, 0x0C}, // TODO place valid proof
 		common.BigToHash(bridgeData.L2toL1Root),
 		common.BigToHash(bridgeData.L1MessageHash),
 		bridgeData.DepositNonce,
