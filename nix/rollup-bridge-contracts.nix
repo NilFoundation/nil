@@ -80,7 +80,10 @@ stdenv.mkDerivation rec {
 
     cd rollup-bridge-contracts
     cp .env.example .env
+    pnpm run build
 
+    echo "Start Hardhat compiling:"
+    npx hardhat clean && npx hardhat compile
   '';
 
   doCheck = enableTesting;
@@ -118,9 +121,6 @@ stdenv.mkDerivation rec {
     echo "Running bridge integration tests"
     bash test_integration.sh
     echo "Bridge integration tests finished"
-
-    echo "Start Hardhat compiling:"
-    npx hardhat clean && npx hardhat compile
   '';
 
   installPhase = ''
