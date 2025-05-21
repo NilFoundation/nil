@@ -81,8 +81,6 @@ stdenv.mkDerivation rec {
     cd rollup-bridge-contracts
     cp .env.example .env
 
-    echo "Start Hardhat compiling:"
-    npx hardhat clean && npx hardhat compile
   '';
 
   doCheck = enableTesting;
@@ -120,6 +118,9 @@ stdenv.mkDerivation rec {
     echo "Running bridge integration tests"
     bash test_integration.sh
     echo "Bridge integration tests finished"
+
+    echo "Start Hardhat compiling:"
+    npx hardhat clean && npx hardhat compile
   '';
 
   installPhase = ''
@@ -127,6 +128,8 @@ stdenv.mkDerivation rec {
     cp ../pnpm-lock.yaml $out/
     cp -r * $out/
     cp .env $out/
+    mkdir $out/contracts/smart-contracts
+    cp ../smart-contracts/contracts/* $out/contracts/smart-contracts
     rm -rf $out/node_modules
     rm -rf $out/cache
   '';
