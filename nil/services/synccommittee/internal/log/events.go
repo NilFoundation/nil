@@ -48,6 +48,6 @@ func NewStateUpdateEvent(
 		Stringer("NewStateRoot", stateUpdate.NewProvedStateRoot).
 		Int("BlobCount", len(stateUpdate.DataProofs)).
 		Stringer("L2Tol1Root", stateUpdate.L2Tol1Root).
-		Int64("MessageCount", stateUpdate.MessageCount).
+		Stringer("DepositNonce", stateUpdate.DepositNonce).
 		Stringer("L1MessageHash", stateUpdate.L1MessageHash)
 }

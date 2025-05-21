@@ -4,12 +4,13 @@ pragma solidity ^0.8.28;
 import { IBridgeMessenger } from "../../interfaces/IBridgeMessenger.sol";
 import { NilConstants } from "../../../common/libraries/NilConstants.sol";
 import { IRelayMessage } from "./IRelayMessage.sol";
+import { IL2BridgeStateGetter } from "./IL2BridgeStateGetter.sol";
 
 /// @title IL2BridgeMessenger
 /// @notice Interface for the L2BridgeMessenger contract which handles cross-chain messaging between L1 and L2.
 /// @dev This interface defines the functions and events for finalizing deposit messages, sending messages to L1, and
 /// initiating withdrawals
-interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage {
+interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage, IL2BridgeStateGetter {
   /*//////////////////////////////////////////////////////////////////////////
                              ERRORS
     //////////////////////////////////////////////////////////////////////////*/
@@ -128,8 +129,6 @@ interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage {
 
   function messageExpiryDelta() external view returns (uint256);
 
-  function l1MessageHash() external view returns (bytes32);
-
   /*//////////////////////////////////////////////////////////////////////////
                          PUBLIC MUTATION FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
@@ -172,10 +171,6 @@ interface IL2BridgeMessenger is IBridgeMessenger, IRelayMessage {
   function setPause(bool _status) external;
 
   function hasRelayerRole(address relayerAddress) external view returns (bool);
-
-  function getL2ToL1Root() external view returns (bytes32);
-
-  function getLatestDepositNonce() external view returns (uint256);
 
   function isDepositMessageRelayed(bytes32 messageHash) external view returns (bool);
 }

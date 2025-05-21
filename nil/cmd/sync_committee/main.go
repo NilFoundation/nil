@@ -111,6 +111,11 @@ func addFlags(cmd *cobra.Command, cfg *cmdConfig) {
 		"disable-l1",
 		cfg.ContractWrapperConfig.DisableL1,
 		"Disable send trancations to L1")
+	cmd.Flags().IntVar(
+		&cfg.ProposerParams.BridgeStateKeeperShardId,
+		"bridge-state-keeper-shard-id",
+		cfg.ProposerParams.BridgeStateKeeperShardId,
+		"Shard ID of the bridge state keeper contract")
 	logLevel := cmd.Flags().String(
 		"log-level",
 		"info",

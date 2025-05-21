@@ -7,7 +7,9 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
+	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/constraints"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/bridgecontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/feeupdater"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/fetching"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
@@ -39,8 +41,11 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 	}
 
 	logger.Info().Msgf("Use RPC endpoint %v", cfg.NilRpcEndpoint)
+
+	nilClient := rpc.NewRetryClient(cfg.NilRpcEndpoint, logger)
+
 	fetcher := fetching.NewFetcher(
-		rpc.NewRetryClient(cfg.NilRpcEndpoint, logger),
+		nilClient,
 		logger,
 	)
 
@@ -91,9 +96,17 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		fetcher, blockStorage, metricsHandler, fetching.NewDefaultLagTrackerConfig(), logger,
 	)
 
+	l2BridgeMessengerAddress := types.HexToAddress(cfg.L2BridgeMessegerAdddress)
+
+	bridgeStateGetter := bridgecontract.NewBridgeStateGetter(
+		nilClient,
+		l2BridgeMessengerAddress,
+	)
+
 	proposer, err := NewProposer(
 		cfg.ProposerParams,
 		blockStorage,
+		bridgeStateGetter,
 		rollupContractWrapper,
 		resetLauncher,
 		metricsHandler,
