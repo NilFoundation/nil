@@ -1,5 +1,6 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
+// @ts-ignore
 import { ethers, network, upgrades, run } from 'hardhat';
 import { deployL1ERC20BridgeContract } from './deploy-erc20-bridge-contract';
 
@@ -8,6 +9,7 @@ import { deployL1ERC20BridgeContract } from './deploy-erc20-bridge-contract';
 const deployL1ERC20Bridge: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
 ) {
+    // @ts-ignore
     const { getNamedAccounts } = hre;
     const { deployer } = await getNamedAccounts();
     const networkName = network.name;

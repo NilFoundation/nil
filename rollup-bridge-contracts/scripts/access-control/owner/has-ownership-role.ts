@@ -1,3 +1,4 @@
+// @ts-ignore
 import { ethers, network } from 'hardhat';
 import { loadL1NetworkConfig } from '../../../deploy/config/config-helper';
 import { hasRole } from '../has-a-role';

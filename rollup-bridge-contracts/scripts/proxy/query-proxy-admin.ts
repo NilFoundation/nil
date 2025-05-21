@@ -1,3 +1,4 @@
+// @ts-ignore
 import { ethers, upgrades } from 'hardhat';
 
 // npx hardhat run scripts/proxy/query-proxy-admin.ts --network sepolia

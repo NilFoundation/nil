@@ -1,3 +1,4 @@
+// @ts-ignore
 import { ethers, network, upgrades, run } from 'hardhat';
 import {
     L1NetworkConfig,

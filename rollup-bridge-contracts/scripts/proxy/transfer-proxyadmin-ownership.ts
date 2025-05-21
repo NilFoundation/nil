@@ -1,3 +1,4 @@
+// @ts-ignore
 import { ethers, upgrades } from 'hardhat';
 import { abi as ProxyAdminABI } from '@openzeppelin/contracts/build/contracts/ProxyAdmin.json';
 

@@ -1,3 +1,4 @@
+// @ts-ignore
 import { ethers, network } from 'hardhat';
 import { Contract } from 'ethers';
 import * as fs from 'fs';
