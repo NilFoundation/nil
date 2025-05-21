@@ -124,10 +124,16 @@ stdenv.mkDerivation rec {
 
   installPhase = ''
     mkdir -p $out
-    cp ../pnpm-lock.yaml $out/
-    cp -r * $out/
-    cp .env $out/
-    rm -rf $out/node_modules
-    rm -rf $out/cache
+    cd ..
+
+    cp package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc biome.json $out/
+    cp -r ./rollup-bridge-contracts/ $out/rollup-bridge-contracts
+    cp -r ./rollup-bridge-contracts/.env $out/rollup-bridge-contracts/
+    cp -r ./smart-contracts/ $out/smart-contracts
+    cp -r ./niljs/ $out/niljs
+
+    rm -rf $out/rollup-bridge-contracts/node_modules
+    rm -rf $out/niljs/node_modules
+    rm -rf $out/smart-contracts/node_modules
   '';
 }
