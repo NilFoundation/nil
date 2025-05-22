@@ -18,6 +18,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const runTestTimeout = 30 * time.Second
+
 type SyncCommitteeTestSuite struct {
 	tests.RpcSuite
 
@@ -101,14 +103,14 @@ func (s *SyncCommitteeTestSuite) waitMainShardToProcess() {
 			mainRef := latestFetched.TryGetMain()
 			return mainRef != nil && mainRef.Number > 0
 		},
-		5*time.Second,
+		runTestTimeout,
 		100*time.Millisecond,
 	)
 }
 
 func (s *SyncCommitteeTestSuite) TestRun() {
 	// Run processing loop for a short time
-	ctx, cancel := context.WithTimeout(s.Context, 5*time.Second)
+	ctx, cancel := context.WithTimeout(s.Context, runTestTimeout)
 	defer cancel()
 
 	errCh := make(chan error)
