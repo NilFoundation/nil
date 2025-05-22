@@ -46,6 +46,7 @@
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@nomicfoundation/hardhat-verify": "^2.0.13",
     "@nomicfoundation/ignition-core": "^0.15.10",
+    "@nomiclabs/hardhat-ethers": "2.2.3",
     "@nomiclabs/hardhat-etherscan": "^3.1.8",
     "@rollup/plugin-typescript": "^12.1.1",
     "@rollup/wasm-node": "^4.28.0",
@@ -73,16 +74,16 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
+    "@nilfoundation/niljs": "workspace:*",
+    "@nilfoundation/smart-contracts": "workspace:*",
     "@openzeppelin/contracts": "^5.1.0",
     "@openzeppelin/contracts-upgradeable": "^5.1.0",
     "@openzeppelin/hardhat-upgrades": "^3.8.0",
-    "dotenv": "^16.4.5",
     "abitype": "^1.0.7",
+    "dotenv": "^16.4.5",
     "ethers": "^6.13.4",
     "hardhat-deploy": "0.14.0",
     "path-exists": "^5.0.0",
-    "yargs": "^17.7.2",
-    "@nilfoundation/niljs": "workspace:*",
-    "@nilfoundation/smart-contracts": "workspace:*"
+    "yargs": "^17.7.2"
   }
 }

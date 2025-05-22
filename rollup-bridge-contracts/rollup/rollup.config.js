@@ -14,6 +14,7 @@ const getConfig = ({ outputFile, format }) => ({
     file: outputFile,
     format,
     sourcemap: true,
+    inlineDynamicImports: true,
   },
   plugins: [
     nodeResolve(),
