@@ -314,8 +314,6 @@ func NewTransaction(transaction *jsonrpc.RPCInTransaction) PrunedTransaction {
 	}
 }
 
-type DataProofs [][]byte
-
 type ValidityProof []byte
 
 type ProposalData struct {

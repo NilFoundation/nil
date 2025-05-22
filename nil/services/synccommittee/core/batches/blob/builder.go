@@ -38,8 +38,8 @@ func (bb *builder) MakeBlobs(rd io.Reader, blobLimit uint) ([]kzg4844.Blob, erro
 
 	var blobs []kzg4844.Blob
 	eof := false
-	writtenBits := 0
-	alignedBits := 0
+	writtenBits := int64(0)
+	alignedBits := int64(0)
 
 	bitReader := bitio.NewReader(rd) // bit wrapper for reading 254-bit pieces of data to place into the blobs
 
@@ -83,7 +83,7 @@ func (bb *builder) MakeBlobs(rd io.Reader, blobLimit uint) ([]kzg4844.Blob, erro
 			}
 
 			const bytesToRead = 31
-			bytesRead, err := bb.copyBytes(bitReader, blobWriter, bytesToRead)
+			bytesWritten, err := io.CopyN(blobWriter, bitReader, bytesToRead)
 			if err := ignoreEOF(err); err != nil {
 				return nil, err
 			}
@@ -96,8 +96,8 @@ func (bb *builder) MakeBlobs(rd io.Reader, blobLimit uint) ([]kzg4844.Blob, erro
 				return nil, err
 			}
 
-			if bytesRead < bytesToRead {
-				writtenBits += bytesRead * 8
+			if bytesWritten < bytesToRead {
+				writtenBits += bytesWritten * 8
 				eof = true
 				break
 			}
@@ -119,27 +119,6 @@ func (bb *builder) MakeBlobs(rd io.Reader, blobLimit uint) ([]kzg4844.Blob, erro
 		)
 	}
 	return blobs, nil
-}
-
-func (*builder) copyBytes(
-	reader io.Reader, writer io.Writer, bytesCount byte,
-) (bytesRead int, err error) {
-	if bytesCount == 0 {
-		return 0, nil
-	}
-
-	buffer := make([]byte, bytesCount)
-
-	read, err := reader.Read(buffer)
-	if err != nil {
-		return 0, err
-	}
-
-	if _, err := writer.Write(buffer[:read]); err != nil {
-		return 0, err
-	}
-
-	return read, nil
 }
 
 func (*builder) copyBits(

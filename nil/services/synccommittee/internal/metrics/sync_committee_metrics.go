@@ -24,9 +24,9 @@ type SyncCommitteeMetricsHandler struct {
 	attributes metric.MeasurementOption
 
 	// AggregatorMetrics
-	totalBatchesCreated telemetry.Counter
-	batchSizeBlocks     telemetry.Histogram
-	batchSizeTxs        telemetry.Histogram
+	totalBatchesCommitted telemetry.Counter
+	batchSizeBlocks       telemetry.Histogram
+	batchSizeTxs          telemetry.Histogram
 
 	// LagTrackerMetrics
 	blockFetchingLag telemetry.Gauge
@@ -76,7 +76,7 @@ func (h *SyncCommitteeMetricsHandler) init(attributes metric.MeasurementOption, 
 func (h *SyncCommitteeMetricsHandler) initAggregatorMetrics(meter telemetry.Meter) error {
 	var err error
 
-	if h.totalBatchesCreated, err = meter.Int64Counter(namespace + "total_batches_created"); err != nil {
+	if h.totalBatchesCommitted, err = meter.Int64Counter(namespace + "total_batches_committed"); err != nil {
 		return err
 	}
 
@@ -125,8 +125,8 @@ func (h *SyncCommitteeMetricsHandler) initProposerMetrics(meter telemetry.Meter)
 	return nil
 }
 
-func (h *SyncCommitteeMetricsHandler) RecordBatchCreated(ctx context.Context, batch *types.BlockBatch) {
-	h.totalBatchesCreated.Add(ctx, 1, h.attributes)
+func (h *SyncCommitteeMetricsHandler) RecordBatchCommitted(ctx context.Context, batch *types.BlockBatch) {
+	h.totalBatchesCommitted.Add(ctx, 1, h.attributes)
 
 	var batchSizeBlocks int64
 	var batchSizeTxs int64

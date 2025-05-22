@@ -50,6 +50,11 @@ func (r *wrapperImpl) UpdateState(ctx context.Context, data *types.UpdateStateDa
 		DepositNonce:  data.DepositNonce,
 	}
 
+	dataProofBytes := make([][]byte, 0, len(data.DataProofs))
+	for _, proof := range data.DataProofs {
+		dataProofBytes = append(dataProofBytes, proof[:])
+	}
+
 	// The transaction will be simulated (via eth_estimateGas) before submission,
 	// but there is still a chance it may fail on-chain if the state changes
 	// between simulation and actual inclusion in a block.
@@ -61,7 +66,7 @@ func (r *wrapperImpl) UpdateState(ctx context.Context, data *types.UpdateStateDa
 			batchIdStr,
 			data.OldProvedStateRoot,
 			data.NewProvedStateRoot,
-			data.DataProofs,
+			dataProofBytes,
 			data.ValidityProof,
 			publicDataInputs,
 		)

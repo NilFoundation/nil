@@ -1,15 +1,15 @@
 package rollupcontract
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"math/big"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/blob"
+	v1 "github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode/v1"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1client"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/testaide"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
@@ -234,13 +234,13 @@ func (s *WrapperTestSuite) TestUpdateState_EmptyStateRoot() {
 // Test CommitBatch - success case
 func (s *WrapperTestSuite) TestCommitBatch_Success() {
 	batchId := types.NewBatchId()
-	sidecar := s.getSampleSidecar()
+	commitment := s.getSampleCommitment()
 
 	// Mock the batch committed check
 	s.callContractMock.AddExpectedCall("isBatchCommitted", false)
 
 	// Call method
-	err := s.wrapper.CommitBatch(s.ctx, batchId, sidecar)
+	err := s.wrapper.CommitBatch(s.ctx, batchId, commitment.Sidecar)
 
 	// Assert
 	s.Require().NoError(err)
@@ -253,13 +253,13 @@ func (s *WrapperTestSuite) TestCommitBatch_Success() {
 // Test CommitBatch - already committed
 func (s *WrapperTestSuite) TestCommitBatch_AlreadyCommitted() {
 	batchId := types.NewBatchId()
-	sidecar := s.getSampleSidecar()
+	commitment := s.getSampleCommitment()
 
 	// Mock the batch committed check to return true
 	s.callContractMock.AddExpectedCall("isBatchCommitted", true)
 
 	// Call method
-	err := s.wrapper.CommitBatch(s.ctx, batchId, sidecar)
+	err := s.wrapper.CommitBatch(s.ctx, batchId, commitment.Sidecar)
 
 	// Assert
 	s.Require().Error(err)
@@ -272,50 +272,15 @@ func (s *WrapperTestSuite) TestCommitBatch_AlreadyCommitted() {
 
 // Test verifyDataProofs method
 func (s *WrapperTestSuite) TestVerifyDataProofs() {
-	// Setup for test
-	testWrapper, ok := s.wrapper.(*wrapperImpl)
-	s.Require().True(ok)
-	hashes := []ethcommon.Hash{
-		ethcommon.HexToHash("0x1111"),
-		ethcommon.HexToHash("0x2222"),
-	}
-	dataProofs := [][]byte{
-		{1, 2, 3},
-		{4, 5, 6},
-	}
+	commitment := s.getSampleCommitment()
 
 	// Mock successful verifications
 	s.callContractMock.AddExpectedCall("verifyDataProof", testaide.NoValue{})
-	s.callContractMock.AddExpectedCall("verifyDataProof", testaide.NoValue{})
 
 	// Test successful verification
-	err := testWrapper.verifyDataProofs(s.ctx, hashes, dataProofs)
+	err := s.wrapper.VerifyDataProofs(s.ctx, commitment)
 	s.Require().NoError(err)
 	s.Require().NoError(s.callContractMock.EverythingCalled())
-
-	// Reset and test verification failure
-	s.callContractMock.Reset()
-	s.callContractMock.AddExpectedCall("verifyDataProof", errors.New("verification failed"))
-
-	err = testWrapper.verifyDataProofs(s.ctx, hashes[:1], dataProofs[:1])
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "proof verification failed")
-	s.Require().NoError(s.callContractMock.EverythingCalled())
-}
-
-// Verification failure
-func (s *WrapperTestSuite) TestPrepareBlobsVerificationFailed() {
-	// failing verification, should lead to `PrepareBlobs` error
-	s.callContractMock.AddExpectedCall("verifyDataProof", errors.New("verification failed"))
-
-	blobs := []kzg4844.Blob{{}, {}, {}} // Sample empty blobs
-	sidecar, dataProofs, err := s.wrapper.PrepareBlobs(s.ctx, blobs)
-	s.Require().Error(err)
-	s.Require().Nil(sidecar)
-	s.Require().Nil(dataProofs)
-
-	s.Require().NoError(s.callContractMock.EverythingCalled())
-	s.Require().Empty(s.ethClient.SendTransactionCalls())
 }
 
 // Test noop wrapper
@@ -344,17 +309,18 @@ func (s *WrapperTestSuite) TestNoopWrapper() {
 	s.Require().NoError(err)
 }
 
-func (s *WrapperTestSuite) getSampleSidecar() *ethtypes.BlobTxSidecar {
+func (s *WrapperTestSuite) getSampleCommitment() *batches.Commitment {
 	s.T().Helper()
+	batch := testaide.NewBlockBatch(testaide.ShardsCount)
 
-	blobBuilder := blob.NewBuilder()
-	blobs, err := blobBuilder.MakeBlobs(bytes.NewReader([]byte("hello, world")), 1)
+	commitPreparer := batches.NewCommitPreparer(
+		v1.NewEncoder(s.logger),
+		blob.NewBuilder(),
+		batches.DefaultCommitConfig(),
+		s.logger,
+	)
+
+	commitment, err := commitPreparer.PrepareBatchCommitment(batch)
 	s.Require().NoError(err)
-
-	// Mock successful verifications
-	s.callContractMock.AddExpectedCall("verifyDataProof", testaide.NoValue{})
-
-	sidecar, _, err := s.wrapper.PrepareBlobs(s.ctx, blobs)
-	s.Require().NoError(err)
-	return sidecar
+	return commitment
 }

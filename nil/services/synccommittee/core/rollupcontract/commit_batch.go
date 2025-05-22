@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/NilFoundation/nil/nil/services/rollup"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	ethparams "github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
@@ -79,83 +78,13 @@ func (r *wrapperImpl) CommitBatch(ctx context.Context, batchId types.BatchId, si
 	return nil
 }
 
-// PrepareBlobs handles all KZG commitment related computations
-func (r *wrapperImpl) PrepareBlobs(
-	ctx context.Context, blobs []kzg4844.Blob,
-) (*ethtypes.BlobTxSidecar, types.DataProofs, error) {
-	sidecar, err := r.computeSidecar(blobs)
-	if err != nil {
-		return nil, nil, fmt.Errorf("computing sidecar: %w", err)
-	}
+func (r *wrapperImpl) VerifyDataProofs(ctx context.Context, commitment *batches.Commitment) error {
+	blobHashes := commitment.Sidecar.BlobHashes()
 
-	dataProofs, err := r.computeDataProofs(ctx, sidecar)
-	if err != nil {
-		return nil, nil, fmt.Errorf("computing data proofs: %w", err)
-	}
-
-	return sidecar, dataProofs, nil
-}
-
-func (r *wrapperImpl) computeSidecar(blobs []kzg4844.Blob) (*ethtypes.BlobTxSidecar, error) {
-	commitments := make([]kzg4844.Commitment, 0, len(blobs))
-	proofs := make([]kzg4844.Proof, 0, len(blobs))
-
-	startTime := time.Now()
-	for _, blob := range blobs {
-		commitment, err := kzg4844.BlobToCommitment(&blob)
-		if err != nil {
-			return nil, fmt.Errorf("computing commitment: %w", err)
-		}
-
-		proof, err := kzg4844.ComputeBlobProof(&blob, commitment)
-		if err != nil {
-			return nil, fmt.Errorf("computing proof: %w", err)
-		}
-
-		commitments = append(commitments, commitment)
-		proofs = append(proofs, proof)
-	}
-	r.logger.Info().Dur("elapsedTime", time.Since(startTime)).Int("blobsLen", len(blobs)).Msg("blob proof computed")
-
-	return &ethtypes.BlobTxSidecar{
-		Blobs:       blobs,
-		Commitments: commitments,
-		Proofs:      proofs,
-	}, nil
-}
-
-func (r *wrapperImpl) computeDataProofs(
-	ctx context.Context, sidecar *ethtypes.BlobTxSidecar,
-) (types.DataProofs, error) {
-	blobHashes := sidecar.BlobHashes()
-	dataProofs := make(types.DataProofs, len(blobHashes))
-	startTime := time.Now()
 	for i, blobHash := range blobHashes {
-		point := generatePointFromVersionedHash(blobHash)
-		proof, claim, err := kzg4844.ComputeProof(&sidecar.Blobs[i], point)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate KZG proof from the blob and point: %w", err)
-		}
-		dataProofs[i] = encodeDataProof(point, claim, sidecar.Commitments[i], proof)
-	}
-	r.logger.Info().
-		Dur("elapsedTime", time.Since(startTime)).Int("blobsLen", len(blobHashes)).Msg("data proofs computed")
+		dataProof := commitment.DataProofs[i]
 
-	// to make sure proofs are correct. Not necessary, if other code is not buggy
-	if err := r.verifyDataProofs(ctx, sidecar.BlobHashes(), dataProofs); err != nil {
-		return nil, fmt.Errorf("generated data proofs verification failed: %w", err)
-	}
-
-	return dataProofs, nil
-}
-
-func (r *wrapperImpl) verifyDataProofs(
-	ctx context.Context,
-	hashes []ethcommon.Hash,
-	dataProofs types.DataProofs,
-) error {
-	for i, blobHash := range hashes {
-		if err := r.rollupContract.VerifyDataProof(r.getEthCallOpts(ctx), blobHash, dataProofs[i]); err != nil {
+		if err := r.rollupContract.VerifyDataProof(r.getEthCallOpts(ctx), blobHash, dataProof[:]); err != nil {
 			// TODO: make verification return a value.
 			// Currently, no way to distinguish network error from verification one
 			return fmt.Errorf("proof verification failed for blobHash=%s: %w", blobHash.Hex(), err)
@@ -164,7 +93,7 @@ func (r *wrapperImpl) verifyDataProofs(
 	return nil
 }
 
-// txParams holds all the Ethereum transaction related parameters
+// txParams holds all the Ethereum transaction-related parameters
 type txParams struct {
 	Nonce      uint64
 	GasTipCap  *big.Int
