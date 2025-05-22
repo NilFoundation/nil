@@ -1,5 +1,3 @@
-// @ts-ignore
-import { ethers, network } from 'hardhat';
 import { Contract } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -16,6 +14,9 @@ const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 // execution instruction: npx hardhat run scripts/access-control/admin/grant-admin-access.ts --network sepolia
 // Function to grant Admin access
 export async function grantAdminAccess(adminAddress: string) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 

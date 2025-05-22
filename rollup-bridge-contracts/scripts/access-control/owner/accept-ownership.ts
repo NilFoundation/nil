@@ -1,5 +1,3 @@
-// @ts-ignore
-import { ethers, network } from 'hardhat';
 import { Contract, ZeroAddress } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -19,6 +17,9 @@ const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
 // npx hardhat run scripts/access-control/owner/accept-ownership.ts --network sepolia
 export async function acceptOwnership() {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 

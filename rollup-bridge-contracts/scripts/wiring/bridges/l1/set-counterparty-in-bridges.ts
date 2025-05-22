@@ -1,5 +1,3 @@
-// @ts-ignore
-import { ethers, network } from 'hardhat';
 import { Contract } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -23,6 +21,9 @@ const l1ERC20BridgeABI = JSON.parse(fs.readFileSync(l1ERC20BridgeABIPath, 'utf8'
 
 // npx hardhat run scripts/wiring/bridges/l1/set-counterparty-in-bridges.ts --network geth
 export async function setCounterpartyInBridges(networkName: string) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
     const config = loadL1NetworkConfig(networkName);
     const l2Config = loadNilNetworkConfig("local");
 

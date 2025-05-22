@@ -1,5 +1,3 @@
-// @ts-ignore
-import { ethers, network } from 'hardhat';
 import { Contract, TransactionReceipt } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -25,6 +23,11 @@ const erc20ABI = JSON.parse(fs.readFileSync(erc20ABIPath, 'utf8')).abi;
 
 // npx hardhat run scripts/bridge-test/cancel-deposit.ts --network geth
 export async function cancelDeposit() {
+
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
+
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 

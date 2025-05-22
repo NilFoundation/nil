@@ -1,5 +1,3 @@
-// @ts-ignore
-import { ethers, network } from 'hardhat';
 import { Contract } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -15,6 +13,11 @@ const nilGasPriceOracleABIPath = path.join(
 const nilGasPriceOracleABI = JSON.parse(fs.readFileSync(nilGasPriceOracleABIPath, 'utf8')).abi;
 
 export async function setUserGasFeeInOracle(networkName: string) {
+
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
+
     const config = loadL1NetworkConfig(networkName);
 
     if (!isValidAddress(config.nilGasPriceOracle.nilGasPriceOracleContracts.nilGasPriceOracleProxy)) {

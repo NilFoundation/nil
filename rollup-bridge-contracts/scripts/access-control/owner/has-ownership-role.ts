@@ -1,10 +1,11 @@
-// @ts-ignore
-import { ethers, network } from 'hardhat';
 import { loadL1NetworkConfig } from '../../../deploy/config/config-helper';
 import { hasRole } from '../has-a-role';
 import { OWNER_ROLE } from '../../utils/roles';
 
 export async function hasOwnershipRole(account: string) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
     const hasOwnershipRole = await hasRole(OWNER_ROLE, account);
 
     const hasOwnershipRoleIndicator = Boolean(hasOwnershipRole);

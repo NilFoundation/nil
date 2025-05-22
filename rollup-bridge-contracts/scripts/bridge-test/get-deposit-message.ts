@@ -1,5 +1,3 @@
-// @ts-ignore
-import { ethers, network } from 'hardhat';
 import { Contract, TransactionReceipt } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -19,6 +17,9 @@ const l1BridgeMessengerABI = JSON.parse(fs.readFileSync(l1BridgeMessengerABIPath
 
 // npx hardhat run scripts/bridge-test/get-deposit-message.ts --network geth
 export async function getDepositMessage(messageHash: string) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 

@@ -1,5 +1,3 @@
-// @ts-ignore
-import { ethers, network } from 'hardhat';
 import { Contract } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -14,6 +12,9 @@ const abiPath = path.join(
 const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
 export async function authoriseBridges(networkName: string) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
     const config = loadL1NetworkConfig(networkName);
 
     if (!isValidAddress(config.l1ERC20Bridge.l1ERC20BridgeProxy)) {

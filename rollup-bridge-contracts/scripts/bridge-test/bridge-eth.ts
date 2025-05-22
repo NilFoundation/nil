@@ -1,5 +1,3 @@
-// @ts-ignore
-import { ethers, network } from 'hardhat';
 import { Contract, TransactionReceipt } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -28,6 +26,11 @@ const nilGasPriceOracleABI = JSON.parse(fs.readFileSync(nilGasPriceOracleABIPath
 
 // npx hardhat run scripts/bridge-test/bridge-eth.ts --network geth
 export async function bridgeETH() {
+
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
+
     const networkName = network.name;
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
