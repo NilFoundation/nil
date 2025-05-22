@@ -1,8 +1,9 @@
-// @ts-ignore
-import { ethers, upgrades } from 'hardhat';
-
 // npx hardhat run scripts/proxy/query-proxy-admin.ts --network sepolia
 async function main() {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { upgrades } = await import('hardhat');
+
     // Retrieve and log the ProxyAdmin address
     const proxyAddress = '';
     const proxyAdminAddress =

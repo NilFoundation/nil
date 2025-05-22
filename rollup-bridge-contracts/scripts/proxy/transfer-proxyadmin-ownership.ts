@@ -1,9 +1,12 @@
-// @ts-ignore
-import { ethers, upgrades } from 'hardhat';
 import { abi as ProxyAdminABI } from '@openzeppelin/contracts/build/contracts/ProxyAdmin.json';
 
 // npx hardhat run scripts/transfer_proxy_admin_ownership.ts --network sepolia
 async function main() {
+
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, upgrades } = await import('hardhat');
+
     // Replace with your deployed proxy address and new owner address
     const proxyAddress = '';
     const newOwnerAddress = '';

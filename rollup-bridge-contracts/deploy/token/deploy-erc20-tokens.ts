@@ -1,21 +1,17 @@
-import { DeployFunction } from 'hardhat-deploy/types';
-import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { run } from 'hardhat';
 import {
     ERC20TokenContract,
-    isValidAddress,
-    isValidBytes32,
-    L1MockConfig,
     L1MockContracts,
-    L1NetworkConfig,
     loadL1MockConfig,
-    loadL1NetworkConfig,
     saveL1MockConfig,
-    saveL1NetworkConfig,
 } from '../config/config-helper';
 import { verifyContractWithRetry } from '../common/proxy-contract-utils';
 
 export async function deployERC20TokenContracts(networkName: string, deployer: any, deploy: any): Promise<void> {
+
+    // Lazy import inside the function
+    // @ts-ignore
+    const { run } = await import('hardhat');
+
     const l1MockContracts: L1MockContracts = loadL1MockConfig(networkName);
     const erc20Tokens: ERC20TokenContract[] = l1MockContracts.tokens;
 

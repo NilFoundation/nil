@@ -1,4 +1,3 @@
-import { network } from 'hardhat';
 import { authoriseBridges } from './bridges/l1/authorise-bridges-for-messenger';
 import { setMessengerInBridges } from './bridges/l1/set-messenger-in-bridges';
 import { setMockCounterpartyInBridges } from './bridges/l1/set-mock-counterparty-in-bridges';
@@ -8,6 +7,9 @@ import { setUserGasFeeInOracle } from './bridges/l1/set-user-gas-fee-in-oracle';
 
 // npx hardhat run scripts/wiring/wiring-master.ts --network geth
 export async function wiringMasterRunner() {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { network } = await import('hardhat');
     const networkName = network.name;
     await wiringMaster(networkName);
 }

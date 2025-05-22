@@ -1,6 +1,5 @@
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { run } from 'hardhat';
 import {
     isValidAddress,
     isValidBytes32,
@@ -17,6 +16,11 @@ import { verifyContractWithRetry } from '../common/proxy-contract-utils';
 const deployNilVerifier: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
 ) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { run } = await import('hardhat');
+
+    // @ts-ignore
     const { deployments, getNamedAccounts, ethers, network } = hre;
     const { deploy } = deployments;
     const networkName = network.name;

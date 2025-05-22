@@ -1,4 +1,3 @@
-import { network } from 'hardhat';
 import {
     ERC20TokenContract,
     L1MockContracts,
@@ -71,6 +70,9 @@ export async function clearDeployments(networkName: string) {
 }
 
 async function main() {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { network } = await import('hardhat');
     const networkName = network.name;
     await clearDeployments(networkName);
 }

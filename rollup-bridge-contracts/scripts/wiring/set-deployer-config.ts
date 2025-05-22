@@ -1,10 +1,5 @@
-import { network } from 'hardhat';
 import {
-    ERC20TokenContract,
-    L1MockContracts,
-    loadL1MockConfig,
     loadL1NetworkConfig,
-    saveL1MockConfig,
     saveL1NetworkConfig,
 } from '../../deploy/config/config-helper';
 
@@ -29,6 +24,9 @@ export async function setDeployerConfig(networkName: string) {
 }
 
 async function main() {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { network } = await import('hardhat');
     const networkName = network.name;
     await setDeployerConfig(networkName);
 }

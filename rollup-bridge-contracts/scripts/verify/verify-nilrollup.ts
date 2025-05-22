@@ -1,7 +1,10 @@
-import { run } from 'hardhat';
 
 // npx hardhat run scripts/verify/verify-nilrollup.ts --network sepolia
 async function main() {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { run } = await import('hardhat');
+
     const contractAddress = '';
 
     try {
