@@ -29,6 +29,8 @@ const getConfig = ({ outputFile, format }) => ({
   external: (id) =>
     id === "hardhat" ||
     id.startsWith("hardhat/") ||
+    id === "ws" ||
+    id.startsWith("ws/") ||
     externalizedDeps.some((dep) => id === dep || id.startsWith(`${dep}/`)),
 });
 
@@ -58,3 +60,4 @@ const configs = [
 ];
 
 module.exports = configs;
+
