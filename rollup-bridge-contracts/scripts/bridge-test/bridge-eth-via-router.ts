@@ -1,4 +1,3 @@
-import { ethers, network } from 'hardhat';
 import { Contract, TransactionReceipt } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -16,6 +15,9 @@ const l1BridgeRouterABI = JSON.parse(fs.readFileSync(l1BridgeRouterABIPath, 'utf
 
 // npx hardhat run scripts/bridge-test/bridge-eth-via-router.ts --network geth
 export async function bridgeETHViaRouter() {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 

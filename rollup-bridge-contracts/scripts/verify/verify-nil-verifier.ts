@@ -1,7 +1,9 @@
-import { run } from 'hardhat';
-
 //  npx hardhat run scripts/verify/verify-nil-verifier.ts --network sepolia
 async function main() {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { run } = await import('hardhat');
+
     const contractAddress = '';
     const constructorArguments: any[] = [];
 

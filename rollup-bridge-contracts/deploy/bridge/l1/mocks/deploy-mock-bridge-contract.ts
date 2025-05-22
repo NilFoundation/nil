@@ -1,6 +1,5 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
-import { ethers, network, upgrades, run } from 'hardhat';
 import {
     L1MockConfig,
     L1MockContracts,
@@ -12,6 +11,10 @@ import {
 } from '../../../config/config-helper';
 
 export async function deployMockL2BridgeContract(networkName: string, deployer: any, deploy: any): Promise<void> {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network, upgrades, run } = await import('hardhat');
+
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
     try {
         const mockL2Bridge = await deploy('MockL2Bridge', {

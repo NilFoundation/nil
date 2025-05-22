@@ -191,7 +191,7 @@ contract L1ETHBridge is L1BaseBridge, IL1ETHBridge {
   }
 
   function finaliseETHWithdrawal(address l1WithdrawalRecipient, uint256 withdrawalAmount) public payable nonReentrant {
-    if (l1WithdrawalRecipient != address(0)) {
+    if (l1WithdrawalRecipient == address(0)) {
       revert ErrorInvalidRecipientAddress();
     }
 

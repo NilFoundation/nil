@@ -1,6 +1,5 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
-import { ethers, network, upgrades, run } from 'hardhat';
 import {
     archiveL1NetworkConfig,
     isValidAddress,
@@ -13,6 +12,11 @@ import {
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../../common/proxy-contract-utils';
 
 export async function deployL1BridgeMessengerContract(networkName: string): Promise<void> {
+
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network, upgrades, run } = await import('hardhat');
+
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
     // Validate configuration parameters
     if (!isValidAddress(config.l1DeployerConfig.owner)) {

@@ -1,4 +1,3 @@
-import { ethers, network } from 'hardhat';
 import { Contract } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -15,6 +14,10 @@ const abiPath = path.join(
 const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
 export async function setL1TokenMappings(l1TokenAddress: string, l2EnshrinedTokenAddress: string) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
+
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 

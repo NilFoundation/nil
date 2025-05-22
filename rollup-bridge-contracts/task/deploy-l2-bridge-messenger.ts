@@ -50,10 +50,6 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
         validateAddress(l2NetworkConfig.l2CommonConfig.owner, "l2CommonConfig.owner");
         validateAddress(l2NetworkConfig.l2CommonConfig.admin, "l2CommonConfig.admin");
         validateAddress(
-            l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.relayerAddress,
-            "l2BridgeMessengerDeployerConfig.relayerAddress"
-        );
-        validateAddress(
             l2NetworkConfig.nilMessageTreeConfig.nilMessageTreeContracts.nilMessageTreeImplementationAddress,
             "nilMessageTreeContracts.nilMessageTreeImplementationAddress"
         );
@@ -95,7 +91,7 @@ task("deploy-l2-bridge-messenger", "Deploys L2BridgeMessenger contract on Nil Ch
             functionName: "initialize",
             args: [l2NetworkConfig.l2CommonConfig.owner,
             l2NetworkConfig.l2CommonConfig.admin,
-            l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.relayerAddress,
+            l2NetworkConfig.l2CommonConfig.owner,
             l2NetworkConfig.nilMessageTreeConfig.nilMessageTreeContracts.nilMessageTreeImplementationAddress,
             l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.messageExpiryDeltaValue],
         });

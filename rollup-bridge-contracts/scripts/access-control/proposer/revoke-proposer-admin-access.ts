@@ -1,11 +1,8 @@
-import { ethers, network } from 'hardhat';
 import { Contract } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
-import {
-    loadConfig,
-    isValidAddress,
-} from '../../../deploy/config/config-helper';
+import { isValidAddress, loadL1NetworkConfig } from '../../../deploy/config/config-helper';
+
 
 const abiPath = path.join(
     __dirname,
@@ -15,17 +12,20 @@ const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
 // npx hardhat run scripts/access-control/proposer/revoke-proposer-admin-access.ts --network sepolia
 export async function revokeProposerAdminAccess(proposerAdminAddress: string) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
     const networkName = network.name;
-    const config = loadConfig(networkName);
+    const config = loadL1NetworkConfig(networkName);
 
-    if (!isValidAddress(config.nilRollupProxy)) {
+    if (!isValidAddress(config.nilRollup.nilRollupContracts.nilRollupProxy)) {
         throw new Error('Invalid nilRollupProxy address in config');
     }
 
     const [signer] = await ethers.getSigners();
 
     const nilRollupInstance = new ethers.Contract(
-        config.nilRollupProxy,
+        config.nilRollup.nilRollupContracts.nilRollupProxy,
         abi,
         signer,
     ) as Contract;

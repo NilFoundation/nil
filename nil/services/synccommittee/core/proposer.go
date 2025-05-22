@@ -9,6 +9,8 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/bridgecontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/log"
@@ -23,6 +25,8 @@ type ProposerStorage interface {
 	TryGetNextProposalData(ctx context.Context) (*scTypes.ProposalData, error)
 
 	SetBatchAsProposed(ctx context.Context, id scTypes.BatchId) error
+
+	GetBatch(ctx context.Context, batchId scTypes.BatchId) (*scTypes.BlockBatch, error)
 }
 
 type ProposerMetrics interface {
@@ -33,8 +37,10 @@ type ProposerMetrics interface {
 type proposer struct {
 	concurrent.Suspendable
 
+	config                ProposerConfig
 	storage               ProposerStorage
 	resetter              *reset.StateResetLauncher
+	bridgeStateGetter     bridgecontract.BridgeStateGetter
 	rollupContractWrapper rollupcontract.Wrapper
 	metrics               ProposerMetrics
 	logger                logging.Logger
@@ -43,12 +49,14 @@ type proposer struct {
 var _ reset.PausableComponent = (*proposer)(nil)
 
 type ProposerConfig struct {
-	ProposingInterval time.Duration
+	ProposingInterval        time.Duration `yaml:"-"`
+	BridgeStateKeeperShardId int           `yaml:"bridgeStateKeeperShardId"`
 }
 
 func NewDefaultProposerConfig() ProposerConfig {
 	return ProposerConfig{
-		ProposingInterval: 10 * time.Second,
+		ProposingInterval:        10 * time.Second,
+		BridgeStateKeeperShardId: int(types.BaseShardId),
 	}
 }
 
@@ -56,13 +64,16 @@ func NewDefaultProposerConfig() ProposerConfig {
 func NewProposer(
 	config ProposerConfig,
 	storage ProposerStorage,
+	bridgeStateGetter bridgecontract.BridgeStateGetter,
 	contractWrapper rollupcontract.Wrapper,
 	resetter *reset.StateResetLauncher,
 	metrics ProposerMetrics,
 	logger logging.Logger,
 ) (*proposer, error) {
 	p := &proposer{
+		config:                config,
 		storage:               storage,
+		bridgeStateGetter:     bridgeStateGetter,
 		rollupContractWrapper: contractWrapper,
 		resetter:              resetter,
 		metrics:               metrics,
@@ -110,14 +121,27 @@ func (p *proposer) updateState(
 	ctx context.Context,
 	proposalData *scTypes.ProposalData,
 ) error {
-	// TODO: populate with actual data
+	batch, err := p.storage.GetBatch(ctx, proposalData.BatchId)
+	if err != nil {
+		return fmt.Errorf("failed to get batch with id=%s: %w", proposalData.BatchId, err)
+	}
+
+	blockRef, ok := batch.LatestRefs()[types.ShardId(p.config.BridgeStateKeeperShardId)]
+	if !ok {
+		return fmt.Errorf("failed to get latest block ref for shard %d", p.config.BridgeStateKeeperShardId)
+	}
+
+	bridgeData, err := p.bridgeStateGetter.GetBridgeState(ctx, blockRef)
+	if err != nil {
+		return fmt.Errorf("failed to get bridge state: %w", err)
+	}
 
 	updateStateData := scTypes.NewUpdateStateData(
 		proposalData,
-		[]byte{0x0A, 0x0B, 0x0C},
-		common.EmptyHash,
-		0,
-		common.EmptyHash,
+		[]byte{0x0A, 0x0B, 0x0C}, // TODO place valid proof
+		common.BigToHash(bridgeData.L2toL1Root),
+		common.BigToHash(bridgeData.L1MessageHash),
+		bridgeData.DepositNonce,
 	)
 
 	log.NewStateUpdateEvent(p.logger, zerolog.InfoLevel, updateStateData).Msg("calling UpdateState L1 method")

@@ -1,23 +1,25 @@
-import { ethers, network } from 'hardhat';
-import { loadConfig } from '../../../deploy/config/config-helper';
+import { loadL1NetworkConfig } from '../../../deploy/config/config-helper';
 import { hasRole } from '../has-a-role';
 import { OWNER_ROLE } from '../../utils/roles';
 
 export async function hasOwnershipRole(account: string) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
     const hasOwnershipRole = await hasRole(OWNER_ROLE, account);
 
     const hasOwnershipRoleIndicator = Boolean(hasOwnershipRole);
 
     const networkName = network.name;
-    const config = loadConfig(networkName);
+    const config = loadL1NetworkConfig(networkName);
 
     if (hasOwnershipRoleIndicator) {
         console.log(
-            `account: ${account} is an owner for rollupContract: ${config.nilRollupProxy} on network: ${networkName}`,
+            `account: ${account} is an owner for rollupContract: ${config.nilRollup.nilRollupContracts.nilRollupProxy} on network: ${networkName}`,
         );
     } else {
         console.log(
-            `account: ${account} doesnot have owner-role for rollupContract: ${config.nilRollupProxy} on network: ${networkName}`,
+            `account: ${account} doesnot have owner-role for rollupContract: ${config.nilRollup.nilRollupContracts.nilRollupProxy} on network: ${networkName}`,
         );
     }
 }

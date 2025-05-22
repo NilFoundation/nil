@@ -14,14 +14,34 @@ task("clear-l2-deployments", "Clears L2DeploymentConfig entries in nil-deploymen
         config.l2CommonConfig.admin = "";
         config.l2CommonConfig.owner = "";
         config.l2CommonConfig.mockL1Bridge = "";
+        config.l2CommonConfig.relayer = "";
 
         // clear all deployed contract address under config
         config.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerImplementation = "";
         config.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy = "";
         config.l2BridgeMessengerConfig.l2BridgeMessengerContracts.proxyAdmin = "";
-        config.l2BridgeMessengerConfig.l2BridgeMessengerDeployerConfig.relayerAddress = "";
 
         config.l2CommonConfig.mockL1Bridge = "";
+
+        config.l2TestConfig.ethBalanceBefBridge = BigInt(0);
+
+        config.l2TestConfig.messageSentEvent = {
+            messageSender: "",
+            messageTarget: "",
+            messageNonce: "0",
+            message: "",
+            messageHash: "",
+            messageType: 0,
+            messageCreatedAt: "",
+            messageExpiryTime: "",
+            l2FeeRefundAddress: "",
+            feeCreditData: {
+                nilGasLimit: "0",
+                maxFeePerGas: "0",
+                maxPriorityFeePerGas: "0",
+                feeCredit: "0",
+            },
+        };
 
         config.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeImplementation = "";
         config.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy = "";

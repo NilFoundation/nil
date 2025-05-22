@@ -1,9 +1,8 @@
-import { ethers, network } from 'hardhat';
 import { Contract, ZeroAddress } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-    loadConfig,
+    loadL1NetworkConfig,
     isValidAddress,
 } from '../../../deploy/config/config-helper';
 import { getRollupOwner } from './get-owner';
@@ -17,10 +16,13 @@ const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
 // npx hardhat run scripts/access-control/owner/transfer-ownership.ts --network sepolia
 export async function transferOwnership(newOwner: string) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
     const networkName = network.name;
-    const config = loadConfig(networkName);
+    const config = loadL1NetworkConfig(networkName);
 
-    if (!isValidAddress(config.nilRollupProxy)) {
+    if (!isValidAddress(config.nilRollup.nilRollupContracts.nilRollupProxy)) {
         throw new Error('Invalid nilRollupProxy address in config');
     }
 
@@ -48,7 +50,7 @@ export async function transferOwnership(newOwner: string) {
     }
 
     const nilRollupInstance = new ethers.Contract(
-        config.nilRollupProxy,
+        config.nilRollup.nilRollupContracts.nilRollupProxy,
         abi,
         signer,
     ) as Contract;

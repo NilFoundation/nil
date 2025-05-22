@@ -18,6 +18,9 @@ import (
 type EventListenerConfig struct {
 	BridgeMessengerContractAddress string
 
+	// addresses of the token bridges (ETH, ERC20, etc.) deployed on L2, used to filter events
+	L2BridgeAddresses []string
+
 	// settings for historical events fetcher
 	BatchSize    int
 	PollInterval time.Duration
@@ -164,6 +167,7 @@ func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1Messa
 	if err != nil {
 		el.logger.Error().
 			Str("contract_addr", el.config.BridgeMessengerContractAddress).
+			Any("l2_bridge_addresses", el.config.L2BridgeAddresses).
 			Err(err).
 			Msg("failed to subscribe to updates from L1 contract")
 		return err
@@ -176,6 +180,7 @@ func (el *EventListener) subscriber(ctx context.Context, eventCh chan<- *L1Messa
 
 	el.logger.Info().
 		Str("contract_addr", el.config.BridgeMessengerContractAddress).
+		Any("l2_bridge_addresses", el.config.L2BridgeAddresses).
 		Msg("subscribed to new events")
 
 	select {

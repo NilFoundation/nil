@@ -1,6 +1,5 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
-import { ethers, network, upgrades, run } from 'hardhat';
 import { sleepInMilliSeconds } from './helper-utils';
 import { ZeroAddress } from '../config/config-helper';
 
@@ -9,6 +8,10 @@ export async function getProxyAdminAddressWithRetry(
     proxyAddress: string,
     retries: number = 10,
 ): Promise<string> {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { upgrades } = await import('hardhat');
+
     for (let i = 0; i < retries; i++) {
         const proxyAdminAddress = await upgrades.erc1967.getAdminAddress(
             proxyAddress,
@@ -29,6 +32,10 @@ export async function verifyContractWithRetry(
     constructorArguments: any[],
     retries: number = 10,
 ): Promise<void> {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { run } = await import('hardhat');
+
     for (let i = 0; i < retries; i++) {
         try {
             await run('verify:verify', {
@@ -55,6 +62,10 @@ export async function verifyContractWithRetry(
 }
 
 export async function getImplementationAddress(proxyAddress: string): Promise<string> {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { upgrades } = await import('hardhat');
+
     return await upgrades.erc1967.getImplementationAddress(
         proxyAddress,
     );

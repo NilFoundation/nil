@@ -1,6 +1,3 @@
-import { ethers, network } from 'hardhat';
-import { Contract } from 'ethers';
-
 export const messageSentEventABI = {
     anonymous: false,
     inputs: [
@@ -49,6 +46,9 @@ export type MessageSentEvent = {
 };
 
 export async function extractAndParseMessageSentEventLog(transactionHash: string,): Promise<MessageSentEvent | undefined> {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
     const topic = "0xbfb3547e572ab179830e84cfa839c8af59c5d574a07bd2dec32b18780fd1db15";
     const transactionReceipt = await ethers.provider.getTransactionReceipt(transactionHash);
 

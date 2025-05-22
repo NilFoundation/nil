@@ -1,4 +1,3 @@
-import { network } from 'hardhat';
 import {
     ERC20TokenContract,
     L1MockContracts,
@@ -11,6 +10,9 @@ import {
 // npx hardhat run scripts/wiring/clear-deployments.ts --network geth
 export async function clearDeployments(networkName: string) {
     const config = loadL1NetworkConfig(networkName);
+
+    config.l1TestConfig.l2DepositRecipient = "";
+    config.l1TestConfig.l2FeeRefundRecipient = "";
 
     // clear all deployed contract address under config
     config.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy = "";
@@ -67,12 +69,15 @@ export async function clearDeployments(networkName: string) {
     saveL1MockConfig(networkName, l1MockContracts);
 }
 
-// async function main() {
-//     const networkName = network.name;
-//     await clearDeployments(networkName);
-// }
+async function main() {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { network } = await import('hardhat');
+    const networkName = network.name;
+    await clearDeployments(networkName);
+}
 
-// main().catch((error) => {
-//     console.error(error);
-//     process.exit(1);
-// });
+main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+});

@@ -1,16 +1,5 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
-import { ethers, network, upgrades, run } from 'hardhat';
-import {
-    archiveL1NetworkConfig,
-    isValidAddress,
-    isValidBytes32,
-    L1NetworkConfig,
-    loadL1NetworkConfig,
-    saveL1NetworkConfig,
-    ZeroAddress,
-} from '../../../config/config-helper';
-import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../../common/proxy-contract-utils';
 import { deployL1BridgeMessengerContract } from './deploy-bridge-messenger-contract';
 
 // npx hardhat deploy --network sepolia --tags L1BridgeMessenger
@@ -18,6 +7,11 @@ import { deployL1BridgeMessengerContract } from './deploy-bridge-messenger-contr
 const deployL1BridgeMessenger: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
 ) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network, upgrades, run } = await import('hardhat');
+
+    // @ts-ignore
     const { getNamedAccounts } = hre;
     const { deployer } = await getNamedAccounts();
     const networkName = network.name;

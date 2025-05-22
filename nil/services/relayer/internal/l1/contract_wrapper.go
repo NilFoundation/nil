@@ -3,6 +3,7 @@ package l1
 import (
 	"context"
 
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
@@ -14,14 +15,19 @@ type L1Contract interface {
 }
 
 type l1ContractWrapper struct {
-	impl   *L1
-	l2Addr common.Address
+	impl *L1
+
+	// addresses of the token bridges (ETH, ERC20, etc.) deployed on L2, used to filter events
+	l2BridgeAddresses []common.Address
 }
 
 var _ L1Contract = (*l1ContractWrapper)(nil)
 
-func NewL1ContractWrapper(ethClient EthClient,
-	l1ContractAddr, l2ConractAddr string,
+func NewL1ContractWrapper(
+	ethClient EthClient,
+	l1ContractAddr string,
+	bridges []string,
+	logger logging.Logger,
 ) (*l1ContractWrapper, error) {
 	addr := common.HexToAddress(l1ContractAddr)
 	impl, err := NewL1(addr, ethClient)
@@ -29,10 +35,18 @@ func NewL1ContractWrapper(ethClient EthClient,
 		return nil, err
 	}
 
-	return &l1ContractWrapper{
-		impl:   impl,
-		l2Addr: common.HexToAddress(l2ConractAddr),
-	}, nil
+	wrapper := &l1ContractWrapper{
+		impl: impl,
+	}
+	for _, bridge := range bridges {
+		wrapper.l2BridgeAddresses = append(wrapper.l2BridgeAddresses, common.HexToAddress(bridge))
+	}
+
+	if len(wrapper.l2BridgeAddresses) == 0 {
+		logger.Warn().Msg("No L2 bridge addresses provided, all events will be fetched")
+	}
+
+	return wrapper, nil
 }
 
 func (w *l1ContractWrapper) SubscribeToEvents(
@@ -42,9 +56,9 @@ func (w *l1ContractWrapper) SubscribeToEvents(
 	return w.impl.WatchMessageSent(
 		&bind.WatchOpts{Context: ctx},
 		sink,
-		nil,                        // any sender (for now)
-		[]common.Address{w.l2Addr}, // destination is the contract this relayer is bound to
-		nil,                        // any nonce
+		nil, // any sender (for now)
+		w.l2BridgeAddresses,
+		nil, // any nonce
 	)
 }
 
@@ -55,12 +69,13 @@ func (w *l1ContractWrapper) GetEventsFromBlockRange(
 ) ([]*L1MessageSent, error) {
 	iter, err := w.impl.FilterMessageSent(
 		&bind.FilterOpts{
-			Start: from,
-			End:   to,
+			Start:   from,
+			End:     to,
+			Context: ctx,
 		},
-		nil,                        // any sender (for now)
-		[]common.Address{w.l2Addr}, // destination is the contract this relayer is bound to
-		nil,                        // any nonce
+		nil, // any sender (for now)
+		w.l2BridgeAddresses,
+		nil, // any nonce
 	)
 	if err != nil {
 		return nil, err

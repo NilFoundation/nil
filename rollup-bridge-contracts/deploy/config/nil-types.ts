@@ -1,5 +1,3 @@
-import { ethers } from 'hardhat';
-
 export interface PublicDataInfo {
     placeholder1: string;
     placeholder2: string;
@@ -18,5 +16,4 @@ export interface BatchInfo {
     blobCount: number;
 }
 
-export const proposerRoleHash = ethers.keccak256(ethers.toUtf8Bytes("PROPOSER_ROLE"));
-
+export const relayerRoleHash = ethers.keccak256(ethers.toUtf8Bytes("RELAYER_ROLE"));

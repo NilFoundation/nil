@@ -1,6 +1,5 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
-import { ethers, network, upgrades, run } from 'hardhat';
 import {
     archiveL1NetworkConfig,
     isValidAddress,
@@ -18,6 +17,11 @@ import { deployL1ETHBridgeContract } from './deploy-eth-bridge-contract';
 const deployL1ETHBridge: DeployFunction = async function (
     hre: HardhatRuntimeEnvironment,
 ) {
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network, upgrades, run } = await import('hardhat');
+
+    // @ts-ignore
     const { getNamedAccounts } = hre;
     const { deployer } = await getNamedAccounts();
     const networkName = network.name;

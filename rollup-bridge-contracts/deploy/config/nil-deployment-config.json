@@ -4,6 +4,7 @@
       "l2CommonConfig": {
         "owner": "",
         "admin": "",
+        "relayer": "",
         "tokens": [
           {
             "name": "USD Coin",
@@ -61,6 +62,26 @@
           "proxyAdmin": "",
           "l2ETHBridgeProxy": "",
           "l2ETHBridgeImplementation": ""
+        }
+      },
+      "l2TestConfig": {
+        "ethBalanceBefBridge": "0",
+        "messageSentEvent": {
+          "messageSender": "",
+          "messageTarget": "",
+          "messageNonce": "0",
+          "message": "",
+          "messageHash": "",
+          "messageType": 0,
+          "messageCreatedAt": "",
+          "messageExpiryTime": "",
+          "l2FeeRefundAddress": "",
+          "feeCreditData": {
+            "nilGasLimit": "0",
+            "maxFeePerGas": "0",
+            "maxPriorityFeePerGas": "0",
+            "feeCredit": "0"
+          }
         }
       }
     }

@@ -6,6 +6,28 @@ import * as ethers from 'ethers';
  * L1 CONFIG SCHEMA
  */
 
+export function bigIntReplacer(unusedKey: string, value: unknown): unknown {
+    return typeof value === "bigint" ? value.toString() : value;
+}
+
+export type MessageSentEvent = {
+    messageSender: string;
+    messageTarget: string;
+    messageNonce: string;
+    message: string;
+    messageHash: string;
+    messageType: number;
+    messageCreatedAt: string;
+    messageExpiryTime: string;
+    l2FeeRefundAddress: string;
+    feeCreditData: {
+        nilGasLimit: string;
+        maxFeePerGas: string;
+        maxPriorityFeePerGas: string;
+        feeCredit: string;
+    };
+};
+
 export interface L1Config {
     networks: {
         [network: string]: L1NetworkConfig;
@@ -14,6 +36,7 @@ export interface L1Config {
 
 export interface L1NetworkConfig {
     l1DeployerConfig: L1DeployerConfig;
+    l1TestConfig: L1TestConfig;
     l1CommonContracts: L1CommonContracts;
     nilRollup: NilRollup;
     l1BridgeRouter: L1BridgeRouter;
@@ -21,6 +44,30 @@ export interface L1NetworkConfig {
     l1ERC20Bridge: L1ERC20Bridge;
     l1ETHBridge: L1ETHBridge;
     nilGasPriceOracle: NilGasPriceOracle;
+}
+
+export interface L1TestConfig {
+    l2DepositRecipient: string;
+    l2FeeRefundRecipient: string;
+    l1ETHDepositTestConfig: L1ETHDepositTestConfig;
+    l1ERC20DepositTestConfig: L1ERC20DepositTestConfig;
+}
+
+export interface L1ETHDepositTestConfig {
+    amount: number; // Amount of ETH to deposit on L1
+    gasLimit: number;
+    totalNativeAmount: number;
+    userMaxFeePerGas: number;
+    userMaxPriorityFeePerGas: number;
+}
+
+export interface L1ERC20DepositTestConfig {
+    tokenAddress: string;
+    amount: number;
+    gasLimit: number;
+    totalNativeAmount: number;
+    userMaxFeePerGas: number;
+    userMaxPriorityFeePerGas: number;
 }
 
 export interface L1DeployerConfig {
@@ -273,11 +320,13 @@ export interface L2NetworkConfig {
     l2BridgeMessengerConfig: L2BridgeMessengerConfig;
     l2EnshrinedTokenBridgeConfig: L2EnshrinedTokenBridgeConfig;
     l2ETHBridgeConfig: L2ETHBridgeConfig;
+    l2TestConfig: L2TestConfig;
 }
 
 export interface L2CommonConfig {
     owner: string;
     admin: string;
+    relayer: string;
     tokens: EnshrinedToken[];
     mockL1Bridge?: string; // Optional field to retain backward compatibility
 }
@@ -310,7 +359,6 @@ export interface L2BridgeMessengerConfig {
         l2BridgeMessengerImplementation: string;
     };
     l2BridgeMessengerDeployerConfig: {
-        relayerAddress: string;
         messageExpiryDeltaValue: number;
     };
 }
@@ -329,6 +377,11 @@ export interface L2ETHBridgeConfig {
         l2ETHBridgeProxy: string;
         l2ETHBridgeImplementation: string;
     }
+}
+
+export interface L2TestConfig {
+    ethBalanceBefBridge: bigint;
+    messageSentEvent: MessageSentEvent;
 }
 
 const nilNetworkConfigFilePath = path.join(__dirname, 'nil-deployment-config.json');
@@ -351,7 +404,8 @@ export const saveNilNetworkConfig = (
 ): void => {
     const config: L2Config = JSON.parse(fs.readFileSync(nilNetworkConfigFilePath, 'utf8'));
     config.networks[network] = networkConfig;
-    fs.writeFileSync(nilNetworkConfigFilePath, JSON.stringify(config, null, 2), 'utf8');
+    console.log(`about to write to file`);
+    fs.writeFileSync(nilNetworkConfigFilePath, JSON.stringify(config, bigIntReplacer, 2), 'utf8');
 };
 
 // Archive old configuration

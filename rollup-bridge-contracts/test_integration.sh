@@ -101,6 +101,15 @@ pids+=("$!")
 wait_for_http_service "http://127.0.0.1:8529"
 
 npx hardhat l2-task-runner --networkname local --l1networkname geth
+l2_contract_addr=$(jq -r '.networks.local.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy' deploy/config/nil-deployment-config.json)
+l2_eth_bridge_addr=$(jq -r '.networks.local.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy' deploy/config/nil-deployment-config.json)
+l2_enshrined_token_bridge_addr=$(jq -r '.networks.local.l2EnshrinedTokenBridgeConfig.l2EnshrinedTokenBridgeContracts.l2EnshrinedTokenBridgeProxy' deploy/config/nil-deployment-config.json)
+
+echo "L2BridgeMessenger deployed to: $l2_contract_addr"
+echo "L2ETHBridge deployed to: $l2_eth_bridge_addr"
+echo "L2EnshrinedTokenBridge deployed to: $l2_enshrined_token_bridge_addr"
+
+npx hardhat run scripts/wiring/bridges/l1/set-counterparty-in-bridges.ts --network geth
 
 echo "Starting relayer"
 $RELAYER_BIN run \
@@ -112,7 +121,8 @@ $RELAYER_BIN run \
     --l2-debug-mode=true \
     --l2-smart-account-salt=1234567890 \
     --l2-faucet-address=http://127.0.0.1:8529 \
-    --l2-contract-addr=0xdeadbeef \
+    --l2-contract-addr=$l2_contract_addr \
+    --l2-bridges-addresses=$l2_eth_bridge_addr,$l2_enshrined_token_bridge_addr \
     >$LOG_DIR/relayer.log 2>&1 &
 pids+=("$!")
 wait_for_http_service "http://127.0.0.1:7777"
@@ -120,11 +130,9 @@ wait_for_http_service "http://127.0.0.1:7777"
 # example query to get relayer stats
 curl -XPOST http://127.0.0.1:7777 -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"relayerDebug_getStats", "params": [], "id": 1}'
 
-echo "TODO: L2 contract deployment is not ready yet"
-
 echo "Triggering L1 deposit event"
-npx hardhat run scripts/bridge-test/bridge-eth.ts --network geth
 
-echo "TODO: ensure that event was received and processed by the L2 side"
-# uncomment to wait till the block with the event is finalized
-# sleep 60
+npx hardhat grant-relayer-role --networkname local
+npx hardhat run scripts/bridge-test/bridge-eth.ts --network geth
+npx hardhat relay-l2-message --networkname local
+npx hardhat validate-l2-eth-bridging --networkname local

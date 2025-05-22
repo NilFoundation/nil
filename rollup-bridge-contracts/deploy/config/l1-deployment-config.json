@@ -6,6 +6,25 @@
         "admin": "",
         "shardId": 1
       },
+      "l1TestConfig": {
+        "l2DepositRecipient": "",
+        "l2FeeRefundRecipient": "",
+        "l1ETHDepositTestConfig": {
+          "amount": 1000000000000,
+          "gasLimit": 1000000,
+          "totalNativeAmount": 1200000000,
+          "userMaxFeePerGas": 0,
+          "userMaxPriorityFeePerGas": 0
+        },
+        "l1ERC20DepositTestConfig": {
+          "tokenAddress": "",
+          "amount": 0,
+          "gasLimit": 0,
+          "totalNativeAmount": 0,
+          "userMaxFeePerGas": 0,
+          "userMaxPriorityFeePerGas": 0
+        }
+      },
       "l1CommonContracts": {
         "weth": ""
       },
@@ -57,8 +76,8 @@
         },
         "nilGasPriceOracleDeployerConfig": {
           "proposerAddress": "",
-          "nilGasPriceOracleMaxFeePerGas": 1000,
-          "nilGasPriceOracleMaxPriorityFeePerGas": 1000,
+          "nilGasPriceOracleMaxFeePerGas": 27500000,
+          "nilGasPriceOracleMaxPriorityFeePerGas": 1250000,
           "nilGasPriceSetterAddress": ""
         }
       }

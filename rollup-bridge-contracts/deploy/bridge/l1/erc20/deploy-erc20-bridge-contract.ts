@@ -1,6 +1,5 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
-import { ethers, network, upgrades, run } from 'hardhat';
 import {
     L1NetworkConfig,
     loadL1NetworkConfig,
@@ -10,6 +9,11 @@ import {
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../../common/proxy-contract-utils';
 
 export async function deployL1ERC20BridgeContract(networkName: string): Promise<boolean> {
+
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network, upgrades, run } = await import('hardhat');
+
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
 
     try {

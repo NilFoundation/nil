@@ -1,6 +1,3 @@
-import { DeployFunction } from 'hardhat-deploy/types';
-import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { ethers, upgrades, run } from 'hardhat';
 import {
     archiveL1NetworkConfig,
     isValidAddress,
@@ -10,11 +7,18 @@ import {
     saveL1NetworkConfig,
     ZeroAddress,
 } from '../config/config-helper';
-import { BatchInfo, proposerRoleHash } from '../config/nil-types';
+import { BatchInfo } from '../config/nil-types';
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../common/proxy-contract-utils';
 
 export async function deployRollupContracts(networkName: string, deployer: any, deploy: any): Promise<void> {
+
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, upgrades, run } = await import('hardhat');
+
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
+
+    const proposerRoleHash = ethers.keccak256(ethers.toUtf8Bytes("PROPOSER_ROLE"));
 
     // Verify if the config object is not null and valid
     if (!config) {
