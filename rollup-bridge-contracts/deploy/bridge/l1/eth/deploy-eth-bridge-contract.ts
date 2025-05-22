@@ -1,5 +1,3 @@
-// @ts-ignore
-import { ethers, network, upgrades, run } from 'hardhat';
 import {
     L1NetworkConfig,
     loadL1NetworkConfig,
@@ -11,6 +9,11 @@ import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../..
 export async function deployL1ETHBridgeContract(networkName: string): Promise<boolean> {
     const config: L1NetworkConfig = loadL1NetworkConfig(networkName);
     try {
+
+        // Lazy import inside the function
+        // @ts-ignore
+        const { ethers, network, upgrades, run } = await import('hardhat');
+
         // Deploy L1ETHBridge implementation
         const L1ETHBridge = await ethers.getContractFactory('L1ETHBridge');
 

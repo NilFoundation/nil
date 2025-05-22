@@ -1,5 +1,3 @@
-// @ts-ignore
-import { ethers, network } from 'hardhat';
 import { Contract } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -17,6 +15,11 @@ const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8')).abi;
 
 // npx hardhat run scripts/access-control/proposer/renounce-proposer-access.ts --network sepolia
 export async function renounceProposerAccess(proposerAddress: string) {
+
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network } = await import('hardhat');
+
     const networkName = network.name;
     const config = loadL1NetworkConfig(networkName);
 

@@ -1,4 +1,3 @@
-import { ethers, network, upgrades, run } from 'hardhat';
 import {
     loadL1NetworkConfig,
     saveL1NetworkConfig,
@@ -7,6 +6,11 @@ import {
 import { getProxyAdminAddressWithRetry, verifyContractWithRetry } from '../../../common/proxy-contract-utils';
 
 export async function deployNilGasPriceOracleContract(networkName: string): Promise<void> {
+
+    // Lazy import inside the function
+    // @ts-ignore
+    const { ethers, network, upgrades, run } = await import('hardhat');
+
     const config = loadL1NetworkConfig(networkName);
     try {
         // Deploy NilGasPriceOracle implementation
