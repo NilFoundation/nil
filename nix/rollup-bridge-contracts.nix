@@ -71,8 +71,9 @@ stdenv.mkDerivation rec {
     "updateAutotoolsGnuConfigScriptsPhase"
     "configurePhase"
     "buildPhase"
+    "contractsBuildPhase"
     "installPhase"
-    # (checkPhase is added automatically if doCheck is true)
+     # (checkPhase is added automatically if doCheck is true)
   ];
 
   buildPhase = ''
@@ -93,6 +94,11 @@ stdenv.mkDerivation rec {
 
     echo "Start Hardhat compiling:"
     npx hardhat clean && npx hardhat compile
+  '';
+
+  contractsBuildPhase = ''
+    echo "contractsBuildPhase"
+    true
   '';
 
   doCheck = enableTesting;
