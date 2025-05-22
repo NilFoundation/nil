@@ -94,6 +94,7 @@ func NewParentBlockFromSSZ(b *ParentBlockSSZ) (*ParentBlock, error) {
 
 func (pb *ParentBlock) ToSerializable() *ParentBlockSSZ {
 	return &ParentBlockSSZ{
+		ShardId:       pb.ShardId,
 		Block:         pb.Block,
 		TxnTrieHolder: sszx.NewMapHolder(pb.txnTrieHolder),
 	}

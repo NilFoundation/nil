@@ -65,6 +65,14 @@ func ConvertProposal(
 		return nil, fmt.Errorf("invalid forward transactions: %w", err)
 	}
 
+	// specialLen := len(proposal.SpecialTxns)
+	// if specialLen > 0 {
+	// 	// Move indices to take into account the special transactions
+	// 	for _, tx := range internalTxns {
+	// 		tx.TxId += types.TransactionIndex(specialLen)
+	// 	}
+	// }
+
 	return &execution.Proposal{
 		PrevBlockId:     proposal.PrevBlockId,
 		PrevBlockHash:   proposal.PrevBlockHash,

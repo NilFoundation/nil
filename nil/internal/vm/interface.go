@@ -89,6 +89,9 @@ type StateDB interface {
 		responseProcessingGas types.Gas,
 	) (*types.Transaction, error)
 
+	// AddRefundTransaction adds refund transaction for current transaction
+	AddRefundTransaction(txn *types.Transaction)
+
 	// Get current transaction
 	GetInTransaction() *types.Transaction
 

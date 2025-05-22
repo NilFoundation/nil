@@ -92,7 +92,7 @@ func (s *ProposerTestSuite) TestBlockGas() {
 func (s *ProposerTestSuite) TestCollator() {
 	to := contracts.CounterAddress(s.T(), s.shardId)
 
-	const asyncGass = 2_000_000
+	const asyncGas = 2_000_000
 
 	pool := &MockTxnPool{}
 	params := s.newParams()
@@ -138,15 +138,15 @@ func (s *ProposerTestSuite) TestCollator() {
 		proposal := generateBlock()
 		r1 = s.checkReceipt(shardId, m1)
 		r2 = s.checkReceipt(shardId, m2)
-		s.Equal(pool.Txns, proposal.ExternalTxns)
+		s.Require().Equal(pool.Txns, proposal.ExternalTxns)
 
 		// Each transaction subtracts its value + actual gas used from the balance.
 		balance = balance.
 			Sub(txnValue).Sub(r1.GasUsed.ToValue(types.DefaultGasPrice)).Sub(r1.Forwarded).
 			Sub(txnValue).Sub(r2.GasUsed.ToValue(types.DefaultGasPrice)).Sub(r2.Forwarded).
-			Sub(types.GasToValue(asyncGass * 2))
-		s.Equal(balance, s.getMainBalance())
-		s.Equal(types.Value{}, s.getBalance(shardId, to))
+			Sub(types.GasToValue(asyncGas * 2))
+		s.Require().Equal(balance, s.getMainBalance())
+		s.Require().Equal(types.Value{}, s.getBalance(shardId, to))
 	})
 
 	pool.Reset()
@@ -154,9 +154,11 @@ func (s *ProposerTestSuite) TestCollator() {
 	s.Run("ProcessInternalTransaction1", func() {
 		proposal := generateBlock()
 
-		s.Equal(balance, s.getMainBalance())
-		s.Equal(txnValue.Mul(types.NewValueFromUint64(2)), s.getBalance(shardId, to))
-		s.Len(proposal.InternalTxns, 2)
+		diff := balance.Sub(s.getMainBalance())
+		s.NotNil(diff)
+		s.Require().Equal(balance, s.getMainBalance())
+		s.Require().Equal(txnValue.Mul(types.NewValueFromUint64(2)), s.getBalance(shardId, to))
+		s.Require().Len(proposal.InternalTxns, 2)
 
 		// Subtract the gas used by the internal transactions from the balance
 		receipt1 := s.checkReceipt(shardId, proposal.InternalTxns[0])
@@ -169,11 +171,13 @@ func (s *ProposerTestSuite) TestCollator() {
 		proposal := generateBlock()
 
 		// Two refund transactions
-		s.Len(proposal.InternalTxns, 2)
+		s.Require().Len(proposal.InternalTxns, 2)
 
-		balance = balance.Add(r1.Forwarded).Add(r2.Forwarded).Add(types.GasToValue(asyncGass * 2))
+		balance = balance.Add(r1.Forwarded).Add(r2.Forwarded).Add(types.GasToValue(asyncGas * 2))
 
-		s.Equal(balance, s.getMainBalance())
+		diff := balance.Sub(s.getMainBalance())
+		s.Require().NotNil(diff)
+		s.Require().Equal(balance, s.getMainBalance())
 
 		s.checkSeqno(shardId)
 	})
@@ -183,17 +187,17 @@ func (s *ProposerTestSuite) TestCollator() {
 		pool.Add(m1, m2)
 
 		proposal := generateBlock()
-		s.Empty(proposal.ExternalTxns)
-		s.Empty(proposal.InternalTxns)
-		s.Empty(proposal.ForwardTxns)
-		s.Equal([]common.Hash{m1.Hash(), m2.Hash()}, pool.LastDiscarded)
-		s.Equal(txnpool.Unverified, pool.LastReason)
+		s.Require().Empty(proposal.ExternalTxns)
+		s.Require().Empty(proposal.InternalTxns)
+		s.Require().Empty(proposal.ForwardTxns)
+		s.Require().Equal([]common.Hash{m1.Hash(), m2.Hash()}, pool.LastDiscarded)
+		s.Require().Equal(txnpool.Unverified, pool.LastReason)
 	})
 
 	s.Run("Deploy", func() {
 		m := execution.NewDeployTransaction(contracts.CounterDeployPayload(s.T()), shardId, to, 0, types.Value{})
 		m.Flags.ClearBit(types.TransactionFlagInternal)
-		s.Equal(to, m.To)
+		s.Require().Equal(to, m.To)
 		pool.Reset()
 		pool.Add(m)
 
@@ -303,7 +307,7 @@ func (s *ProposerTestSuite) checkReceipt(shardId types.ShardId, m *types.Transac
 	receiptsTrie.SetRootHash(txnData.Block().ReceiptsRoot)
 	receipt, err := receiptsTrie.Fetch(txnData.Index())
 	s.Require().NoError(err)
-	s.Equal(m.Hash(), receipt.TxnHash)
+	s.Require().Equal(m.Hash(), receipt.TxnHash)
 	return receipt
 }
 

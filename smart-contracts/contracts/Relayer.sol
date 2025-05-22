@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./NilTokenManager.sol";
 import "./IterableMapping.sol";
+import "../system/console.sol";
 
 // Dirty hack to run the tests with lesser number of shards
 uint32 constant _N_SHARDS = 6;
@@ -144,7 +145,7 @@ contract Relayer {
      * @dev Gets pending messages for a specific shard
      */
     function getPendingMessages(uint32 shardId, uint64 fromId, uint32 count) external view returns (Message[] memory) {
-        ////console.log("getPending messages: shardId=%_, fromId=%_, count=%_", shardId, fromId, count);
+        console.log("getPending messages: shardId=%_, fromId=%_, count=%_", shardId, fromId, count);
         require(count > 0, "Invalid count");
         require(fromId <= outMsgCount[shardId], "Trying to get messages from the future");
         require(shardId < _N_SHARDS, "Invalid shardId");
@@ -222,7 +223,7 @@ contract Relayer {
         initiator = msg.sender;
         
         if (asyncModifierNum == 0) {
-            ////console.log("Relayer start");
+            console.log("Relayer start");
             numMsgsWithForwardGas = 0;
             delete msgsForwardedRemaining;
             delete msgsForwardedPercentage;
@@ -244,14 +245,14 @@ contract Relayer {
             return;
         }
 
-        //console.log("Relayer finalize: gas=%_, num=%_", gas, numMsgsWithForwardGas);
+        console.log("Relayer finalize: gas=%_, num=%_", gas, numMsgsWithForwardGas);
         _forwardGas(gas);
         _resetForwarding();
     }
 
     function _forwardGas(uint gas) internal {
         uint feeCredit = gas * tx.gasprice;
-        //console.log("_forwardGas: gas=%_, num=%_", gas, numMsgsWithForwardGas);
+        console.log("_forwardGas: gas=%_, num=%_", gas, numMsgsWithForwardGas);
 
         if (numMsgsWithForwardGas == 0) {
             return;
@@ -262,7 +263,7 @@ contract Relayer {
             MessageRef memory messageRef = msgsForwardedValue[i];
             Message storage message = messages[messageRef.shardId][messageRef.messageIndex];
         
-            //console.log("_forwardGas value: to=%_, fee=%_", message.to, message.feeCredit);
+            console.log("_forwardGas value: to=%_, fee=%_", message.to, message.feeCredit);
             require(feeCredit >= message.feeCredit, "Not enough feeCredit for ForwardValue");
             feeCredit -= message.feeCredit;
         }
@@ -291,7 +292,7 @@ contract Relayer {
                 feeCredit -= message.feeCredit;
             }
 
-            //console.log("_forwardGas percentage: fee=%_", message.feeCredit);
+            console.log("_forwardGas percentage: fee=%_", message.feeCredit);
         }
 
         // Process REMAINING forwarded messages
@@ -306,7 +307,7 @@ contract Relayer {
                 MessageRef memory messageRef = msgsForwardedRemaining[i];
                 Message storage message = messages[messageRef.shardId][messageRef.messageIndex];
 
-                //console.log("_forwardGas remaining: to=%_, fee=%_", message.to, feeCreditForward);
+                console.log("_forwardGas remaining: to=%_, fee=%_", message.to, feeCreditForward);
 
                 require(message.forwardKind == Nil.FORWARD_REMAINING);
                 message.feeCredit = feeCreditForward;
@@ -314,7 +315,7 @@ contract Relayer {
         }
 
         if (feeCredit != 0) {
-            //console.log("_forwardGas: return fee %_ to %_", feeCredit, msg.sender);
+            console.log("_forwardGas: return fee %_ to %_", feeCredit, msg.sender);
             bytes memory data = abi.encodeWithSignature("nilReceive()");
             (bool success,) = payable(msg.sender).call{value: feeCredit}(data);
             if (!success) {
@@ -341,15 +342,15 @@ contract Relayer {
         if (forwardKind == Nil.FORWARD_REMAINING) {
             msgsForwardedRemaining.push(messageRef);
             numMsgsWithForwardGas++;
-            //console.log("processForwardKind FORWARD_REMAINING: num=%_", numMsgsWithForwardGas);
+            console.log("processForwardKind FORWARD_REMAINING: num=%_", numMsgsWithForwardGas);
         } else if (forwardKind == Nil.FORWARD_PERCENTAGE) {
             msgsForwardedPercentage.push(messageRef);
             numMsgsWithForwardGas++;
-            //console.log("processForwardKind FORWARD_PERCENTAGE: num=%_", numMsgsWithForwardGas);
+            console.log("processForwardKind FORWARD_PERCENTAGE: num=%_", numMsgsWithForwardGas);
         } else if (forwardKind == Nil.FORWARD_VALUE) {
             msgsForwardedValue.push(messageRef);
             numMsgsWithForwardGas++;
-            //console.log("processForwardKind FORWARD_VALUE: num=%_", numMsgsWithForwardGas);
+            console.log("processForwardKind FORWARD_VALUE: num=%_", numMsgsWithForwardGas);
         } else if (forwardKind == Nil.FORWARD_NONE) {
             numMsgsWithForwardGas++;
         } else {
@@ -382,7 +383,7 @@ contract Relayer {
         uint64 requestId,
         uint256 responseGas
     ) public payable {
-        //console.log("sendTx: to=%_, from=%_", to, msg.sender);
+        console.log("sendTx: to=%_, from=%_", to, msg.sender);
 
         require(asyncModifierNum > 0, "Relayer not initialized");
 
@@ -402,9 +403,11 @@ contract Relayer {
         // Deduct tokens from sender
         NilTokenManager(Nil.getTokenManagerAddress()).deductForRelay(msg.sender, to, tokens);
 
+        console.log("Generating receiveTx transaction from=%_ to=%_", Nil.getRelayerAddress(), to);
         // Create parameters struct to reduce stack depth
+        // from relayer because we want relayer to pay
         MessageParams memory params = MessageParams({
-            from: msg.sender,
+            from: Nil.getRelayerAddress(),
             to: Nil.getRelayerAddress(Nil.getShardId(to)),
             refundTo: actualRefundTo,
             bounceTo: actualBounceTo,
@@ -418,6 +421,7 @@ contract Relayer {
         });
 
         // Prepare the receiveTx calldata
+        // from msg.sender because we want response/bounce to be sent to the sender
         bytes memory data = abi.encodeWithSelector(
             this.receiveTx.selector, 
             msg.sender, 
@@ -435,7 +439,7 @@ contract Relayer {
         MessageRef memory messageRef = enqueueMessage(params, tokens, data);
         processForwardKind(forwardKind, messageRef);
 
-        //console.log("sendTx done: shardId=%_, messageId=%_", messageRef.shardId, messageRef.messageIndex);
+        console.log("sendTx done: shardId=%_, messageId=%_", messageRef.shardId, messageRef.messageIndex);
     }
 
     /**
@@ -451,7 +455,7 @@ contract Relayer {
         uint256 salt,
         bytes memory callData
     ) public payable {
-        //console.log("sendTxDeploy: to=%_, from=%_", to, msg.sender);
+        console.log("sendTxDeploy: to=%_, from=%_", to, msg.sender);
 
         require(asyncModifierNum > 0, "Relayer not initialized");
 
@@ -460,8 +464,9 @@ contract Relayer {
         address actualBounceTo = bounceTo == address(0) ? msg.sender : bounceTo;
 
         // Create parameters struct to reduce stack depth
+        // from relayer because we want relayer to pay
         MessageParams memory params = MessageParams({
-            from: msg.sender,
+            from: Nil.getRelayerAddress(),
             to: Nil.getRelayerAddress(Nil.getShardId(to)),
             refundTo: actualRefundTo,
             bounceTo: actualBounceTo,
@@ -475,6 +480,7 @@ contract Relayer {
         });
 
         // Prepare the receiveTxDeploy calldata
+        // from msg.sender because we want response/bounce to be sent to the sender
         bytes memory data = abi.encodeWithSelector(
             this.receiveTxDeploy.selector,
             msg.sender,
@@ -491,7 +497,33 @@ contract Relayer {
         MessageRef memory messageRef = enqueueMessage(params, emptyTokens, data);
         processForwardKind(forwardKind, messageRef);
         
-        //console.log("sendTxDeploy pushed: shardId=%_, messageId=%_", messageRef.shardId, messageRef.messageIndex);
+        console.log("sendTxDeploy pushed: shardId=%_, messageId=%_", messageRef.shardId, messageRef.messageIndex);
+    }
+
+    function sendTxRefund(address from, address to, uint256 refundAmount) public payable {
+        console.log("sendTxRefund: from=%_  to=%_, refundAmount=%_", from, to, refundAmount);
+        bytes memory data = abi.encodeWithSelector(
+            this.receiveTxRefund.selector, 
+            from,
+            to, 
+            outMsgCount[uint32(Nil.getShardId(to))],
+            refundAmount
+        );
+        MessageParams memory params = MessageParams({
+            from: from,
+            to: Nil.getRelayerAddress(Nil.getShardId(to)),
+            refundTo: to,
+            bounceTo: to,
+            value: refundAmount,
+            forwardKind: Nil.FORWARD_REMAINING,
+            feeCredit: 0,
+            requestId: 0,
+            responseFeeCredit: 0,
+            isDeploy: false,
+            salt: 0
+        });
+        Nil.Token[] memory emptyTokens = new Nil.Token[](0);
+        enqueueMessage(params, emptyTokens, data);
     }
 
     /**
@@ -511,7 +543,7 @@ contract Relayer {
         uint32 shardId = uint32(Nil.getShardId(from));
         require(inMsgCount[shardId]++ == messageId, "Invalid message ID");
 
-        //console.log("receiveTx: gas=%_, to=%_, from=%_, messageId=%_", gasleft(), to, from, messageId);
+        console.log("receiveTx: gas=%_, to=%_, from=%_, messageId=%_", gasleft(), to, from, messageId);
 
         // Credit tokens to the recipient
         NilTokenManager(Nil.getTokenManagerAddress()).creditForRelay(to, tokens);
@@ -523,7 +555,7 @@ contract Relayer {
         // Reset token context after the call
         NilTokenManager(Nil.getTokenManagerAddress()).resetTxTokens();
 
-        //console.log("receiveTx: success=%_, gasleft=%_", success, gasleft());
+        console.log("receiveTx: success=%_, gasleft=%_", success, gasleft());
 
         // Handle response or bounce based on outcome
         if (requestId != 0) {
@@ -628,7 +660,7 @@ contract Relayer {
         // Create bounce parameters
         MessageParams memory params = MessageParams({
             from: to,
-            to: Nil.getRelayerAddress(Nil.getShardId(from)),
+            to: Nil.getRelayerAddress(Nil.getShardId(bounceTo)),
             refundTo: address(this),
             bounceTo: address(this),
             value: value,
@@ -672,7 +704,7 @@ contract Relayer {
         uint32 shardId = uint32(Nil.getShardId(from));
         require(inMsgCount[shardId]++ == messageId, "Invalid message ID");
 
-        //console.log("receiveTxDeploy: gas=%_, to=%_, salt=%_, messageId=%_", gasleft(), to, salt, messageId);
+        console.log("receiveTxDeploy: gas=%_, to=%_, salt=%_, messageId=%_", gasleft(), to, salt, messageId);
 
         // Deploy the contract using CREATE2
         address addr;
@@ -681,7 +713,7 @@ contract Relayer {
         }
         bool success = addr != address(0);
 
-        //console.log("receiveTxDeploy: addr=%_", addr);
+        console.log("receiveTxDeploy: addr=%_", addr);
 
         if (!success) {
             return _processDeployBounce(from, bounceTo, value);
@@ -782,7 +814,7 @@ contract Relayer {
         require(inMsgCount[shardId]++ == messageId, "Invalid message ID");
         
         printRevertData("Bounce tx", callData);
-        //console.log("bounce: value=%_, to=%_", value, to);
+        console.log("bounce: value=%_, to=%_", value, to);
         
         // Credit tokens back to the original sender
         NilTokenManager(Nil.getTokenManagerAddress()).creditForRelay(to, tokens);
@@ -800,6 +832,20 @@ contract Relayer {
         }
     }
 
+    function receiveTxRefund(address from, address to, uint64 messageId, uint256 refundAmount) public payable {
+        uint32 shardId = uint32(Nil.getShardId(from));
+        require(inMsgCount[shardId]++ == messageId, "Invalid message ID");
+        require(refundAmount > 0, "Refund amount must be greater than 0");
+        console.log("receiveTxRefund: from=%_  to=%_, refundAmount=%_", from, to, refundAmount);
+        bytes memory data = abi.encodeWithSignature("nilReceive()");
+        (bool success,) = payable(to).call{value: refundAmount}(data);
+        if (!success) {
+            // Save the value for the future refund
+            pendingRefund[to] += refundAmount;
+            console.log("receiveTxRefund: failed to send refund");
+        }
+    }
+
     /**
      * @dev Utility function to print revert data in a readable format.
      */
@@ -809,9 +855,9 @@ contract Relayer {
                 returnData := add(returnData, 0x04)
             }
             string memory reason = abi.decode(returnData, (string));
-            //console.log("%_: %_", str, reason);
+            console.log("%_: %_", str, reason);
         } else {
-            //console.log("%_: <no revert reason>", str);
+            console.log("%_: <no revert reason>", str);
         }
     }
 
@@ -877,8 +923,10 @@ contract Relayer {
     /**
      * @dev Updates the current block number for each shard
      */
-    function updateCurrentBlockNumber(uint64[_N_SHARDS] memory blockNumbers) public {
-        for (uint32 i = 0; i < _N_SHARDS; i++) {
+    function updateCurrentBlockNumber(uint64[] memory blockNumbers) public {
+        // We allow < _N_SHARDS for testing purposes
+        require(blockNumbers.length <= _N_SHARDS, "Invalid block numbers length");
+        for (uint32 i = 0; i < blockNumbers.length; i++) {
             currentBlockNumber[i] = blockNumbers[i];
         }
     }

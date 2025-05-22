@@ -258,6 +258,13 @@ func (g *BlockGenerator) prepareExecutionState(proposal *Proposal, gasPrices []t
 		}
 	}
 
+	for _, txn := range g.executionState.RefundTransactions {
+		txn.TxId = g.executionState.InTxCounts[g.executionState.ShardId]
+		if err := g.handleTxn(txn); err != nil {
+			return err
+		}
+	}
+
 	for _, txn := range proposal.ForwardTxns {
 		g.executionState.AppendForwardTransaction(txn)
 	}

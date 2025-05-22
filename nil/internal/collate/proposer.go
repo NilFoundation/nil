@@ -396,7 +396,7 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 	}
 
 	// If we need to update block numbers in the Relayer contract, add a transaction for that
-	if updateTx, hasUpdate := reader.CreateUpdateBlockNumbersTransaction(); hasUpdate {
+	if updateTx, hasUpdate := reader.GenerateUpdateBlockNumbersTransaction(); hasUpdate {
 		p.proposal.SpecialTxns = append(p.proposal.SpecialTxns, updateTx)
 	}
 

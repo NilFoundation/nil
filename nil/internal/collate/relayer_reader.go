@@ -106,10 +106,10 @@ func (msg *RelayerMessage) ToTransaction() *types.Transaction {
 		TxId:      types.TransactionIndex(msg.Id),
 	}
 
-	// Set flags based on message properties
-	if msg.IsDeploy {
-		txn.Flags.SetBit(types.TransactionFlagDeploy)
-	}
+	// We don't set deploy flag because deploy transaction is processed by receiveTxDeploy in Relayer
+	// if msg.IsDeploy {
+	// 	txn.Flags.SetBit(types.TransactionFlagDeploy)
+	// }
 
 	return txn
 }
@@ -342,8 +342,8 @@ func (r *RelayerMessageQueueReader) GetParentBlocks() []*execution.ParentBlock {
 	return r.parents
 }
 
-// CreateUpdateBlockNumbersTransaction creates a transaction to update the blockNumbers in the contract
-func (r *RelayerMessageQueueReader) CreateUpdateBlockNumbersTransaction() (*types.Transaction, bool) {
+// GenerateUpdateBlockNumbersTransaction creates a transaction to update the blockNumbers in the contract
+func (r *RelayerMessageQueueReader) GenerateUpdateBlockNumbersTransaction() (*types.Transaction, bool) {
 	if !r.needUpdateBlockNumbers {
 		return nil, false
 	}
@@ -361,7 +361,10 @@ func (r *RelayerMessageQueueReader) CreateUpdateBlockNumbersTransaction() (*type
 			To:      r.ourRelayer.relayerAddress,
 			Data:    calldata,
 		},
-		From: r.ourRelayer.relayerAddress,
+		From:      r.ourRelayer.relayerAddress,
+		RefundTo:  r.ourRelayer.relayerAddress,
+		BounceTo:  r.ourRelayer.relayerAddress,
+		IsSpecial: true,
 	}
 
 	return txn, true
@@ -417,7 +420,7 @@ func (r *RelayerMessageQueueReader) Iter(checkLimits func() bool) iter.Seq[*Tran
 				}
 
 				// Track if we processed any messages in this block
-				messagesProcessed := false
+				// messagesProcessed := false
 
 				// Process messages in batches for this block
 				const batchSize = 50
@@ -456,7 +459,7 @@ func (r *RelayerMessageQueueReader) Iter(checkLimits func() bool) iter.Seq[*Tran
 					}
 
 					// Mark that we found messages in this block
-					messagesProcessed = true
+					// messagesProcessed = true
 
 					// Process each message in the batch
 					for _, msg := range messages {
@@ -499,17 +502,21 @@ func (r *RelayerMessageQueueReader) Iter(checkLimits func() bool) iter.Seq[*Tran
 						fromMsgId++
 					}
 				}
+				// Move to the next block
+				currentBlockNum++
+				// Update our tracking of which block we've processed
+				r.markBlockProcessed(neighborId, currentBlockNum)
 
 				// If we processed any messages, update the block number tracking
-				if messagesProcessed {
-					// Move to the next block
-					currentBlockNum++
-					// Update our tracking of which block we've processed
-					r.markBlockProcessed(neighborId, currentBlockNum)
-				} else {
-					// No messages in this block, still move to the next one
-					currentBlockNum++
-				}
+				// if messagesProcessed {
+				// 	// Move to the next block
+				// 	currentBlockNum++
+				// 	// Update our tracking of which block we've processed
+				// 	r.markBlockProcessed(neighborId, currentBlockNum)
+				// } else {
+				// 	// No messages in this block, still move to the next one
+				// 	currentBlockNum++
+				// }
 			}
 		}
 	}
