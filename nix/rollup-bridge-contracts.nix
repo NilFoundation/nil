@@ -65,6 +65,16 @@ stdenv.mkDerivation rec {
     sha256 = "sha256-wXtNq4ZUohndNGs9VttOI9m9VW5QlVKOPtR8+mv2fBM=";
   };
 
+  phases = [
+    "unpackPhase"
+    "patchPhase"
+    "updateAutotoolsGnuConfigScriptsPhase"
+    "configurePhase"
+    "buildPhase"
+    "installPhase"
+    # (checkPhase is added automatically if doCheck is true)
+  ];
+
   buildPhase = ''
     (cd smart-contracts; pnpm run build)
     (cd niljs; pnpm run build)
