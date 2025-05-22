@@ -50,7 +50,6 @@ export * from "./scripts/artifacts/extract-artifacts.js";
 export * from "./scripts/proxy/transfer-proxyadmin-ownership.js";
 export * from "./scripts/proxy/query-proxy-admin.js";
 
-export * from "./hardhat.config.js";
 export * from "./deploy/config/nil-types.js";
 export * from "./deploy/config/config-helper.js";
 export * from "./deploy/token/deploy-weth-token-runner.js";

@@ -26,7 +26,10 @@ const getConfig = ({ outputFile, format }) => ({
     filesize(),
     json(),
   ],
-  external: (id) => externalizedDeps.some((dep) => id.includes(dep)),
+  external: (id) =>
+    id === "hardhat" ||
+    id.startsWith("hardhat/") ||
+    externalizedDeps.some((dep) => id === dep || id.startsWith(`${dep}/`)),
 });
 
 const dtsConfig = {
