@@ -8,6 +8,11 @@ import { createBanner, listDependencies } from "./rollupUtils.js";
 
 const externalizedDeps = listDependencies(packageJson);
 
+function onwarn(warning, warn) {
+  if (warning.code === 'CIRCULAR_DEPENDENCY') return;
+  warn(warning);
+}
+
 const getConfig = ({ outputFile, format }) => ({
   input: "./index.ts",
   output: {
@@ -33,6 +38,7 @@ const getConfig = ({ outputFile, format }) => ({
     id === "ws" ||
     id.startsWith("ws/") ||
     externalizedDeps.some((dep) => id === dep || id.startsWith(`${dep}/`)),
+  onwarn,
 });
 
 const dtsConfig = {
