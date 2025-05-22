@@ -42,7 +42,7 @@ type transactionPayer struct {
 
 func NewTransactionPayer(transaction *types.Transaction, es vm.StateDB) Payer {
 	// We don't charge system transactions
-	if transaction.IsSystem() {
+	if transaction.IsSystem() || transaction.IsRefund() {
 		return dummyPayer{}
 	}
 	return transactionPayer{
@@ -79,8 +79,8 @@ func GenerateRefundTransaction(
 	// Create the transaction
 	txn := &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
-			// Mark as internal transaction
-			Flags:   types.NewTransactionFlags(types.TransactionFlagInternal),
+			// Mark as internal refund transaction
+			Flags:   types.NewTransactionFlags(types.TransactionFlagInternal, types.TransactionFlagRefund),
 			FeePack: types.NewFeePackFromGas(GenerateRefundMaxGas),
 			To:      relayerAddress,
 			Data:    calldata,

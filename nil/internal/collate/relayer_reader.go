@@ -71,6 +71,7 @@ func CallGetterByBlockNumber(
 // RelayerMessage represents a message in the Relayer contract
 type RelayerMessage struct {
 	Id       uint64
+	Seqno    uint64
 	From     types.Address
 	To       types.Address
 	RefundTo types.Address
@@ -86,16 +87,23 @@ type RelayerMessage struct {
 	RequestId         uint64
 	ResponseFeeCredit *big.Int
 	IsDeploy          bool
+	IsRefund          bool
 	Salt              *big.Int
 }
 
 // ToTransaction converts a RelayerMessage to a Transaction
 func (msg *RelayerMessage) ToTransaction() *types.Transaction {
+	flags := types.NewTransactionFlags(types.TransactionFlagInternal)
+	if msg.IsRefund {
+		flags.SetBit(types.TransactionFlagRefund)
+	}
+
 	txn := &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
-			Flags:   types.TransactionFlagsFromKind(true, types.ExecutionTransactionKind),
+			Flags:   flags,
 			FeePack: types.NewFeePackFromFeeCredit(types.NewValueFromBigMust(msg.FeeCredit)),
 			To:      msg.To,
+			Seqno:   types.Seqno(msg.Seqno),
 			Data:    msg.Data,
 		},
 		From:      msg.From,
@@ -361,10 +369,9 @@ func (r *RelayerMessageQueueReader) GenerateUpdateBlockNumbersTransaction() (*ty
 			To:      r.ourRelayer.relayerAddress,
 			Data:    calldata,
 		},
-		From:      r.ourRelayer.relayerAddress,
-		RefundTo:  r.ourRelayer.relayerAddress,
-		BounceTo:  r.ourRelayer.relayerAddress,
-		IsSpecial: true,
+		From:     r.ourRelayer.relayerAddress,
+		RefundTo: r.ourRelayer.relayerAddress,
+		BounceTo: r.ourRelayer.relayerAddress,
 	}
 
 	return txn, true
