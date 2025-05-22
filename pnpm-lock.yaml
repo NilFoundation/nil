@@ -470,13 +470,13 @@ importers:
         version: 7.27.0(@babel/core@7.26.10)
       '@rollup/plugin-commonjs':
         specifier: 28.0.3
-        version: 28.0.3(@rollup/wasm-node@4.38.0)
+        version: 28.0.3(@rollup/wasm-node@4.39.0)
       '@rollup/plugin-json':
         specifier: ^6.1.0
-        version: 6.1.0(@rollup/wasm-node@4.38.0)
+        version: 6.1.0(@rollup/wasm-node@4.39.0)
       '@rollup/plugin-node-resolve':
         specifier: ^15.2.3
-        version: 15.3.1(@rollup/wasm-node@4.38.0)
+        version: 15.3.1(@rollup/wasm-node@4.39.0)
       '@types/jest':
         specifier: ^29.5.11
         version: 29.5.14
@@ -491,16 +491,16 @@ importers:
         version: 29.7.0(@types/node@18.19.80)(ts-node@10.9.2(@types/node@18.19.80)(typescript@5.8.2))
       rollup:
         specifier: npm:@rollup/wasm-node@^4.0.0
-        version: '@rollup/wasm-node@4.38.0'
+        version: '@rollup/wasm-node@4.39.0'
       rollup-plugin-copy:
         specifier: 3.5.0
         version: 3.5.0
       rollup-plugin-dts:
         specifier: 6.1.1
-        version: 6.1.1(@rollup/wasm-node@4.38.0)(typescript@5.8.2)
+        version: 6.1.1(@rollup/wasm-node@4.39.0)(typescript@5.8.2)
       rollup-plugin-esbuild:
         specifier: 6.1.1
-        version: 6.1.1(@rollup/wasm-node@4.38.0)(esbuild@0.25.2)
+        version: 6.1.1(@rollup/wasm-node@4.39.0)(esbuild@0.25.2)
       rollup-plugin-filesize:
         specifier: ^10.0.0
         version: 10.0.0
@@ -778,7 +778,7 @@ importers:
         version: 1.7.2
       '@rollup/plugin-json':
         specifier: ^6.1.0
-        version: 6.1.0(@rollup/wasm-node@4.38.0)
+        version: 6.1.0(@rollup/wasm-node@4.39.0)
       '@scure/bip39':
         specifier: ^1.3.0
         version: 1.5.4
@@ -809,7 +809,7 @@ importers:
     devDependencies:
       '@rollup/plugin-node-resolve':
         specifier: ^15.2.3
-        version: 15.3.1(@rollup/wasm-node@4.38.0)
+        version: 15.3.1(@rollup/wasm-node@4.39.0)
       '@vitest/coverage-v8':
         specifier: ^1.6.0
         version: 1.6.1(vitest@3.1.1(@types/debug@4.1.12)(@types/node@22.13.14)(jiti@1.21.7)(jsdom@26.1.0)(terser@5.39.0)(tsx@4.17.0)(yaml@2.7.1))
@@ -827,13 +827,13 @@ importers:
         version: 6.0.1
       rollup:
         specifier: npm:@rollup/wasm-node@^4.0.0
-        version: '@rollup/wasm-node@4.38.0'
+        version: '@rollup/wasm-node@4.39.0'
       rollup-plugin-dts:
         specifier: 6.1.1
-        version: 6.1.1(@rollup/wasm-node@4.38.0)(typescript@5.8.2)
+        version: 6.1.1(@rollup/wasm-node@4.39.0)(typescript@5.8.2)
       rollup-plugin-esbuild:
         specifier: 6.1.1
-        version: 6.1.1(@rollup/wasm-node@4.38.0)(esbuild@0.25.2)
+        version: 6.1.1(@rollup/wasm-node@4.39.0)(esbuild@0.25.2)
       rollup-plugin-filesize:
         specifier: ^10.0.0
         version: 10.0.0
@@ -910,6 +910,9 @@ importers:
       '@nomicfoundation/ignition-core':
         specifier: ^0.15.10
         version: 0.15.10
+      '@nomiclabs/hardhat-ethers':
+        specifier: 2.2.3
+        version: 2.2.3(ethers@6.13.5)(hardhat@2.22.19(ts-node@10.9.2(@types/node@22.13.14)(typescript@5.8.2))(typescript@5.8.2))
       '@nomiclabs/hardhat-etherscan':
         specifier: ^3.1.8
         version: 3.1.8(hardhat@2.22.19(ts-node@10.9.2(@types/node@22.13.14)(typescript@5.8.2))(typescript@5.8.2))
@@ -918,7 +921,7 @@ importers:
         version: 12.1.2(rollup@4.40.1)(tslib@2.8.1)(typescript@5.8.2)
       '@rollup/wasm-node':
         specifier: ^4.28.0
-        version: 4.38.0
+        version: 4.39.0
       '@typechain/ethers-v6':
         specifier: ^0.5.1
         version: 0.5.1(ethers@6.13.5)(typechain@8.3.2(typescript@5.8.2))(typescript@5.8.2)
@@ -993,7 +996,7 @@ importers:
         version: 12.1.2(rollup@4.40.1)(tslib@2.8.1)(typescript@5.8.2)
       '@rollup/wasm-node':
         specifier: ^4.28.0
-        version: 4.38.0
+        version: 4.39.0
       solc:
         specifier: ^0.8.26
         version: 0.8.29
@@ -1051,7 +1054,7 @@ importers:
         version: link:../niljs
       '@nilfoundation/ui-kit':
         specifier: ^2.5.28
-        version: 2.5.29(@codemirror/state@6.5.0)(@codemirror/view@6.36.5)(@lezer/highlight@1.2.1)(@uiw/codemirror-themes@4.21.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.0)(@codemirror/view@6.36.5))(@uiw/react-codemirror@4.21.0(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.0)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(baseui@13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0))(lightweight-charts@5.0.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(ts-xor@1.3.0)(typescript@5.6.3)
+        version: 2.5.28(@codemirror/state@6.5.0)(@codemirror/view@6.36.5)(@lezer/highlight@1.2.1)(@uiw/codemirror-themes@4.21.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.0)(@codemirror/view@6.36.5))(@uiw/react-codemirror@4.21.0(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.0)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(baseui@13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0))(lightweight-charts@5.0.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(ts-xor@1.3.0)(typescript@5.6.3)
       baseui:
         specifier: ^13.0.0
         version: 13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0)
@@ -4460,21 +4463,6 @@ packages:
       styletron-react: '>=6.1.0 < 7'
       ts-xor: '>=1.1.0 < 2'
 
-  '@nilfoundation/ui-kit@2.5.29':
-    resolution: {integrity: sha512-gs1yf2uKdEFRdSTWSoBBJPp4cG9zW/mkvxHoizO0aF5uR4355wlO1xiVAiTifXkMjNJsrmFQPdC2uaAMB3apNQ==}
-    peerDependencies:
-      '@codemirror/state': 6.5.0
-      '@codemirror/view': '>=6.4.0 < 7'
-      '@lezer/highlight': 1.2.0
-      '@uiw/codemirror-themes': '>=4.21.0 < 5'
-      '@uiw/react-codemirror': '>=4.21.0 < 5'
-      baseui: '>=13.0.0 < 14'
-      lightweight-charts: '>=4.0.0 < 5'
-      react: '>=18 < 19'
-      react-dom: '>=18 < 19'
-      styletron-react: '>=6.1.0 < 7'
-      ts-xor: '>=1.1.0 < 2'
-
   '@noble/curves@1.2.0':
     resolution: {integrity: sha512-oYclrNgRaM9SsBUBVbb8M6DTV7ZHRTKugureoYEncY5c65HOmRzvSiTE3y5CYaPYJA/GVkrhXEoF0M3Ya9PMnw==}
 
@@ -4719,6 +4707,12 @@ packages:
   '@nomicfoundation/solidity-analyzer@0.1.2':
     resolution: {integrity: sha512-q4n32/FNKIhQ3zQGGw5CvPF6GTvDCpYwIf7bEY/dZTZbgfDsHyjJwURxUJf3VQuuJj+fDIFl4+KkBVbw4Ef6jA==}
     engines: {node: '>= 12'}
+
+  '@nomiclabs/hardhat-ethers@2.2.3':
+    resolution: {integrity: sha512-YhzPdzb612X591FOe68q+qXVXGG2ANZRvDo0RRUtimev85rCrAlv/TLMEZw5c+kq9AbzocLTVX/h2jVIFPL9Xg==}
+    peerDependencies:
+      ethers: ^5.0.0
+      hardhat: ^2.0.0
 
   '@nomiclabs/hardhat-etherscan@3.1.8':
     resolution: {integrity: sha512-v5F6IzQhrsjHh6kQz4uNrym49brK9K5bYCq2zQZ729RYRaifI9hHbtmK+KkIVevfhut7huQFEQ77JLRMAzWYjQ==}
@@ -5376,11 +5370,6 @@ packages:
     resolution: {integrity: sha512-ECyOuDeH3C1I8jH2MK1RtBJW+YPMvSfT0a5NN0nHfQYnDSJ6tUiZH3gzwVP5/Kfh/+Tt7tpWVF9LXNTnhTJ3kA==}
     cpu: [x64]
     os: [win32]
-
-  '@rollup/wasm-node@4.38.0':
-    resolution: {integrity: sha512-WgdJf6XyQ5x4qaHbjGjsqWqgg2L4WNNRsQPl80agmFX6Kdobe+FsUn116lnR7lbtiAucgI4ywGYuAoew8RHb8w==}
-    engines: {node: '>=18.0.0', npm: '>=8.0.0'}
-    hasBin: true
 
   '@rollup/wasm-node@4.39.0':
     resolution: {integrity: sha512-hSzvI7Rd7mCw1OI/pkkmwPAlzSTJ2uspxti8yZR0ZRSoHLJuuWCTxGnbdCC3U9bSxtLQwvE0DyXSrj3BtoIl5g==}
@@ -12196,6 +12185,7 @@ packages:
 
   libsql@0.4.7:
     resolution: {integrity: sha512-T9eIRCs6b0J1SHKYIvD8+KCJMcWZ900iZyxdnSCdqxN12Z1ijzT+jY5nrk72Jw4B0HGzms2NgpryArlJqvc3Lw==}
+    cpu: [x64, arm64, wasm32]
     os: [darwin, linux, win32]
 
   lie@3.3.0:
@@ -22800,7 +22790,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@nilfoundation/ui-kit@2.5.29(@codemirror/state@6.5.0)(@codemirror/view@6.36.5)(@lezer/highlight@1.2.1)(@uiw/codemirror-themes@4.21.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.0)(@codemirror/view@6.36.5))(@uiw/react-codemirror@4.21.0(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.0)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(baseui@13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0))(lightweight-charts@5.0.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(ts-xor@1.3.0)(typescript@5.6.3)':
+  '@nilfoundation/ui-kit@2.5.28(@codemirror/state@6.5.0)(@codemirror/view@6.36.5)(@lezer/highlight@1.2.1)(@uiw/codemirror-themes@4.21.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.0)(@codemirror/view@6.36.5))(@uiw/react-codemirror@4.21.0(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.0)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(baseui@13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0))(lightweight-charts@5.0.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(ts-xor@1.3.0)(typescript@5.6.3)':
     dependencies:
       '@codemirror/state': 6.5.0
       '@codemirror/view': 6.36.5
@@ -23112,6 +23102,11 @@ snapshots:
       '@nomicfoundation/solidity-analyzer-linux-x64-gnu': 0.1.2
       '@nomicfoundation/solidity-analyzer-linux-x64-musl': 0.1.2
       '@nomicfoundation/solidity-analyzer-win32-x64-msvc': 0.1.2
+
+  '@nomiclabs/hardhat-ethers@2.2.3(ethers@6.13.5)(hardhat@2.22.19(ts-node@10.9.2(@types/node@22.13.14)(typescript@5.8.2))(typescript@5.8.2))':
+    dependencies:
+      ethers: 6.13.5
+      hardhat: 2.22.19(ts-node@10.9.2(@types/node@22.13.14)(typescript@5.8.2))(typescript@5.8.2)
 
   '@nomiclabs/hardhat-etherscan@3.1.8(hardhat@2.22.19(ts-node@10.9.2(@types/node@22.13.14)(typescript@5.8.2))(typescript@5.8.2))':
     dependencies:
@@ -23727,9 +23722,9 @@ snapshots:
       lodash: 4.17.21
       lodash-es: 4.17.21
 
-  '@rollup/plugin-commonjs@28.0.3(@rollup/wasm-node@4.38.0)':
+  '@rollup/plugin-commonjs@28.0.3(@rollup/wasm-node@4.39.0)':
     dependencies:
-      '@rollup/pluginutils': 5.1.4(@rollup/wasm-node@4.38.0)
+      '@rollup/pluginutils': 5.1.4(@rollup/wasm-node@4.39.0)
       commondir: 1.0.1
       estree-walker: 2.0.2
       fdir: 6.4.3(picomatch@4.0.2)
@@ -23737,29 +23732,19 @@ snapshots:
       magic-string: 0.30.17
       picomatch: 4.0.2
     optionalDependencies:
-      rollup: '@rollup/wasm-node@4.38.0'
+      rollup: '@rollup/wasm-node@4.39.0'
 
-  '@rollup/plugin-json@6.1.0(@rollup/wasm-node@4.38.0)':
+  '@rollup/plugin-json@6.1.0(@rollup/wasm-node@4.39.0)':
     dependencies:
-      '@rollup/pluginutils': 5.1.4(@rollup/wasm-node@4.38.0)
+      '@rollup/pluginutils': 5.1.4(@rollup/wasm-node@4.39.0)
     optionalDependencies:
-      rollup: '@rollup/wasm-node@4.38.0'
+      rollup: '@rollup/wasm-node@4.39.0'
 
   '@rollup/plugin-json@6.1.0(rollup@4.40.1)':
     dependencies:
       '@rollup/pluginutils': 5.1.4(rollup@4.40.1)
     optionalDependencies:
       rollup: 4.40.1
-
-  '@rollup/plugin-node-resolve@15.3.1(@rollup/wasm-node@4.38.0)':
-    dependencies:
-      '@rollup/pluginutils': 5.1.4(@rollup/wasm-node@4.38.0)
-      '@types/resolve': 1.20.2
-      deepmerge: 4.3.1
-      is-module: 1.0.0
-      resolve: 1.22.10
-    optionalDependencies:
-      rollup: '@rollup/wasm-node@4.38.0'
 
   '@rollup/plugin-node-resolve@15.3.1(@rollup/wasm-node@4.39.0)':
     dependencies:
@@ -23779,14 +23764,6 @@ snapshots:
     optionalDependencies:
       rollup: 4.40.1
       tslib: 2.8.1
-
-  '@rollup/pluginutils@5.1.4(@rollup/wasm-node@4.38.0)':
-    dependencies:
-      '@types/estree': 1.0.7
-      estree-walker: 2.0.2
-      picomatch: 4.0.2
-    optionalDependencies:
-      rollup: '@rollup/wasm-node@4.38.0'
 
   '@rollup/pluginutils@5.1.4(@rollup/wasm-node@4.39.0)':
     dependencies:
@@ -23863,12 +23840,6 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.40.1':
     optional: true
-
-  '@rollup/wasm-node@4.38.0':
-    dependencies:
-      '@types/estree': 1.0.7
-    optionalDependencies:
-      fsevents: 2.3.3
 
   '@rollup/wasm-node@4.39.0':
     dependencies:
@@ -37202,14 +37173,6 @@ snapshots:
       del: 8.0.0
       rollup: '@rollup/wasm-node@4.39.0'
 
-  rollup-plugin-dts@6.1.1(@rollup/wasm-node@4.38.0)(typescript@5.8.2):
-    dependencies:
-      magic-string: 0.30.17
-      rollup: '@rollup/wasm-node@4.38.0'
-      typescript: 5.8.2
-    optionalDependencies:
-      '@babel/code-frame': 7.26.2
-
   rollup-plugin-dts@6.1.1(@rollup/wasm-node@4.39.0)(typescript@5.8.2):
     dependencies:
       magic-string: 0.30.17
@@ -37217,17 +37180,6 @@ snapshots:
       typescript: 5.8.2
     optionalDependencies:
       '@babel/code-frame': 7.26.2
-
-  rollup-plugin-esbuild@6.1.1(@rollup/wasm-node@4.38.0)(esbuild@0.25.2):
-    dependencies:
-      '@rollup/pluginutils': 5.1.4(@rollup/wasm-node@4.38.0)
-      debug: 4.4.0(supports-color@8.1.1)
-      es-module-lexer: 1.6.0
-      esbuild: 0.25.2
-      get-tsconfig: 4.10.0
-      rollup: '@rollup/wasm-node@4.38.0'
-    transitivePeerDependencies:
-      - supports-color
 
   rollup-plugin-esbuild@6.1.1(@rollup/wasm-node@4.39.0)(esbuild@0.25.2):
     dependencies:
@@ -39616,7 +39568,7 @@ snapshots:
     dependencies:
       esbuild: 0.21.5
       postcss: 8.5.3
-      rollup: '@rollup/wasm-node@4.38.0'
+      rollup: '@rollup/wasm-node@4.39.0'
     optionalDependencies:
       '@types/node': 22.13.14
       fsevents: 2.3.3
@@ -39626,7 +39578,7 @@ snapshots:
     dependencies:
       esbuild: 0.25.2
       postcss: 8.5.3
-      rollup: '@rollup/wasm-node@4.38.0'
+      rollup: '@rollup/wasm-node@4.39.0'
     optionalDependencies:
       '@types/node': 18.19.80
       fsevents: 2.3.3
@@ -39639,7 +39591,7 @@ snapshots:
     dependencies:
       esbuild: 0.25.2
       postcss: 8.5.3
-      rollup: '@rollup/wasm-node@4.38.0'
+      rollup: '@rollup/wasm-node@4.39.0'
     optionalDependencies:
       '@types/node': 22.13.14
       fsevents: 2.3.3
@@ -39652,7 +39604,7 @@ snapshots:
     dependencies:
       esbuild: 0.25.2
       postcss: 8.5.3
-      rollup: '@rollup/wasm-node@4.38.0'
+      rollup: '@rollup/wasm-node@4.39.0'
     optionalDependencies:
       '@types/node': 22.13.14
       fsevents: 2.3.3
