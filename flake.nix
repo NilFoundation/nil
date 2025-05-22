@@ -28,6 +28,7 @@
       in
       rec {
         packages = rec {
+          zeth = (pkgs.callPackage ./nix/zeth.nix { });
           solc = (pkgs.callPackage ./nix/solc.nix { });
           rollup-bridge-contracts = (pkgs.callPackage ./nix/rollup-bridge-contracts.nix { });
           nil = (pkgs.callPackage ./nix/nil.nix {
@@ -154,6 +155,9 @@
                 chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nildocs.pname}
                 chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nilexplorer.name}
                 chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.docsaibackend.name}
+
+                # copy file after set permitions for /usr/bin
+                cp ${packages.zeth.outPath}/bin/zeth-ethereum ./usr/bin/zeth-ethereum
 
                 mv ./usr/bin/cometa ./usr/bin/nil-cometa
                 mv ./usr/bin/indexer ./usr/bin/nil-indexer
