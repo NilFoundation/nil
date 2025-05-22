@@ -135,7 +135,7 @@ func (w *l2ContractWrapper) RelayMessage(
 		w.smartAccountAddr,
 		calldata,
 		evt.FeePack,
-		evt.L2Limit,
+		types.Value0,
 		nil,
 		w.contractAddr,
 		w.privateKey,

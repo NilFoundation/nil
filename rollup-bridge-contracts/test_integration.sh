@@ -6,10 +6,12 @@
 # - Deploy L1 contracts to the geth node
 # - Start the nild node
 # - Start faucet service
+# - Deploy L2 contracts to the nild node
+# - Set counterparty addresses in the L1 and L2 bridges
 # - Start the relayer service
-# - TODO: Deploy L2 contracts to the nild node
+# - Grant relayer role to the relayer nil smart account
 # - Trigger L1 deposit event
-# - TODO: Ensure that the event was received and processed by the L2 side
+# - Ensure that the event was received and processed by the L2 side
 
 set -euo pipefail
 
@@ -96,7 +98,7 @@ l1_contract_addr=$(jq -r '.networks.geth.l1BridgeMessenger.l1BridgeMessengerCont
 echo "L1BridgeMessenger deployed to: $l1_contract_addr"
 
 echo "Starting nild"
-$NILD_BIN run --http-port 8529 --collator-tick-ms=100 >$LOG_DIR/nild.log 2>&1 &
+$NILD_BIN run --http-port 8529 --collator-tick-ms=100 --log-level=trace >$LOG_DIR/nild.log 2>&1 &
 pids+=("$!")
 wait_for_http_service "http://127.0.0.1:8529"
 
@@ -127,12 +129,12 @@ $RELAYER_BIN run \
 pids+=("$!")
 wait_for_http_service "http://127.0.0.1:7777"
 
-# example query to get relayer stats
-curl -XPOST http://127.0.0.1:7777 -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"relayerDebug_getStats", "params": [], "id": 1}'
-
 echo "Triggering L1 deposit event"
 
 npx hardhat grant-relayer-role --networkname local
 npx hardhat run scripts/bridge-test/bridge-eth.ts --network geth
-npx hardhat relay-l2-message --networkname local
+
+echo "Waiting for relayer to process L1 deposit event"
 npx hardhat validate-l2-eth-bridging --networkname local
+
+echo "Bridge test completed successfully"
