@@ -14,8 +14,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-sts:
-    runs-on: macos-latest
+  nix_check:
+    name: Test - ${{ matrix.check }}
+    runs-on: ["self-hosted", "aws_autoscaling"]
+    strategy:
+      fail-fast: false
+      matrix:
+        check: ["ibft", "heavy", "nil", "nildocs", "niljs", "nilexplorer", "uniswap", "rollup-bridge-contracts", "clijs", "walletextension", "nilhardhat"]
+    steps:
+      - name: checkout local actions
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: run check
+        run: nix build .#checks.x86_64-linux.${{ matrix.check == 'nil' && 'others' || matrix.check }} -L
+
+  nix_check_macos:
+    name: macOS CI (${{ matrix.platform.os}}, ${{ matrix.platform.arch }}) - ${{ matrix.check }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        check: ["nil", "clijs"]
+        platform:
+          # N.B. The architecture is chosen by GitHub at `runs-on` depending on the label (`os`)
+          # See https://github.com/actions/runner-images?tab=readme-ov-file#available-images
+          # The other fields only affect the logic of our steps
+          - os: macos-latest
+            arch: aarch64
+            nixArch: aarch64-darwin
+          - os: macos-15-large
+            arch: x64
+            nixArch: x86_64-darwin
+        exclude:
+          # nil/services/indexer/clickhouse/clickhouse_test.go:79
+          # Received unexpected error:
+          # dial tcp 127.0.0.1:9003: connect: connection refused
+          - os: macos-15-large
+            arch: x64
     env:
       AWS_ACCOUNT_ID: "070427263827"
       SSM_CONFIG_PATH: /github-action-runners/nil-githhub-actions/runners/config
@@ -74,6 +111,10 @@ jobs:
           sudo launchctl setenv AWS_SECRET_ACCESS_KEY "$AWS_SECRET_ACCESS_KEY"
           sudo launchctl setenv AWS_SESSION_TOKEN     "$AWS_SESSION_TOKEN"
 
+      # https://github.com/NixOS/nix/issues/2242#issuecomment-2336841344
+      - name: macOS 15 eDSRecordAlreadyExists workaround
+        run: echo "NIX_FIRST_BUILD_UID=30001" >> "$GITHUB_ENV"
+
       - name: Install Nix
         uses: cachix/install-nix-action@v27
         with:
@@ -90,73 +131,16 @@ jobs:
       # The following "build" command can be used for debugging without having to wait a long time:
       # nix-build -E 'let pkgs = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-24.05.tar.gz") {}; in pkgs.writeText "example" "001"'
       # Counter 001 can be modified to check for cache hits or misses.
-      - name: Build
-        run: nix build .#checks.aarch64-darwin.clijs -L
+      - name: Run check
+        run: nix build .#checks.${{ matrix.platform.nixArch }}.${{ matrix.check == 'nil' && 'others' || matrix.check }} -L
 
-  nix_check:
-    name: Test - ${{ matrix.check }}
-    runs-on: ["self-hosted", "aws_autoscaling"]
-    strategy:
-      fail-fast: false
-      matrix:
-        check: ["ibft", "heavy", "nil", "nildocs", "niljs", "nilexplorer", "uniswap", "rollup-bridge-contracts", "clijs", "walletextension", "nilhardhat"]
-    steps:
-      - name: checkout local actions
-        uses: actions/checkout@v3
+      - name: Upload nil binary as artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
         with:
-          fetch-depth: 0
-
-      - name: run check
-        run: nix build .#checks.x86_64-linux.${{ matrix.check == 'nil' && 'others' || matrix.check }} -L
-
-  # TODO: enable check after adding caches to the build
-  # nix_check_macos:
-  #   name: macOS CI (${{ matrix.platform.os}}, ${{ matrix.platform.arch }}) - ${{ matrix.check }}
-  #   environment: prod
-  #   runs-on: ${{ matrix.platform.os }}
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       # Add other checks later, when they are stabilized, and caching will be configured for Nix.
-  #       check: ["clijs"]
-  #       platform:
-  #         # N.B. The architecture is chosen by GitHub at `runs-on` depending on the label (`os`)
-  #         # See https://github.com/actions/runner-images?tab=readme-ov-file#available-images
-  #         # The other fields only affect the logic of our steps
-  #         - os: macos-latest
-  #           arch: aarch64
-  #           nixArch: aarch64-darwin
-  #         # we're out of CI runners capacity right now. this needs to be returned later
-  #         # - os: macos-15-large
-  #         #   arch: x64
-  #         #   nixArch: x86_64-darwin
-  #   steps:
-  #     - name: checkout local actions
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
-
-  #     # https://github.com/NixOS/nix/issues/2242#issuecomment-2336841344
-  #     - name: macOS 15 eDSRecordAlreadyExists workaround
-  #       run: echo "NIX_FIRST_BUILD_UID=30001" >> "$GITHUB_ENV"
-
-  #     - name: Install Nix
-  #       uses: cachix/install-nix-action@v27
-  #       with:
-  #         github_access_token: ${{ secrets.GITHUB_TOKEN }}
-  #         extra_nix_config: |
-  #           max-jobs = 1
-
-  #     - name: Run check
-  #       run: nix build .#checks.${{ matrix.platform.nixArch }}.${{ matrix.check == 'nil' && 'others' || matrix.check }} -L
-
-  #     - name: Upload nil binary as artifact
-  #       if: github.event_name == 'workflow_dispatch'
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: clijs-darwin-${{ matrix.platform.arch }}
-  #         path: |
-  #           result/clijs
+          name: clijs-darwin-${{ matrix.platform.arch }}
+          path: |
+            result/clijs
 
   ensure_cluster_builds_macos:
     runs-on: ${{ matrix.os }}
