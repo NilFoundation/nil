@@ -11,7 +11,7 @@ import (
 
 func TestBlobReader(t *testing.T) {
 	t.Parallel()
-	input := make([]byte, blobSize+blobSize/2)
+	input := make([]byte, blobSizeBytes+blobSizeBytes/2)
 	for i := range input {
 		input[i] = byte(i & 0xFF)
 	}
@@ -62,7 +62,7 @@ func TestBlobReader(t *testing.T) {
 		output := make([]byte, 2*len(input))
 		read, err := blobReader.Read(output)
 		require.NoError(t, err)
-		payloadInTwoBlobs := 2*blobSize - (((blobSize/32)*2)/8)*2
+		payloadInTwoBlobs := 2*blobSizeBytes - (((blobSizeBytes/32)*2)/8)*2
 		require.Equal(t, payloadInTwoBlobs, read)
 		assert.Equal(t, input, output[:len(input)])
 	})

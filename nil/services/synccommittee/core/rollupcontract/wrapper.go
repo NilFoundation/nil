@@ -11,6 +11,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/l1client"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/ethereum/go-ethereum"
@@ -20,7 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -31,9 +31,9 @@ type Wrapper interface {
 
 	GetLatestFinalizedStateRoot(ctx context.Context) (common.Hash, error)
 
-	CommitBatch(ctx context.Context, batchId types.BatchId, sidecar *ethtypes.BlobTxSidecar) error
+	VerifyDataProofs(ctx context.Context, commitment *batches.Commitment) error
 
-	PrepareBlobs(ctx context.Context, blobs []kzg4844.Blob) (*ethtypes.BlobTxSidecar, types.DataProofs, error)
+	CommitBatch(ctx context.Context, batchId types.BatchId, sidecar *ethtypes.BlobTxSidecar) error
 
 	RollbackState(ctx context.Context, targetRoot common.Hash) error
 }
@@ -471,9 +471,9 @@ func (w *noopWrapper) GetLatestFinalizedStateRoot(context.Context) (common.Hash,
 	return w.stateRoot, nil
 }
 
-func (w *noopWrapper) PrepareBlobs(context.Context, []kzg4844.Blob) (*ethtypes.BlobTxSidecar, types.DataProofs, error) {
-	w.logger.Debug().Msg("PrepareBlobs noop wrapper method called")
-	return nil, nil, nil
+func (w *noopWrapper) VerifyDataProofs(context.Context, *batches.Commitment) error {
+	w.logger.Debug().Msg("VerifyDataProofs noop wrapper method called")
+	return nil
 }
 
 func (w *noopWrapper) CommitBatch(context.Context, types.BatchId, *ethtypes.BlobTxSidecar) error {

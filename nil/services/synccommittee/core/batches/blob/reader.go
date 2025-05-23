@@ -37,10 +37,15 @@ func (r *reader) Read(dst []byte) (int, error) {
 	// could be optimized to use underlying io.Reader but it seems to be rarely used
 	// and complicates the code
 	for !r.eof() && writtenBits < dstBits {
-		r.wordOffset %= 256
+		if r.wordOffset == 0 {
+			if _, err := r.readBits(2); err != nil {
+				return writtenBits / 8, err
+			}
+			r.wordOffset += 2
+		}
 
-		left := dstBits - writtenBits
-		toRead := uint8(min(left, 64, 254-r.wordOffset))
+		availableOutputBits := dstBits - writtenBits
+		toRead := uint8(min(availableOutputBits, 64, 256-r.wordOffset))
 		bits, err := r.readBits(toRead)
 		if err != nil {
 			return writtenBits / 8, err
@@ -53,13 +58,7 @@ func (r *reader) Read(dst []byte) (int, error) {
 		}
 		writtenBits += int(toRead)
 
-		if r.wordOffset == 254 {
-			_, err := r.readBits(2)
-			if err != nil {
-				return writtenBits / 8, err // failed to align
-			}
-			r.wordOffset += 2
-		}
+		r.wordOffset %= 256
 	}
 	copy(dst, buf.Bytes()) // bytes.NewBuffer is an owning call so it is potentially unsafe to use dst without copying
 
@@ -67,7 +66,7 @@ func (r *reader) Read(dst []byte) (int, error) {
 }
 
 func (r *reader) readBits(n uint8) (uint64, error) {
-	const blobBitSize = blobSize * 8
+	const blobBitSize = blobSizeBytes * 8
 
 	if r.eof() {
 		return 0, io.EOF
