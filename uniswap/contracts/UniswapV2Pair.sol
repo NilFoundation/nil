@@ -44,8 +44,8 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
         _reserve1 = reserve1;
     }
 
-    function _safeTransfer(TokenId _tokenId, address _to, uint _value) private {
-        sendTokenInternal(_to, _tokenId, _value);
+    function _safeTransfer(uint256 shardIdDst, TokenId _tokenId, address _to, uint _value) private {
+        sendTokenInternal(shardIdDst, _to, _tokenId, _value);
     }
 
     constructor() payable {
@@ -89,7 +89,7 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
                     uint denominator = rootK.mul(5).add(rootKLast);
                     uint liquidity = numerator / denominator;
                     if (liquidity > 0) mintTokenInternal(liquidity);
-                    sendTokenInternal(feeTo, getTokenId(), liquidity);
+                    sendTokenInternal(Nil.getCurrentShardId(), feeTo, getTokenId(), liquidity);
                 }
             }
         } else if (_kLast != 0) {
@@ -100,8 +100,8 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
     // this low-level function should be called from a contract which performs important safety checks
     function mint(address to) public lock returns (uint liquidity) {
         (uint256 _reserve0, uint256 _reserve1) = getReserves(); // gas savings
-        uint balance0 = Nil.tokenBalance(address(this), tokenId0);
-        uint balance1 = Nil.tokenBalance(address(this), tokenId1);
+        uint balance0 = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), tokenId0);
+        uint balance1 = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), tokenId1);
 
         uint amount0 = balance0.sub(_reserve0);
         uint amount1 = balance1.sub(_reserve1);
@@ -119,7 +119,7 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
         require(liquidity > 0, "UniswapV2: INSUFFICIENT_LIQUIDITY_MINTED");
 
         mintTokenInternal(liquidity);
-        sendTokenInternal(to, getTokenId(), liquidity);
+        sendTokenInternal(Nil.getCurrentShardId(), to, getTokenId(), liquidity);
         _update(balance0, balance1, _reserve0, _reserve1);
         // if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are p-to-date
         emit Mint(msg.sender, amount0, amount1);
@@ -131,9 +131,9 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
         TokenId _tokenId0 = tokenId0; // gas savings
         TokenId _tokenId1 = tokenId1; // gas savings
 
-        uint balance0 = Nil.tokenBalance(address(this), _tokenId0);
-        uint balance1 = Nil.tokenBalance(address(this), _tokenId1);
-        uint liquidity = Nil.tokenBalance(address(this), getTokenId());
+        uint balance0 = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), _tokenId0);
+        uint balance1 = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), _tokenId1);
+        uint liquidity = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), getTokenId());
 
         bool feeOn = _mintFee(_reserve0, _reserve1);
         amount0 = liquidity.mul(balance0) / totalSupply; // using balances ensures pro-rata distribution
@@ -143,11 +143,11 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
             "UniswapV2: INSUFFICIENT_LIQUIDITY_BURNED"
         );
         burnTokenInternal(liquidity);
-        _safeTransfer(_tokenId0, to, amount0);
-        _safeTransfer(_tokenId1, to, amount1);
+        _safeTransfer(Nil.getCurrentShardId(),_tokenId0, to, amount0);
+        _safeTransfer(Nil.getCurrentShardId(),_tokenId1, to, amount1);
 
-        balance0 = Nil.tokenBalance(address(this), _tokenId0);
-        balance1 = Nil.tokenBalance(address(this), _tokenId1);
+        balance0 = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), _tokenId0);
+        balance1 = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), _tokenId1);
         _update(balance0, balance1, _reserve0, _reserve1);
         if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are up-to-date
         emit Burn(msg.sender, amount0, amount1, to);
@@ -166,17 +166,17 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
         );
         uint balance0;
         uint balance1;
-        balance0 = Nil.tokenBalance(address(this), tokenId0);
-        balance1 = Nil.tokenBalance(address(this), tokenId1);
+        balance0 = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), tokenId0);
+        balance1 = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), tokenId1);
         {
             // scope for _token{0,1}, avoids stack too deep errors
             address _token0 = TokenId.unwrap(tokenId0);
             address _token1 = TokenId.unwrap(tokenId1);
             require(to != _token0 && to != _token1, "UniswapV2: INVALID_TO");
-            if (amount0Out > 0) _safeTransfer(tokenId0, to, amount0Out);
-            if (amount1Out > 0) _safeTransfer(tokenId1, to, amount1Out);
-            balance0 = Nil.tokenBalance(address(this), tokenId0);
-            balance1 = Nil.tokenBalance(address(this), tokenId1);
+            if (amount0Out > 0) _safeTransfer(Nil.getCurrentShardId(), tokenId0, to, amount0Out);
+            if (amount1Out > 0) _safeTransfer(Nil.getCurrentShardId(), tokenId1, to, amount1Out);
+            balance0 = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), tokenId0);
+            balance1 = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), tokenId1);
         }
         uint amount0In = balance0 > _reserve0 - amount0Out
             ? balance0 - (_reserve0 - amount0Out)
@@ -203,26 +203,26 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
     }
 
     // force balances to match reserves
-    function skim(address to) public lock {
+    function skim(uint256 shardIdDst, address to) public lock {
         TokenId _tokenId0 = tokenId0; // gas savings
         TokenId _tokenId1 = tokenId1; // gas savings
-        _safeTransfer(
+        _safeTransfer(shardIdDst,
             _tokenId0,
             to,
-            Nil.tokenBalance(address(this), _tokenId0).sub(reserve0)
+            Nil.tokenBalance(Nil.getCurrentShardId(), address(this), _tokenId0).sub(reserve0)
         );
-        _safeTransfer(
+        _safeTransfer(shardIdDst,
             _tokenId1,
             to,
-            Nil.tokenBalance(address(this), _tokenId1).sub(reserve1)
+            Nil.tokenBalance(Nil.getCurrentShardId(), address(this), _tokenId1).sub(reserve1)
         );
     }
 
     // force reserves to match balances
     function sync() public lock {
         _update(
-            Nil.tokenBalance(address(this), tokenId0),
-            Nil.tokenBalance(address(this), tokenId1),
+            Nil.tokenBalance(Nil.getCurrentShardId(), address(this), tokenId0),
+            Nil.tokenBalance(Nil.getCurrentShardId(), address(this), tokenId1),
             reserve0,
             reserve1
         );

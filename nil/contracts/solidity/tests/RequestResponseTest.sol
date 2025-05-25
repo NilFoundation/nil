@@ -37,6 +37,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
      * Test Counter's get method. Check context and return data.
      */
     function requestCounterGet(
+        uint256 shardIdDst,
         address counter,
         uint intContext,
         string memory strContext
@@ -44,6 +45,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
         bytes memory context = abi.encode(intContext, strContext);
         bytes memory callData = abi.encodeWithSignature("get()");
         sendRequest(
+        shardIdDst,
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
@@ -67,11 +69,13 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
      * Nested sendRequest: request requestCounterGet which requests Counter.get
      */
     function nestedRequest(
+        uint256 shardIdDst,
         address callee,
         address counter
     ) public {
         bytes memory callData = abi.encodeWithSelector(this.requestCounterGet.selector, counter, 123, "test");
         sendRequest(
+            shardIdDst,
             callee,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
@@ -94,11 +98,13 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
      * Call Counter.Add(5), Counter.Add(4), Counter.Add(3), Counter.Add(2), Counter.Add(1)
      */
     function sendRequestFromCallback(
+        uint256 shardIdDst,
         address counter
     ) public {
         bytes memory context = abi.encode(int32(5), counter);
         bytes memory callData = abi.encodeWithSignature("add(int32)", 5);
         sendRequest(
+            shardIdDst,
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
@@ -123,7 +129,9 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
 
         context = abi.encode(sendNext, counter);
         bytes memory callData = abi.encodeWithSignature("add(int32)", sendNext);
+        // TODO: fix shardIdDst
         sendRequest(
+            0,
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
@@ -136,12 +144,13 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Test Counter's add method. No context and empty return data.
      */
-    function requestCounterAdd(address counter, int32 valueToAdd) public {
+    function requestCounterAdd(uint256 shardIdDst, address counter, int32 valueToAdd) public {
         bytes memory callData = abi.encodeWithSignature(
             "add(int32)",
             valueToAdd
         );
         sendRequest(
+            shardIdDst,
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
@@ -164,13 +173,14 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Test failure with value.
      */
-    function requestCheckFail(address addr, bool fail) public {
+    function requestCheckFail(uint256 shardIdDst, address addr, bool fail) public {
         bytes memory context = abi.encode(uint(11111));
         bytes memory callData = abi.encodeWithSignature(
             "checkFail(bool)",
             fail
         );
         sendRequest(
+            shardIdDst,
             addr,
             1000000000,
             Nil.ASYNC_REQUEST_MIN_GAS,
@@ -193,10 +203,11 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Test out of gas failure.
      */
-    function requestOutOfGasFailure(address counter) public {
+    function requestOutOfGasFailure(uint256 shardIdDst, address counter) public {
         bytes memory context = abi.encode(uint(1234567890));
         bytes memory callData = abi.encodeWithSignature("outOfGasFailure()");
         sendRequest(
+            shardIdDst,
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
@@ -229,13 +240,14 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Test token sending.
      */
-    function requestSendToken(address addr, uint256 amount) public {
+    function requestSendToken(uint256 shardIdDst, address addr, uint256 amount) public {
         bytes memory context = abi.encode(uint(11111));
         bytes memory callData = abi.encodeWithSignature("get()");
         Nil.Token[] memory tokens = new Nil.Token[](1);
         TokenId id = TokenId.wrap(address(this));
         tokens[0] = Nil.Token(id, amount);
         sendRequestWithTokens(
+            shardIdDst,
             addr,
             0,
             tokens,
@@ -260,10 +272,11 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Fail during request sending. Context storage should not be changed.
      */
-    function failDuringRequestSending(address counter) public {
+    function failDuringRequestSending(uint256 shardIdDst, address counter) public {
         bytes memory context = abi.encode(intValue, strValue);
         bytes memory callData = abi.encodeWithSignature("get()");
         sendRequest(
+            shardIdDst,
             counter,
             0,
             Nil.ASYNC_REQUEST_MIN_GAS,
@@ -277,10 +290,10 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Test two consecutive requests.
      */
-    function makeTwoRequests(address addr1, address addr2) public {
+    function makeTwoRequests(uint256 shardIdDst1, address addr1, uint256 shardIdDst2, address addr2) public {
         bytes memory callData = abi.encodeWithSignature("get()");
-        sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, makeTwoRequestsResponse);
-        sendRequest(addr2, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, makeTwoRequestsResponse);
+        sendRequest(shardIdDst1, addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, makeTwoRequestsResponse);
+        sendRequest(shardIdDst2, addr2, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, makeTwoRequestsResponse);
     }
 
     function makeTwoRequestsResponse(

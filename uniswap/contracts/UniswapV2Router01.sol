@@ -9,30 +9,31 @@ import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 import "./interfaces/IUniswapV2Pair.sol";
 
 contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
-    modifier sameShard(address _addr) {
+    modifier sameShard(uint256 shardId, address _addr) {
         require(
-            Nil.getShardId(_addr) == Nil.getShardId(address(this)),
+            shardId == Nil.getCurrentShardId(),
             "Sync calls require same shard for all contracts"
         );
         _;
     }
 
-    function addLiquidity(address pair, address to) public override {
+    function addLiquidity(uint256 shardIdDst, address pair, address to) public override {
         Nil.Token[] memory tokens = Nil.txnTokens();
         if (tokens.length != 2) {
             revert("Send only 2 tokens to add liquidity");
         }
-        smartCall(pair, tokens, abi.encodeWithSignature("mint(address)", to));
+        smartCall(shardIdDst, pair, tokens, abi.encodeWithSignature("mint(address)", to));
     }
 
     function addLiquiditySync(
+        uint256 shardIdDst,
         address pair,
         address to,
         uint amountADesired,
         uint amountBDesired,
         uint amountAMin,
         uint amountBMin
-    ) public override sameShard(pair) returns (uint amountA, uint amountB) {
+    ) public override sameShard(shardIdDst, pair) returns (uint amountA, uint amountB) {
         Nil.Token[] memory tokens = Nil.txnTokens();
         if (tokens.length != 2) {
             revert("Send only 2 tokens to add liquidity");
@@ -51,13 +52,13 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
             Nil.Token[] memory tokenAReturns = new Nil.Token[](1);
             tokenAReturns[0].id = tokens[0].id;
             tokenAReturns[0].amount = tokens[0].amount - amountA;
-            smartCall(to, tokenAReturns, "");
+            smartCall(shardIdDst, to, tokenAReturns, "");
         }
         if (amountB < tokens[1].amount) {
             Nil.Token[] memory tokenBReturns = new Nil.Token[](1);
             tokenBReturns[0].id = tokens[1].id;
             tokenBReturns[0].amount = tokens[1].amount - amountB;
-            smartCall(to, tokenBReturns, "");
+            smartCall(shardIdDst, to, tokenBReturns, "");
         }
 
         Nil.Token[] memory tokensToSend = new Nil.Token[](2);
@@ -66,6 +67,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
         tokensToSend[1].id = tokens[1].id;
         tokensToSend[1].amount = amountA;
         (bool result, ) = smartCall(
+            shardIdDst,
             pair,
             tokensToSend,
             abi.encodeWithSignature("mint(address)", to)
@@ -120,25 +122,27 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
     }
 
     // **** REMOVE LIQUIDITY ****
-    function removeLiquidity(address pair, address to) public override {
+    function removeLiquidity(uint256 shardIdPair, address pair, address to) public override {
         Nil.Token[] memory tokens = Nil.txnTokens();
         if (tokens.length != 1) {
             revert("UniswapV2Router: should contains only pair token");
         }
-        smartCall(pair, tokens, abi.encodeWithSignature("burn(address)", to));
+        smartCall(shardIdPair, pair, tokens, abi.encodeWithSignature("burn(address)", to));
     }
 
     function removeLiquiditySync(
+        uint256 shardIdPair,
         address pair,
         address to,
         uint /*amountAMin*/,
         uint /*amountBMin*/
-    ) public override sameShard(pair) returns (uint amountA, uint amountB) {
+    ) public override sameShard(shardIdPair, pair) returns (uint amountA, uint amountB) {
         Nil.Token[] memory tokens = Nil.txnTokens();
         if (tokens.length != 1) {
             revert("UniswapV2Router: should contains only pair token");
         }
         (bool success, bytes memory result) = smartCall(
+        shardIdPair,
             pair,
             tokens,
             abi.encodeWithSignature("burn(address)", to)
@@ -151,6 +155,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
     }
 
     function swap(
+        uint256 shardIdTo,
         address to,
         address pair,
         uint amount0Out,
@@ -161,6 +166,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
             revert("UniswapV2Router: should contains only pair token");
         }
         smartCall(
+            shardIdTo,
             pair,
             tokens,
             abi.encodeWithSignature(
@@ -173,10 +179,11 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
     }
 
     function swapExactTokenForTokenSync(
+        uint256 shardIdPair,
         address pair,
         uint amountOutMin,
         address to
-    ) external override sameShard(pair) returns (uint amount) {
+    ) external override sameShard(shardIdPair, pair) returns (uint amount) {
         Nil.Token[] memory tokens = Nil.txnTokens();
         if (tokens.length != 1) {
             revert("UniswapV2Router: should contains only pair token");
@@ -201,6 +208,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
         uint amount0Out = tokens[0].id == token0Id ? 0 : amount;
         uint amount1Out = tokens[0].id != token0Id ? 0 : amount;
         (bool success, ) = smartCall(
+        shardIdPair,
             pair,
             tokens,
             abi.encodeWithSignature(
@@ -242,12 +250,14 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
     receive() external payable {}
 
     function smartCall(
+        uint256 shardIdDst,
         address dst,
         Nil.Token[] memory tokens,
         bytes memory callData
     ) private returns (bool, bytes memory) {
-        if (Nil.getShardId(dst) == Nil.getShardId(address(this))) {
+        if (shardIdDst == Nil.getCurrentShardId()) {
             (bool success, bytes memory result) = Nil.syncCall(
+            shardIdDst,
                 dst,
                 gasleft(),
                 0,
@@ -257,6 +267,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
             return (success, result);
         } else {
             Nil.asyncCallWithTokens(
+            shardIdDst,
                 dst,
                 address(0),
                 address(0),

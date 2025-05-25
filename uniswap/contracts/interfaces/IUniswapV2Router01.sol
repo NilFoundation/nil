@@ -5,10 +5,12 @@ pragma solidity ^0.8.0;
 interface IUniswapV2Router01 {
 
     function addLiquidity(
+        uint256 shardIdDst,
         address pair,
         address to
     ) external;
     function addLiquiditySync(
+        uint256 shardIdDst,
         address pair,
         address to,
         uint amountADesired,
@@ -17,16 +19,19 @@ interface IUniswapV2Router01 {
         uint amountBMin
     ) external returns (uint amountA, uint amountB);
     function removeLiquidity(
+        uint256 shardIdDst,
         address pair,
         address to
     ) external;
     function removeLiquiditySync(
+        uint256 shardIdDst,
         address pair,
         address to,
         uint amountAMin,
         uint amountBMin
     ) external returns (uint amountA, uint amountB);
     function swap(
+        uint256 shardIdDst,
         address to,
         address pair,
         uint amount0Out,
@@ -34,6 +39,7 @@ interface IUniswapV2Router01 {
     ) external;
 
     function swapExactTokenForTokenSync(
+        uint256 shardIdDst,
         address pair,
         uint amountOutMin,
         address to

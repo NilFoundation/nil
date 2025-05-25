@@ -75,7 +75,7 @@ contract TokenSplitter is NilBase, NilTokenBase, Ownable, ReentrancyGuard {
         TokenId _tokenId,
         address _to
     ) external onlyOwner {
-        uint256 balance = Nil.tokenBalance(address(this), _tokenId);
+        uint256 balance = Nil.tokenBalance(Nil.getCurrentShardId(), address(this), _tokenId);
         if (balance == 0) revert InsufficientTokenBalance();
         sendTokenInternal(_to, _tokenId, balance);
     }

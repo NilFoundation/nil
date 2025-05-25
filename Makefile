@@ -10,7 +10,7 @@ else
     TAGS = "$(BUILD_TAGS),assert"
 endif
 
-GO_FLAGS =
+GO_FLAGS = -buildvcs=false
 GOBUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build $(GO_FLAGS) -tags $(TAGS)
 GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TAGS),debug,assert,test,goexperiment.synctest $(GO_FLAGS) ./... -p 2
 

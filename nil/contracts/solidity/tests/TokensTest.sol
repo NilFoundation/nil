@@ -8,6 +8,7 @@ import "../system/console.sol";
 contract TokensTest is NilTokenBase {
     // Perform sync call to send tokens to the destination address. Without calling any function.
     function testSendTokensSync(
+        uint256 shardIdDst,
         address dst,
         uint256 amount,
         bool fail
@@ -15,11 +16,12 @@ contract TokensTest is NilTokenBase {
         Nil.Token[] memory tokens = new Nil.Token[](1);
         TokenId id = TokenId.wrap(address(this));
         tokens[0] = Nil.Token(id, amount);
-        Nil.syncCall(dst, gasleft(), 0, tokens, "");
+        Nil.syncCall(shardIdDst, dst, gasleft(), 0, tokens, "");
         require(!fail, "Test for failed transaction");
     }
 
     function testCallWithTokensSync(
+        uint256 shardIdDst,
         address dst,
         Nil.Token[] memory tokens
     ) public onlyExternal {
@@ -27,11 +29,12 @@ contract TokensTest is NilTokenBase {
             this.testTransactionTokens,
             tokens
         );
-        (bool success, ) = Nil.syncCall(dst, gasleft(), 0, tokens, callData);
+        (bool success, ) = Nil.syncCall(shardIdDst, dst, gasleft(), 0, tokens, callData);
         require(success, "Sync call failed");
     }
 
     function testCallWithTokensAsync(
+        uint256 shardIdDst,
         address dst,
         Nil.Token[] memory tokens
     ) public onlyExternal {
@@ -41,6 +44,7 @@ contract TokensTest is NilTokenBase {
         );
         uint256 gas = gasleft() * tx.gasprice;
         Nil.asyncCallWithTokens(
+            shardIdDst,
             dst,
             address(0),
             address(0),
@@ -102,11 +106,12 @@ contract TokensTest is NilTokenBase {
     }
 
     function checkTokenBalance(
+        uint256 addrShardId,
         address addr,
         TokenId id,
         uint256 balance
     ) public view {
-        require(Nil.tokenBalance(addr, id) == balance, "Balance mismatch");
+        require(Nil.tokenBalance(addrShardId, addr, id) == balance, "Balance mismatch");
     }
 
     function testConsole() public pure {
@@ -131,7 +136,7 @@ contract TokensTest is NilTokenBase {
         Nil.Token[] memory tokens = Nil.txnTokens();
         require(tokens.length == 1, "Expected one token in transaction");
         emit tokenTxnBalance(tokens[0].amount);
-        emit tokenBalance(Nil.tokenBalance(address(this), id));
+        emit tokenBalance(Nil.tokenBalance(Nil.getCurrentShardId(), address(this), id));
     }
 
     receive() external payable {}

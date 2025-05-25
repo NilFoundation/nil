@@ -180,7 +180,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	checkManageToken("burn", 100, 350)
 
 	s.Run("Transfer token via sendToken", func() {
-		data := s.AbiPack(s.abiSmartAccount, "sendToken", s.smartAccountAddress2, *token1.id, big.NewInt(100))
+		data := s.AbiPack(s.abiSmartAccount, "sendToken", big.NewInt(int64(s.smartAccountAddress2.ShardId())), s.smartAccountAddress2, *token1.id, big.NewInt(100))
 
 		receipt := s.SendExternalTransaction(data, s.smartAccountAddress1)
 		s.Require().True(receipt.AllSuccess())
@@ -342,7 +342,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	})
 
 	s.Run("Call testCallWithTokensSync of testAddress1_0", func() {
-		data, err := s.abiTest.Pack("testCallWithTokensSync", s.testAddress1_1,
+		data, err := s.abiTest.Pack("testCallWithTokensSync", big.NewInt(int64(s.testAddress1_1.ShardId())), s.testAddress1_1,
 			[]types.TokenBalance{{Token: *tokenTest1.id, Balance: tokenToSend}})
 		s.Require().NoError(err)
 
@@ -361,7 +361,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 			newBalance := tokenInitial.ToBig()
 			newBalance.Sub(newBalance, tokenToSend.ToBig())
 			data, err := s.abiTest.Pack(
-				"checkTokenBalance", s.testAddress1_0, tokenTest1.id, newBalance)
+				"checkTokenBalance", big.NewInt(int64(s.testAddress1_0.ShardId())), s.testAddress1_0, tokenTest1.id, newBalance)
 			s.Require().NoError(err)
 			receipt := s.SendExternalTransactionNoCheck(data, s.testAddress1_0)
 			s.Require().True(receipt.Success)
@@ -377,7 +377,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	invalidId := types.TokenId(types.HexToAddress("0x1234"))
 
 	s.Run("Try to call with non-existent token", func() {
-		data, err := s.abiTest.Pack("testCallWithTokensSync", s.testAddress1_1,
+		data, err := s.abiTest.Pack("testCallWithTokensSync", big.NewInt(int64(s.testAddress1_1.ShardId())), s.testAddress1_1,
 			[]types.TokenBalance{
 				{Token: *tokenTest1.id, Balance: tokenToSend},
 				{Token: invalidId, Balance: types.NewValueFromUint64(1)},
@@ -404,7 +404,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	})
 
 	s.Run("Call testCallWithTokensAsync of testAddress1_0", func() {
-		data, err := s.abiTest.Pack("testCallWithTokensAsync", s.testAddress1_1,
+		data, err := s.abiTest.Pack("testCallWithTokensAsync", big.NewInt(int64(s.testAddress1_1.ShardId())), s.testAddress1_1,
 			[]types.TokenBalance{{Token: *tokenTest1.id, Balance: tokenToSend}})
 		s.Require().NoError(err)
 
@@ -430,7 +430,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	})
 
 	s.Run("Try to call with non-existent token", func() {
-		data, err := s.abiTest.Pack("testCallWithTokensAsync", s.testAddress1_1,
+		data, err := s.abiTest.Pack("testCallWithTokensAsync", big.NewInt(int64(s.testAddress1_1.ShardId())), s.testAddress1_1,
 			[]types.TokenBalance{
 				{Token: *tokenTest1.id, Balance: tokenToSend},
 				{Token: invalidId, Balance: types.NewValueFromUint64(1)},
@@ -461,7 +461,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	amountTest2 := s.getTokenBalance(&s.testAddress1_1, tokenTest1)
 
 	s.Run("Call testSendTokensSync", func() {
-		data, err := s.abiTest.Pack("testSendTokensSync", s.testAddress1_1, tokenToSend.ToBig(), false)
+		data, err := s.abiTest.Pack("testSendTokensSync", big.NewInt(int64(s.testAddress1_1.ShardId())), s.testAddress1_1, tokenToSend.ToBig(), false)
 		s.Require().NoError(err)
 
 		hash, err := s.Client.SendExternalTransaction(
@@ -486,7 +486,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	})
 
 	s.Run("Call testSendTokensSync with fail flag", func() {
-		data, err := s.abiTest.Pack("testSendTokensSync", s.testAddress1_1, tokenToSend.ToBig(), true)
+		data, err := s.abiTest.Pack("testSendTokensSync", big.NewInt(int64(s.testAddress1_1.ShardId())), s.testAddress1_1, tokenToSend.ToBig(), true)
 		s.Require().NoError(err)
 
 		hash, err := s.Client.SendExternalTransaction(
@@ -512,7 +512,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 	// Call `testSendTokensSync` for address in different shard - should fail
 	s.Run("Fail call testSendTokensSync for address in different shard", func() {
 		amountTest1 = s.getTokenBalance(&s.testAddress1_0, tokenTest1)
-		data, err := s.abiTest.Pack("testSendTokensSync", s.smartAccountAddress3, tokenToSend.ToBig(), false)
+		data, err := s.abiTest.Pack("testSendTokensSync", big.NewInt(int64(s.smartAccountAddress3.ShardId())), s.smartAccountAddress3, tokenToSend.ToBig(), false)
 		s.Require().NoError(err)
 
 		hash, err := s.Client.SendExternalTransaction(

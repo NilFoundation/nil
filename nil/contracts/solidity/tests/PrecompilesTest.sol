@@ -6,6 +6,7 @@ import "../lib/Nil.sol";
 
 contract PrecompilesTest is NilBase {
     function testAsyncCall(
+        uint256 shardIdDst,
         address dst,
         address refundTo,
         address bounceTo,
@@ -15,6 +16,7 @@ contract PrecompilesTest is NilBase {
         bytes memory callData
     ) public {
         Nil.asyncCall(
+            shardIdDst,
             dst,
             refundTo,
             bounceTo,
@@ -26,9 +28,10 @@ contract PrecompilesTest is NilBase {
     }
 
     function testTokenBalance(
+        uint256 shardIdDst,
         address addr,
         TokenId tokenId
     ) public view returns (uint) {
-        return Nil.tokenBalance(addr, tokenId);
+        return Nil.tokenBalance(shardIdDst, addr, tokenId);
     }
 }

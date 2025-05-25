@@ -40,7 +40,7 @@ abstract contract NilTokenBase is NilBase, NilTokenHook {
      * @return The balance of the token owned by this contract.
      */
     function getOwnTokenBalance() public view returns(uint256) {
-        return Nil.tokenBalance(address(this), getTokenId());
+        return Nil.tokenBalance(Relayer(Nil.getRelayerAddress()).GetShardId(), address(this), getTokenId());
     }
 
     /**
@@ -90,8 +90,8 @@ abstract contract NilTokenBase is NilBase, NilTokenHook {
      * It is wrapper over `sendTokenInternal` method to provide access to the owner of the account.
      * @param amount The amount of token to mint.
      */
-    function sendToken(address to, TokenId tokenId, uint256 amount) onlyExternal virtual public {
-        sendTokenInternal(to, tokenId, amount);
+    function sendToken(uint256 shardIdDst, address to, TokenId tokenId, uint256 amount) onlyExternal virtual public {
+        sendTokenInternal(shardIdDst, to, tokenId, amount);
     }
 
     /**
@@ -118,10 +118,10 @@ abstract contract NilTokenBase is NilBase, NilTokenHook {
      * @param tokenId ID of the token to send.
      * @param amount The amount of token to send.
      */
-    function sendTokenInternal(address to, TokenId tokenId, uint256 amount) internal {
+    function sendTokenInternal(uint256 shardIdDst, address to, TokenId tokenId, uint256 amount) internal {
         Nil.Token[] memory tokens_ = new Nil.Token[](1);
         tokens_[0] = Nil.Token(tokenId, amount);
-        Nil.asyncCallWithTokens(to, address(0), address(0), 0, Nil.FORWARD_REMAINING, 0, tokens_, "", 0, 0);
+        Nil.asyncCallWithTokens(shardIdDst, to, address(0), address(0), 0, Nil.FORWARD_REMAINING, 0, tokens_, "", 0, 0);
     }
 
     /**
@@ -129,7 +129,7 @@ abstract contract NilTokenBase is NilBase, NilTokenHook {
      * @param account The address to check the balance for.
      * @return The balance of the token for the given address.
      */
-    function getTokenBalanceOf(address account) public view returns(uint256) {
-        return Nil.tokenBalance(account, getTokenId());
+    function getTokenBalanceOf(uint256 shardIdDst, address account) public view returns(uint256) {
+        return Nil.tokenBalance(shardIdDst, account, getTokenId());
     }
 }

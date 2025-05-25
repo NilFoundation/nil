@@ -106,12 +106,13 @@ library Nil {
      * @param callData Calldata for the call.
      */
     function asyncCall(
+        uint256 shardIdDst,
         address dst,
         address bounceTo,
         uint value,
         bytes memory callData
     ) internal {
-        asyncCall(dst, address(0), bounceTo, 0, FORWARD_REMAINING, value, callData);
+        asyncCall(shardIdDst, dst, address(0), bounceTo, 0, FORWARD_REMAINING, value, callData);
     }
 
     /**
@@ -125,6 +126,7 @@ library Nil {
      * @param callData Calldata for the call.
      */
     function asyncCall(
+        uint256 shardIdDst,
         address dst,
         address refundTo,
         address bounceTo,
@@ -134,7 +136,7 @@ library Nil {
         bytes memory callData
     ) internal {
         Token[] memory tokens;
-        asyncCallWithTokens(dst, refundTo, bounceTo, feeCredit, forwardKind, value, tokens, callData, 0, 0);
+        asyncCallWithTokens(shardIdDst, dst, refundTo, bounceTo, feeCredit, forwardKind, value, tokens, callData, 0, 0);
     }
 
     /**
@@ -148,6 +150,7 @@ library Nil {
      * @param callData Calldata for the call.
      */
     function asyncCallWithTokens(
+        uint256 dstShardId,
         address dst,
         address refundTo,
         address bounceTo,
@@ -159,8 +162,8 @@ library Nil {
         uint256 requestId,
         uint responseGas
     ) internal {
-        require(Nil.getShardId(dst) != 0, "asyncCallWithTokens: call to main shard is not allowed");
-        require(Nil.getShardId(dst) < SHARDS_NUM, "asyncCallWithTokens: call to non-existing shard");
+        require(dstShardId != 0, "asyncCallWithTokens: call to main shard is not allowed");
+        require(dstShardId < SHARDS_NUM, "asyncCallWithTokens: call to non-existing shard");
 
         uint256 valueToDeduct = value;
         if (forwardKind == FORWARD_NONE) {
@@ -168,7 +171,7 @@ library Nil {
             valueToDeduct += feeCredit;
         } else if (forwardKind == Nil.FORWARD_REMAINING) {
             // TODO: We should deduct feeCredit from the caller account. And properly calculate remaining gas.
-            feeCredit = gasleft() * Nil.getGasPrice(address(this));
+            feeCredit = gasleft() * Nil.getGasPrice(Relayer(getRelayerAddress()).GetShardId());
         } else if (forwardKind == FORWARD_VALUE) {
             revert("FORWARD_VALUE is not supported");
         } else if (forwardKind == FORWARD_PERCENTAGE) {
@@ -176,6 +179,7 @@ library Nil {
         }
 
         Relayer(getRelayerAddress()).sendTx{value: valueToDeduct}(
+        dstShardId,
             dst,
             refundTo,
             bounceTo,
@@ -218,13 +222,14 @@ library Nil {
      * @return returnData Data returned from the call.
      */
     function syncCall(
+        uint256 shardIdDst,
         address dst,
         uint gas,
         uint value,
         Token[] memory tokens,
         bytes memory callData
     ) internal returns(bool, bytes memory) {
-        bytes memory returnData = NilTokenManager(Nil.getTokenManagerAddress()).transferCall(dst, gas, value, tokens, callData);
+        bytes memory returnData = NilTokenManager(Nil.getTokenManagerAddress()).transferCall(shardIdDst, dst, gas, value, tokens, callData);
         return (true, returnData);
     }
 
@@ -265,8 +270,8 @@ library Nil {
      * @param id TokenId of the token.
      * @return Balance of the token.
      */
-    function tokenBalance(address addr, TokenId id) internal view returns(uint256) {
-        require(Nil.getShardId(addr) == Nil.getCurrentShardId(), "tokenBalance: cross-shard call");
+    function tokenBalance(uint256 shardId, address addr, TokenId id) internal view returns(uint256) {
+        require(shardId == Nil.getCurrentShardId(), "tokenBalance: cross-shard call");
         return NilTokenManager(Nil.getTokenManagerAddress()).getBalance(addr, TokenId.unwrap(id));
     }
 
@@ -278,17 +283,18 @@ library Nil {
         return NilTokenManager(getTokenManagerAddress()).getTxTokens();
     }
 
-    /**
-     * @dev Returns the shard id for a given address.
-     * @param addr Address to get the shard id for.
-     * @return Shard id of the address.
-     */
-    function getShardId(address addr) internal pure returns(uint256) {
-        return uint256(uint160(addr)) >> (18 * 8);
-    }
+//    /**
+//     * @dev Returns the shard id for a given address.
+//     * @param addr Address to get the shard id for.
+//     * @return Shard id of the address.
+//     */
+//    function getShardId(address addr) internal pure returns(uint256) {
+//        return uint256(uint160(addr)) >> (18 * 8);
+//    }
 
     function getCurrentShardId() internal view returns(uint256) {
-        return getShardId(address(this));
+        // TODO: main problem is here
+        return uint256(uint160(address(this))) >> (18 * 8);
     }
 
     function getAddressForShard(address addr, uint shardId) internal pure returns(address) {
@@ -302,11 +308,11 @@ library Nil {
      * calculate real gas price pessimistically, i.e. `gas_price = getGasPrice() + blocks_delay * price_growth_factor`.
      * Where, `blocks_delay` is the blocks number between the block for which gas price is actual and the block in which
      * the transaction will be processed; and `price_growth_factor` is the maximum value by which gas can grow per block.
-     * @param addr Address to get the gas price for.
+     * @param shardId shardId to get the gas price for.
      * @return Gas price for the shard.
      */
-    function getGasPrice(address addr) internal returns(uint256) {
-        return __Precompile__(GET_GAS_PRICE).precompileGetGasPrice(getShardId(addr));
+    function getGasPrice(uint256 shardId) internal returns(uint256) {
+        return __Precompile__(GET_GAS_PRICE).precompileGetGasPrice(shardId);
     }
 
     /**

@@ -8,6 +8,15 @@ import "./NilTokenManager.sol";
  * @dev This contract facilitates relaying transactions, handling responses, and managing token credits.
  */
 contract Relayer {
+    uint256 shardId;
+
+    constructor(uint256 _shardId) {
+        shardId = _shardId;
+    }
+
+    function GetShardId() public view returns(uint256) {
+        return shardId;
+    }
 
     /**
      * @dev Emitted when a response fails to execute.
@@ -57,6 +66,7 @@ contract Relayer {
      * @param responseGas The gas allocated for the response.
      */
     function sendTx(
+        uint256 shardIdTo,
         address to,
         address refundTo,
         address bounceTo,
@@ -71,7 +81,7 @@ contract Relayer {
         uint256 responseFeeCredit;
         if (requestId != 0) {
             require(responseGas > 0, "sendTx: responseGas must be greater than 0");
-            responseFeeCredit = responseGas * Nil.getGasPrice(address(this));
+            responseFeeCredit = responseGas * Nil.getGasPrice(shardId);
             require(feeCredit >= responseFeeCredit, "sendTx: feeCredit must be greater than responseFeeCredit");
             feeCredit -= responseFeeCredit;
         }
@@ -90,7 +100,7 @@ contract Relayer {
         __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: value}(
             false,
             forwardKind,
-            Nil.getRelayerAddress(Nil.getShardId(to)),
+            Nil.getRelayerAddress(shardIdTo),
             refundTo,
             bounceTo,
             feeCredit,
@@ -112,6 +122,7 @@ contract Relayer {
      * @return The return data from the transaction.
      */
     function receiveTx(
+        uint256 shardIdFrom,
         address from,
         address to,
         address bounceTo,
@@ -135,7 +146,7 @@ contract Relayer {
             __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall(
                 false,
                 Nil.FORWARD_REMAINING,
-                Nil.getRelayerAddress(Nil.getShardId(from)),
+                Nil.getRelayerAddress(shardIdFrom),
                 from,
                 from,
                 0,
@@ -155,7 +166,7 @@ contract Relayer {
             __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: value}(
                 false,
                 Nil.FORWARD_REMAINING,
-                Nil.getRelayerAddress(Nil.getShardId(from)),
+                Nil.getRelayerAddress(shardIdFrom),
                 from,
                 from,
                 0,
@@ -187,7 +198,7 @@ contract Relayer {
         uint256 requestId,
         uint256 responseFeeCredit
     ) public payable {
-        uint gas = responseFeeCredit / Nil.getGasPrice(address(this));
+        uint gas = responseFeeCredit / Nil.getGasPrice(shardId);
         bytes memory data = abi.encodeWithSignature("onFallback(uint256,bool,bytes)", requestId, success, response);
         (bool s, ) = to.call{gas: gas, value: value}(data);
         if (!s) {

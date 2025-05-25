@@ -69,7 +69,7 @@ contract LendingPool is NilBase, NilTokenBase, NilAwaitable {
         /// @notice Ensure that the LendingPool has enough liquidity of the requested borrow token
         /// @dev Checks the LendingPool's balance to confirm it has enough tokens to fulfill the borrow request.
         require(
-            Nil.tokenBalance(address(this), borrowToken) >= amount,
+            Nil.tokenBalance(Nil.getCurrentShardId(), address(this), borrowToken) >= amount,
             "Insufficient funds"
         );
 
@@ -433,7 +433,7 @@ contract LendingPool is NilBase, NilTokenBase, NilAwaitable {
         /// @notice Ensure sufficient balance in the LendingPool to send collateral
         /// @dev Verifies that the LendingPool has enough collateral to send to the borrower.
         require(
-            Nil.tokenBalance(address(this), collateralToken) >=
+            Nil.tokenBalance(Nil.getCurrentShardId(), address(this), collateralToken) >=
                 collateralAmount,
             "Insufficient funds"
         );

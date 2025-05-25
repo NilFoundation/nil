@@ -71,7 +71,9 @@ contract Test is NilBase, NilAwaitable {
         address bounceTo,
         bytes calldata callData
     ) public payable {
+        // TODO: fix this
         Nil.asyncCall(
+            0,
             dst,
             refundTo,
             bounceTo,
@@ -95,7 +97,9 @@ contract Test is NilBase, NilAwaitable {
     ) public payable {
         for (uint i = 0; i < transactions.length; i++) {
             AsyncCallArgs memory transaction = transactions[i];
+            // TODO: fix shardIdDst
             Nil.asyncCall(
+                0,
                 transaction.addr,
                 transaction.refundTo,
                 address(this),
@@ -108,12 +112,13 @@ contract Test is NilBase, NilAwaitable {
     }
 
     function testForwardingInAsyncCall(
+        uint256 shardIdDst,
         address dst,
         uint feeCredit,
         uint8 forwardKind,
         bytes memory callData
     ) public payable {
-        Nil.asyncCall(dst, address(0), address(0), feeCredit, forwardKind, 0, callData);
+        Nil.asyncCall(shardIdDst, dst, address(0), address(0), feeCredit, forwardKind, 0, callData);
     }
 
     function stub(uint n) public payable {
@@ -121,7 +126,7 @@ contract Test is NilBase, NilAwaitable {
     }
 
     function getGasPrice() public returns (uint256) {
-        return Nil.getGasPrice(address(this));
+        return Nil.getGasPrice(Nil.getCurrentShardId());
     }
 
     function getForwardKindRemaining() public pure returns (uint8) {
@@ -147,8 +152,9 @@ contract Test is NilBase, NilAwaitable {
     }
 
     // Add output transaction, and then revert if `value` is zero. In that case output transaction should be removed.
-    function testFailedAsyncCall(address dst, int32 value) public onlyExternal {
+    function testFailedAsyncCall(uint256 shardIdDst, address dst, int32 value) public onlyExternal {
         Nil.asyncCall(
+            shardIdDst,
             dst,
             address(0),
             0,
@@ -174,10 +180,10 @@ contract Test is NilBase, NilAwaitable {
         return Nil.createAddress2(shardId, addr, salt, codeHash);
     }
 
-    function twoCalls(address addr1, address addr2) public {
+    function twoCalls(uint256 addr1shard, address addr1, uint256 addr2shard, address addr2) public {
         bytes memory callData = abi.encodeWithSignature("get()");
-        sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, responseCounterGet);
-        sendRequest(addr2, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, responseCounterGet);
+        sendRequest(addr1shard, addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, responseCounterGet);
+        sendRequest(addr2shard, addr2, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, responseCounterGet);
     }
 
     function responseCounterGet(

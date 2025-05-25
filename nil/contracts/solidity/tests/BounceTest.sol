@@ -25,14 +25,14 @@ contract BounceTest is NilBounceable {
     constructor() payable {}
 
     function call(address dst, int32 val) public payable {
-        dst.asyncCall(
-            address(0), // refundTo
-            address(0), // bounceTo
-            gasleft() * tx.gasprice, // gas
-            Nil.FORWARD_NONE, // forwardKind
-            msg.value,
-            abi.encodeWithSignature("add(int32)", val)
-        );
+//        dst.asyncCall(
+//            address(0), // refundTo
+//            address(0), // bounceTo
+//            gasleft() * tx.gasprice, // gas
+//            Nil.FORWARD_NONE, // forwardKind
+//            msg.value,
+//            abi.encodeWithSignature("add(int32)", val)
+//        );
     }
 
     function asyncCall(
@@ -44,7 +44,8 @@ contract BounceTest is NilBounceable {
         uint value,
         bytes memory callData
     ) public payable {
-        Nil.asyncCall(dst, refundTo, bounceTo, feeCredit, forwardKind, value, callData);
+        // TODO: fix this
+        Nil.asyncCall(0, dst, refundTo, bounceTo, feeCredit, forwardKind, value, callData);
     }
 
     function verifyExternal(

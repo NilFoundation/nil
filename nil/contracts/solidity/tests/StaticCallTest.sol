@@ -12,10 +12,10 @@ contract StaticCallQuery {
     }
 
     // Try to change state of StaticCallSource contract via `Nil.syncCall`.
-    function querySyncIncrement(address source) external {
+    function querySyncIncrement(uint256 shardIdDst, address source) external {
         Nil.Token[] memory tokens;
         bytes memory data = abi.encodeWithSignature("increment()");
-        (bool success, ) = Nil.syncCall(source, gasleft(), 0, tokens, data);
+        (bool success, ) = Nil.syncCall(shardIdDst, source, gasleft(), 0, tokens, data);
         require(success, "Call failed");
     }
 }

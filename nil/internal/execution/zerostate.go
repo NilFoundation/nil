@@ -3,6 +3,7 @@ package execution
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
 	"os"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -91,6 +92,7 @@ func AddSystemContractsToZeroStateConfig(zeroStateConfig *ZeroStateConfig, shard
 			Contract: "Relayer",
 			Address:  types.GetRelayerAddress(types.ShardId(i)),
 			Value:    v,
+			CtorArgs: []any{big.NewInt(int64(shardsNum))},
 		})
 		zeroStateConfig.Contracts = append(zeroStateConfig.Contracts, &ContractDescr{
 			Name:     fmt.Sprintf("TokenManager_%d", i),

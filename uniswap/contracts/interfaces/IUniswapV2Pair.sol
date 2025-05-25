@@ -48,7 +48,7 @@ interface IUniswapV2Pair {
 
     function swap(uint amount0Out, uint amount1Out, address to) external;
 
-    function skim(address to) external;
+    function skim(uint256 shardIdDst, address to) external;
 
     function sync() external;
 

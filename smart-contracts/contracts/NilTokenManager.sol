@@ -162,7 +162,6 @@ contract NilTokenManager {
      * @param tokens An array of tokens to transfer.
      */
     function transfer(address dst, Nil.Token[] memory tokens) public {
-        require(Nil.getShardId(address(msg.sender)) == Nil.getShardId(address(dst)), "Shard ID mismatch");
         for (uint i = 0; i < tokens.length; i++) {
             address token = TokenId.unwrap(tokens[i].id);
 
@@ -185,13 +184,14 @@ contract NilTokenManager {
      * @return The return data from the call.
      */
     function transferCall(
+        uint256 shardIdDst,
         address dst,
         uint gas,
         uint value,
         Nil.Token[] memory tokens,
         bytes memory callData
     ) public returns(bytes memory) {
-        require(Nil.getShardId(dst) == Nil.getCurrentShardId(), "transferCall: cross shard transfer is not allowed");
+        require(shardIdDst == Nil.getCurrentShardId(), "transferCall: cross shard transfer is not allowed");
         transfer(dst, tokens);
 
         setTxTokens(tokens);

@@ -6,9 +6,10 @@ pragma solidity ^0.8.21;
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract AsyncTokenSender {
-    function sendTokenAsync(uint amount, address dst) public {
+    function sendTokenAsync(uint256 shardIdDst, uint amount, address dst) public {
         Nil.Token[] memory tokens = Nil.txnTokens();
         Nil.asyncCallWithTokens(
+            shardIdDst,
             dst,
             msg.sender,
             address(this),

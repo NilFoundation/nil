@@ -86,6 +86,7 @@ contract MultiSigSmartAccount is NilBase {
      * @param callData The call data of the called method.
      */
     function asyncCall(
+        uint256 shardIdDst,
         address dst,
         address refundTo,
         address bounceTo,
@@ -95,6 +96,7 @@ contract MultiSigSmartAccount is NilBase {
         bytes calldata callData
     ) public onlyExternal {
         Nil.asyncCallWithTokens(
+        shardIdDst,
             dst,
             refundTo,
             bounceTo,

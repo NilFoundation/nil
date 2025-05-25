@@ -54,10 +54,11 @@ contract Stresser is NilAwaitable {
         return start + n;
     }
 
-    function asyncCalls(address[] memory addresses, uint256 n) public {
+    function asyncCalls(uint256[] memory shardIdDsts, address[] memory addresses, uint256 n) public {
         for (uint256 i = 0; i < addresses.length; i++) {
             gasConsumer(n/addresses.length);
             Nil.asyncCall(
+                shardIdDsts[i],
                 addresses[i],
                 address(0),
                 0,
@@ -66,10 +67,11 @@ contract Stresser is NilAwaitable {
         }
     }
 
-    function sendRequests(address[] memory addresses, uint256 v) public {
+    function sendRequests(uint256[] memory shardIdDsts, address[] memory addresses, uint256 v) public {
         bytes memory callData = abi.encodeWithSignature("gasConsumer(uint256)", v);
         for (uint256 i = 0; i < addresses.length; i++) {
             sendRequest(
+                shardIdDsts[i],
                 addresses[i],
                 0,
                 Nil.ASYNC_REQUEST_MIN_GAS,

@@ -10,7 +10,7 @@ contract Token is NilTokenBase {
     }
 
     // Public function to call the parent internal function sendTokenInternal
-    function transferToken(address to, TokenId tokenId, uint256 amount) public {
-        sendTokenInternal(to, tokenId, amount);
+    function transferToken(uint256 shardIdDst, address to, TokenId tokenId, uint256 amount) public {
+        sendTokenInternal(shardIdDst, to, tokenId, amount);
     }
 }

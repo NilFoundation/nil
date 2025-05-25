@@ -8,7 +8,7 @@ contract Token is NilTokenBase {
 
     constructor() payable {
         mintTokenInternal(10000000000);
-        sendTokenInternal(msg.sender, getTokenId(), 10000000000);
+        sendTokenInternal(Nil.getCurrentShardId(), msg.sender, getTokenId(), 10000000000);
     }
 
     receive() external payable {}

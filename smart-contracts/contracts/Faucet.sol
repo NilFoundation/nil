@@ -60,12 +60,13 @@ contract Faucet {
         return true;
     }
 
-    function withdrawTo(address payable addr, uint256 value) public {
+    function withdrawTo(uint256 shardIdDst, address payable addr, uint256 value) public {
         value = acquire(addr, value);
 
         bytes memory callData;
         uint feeCredit = 500_000 * tx.gasprice;
         Nil.asyncCall(
+            shardIdDst,
             addr,
             address(this) /* refundTo */,
             address(this) /* bounceTo */,
@@ -96,9 +97,9 @@ contract FaucetToken is NilTokenBase {
         return true;
     }
 
-    function withdrawTo(address payable addr, uint256 value) public {
+    function withdrawTo(uint256 shardIdDst, address payable addr, uint256 value) public {
         mintTokenInternal(value);
-        sendTokenInternal(addr, getTokenId(), value);
+        sendTokenInternal(shardIdDst, addr, getTokenId(), value);
 
         emit Send(addr, value);
     }

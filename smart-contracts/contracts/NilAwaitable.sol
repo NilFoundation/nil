@@ -31,6 +31,7 @@ contract NilAwaitable is NilBase {
      * @param cb Callback to be called when the response is received.
      */
     function sendRequest(
+        uint256 shardIdDst,
         address dst,
         uint256 value,
         uint responseProcessingGas,
@@ -39,7 +40,7 @@ contract NilAwaitable is NilBase {
         function(bool, bytes memory, bytes memory) internal cb
     ) internal {
         Nil.Token[] memory tokens;
-        sendRequestWithTokens(dst, value, tokens, responseProcessingGas, context, callData, cb);
+        sendRequestWithTokens(shardIdDst, dst, value, tokens, responseProcessingGas, context, callData, cb);
     }
 
     /**
@@ -54,6 +55,7 @@ contract NilAwaitable is NilBase {
      * @param cb Callback to be called when the response is received.
      */
     function sendRequestWithTokens(
+        uint256 shardIdDst,
         address dst,
         uint256 value,
         Nil.Token[] memory tokens,
@@ -65,6 +67,7 @@ contract NilAwaitable is NilBase {
         ctrl.await_id += 1;
         ctrl.awaiters[ctrl.await_id] = Awaiter({callback: cb, answer_id: ctrl.await_id, active: true, context: context});
         Nil.asyncCallWithTokens(
+        shardIdDst,
             dst,
             zeroAddress,
             zeroAddress,

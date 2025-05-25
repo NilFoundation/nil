@@ -16,8 +16,8 @@ contract Token is NilTokenBase {
         mintTokenInternal(amount);
     }
 
-    function sendTokenPublic(address to, TokenId tokenId, uint256 amount) public {
-        sendTokenInternal(to, tokenId, amount);
+    function sendTokenPublic(uint256 shardIdDst, address to, TokenId tokenId, uint256 amount) public {
+        sendTokenInternal(shardIdDst, to, tokenId, amount);
     }
 
     receive() external payable {}
