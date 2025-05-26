@@ -29,7 +29,7 @@ type NetworkTransportProtocolRo interface {
 	GetBalance(request pb.AccountRequest) pb.BalanceResponse
 	GetCode(request pb.AccountRequest) pb.CodeResponse
 	GetTokens(request pb.AccountRequest) pb.TokensResponse
-	GetContract(request pb.AccountRequest) pb.RawContractResponse
+	GetContract(request pb.FullAccountRequest) pb.RawContractResponse
 
 	Call(pb.CallRequest) pb.CallResponse
 
@@ -40,6 +40,8 @@ type NetworkTransportProtocolRo interface {
 	ClientVersion() pb.StringResponse
 
 	GetBootstrapConfig() pb.BootstrapConfigResponse
+
+	GetContractRange(request pb.AccountRangeRequest) pb.AccountRangeResponse
 }
 
 type NetworkTransportProtocolRw interface {

@@ -103,11 +103,12 @@ func (suite *SuiteEthAccounts) TestGetBalance() {
 	suite.Require().NoError(err)
 	suite.Zero(res.ToInt().Uint64())
 
+	// nonexistent block
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	res, err = suite.api.GetBalance(ctx, suite.smcAddr, blockNum)
-	suite.Require().NoError(err)
-	suite.Zero(res.ToInt().Uint64())
+	suite.Require().ErrorIs(err, rawapitypes.ErrBlockNotFound)
+	suite.Nil(res)
 }
 
 func (suite *SuiteEthAccounts) TestGetCode() {
@@ -128,10 +129,11 @@ func (suite *SuiteEthAccounts) TestGetCode() {
 	suite.Require().NoError(err)
 	suite.Empty(res)
 
+	// nonexistent block
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	res, err = suite.api.GetCode(ctx, suite.smcAddr, blockNum)
-	suite.Require().NoError(err)
+	suite.Require().ErrorIs(err, rawapitypes.ErrBlockNotFound)
 	suite.Empty(res)
 }
 
@@ -153,10 +155,11 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Uint64(0), res)
 
+	// nonexistent block
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	res, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)
-	suite.Require().NoError(err)
+	suite.Require().ErrorIs(err, rawapitypes.ErrBlockNotFound)
 	suite.Equal(hexutil.Uint64(0), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.PendingBlock.BlockNumber}

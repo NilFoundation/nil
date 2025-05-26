@@ -73,7 +73,7 @@ func (api *APIImplRo) GetProof(
 	blockNrOrHash transport.BlockNumberOrHash,
 ) (*EthProof, error) {
 	// Fetch the smart contract data
-	smartContract, err := api.rawapi.GetContract(ctx, address, toBlockReference(blockNrOrHash))
+	smartContract, err := api.rawapi.GetContract(ctx, address, toBlockReference(blockNrOrHash), true, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get contract: %w", err)
 	}

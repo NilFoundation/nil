@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -97,8 +98,9 @@ func TestDebugGetBlock(t *testing.T) {
 	require.Equal(t, res1, res2)
 
 	// When: Get nonexistent block
-	_, err = api.GetBlockByNumber(ctx, types.MainShardId, transport.BlockNumber(block.Id+1), false)
-	require.ErrorIs(t, err, db.ErrKeyNotFound)
+	res, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.BlockNumber(block.Id+1), false)
+	require.NoError(t, err)
+	require.Nil(t, res)
 
 	// When: Get existing block with additional data
 	res3, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.BlockNumber(blockWithErrors.Id), true)
@@ -208,6 +210,55 @@ func (suite *SuiteDbgContracts) TestGetContract() {
 		ok, err := proof.VerifyRead(suite.smcAddr.Hash().Bytes(), expectedContract, data.Block().SmartContractsRoot)
 		suite.Require().NoError(err)
 		suite.Require().True(ok)
+	})
+}
+
+func (suite *SuiteDbgContracts) TestAccountRange() {
+	ctx := context.Background()
+	res, err := suite.debugApi.AccountRange(
+		ctx,
+		suite.smcAddr.ShardId(),
+		transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber},
+		nil,
+		5,
+		false,
+		false,
+		true,
+	)
+	suite.Require().NoError(err)
+	suite.Require().Len(res.Accounts, 1)
+	suite.Require().Nil(res.Next)
+	suite.Require().False(res.Root.Empty())
+
+	suite.Run("accountEquality", func() {
+		tx, err := suite.db.CreateRoTx(ctx)
+		suite.Require().NoError(err)
+		defer tx.Rollback()
+
+		shardId := suite.smcAddr.ShardId()
+		accessor := execution.NewStateAccessor().Access(tx, shardId).GetBlock()
+		data, err := accessor.ByHash(suite.blockHash)
+		suite.Require().NoError(err)
+		suite.Require().NotNil(data.Block())
+
+		contractTrieReader := execution.NewDbContractTrieReader(tx, suite.smcAddr.ShardId())
+		suite.Require().NoError(contractTrieReader.SetRootHash(data.Block().SmartContractsRoot))
+
+		expectedContract, err := contractTrieReader.Fetch(suite.smcAddr.Hash())
+		suite.Require().NoError(err)
+
+		expectedCode, err := db.ReadCode(tx, shardId, expectedContract.CodeHash)
+		suite.Require().NoError(err)
+
+		recievedContract := res.Accounts[suite.smcAddr]
+		suite.Require().Equal(expectedContract.Balance, recievedContract.Balance)
+		suite.Require().Equal(expectedContract.Seqno, recievedContract.Nonce)
+		suite.Require().Equal(expectedContract.StorageRoot, recievedContract.StorageRoot)
+		suite.Require().Equal(expectedContract.CodeHash, recievedContract.CodeHash)
+		suite.Require().Equal(hexutil.Bytes(expectedCode), recievedContract.Code)
+		suite.Require().NotEmpty(recievedContract.Storage)
+		suite.Require().Equal(suite.smcAddr, recievedContract.Address)
+		suite.Require().Equal(suite.smcAddr.Hash(), recievedContract.AddressHash)
 	})
 }
 

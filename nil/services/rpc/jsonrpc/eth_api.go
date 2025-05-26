@@ -330,6 +330,23 @@ type EthAPIRo interface {
 		address types.Address,
 		blockNrOrHash transport.BlockNumberOrHash,
 	) (map[types.TokenId]types.Value, error)
+
+	/*
+		@name GetProof
+		@summary Returns the account and storage values, along with Merkle proofs, for the specified address and storage keys at the given block.
+		@description Implements eth_getProof.
+		@tags [Accounts]
+		@param address Address
+		@param storageKeys Array of storage keys
+		@param blockNumberOrHash BlockNumberOrHash
+		@returns proof Account and storage values with Merkle proofs
+	*/
+	GetProof(
+		ctx context.Context,
+		address types.Address,
+		storageKeys []common.Hash,
+		blockNrOrHash transport.BlockNumberOrHash,
+	) (*EthProof, error)
 }
 
 // EthAPI is a collection of functions that are exposed in the JSON-RPC API.
