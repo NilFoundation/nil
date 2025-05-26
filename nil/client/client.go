@@ -135,6 +135,13 @@ type Client interface {
 	GetDebugContract(ctx context.Context, contractAddr types.Address, blockId any) (*jsonrpc.DebugRPCContract, error)
 
 	GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error)
+
+	GetProof(
+		ctx context.Context,
+		address types.Address,
+		storageKeys []common.Hash,
+		blockId any,
+	) (*jsonrpc.EthProof, error)
 }
 
 func EstimateFeeExternal(

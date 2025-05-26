@@ -443,3 +443,16 @@ func (c *DirectClient) GetTxpoolContent(ctx context.Context, shardId types.Shard
 func (c *DirectClient) GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error) {
 	return c.debugApi.GetBootstrapConfig(ctx)
 }
+
+func (c *DirectClient) GetProof(
+	ctx context.Context,
+	address types.Address,
+	storageKeys []common.Hash,
+	blockId any,
+) (*jsonrpc.EthProof, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return nil, err
+	}
+	return c.ethApi.GetProof(ctx, address, storageKeys, transport.BlockNumberOrHash(blockNrOrHash))
+}

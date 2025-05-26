@@ -967,6 +967,20 @@ func (c *Client) GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapCon
 	return simpleCall[*rpctypes.BootstrapConfig](ctx, c, Debug_getBootstrapConfig)
 }
 
+func (c *Client) GetProof(
+	ctx context.Context,
+	address types.Address,
+	storageKeys []common.Hash,
+	blockId any,
+) (*jsonrpc.EthProof, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return nil, err
+	}
+
+	return simpleCall[*jsonrpc.EthProof](ctx, c, Eth_getProof, address, storageKeys, transport.BlockNumberOrHash(blockNrOrHash))
+}
+
 func simpleCall[ReturnType any](ctx context.Context, c *Client, method string, params ...any) (ReturnType, error) {
 	res, err := c.call(ctx, method, params...)
 	var result ReturnType

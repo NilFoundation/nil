@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -28,6 +29,24 @@ type DebugAPI interface {
 		blockNrOrHash transport.BlockNumberOrHash,
 	) (*DebugRPCContract, error)
 	GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error)
+	AccountRange(
+		ctx context.Context,
+		shardId types.ShardId,
+		blockNrOrHash transport.BlockNumberOrHash,
+		start *common.Hash,
+		maxResult uint64,
+		noCode bool,
+		noStorage bool,
+		incompletes bool,
+	) (*AccountsRange, error)
+	StorageRangeAt(
+		ctx context.Context,
+		blockHash common.Hash,
+		txId types.TransactionIndex,
+		contractAddress types.Address,
+		keyStart common.Hash,
+		maxResult uint,
+	)
 }
 
 type DebugAPIImpl struct {
@@ -35,7 +54,7 @@ type DebugAPIImpl struct {
 	rawApi rawapi.NodeApi
 }
 
-var _ DebugAPI = &DebugAPIImpl{}
+var _ DebugAPI = (*DebugAPIImpl)(nil)
 
 func NewDebugAPI(rawApi rawapi.NodeApi, logger logging.Logger) *DebugAPIImpl {
 	return &DebugAPIImpl{
@@ -81,6 +100,14 @@ func (api *DebugAPIImpl) GetBlockByHash(
 	return api.getBlockByReference(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash), withTransactions)
 }
 
+// TODO: rename other handleError func introduces somewhere
+func suppressBlockNotFound(err error) error {
+	if errors.Is(err, rawapitypes.ErrBlockNotFound) {
+		return nil
+	}
+	return err
+}
+
 func (api *DebugAPIImpl) getBlockByReference(
 	ctx context.Context,
 	shardId types.ShardId,
@@ -92,12 +119,12 @@ func (api *DebugAPIImpl) getBlockByReference(
 	if withTransactions {
 		blockData, err = api.rawApi.GetFullBlockData(ctx, shardId, blockReference)
 		if err != nil {
-			return nil, err
+			return nil, suppressBlockNotFound(err)
 		}
 	} else {
 		blockHeader, err := api.rawApi.GetBlockHeader(ctx, shardId, blockReference)
 		if err != nil {
-			return nil, err
+			return nil, suppressBlockNotFound(err)
 		}
 		blockData = &types.RawBlockWithExtractedData{Block: blockHeader}
 	}
@@ -109,7 +136,7 @@ func (api *DebugAPIImpl) GetContract(
 	contractAddr types.Address,
 	blockNrOrHash transport.BlockNumberOrHash,
 ) (*DebugRPCContract, error) {
-	contract, err := api.rawApi.GetContract(ctx, contractAddr, toBlockReference(blockNrOrHash))
+	contract, err := api.rawApi.GetContract(ctx, contractAddr, toBlockReference(blockNrOrHash), true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -126,4 +153,108 @@ func (api *DebugAPIImpl) GetContract(
 
 func (api *DebugAPIImpl) GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error) {
 	return api.rawApi.GetBootstrapConfig(ctx)
+}
+
+func (api *DebugAPIImpl) AccountRange(
+	ctx context.Context,
+	shardId types.ShardId,
+	blockNrOrHash transport.BlockNumberOrHash,
+	start *common.Hash,
+	maxResults uint64,
+	noCode bool,
+	noStorage bool,
+	incompletes bool,
+) (*AccountsRange, error) {
+	// In go-ethereum, the address is not stored as part of the value in the state trie,
+	// so it can't be easily retrieved (i.e., you can't take the preimage of the key hash to get the address).
+	// In our implementation, we store the address explicitly in the underlying structure,
+	// so there's no need to track incomplete entries — the `incompletes` parameter is unused.
+	_ = incompletes
+
+	if start == nil {
+		start = &common.EmptyHash
+	}
+
+	accountRange, err := api.rawApi.GetContractRange(ctx, shardId, toBlockReference(blockNrOrHash), *start, maxResults, !noCode, !noStorage)
+	if err != nil {
+		return nil, err
+	}
+	accounts := make(map[types.Address]*RangedAccount, len(accountRange.Contracts))
+	for _, rawAccount := range accountRange.Contracts {
+		account, err := rangeAccountFromRawapi(rawAccount)
+		if err != nil {
+			return nil, err
+		}
+		accounts[account.Address] = account
+	}
+
+	blockHeaderRaw, err := api.rawApi.GetBlockHeader(ctx, shardId, toBlockReference(blockNrOrHash))
+	if err != nil {
+		return nil, err
+	}
+
+	var blockHeader types.Block
+	if err := blockHeader.UnmarshalNil(blockHeaderRaw); err != nil {
+		return nil, err
+	}
+
+	return &AccountsRange{
+		Accounts: accounts,
+		Next:     accountRange.Next,
+		Root:     blockHeader.SmartContractsRoot,
+	}, nil
+}
+
+func (api *DebugAPIImpl) StorageRangeAt(
+	ctx context.Context,
+	blockHash common.Hash,
+	txId types.TransactionIndex,
+	contractAddress types.Address,
+	keyStart common.Hash,
+	maxResult uint,
+) {
+	return
+}
+
+func rangeAccountFromRawapi(rawApiSc *rawapitypes.SmartContract) (*RangedAccount, error) {
+	contract := new(types.SmartContract)
+	if err := contract.UnmarshalNil(rawApiSc.ContractBytes); err != nil {
+		return nil, err
+	}
+	acc := RangedAccount{
+		Balance:     contract.Balance,
+		Nonce:       contract.Seqno,
+		StorageRoot: contract.StorageRoot,
+		CodeHash:    contract.CodeHash,
+		Code:        hexutil.Bytes(rawApiSc.Code),
+		Address:     contract.Address,
+		AddressHash: contract.Address.Hash(),
+	}
+	if rawApiSc.Storage != nil {
+		hexutilStorage := make(map[common.Hash]hexutil.Big, len(rawApiSc.Storage))
+		for k, v := range rawApiSc.Storage {
+			hexutilStorage[k] = hexutil.Big(*v.ToBig())
+		}
+		acc.Storage = hexutilStorage
+	}
+	return &acc, nil
+}
+
+type RangedAccount struct {
+	Balance     types.Value                 `json:"balance"`
+	Nonce       types.Seqno                 `json:"nonce"`
+	StorageRoot common.Hash                 `json:"root"`
+	CodeHash    common.Hash                 `json:"codeHash"`
+	Code        hexutil.Bytes               `json:"code,omitempty"`
+	Storage     map[common.Hash]hexutil.Big `json:"storage,omitempty"`
+	Address     types.Address               `json:"address"`
+	AddressHash common.Hash                 `json:"key"`
+}
+
+type AccountsRange struct {
+	Root     common.Hash                      `json:"root"`
+	Accounts map[types.Address]*RangedAccount `json:"accounts"`
+	// `Next` can be set to represent that this range is only partial, and `Next`
+	// is where an iterator should be positioned in order to continue the range.
+	Next *common.Hash `json:"next,omitempty"` // nil if no more accounts
 }

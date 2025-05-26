@@ -30,7 +30,7 @@ $(GOBIN):
 	@mkdir -p $@
 
 .PHONY: generated
-generated: rlp pb compile-contracts generate_mocks sync_committee_targets
+generated: rlp pb compile-contracts generate_mocks sync_committee_targets gen_rollup_contracts_bindings
 
 .PHONY: test
 test: generated
@@ -47,8 +47,6 @@ test: generated
 	@$(GOBIN)/$* $(CMDARGS)
 
 $(COMMANDS): %: generated %.cmd
-
-$(SC_COMMANDS:%=%.cmd): gen_rollup_contracts_bindings
 
 include nil/internal/serialization/Makefile.inc
 include nil/internal/db/Makefile.inc
@@ -88,7 +86,7 @@ solidity_console: $(CONSOLE_SOL) $(CONSOLE_GO)
 
 compile-contracts: solidity_console $(BIN_FILES)
 
-golangci-lint: gen_rollup_contracts_bindings
+golangci-lint:
 	golangci-lint run
 
 format: generated

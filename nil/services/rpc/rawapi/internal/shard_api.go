@@ -45,6 +45,8 @@ type shardApiRo interface {
 		ctx context.Context,
 		address types.Address,
 		blockReference rawapitypes.BlockReference,
+		noCode bool,
+		noStorage bool,
 	) (*rawapitypes.SmartContract, error)
 
 	Call(
@@ -61,6 +63,15 @@ type shardApiRo interface {
 	ClientVersion(ctx context.Context) (string, error)
 
 	GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error)
+
+	GetContractRange(
+		ctx context.Context,
+		blockReference rawapitypes.BlockReference,
+		start common.Hash,
+		maxResults uint64,
+		noCode bool,
+		noStorage bool,
+	) (*rawapitypes.SmartContractRange, error)
 }
 
 const apiNameRw = "rawapi_rw"

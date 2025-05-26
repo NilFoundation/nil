@@ -9,6 +9,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/require"
@@ -80,8 +81,9 @@ func (suite *SuiteEthBlock) TestGetBlockByNumber() {
 	suite.Require().NotNil(data)
 	suite.Equal(suite.lastBlockHash, data.Hash)
 
-	_, err = suite.api.GetBlockByNumber(suite.ctx, shardId, transport.BlockNumber(100500), false)
-	suite.Require().ErrorIs(err, db.ErrKeyNotFound)
+	res, err := suite.api.GetBlockByNumber(suite.ctx, shardId, transport.BlockNumber(100500), false)
+	suite.Require().NoError(err)
+	suite.Require().Nil(res)
 }
 
 func (suite *SuiteEthBlock) TestGetBlockByHash() {
@@ -94,7 +96,7 @@ func (suite *SuiteEthBlock) TestGetBlockByHash() {
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByHash() {
 	blockHash := common.HexToHash("0x0000117de2f3e6ee32953e78ced1db7b20214e0d8c745a03b8fecf7cc8ee76ef")
 	_, err := suite.api.GetBlockTransactionCountByHash(suite.ctx, blockHash)
-	suite.Require().ErrorIs(err, db.ErrKeyNotFound)
+	suite.Require().ErrorIs(err, rawapitypes.ErrBlockNotFound)
 
 	res, err := suite.api.GetBlockTransactionCountByHash(suite.ctx, suite.lastBlockHash)
 	suite.Require().NoError(err)
@@ -127,7 +129,7 @@ func (suite *SuiteEthBlock) TestGetBlockTransactionCountByNumber() {
 	suite.Require().Equal(hexutil.Uint(1), res)
 
 	_, err = suite.api.GetBlockTransactionCountByNumber(suite.ctx, shardId, 100500)
-	suite.Require().ErrorIs(err, db.ErrKeyNotFound)
+	suite.Require().ErrorIs(err, rawapitypes.ErrBlockNotFound)
 }
 
 func TestSuiteEthBlock(t *testing.T) {
@@ -146,12 +148,15 @@ func TestGetBlockByNumberOnEmptyBase(t *testing.T) {
 	ctx := t.Context()
 	api := NewTestEthAPI(ctx, t, d, 1)
 
-	_, err = api.GetBlockByNumber(ctx, shardId, transport.EarliestBlockNumber, false)
-	require.ErrorIs(t, err, db.ErrKeyNotFound)
+	res, err := api.GetBlockByNumber(ctx, shardId, transport.EarliestBlockNumber, false)
+	require.NoError(t, err)
+	require.Nil(t, res)
 
-	_, err = api.GetBlockByNumber(ctx, shardId, transport.LatestBlockNumber, false)
-	require.ErrorIs(t, err, db.ErrKeyNotFound)
+	res, err = api.GetBlockByNumber(ctx, shardId, transport.LatestBlockNumber, false)
+	require.NoError(t, err)
+	require.Nil(t, res)
 
-	_, err = api.GetBlockByNumber(ctx, shardId, transport.BlockNumber(123), false)
-	require.ErrorIs(t, err, db.ErrKeyNotFound)
+	res, err = api.GetBlockByNumber(ctx, shardId, transport.BlockNumber(123), false)
+	require.NoError(t, err)
+	require.Nil(t, res)
 }

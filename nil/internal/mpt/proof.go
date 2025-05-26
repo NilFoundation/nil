@@ -33,6 +33,7 @@ func BuildProof(r *Reader, key []byte, op Operation) (Proof, error) {
 		key = crypto.Keccak256(key)
 	}
 
+	// TODO: try to comment this out
 	if r.RootHash() == EmptyRootHash {
 		emptyNode := []byte{0x80}
 		emptyHash := common.Keccak256Hash(emptyNode)

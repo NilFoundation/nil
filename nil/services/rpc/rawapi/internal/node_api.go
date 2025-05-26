@@ -49,6 +49,8 @@ type NodeApi interface {
 		ctx context.Context,
 		address types.Address,
 		blockReference rawapitypes.BlockReference,
+		noCode bool,
+		noStorage bool,
 	) (*rawapitypes.SmartContract, error)
 
 	Call(
@@ -73,4 +75,14 @@ type NodeApi interface {
 	DoPanicOnShard(ctx context.Context, shardId types.ShardId) (uint64, error)
 
 	SetP2pRequestHandlers(ctx context.Context, networkManager network.Manager, logger logging.Logger) error
+
+	GetContractRange(
+		ctx context.Context,
+		shardId types.ShardId,
+		blockReference rawapitypes.BlockReference,
+		start common.Hash,
+		maxResults uint64,
+		noCode bool,
+		noStorage bool,
+	) (*rawapitypes.SmartContractRange, error)
 }

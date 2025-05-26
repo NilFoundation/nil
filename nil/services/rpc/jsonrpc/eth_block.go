@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"errors"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -39,6 +40,9 @@ func (api *APIImplRo) GetBlockByNumber(
 
 	res, err := api.rawapi.GetFullBlockData(ctx, shardId, blockNrToBlockReference(number))
 	if err != nil {
+		if errors.Is(err, rawapitypes.ErrBlockNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return rawToRPCBlock(shardId, res, fullTx)
