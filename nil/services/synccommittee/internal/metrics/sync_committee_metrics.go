@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/telemetry/telattr"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -23,10 +24,11 @@ type SyncCommitteeMetricsHandler struct {
 
 	attributes metric.MeasurementOption
 
-	// AggregatorMetrics
+	// CommitterMetrics
 	totalBatchesCommitted telemetry.Counter
 	batchSizeBlocks       telemetry.Histogram
 	batchSizeTxs          telemetry.Histogram
+	batchSizeBlobs        telemetry.Histogram
 
 	// LagTrackerMetrics
 	blockFetchingLag telemetry.Gauge
@@ -58,7 +60,7 @@ func (h *SyncCommitteeMetricsHandler) init(attributes metric.MeasurementOption, 
 		return err
 	}
 
-	if err := h.initAggregatorMetrics(meter); err != nil {
+	if err := h.initCommitterMetrics(meter); err != nil {
 		return err
 	}
 
@@ -73,7 +75,7 @@ func (h *SyncCommitteeMetricsHandler) init(attributes metric.MeasurementOption, 
 	return h.initProposerMetrics(meter)
 }
 
-func (h *SyncCommitteeMetricsHandler) initAggregatorMetrics(meter telemetry.Meter) error {
+func (h *SyncCommitteeMetricsHandler) initCommitterMetrics(meter telemetry.Meter) error {
 	var err error
 
 	if h.totalBatchesCommitted, err = meter.Int64Counter(namespace + "total_batches_committed"); err != nil {
@@ -85,6 +87,10 @@ func (h *SyncCommitteeMetricsHandler) initAggregatorMetrics(meter telemetry.Mete
 	}
 
 	if h.batchSizeTxs, err = meter.Int64Histogram(namespace + "batch_size_txs"); err != nil {
+		return err
+	}
+
+	if h.batchSizeBlobs, err = meter.Int64Histogram(namespace + "batch_size_blobs"); err != nil {
 		return err
 	}
 
@@ -125,7 +131,9 @@ func (h *SyncCommitteeMetricsHandler) initProposerMetrics(meter telemetry.Meter)
 	return nil
 }
 
-func (h *SyncCommitteeMetricsHandler) RecordBatchCommitted(ctx context.Context, batch *types.BlockBatch) {
+func (h *SyncCommitteeMetricsHandler) RecordBatchCommitted(
+	ctx context.Context, batch *types.BlockBatch, commitment *batches.Commitment,
+) {
 	h.totalBatchesCommitted.Add(ctx, 1, h.attributes)
 
 	var batchSizeBlocks int64
@@ -137,6 +145,9 @@ func (h *SyncCommitteeMetricsHandler) RecordBatchCommitted(ctx context.Context, 
 
 	h.batchSizeBlocks.Record(ctx, batchSizeBlocks, h.attributes)
 	h.batchSizeTxs.Record(ctx, batchSizeTxs, h.attributes)
+
+	blobCount := int64(len(commitment.Sidecar.Blobs))
+	h.batchSizeBlobs.Record(ctx, blobCount, h.attributes)
 }
 
 func (h *SyncCommitteeMetricsHandler) RecordFetchingLag(

@@ -19,11 +19,6 @@ import (
 	"github.com/jonboulle/clockwork"
 )
 
-type AggregatorMetrics interface {
-	srv.WorkerMetrics
-	RecordBatchCommitted(ctx context.Context, batch *types.BlockBatch)
-}
-
 type BatchConstraintChecker interface {
 	Constraints() constraints.BatchConstraints
 	CheckConstraints(ctx context.Context, batch *types.BlockBatch) (*constraints.CheckResult, error)
@@ -70,7 +65,6 @@ type aggregator struct {
 	committer       BatchCommitter
 	resetter        *reset.StateResetLauncher
 	clock           clockwork.Clock
-	metrics         AggregatorMetrics
 	config          AggregatorConfig
 	logger          logging.Logger
 }
@@ -84,7 +78,7 @@ func NewAggregator(
 	resetter *reset.StateResetLauncher,
 	clock clockwork.Clock,
 	logger logging.Logger,
-	metrics AggregatorMetrics,
+	metrics srv.WorkerMetrics,
 	config AggregatorConfig,
 ) *aggregator {
 	agg := &aggregator{
@@ -96,7 +90,6 @@ func NewAggregator(
 		committer:       committer,
 		resetter:        resetter,
 		clock:           clock,
-		metrics:         metrics,
 		config:          config,
 	}
 
@@ -457,7 +450,6 @@ func (agg *aggregator) commitBatch(ctx context.Context, batch *types.BlockBatch)
 		return fmt.Errorf("error creating proof tasks, batchId=%s: %w", batch.Id, err)
 	}
 
-	agg.metrics.RecordBatchCommitted(ctx, committed)
 	return nil
 }
 

@@ -83,7 +83,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 	)
 
 	committer := batches.NewCommitter(
-		rollupContractWrapper, clock, batches.DefaultCommitConfig(), logger,
+		rollupContractWrapper, clock, batches.DefaultCommitConfig(), metricsHandler, logger,
 	)
 
 	agg := fetching.NewAggregator(

@@ -18,10 +18,15 @@ type RollupContract interface {
 	CommitBatch(ctx context.Context, batchId types.BatchId, sidecar *ethtypes.BlobTxSidecar) error
 }
 
+type CommitterMetrics interface {
+	RecordBatchCommitted(ctx context.Context, batch *types.BlockBatch, commitment *Commitment)
+}
+
 type committer struct {
 	preparer       *commitPreparer
 	rollupContract RollupContract
 	clock          clockwork.Clock
+	metrics        CommitterMetrics
 	logger         logging.Logger
 }
 
@@ -29,6 +34,7 @@ func NewCommitter(
 	rollupContract RollupContract,
 	clock clockwork.Clock,
 	config CommitPreparerConfig,
+	metrics CommitterMetrics,
 	logger logging.Logger,
 ) *committer {
 	encoder := v1.NewEncoder(logger)
@@ -41,8 +47,9 @@ func NewCommitter(
 			config,
 			logger,
 		),
-		clock:  clock,
-		logger: logger,
+		clock:   clock,
+		metrics: metrics,
+		logger:  logger,
 	}
 }
 
@@ -74,6 +81,8 @@ func (c *committer) Commit(ctx context.Context, batch *types.BlockBatch) (commit
 	if err := c.rollupContract.CommitBatch(ctx, sealedBatch.Id, commitment.Sidecar); err != nil {
 		return nil, fmt.Errorf("failed to commit batch: %w", err)
 	}
+
+	c.metrics.RecordBatchCommitted(ctx, sealedBatch, commitment)
 
 	return sealedBatch, nil
 }

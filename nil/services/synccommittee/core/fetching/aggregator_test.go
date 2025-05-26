@@ -76,7 +76,7 @@ func (s *AggregatorTestSuite) newTestAggregator(
 	s.Require().NoError(err)
 
 	committer := batches.NewCommitter(
-		contractWrapper, clock, batches.DefaultCommitConfig(), logger,
+		contractWrapper, clock, batches.DefaultCommitConfig(), s.metrics, logger,
 	)
 
 	fetcher := NewFetcher(s.rpcClientMock, logger)
