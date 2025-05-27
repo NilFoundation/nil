@@ -15,6 +15,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	scTypes "github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/holiman/uint256"
 )
 
@@ -194,7 +195,7 @@ func NewGenesisBlock(shardId types.ShardId) *scTypes.Block {
 func NewProposalData(currentTime time.Time) *scTypes.ProposalData {
 	return scTypes.NewProposalData(
 		scTypes.NewBatchId(),
-		scTypes.DataProofs{[]byte{}},
+		NewDataProofs(),
 		RandomHash(),
 		RandomHash(),
 		currentTime.Add(-time.Hour),
@@ -212,9 +213,25 @@ func NewUpdateStateData() *scTypes.UpdateStateData {
 }
 
 func NewDataProofs() scTypes.DataProofs {
-	return scTypes.DataProofs{
-		[]byte{10, 20, 30, 40}, []byte{11, 22, 33, 44}, []byte{12, 23, 34, 45}, []byte{13, 24, 35, 46},
-	}
+	// fill data proof with non-empty stub values
+
+	var evalPoint kzg4844.Point
+	evalPoint[0] = 10
+
+	var evalClaim kzg4844.Claim
+	evalClaim[0] = 20
+
+	var evalCommitment kzg4844.Commitment
+	evalCommitment[0] = 30
+
+	var evalProof kzg4844.Proof
+	evalProof[0] = 40
+
+	dataProof := scTypes.NewDataProof(
+		evalPoint, evalClaim, evalCommitment, evalProof,
+	)
+
+	return scTypes.DataProofs{dataProof}
 }
 
 func NewValidityProof() scTypes.ValidityProof {

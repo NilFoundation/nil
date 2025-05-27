@@ -36,7 +36,11 @@ func (be *batchEncoder) Encode(batch *types.PrunedBatch, out io.Writer) error {
 	}
 
 	protoBatch := ConvertToProto(batch)
-	be.logger.Info().Uint64("transaction_count", protoBatch.GetTotalTxCount()).Msg("packed transactions to batch")
+
+	be.logger.Trace().
+		Stringer(logging.FieldBatchId, batch.BatchId).
+		Uint64("transactionCount", protoBatch.GetTotalTxCount()).
+		Msg("Packed transactions to encoded batch")
 
 	serialized, err := proto.Marshal(protoBatch)
 	if err != nil {

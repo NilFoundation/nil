@@ -1,7 +1,6 @@
 package fetching
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,23 +10,14 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/blob"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/constraints"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode"
-	v1 "github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode/v1"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/reset"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/rollupcontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/srv"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/storage"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jonboulle/clockwork"
 )
-
-type AggregatorMetrics interface {
-	srv.WorkerMetrics
-	RecordBatchCreated(ctx context.Context, batch *types.BlockBatch)
-}
 
 type BatchConstraintChecker interface {
 	Constraints() constraints.BatchConstraints
@@ -46,15 +36,17 @@ type AggregatorBlockStorage interface {
 	PutBlockBatch(ctx context.Context, batch *types.BlockBatch) error
 }
 
+type BatchCommitter interface {
+	Commit(ctx context.Context, batch *types.BlockBatch) (committed *types.BlockBatch, err error)
+}
+
 type AggregatorConfig struct {
 	RpcPollingInterval time.Duration `yaml:"pollingDelay,omitempty"`
-	MaxBlobsInTx       uint          `yaml:"-"`
 }
 
 func NewAggregatorConfig(rpcPollingInterval time.Duration) AggregatorConfig {
 	return AggregatorConfig{
 		RpcPollingInterval: rpcPollingInterval,
-		MaxBlobsInTx:       6,
 	}
 }
 
@@ -70,12 +62,9 @@ type aggregator struct {
 	blockStorage    AggregatorBlockStorage
 	taskStorage     AggregatorTaskStorage
 	subgraphFetcher *subgraphFetcher
-	batchEncoder    encode.BatchEncoder
-	blobBuilder     blob.Builder
-	rollupContract  rollupcontract.Wrapper
+	committer       BatchCommitter
 	resetter        *reset.StateResetLauncher
 	clock           clockwork.Clock
-	metrics         AggregatorMetrics
 	config          AggregatorConfig
 	logger          logging.Logger
 }
@@ -85,11 +74,11 @@ func NewAggregator(
 	batchChecker BatchConstraintChecker,
 	blockStorage AggregatorBlockStorage,
 	taskStorage AggregatorTaskStorage,
+	committer BatchCommitter,
 	resetter *reset.StateResetLauncher,
-	rollupContractWrapper rollupcontract.Wrapper,
 	clock clockwork.Clock,
 	logger logging.Logger,
-	metrics AggregatorMetrics,
+	metrics srv.WorkerMetrics,
 	config AggregatorConfig,
 ) *aggregator {
 	agg := &aggregator{
@@ -98,12 +87,9 @@ func NewAggregator(
 		blockStorage:    blockStorage,
 		taskStorage:     taskStorage,
 		subgraphFetcher: newSubgraphFetcher(fetcher, logger),
-		batchEncoder:    v1.NewEncoder(logger),
-		blobBuilder:     blob.NewBuilder(),
-		rollupContract:  rollupContractWrapper,
+		committer:       committer,
 		resetter:        resetter,
 		clock:           clock,
-		metrics:         metrics,
 		config:          config,
 	}
 
@@ -182,7 +168,7 @@ func (agg *aggregator) processBlockRange(ctx context.Context) error {
 	}
 
 	if result.shouldBeSealed {
-		if err := agg.sealBatch(ctx, result.extended); err != nil {
+		if err := agg.commitBatch(ctx, result.extended); err != nil {
 			return fmt.Errorf("error sealing batch, batchId=%s: %w", result.extended.Id, err)
 		}
 	} else {
@@ -248,7 +234,7 @@ func (agg *aggregator) handleUnextendableBatch(
 		agg.logger.Info().
 			Stringer(logging.FieldBatchId, latestBatch.Id).
 			Msgf("Sealing batch: %s", checkResult.Details)
-		if err := agg.sealBatch(ctx, latestBatch); err != nil {
+		if err := agg.commitBatch(ctx, latestBatch); err != nil {
 			return fmt.Errorf("error sealing batch: %w", err)
 		}
 		return nil
@@ -449,55 +435,47 @@ func (agg *aggregator) extendBatch(
 	}
 }
 
-// sealBatch handles the batch, preparing data proofs, committing to the rollup contract, and creating proof tasks.
-func (agg *aggregator) sealBatch(ctx context.Context, batch *types.BlockBatch) error {
-	sidecar, dataProofs, err := agg.prepareForBatchCommit(ctx, batch)
+// commitBatch handles the batch, preparing data proofs, committing to the rollup contract, and creating proof tasks.
+func (agg *aggregator) commitBatch(ctx context.Context, batch *types.BlockBatch) error {
+	committed, err := agg.committer.Commit(ctx, batch)
 	if err != nil {
-		return err
+		return agg.handleCommitBatchError(ctx, batch.Id, err)
 	}
 
-	sealedBatch, err := batch.Seal(dataProofs, agg.clock.Now())
-	if err != nil {
-		return err
+	if err := agg.blockStorage.PutBlockBatch(ctx, committed); err != nil {
+		return fmt.Errorf("error storing committed batch, batchId=%s: %w", batch.Id, err)
 	}
 
-	if err := agg.blockStorage.PutBlockBatch(ctx, sealedBatch); err != nil {
-		return fmt.Errorf("error storing batch, batchId=%s: %w", batch.Id, err)
-	}
-
-	if err := agg.rollupContract.CommitBatch(ctx, sealedBatch.Id, sidecar); err != nil {
-		return agg.handleCommitBatchError(ctx, sealedBatch, err)
-	}
-
-	if err := agg.createProofTasks(ctx, sealedBatch); err != nil {
+	if err := agg.createProofTasks(ctx, committed); err != nil {
 		return fmt.Errorf("error creating proof tasks, batchId=%s: %w", batch.Id, err)
 	}
 
-	agg.metrics.RecordBatchCreated(ctx, sealedBatch)
 	return nil
 }
 
-func (agg *aggregator) handleCommitBatchError(ctx context.Context, batch *types.BlockBatch, err error) error {
+func (agg *aggregator) handleCommitBatchError(ctx context.Context, batchId types.BatchId, err error) error {
 	switch {
 	case errors.Is(err, rollupcontract.ErrBatchAlreadyCommitted) ||
 		errors.Is(err, rollupcontract.ErrBatchAlreadyFinalized):
 		// for some reason, we attempted to prove a batch that has already been proved,
 		// sync the latest proved root with the L1 contract.
-		agg.logger.Warn().Stringer(logging.FieldBatchId, batch.Id).
-			Err(err).Msg("batch is already committed, resetting state with L1")
+		agg.logger.Warn().Stringer(logging.FieldBatchId, batchId).
+			Err(err).Msg("Batch is already committed, resetting state with L1")
+
 		if err := agg.resetter.LaunchResetToL1WithSuspension(ctx, agg); err != nil {
-			return fmt.Errorf("error resetting state from L1, latestMainHash=%s: %w",
-				batch.LatestMainBlock().Hash, err)
+			return fmt.Errorf("error resetting state from L1, batchId=%s: %w", batchId, err)
 		}
+
 	case errors.Is(err, rollupcontract.ErrInvalidBatchIndex) ||
 		errors.Is(err, rollupcontract.ErrInvalidVersionedHash):
 		// NOTE: this shouldn't happen in prod setting
-		agg.logger.Error().Stringer(logging.FieldBatchId, batch.Id).
-			Err(err).Msg("data was corrupted or initially created in a wrong way")
+		agg.logger.Error().Stringer(logging.FieldBatchId, batchId).
+			Err(err).Msg("Data was corrupted or initially created in a wrong way")
+
 		if err := agg.resetter.LaunchResetToL1WithSuspension(ctx, agg); err != nil {
-			return fmt.Errorf("error resetting state from L1, latestMainHash=%s: %w",
-				batch.LatestMainBlock().Hash, err)
+			return fmt.Errorf("error resetting state from L1, batchId=%s: %w", batchId, err)
 		}
+
 	default:
 		return err
 	}
@@ -519,21 +497,4 @@ func (agg *aggregator) createProofTasks(ctx context.Context, batch *types.BlockB
 	agg.logger.Debug().Stringer(logging.FieldBatchId, batch.Id).Msgf("Created proof task, batchId=%s", batch.Id)
 
 	return nil
-}
-
-func (agg *aggregator) prepareForBatchCommit(
-	ctx context.Context, batch *types.BlockBatch,
-) (*ethtypes.BlobTxSidecar, types.DataProofs, error) {
-	var binTransactions bytes.Buffer
-	if err := agg.batchEncoder.Encode(types.NewPrunedBatch(batch), &binTransactions); err != nil {
-		return nil, nil, err
-	}
-	agg.logger.Debug().Int("compressed_batch_len", binTransactions.Len()).Msg("encoded transaction")
-
-	blobs, err := agg.blobBuilder.MakeBlobs(&binTransactions, agg.config.MaxBlobsInTx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return agg.rollupContract.PrepareBlobs(ctx, blobs)
 }

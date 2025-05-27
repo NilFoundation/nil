@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/constraints"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/bridgecontract"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/feeupdater"
@@ -52,7 +53,8 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 
 	clock := clockwork.NewRealClock()
 	blockStorage := storage.NewBlockStorage(
-		database, storage.DefaultBlockStorageConfig(), clock, metricsHandler, logger)
+		database, storage.DefaultBlockStorageConfig(), clock, metricsHandler, logger,
+	)
 	taskStorage := storage.NewTaskStorage(database, clock, metricsHandler, logger)
 
 	rollupContractWrapper, err := rollupcontract.NewWrapper(
@@ -80,13 +82,17 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		logger,
 	)
 
+	committer := batches.NewCommitter(
+		rollupContractWrapper, clock, batches.DefaultCommitConfig(), metricsHandler, logger,
+	)
+
 	agg := fetching.NewAggregator(
 		fetcher,
 		batchChecker,
 		blockStorage,
 		taskStorage,
+		committer,
 		resetLauncher,
-		rollupContractWrapper,
 		clock,
 		logger,
 		metricsHandler,

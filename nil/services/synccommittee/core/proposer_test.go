@@ -174,7 +174,8 @@ func (s *ProposerTestSuite) TearDownSuite() {
 
 func (s *ProposerTestSuite) putTestBlockBatch() {
 	s.T().Helper()
-	batch, err := testaide.NewBlockBatch(testaide.ShardsCount).Seal(scTypes.DataProofs{[]byte{}}, testaide.Now)
+	dataProofs := testaide.NewDataProofs()
+	batch, err := testaide.NewBlockBatch(testaide.ShardsCount).Seal(dataProofs, testaide.Now)
 	s.Require().NoError(err)
 	batch.Id = s.testData.BatchId
 	mainBlock := batch.Blocks[types.MainShardId].Latest()
@@ -237,7 +238,8 @@ func (s *ProposerTestSuite) TestStorageProposalDataRemoved() {
 	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", "testingFinalizedBatchIndex")
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", s.testData.OldProvedStateRoot)
 
-	batch, err := testaide.NewBlockBatch(testaide.ShardsCount).Seal(scTypes.DataProofs{[]byte{}}, testaide.Now)
+	dataProofs := testaide.NewDataProofs()
+	batch, err := testaide.NewBlockBatch(testaide.ShardsCount).Seal(dataProofs, testaide.Now)
 	s.Require().NoError(err)
 	batch.Id = s.testData.BatchId
 	mainBlock := batch.Blocks[types.MainShardId].Latest()
@@ -270,7 +272,8 @@ func (s *ProposerTestSuite) TestProposerResetToL1State() {
 	s.callContractMock.AddExpectedCall("getLastFinalizedBatchIndex", "testingFinalizedBatchIndex")
 	s.callContractMock.AddExpectedCall("finalizedStateRoots", l1FinalizedStateRoot)
 
-	batch, err := testaide.NewBlockBatch(testaide.ShardsCount).Seal(scTypes.DataProofs{[]byte{}}, testaide.Now)
+	dataProofs := testaide.NewDataProofs()
+	batch, err := testaide.NewBlockBatch(testaide.ShardsCount).Seal(dataProofs, testaide.Now)
 	s.Require().NoError(err)
 	batch.Blocks[types.MainShardId].Earliest().ParentHash = s.testData.OldProvedStateRoot
 	batch.Id = s.testData.BatchId
