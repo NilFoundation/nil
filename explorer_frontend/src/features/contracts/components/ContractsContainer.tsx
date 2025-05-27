@@ -1,6 +1,7 @@
 import { Card } from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
+import { expandProperty } from "inline-style-expand-shorthand";
 import { useSwipeable } from "react-swipeable";
 import { getMobileStyles } from "../../../styleHelpers";
 import { useMobile } from "../../shared";
@@ -10,7 +11,7 @@ import { DeployContractModal } from "./Deploy/DeployContractModal";
 import { ContractManagement } from "./Management/ContractManagement";
 
 export const ContractsContainer = () => {
-  const [css, theme] = useStyletron();
+  const [_, theme] = useStyletron();
   const app = useUnit($activeAppWithState);
   const Component = app?.address ? ContractManagement : Contracts;
   const [isMobile] = useMobile();
@@ -33,6 +34,7 @@ export const ContractsContainer = () => {
             paddingLeft: "0",
             paddingBottom: "24px",
             overflow: "hidden",
+            ...expandProperty("borderRadius", "16px"),
           },
         },
         Contents: {

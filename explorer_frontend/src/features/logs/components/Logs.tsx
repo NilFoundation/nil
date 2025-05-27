@@ -13,6 +13,7 @@ import {
 import { useUnit } from "effector-react";
 import "../init";
 import { useStyletron } from "baseui";
+import { expandProperty } from "inline-style-expand-shorthand";
 import { useCallback, useEffect, useRef } from "react";
 import { getMobileStyles } from "../../../styleHelpers";
 import { clickOnBackButton } from "../../code/model";
@@ -97,6 +98,7 @@ export const Logs = () => {
               paddingRight: 0,
               paddingLeft: 0,
               paddingTop: 0,
+              ...expandProperty("borderRadius", "16px"),
             },
           },
           Contents: {
