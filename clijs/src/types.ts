@@ -1,11 +1,12 @@
 import type { Hex } from "@nilfoundation/niljs";
 import { Args, Flags } from "@oclif/core";
 
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export const defaultHelp = async (ctx: any) => {
   if (ctx.options.default) {
     return `${ctx.options.default.toString()}`;
   }
-}
+};
 
 export const bigintFlag = Flags.custom<bigint>({
   parse: async (input) => BigInt(input),
