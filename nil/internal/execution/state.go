@@ -550,7 +550,7 @@ func (es *ExecutionState) Exists(addr types.Address) (bool, error) {
 func (es *ExecutionState) GetCode(addr types.Address) ([]byte, common.Hash, error) {
 	acc, err := es.GetAccount(addr)
 	if err != nil || acc == nil {
-		return nil, common.EmptyHash, err
+		return nil, types.EmptyCodeHash, err
 	}
 	return acc.Code, acc.CodeHash, nil
 }
@@ -859,7 +859,7 @@ func (es *ExecutionState) ContractExists(address types.Address) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return (contractHash != common.EmptyHash) || // non-empty code
+	return (contractHash != types.EmptyCodeHash) || // non-empty code
 		(storageRoot != common.EmptyHash), nil // non-empty storage
 }
 
