@@ -52,7 +52,14 @@ cleanup() {
         fi
     done
 }
-trap cleanup EXIT INT TERM
+NO_CLEANUP=${NO_CLEANUP:-0}
+
+if [[ NO_CLEANUP -ne 1 ]]; then
+    trap cleanup EXIT INT TERM
+else
+    echo "No cleanup will be performed after the script exits."
+    trap EXIT INT TERM
+fi
 
 wait_for_http_service() {
     local url="$1"
