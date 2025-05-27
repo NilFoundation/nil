@@ -33,9 +33,7 @@ export const PlaygroundPage = () => {
   return (
     <div className={css(isMobile ? mobileContainerStyle : styles.playgroundContainer)}>
       {!isRPCHealthy && <NetworkErrorNotification />}
-      <Navbar showCodeInteractionButtons={true}>
-        <AccountPane />
-      </Navbar>
+      <Navbar showCodeInteractionButtons={true}>{isMobile ? null : <AccountPane />}</Navbar>
       <div
         className={css({
           width: "100%",
