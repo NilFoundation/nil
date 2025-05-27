@@ -10,6 +10,8 @@ import (
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/cobrax"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/core"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/debug"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
 	"github.com/spf13/cobra"
 )
@@ -17,7 +19,12 @@ import (
 const appTitle = "=nil; Sync Committee CLI"
 
 func main() {
-	check.PanicIfErr(execute())
+	check.PanicIfNotCancelledErr(execute())
+}
+
+type ParamsWithEndpoint struct {
+	commands.ExecutorParams
+	RpcEndpoint string
 }
 
 func execute() error {
@@ -26,32 +33,36 @@ func execute() error {
 		Short: "Run Sync Committee CLI Tool",
 	}
 
-	executorParams := commands.DefaultExecutorParams()
+	params := &ParamsWithEndpoint{
+		ExecutorParams: commands.ExecutorParamsDefault(),
+		RpcEndpoint:    core.DefaultOwnRpcEndpoint,
+	}
 
 	logging.SetupGlobalLogger("info")
 	logger := logging.NewLogger("sync_committee_cli")
 
-	getTasksCmd := buildGetTasksCmd(executorParams, logger)
-	rootCmd.AddCommand(getTasksCmd)
+	getTasksCmd := buildGetTasksCmd(params, logger)
 
-	getTaskTreeCmd, err := buildGetTaskTreeCmd(executorParams, logger)
+	getTaskTreeCmd, err := buildGetTaskTreeCmd(params, logger)
 	if err != nil {
 		return err
 	}
-	resetContractCmd, err := buildResetContractCmd(executorParams, logger)
+	resetContractCmd, err := buildRollbackContractCmd(logger)
 	if err != nil {
 		return err
 	}
 
-	decodeBatchCmd := buildDecodeBatchCmd(executorParams, logger)
+	decodeBatchCmd := buildDecodeBatchCmd(logger)
+
 	versionCmd := cobrax.VersionCmd(appTitle)
-	rootCmd.AddCommand(getTaskTreeCmd, decodeBatchCmd, resetContractCmd, versionCmd)
+
+	rootCmd.AddCommand(getTasksCmd, getTaskTreeCmd, decodeBatchCmd, resetContractCmd, versionCmd)
 	return rootCmd.Execute()
 }
 
-func buildGetTasksCmd(commonParam *commands.ExecutorParams, logger logging.Logger) *cobra.Command {
+func buildGetTasksCmd(params *ParamsWithEndpoint, logger logging.Logger) *cobra.Command {
 	cmdParams := &commands.GetTasksParams{
-		ExecutorParams:   *commonParam,
+		ExecutorParams:   params.ExecutorParams,
 		TaskDebugRequest: public.DefaultTaskDebugRequest(),
 		FieldsToInclude:  commands.DefaultFields(),
 	}
@@ -59,12 +70,16 @@ func buildGetTasksCmd(commonParam *commands.ExecutorParams, logger logging.Logge
 	cmd := &cobra.Command{
 		Use:   "get-tasks",
 		Short: "Get tasks from the node's storage based on provided filter and ordering parameters",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return commands.NewExecutor(os.Stdout, cmdParams, logger).Run(commands.GetTasks)
+		RunE: func(*cobra.Command, []string) error {
+			executor := commands.NewExecutor(os.Stdout, logger, cmdParams)
+			client := debug.NewTasksClient(params.RpcEndpoint, logger)
+			return executor.Run(func(ctx context.Context) (commands.CmdOutput, error) {
+				return commands.GetTasks(ctx, cmdParams, client)
+			})
 		},
 	}
 
-	addCommonFlags(cmd, &cmdParams.ExecutorParams)
+	addRpcParamsWithRefresh(cmd, params)
 	cmdFlags := cmd.Flags()
 
 	flags.EnumVar(cmdFlags, &cmdParams.Status, "status", "current task status")
@@ -93,21 +108,24 @@ func buildGetTasksCmd(commonParam *commands.ExecutorParams, logger logging.Logge
 	return cmd
 }
 
-func buildGetTaskTreeCmd(commonParam *commands.ExecutorParams, logger logging.Logger) (*cobra.Command, error) {
+func buildGetTaskTreeCmd(params *ParamsWithEndpoint, logger logging.Logger) (*cobra.Command, error) {
 	cmdParams := &commands.GetTaskTreeParams{
-		ExecutorParams: *commonParam,
+		ExecutorParams: params.ExecutorParams,
 	}
 
 	cmd := &cobra.Command{
 		Use:   "get-task-tree",
 		Short: "Retrieve full task tree structure for a specific task",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			eventLoop := commands.NewExecutor(os.Stdout, cmdParams, logger)
-			return eventLoop.Run(commands.GetTaskTree)
+			executor := commands.NewExecutor(os.Stdout, logger, cmdParams)
+			client := debug.NewTasksClient(params.RpcEndpoint, logger)
+			return executor.Run(func(ctx context.Context) (commands.CmdOutput, error) {
+				return commands.GetTaskTree(ctx, cmdParams, client)
+			})
 		},
 	}
 
-	addCommonFlags(cmd, &cmdParams.ExecutorParams)
+	addRpcParamsWithRefresh(cmd, params)
 
 	const taskIdFlag = "task-id"
 	cmd.Flags().Var(&cmdParams.TaskId, taskIdFlag, "root task id")
@@ -118,14 +136,17 @@ func buildGetTaskTreeCmd(commonParam *commands.ExecutorParams, logger logging.Lo
 	return cmd, nil
 }
 
-func buildDecodeBatchCmd(_ *commands.ExecutorParams, logger logging.Logger) *cobra.Command {
+func buildDecodeBatchCmd(logger logging.Logger) *cobra.Command {
 	params := &commands.DecodeBatchParams{}
 
 	cmd := &cobra.Command{
 		Use:   "decode-batch",
 		Short: "Deserialize L1 stored batch with nil transactions into human readable format",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return commands.DecodeBatch(context.Background(), params, logger)
+		RunE: func(*cobra.Command, []string) error {
+			executor := commands.NewExecutor(os.Stdout, logger, params)
+			return executor.Run(func(ctx context.Context) (commands.CmdOutput, error) {
+				return commands.DecodeBatch(ctx, params, logger)
+			})
 		},
 	}
 
@@ -140,22 +161,25 @@ func buildDecodeBatchCmd(_ *commands.ExecutorParams, logger logging.Logger) *cob
 	return cmd
 }
 
-func buildResetContractCmd(_ *commands.ExecutorParams, logger logging.Logger) (*cobra.Command, error) {
-	params := &commands.ResetStateParams{}
+func buildRollbackContractCmd(logger logging.Logger) (*cobra.Command, error) {
+	params := &commands.RollbackStateParams{}
 
 	cmd := &cobra.Command{
-		Use:   "reset-state",
-		Short: "Reset L1 state to specified root",
+		Use:   "rollback-state",
+		Short: "Rollback L1 state to specified root",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return commands.ResetState(context.Background(), params, logger)
+			executor := commands.NewExecutor(os.Stdout, logger, params)
+			return executor.Run(func(ctx context.Context) (commands.CmdOutput, error) {
+				return commands.RollbackState(ctx, params, logger)
+			})
 		},
 	}
 
 	endpointFlag := "l1-endpoint"
 	cmd.Flags().StringVar(
-		&params.Endpoint,
+		&params.L1Endpoint,
 		endpointFlag,
-		params.Endpoint,
+		params.L1Endpoint,
 		"L1 endpoint")
 	privateKeyFlag := "l1-private-key"
 	cmd.Flags().StringVar(
@@ -171,9 +195,9 @@ func buildResetContractCmd(_ *commands.ExecutorParams, logger logging.Logger) (*
 		"L1 update state contract address")
 	targetRootFlag := "target-root"
 	cmd.Flags().StringVar(
-		&params.TargetStateRoot,
+		&params.TargetStateRootHex,
 		"target-root",
-		params.TargetStateRoot,
+		params.TargetStateRootHex,
 		"target state root in HEX")
 
 	// make all flags required
@@ -186,13 +210,13 @@ func buildResetContractCmd(_ *commands.ExecutorParams, logger logging.Logger) (*
 	return cmd, nil
 }
 
-func addCommonFlags(cmd *cobra.Command, params *commands.ExecutorParams) {
-	cmd.Flags().StringVar(&params.DebugRpcEndpoint, "endpoint", params.DebugRpcEndpoint, "debug rpc endpoint")
+func addRpcParamsWithRefresh(cmd *cobra.Command, params *ParamsWithEndpoint) {
+	cmd.Flags().StringVar(&params.RpcEndpoint, "endpoint", params.RpcEndpoint, "target rpc endpoint")
 	cmd.Flags().BoolVar(&params.AutoRefresh, "refresh", params.AutoRefresh, "should the received data be refreshed")
 	cmd.Flags().DurationVar(
 		&params.RefreshInterval,
 		"refresh-interval",
 		params.RefreshInterval,
-		fmt.Sprintf("refresh interval, min value is %s", commands.MinRefreshInterval),
+		fmt.Sprintf("refresh interval, min value is %s", commands.RefreshIntervalMinimal),
 	)
 }

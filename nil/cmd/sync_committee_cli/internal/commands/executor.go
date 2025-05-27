@@ -10,9 +10,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/debug"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
-	"github.com/rs/zerolog"
 )
 
 type CmdParams interface {
@@ -20,26 +17,30 @@ type CmdParams interface {
 	GetExecutorParams() *ExecutorParams
 }
 
-type Executor[P CmdParams] struct {
+type executor[P CmdParams] struct {
 	writer io.StringWriter
-	params P
 	logger logging.Logger
+	params P
 }
 
 type CmdOutput = string
 
 const EmptyOutput = ""
 
-func NewExecutor[P CmdParams](writer io.StringWriter, params P, logger logging.Logger) *Executor[P] {
-	return &Executor[P]{
+func NewExecutor[P CmdParams](
+	writer io.StringWriter,
+	logger logging.Logger,
+	params P,
+) *executor[P] {
+	return &executor[P]{
 		writer: writer,
-		params: params,
 		logger: logger,
+		params: params,
 	}
 }
 
-func (t *Executor[P]) Run(
-	command func(context.Context, P, public.TaskDebugApi) (CmdOutput, error),
+func (t *executor[P]) Run(
+	command func(context.Context) (CmdOutput, error),
 ) error {
 	if err := t.params.Validate(); err != nil {
 		return fmt.Errorf("invalid command params: %w", err)
@@ -49,10 +50,9 @@ func (t *Executor[P]) Run(
 	defer stop()
 
 	executorParams := t.params.GetExecutorParams()
-	client := debug.NewTasksClient(executorParams.DebugRpcEndpoint, t.logger)
 
 	runIteration := func(ctx context.Context) {
-		output, err := command(ctx, t.params, client)
+		output, err := command(ctx)
 		if err != nil {
 			t.onCommandError(err)
 			return
@@ -60,7 +60,7 @@ func (t *Executor[P]) Run(
 
 		_, err = t.writer.WriteString(output)
 		if err != nil {
-			t.logger.Error().Err(err).Msg("failed to write command output")
+			t.logger.Error().Err(err).Msg("Failed to write command output")
 		}
 	}
 
@@ -72,35 +72,35 @@ func (t *Executor[P]) Run(
 
 	concurrent.RunTickerLoop(ctx, executorParams.RefreshInterval, func(ctx context.Context) {
 		t.clearScreen()
-		t.logger.Info().Msg("refreshing data")
+		t.logger.Info().Msg("Refreshing data")
 		runIteration(ctx)
 	})
 
 	return nil
 }
 
-// clearScreen clear terminal window using ANSI escape codes
-func (t *Executor[P]) clearScreen() {
+// clearScreen clears terminal window using ANSI escape codes
+func (t *executor[P]) clearScreen() {
 	_, err := t.writer.WriteString("\033[H\033[2J")
 	if err != nil {
 		t.logger.Error().Err(err).Msg("failed to clear screen")
 	}
 }
 
-func (t *Executor[P]) onCommandError(err error) {
-	if err == nil {
-		return
-	}
-
-	var logLevel zerolog.Level
+func (t *executor[P]) onCommandError(err error) {
 	switch {
-	case errors.Is(err, context.Canceled):
-		logLevel = zerolog.InfoLevel
-	case errors.Is(err, ErrNoDataFound):
-		logLevel = zerolog.WarnLevel
-	default:
-		logLevel = zerolog.ErrorLevel
-	}
+	case err == nil:
+		return
 
-	t.logger.WithLevel(logLevel).Err(err).Msg("command execution failed")
+	case errors.Is(err, context.Canceled):
+		t.logger.Info().Err(err).Msg("Command execution canceled")
+		return
+
+	case errors.Is(err, ErrNoDataFound):
+		t.logger.Warn().Err(err).Msg("No data found")
+		return
+
+	default:
+		t.logger.Err(err).Msg("Command execution failed")
+	}
 }

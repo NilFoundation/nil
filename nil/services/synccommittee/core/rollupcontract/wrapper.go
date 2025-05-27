@@ -38,6 +38,8 @@ type Wrapper interface {
 	RollbackState(ctx context.Context, targetRoot common.Hash) error
 }
 
+const DefaultRequestTimeout = 10 * time.Second
+
 type WrapperConfig struct {
 	Endpoint           string        `yaml:"l1Endpoint,omitempty"`
 	RequestsTimeout    time.Duration `yaml:"l1ClientTimeout,omitempty"`
@@ -46,14 +48,30 @@ type WrapperConfig struct {
 	ContractAddressHex string        `yaml:"l1ContractAddress,omitempty"`
 }
 
-func NewDefaultWrapperConfig() WrapperConfig {
+func NewWrapperConfig(
+	endpoint string,
+	privateKeyHex string,
+	contractAddressHex string,
+	requestsTimeout time.Duration,
+	disableL1 bool,
+) WrapperConfig {
 	return WrapperConfig{
-		Endpoint:           "http://rpc2.sepolia.org",
-		RequestsTimeout:    10 * time.Second,
-		DisableL1:          false,
-		PrivateKeyHex:      "0000000000000000000000000000000000000000000000000000000000000001",
-		ContractAddressHex: "0xBa79C93859394a5DEd3c1132a87f706Cca2582aA",
+		Endpoint:           endpoint,
+		PrivateKeyHex:      privateKeyHex,
+		ContractAddressHex: contractAddressHex,
+		RequestsTimeout:    requestsTimeout,
+		DisableL1:          disableL1,
 	}
+}
+
+func NewDefaultWrapperConfig() WrapperConfig {
+	return NewWrapperConfig(
+		"http://rpc2.sepolia.org",
+		"0000000000000000000000000000000000000000000000000000000000000001",
+		"0xBa79C93859394a5DEd3c1132a87f706Cca2582aA",
+		DefaultRequestTimeout,
+		false,
+	)
 }
 
 type wrapperImpl struct {

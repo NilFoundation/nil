@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -14,11 +15,39 @@ import (
 )
 
 type DecodeBatchParams struct {
+	NoRefresh
+
 	// one of
 	BatchId   public.BatchId
 	BatchFile string
 
 	OutputFile string
+}
+
+func (p *DecodeBatchParams) Validate() error {
+	if p.BatchId == (public.BatchId{}) && len(p.BatchFile) == 0 {
+		return errors.New("either batch id or batch file must be specified")
+	}
+
+	if p.BatchId != (public.BatchId{}) && len(p.BatchFile) != 0 {
+		return errors.New("only one of batch id or batch file can be specified, got both")
+	}
+
+	if len(p.BatchFile) > 0 {
+		_, err := os.Stat(p.BatchFile)
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+			return fmt.Errorf("batch file %s does not exist", p.BatchFile)
+		case err != nil:
+			return fmt.Errorf("failed to check if batch file %s exists: %w", p.BatchFile, err)
+		}
+	}
+
+	if len(p.OutputFile) == 0 {
+		return errors.New("output file must be specified")
+	}
+
+	return nil
 }
 
 type batchIntermediateDecoder interface {
@@ -39,10 +68,18 @@ func initDecoders(logger logging.Logger) {
 	})
 }
 
-// TODO embed this call into commands.Executor?
-func DecodeBatch(_ context.Context, params *DecodeBatchParams, logger logging.Logger) error {
+func DecodeBatch(ctx context.Context, params *DecodeBatchParams, logger logging.Logger) (CmdOutput, error) {
 	initDecoders(logger)
 
+	err := decodeAndWriteToFile(ctx, params)
+	if err != nil {
+		return EmptyOutput, err
+	}
+
+	return "Batch is decoded successfully", nil
+}
+
+func decodeAndWriteToFile(ctx context.Context, params *DecodeBatchParams) (returnedErr error) {
 	var batchSource io.ReadSeeker
 
 	var emptyBatchId public.BatchId
@@ -51,37 +88,57 @@ func DecodeBatch(_ context.Context, params *DecodeBatchParams, logger logging.Lo
 	}
 
 	if len(params.BatchFile) > 0 {
-		inFile, err := os.OpenFile(params.BatchFile, os.O_RDONLY, 0o644)
-		if err != nil {
-			return err
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			inFile, err := os.OpenFile(params.BatchFile, os.O_RDONLY, 0o644)
+			if err != nil {
+				return err
+			}
+			defer func(inFile *os.File) {
+				returnedErr = errors.Join(returnedErr, inFile.Close())
+			}(inFile)
+			batchSource = inFile
 		}
-		defer inFile.Close()
-		batchSource = inFile
 	}
 
 	if batchSource == nil {
 		return errors.New("batch input is not specified")
 	}
 
-	outFile, err := os.OpenFile(params.OutputFile, os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-
-	for _, decoder := range knownDecoders {
-		err := decoder.DecodeIntermediate(batchSource, outFile)
-		if err == nil {
-			break
-		}
-		if !errors.Is(err, encode.ErrInvalidVersion) {
-			return err
-		}
-
-		// in case of version mismatch reset the input stream offset and try next available decoder
-		_, err = batchSource.Seek(0, io.SeekStart)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		outFile, err := os.OpenFile(params.OutputFile, os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
 			return err
 		}
+		defer func(outFile *os.File) {
+			returnedErr = errors.Join(returnedErr, outFile.Close())
+		}(outFile)
+
+		for _, decoder := range knownDecoders {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				err := decoder.DecodeIntermediate(batchSource, outFile)
+				if err == nil {
+					return nil
+				}
+				if !errors.Is(err, encode.ErrInvalidVersion) {
+					return err
+				}
+
+				// in case of version mismatch, reset the input stream offset and try the next available decoder
+				_, err = batchSource.Seek(0, io.SeekStart)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
 	}
-	return nil
 }

@@ -4,32 +4,43 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/NilFoundation/nil/nil/services/synccommittee/core"
 )
 
 var ErrNoDataFound = errors.New("no data found")
 
 type ExecutorParams struct {
-	DebugRpcEndpoint string
-	AutoRefresh      bool
-	RefreshInterval  time.Duration
+	AutoRefresh     bool
+	RefreshInterval time.Duration
 }
 
-const MinRefreshInterval = 100 * time.Millisecond
+type NoRefresh struct{}
 
-func DefaultExecutorParams() *ExecutorParams {
-	return &ExecutorParams{
-		DebugRpcEndpoint: core.DefaultOwnRpcEndpoint,
-		AutoRefresh:      false,
-		RefreshInterval:  5 * time.Second,
+func (*NoRefresh) GetExecutorParams() *ExecutorParams {
+	params := ExecutorParamsDefault()
+	params.AutoRefresh = false
+	return &params
+}
+
+const (
+	RefreshIntervalMinimal = 100 * time.Millisecond
+	RefreshIntervalDefault = 5 * time.Second
+)
+
+func ExecutorParamsDefault() ExecutorParams {
+	return ExecutorParams{
+		AutoRefresh:     false,
+		RefreshInterval: RefreshIntervalDefault,
 	}
 }
 
-func (p *ExecutorParams) Validate() error {
-	if p.AutoRefresh && p.RefreshInterval < MinRefreshInterval {
+func (p ExecutorParams) Validate() error {
+	if p.AutoRefresh && p.RefreshInterval < RefreshIntervalMinimal {
 		return fmt.Errorf(
-			"refresh interval cannot be less than %s, actual is %s", MinRefreshInterval, p.RefreshInterval)
+			"refresh interval cannot be less than %s, actual is %s", RefreshIntervalMinimal, p.RefreshInterval)
 	}
 	return nil
+}
+
+func (p ExecutorParams) GetExecutorParams() *ExecutorParams {
+	return &p
 }
