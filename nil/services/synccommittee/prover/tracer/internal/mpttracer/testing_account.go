@@ -38,6 +38,11 @@ func CreateTestAccountAndTracer(t *testing.T) (types.Address, *MPTTracer, db.RwT
 	}
 	err = contractTrie.Update(smartContract.Address.Hash(), &smartContract)
 	require.NoError(t, err)
+
+	rootHash, err := contractTrie.Commit()
+	require.NoError(t, err)
+	require.NoError(t, contractTrie.SetRootHash(rootHash))
+
 	contractReader := &TestContractReader{
 		RwTx:         rwTx,
 		ContractTrie: contractTrie,
@@ -72,7 +77,7 @@ func (tcr *TestContractReader) GetAccount(
 		return nil, mpt.Proof{}, err
 	}
 
-	proof, err := mpt.BuildProof(tcr.ContractTrie.Reader, addr.Hash().Bytes(), mpt.ReadMPTOperation)
+	proof, err := mpt.BuildProof(tcr.ContractTrie.Reader, addr.Hash().Bytes(), mpt.ReadOperation)
 	if err != nil {
 		return nil, mpt.Proof{}, err
 	}

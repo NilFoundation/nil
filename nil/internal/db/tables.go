@@ -24,7 +24,6 @@ const (
 	ReceiptTrieTable                                = ShardedTableName("ReceiptTrie")
 	TokenTrieTable                                  = ShardedTableName("TokenTrie")
 	ConfigTrieTable                                 = ShardedTableName("ConfigTrie")
-	ContractTable                                   = ShardedTableName("Contract")
 	BlockHashByNumberIndex                          = ShardedTableName("BlockHashByNumber")
 	BlockHashAndInTransactionIndexByTransactionHash = ShardedTableName(
 		"BlockHashAndInTransactionIndexByTransactionHash")

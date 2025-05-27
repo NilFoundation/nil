@@ -36,6 +36,8 @@ func TestDebugGetBlock(t *testing.T) {
 	inTransactionTree := execution.NewDbTransactionTrie(tx, types.MainShardId)
 	require.NoError(t, inTransactionTree.Update(types.TransactionIndex(0), txn))
 	require.NoError(t, db.WriteError(tx, txnHash, errStr))
+	_, err = inTransactionTree.Commit()
+	require.NoError(t, err)
 
 	blockWithErrors := &types.Block{
 		BlockData: types.BlockData{
@@ -195,7 +197,7 @@ func (suite *SuiteDbgContracts) TestGetContract() {
 		suite.Require().NotNil(data.Block())
 
 		contractRawReader := mpt.NewDbReader(tx, shardId, db.ContractTrieTable)
-		contractRawReader.SetRootHash(data.Block().SmartContractsRoot)
+		suite.Require().NoError(contractRawReader.SetRootHash(data.Block().SmartContractsRoot))
 
 		expectedContract, err := contractRawReader.Get(suite.smcAddr.Hash().Bytes())
 		suite.Require().NoError(err)

@@ -261,7 +261,6 @@ func (s *SuiteFilters) TestBlocksRange() {
 	address := types.HexToAddress("0x1111111111")
 
 	receiptsMpt := mpt.NewDbMPT(tx, 0, db.ReceiptTrieTable)
-
 	logsInput := []*types.Log{
 		{
 			Address: address,
@@ -280,11 +279,13 @@ func (s *SuiteFilters) TestBlocksRange() {
 	s.Require().NoError(err)
 	key := receipt.Hash()
 	s.Require().NoError(receiptsMpt.Set(key[:], receiptEncoded))
+	receiptsRootHash, err := receiptsMpt.Commit()
+	s.Require().NoError(err)
 
 	block := types.Block{
 		BlockData: types.BlockData{
 			Id:           0,
-			ReceiptsRoot: receiptsMpt.RootHash(),
+			ReceiptsRoot: receiptsRootHash,
 		},
 	}
 	blockHash := block.Hash(types.MainShardId)
@@ -296,7 +297,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	block = types.Block{
 		BlockData: types.BlockData{
 			Id:           1,
-			ReceiptsRoot: receiptsMpt.RootHash(),
+			ReceiptsRoot: receiptsRootHash,
 		},
 	}
 	blockHash = block.Hash(types.MainShardId)
@@ -308,7 +309,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	block = types.Block{
 		BlockData: types.BlockData{
 			Id:           2,
-			ReceiptsRoot: receiptsMpt.RootHash(),
+			ReceiptsRoot: receiptsRootHash,
 		},
 	}
 	blockHash = block.Hash(types.MainShardId)
@@ -320,7 +321,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	block = types.Block{
 		BlockData: types.BlockData{
 			Id:           3,
-			ReceiptsRoot: receiptsMpt.RootHash(),
+			ReceiptsRoot: receiptsRootHash,
 		},
 	}
 	blockHash = block.Hash(types.MainShardId)
@@ -384,7 +385,7 @@ func (s *SuiteFilters) TestBlocksRange() {
 	block = types.Block{
 		BlockData: types.BlockData{
 			Id:           4,
-			ReceiptsRoot: receiptsMpt.RootHash(),
+			ReceiptsRoot: receiptsRootHash,
 		},
 	}
 	blockHash = block.Hash(types.MainShardId)

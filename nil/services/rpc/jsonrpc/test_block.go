@@ -21,9 +21,9 @@ func writeTestBlock(t *testing.T, tx db.RwTx, shardId types.ShardId, blockNumber
 			Id:                  blockNumber,
 			PrevBlock:           common.EmptyHash,
 			SmartContractsRoot:  common.EmptyHash,
-			InTransactionsRoot:  writeTransactions(t, tx, shardId, transactions).RootHash(),
-			OutTransactionsRoot: writeTransactions(t, tx, shardId, outTransactions).RootHash(),
-			ReceiptsRoot:        writeReceipts(t, tx, shardId, receipts).RootHash(),
+			InTransactionsRoot:  writeTransactions(t, tx, shardId, transactions),
+			OutTransactionsRoot: writeTransactions(t, tx, shardId, outTransactions),
+			ReceiptsRoot:        writeReceipts(t, tx, shardId, receipts),
 			OutTransactionsNum:  types.TransactionIndex(len(outTransactions)),
 			ChildBlocksRootHash: common.EmptyHash,
 			MainShardHash:       common.EmptyHash,
@@ -56,20 +56,24 @@ func writeTransactions(
 	tx db.RwTx,
 	shardId types.ShardId,
 	transactions []*types.Transaction,
-) *execution.TransactionTrie {
+) common.Hash {
 	t.Helper()
 	transactionRoot := execution.NewDbTransactionTrie(tx, shardId)
 	for i, transaction := range transactions {
 		require.NoError(t, transactionRoot.Update(types.TransactionIndex(i), transaction))
 	}
-	return transactionRoot
+	root, err := transactionRoot.Commit()
+	require.NoError(t, err)
+	return root
 }
 
-func writeReceipts(t *testing.T, tx db.RwTx, shardId types.ShardId, receipts []*types.Receipt) *execution.ReceiptTrie {
+func writeReceipts(t *testing.T, tx db.RwTx, shardId types.ShardId, receipts []*types.Receipt) common.Hash {
 	t.Helper()
 	receiptRoot := execution.NewDbReceiptTrie(tx, shardId)
 	for i, receipt := range receipts {
 		require.NoError(t, receiptRoot.Update(types.TransactionIndex(i), receipt))
 	}
-	return receiptRoot
+	root, err := receiptRoot.Commit()
+	require.NoError(t, err)
+	return root
 }

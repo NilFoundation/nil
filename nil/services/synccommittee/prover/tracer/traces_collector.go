@@ -74,9 +74,9 @@ func (tc *remoteTracesCollectorImpl) initMptTracer(
 	shardId types.ShardId,
 	startBlockNum types.BlockNumber,
 	contractTrieRoot common.Hash,
-) {
+) error {
 	tc.mptTracer = mpttracer.New(tc.client, startBlockNum, tc.rwTx, shardId)
-	tc.mptTracer.SetRootHash(contractTrieRoot)
+	return tc.mptTracer.SetRootHash(contractTrieRoot)
 }
 
 // GetBlockTraces retrieves the traces for a single block.
@@ -163,12 +163,50 @@ func (tc *remoteTracesCollectorImpl) fetchAndDecodeBlock(
 	return dbgBlock, decodedBlock, nil
 }
 
-func decodeTxCounts(counts []*types.TxCount) execution.TxCounts {
-	txCounts := make(execution.TxCounts, len(counts))
-	for _, count := range counts {
-		txCounts[types.ShardId(count.ShardId)] = count.Count
+func decodeTxns(
+	tx db.RwTx, shardId types.ShardId, txns []*types.Transaction, counts []*types.TxCount,
+) error {
+	txTrie := execution.NewDbTransactionTrie(tx, shardId)
+
+	txnKeys := make([]types.TransactionIndex, 0, len(txns))
+	txnValues := make([]*types.Transaction, 0, len(txns))
+	for i, txn := range txns {
+		txnKeys = append(txnKeys, types.TransactionIndex(i))
+		txnValues = append(txnValues, txn)
 	}
-	return txCounts
+
+	if err := txTrie.UpdateBatch(txnKeys, txnValues); err != nil {
+		return fmt.Errorf("failed to update tx trie: %w", err)
+	}
+
+	rootHash, err := txTrie.Commit()
+	if err != nil {
+		return fmt.Errorf("failed to commit tx trie: %w", err)
+	}
+
+	txCountKeys := make([]types.ShardId, 0, len(counts))
+	txCountValues := make([]*types.TransactionIndex, 0, len(counts))
+	for _, c := range counts {
+		if c.Count > 0 {
+			txCountKeys = append(txCountKeys, types.ShardId(c.ShardId))
+			txCountValues = append(txCountValues, &c.Count)
+		}
+	}
+
+	txCountTrie := execution.NewDbTxCountTrie(tx, shardId)
+	if err := txCountTrie.SetRootHash(rootHash); err != nil {
+		return fmt.Errorf("failed to set root hash for tx count trie: %w", err)
+	}
+
+	if err := txCountTrie.UpdateBatch(txCountKeys, txCountValues); err != nil {
+		return fmt.Errorf("failed to update tx count trie: %w", err)
+	}
+
+	if _, err := txCountTrie.Commit(); err != nil {
+		return fmt.Errorf("failed to commit tx count trie: %w", err)
+	}
+
+	return nil
 }
 
 // executeBlockAndCollectTraces executes the block and collects traces
@@ -180,31 +218,37 @@ func (tc *remoteTracesCollectorImpl) executeBlockAndCollectTraces(
 	configMap map[string][]byte,
 	gasPrices []types.Uint256,
 ) (*ExecutionTraces, error) {
+	// TODO: to collect single MPT trace for multiple sequential block, MPTTracer instance should be kept between calls.
+	// Currently, MPT traces will contain only the last traced block. Since there is no MPT circuit yet,
+	// it's not a big deal.
+	if err := tc.initMptTracer(shardId, prevBlock.Id, prevBlock.SmartContractsRoot); err != nil {
+		return nil, fmt.Errorf("failed to initialize MPT tracer: %w", err)
+	}
+
 	configAccessor := config.NewConfigAccessorFromMap(configMap)
+	if err := decodeTxns(tc.rwTx, shardId, prevBlock.InTransactions, prevBlock.InTxCounts); err != nil {
+		return nil, err
+	}
+	if err := decodeTxns(tc.rwTx, shardId, prevBlock.OutTransactions, prevBlock.OutTxCounts); err != nil {
+		return nil, err
+	}
 
 	es, err := execution.NewExecutionState(
 		tc.rwTx,
 		shardId,
 		execution.StateParams{
-			Block:          prevBlock.Block,
-			ConfigAccessor: configAccessor,
+			Block:                 prevBlock.Block,
+			ConfigAccessor:        configAccessor,
+			ContractMptRepository: tc.mptTracer,
 		},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create execution state: %w", err)
 	}
-	es.InTxCounts = decodeTxCounts(prevBlock.InTxCounts)
-	es.OutTxCounts = decodeTxCounts(prevBlock.OutTxCounts)
 
 	esTracer := NewEVMTracer(es)
 
-	// TODO: to collect single MPT trace for multiple sequential block, MPTTracer instance should be kept between calls.
-	// Currently, MPT traces will contain only the last traced block. Since there is no MPT circuit yet,
-	// it's not a big deal.
-	tc.initMptTracer(shardId, prevBlock.Id, prevBlock.SmartContractsRoot)
-
 	// Set tracers in execution state
-	es.ContractTree = tc.mptTracer
 	es.EvmTracingHooks = esTracer.getTracingHooks()
 
 	// Create block generator params
@@ -314,7 +358,11 @@ func (tc *remoteTracesCollectorImpl) populateConfigTrie(configMap map[string][]b
 			return fmt.Errorf("failed to set config trie key %s: %w", k, err)
 		}
 	}
-	return nil
+	rootHash, err := configTrie.Commit()
+	if err != nil {
+		return err
+	}
+	return configTrie.SetRootHash(rootHash)
 }
 
 // collectGasPrices collects gas prices for all shards

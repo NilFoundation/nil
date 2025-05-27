@@ -1,14 +1,10 @@
-package mpt
+package mpt_test
 
 import (
-	"bytes"
-	"fmt"
-	"maps"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/stretchr/testify/assert"
+	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,48 +31,50 @@ var defaultMPTData = map[string]string{
 	string([]byte{0xf, 0xd, 0xa, 0xa}): "val-6",
 }
 
-func mptFromData(t *testing.T, data map[string]string) (*MerklePatriciaTrie, map[string][]byte) {
+func mptFromData(t *testing.T, data map[string]string) *mpt.MerklePatriciaTrie {
 	t.Helper()
 
-	holder := NewInMemHolder()
-	mpt := NewMPTFromMap(holder)
+	mpt := mpt.NewInMemMPT()
 	for k, v := range data {
 		require.NoError(t, mpt.Set([]byte(k), []byte(v)))
 	}
-
-	return mpt, holder
+	return mpt
 }
 
-func copyMpt(holder map[string][]byte, mpt *MerklePatriciaTrie) *MerklePatriciaTrie {
-	// copy underlying data holder to ensure we not override the data occasionally
-	tree := NewMPTFromMap(maps.Clone(holder))
-	tree.SetRootHash(mpt.RootHash())
-	return tree
+func copyMpt(t *testing.T, trie *mpt.MerklePatriciaTrie) *mpt.MerklePatriciaTrie {
+	t.Helper()
+
+	copied := mpt.NewInMemMPT()
+	for k, v := range trie.Iterate() {
+		require.NoError(t, copied.Set(k, v))
+	}
+	require.Equal(t, trie.RootHash(), copied.RootHash())
+	return copied
 }
 
 func TestReadProof(t *testing.T) {
 	t.Parallel()
 
 	data := defaultMPTData
-	mpt, _ := mptFromData(t, data)
 
 	t.Run("Prove existing keys", func(t *testing.T) {
 		t.Parallel()
 
+		trie := mptFromData(t, data)
 		for k, v := range data {
 			key := []byte(k)
-			p, err := BuildProof(mpt.Reader, key, ReadMPTOperation)
+			p, err := mpt.BuildProof(trie.Reader, key, mpt.ReadOperation)
 			require.NoError(t, err)
 
-			val, err := mpt.Get(key)
+			val, err := trie.Get(key)
 			require.NoError(t, err)
 			require.Equal(t, string(val), v)
 
-			ok, err := p.VerifyRead(key, val, mpt.RootHash())
+			ok, err := p.VerifyRead(key, val, trie.RootHash())
 			require.NoError(t, err)
 			require.True(t, ok)
 
-			ok, err = p.VerifyRead(key, nil, mpt.RootHash())
+			ok, err = p.VerifyRead(key, nil, trie.RootHash())
 			require.NoError(t, err)
 			require.False(t, ok)
 		}
@@ -85,17 +83,18 @@ func TestReadProof(t *testing.T) {
 	t.Run("Prove missing keys", func(t *testing.T) {
 		t.Parallel()
 
+		trie := mptFromData(t, data)
 		verify := func(key []byte) {
 			t.Helper()
-			p, err := BuildProof(mpt.Reader, key, ReadMPTOperation)
+			p, err := mpt.BuildProof(trie.Reader, key, mpt.ReadOperation)
 			require.NoError(t, err)
 
-			ok, err := p.VerifyRead(key, nil, mpt.RootHash())
+			ok, err := p.VerifyRead(key, nil, trie.RootHash())
 			require.NoError(t, err)
 			require.True(t, ok)
 
 			// check that prove fails for non-empty value
-			ok, err = p.VerifyRead(key, []byte{0x1}, mpt.RootHash())
+			ok, err = p.VerifyRead(key, []byte{0x1}, trie.RootHash())
 			require.NoError(t, err)
 			require.False(t, ok)
 		}
@@ -108,10 +107,10 @@ func TestReadProof(t *testing.T) {
 	t.Run("Prove empty mpt", func(t *testing.T) {
 		t.Parallel()
 
-		tree := NewInMemMPT()
+		tree := mpt.NewInMemMPT()
 		key := []byte{0x1}
 
-		p, err := BuildProof(tree.Reader, key, ReadMPTOperation)
+		p, err := mpt.BuildProof(tree.Reader, key, mpt.ReadOperation)
 		require.NoError(t, err)
 
 		ok, err := p.VerifyRead(key, nil, tree.RootHash())
@@ -124,28 +123,28 @@ func TestSparseMPT(t *testing.T) {
 	t.Parallel()
 
 	data := defaultMPTData
-	mpt, _ := mptFromData(t, data)
+	trie := mptFromData(t, data)
 
 	filter := func(key string) bool {
 		return len(key) < 3
 	}
 
-	sparseHolder := NewInMemHolder()
-	sparse := NewMPTFromMap(sparseHolder)
+	sparseHolder := mpt.NewInMemHolder()
+	sparse := mpt.NewMPTFromMap(sparseHolder)
 	for k := range data {
 		if !filter(k) {
 			continue
 		}
 
-		p, err := BuildProof(mpt.Reader, []byte(k), ReadMPTOperation)
+		p, err := mpt.BuildProof(trie.Reader, []byte(k), mpt.ReadOperation)
 		require.NoError(t, err)
 
-		require.NoError(t, PopulateMptWithProof(sparse, &p))
-		if len(p.PathToNode) > 0 {
-			encodedNode, err := p.PathToNode[0].Encode()
-			require.NoError(t, err)
-			require.Equal(t, sparse.RootHash().Bytes(), calcNodeKey(encodedNode))
-		}
+		require.NoError(t, mpt.PopulateMptWithProof(sparse, &p))
+		require.NoError(t, sparse.SetRootHash(trie.RootHash()))
+
+		val, err := sparse.Get([]byte(k))
+		require.NoError(t, err)
+		require.Equal(t, data[k], string(val))
 	}
 
 	t.Run("Check original keys", func(t *testing.T) {
@@ -173,72 +172,6 @@ func TestSparseMPT(t *testing.T) {
 			require.ErrorIs(t, err, db.ErrKeyNotFound)
 			require.Nil(t, val)
 		}
-	})
-
-	t.Run("Check manipulated proof", func(t *testing.T) {
-		t.Parallel()
-
-		modifiedKey := ""
-		modifiedVal := []byte("val-modified")
-		holder := maps.Clone(sparseHolder)
-		for k, v := range sparseHolder {
-			var manipulatedNode Node
-
-			var nodeKind nodeKind
-			require.NoError(t, rlp.DecodeBytes(v[:1], &nodeKind))
-			switch nodeKind {
-			case extensionNodeKind:
-				continue
-			case leafNodeKind:
-				node := &LeafNode{}
-				require.NoError(t, node.UnmarshalNil(v[1:]))
-
-				node.LeafData = modifiedVal
-				manipulatedNode = node
-			case branchNodeKind:
-				node := &BranchNode{}
-				require.NoError(t, node.UnmarshalNil(v[1:]))
-				if len(node.Value) == 0 {
-					continue
-				}
-
-				node.Value = modifiedVal
-				manipulatedNode = node
-			}
-
-			modified, err := manipulatedNode.Encode()
-			require.NoError(t, err)
-			holder[k] = modified
-			modifiedKey = k
-			break
-		}
-
-		// The holder is not valid anymore, because the hash of the value is not matching the key
-		err := ValidateHolder(holder)
-		require.Error(t, err)
-		require.ErrorContains(t, err, fmt.Sprintf("%x", modifiedKey))
-
-		// But we still get values from the MPT, because we don't validate it on Get
-		manipulatedSparse := NewMPTFromMap(holder)
-		manipulatedSparse.SetRootHash(sparse.RootHash())
-		manipulatedKey := ""
-		for k, v := range data {
-			if !filter(k) {
-				continue
-			}
-
-			val, err := manipulatedSparse.Get([]byte(k))
-			require.NoError(t, err)
-
-			if bytes.Equal(val, modifiedVal) {
-				manipulatedKey = k
-			} else {
-				assert.Equal(t, v, string(val))
-			}
-		}
-
-		// There must be a manipulated key
-		assert.NotEmpty(t, manipulatedKey)
 	})
 }
 
@@ -272,17 +205,20 @@ func TestSetProof(t *testing.T) {
 
 	modifyAndBuildProof := func(
 		t *testing.T,
-		mpt *MerklePatriciaTrie,
-		holder map[string][]byte,
+		trie *mpt.MerklePatriciaTrie,
 		key []byte,
 		value []byte,
-	) (*MerklePatriciaTrie, Proof) {
+	) (*mpt.MerklePatriciaTrie, mpt.Proof) {
 		t.Helper()
 
-		originalMpt := copyMpt(holder, mpt)
-		require.NoError(t, mpt.Set(key, value))
+		originalMpt := copyMpt(t, trie)
+		require.NoError(t, trie.Set(key, value))
 
-		p, err := BuildProof(originalMpt.Reader, key, SetMPTOperation)
+		rootHash, err := trie.Commit()
+		require.NoError(t, err)
+		require.NoError(t, trie.SetRootHash(rootHash))
+
+		p, err := mpt.BuildProof(originalMpt.Reader, key, mpt.SetOperation)
 		require.NoError(t, err)
 
 		return originalMpt, p
@@ -291,13 +227,13 @@ func TestSetProof(t *testing.T) {
 	t.Run("Prove modify existing", func(t *testing.T) {
 		t.Parallel()
 
-		mpt, holder := mptFromData(t, data)
+		mpt := mptFromData(t, data)
 
 		verify := func(key []byte) {
 			t.Helper()
 			val := []byte("val-modified")
 			valOld := []byte(data[string(key)])
-			originalMpt, p := modifyAndBuildProof(t, mpt, holder, key, val)
+			originalMpt, p := modifyAndBuildProof(t, mpt, key, val)
 
 			// check with correct value
 			ok, err := p.VerifySet(key, val, originalMpt.RootHash(), mpt.RootHash())
@@ -319,12 +255,12 @@ func TestSetProof(t *testing.T) {
 	t.Run("Prove new key", func(t *testing.T) {
 		t.Parallel()
 
-		mpt, holder := mptFromData(t, data)
+		mpt := mptFromData(t, data)
 
 		verify := func(key []byte) {
 			t.Helper()
 			val := []byte("val-new")
-			originalMpt, p := modifyAndBuildProof(t, mpt, holder, key, val)
+			originalMpt, p := modifyAndBuildProof(t, mpt, key, val)
 			ok, err := p.VerifySet(key, val, originalMpt.RootHash(), mpt.RootHash())
 			require.NoError(t, err)
 			require.True(t, ok)
@@ -343,13 +279,13 @@ func TestSetProof(t *testing.T) {
 	t.Run("Prove add to empty tree", func(t *testing.T) {
 		t.Parallel()
 
-		tree := NewInMemMPT()
-		originalMpt := NewInMemMPT()
+		tree := mpt.NewInMemMPT()
+		originalMpt := mpt.NewInMemMPT()
 		key := []byte("key")
 		val := []byte("val")
 
 		require.NoError(t, tree.Set(key, val))
-		p, err := BuildProof(originalMpt.Reader, key, SetMPTOperation)
+		p, err := mpt.BuildProof(originalMpt.Reader, key, mpt.SetOperation)
 		require.NoError(t, err)
 
 		ok, err := p.VerifySet(key, val, originalMpt.RootHash(), tree.RootHash())
@@ -394,20 +330,20 @@ func TestDeleteProof(t *testing.T) {
 	t.Run("Delete non existing", func(t *testing.T) {
 		t.Parallel()
 
-		mpt, holder := mptFromData(t, data)
+		trie := mptFromData(t, data)
 
 		key := []byte{0xf}
-		originalMpt := copyMpt(holder, mpt)
-		require.ErrorIs(t, mpt.Delete(key), db.ErrKeyNotFound)
+		originalMpt := copyMpt(t, trie)
+		require.ErrorIs(t, trie.Delete(key), db.ErrKeyNotFound)
 
-		p, err := BuildProof(originalMpt.Reader, key, DeleteMPTOperation)
+		p, err := mpt.BuildProof(originalMpt.Reader, key, mpt.DeleteOperation)
 		require.NoError(t, err)
 
-		ok, err := p.VerifyDelete(key, false, originalMpt.RootHash(), mpt.RootHash())
+		ok, err := p.VerifyDelete(key, false, originalMpt.RootHash(), trie.RootHash())
 		require.NoError(t, err)
 		require.True(t, ok)
 
-		ok, err = p.VerifyDelete(key, true, originalMpt.RootHash(), mpt.RootHash())
+		ok, err = p.VerifyDelete(key, true, originalMpt.RootHash(), trie.RootHash())
 		require.NoError(t, err)
 		require.False(t, ok)
 	})
@@ -415,21 +351,25 @@ func TestDeleteProof(t *testing.T) {
 	t.Run("Delete existing", func(t *testing.T) {
 		t.Parallel()
 
-		mpt, holder := mptFromData(t, data)
+		trie := mptFromData(t, data)
 
 		verify := func(key []byte) {
 			t.Helper()
-			originalMpt := copyMpt(holder, mpt)
-			require.NoError(t, mpt.Delete(key))
+			originalMpt := copyMpt(t, trie)
+			require.NoError(t, trie.Delete(key))
 
-			p, err := BuildProof(originalMpt.Reader, key, DeleteMPTOperation)
+			rootHash, err := trie.Commit()
+			require.NoError(t, err)
+			require.NoError(t, trie.SetRootHash(rootHash))
+
+			p, err := mpt.BuildProof(originalMpt.Reader, key, mpt.DeleteOperation)
 			require.NoError(t, err)
 
-			ok, err := p.VerifyDelete(key, true, originalMpt.RootHash(), mpt.RootHash())
+			ok, err := p.VerifyDelete(key, true, originalMpt.RootHash(), trie.RootHash())
 			require.NoError(t, err)
 			require.True(t, ok)
 
-			ok, err = p.VerifyDelete(key, false, originalMpt.RootHash(), mpt.RootHash())
+			ok, err = p.VerifyDelete(key, false, originalMpt.RootHash(), trie.RootHash())
 			require.NoError(t, err)
 			require.False(t, ok)
 		}
@@ -447,18 +387,25 @@ func TestDeleteProof(t *testing.T) {
 		key := []byte{0xf}
 		val := []byte("val")
 
-		holder := NewInMemHolder()
-		mpt := NewMPTFromMap(holder)
-		require.NoError(t, mpt.Set(key, val))
+		trie := mpt.NewInMemMPT()
+		require.NoError(t, trie.Set(key, val))
 
-		originalMpt := copyMpt(holder, mpt)
+		rootHash, err := trie.Commit()
+		require.NoError(t, err)
+		require.NoError(t, trie.SetRootHash(rootHash))
 
-		require.NoError(t, mpt.Delete(key))
+		originalMpt := copyMpt(t, trie)
 
-		p, err := BuildProof(originalMpt.Reader, key, DeleteMPTOperation)
+		require.NoError(t, trie.Delete(key))
+
+		rootHash, err = trie.Commit()
+		require.NoError(t, err)
+		require.NoError(t, trie.SetRootHash(rootHash))
+
+		p, err := mpt.BuildProof(originalMpt.Reader, key, mpt.DeleteOperation)
 		require.NoError(t, err)
 
-		ok, err := p.VerifyDelete(key, true, originalMpt.RootHash(), mpt.RootHash())
+		ok, err := p.VerifyDelete(key, true, originalMpt.RootHash(), trie.RootHash())
 		require.NoError(t, err)
 		require.True(t, ok)
 	})
@@ -468,74 +415,21 @@ func TestProofEncoding(t *testing.T) {
 	t.Parallel()
 
 	data := defaultMPTData
-	mpt, _ := mptFromData(t, data)
+	trie := mptFromData(t, data)
 
-	p, err := BuildProof(mpt.Reader, []byte{0xf, 0xd, 0xa, 0xa}, ReadMPTOperation)
+	p, err := mpt.BuildProof(trie.Reader, []byte{0xf, 0xd, 0xa, 0xa}, mpt.ReadOperation)
 	require.NoError(t, err)
 
 	encoded, err := p.Encode()
 	require.NoError(t, err)
 
-	decoded, err := DecodeProof(encoded)
+	decoded, err := mpt.DecodeProof(encoded)
 	require.NoError(t, err)
 
-	require.Equal(t, p.operation, decoded.operation)
-	require.Equal(t, p.key, decoded.key)
-	require.Len(t, decoded.PathToNode, len(p.PathToNode))
-	for i, n := range p.PathToNode {
-		require.Equal(t, n, decoded.PathToNode[i])
+	require.Equal(t, p.Operation, decoded.Operation)
+	require.Equal(t, p.Key, decoded.Key)
+	require.Len(t, decoded.Nodes, len(p.Nodes))
+	for i, n := range p.Nodes {
+		require.Equal(t, n, decoded.Nodes[i])
 	}
-}
-
-func TestSimpleProof(t *testing.T) {
-	t.Parallel()
-
-	data := defaultMPTData
-	mpt, _ := mptFromData(t, data)
-
-	t.Run("Prove existing keys", func(t *testing.T) {
-		t.Parallel()
-
-		for k, v := range data {
-			key := []byte(k)
-			p, err := BuildSimpleProof(mpt.Reader, key)
-			require.NoError(t, err)
-
-			valFromProof, err := p.Verify(mpt.RootHash(), key)
-			require.NoError(t, err)
-			require.Equal(t, []byte(v), valFromProof)
-		}
-	})
-
-	t.Run("Prove missing keys", func(t *testing.T) {
-		t.Parallel()
-
-		verify := func(key []byte) {
-			t.Helper()
-			p, err := BuildSimpleProof(mpt.Reader, key)
-			require.NoError(t, err)
-
-			valFromProof, err := p.Verify(mpt.RootHash(), key)
-			require.NoError(t, err)
-			require.Nil(t, valFromProof)
-		}
-
-		verify([]byte{0xf, 0xf, 0xc})
-
-		verify([]byte{0xa})
-	})
-
-	t.Run("Prove empty mpt", func(t *testing.T) {
-		t.Parallel()
-
-		tree := NewInMemMPT()
-		key := []byte{0x1}
-
-		p, err := BuildSimpleProof(tree.Reader, key)
-		require.NoError(t, err)
-
-		valFromProof, err := p.Verify(tree.RootHash(), key)
-		require.NoError(t, err)
-		require.Nil(t, valFromProof)
-	})
 }

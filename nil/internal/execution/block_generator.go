@@ -138,7 +138,9 @@ func (p *BlockGenerator) CollectGasPrices(prevBlockId types.BlockNumber) ([]type
 	}
 
 	treeShards := NewDbShardBlocksTrieReader(p.rwTx, types.MainShardId, mainBlock.Id)
-	treeShards.SetRootHash(mainBlock.ChildBlocksRootHash)
+	if err := treeShards.SetRootHash(mainBlock.ChildBlocksRootHash); err != nil {
+		return nil, fmt.Errorf("failed to set child blocks root hash: %w", err)
+	}
 	shardHashes := make(map[types.ShardId]common.Hash)
 	for key, value := range treeShards.Iterate() {
 		shardHashes[types.BytesToShardId(key)] = common.BytesToHash(value)

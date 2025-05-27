@@ -135,13 +135,15 @@ func (c *configAccessorImpl) Commit(tx db.RwTx, root common.Hash) (common.Hash, 
 		return root, nil
 	}
 	trie := mpt.NewDbMPT(tx, types.MainShardId, db.ConfigTrieTable)
-	trie.SetRootHash(root)
+	if err := trie.SetRootHash(root); err != nil {
+		return common.EmptyHash, err
+	}
 	for k, v := range c.writeData {
 		if err := trie.Set([]byte(k), v); err != nil {
 			return common.EmptyHash, err
 		}
 	}
-	return trie.RootHash(), nil
+	return trie.Commit()
 }
 
 func (c *configReader) GetParamData(name string) ([]byte, error) {
@@ -278,10 +280,11 @@ func GetConfigTrie(tx db.RoTx, mainShardHash *common.Hash) (*mpt.Reader, error) 
 			return nil, err
 		}
 	}
+	configRootHash := mpt.EmptyRootHash
 	if mainChainBlock != nil {
-		configTree.SetRootHash(mainChainBlock.ConfigRoot)
+		configRootHash = mainChainBlock.ConfigRoot
 	}
-	return configTree, nil
+	return configTree, configTree.SetRootHash(configRootHash)
 }
 
 // packSolidityImpl packs the specified config param into a byte slice.

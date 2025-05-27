@@ -50,6 +50,9 @@ func TestMPTTracer_GetAccountSlotChangeTraces(t *testing.T) {
 	err = mptTracer.UpdateContracts(map[types.Address]*execution.AccountState{contract.Address: acc})
 	require.NoError(t, err)
 
+	_, err = mptTracer.Commit()
+	require.NoError(t, err)
+
 	mptTraces, err := mptTracer.GetMPTTraces()
 	require.NoError(t, err)
 	require.NotNil(t, mptTraces)
