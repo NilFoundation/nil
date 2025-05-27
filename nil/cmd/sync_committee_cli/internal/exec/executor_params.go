@@ -1,4 +1,4 @@
-package commands
+package exec
 
 import (
 	"errors"
@@ -8,17 +8,9 @@ import (
 
 var ErrNoDataFound = errors.New("no data found")
 
-type ExecutorParams struct {
+type Params struct {
 	AutoRefresh     bool
 	RefreshInterval time.Duration
-}
-
-type NoRefresh struct{}
-
-func (*NoRefresh) GetExecutorParams() *ExecutorParams {
-	params := ExecutorParamsDefault()
-	params.AutoRefresh = false
-	return &params
 }
 
 const (
@@ -26,14 +18,14 @@ const (
 	RefreshIntervalDefault = 5 * time.Second
 )
 
-func ExecutorParamsDefault() ExecutorParams {
-	return ExecutorParams{
+func DefaultExecutorParams() Params {
+	return Params{
 		AutoRefresh:     false,
 		RefreshInterval: RefreshIntervalDefault,
 	}
 }
 
-func (p ExecutorParams) Validate() error {
+func (p Params) Validate() error {
 	if p.AutoRefresh && p.RefreshInterval < RefreshIntervalMinimal {
 		return fmt.Errorf(
 			"refresh interval cannot be less than %s, actual is %s", RefreshIntervalMinimal, p.RefreshInterval)
@@ -41,6 +33,14 @@ func (p ExecutorParams) Validate() error {
 	return nil
 }
 
-func (p ExecutorParams) GetExecutorParams() *ExecutorParams {
+func (p Params) GetExecutorParams() *Params {
 	return &p
+}
+
+type NoRefreshParams struct{}
+
+func (*NoRefreshParams) GetExecutorParams() *Params {
+	params := DefaultExecutorParams()
+	params.AutoRefresh = false
+	return &params
 }

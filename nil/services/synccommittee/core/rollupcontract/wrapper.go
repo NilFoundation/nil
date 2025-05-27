@@ -38,7 +38,12 @@ type Wrapper interface {
 	RollbackState(ctx context.Context, targetRoot common.Hash) error
 }
 
-const DefaultRequestTimeout = 10 * time.Second
+const (
+	DefaultEndpoint        = "http://rpc2.sepolia.org"
+	DefaultPrivateKey      = "0000000000000000000000000000000000000000000000000000000000000001"
+	DefaultContractAddress = "0xBa79C93859394a5DEd3c1132a87f706Cca2582aA"
+	DefaultRequestTimeout  = 10 * time.Second
+)
 
 type WrapperConfig struct {
 	Endpoint           string        `yaml:"l1Endpoint,omitempty"`
@@ -66,9 +71,9 @@ func NewWrapperConfig(
 
 func NewDefaultWrapperConfig() WrapperConfig {
 	return NewWrapperConfig(
-		"http://rpc2.sepolia.org",
-		"0000000000000000000000000000000000000000000000000000000000000001",
-		"0xBa79C93859394a5DEd3c1132a87f706Cca2582aA",
+		DefaultEndpoint,
+		DefaultPrivateKey,
+		DefaultContractAddress,
 		DefaultRequestTimeout,
 		false,
 	)

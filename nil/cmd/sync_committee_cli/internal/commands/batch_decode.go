@@ -8,14 +8,16 @@ import (
 	"os"
 	"sync"
 
+	"github.com/NilFoundation/nil/nil/cmd/sync_committee_cli/internal/exec"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode"
 	v1 "github.com/NilFoundation/nil/nil/services/synccommittee/core/batches/encode/v1"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
+	"github.com/spf13/cobra"
 )
 
 type DecodeBatchParams struct {
-	NoRefresh
+	exec.NoRefreshParams
 
 	// one of
 	BatchId   public.BatchId
@@ -50,36 +52,69 @@ func (p *DecodeBatchParams) Validate() error {
 	return nil
 }
 
+type decodeBatch struct {
+	logger logging.Logger
+
+	knownDecoders []batchIntermediateDecoder
+	decoderLoader sync.Once
+}
+
+func NewDecodeBatchCmd(logger logging.Logger) *decodeBatch {
+	return &decodeBatch{
+		logger: logger,
+	}
+}
+
+func (c *decodeBatch) Build() (*cobra.Command, error) {
+	params := &DecodeBatchParams{}
+
+	cmd := &cobra.Command{
+		Use:   "decode-batch",
+		Short: "Deserialize L1 stored batch with nil transactions into human readable format",
+		RunE: func(*cobra.Command, []string) error {
+			executor := exec.NewExecutor(os.Stdout, c.logger, params)
+			return executor.Run(func(ctx context.Context) (exec.CmdOutput, error) {
+				return c.decode(ctx, params)
+			})
+		},
+	}
+
+	cmd.Flags().Var(&params.BatchId, "batch-id", "unique ID of L1-stored batch")
+	cmd.Flags().StringVar(
+		&params.BatchFile,
+		"batch-file",
+		"",
+		"file with binary content of concatenated blobs of the batch")
+	cmd.Flags().StringVar(&params.OutputFile, "output-file", "", "target file to keep decoded batch data")
+
+	return cmd, nil
+}
+
 type batchIntermediateDecoder interface {
 	DecodeIntermediate(from io.Reader, to io.Writer) error
 }
 
-var (
-	knownDecoders []batchIntermediateDecoder
-	decoderLoader sync.Once
-)
-
-func initDecoders(logger logging.Logger) {
-	decoderLoader.Do(func() {
-		knownDecoders = append(knownDecoders,
-			v1.NewDecoder(logger),
+func (c *decodeBatch) initDecoders() {
+	c.decoderLoader.Do(func() {
+		c.knownDecoders = append(c.knownDecoders,
+			v1.NewDecoder(c.logger),
 			// each new implemented decoder needs to be added here
 		)
 	})
 }
 
-func DecodeBatch(ctx context.Context, params *DecodeBatchParams, logger logging.Logger) (CmdOutput, error) {
-	initDecoders(logger)
+func (c *decodeBatch) decode(ctx context.Context, params *DecodeBatchParams) (exec.CmdOutput, error) {
+	c.initDecoders()
 
-	err := decodeAndWriteToFile(ctx, params)
+	err := c.decodeAndWriteToFile(ctx, params)
 	if err != nil {
-		return EmptyOutput, err
+		return exec.EmptyOutput, err
 	}
 
 	return "Batch is decoded successfully", nil
 }
 
-func decodeAndWriteToFile(ctx context.Context, params *DecodeBatchParams) (returnedErr error) {
+func (c *decodeBatch) decodeAndWriteToFile(ctx context.Context, params *DecodeBatchParams) (returnedErr error) {
 	var batchSource io.ReadSeeker
 
 	var emptyBatchId public.BatchId
@@ -119,7 +154,7 @@ func decodeAndWriteToFile(ctx context.Context, params *DecodeBatchParams) (retur
 			returnedErr = errors.Join(returnedErr, outFile.Close())
 		}(outFile)
 
-		for _, decoder := range knownDecoders {
+		for _, decoder := range c.knownDecoders {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()

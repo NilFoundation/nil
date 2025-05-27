@@ -1,4 +1,4 @@
-package commands
+package exec
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 
 type CmdParams interface {
 	Validate() error
-	GetExecutorParams() *ExecutorParams
+	GetExecutorParams() *Params
 }
 
 type executor[P CmdParams] struct {

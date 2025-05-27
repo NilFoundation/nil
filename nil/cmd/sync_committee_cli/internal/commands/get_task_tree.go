@@ -4,40 +4,86 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"os"
 	"slices"
 	"strings"
 
+	"github.com/NilFoundation/nil/nil/cmd/sync_committee_cli/internal/exec"
+	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/debug"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
+	"github.com/spf13/cobra"
 )
 
 type GetTaskTreeParams struct {
-	ExecutorParams
+	exec.Params
 	TaskId public.TaskId
 }
 
-func (p *GetTaskTreeParams) GetExecutorParams() *ExecutorParams {
-	return &p.ExecutorParams
+func (p *GetTaskTreeParams) GetExecutorParams() *exec.Params {
+	return &p.Params
 }
 
-func GetTaskTree(ctx context.Context, params *GetTaskTreeParams, api public.TaskDebugApi) (CmdOutput, error) {
-	taskTree, err := api.GetTaskTree(ctx, params.TaskId)
-	if err != nil {
-		return EmptyOutput, fmt.Errorf("failed to get task tree from debug API: %w", err)
+type getTaskTree struct {
+	logger logging.Logger
+}
+
+func NewGetTaskTreeCmd(logger logging.Logger) *getTaskTree {
+	return &getTaskTree{
+		logger: logger,
 	}
-	if taskTree == nil {
-		return EmptyOutput, fmt.Errorf("%w: root task with id=%s is not found", ErrNoDataFound, params.TaskId)
+}
+
+func (c *getTaskTree) Build() (*cobra.Command, error) {
+	paramsWithEndpoint := defaultParamsWithEndpoint()
+	cmdParams := &GetTaskTreeParams{
+		Params: paramsWithEndpoint.Params,
 	}
 
-	treeOutput, err := buildTreeOutput(taskTree)
+	cmd := &cobra.Command{
+		Use:   "get-task-tree",
+		Short: "Retrieve full task tree structure for a specific task",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			executor := exec.NewExecutor(os.Stdout, c.logger, cmdParams)
+			client := debug.NewTasksClient(paramsWithEndpoint.RpcEndpoint, c.logger)
+			return executor.Run(func(ctx context.Context) (exec.CmdOutput, error) {
+				return c.getTaskTree(ctx, cmdParams, client)
+			})
+		},
+	}
+
+	paramsWithEndpoint.bind(cmd)
+
+	const taskIdFlag = "task-id"
+	cmd.Flags().Var(&cmdParams.TaskId, taskIdFlag, "root task id")
+	if err := cmd.MarkFlagRequired(taskIdFlag); err != nil {
+		return nil, err
+	}
+
+	return cmd, nil
+}
+
+func (c *getTaskTree) getTaskTree(
+	ctx context.Context, params *GetTaskTreeParams, api public.TaskDebugApi,
+) (exec.CmdOutput, error) {
+	taskTree, err := api.GetTaskTree(ctx, params.TaskId)
 	if err != nil {
-		return EmptyOutput, fmt.Errorf("failed build string representation of a tree: %w", err)
+		return exec.EmptyOutput, fmt.Errorf("failed to get task tree from debug API: %w", err)
+	}
+	if taskTree == nil {
+		return exec.EmptyOutput, fmt.Errorf("%w: root task with id=%s is not found", exec.ErrNoDataFound, params.TaskId)
+	}
+
+	treeOutput, err := c.buildTreeOutput(taskTree)
+	if err != nil {
+		return exec.EmptyOutput, fmt.Errorf("failed build string representation of a tree: %w", err)
 	}
 
 	return treeOutput, nil
 }
 
-func buildTreeOutput(tree *public.TaskTreeView) (CmdOutput, error) {
-	var builder outputBuilder
+func (*getTaskTree) buildTreeOutput(tree *public.TaskTreeView) (exec.CmdOutput, error) {
+	var builder exec.OutputBuilder
 
 	var toTreeRec func(tree *public.TaskTreeView, prefix string, isLast bool, currentDepth int) error
 	toTreeRec = func(node *public.TaskTreeView, prefix string, isLast bool, currentDepth int) error {
@@ -56,24 +102,24 @@ func buildTreeOutput(tree *public.TaskTreeView) (CmdOutput, error) {
 
 		var execTimeStr string
 		if execTime := node.ExecutionTime; execTime != nil {
-			execTimeStr = YellowStr(" (%s)", execTime.String())
+			execTimeStr = exec.YellowStr(" (%s)", execTime.String())
 		}
 
 		builder.WriteLine(
-			node.Id.String(), GreenStr(" %s %s", node.Type, node.CircuitType), execTimeStr,
+			node.Id.String(), exec.GreenStr(" %s %s", node.Type, node.CircuitType), execTimeStr,
 		)
 
 		var statusStr string
 		var errorText string
 		if node.IsFailed() {
-			statusStr = RedStr("%s", node.Status)
+			statusStr = exec.RedStr("%s", node.Status)
 			errorText = " " + node.ResultErrorText
 		} else {
-			statusStr = CyanStr("%s", node.Status)
+			statusStr = exec.CyanStr("%s", node.Status)
 		}
 
 		builder.WriteLine(
-			prefix, "  Owner=", CyanStr("%s", node.Owner), " Status=", statusStr, errorText,
+			prefix, "  Owner=", exec.CyanStr("%s", node.Owner), " Status=", statusStr, errorText,
 		)
 
 		if len(node.Dependencies) == 0 {

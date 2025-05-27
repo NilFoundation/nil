@@ -1,16 +1,14 @@
-package flags
+package commands
 
 import (
 	"strings"
 	"unicode"
-
-	"github.com/NilFoundation/nil/nil/cmd/sync_committee_cli/internal/commands"
 )
 
 const separator = ','
 
 type TaskFieldsFlag struct {
-	FieldsToInclude *[]commands.TaskField
+	FieldsToInclude *[]TaskField
 }
 
 func (f TaskFieldsFlag) String() string {
@@ -24,12 +22,12 @@ func (f TaskFieldsFlag) Set(str string) error {
 	values = removeDuplicates(values)
 
 	if len(values) == 0 {
-		*f.FieldsToInclude = commands.DefaultFields()
+		*f.FieldsToInclude = DefaultTaskFields()
 		return nil
 	}
 
 	if len(values) == 1 && strings.ToLower(values[0]) == "all" {
-		*f.FieldsToInclude = commands.AllFields()
+		*f.FieldsToInclude = AllFields()
 		return nil
 	}
 
