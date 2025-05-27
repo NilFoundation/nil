@@ -1,5 +1,6 @@
 import { BUTTON_KIND, BUTTON_SIZE, Button, ButtonIcon } from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
+import { expandProperty } from "inline-style-expand-shorthand";
 import type { FC } from "react";
 import { StatefulPopover } from "../../shared/components/Popover";
 import { useMobile } from "../../shared/hooks/useMobile";
@@ -81,13 +82,11 @@ export const ResourcesButton = () => {
       content={
         <div
           className={css({
-            height: "250px",
-            width: isMobile ? "380px" : "430px",
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-            paddingTop: "10px",
-            paddingBottom: "10px",
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)",
+            gridTemplateRows: isMobile ? "1fr 1fr 1fr" : "repeat(2, 1fr)",
+            gap: "8px",
+            ...expandProperty("padding", "16px"),
             borderRadius: "8px",
             overflow: "auto",
             flexWrap: "wrap",

@@ -96,6 +96,7 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
               width: "calc(100vw - 32px)",
               height: "auto",
             }),
+            ...expandProperty("borderRadius", "16px"),
           },
         },
         Body: {
@@ -105,7 +106,6 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
             position: "relative",
             height: "100%",
             marginBottom: 0,
-            paddingBottom: "16px",
             ...getMobileStyles({
               gap: "8px",
             }),
@@ -132,10 +132,7 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
               alignItems: "center",
               width: "100%",
               height: "100%",
-              borderTopLeftRadius: "12px",
-              borderTopRightRadius: "12px",
-              borderBottomLeftRadius: "12px",
-              borderBottomRightRadius: "12px",
+              ...expandProperty("borderRadius", "16px"),
             })}
           >
             <Spinner />
@@ -145,10 +142,7 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
             className={css({
               width: "100%",
               height: `calc(100% - ${isMobile ? "32px - 8px - 8px - 48px - 8px - 48px - 8px" : "0px"})`,
-              borderTopLeftRadius: "12px",
-              borderTopRightRadius: "12px",
-              borderBottomLeftRadius: "12px",
-              borderBottomRightRadius: "12px",
+              ...expandProperty("borderRadius", "16px"),
             })}
           >
             <SolidityCodeField
