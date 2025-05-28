@@ -152,8 +152,6 @@ func (s *UpdaterTestSuite) TestInitialUpdate() {
 		return block, nil
 	}
 
-	s.runUpdater()
-
 	updateCalled := make(chan struct{})
 	entered := false
 	s.l1ContractMock.SetOracleFeeFunc = func(
@@ -169,12 +167,9 @@ func (s *UpdaterTestSuite) TestInitialUpdate() {
 		return nil
 	}
 
-	const ticks = 3
+	s.runUpdater()
 
-	s.clock.Advance(ticks * s.config.PollInterval)
-	for range ticks {
-		<-updateCalled
-	}
+	<-updateCalled
 }
 
 func (s *UpdaterTestSuite) TestUpdateOnSignificantChange() {

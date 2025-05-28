@@ -41,7 +41,7 @@ task("validate-l2-eth-bridging", "Validates the state changes of l2BridgeMesseng
         const retries: number = 10
         let isDepositMessageRelayed: boolean = false;
 
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < retries; i++) {
             console.log(`Verifying relayedMessageHash: ${messageHash} inclusion in L2BridgeMessenger: ${l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy}... attempt ${i + 1}/${retries}`);
             try {
                 isDepositMessageRelayed = await l2BridgeMessengerProxyInstance.read.isDepositMessageRelayed([messageHash]);
