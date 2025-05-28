@@ -131,7 +131,7 @@ func (p *proposer) updateState(
 		return fmt.Errorf("failed to get latest block ref for shard %d", p.config.BridgeStateKeeperShardId)
 	}
 
-	bridgeData, err := p.bridgeStateGetter.GetBridgeState(ctx, blockRef)
+	bridgeData, err := p.bridgeStateGetter.GetBridgeState(ctx, blockRef.Hash)
 	if err != nil {
 		return fmt.Errorf("failed to get bridge state: %w", err)
 	}

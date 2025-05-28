@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/NilFoundation/nil/nil/client"
+	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -22,7 +23,7 @@ type BridgeState struct {
 }
 
 type BridgeStateGetter interface {
-	GetBridgeState(ctx context.Context, blockID any) (*BridgeState, error)
+	GetBridgeState(ctx context.Context, blockHash common.Hash) (*BridgeState, error)
 }
 
 type bridgeStateGetter struct {
@@ -42,12 +43,12 @@ func NewBridgeStateGetter(
 	}
 }
 
-func (b *bridgeStateGetter) GetBridgeState(ctx context.Context, blockID any) (*BridgeState, error) {
+func (b *bridgeStateGetter) GetBridgeState(ctx context.Context, blockHash common.Hash) (*BridgeState, error) {
 	eg, gCtx := errgroup.WithContext(ctx)
 
 	var l1MessageHash *big.Int
 	eg.Go(func() error {
-		ret, err := callContract[bytes32](gCtx, b.nilClient, blockID, b.contractAddr, b.abi, "l1MessageHash")
+		ret, err := callContract[bytes32](gCtx, b.nilClient, blockHash, b.contractAddr, b.abi, "l1MessageHash")
 		if err != nil {
 			return err
 		}
@@ -57,7 +58,7 @@ func (b *bridgeStateGetter) GetBridgeState(ctx context.Context, blockID any) (*B
 
 	var l2ToL1Root *big.Int
 	eg.Go(func() error {
-		ret, err := callContract[bytes32](gCtx, b.nilClient, blockID, b.contractAddr, b.abi, "getL2ToL1Root")
+		ret, err := callContract[bytes32](gCtx, b.nilClient, blockHash, b.contractAddr, b.abi, "getL2ToL1Root")
 		if err != nil {
 			return err
 		}
@@ -67,7 +68,7 @@ func (b *bridgeStateGetter) GetBridgeState(ctx context.Context, blockID any) (*B
 
 	var depositNonce *big.Int
 	eg.Go(func() error {
-		ret, err := callContract[*big.Int](gCtx, b.nilClient, blockID, b.contractAddr, b.abi, "getLatestDepositNonce")
+		ret, err := callContract[*big.Int](gCtx, b.nilClient, blockHash, b.contractAddr, b.abi, "getLatestDepositNonce")
 		if err != nil {
 			return err
 		}
