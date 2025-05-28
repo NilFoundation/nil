@@ -27,7 +27,7 @@ func (f TaskFieldsFlag) Set(str string) error {
 	}
 
 	if len(values) == 1 && strings.ToLower(values[0]) == "all" {
-		*f.FieldsToInclude = AllFields()
+		*f.FieldsToInclude = AllTaskFields()
 		return nil
 	}
 

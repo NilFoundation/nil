@@ -53,7 +53,7 @@ const (
 )
 
 type TaskDebugRequest struct {
-	listRequestCommon
+	ListRequest
 
 	Status TaskStatus     `json:"status,omitempty"`
 	Type   TaskType       `json:"type,omitempty"`
@@ -98,7 +98,7 @@ func NewTaskDebugRequest(
 	}
 
 	return &TaskDebugRequest{
-		listRequestCommon: newListRequestCommon(limit),
+		ListRequest: newListRequestCommon(limit),
 
 		Status:    targetStatus,
 		Type:      targetType,

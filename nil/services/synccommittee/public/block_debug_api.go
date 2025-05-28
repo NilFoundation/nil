@@ -31,14 +31,14 @@ func NewStateRootData(
 }
 
 type BatchDebugRequest struct {
-	listRequestCommon
+	ListRequest
 }
 
 func NewBatchDebugRequest(
 	limit *int,
 ) *BatchDebugRequest {
 	return &BatchDebugRequest{
-		listRequestCommon: newListRequestCommon(limit),
+		ListRequest: newListRequestCommon(limit),
 	}
 }
 
@@ -65,7 +65,7 @@ func NewBatchStats(
 }
 
 type BlockDebugApi interface {
-	// GetStateRootData retrieves the current state root data.
+	// GetStateRootData retrieves the current state root data, including the L1 state root and the local state root.
 	GetStateRootData(ctx context.Context) (*StateRootData, error)
 
 	// GetLatestFetched retrieves references to the latest fetched blocks for all shards.

@@ -8,22 +8,22 @@ const (
 	DebugMaxLimit = 1000
 )
 
-type listRequestCommon struct {
+type ListRequest struct {
 	Limit int `json:"limit"`
 }
 
-func newListRequestCommon(limit *int) listRequestCommon {
+func newListRequestCommon(limit *int) ListRequest {
 	targetLimit := DefaultLimit
 	if limit != nil {
 		targetLimit = *limit
 	}
 
-	return listRequestCommon{
+	return ListRequest{
 		Limit: targetLimit,
 	}
 }
 
-func (r *listRequestCommon) Validate() error {
+func (r *ListRequest) Validate() error {
 	if r.Limit < DebugMinLimit || r.Limit > DebugMaxLimit {
 		return fmt.Errorf(
 			"limit must be between %d and %d, actual is %d", DebugMinLimit, DebugMaxLimit, r.Limit)
