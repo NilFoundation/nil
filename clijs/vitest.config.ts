@@ -22,5 +22,6 @@ export default defineConfig({
     globalSetup: [
       "./test/globalSetup.ts",
     ],
+    reporters: ['verbose']
   },
 });
