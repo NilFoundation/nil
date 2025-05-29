@@ -271,7 +271,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 	calleeShardId := types.ShardId(4)
 
 	s.Run("Deploy smart account", func() {
-		pub := crypto.CompressPubkey(&pk.PublicKey)
+		pub := crypto.FromECDSAPub(&pk.PublicKey)
 		smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pub)
 		deployCode := types.BuildDeployPayload(smartAccountCode, common.Hash{0x12})
 

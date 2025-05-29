@@ -55,7 +55,7 @@ func (s *Service) GetInfo(address types.Address) (string, string, error) {
 
 	var pub string
 	if s.privateKey != nil {
-		pubBytes := crypto.CompressPubkey(&s.privateKey.PublicKey)
+		pubBytes := crypto.FromECDSAPub(&s.privateKey.PublicKey)
 		pub = hexutil.Encode(pubBytes)
 		s.logger.Info().Msgf("Public key: %s", pub)
 	}

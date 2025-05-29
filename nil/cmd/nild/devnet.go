@@ -156,7 +156,7 @@ func (c *cluster) generateZeroState(nShards uint32, servers []server) (*executio
 func ensurePublicKey(keyPath string) ([]byte, error) {
 	privateKey, err := execution.LoadMainKeys(keyPath)
 	if err == nil {
-		publicKey := crypto.CompressPubkey(&privateKey.PublicKey)
+		publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
 		return publicKey, nil
 	}
 	if !errors.Is(err, os.ErrNotExist) {

@@ -7,7 +7,7 @@ test("getPublicKey", async ({ expect }) => {
   const input = account.privateKey;
   const expectedOutput = addHexPrefix(account.publicKey);
 
-  const result = getPublicKey(input, true);
+  const result = getPublicKey(input, false);
 
   expect(result).toBe(expectedOutput);
 });

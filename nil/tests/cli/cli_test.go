@@ -211,7 +211,7 @@ func (s *SuiteCliService) testNewSmartAccountOnShard(shardId types.ShardId) {
 	s.Require().NoError(err)
 
 	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(
-		crypto.CompressPubkey(&ownerPrivateKey.PublicKey))
+		crypto.FromECDSAPub(&ownerPrivateKey.PublicKey))
 	code := types.BuildDeployPayload(smartAccountCode, common.EmptyHash)
 	expectedAddress := types.CreateAddress(shardId, code)
 	smartAccountAddres, err := s.cli.CreateSmartAccount(shardId, types.NewUint256(0), types.GasToValue(10_000_000),

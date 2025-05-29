@@ -23,7 +23,6 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/abi"
@@ -33,7 +32,6 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm/console"
 	eth_common "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 )
 
@@ -85,7 +83,6 @@ type SimplePrecompiledContract interface {
 
 var (
 	AsyncCallAddress         = types.BytesToAddress([]byte{0xfd})
-	VerifySignatureAddress   = types.BytesToAddress([]byte{0xfe})
 	CheckIsInternalAddress   = types.BytesToAddress([]byte{0xff})
 	ManageTokenAddress       = types.BytesToAddress([]byte{0xd0})
 	TokenBalanceAddress      = types.BytesToAddress([]byte{0xd1})
@@ -124,7 +121,6 @@ var PrecompiledContractsPrague = map[types.Address]PrecompiledContract{
 
 	// NilFoundation precompiled contracts
 	AsyncCallAddress:         &asyncCall{},
-	VerifySignatureAddress:   &simple{&verifySignature{}},
 	CheckIsInternalAddress:   &checkIsInternal{},
 	ManageTokenAddress:       &manageToken{},
 	TokenBalanceAddress:      &tokenBalance{},
@@ -492,34 +488,6 @@ func (c *asyncCall) Run(state StateDB, input []byte, value *uint256.Int, caller 
 	_, err = state.AddOutTransaction(caller.Address(), &payload, responseProcessingGas)
 
 	return res, err
-}
-
-type verifySignature struct{}
-
-var _ SimplePrecompiledContract = (*verifySignature)(nil)
-
-func (c *verifySignature) RequiredGas([]byte) uint64 {
-	return 5000
-}
-
-func (a *verifySignature) Run(input []byte) ([]byte, error) {
-	args := VerifySignatureArgs()
-	values, err := args.Unpack(input)
-	if err != nil || len(values) != 3 {
-		return common.EmptyHash[:], nil //nolint:nilerr
-	}
-	// there's probably a better way to do this
-	pubkey, ok1 := values[0].([]byte)
-	hash, ok2 := values[1].(*big.Int)
-	sig, ok3 := values[2].([]byte)
-	if !ok1 || !ok2 || !ok3 || len(sig) != common.SignatureSize {
-		return common.EmptyHash[:], nil
-	}
-	result := crypto.VerifySignature(pubkey, common.BigToHash(hash).Bytes(), sig[:64])
-	if result {
-		return common.LeftPadBytes([]byte{1}, 32), nil
-	}
-	return common.EmptyHash[:], nil
 }
 
 // arguments: bytes pubkey, uint256 hash, bytes signature

@@ -18,6 +18,6 @@ func GenerateKeyPair() (*ecdsa.PrivateKey, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	publicKey := gethcrypto.CompressPubkey(&privateKey.PublicKey)
+	publicKey := gethcrypto.FromECDSAPub(&privateKey.PublicKey)
 	return privateKey, publicKey, err
 }

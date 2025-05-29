@@ -39,7 +39,7 @@ func NewSmartAccount(service *cliservice.Service, shardId types.ShardId) (SmartA
 		if !strings.Contains(err.Error(), "smart account already exists") {
 			return SmartAccount{}, err
 		}
-		smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(crypto.CompressPubkey(&pk.PublicKey))
+		smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(crypto.FromECDSAPub(&pk.PublicKey))
 		smartAccountAdr = service.ContractAddress(shardId, *salt, smartAccountCode)
 	}
 	return SmartAccount{Addr: smartAccountAdr, PrivateKey: pk, CliService: service.CloneWithPrivateKey(pk)}, nil

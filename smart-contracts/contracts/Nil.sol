@@ -15,7 +15,6 @@ using {
 
 library Nil {
     address public constant ASYNC_CALL = address(0xfd);
-    address public constant VERIFY_SIGNATURE = address(0xfe);
     address public constant IS_INTERNAL_TRANSACTION = address(0xff);
     address public constant MANAGE_TOKEN = address(0xd0);
     address private constant GET_TOKEN_BALANCE = address(0xd1);
@@ -186,6 +185,19 @@ library Nil {
         return (success, returnData);
     }
 
+    function slice(bytes memory data, uint start, uint len) internal pure returns (bytes memory) {
+        bytes memory result = new bytes(len);
+        for (uint i = 0; i < len; i++) {
+            result[i] = data[i + start];
+        }
+        return result;
+    }
+
+    function pubkeyToAddress(bytes memory _pubkey) internal pure returns (address) {
+        require(_pubkey.length == 65 && _pubkey[0] == 0x04, "invalid uncompressed pubkey");
+        return address(uint160(uint256(keccak256(slice(_pubkey, 1, 64)))));
+    }
+
     /**
      * @dev Validates a signature using a precompiled contract.
      * @param pubkey Public key used for validation.
@@ -197,24 +209,20 @@ library Nil {
         bytes memory pubkey,
         uint256 hash,
         bytes memory signature
-    ) internal view returns (bool) {
-        // ABI encode the input parameters
-        bytes memory encodedInput = abi.encode(pubkey, hash, signature);
-        bool success;
-        bool result;
-
-        // Perform the static call to the precompiled contract at address `VerifyExternalTransaction`
-        bytes memory returnData;
-        (success, returnData) = VERIFY_SIGNATURE.staticcall(encodedInput);
-
-        require(success, "Precompiled contract call failed");
-
-        // Extract the boolean result from the returned data
-        if (returnData.length > 0) {
-            result = abi.decode(returnData, (bool));
+    ) internal pure returns (bool) {
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        bytes memory sig = signature;
+        assembly {
+            r := mload(add(sig, 32))
+            s := mload(add(sig, 64))
+            v := byte(0, mload(add(sig, 96)))
         }
-
-        return result;
+        if (v < 27) {
+            v += 27;
+        }
+        return ecrecover(bytes32(hash), v, r, s) == pubkeyToAddress(pubkey);
     }
 
     /**

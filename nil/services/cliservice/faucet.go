@@ -166,7 +166,7 @@ func (s *Service) CreateSmartAccount(
 	fee types.FeePack,
 	pubKey *ecdsa.PublicKey,
 ) (types.Address, error) {
-	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(crypto.CompressPubkey(pubKey))
+	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(crypto.FromECDSAPub(pubKey))
 	smartAccountAddress := s.ContractAddress(shardId, *salt, smartAccountCode)
 
 	code, err := s.client.GetCode(s.ctx, smartAccountAddress, "latest")

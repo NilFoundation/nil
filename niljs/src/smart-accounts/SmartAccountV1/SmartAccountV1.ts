@@ -14,8 +14,8 @@ import { calculateAddress, getShardIdFromAddress, refineAddress } from "../../ut
 import { addHexPrefix } from "../../utils/hex.js";
 import {
   refineBigintSalt,
-  refineCompressedPublicKey,
   refineFunctionHexData,
+  refinePublicKey,
   refineSalt,
 } from "../../utils/refiners.js";
 import { Transaction } from "../../utils/transaction.js";
@@ -151,7 +151,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
    * @param {SmartAccountV1Config} param0.signer The smart account signer.
    */
   constructor({ pubkey, shardId, address, client, salt, signer }: SmartAccountV1Config) {
-    this.pubkey = refineCompressedPublicKey(pubkey);
+    this.pubkey = refinePublicKey(pubkey);
     this.client = client;
     this.signer = signer;
     invariant(
