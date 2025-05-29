@@ -1,6 +1,5 @@
 GO ?= go
 GOBIN = $(CURDIR)/build/bin
-GOPRIVATE = github.com/NilFoundation
 PACKAGE = github.com/NilFoundation/nil
 
 # Default mode is debug
@@ -11,8 +10,8 @@ else
 endif
 
 GO_FLAGS =
-GOBUILD = GOPRIVATE="$(GOPRIVATE)" $(GO) build $(GO_FLAGS) -tags $(TAGS)
-GOTEST = GOPRIVATE="$(GOPRIVATE)" GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TAGS),debug,assert,test,goexperiment.synctest $(GO_FLAGS) ./... -p 2
+GOBUILD = $(GO) build $(GO_FLAGS) -tags $(TAGS)
+GOTEST = GODEBUG=cgocheck=0 $(GO) test -tags $(BUILD_TAGS),debug,assert,test,goexperiment.synctest $(GO_FLAGS) ./... -p 2
 
 SC_COMMANDS = sync_committee sync_committee_cli proof_provider prover nil_block_generator relayer
 COMMANDS += nild nil nil-load-generator indexer cometa faucet journald_forwarder nil-relay stresser $(SC_COMMANDS)
