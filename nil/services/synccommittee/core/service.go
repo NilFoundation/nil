@@ -103,7 +103,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 		fetcher, blockStorage, metricsHandler, fetching.NewDefaultLagTrackerConfig(), logger,
 	)
 
-	l2BridgeMessengerAddress := types.HexToAddress(cfg.L2BridgeMessegerAdddress)
+	l2BridgeMessengerAddress := types.HexToAddress(cfg.L2BridgeMessengerAddress)
 
 	bridgeStateGetter := bridgecontract.NewBridgeStateGetter(
 		nilClient,
