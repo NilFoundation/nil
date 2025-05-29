@@ -95,30 +95,14 @@ $GETH_BIN \
 pids+=("$!")
 wait_for_http_service $GETH_RPC_ENDPOINT
 
-echo "Deploying L1 contracts to geth"
-rm -rf deployments
-npx hardhat run scripts/wallet/fund-wallet.ts
-npx hardhat run scripts/deploy-and-wire.ts --network geth
-
-echo "Fetching deployed contract address"
-l1_contract_addr=$(jq -r '.networks.geth.l1BridgeMessenger.l1BridgeMessengerContracts.l1BridgeMessengerProxy' deploy/config/l1-deployment-config.json)
-echo "L1BridgeMessenger deployed to: $l1_contract_addr"
+source deploy_l1_contracts_to_geth.sh
 
 echo "Starting nild"
 $NILD_BIN run --http-port 8529 --collator-tick-ms=100 --log-level=trace >$LOG_DIR/nild.log 2>&1 &
 pids+=("$!")
 wait_for_http_service "http://127.0.0.1:8529"
 
-npx hardhat l2-task-runner --networkname local --l1networkname geth
-l2_contract_addr=$(jq -r '.networks.local.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy' deploy/config/nil-deployment-config.json)
-l2_eth_bridge_addr=$(jq -r '.networks.local.l2ETHBridgeConfig.l2ETHBridgeContracts.l2ETHBridgeProxy' deploy/config/nil-deployment-config.json)
-l2_enshrined_token_bridge_addr=$(jq -r '.networks.local.l2EnshrinedTokenBridgeConfig.l2EnshrinedTokenBridgeContracts.l2EnshrinedTokenBridgeProxy' deploy/config/nil-deployment-config.json)
-
-echo "L2BridgeMessenger deployed to: $l2_contract_addr"
-echo "L2ETHBridge deployed to: $l2_eth_bridge_addr"
-echo "L2EnshrinedTokenBridge deployed to: $l2_enshrined_token_bridge_addr"
-
-npx hardhat run scripts/wiring/bridges/l1/set-counterparty-in-bridges.ts --network geth
+source deploy_l2_contracts_to_nild.sh
 
 echo "Starting relayer"
 $RELAYER_BIN run \
