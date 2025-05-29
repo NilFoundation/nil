@@ -27,6 +27,8 @@ export async function setup() {
     throw new Error("Failed to start nild");
   }
 
+  await waitForServerReady(testEnv.endpoint, 30000); // 30 sec
+
   nildInstance = {
     pid: nild.pid,
     process: nild,
@@ -44,6 +46,18 @@ export async function teardown() {
       resolve();
     });
   });
+}
+
+async function waitForServerReady(endpoint: string, timeout: number): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    try {
+      const response = await fetch(endpoint, { method: "GET" });
+      if (response.ok) return;
+    } catch (e) {}
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`Server not ready after ${timeout}ms`);
 }
 
 const COUNTER_COMPILATION_COMMAND =
