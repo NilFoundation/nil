@@ -43,7 +43,7 @@ func (s *SuiteFaucet) TearDownSuite() {
 func (s *SuiteFaucet) createSmartAccountViaFaucet(ownerPrivateKey *ecdsa.PrivateKey, value int64) types.Address {
 	s.T().Helper()
 
-	ownerPublicKey := crypto.CompressPubkey(&ownerPrivateKey.PublicKey)
+	ownerPublicKey := crypto.FromECDSAPub(&ownerPrivateKey.PublicKey)
 
 	salt := uint256.NewInt(123).Bytes32()
 	callData, err := contracts.NewCallData(
@@ -83,7 +83,7 @@ func (s *SuiteFaucet) TestCreateSmartAccountViaFaucet() {
 func (s *SuiteFaucet) TestDeployContractViaFaucet() {
 	userPrivateKey, err := crypto.GenerateKey()
 	s.Require().NoError(err)
-	userPublicKey := crypto.CompressPubkey(&userPrivateKey.PublicKey)
+	userPublicKey := crypto.FromECDSAPub(&userPrivateKey.PublicKey)
 
 	value := types.GasToValue(123_456_789)
 	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(userPublicKey)
@@ -112,7 +112,7 @@ func (s *SuiteFaucet) TestDeployContractViaFaucet() {
 func (s *SuiteFaucet) TestTopUpViaFaucet() {
 	pk, err := crypto.GenerateKey()
 	s.Require().NoError(err)
-	pubKey := crypto.CompressPubkey(&pk.PublicKey)
+	pubKey := crypto.FromECDSAPub(&pk.PublicKey)
 	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pubKey)
 
 	address, receipt := s.DeployContractViaMainSmartAccount(
@@ -168,7 +168,7 @@ func (s *SuiteFaucet) TestTopUpViaFaucet() {
 func (s *SuiteFaucet) TestTopUpTokenViaFaucet() {
 	pk, err := crypto.GenerateKey()
 	s.Require().NoError(err)
-	pubKey := crypto.CompressPubkey(&pk.PublicKey)
+	pubKey := crypto.FromECDSAPub(&pk.PublicKey)
 	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pubKey)
 
 	address, receipt := s.DeployContractViaMainSmartAccount(

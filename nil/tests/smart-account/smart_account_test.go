@@ -95,7 +95,7 @@ func (s *SuiteSmartAccountRpc) TestDeploySmartAccountWithValue() {
 	pk, err := crypto.GenerateKey()
 	s.Require().NoError(err)
 
-	pub := crypto.CompressPubkey(&pk.PublicKey)
+	pub := crypto.FromECDSAPub(&pk.PublicKey)
 	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pub)
 	deployCode := types.BuildDeployPayload(smartAccountCode, common.EmptyHash)
 

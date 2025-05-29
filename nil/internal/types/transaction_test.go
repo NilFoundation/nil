@@ -36,7 +36,7 @@ func TestTransactionSign(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, key.PublicKey, *pub)
 
-	pubBytes := crypto.CompressPubkey(pub)
+	pubBytes := crypto.FromECDSAPub(pub)
 	assert.True(t, crypto.VerifySignature(pubBytes, h.Bytes(), txn.AuthData[:64]))
 }
 

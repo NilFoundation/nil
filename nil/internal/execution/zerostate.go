@@ -87,7 +87,7 @@ func (cfg *ZeroStateConfig) GetValidators() []config.ListValidators {
 }
 
 func DumpMainKeys(fname string, mainPrivateKey *ecdsa.PrivateKey) error {
-	mainPublicKey := crypto.CompressPubkey(&mainPrivateKey.PublicKey)
+	mainPublicKey := crypto.FromECDSAPub(&mainPrivateKey.PublicKey)
 	keys := MainKeys{crypto.FromECDSA(mainPrivateKey), mainPublicKey}
 
 	data, err := yaml.Marshal(&keys)

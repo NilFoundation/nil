@@ -100,7 +100,7 @@ func (s *SuiteRpcNodeCall) TestCall() {
 	s.Run("Deploy smart account", func() {
 		pk, err := crypto.GenerateKey()
 		s.Require().NoError(err)
-		pubKey := crypto.CompressPubkey(&pk.PublicKey)
+		pubKey := crypto.FromECDSAPub(&pk.PublicKey)
 		smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pubKey)
 
 		var receipt *jsonrpc.RPCReceipt
