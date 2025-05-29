@@ -42,6 +42,14 @@ func initConfig() {
 	viper.AutomaticEnv()
 }
 
+func processRpcRun(ctx context.Context, cfg *indexer.Config) error {
+	service, err := indexer.NewService(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	return service.Run(context.Background(), cfg)
+}
+
 func main() {
 	logging.SetLogSeverityFromEnv()
 	logging.SetupGlobalLogger("info")
@@ -78,12 +86,14 @@ You could config it via config file or flags or environment variables.`,
 		"",
 		"config file (default is $CWD/indexer.cobra.yaml)")
 	rootCmd.Flags().StringP("api-endpoint", "a", "http://127.0.0.1:8529", "API endpoint")
+	rootCmd.Flags().StringP("own-endpoint", "o", "http://127.0.0.1:8523", "Own endpoint")
 	rootCmd.Flags().StringP("clickhouse-endpoint", "e", "127.0.0.1:9000", "Clickhouse endpoint")
 	rootCmd.Flags().StringP("clickhouse-login", "l", "", "Clickhouse login")
 	rootCmd.Flags().StringP("clickhouse-password", "p", "", "Clickhouse password")
 	rootCmd.Flags().StringP("clickhouse-database", "d", "", "Clickhouse database")
 	rootCmd.Flags().Bool("allow-db-clear", false, "Drop db if versions differ")
 	rootCmd.Flags().Bool("index-txpool", false, "Do indexing of txpool")
+	rootCmd.Flags().Bool("run-rpc", false, "Run indexer RPC")
 
 	check.PanicIfErr(viper.BindPFlags(rootCmd.Flags()))
 
@@ -95,6 +105,8 @@ You could config it via config file or flags or environment variables.`,
 	clickhouseDatabase := viper.GetString("clickhouse-database")
 	apiEndpoint := viper.GetString("api-endpoint")
 	allowDbDrop := viper.GetBool("allow-db-clear")
+	ownEndpoint := viper.GetString("own-endpoint")
+	runRpc := viper.GetBool("run-rpc")
 
 	ctx := context.Background()
 
@@ -102,12 +114,29 @@ You could config it via config file or flags or environment variables.`,
 		ctx, clickhouseEndpoint, clickhouseLogin, clickhousePassword, clickhouseDatabase)
 	check.PanicIfErr(err)
 
-	check.PanicIfErr(indexer.StartIndexer(ctx, &indexer.Cfg{
+	cfg := &indexer.Cfg{
 		Client:        rpc.NewClient(apiEndpoint, logger),
 		IndexerDriver: clickhouseDriver,
 		AllowDbDrop:   allowDbDrop,
 		DoIndexTxpool: viper.GetBool("index-txpool"),
-	}))
+	}
+	if runRpc {
+		serviceConfig := &indexer.Config{
+			OwnEndpoint: ownEndpoint,
+			DbEndpoint:  clickhouseEndpoint,
+			DbName:      clickhouseDatabase,
+			DbUser:      clickhouseLogin,
+			DbPassword:  clickhousePassword,
+		}
+		go func() {
+			if err := processRpcRun(ctx, serviceConfig); err != nil {
+				logger.Error().Err(err).Msg("Failed to start indexer RPC server")
+				panic(err)
+			}
+		}()
+	}
+
+	check.PanicIfErr(indexer.StartIndexer(ctx, cfg))
 
 	logger.Info().Msg("Indexer stopped")
 }
