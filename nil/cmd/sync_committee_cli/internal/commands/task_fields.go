@@ -47,7 +47,7 @@ func AllFields() []TaskField {
 	return fields
 }
 
-func DefaultFields() []TaskField {
+func DefaultTaskFields() []TaskField {
 	var fields []TaskField
 	for field, data := range TaskViewFields {
 		if data.IncludeByDefault {
