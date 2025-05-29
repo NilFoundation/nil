@@ -47,7 +47,7 @@ func processRpcRun(ctx context.Context, cfg *indexer.Config) error {
 	if err != nil {
 		return err
 	}
-	return service.Run(context.Background(), cfg)
+	return service.Run(ctx, cfg)
 }
 
 func main() {
