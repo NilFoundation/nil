@@ -31,10 +31,6 @@ $(root_sc)/generate_rollup_contract_abi: $(root_sc)/compile_rollup_contract_abi
 $(root_sc)/compile_l2_bridge_state_getter_abi:
 	solc $(root_contracts)/bridge/l2/interfaces/IL2BridgeStateGetter.sol --abi --overwrite -o $(root_sc)/core/bridgecontract --allow-paths .,$(root_contracts)/common/libraries --no-cbor-metadata --metadata-hash none --pretty-json
 
-$(root_sc)/core/rollupcontract/wrapper_generated_mock.go: \
-	$(root_sc)/generate_rollup_contract_abi
-	cd $(root_sc)/core/rollupcontract && ../../internal/scripts/generate_mock.sh Wrapper
-
 $(root_sc)/internal/l1client/eth_client_generated_mock.go:
 	cd $(root_sc)/internal/l1client && bash ../../internal/scripts/generate_mock.sh EthClient
 
