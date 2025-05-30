@@ -5,6 +5,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/cmd/sync_committee_cli/internal/exec"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/core"
+	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
 	"github.com/spf13/cobra"
 )
 
@@ -29,4 +30,16 @@ func defaultParamsWithEndpoint() ParamsWithEndpoint {
 		Params:      exec.DefaultExecutorParams(),
 		RpcEndpoint: core.DefaultOwnRpcEndpoint,
 	}
+}
+
+func bindListRequest(params *public.ListRequest, cmd *cobra.Command) {
+	cmd.Flags().IntVar(
+		&params.Limit,
+		"limit",
+		params.Limit,
+		fmt.Sprintf(
+			"limit the number of rows returned, should be in range [%d, %d]",
+			public.DebugMinLimit, public.DebugMaxLimit,
+		),
+	)
 }

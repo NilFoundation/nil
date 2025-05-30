@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/NilFoundation/nil/nil/cmd/sync_committee_cli/internal/exec"
 	"github.com/NilFoundation/nil/nil/cmd/sync_committee_cli/internal/flags"
+	"github.com/NilFoundation/nil/nil/cmd/sync_committee_cli/internal/output"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/debug"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
@@ -69,7 +69,6 @@ func (c *getTasks) Build() (*cobra.Command, error) {
 		},
 	}
 
-	paramsWithEndpoint.bind(cmd)
 	cmdFlags := cmd.Flags()
 
 	flags.EnumVar(cmdFlags, &cmdParams.Status, "status", "current task status")
@@ -79,22 +78,14 @@ func (c *getTasks) Build() (*cobra.Command, error) {
 	flags.EnumVar(cmd.Flags(), &cmdParams.Order, "order", "output tasks sorting order")
 	cmdFlags.BoolVar(&cmdParams.Ascending, "ascending", cmdParams.Ascending, "ascending/descending order")
 
-	cmdFlags.IntVar(
-		&cmdParams.Limit,
-		"limit",
-		cmdParams.Limit,
-		fmt.Sprintf(
-			"limit the number of tasks returned, should be in range [%d, %d]",
-			public.DebugMinLimit, public.DebugMaxLimit,
-		),
-	)
-
 	cmdFlags.Var(
 		TaskFieldsFlag{FieldsToInclude: &cmdParams.FieldsToInclude},
 		"fields",
 		"comma separated list of fields to include in the output table; pass 'all' value to include every field",
 	)
 
+	paramsWithEndpoint.bind(cmd)
+	bindListRequest(&cmdParams.ListRequest, cmd)
 	return cmd, nil
 }
 
@@ -110,28 +101,26 @@ func (c *getTasks) getTasks(
 		return exec.EmptyOutput, fmt.Errorf("%w: no tasks satisfying the request were found", exec.ErrNoDataFound)
 	}
 
-	tasksTable := toTasksTable(tasks, params.FieldsToInclude)
-	tableOutput := buildTableOutput(tasksTable)
+	tasksTable, err := c.toTasksTable(tasks, params.FieldsToInclude)
+	if err != nil {
+		return exec.EmptyOutput, fmt.Errorf("failed to build tasks table: %w", err)
+	}
+	tableOutput := tasksTable.AsCmdOutput()
 	return tableOutput, nil
 }
 
-type table struct {
-	header []TaskField
-	rows   [][]string
-}
-
-func toTasksTable(tasks []*public.TaskView, fieldsToInclude []TaskField) *table {
-	rows := make([][]string, 0, len(tasks))
+func (c *getTasks) toTasksTable(tasks []*public.TaskView, fieldsToInclude []TaskField) (*output.Table, error) {
+	rows := make([]output.TableRow, 0, len(tasks))
 	for _, task := range tasks {
-		row := toTasksTableRow(task, fieldsToInclude)
+		row := c.toTasksTableRow(task, fieldsToInclude)
 		rows = append(rows, row)
 	}
 
-	return &table{header: fieldsToInclude, rows: rows}
+	return output.NewTable(fieldsToInclude, rows)
 }
 
-func toTasksTableRow(task *public.TaskView, fieldsToInclude []TaskField) []string {
-	row := make([]string, 0, len(fieldsToInclude))
+func (*getTasks) toTasksTableRow(task *public.TaskView, fieldsToInclude []TaskField) output.TableRow {
+	row := make(output.TableRow, 0, len(fieldsToInclude))
 
 	for _, fieldName := range fieldsToInclude {
 		fieldData := TaskViewFields[fieldName]
@@ -140,45 +129,4 @@ func toTasksTableRow(task *public.TaskView, fieldsToInclude []TaskField) []strin
 	}
 
 	return row
-}
-
-func buildTableOutput(table *table) exec.CmdOutput {
-	var builder exec.OutputBuilder
-
-	colWidths := make([]int, len(table.header))
-	for colIdx, cell := range table.header {
-		colWidths[colIdx] = len(cell)
-	}
-	for _, row := range table.rows {
-		for colIdx, cell := range row {
-			if len(cell) > colWidths[colIdx] {
-				colWidths[colIdx] = len(cell)
-			}
-		}
-	}
-
-	printRow := func(row []string) {
-		builder.WriteString("|")
-		for colIdx, cell := range row {
-			padding := strings.Repeat(" ", colWidths[colIdx]-len(cell))
-			builder.WriteString(" " + cell + padding + " |")
-		}
-		builder.WriteString("\n")
-	}
-
-	printRow(table.header)
-
-	// print header separator
-	builder.WriteString("|")
-	for _, width := range colWidths {
-		builder.WriteString(strings.Repeat("-", width+2))
-		builder.WriteString("|")
-	}
-	builder.WriteString("\n")
-
-	for _, row := range table.rows {
-		printRow(row)
-	}
-
-	return builder.String()
 }

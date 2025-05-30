@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/cmd/sync_committee_cli/internal/exec"
+	"github.com/NilFoundation/nil/nil/cmd/sync_committee_cli/internal/output"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/debug"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/public"
@@ -83,7 +84,7 @@ func (c *getTaskTree) getTaskTree(
 }
 
 func (*getTaskTree) buildTreeOutput(tree *public.TaskTreeView) (exec.CmdOutput, error) {
-	var builder exec.OutputBuilder
+	var builder output.Builder
 
 	var toTreeRec func(tree *public.TaskTreeView, prefix string, isLast bool, currentDepth int) error
 	toTreeRec = func(node *public.TaskTreeView, prefix string, isLast bool, currentDepth int) error {
@@ -102,24 +103,24 @@ func (*getTaskTree) buildTreeOutput(tree *public.TaskTreeView) (exec.CmdOutput, 
 
 		var execTimeStr string
 		if execTime := node.ExecutionTime; execTime != nil {
-			execTimeStr = exec.YellowStr(" (%s)", execTime.String())
+			execTimeStr = output.YellowStr(" (%s)", execTime.String())
 		}
 
 		builder.WriteLine(
-			node.Id.String(), exec.GreenStr(" %s %s", node.Type, node.CircuitType), execTimeStr,
+			node.Id.String(), output.GreenStr(" %s %s", node.Type, node.CircuitType), execTimeStr,
 		)
 
 		var statusStr string
 		var errorText string
 		if node.IsFailed() {
-			statusStr = exec.RedStr("%s", node.Status)
+			statusStr = output.RedStr("%s", node.Status)
 			errorText = " " + node.ResultErrorText
 		} else {
-			statusStr = exec.CyanStr("%s", node.Status)
+			statusStr = output.CyanStr("%s", node.Status)
 		}
 
 		builder.WriteLine(
-			prefix, "  Owner=", exec.CyanStr("%s", node.Owner), " Status=", statusStr, errorText,
+			prefix, "  Owner=", output.CyanStr("%s", node.Owner), " Status=", statusStr, errorText,
 		)
 
 		if len(node.Dependencies) == 0 {

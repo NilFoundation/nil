@@ -1,4 +1,4 @@
-package exec
+package output
 
 import (
 	"strings"
@@ -6,11 +6,11 @@ import (
 	"github.com/fatih/color"
 )
 
-type OutputBuilder struct {
+type Builder struct {
 	strings.Builder
 }
 
-func (b *OutputBuilder) WriteLine(parts ...string) {
+func (b *Builder) WriteLine(parts ...string) {
 	for _, part := range parts {
 		b.WriteString(part)
 	}

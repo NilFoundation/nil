@@ -31,8 +31,15 @@ func execute() error {
 	}{
 		commands.NewGetTasksCmd(logger),
 		commands.NewGetTaskTreeCmd(logger),
+
 		commands.NewDecodeBatchCmd(logger),
 		commands.NewRollbackStateCmd(logger),
+
+		commands.NewGetStateRootDataCmd(logger),
+		commands.NewGetBatchesCmd(logger),
+		commands.NewGetBatchCmd(logger),
+		commands.NewGetLatestFetchedCmd(logger),
+		commands.NewGetBatchStatsCmd(logger),
 	}
 
 	for _, builder := range builders {

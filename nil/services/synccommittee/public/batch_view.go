@@ -9,6 +9,7 @@ import (
 )
 
 type (
+	BlockRef              = types.BlockRef
 	BlockRefs             = types.BlockRefs
 	ShardChainSegmentView = []common.Hash
 	ChainSegmentsView     = map[coreTypes.ShardId]ShardChainSegmentView
