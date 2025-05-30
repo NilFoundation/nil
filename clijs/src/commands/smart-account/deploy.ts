@@ -84,8 +84,6 @@ export default class SmartAccountDeploy extends BaseCommand {
 
   static override examples = ["<%= config.bin %> <%= command.id %>"];
 
-  static defaultFee = 100000000000000n;
-
   public async run(): Promise<Hex> {
     const { flags, args } = await this.parse(SmartAccountDeploy);
 
@@ -136,7 +134,7 @@ export default class SmartAccountDeploy extends BaseCommand {
       args: args.args?.split(" ") ?? [],
       salt: BigInt(flags.salt),
       value: BigInt(flags.amount ?? 0),
-      feeCredit: flags.fee ?? SmartAccountDeploy.defaultFee,
+      feeCredit: flags.fee ?? 100000000000000n,
     };
     const { tx, address } = await smartAccount.deployContract(params);
 

@@ -15,7 +15,7 @@ export default class ContractBalance extends BaseCommand {
     }),
   };
 
-  async run(): Promise<bigint> {
+  async run(): Promise<string> {
     const { args } = await this.parse(ContractBalance);
 
     const rpcClient = this.rpcClient;
@@ -30,6 +30,6 @@ export default class ContractBalance extends BaseCommand {
     } else {
       this.log(`Balance: ${balance.toString()}`);
     }
-    return balance;
+    return balance.toString();
   }
 }

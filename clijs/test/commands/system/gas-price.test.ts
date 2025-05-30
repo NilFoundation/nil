@@ -18,11 +18,11 @@ CliTest(
   }) => {
     const res = await runCommand(["system", "gas-price", "0"]);
 
-    if (typeof res.result !== "bigint") {
-      throw res.error ?? new Error("Expected result to be a bigint");
+    if (typeof res.result !== "string") {
+      throw res.error ?? new Error("Expected result to be a s");
     }
 
-    expect(res.result).toBeGreaterThan(0n);
+    expect(BigInt(res.result)).toBeGreaterThan(0n);
     expect(res.stderr).toBe("");
     expect(res.stdout).not.equal("");
   },

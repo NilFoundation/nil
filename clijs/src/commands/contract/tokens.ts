@@ -16,7 +16,7 @@ export default class ContractTokens extends BaseCommand {
 
   static override examples = ["<%= config.bin %> <%= command.id %>"];
 
-  public async run(): Promise<Record<string, bigint>> {
+  public async run(): Promise<Record<string, string>> {
     const { args } = await this.parse(ContractTokens);
     if (!this.rpcClient) {
       throw new Error("RPC client is not initialized");
@@ -34,6 +34,6 @@ export default class ContractTokens extends BaseCommand {
 
     this.log(output);
 
-    return tokens;
+    return tokensForOutput;
   }
 }

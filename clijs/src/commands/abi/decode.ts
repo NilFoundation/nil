@@ -3,7 +3,7 @@ import path from "node:path";
 import { Args, Flags } from "@oclif/core";
 import type { Abi } from "abitype";
 import { type DecodeFunctionDataReturnType, decodeFunctionData } from "viem";
-import { BaseCommand } from "../../base.js";
+import { BaseCommand, bigIntReplacer } from "../../base.js";
 
 export default class AbiDecode extends BaseCommand {
   static override summary = "Decode the result of a contract call";
@@ -40,7 +40,7 @@ export default class AbiDecode extends BaseCommand {
       // @ts-ignore
       data: args.data,
     });
-    this.log(JSON.stringify(data));
+    this.log(JSON.stringify(data, bigIntReplacer));
     return data;
   }
 }

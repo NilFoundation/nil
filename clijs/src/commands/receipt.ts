@@ -1,5 +1,5 @@
 import type { ProcessedReceipt } from "@nilfoundation/niljs";
-import { BaseCommand } from "../base.js";
+import { BaseCommand, bigIntReplacer } from "../base.js";
 import { hexArg } from "../types.js";
 
 export default class ReceiptCommand extends BaseCommand {
@@ -23,11 +23,7 @@ export default class ReceiptCommand extends BaseCommand {
     }
 
     const res = await this.rpcClient.getTransactionReceiptByHash(args.hash);
-    const receiptJson = JSON.stringify(
-      res,
-      (k, v) => (typeof v === "bigint" ? v.toString() : v),
-      2,
-    );
+    const receiptJson = JSON.stringify(res, bigIntReplacer);
     if (flags.quiet) {
       this.log(receiptJson);
     } else {

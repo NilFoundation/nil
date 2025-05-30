@@ -10,7 +10,7 @@ describe("contract:tokens", () => {
     expect(typeof result).toBe("object");
     expect(stdout).equal("\n");
 
-    for (const [tokenId, balance] of Object.entries(result as Record<string, bigint>)) {
+    for (const [tokenId, balance] of Object.entries(result as Record<string, string>)) {
       expect(typeof tokenId).toBe("string");
       expect(typeof balance).toBe("bigint");
     }
