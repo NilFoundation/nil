@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/crypto/bls"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -70,7 +71,7 @@ type ConsensusParams struct {
 
 type Block struct {
 	BlockData
-	LogsBloom Bloom `json:"logsBloom" ch:"logs_bloom"`
+	LogsBloom ethtypes.Bloom `json:"logsBloom" ch:"logs_bloom"`
 	ConsensusParams
 }
 
