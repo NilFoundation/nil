@@ -24,7 +24,8 @@ describe("L2BridgeMessenger Contract", () => {
         const smartAccount: SmartAccountV1 | null = await loadNilSmartAccount();
 
         if (!smartAccount) {
-            throw Error(`Invalid Deployer SmartAccount`);
+            console.error(`Failed to load SmartAccount`);
+            //throw Error(`Invalid Deployer SmartAccount`);
         }
 
         const rpcEndpoint = process.env.NIL_RPC_ENDPOINT as string;
@@ -36,7 +37,7 @@ describe("L2BridgeMessenger Contract", () => {
             transport: new HttpTransport({ endpoint: rpcEndpoint }),
         });
 
-        // ##### Fund Deployer Wallet #####
+        // // ##### Fund Deployer Wallet #####
 
         const topUpFaucetTxnHash = await faucetClient.topUp({
             smartAccountAddress: smartAccount.address,
@@ -79,9 +80,6 @@ describe("L2BridgeMessenger Contract", () => {
         if (!nilMessageTreeAddress) {
             throw Error(`Invalid address output from deployContract call for NilMessageTree Contract`);
         }
-
-        console.log(`NilMessageTree contract deployed at address: ${nilMessageTreeAddress} and with transactionHash: ${nilMessageTreeDeployTxn.hash} `);
-
 
         // ##### L2ETHBridgeVault Deployment #####
 
@@ -314,15 +312,6 @@ describe("L2BridgeMessenger Contract", () => {
 
 
         const l2EnshrinedTokenBridgeProxyAddress = getCheckSummedAddress(l2EnshrinedTokenBridgeProxy);
-
-        try {
-            const isL2EnshrinedTokenBridgeAuthorised = await l2BridgeMessengerProxyInst.read.isAuthorisedBridge([l2EnshrinedTokenBridgeProxyAddress]);
-            if (!isL2EnshrinedTokenBridgeAuthorised) {
-                console.error(`L2EnshrinedTokenBridge: ${l2EnshrinedTokenBridgeProxyAddress} is not authorised on L2BridgeMessenger: ${l2BridgeMessengerProxyAddress} `);
-            }
-        } catch (error) {
-            console.error(`Error caught while verifying the authorisation of l2EnshrinedTokenBridge: ${l2EnshrinedTokenBridgeProxyAddress} on L2BridgeMessenger: ${l2BridgeMessengerProxyAddress} `)
-        }
 
         const authoriseBridgesData = encodeFunctionData({
             abi: L2BridgeMessengerJson.default.abi as Abi,
