@@ -2,6 +2,8 @@ package clickhouse
 
 import (
 	"context"
+	"io"
+	"net/http"
 	"os/exec"
 	"syscall"
 	"testing"
@@ -23,7 +25,7 @@ func (s *SuiteClickhouse) SetupSuite() {
 		"clickhouse", "server", "--",
 		"--listen_host=127.0.0.1",
 		"--tcp_port=9003",
-		"--http_port=",
+		"--http_port=8123",
 		"--mysql_port=",
 		"--path="+dir,
 	)
@@ -31,7 +33,21 @@ func (s *SuiteClickhouse) SetupSuite() {
 	s.clickhouse.Dir = dir
 	err := s.clickhouse.Start()
 	s.Require().NoError(err)
-	time.Sleep(1 * time.Second)
+
+	s.Require().Eventually(func() bool {
+		resp, err := http.Get("http://127.0.0.1:8123/ping")
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return false
+		}
+
+		return string(body) == "Ok.\n"
+	}, 30*time.Second, 500*time.Millisecond, "ClickHouse server did not start within the allocated time")
 
 	s.driver, err = NewClickhouseDriver(context.Background(), "127.0.0.1:9003", "", "", "nil_database")
 	s.Require().NoError(err)
