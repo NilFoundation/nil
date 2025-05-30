@@ -69,8 +69,9 @@ contract Test is NilBase, NilAwaitable {
         uint value,
         address refundTo,
         address bounceTo,
-        bytes calldata callData
-    ) public payable {
+        bytes calldata callData,
+        uint64 asyncGas
+    ) public payable async(asyncGas) {
         Nil.asyncCall(
             dst,
             refundTo,
@@ -89,10 +90,12 @@ contract Test is NilBase, NilAwaitable {
         address refundTo;
         bytes callData;
     }
+    receive() external payable {}
 
     function testForwarding(
+        uint256 asyncGas,
         AsyncCallArgs[] memory transactions
-    ) public payable {
+    ) public payable async(asyncGas) {
         for (uint i = 0; i < transactions.length; i++) {
             AsyncCallArgs memory transaction = transactions[i];
             Nil.asyncCall(
@@ -112,7 +115,7 @@ contract Test is NilBase, NilAwaitable {
         uint feeCredit,
         uint8 forwardKind,
         bytes memory callData
-    ) public payable {
+    ) public payable async(1_000_000) {
         Nil.asyncCall(dst, address(0), address(0), feeCredit, forwardKind, 0, callData);
     }
 
@@ -147,7 +150,7 @@ contract Test is NilBase, NilAwaitable {
     }
 
     // Add output transaction, and then revert if `value` is zero. In that case output transaction should be removed.
-    function testFailedAsyncCall(address dst, int32 value) public onlyExternal {
+    function testFailedAsyncCall(address dst, int32 value) public onlyExternal async(1_000_000) {
         Nil.asyncCall(
             dst,
             address(0),

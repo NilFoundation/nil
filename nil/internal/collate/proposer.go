@@ -90,7 +90,7 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		Block:          prevBlock,
 		ConfigAccessor: configAccessor,
 		FeeCalculator:  p.params.FeeCalculator,
-		Mode:           execution.ModeProposal,
+		Mode:           execution.ModeProposalGen,
 	})
 	if err != nil {
 		return nil, err
@@ -102,10 +102,10 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 		return nil, fmt.Errorf("failed to fetch last block hashes: %w", err)
 	}
 
-	if err := p.handleL1Attributes(tx, prevBlockHash); err != nil {
-		// TODO: change to Error severity once Consensus/Proposer increase time intervals
-		p.logger.Trace().Err(err).Msg("Failed to handle L1 attributes")
-	}
+	//if err := p.handleL1Attributes(tx, prevBlockHash); err != nil {
+	//	// TODO: change to Error severity once Consensus/Proposer increase time intervals
+	//	p.logger.Trace().Err(err).Msg("Failed to handle L1 attributes")
+	//}
 
 	if err := p.handleTransactionsFromNeighbors(tx); err != nil {
 		return nil, fmt.Errorf("failed to handle transactions from neighbors: %w", err)

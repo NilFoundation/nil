@@ -17,7 +17,7 @@ contract Escrow is NilBase, NilAwaitable {
         address validator,
         address participantOne,
         address participantTwo
-    ) public payable {
+    ) public payable async(2_000_000) {
         bytes memory context = abi.encode(
             participantOne,
             participantTwo,

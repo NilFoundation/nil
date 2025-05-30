@@ -22,6 +22,10 @@ func (dp DeployPayload) Bytes() []byte {
 	return dp.bytes
 }
 
+func (dp DeployPayload) BytesWithoutSalt() []byte {
+	return dp.bytes[:len(dp.bytes)-common.HashSize]
+}
+
 func BuildDeployPayload(code Code, salt common.Hash) DeployPayload {
 	code = slices.Clone(code)
 	code = append(code, salt.Bytes()...)

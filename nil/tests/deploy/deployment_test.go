@@ -39,8 +39,7 @@ func (s *SuiteDeployment) SetupSuite() {
 }
 
 func (s *SuiteDeployment) SetupTest() {
-	smartAccountValue, err := types.NewValueFromDecimal("100000000000000")
-	s.Require().NoError(err)
+	smartAccountValue := types.GasToValue(1_000_000_000_000)
 
 	zeroState := &execution.ZeroStateConfig{
 		Contracts: []*execution.ContractDescr{
@@ -59,6 +58,8 @@ func (s *SuiteDeployment) SetupTest() {
 			},
 		},
 	}
+
+	execution.AddSystemContractsToZeroStateConfig(zeroState, int(s.ShardsNum))
 
 	s.Start(&nilservice.Config{
 		NShards:              s.ShardsNum,

@@ -3,10 +3,12 @@ package vm
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"math/big"
 	"sync/atomic"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/params"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -142,6 +144,17 @@ func (evm *EVM) Call(
 		return nil, gas, ErrDepth
 	}
 
+	evm.StateDB.Logger().Debug().Msgf("%d CALL: %s", evm.depth, addr.Hex())
+	decoded, relayer, err := contracts.DecodeCallData(nil, input)
+	if err == nil {
+		evm.StateDB.Logger().Debug().Msgf("  decoded: %s", decoded)
+		evm.StateDB.Logger().Debug().Msgf("  relayer: %s", relayer)
+	}
+
+	if addr == types.HexToAddress("0x0002992541af88ea7c8a7cc2b7a6b24ac8334100") {
+		evm.StateDB.Logger().Debug().Msgf("  AAAAA")
+	}
+
 	// Fail if we're trying to transfer more than the available balance
 	if !value.IsZero() {
 		if can, err := evm.canTransfer(caller.Address(), value); err != nil {
@@ -181,7 +194,10 @@ func (evm *EVM) Call(
 			return nil, gas, err
 		}
 		if len(code) == 0 {
+			evm.StateDB.Logger().Debug().Msgf("Account has no code: %s", addr.Hex())
 			return nil, gas, nil // gas is unchanged
+		} else {
+			evm.StateDB.Logger().Debug().Msgf("Account has code: %s", addr.Hex())
 		}
 
 		// If the account has no code, we can abort here
@@ -219,6 +235,9 @@ func (evm *EVM) Call(
 		// } else {
 		//	evm.StateDB.DiscardSnapshot(snapshot)
 	}
+
+	evm.StateDB.Logger().Debug().Msgf("%d FINISH CALL", evm.depth)
+
 	return ret, gas, runErr
 }
 
@@ -569,8 +588,9 @@ func (evm *EVM) transfer(sender, recipient types.Address, a *uint256.Int) error 
 		return nil
 	}
 	amount := types.Value{Uint256: types.CastToUint256(a)}
-	// We don't need to subtract balance from async call
-	if !evm.IsAsyncCall {
+	// Only transaction between relayers can be cross-shard, in this case we should not deduct value.
+	if !types.IsRelayerAddress(sender) || !types.IsRelayerAddress(recipient) {
+		check.PanicIfNotf(sender.ShardId() == recipient.ShardId(), "sender and recipient are on differnet shards")
 		if err := evm.StateDB.SubBalance(sender, amount, tracing.BalanceChangeTransfer); err != nil {
 			return err
 		}

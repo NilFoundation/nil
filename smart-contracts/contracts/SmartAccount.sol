@@ -46,7 +46,9 @@ contract SmartAccount is NilTokenBase {
         uint value,
         bytes calldata code,
         uint salt
-    ) public onlyExternal {
+    ) public onlyExternal async(10_000_000) {
+        console.log("SA asyncDeploy: start");
+
         Nil.asyncDeploy(shardId, address(this), value, code, salt);
     }
 
@@ -68,6 +70,26 @@ contract SmartAccount is NilTokenBase {
         uint value,
         bytes calldata callData
     ) public onlyExternal {
+        asyncCall(
+            dst,
+            refundTo,
+            bounceTo,
+            tokens,
+            value,
+            callData,
+            30_000_000
+        );
+    }
+
+    function asyncCall(
+        address dst,
+        address refundTo,
+        address bounceTo,
+        Nil.Token[] memory tokens,
+        uint value,
+        bytes calldata callData,
+        uint256 asyncGas
+    ) public onlyExternal async(asyncGas) {
         Nil.asyncCallWithTokens(
             dst,
             refundTo,

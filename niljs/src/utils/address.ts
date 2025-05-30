@@ -48,14 +48,26 @@ const calculateAddress = (shardId: number, code: Uint8Array, salt: Uint8Array): 
     throw new Error("Code must not be empty");
   }
 
-  const bytes = new Uint8Array(code.length + 32);
-  bytes.set(code);
-  bytes.set(salt, code.length);
-  const hashPart = keccak_256(bytes);
-  const shardPart = numberToBytesBE(shardId, 2);
-
-  return new Uint8Array([...shardPart, ...hashPart.slice(14)]);
+  return calculateAddress2(shardId, code, salt);
 };
+
+const calculateAddress2 = (shardId: number, code: Uint8Array, salt: Uint8Array): Uint8Array => {
+  // 1 byte is 0xFF, 20 bytes for sender, 32 bytes for salt, 32 bytes for code hash
+  const data = new Uint8Array(1 + 20 + 2*32);
+  data.set([0xFF], 0); // 1 byte for shard ID
+  data[1] = (shardId >> 8) & 0xff;
+  data[2] = shardId & 0xff;
+  data.fill(0x33, 3, 3 + 18); // Relayer address
+  data.set(salt, 21); // 32 bytes for salt
+  data.set(keccak_256(code), 53); // 32 bytes for code hash
+
+  const addr = new Uint8Array(20);
+  addr[0] = (shardId >> 8) & 0xff; // 2 bytes for shard ID
+  addr[1] = shardId & 0xff;
+  const addrData = keccak_256(data);
+  addr.set(addrData.slice(32 - 20 + 2), 2); // 18 bytes for address
+  return addr
+}
 
 /**
  * Refines the address.

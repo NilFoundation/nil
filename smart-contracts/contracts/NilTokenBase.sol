@@ -12,7 +12,7 @@ import "./NilTokenManager.sol";
  * They are virtual, so the main contract can disable them by overriding them. Then only logic of the contract can use
  * internal methods.
  */
-abstract contract NilTokenBase is NilBase, NilTokenHook {
+abstract contract NilTokenBase is NilBounceable, NilTokenHook {
     uint totalSupply;
     string tokenName;
 
@@ -118,7 +118,7 @@ abstract contract NilTokenBase is NilBase, NilTokenHook {
      * @param tokenId ID of the token to send.
      * @param amount The amount of token to send.
      */
-    function sendTokenInternal(address to, TokenId tokenId, uint256 amount) internal {
+    function sendTokenInternal(address to, TokenId tokenId, uint256 amount) internal async (500_000) {
         Nil.Token[] memory tokens_ = new Nil.Token[](1);
         tokens_[0] = Nil.Token(tokenId, amount);
         Nil.asyncCallWithTokens(to, address(0), address(0), 0, Nil.FORWARD_REMAINING, 0, tokens_, "", 0, 0);

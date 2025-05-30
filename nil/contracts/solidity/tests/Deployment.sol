@@ -8,7 +8,7 @@ contract Deployer is NilTokenBase {
 
     constructor() payable {}
 
-    function deploy(uint shardId, uint32 _a, uint salt, uint value) public {
+    function deploy(uint shardId, uint32 _a, uint salt, uint value) public async(1_000_000) {
         bytes memory data = bytes.concat(type(Deployee).creationCode, abi.encode(address(this), _a));
         deployee = Nil.asyncDeploy(shardId, address(this), value, data, salt);
     }

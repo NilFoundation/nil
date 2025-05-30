@@ -169,7 +169,7 @@ contract SwapMatch is NilBase {
         SwapRequest memory matchedSwapRequest,
         Nil.Token memory tokensPaidToSwapOriginator,
         Nil.Token memory tokensPaidToMatchedSwapOriginator
-    ) private {
+    ) private async(2_000_000) {
         //Calculate possible excesses
         uint256 excessToSwapOriginator = swapRequest.token.amount -
             matchedSwapRequest.desiredSecondTokenAmount;

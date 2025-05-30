@@ -16,12 +16,12 @@ func TestDecodeCallData(t *testing.T) {
 		saAbi, err := GetAbi(NameSmartAccount)
 		require.NoError(t, err)
 
-		data, err := saAbi.Pack("bounce", "test string")
+		data, err := saAbi.Pack("bounce", []byte("test string"))
 		require.NoError(t, err)
 
-		decoded, err := DecodeCallData(nil, data)
+		decoded, _, err := DecodeCallData(nil, data)
 		require.NoError(t, err)
-		require.Equal(t, "bounce(test string)", decoded)
+		require.Equal(t, "bounce(0x7465737420737472696e67)", decoded)
 	})
 
 	t.Run("tests/Test", func(t *testing.T) {
@@ -33,7 +33,7 @@ func TestDecodeCallData(t *testing.T) {
 		data, err := abi.Pack("emitLog", "test string", true)
 		require.NoError(t, err)
 
-		decoded, err := DecodeCallData(nil, data)
+		decoded, _, err := DecodeCallData(nil, data)
 		require.NoError(t, err)
 		require.Equal(t, "emitLog(test string, true)", decoded)
 	})
@@ -48,7 +48,7 @@ func TestDecodeCallData(t *testing.T) {
 			"setL1BlockInfo", uint64(1), uint64(2), big.NewInt(3), big.NewInt(4), [32]byte{1, 2, 3, 4})
 		require.NoError(t, err)
 
-		decoded, err := DecodeCallData(nil, data)
+		decoded, _, err := DecodeCallData(nil, data)
 		require.NoError(t, err)
 		require.Equal(t,
 			"setL1BlockInfo(1, 2, 3, 4, [1 2 3 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0])", decoded)

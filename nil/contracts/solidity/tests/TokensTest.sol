@@ -3,7 +3,7 @@
 pragma solidity ^0.8.9;
 
 import "../lib/NilTokenBase.sol";
-import "../system/console.sol";
+//import "../system/console.sol";
 
 contract TokensTest is NilTokenBase {
     // Perform sync call to send tokens to the destination address. Without calling any function.
@@ -34,7 +34,7 @@ contract TokensTest is NilTokenBase {
     function testCallWithTokensAsync(
         address dst,
         Nil.Token[] memory tokens
-    ) public onlyExternal {
+    ) public onlyExternal async (500_000) {
         bytes memory callData = abi.encodeCall(
             this.testTransactionTokens,
             tokens

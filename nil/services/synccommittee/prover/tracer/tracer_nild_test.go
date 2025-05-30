@@ -92,7 +92,7 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 			s.Context,
 			s.addrFrom,
 			types.Code{},
-			types.NewFeePackFromGas(100_000),
+			types.NewFeePackFromGas(500_000),
 			types.NewValueFromUint64(1337),
 			[]types.TokenBalance{},
 			contractAddr,
@@ -110,7 +110,7 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 	s.Run("ContractDeploy", func() {
 		// Deploy counter
 		txHash, addr, err := s.Client.DeployContract(
-			s.Context, s.shardId, s.addrFrom, deployPayload, types.Value{}, types.NewFeePackFromGas(300_000),
+			s.Context, s.shardId, s.addrFrom, deployPayload, types.Value{}, types.NewFeePackFromGas(1_000_000),
 			execution.MainPrivateKey)
 		s.Require().NoError(err)
 		s.Require().Equal(contractAddr, addr)
@@ -131,7 +131,7 @@ func (s *TracerNildTestSuite) TestCounterContract() {
 			s.Context,
 			types.MainSmartAccountAddress,
 			contracts.NewCounterAddCallData(s.T(), 5),
-			types.NewFeePackFromGas(100_000),
+			types.NewFeePackFromGas(500_000),
 			types.NewZeroValue(),
 			[]types.TokenBalance{},
 			contractAddr,
@@ -172,7 +172,7 @@ func (s *TracerNildTestSuite) TestTestContract() {
 			s.Context,
 			s.addrFrom,
 			types.Code{},
-			types.NewFeePackFromGas(100_000),
+			types.NewFeePackFromGas(500_000),
 			types.NewValueFromUint64(1337),
 			[]types.TokenBalance{},
 			contractAddr,
@@ -189,7 +189,7 @@ func (s *TracerNildTestSuite) TestTestContract() {
 
 	s.Run("ContractDeploy", func() {
 		txHash, addr, err := s.Client.DeployContract(
-			s.Context, s.shardId, s.addrFrom, deployPayload, types.Value{}, types.NewFeePackFromGas(3_000_000),
+			s.Context, s.shardId, s.addrFrom, deployPayload, types.Value{}, types.NewFeePackFromGas(10_000_000),
 			execution.MainPrivateKey)
 		s.Require().NoError(err)
 		s.Require().Equal(contractAddr, addr)
@@ -212,7 +212,7 @@ func (s *TracerNildTestSuite) TestTestContract() {
 			s.Context,
 			types.MainSmartAccountAddress,
 			callData,
-			types.NewFeePackFromGas(100_000),
+			types.NewFeePackFromGas(1_000_000),
 			types.NewZeroValue(),
 			[]types.TokenBalance{},
 			contractAddr,

@@ -22,7 +22,7 @@ contract FT is NilTokenBase {
      * @notice The function sends the FT to the provided address.
      * @param dst The address to which the FT must be sent.
      */
-    function sendFT(address dst, uint256 amount) public {
+    function sendFT(address dst, uint256 amount) public async(2_000_000) {
         uint currentBalance = getTokenTotalSupply();
         require(amount <= currentBalance, "Insufficient balance");
         Nil.Token[] memory ft = new Nil.Token[](1);

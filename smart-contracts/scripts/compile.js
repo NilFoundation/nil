@@ -60,7 +60,6 @@ for (const contract of contracts) {
 
     return { error: 'File not found' };
   }
-
   const output = JSON.parse(solc.compile(JSON.stringify(input), {
     import: findImports,
   }));

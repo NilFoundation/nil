@@ -102,7 +102,7 @@ test("Contract Factory", async ({ expect }) => {
     shardId: 1,
   });
 
-  await deployTx.wait();
+  await deployTx.wait({waitTillMainShard: true});
 
   const incrementer = getContract({
     abi: abi,
@@ -114,26 +114,32 @@ test("Contract Factory", async ({ expect }) => {
       methods: ["incrementExternal"],
     },
   } as const);
+  console.log("AAAAAAAAAAAAA 1");
 
   const value = await incrementer.read.counter([]);
+  console.log("AAAAAAAAAAAAA 2");
 
   expect(value).toBe(100n);
   const hash = await incrementer.write.increment([]);
+  console.log("AAAAAAAAAAAAA 3");
 
   const receipts = await waitTillCompleted(client, hash);
   expect(receipts.some((receipt) => !receipt.success)).toBe(false);
   const newValue = await incrementer.read.counter([]);
   expect(newValue).toBe(101n);
+  console.log("AAAAAAAAAAAAA 4");
 
   const tx11 = await smartAccount.sendTransaction({
     to: incrementerAddress,
     value: 100_000_000_000_000n,
   });
-  const receipts11 = await tx11.wait();
+  const receipts11 = await tx11.wait({waitTillMainShard: true});
   expect(receipts11.some((receipt) => !receipt.success)).toBe(false);
+  console.log("AAAAAAAAAAAAA 5");
   const hash2 = await incrementer.external.incrementExternal([]);
-  const receipts2 = await waitTillCompleted(client, hash2);
+  const receipts2 = await waitTillCompleted(client, hash2, {waitTillMainShard: true});
   expect(receipts2.some((receipt) => !receipt.success)).toBe(false);
+  console.log("AAAAAAAAAAAAA 6");
   const newValue2 = await incrementer.read.counter([]);
   expect(newValue2).toBe(102n);
 });

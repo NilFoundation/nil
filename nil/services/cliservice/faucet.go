@@ -200,5 +200,12 @@ func (s *Service) CreateSmartAccount(
 	if !res.AllSuccess() {
 		return types.EmptyAddress, fmt.Errorf("deploy transaction processing failed: %s", res.ErrorMessage)
 	}
+
+	//fmt.Println("SMART ACCOUNT DEPLOYED:", smartAccountAddress.Hex())
+	//b, err := s.client.GetBalance(s.ctx, smartAccountAddress, "latest")
+	//check.PanicIfErr(err)
+	//fmt.Println("BALANCE: real=", b, "expected=", balance)
+	//check.PanicIfNot(b.Cmp(balance) == 0)
+
 	return addr, nil
 }
