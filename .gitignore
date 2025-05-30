@@ -87,6 +87,6 @@ openrpc.json
 .qodo
 nil/**/mock_*.go
 
-# mockery output (исключаем helper-тесты)
+# mockery output (excluding helper-tests)
 nil/**/mock_*.go
 !nil/**/mock_*_test.go
