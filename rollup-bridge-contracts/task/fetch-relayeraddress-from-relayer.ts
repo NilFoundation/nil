@@ -9,8 +9,7 @@ interface RelayerStats {
     currentFinalizedBlock?: number; // Current finalized block on L1 (optional)
 }
 
-export async function fetchRelayer(): Promise<string> {
-    const relayerRpcUrl = process.env.RELAYER_RPC_URL as string;
+export async function fetchRelayer(url: string = process.env.RELAYER_RPC_URL || "") : Promise<string> {
     const requestData = {
         jsonrpc: "2.0",
         method: "relayerDebug_getStats",
@@ -19,7 +18,7 @@ export async function fetchRelayer(): Promise<string> {
     };
 
     try {
-        const response = await axios.post(relayerRpcUrl, requestData, {
+        const response = await axios.post(url, requestData, {
             headers: { "Content-Type": "application/json" },
         });
 

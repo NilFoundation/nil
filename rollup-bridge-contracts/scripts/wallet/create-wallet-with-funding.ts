@@ -1,10 +1,12 @@
-import { Wallet, ethers } from 'ethers';
+import { BaseWallet, Wallet, ethers } from 'ethers';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
 // npx ts-node scripts/create-wallet-with-funding.ts
-async function createAndUseWallet() {
-    const provider = new ethers.JsonRpcProvider('http://localhost:8545'); // Change URL as needed
+export async function createAndUseWallet(rpcEndpoint: string = process.env.GETH_RPC_ENDPOINT as string): Promise<BaseWallet> {
+    console.log('L1 RPC Endpoint:', rpcEndpoint);
+
+    const provider = new ethers.JsonRpcProvider(rpcEndpoint);
 
     const accounts = await provider.send('eth_accounts', []);
     const defaultAccount = accounts[0];
@@ -33,8 +35,7 @@ async function createAndUseWallet() {
     });
 
     const receipt = await tx.wait();
-}
+    console.log(`Transaction Hash: ${receipt.hash}`);
 
-createAndUseWallet().catch((error) => {
-    console.error('Error:', error.message);
-});
+    return receivingWallet.connect(provider);
+}

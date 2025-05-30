@@ -59,7 +59,7 @@ export async function loadL2DepositRecipientSmartAccount(): Promise<SmartAccount
     return smartAccount;
 }
 
-export async function generateNilSmartAccount(networkName: string): Promise<SmartAccountV1> {
+export async function generateNilSmartAccount(networkName: string): Promise<[SmartAccountV1, SmartAccountV1]> {
     const rpcEndpoint = process.env.NIL_RPC_ENDPOINT as string;
     const client = new PublicClient({
         transport: new HttpTransport({ endpoint: rpcEndpoint }),
@@ -155,5 +155,5 @@ export async function generateNilSmartAccount(networkName: string): Promise<Smar
     saveNilNetworkConfig(networkName, config);
     saveL1NetworkConfig("geth", l1Config);
 
-    return smartAccount;
+    return [smartAccount, depositRecipientSmartAccount];
 }
