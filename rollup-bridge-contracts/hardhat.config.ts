@@ -10,7 +10,8 @@ import * as fs from "fs";
 dotenv.config();
 
 function getRemappings() {
-  const remappingsTxt = fs.readFileSync("remappings.txt", "utf8");
+  //const remappingsTxt = fs.readFileSync("remappings.txt", "utf8");
+  const remappingsTxt = fs.readFileSync(resolve(__dirname, "remappings.txt"), "utf8");
   return remappingsTxt
     .split("\n")
     .filter((line) => line.trim() !== "")
@@ -97,7 +98,7 @@ const config: HardhatUserConfig = {
     },
     nil: {
       url: process.env.NIL_RPC_ENDPOINT,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.NIL_PRIVATE_KEY ? [process.env.NIL_PRIVATE_KEY] : [],
     },
   },
   namedAccounts: {
