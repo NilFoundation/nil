@@ -3,7 +3,7 @@ import type { PopoverOverrides } from "baseui/popover";
 import type { Time } from "lightweight-charts";
 import { type ForwardRefRenderFunction, forwardRef } from "react";
 import { useStyletron } from "styletron-react";
-import { Marker, formatUTCTimestamp } from "../../../shared";
+import { formatUTCTimestamp } from "../../../shared";
 
 type TooltipData = {
   tps?: string;
@@ -55,8 +55,7 @@ const RenderFunc: ForwardRefRenderFunction<HTMLDivElement, TooltipProps> = (
     <div className={css(styles.container)}>
       <LabelSmall color={COLORS.gray900}>{displayTime}</LabelSmall>
       <div className={css(styles.tpsContainer)}>
-        <Marker $color={COLORS.blue400} />
-        <LabelSmall color={COLORS.gray900}>MPS: {displayTps}</LabelSmall>
+        <LabelSmall color={COLORS.gray900}>Txs: {displayTps}</LabelSmall>
       </div>
     </div>
   );

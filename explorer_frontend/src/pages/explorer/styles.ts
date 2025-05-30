@@ -4,10 +4,10 @@ import { getMobileStyles, getTabletStyles } from "../../styleHelpers";
 
 const container: StyleObject = {
   display: "grid",
-  gridTemplateColumns: "repeat(3, 1fr)",
+  gridTemplateColumns: "repeat(4, 1fr)",
   gridTemplateRows: "auto 456px 320px auto",
   height: "100%",
-  gap: SPACE[32],
+  gap: SPACE[24],
   flexGrow: 1,
   minWidth: "0",
 };
@@ -15,39 +15,47 @@ const container: StyleObject = {
 const mobileContainer: StyleObject = {
   display: "grid",
   gridTemplateColumns: "1fr",
-  gridTemplateRows: "auto 456px 403px 540px",
+  gridTemplateRows: "auto 456px 456px 403px 540px",
   height: "100%",
   rowGap: SPACE[24],
   flexGrow: 1,
   minWidth: "0",
 };
 
-const chart: StyleObject = {
-  gridColumn: "1 / 4",
+const totalTrx: StyleObject = {
+  gridColumn: "1 / 3",
   gridRow: "2 / 3",
-  ...getMobileStyles({ gridRow: "2 / 3" }),
+  ...getMobileStyles({ gridColumn: "1 / 5", gridRow: "2 / 3" }),
+};
+
+const transactionHistory: StyleObject = {
+  gridColumn: "3 / 5",
+  gridRow: "2 / 3",
+  ...getMobileStyles({ gridColumn: "1 / 5", gridRow: "3 / 4" }),
 };
 
 const shards: StyleObject = {
-  gridColumn: "1 / 3",
+  gridColumn: "1 / 4",
   gridRow: "3 / 4",
   ...getMobileStyles({ gridColumn: "1 / 3", gridRow: "3 / 4" }),
   ...getTabletStyles({ overflowX: "hidden" }),
 };
 
 const blocks = {
-  gridColumn: "1 / 4",
+  gridColumn: "1 / 5",
+  ...getMobileStyles({ gridColumn: "1 / 5", gridRow: "5 / 6" }),
 };
 
 const heading: StyleObject = {
-  gridColumn: "1 / 4",
+  gridColumn: "1 / 5",
 };
 
 export const styles = {
   container,
-  chart,
+  totalTrx,
   shards,
   blocks,
   mobileContainer,
   heading,
+  transactionHistory,
 };
