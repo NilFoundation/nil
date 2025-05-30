@@ -1,6 +1,7 @@
 package mpt_test
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -41,8 +42,15 @@ func mptFromData(t *testing.T, data map[string]string) *mpt.MerklePatriciaTrie {
 	return mpt
 }
 
+var mutex sync.Mutex
+
 func copyMpt(t *testing.T, trie *mpt.MerklePatriciaTrie) *mpt.MerklePatriciaTrie {
 	t.Helper()
+
+	// Locking is necessary to avoid concurrent access to the trie.
+	// Even read operations can modify the trie structure.
+	mutex.Lock()
+	defer mutex.Unlock()
 
 	copied := mpt.NewInMemMPT()
 	for k, v := range trie.Iterate() {
@@ -150,6 +158,7 @@ func TestSparseMPT(t *testing.T) {
 	t.Run("Check original keys", func(t *testing.T) {
 		t.Parallel()
 
+		sparse := copyMpt(t, sparse)
 		for k, v := range data {
 			if !filter(k) {
 				continue
@@ -164,6 +173,7 @@ func TestSparseMPT(t *testing.T) {
 	t.Run("Check missing keys", func(t *testing.T) {
 		t.Parallel()
 
+		sparse := copyMpt(t, sparse)
 		for _, k := range [][]byte{
 			{0xf, 0xf, 0xc},
 			{0xa},
