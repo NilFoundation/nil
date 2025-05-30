@@ -43,7 +43,7 @@ contract NFT is NilTokenBase, Ownable {
      * @notice The function sends the NFT to the provided address.
      * @param dst The address to which the NFT must be sent.
      */
-    function sendNFT(address dst) public onlyOwner {
+    function sendNFT(address dst) public onlyOwner async(2_000_000) {
         require(!hasBeenSent, "NFT has already been sent");
         Nil.Token[] memory nft = new Nil.Token[](1);
         nft[0].id = getTokenId();

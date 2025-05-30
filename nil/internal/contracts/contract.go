@@ -73,6 +73,19 @@ func GetAbi(name string) (*abi.ABI, error) {
 	return &res, nil
 }
 
+func GetEventId(contractName, eventName string) (common.Hash, error) {
+	abiCallee, err := GetAbi(contractName)
+	if err != nil {
+		return common.EmptyHash, fmt.Errorf("contract %s not found: %v", contractName, err)
+	}
+	m, ok := abiCallee.Events[eventName]
+	if !ok {
+		return common.EmptyHash, fmt.Errorf("event not found: %s", eventName)
+	}
+
+	return m.ID, nil
+}
+
 func GetAbiData(name string) (string, error) {
 	data, err := contracts.Fs.ReadFile("compiled/" + name + ".abi")
 	if err != nil {
@@ -161,6 +174,9 @@ func initSignaturesMap() error {
 		return err
 	}
 	if err := initSignaturesMapFromDir("compiled/system"); err != nil { //nolint:if-return
+		return err
+	}
+	if err := initSignaturesMapFromDir("compiled/uniswap"); err != nil { //nolint:if-return
 		return err
 	}
 	return nil
@@ -271,9 +287,8 @@ func DecodeCallData(method *abi.Method, calldata []byte) (string, string, error)
 		if !ok {
 			return "", "", fmt.Errorf("failed to cast relayer data: %v", args[5])
 		}
-		relayerData, _, err = DecodeCallData(nil, data)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to decode relayer data: %w", err)
+		if relayerData, _, err = DecodeCallData(nil, data); err != nil {
+			relayerData = ""
 		}
 	}
 	res := method.Name + "("

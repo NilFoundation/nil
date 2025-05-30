@@ -106,7 +106,7 @@ contract EnglishAuction is Ownable {
      * @notice This function ends the auction and requests the NFT contract
      * to provide the NFT to the winner.
      */
-    function end() public onlyOwner {
+    function end() public onlyOwner async(2_000_000) {
         require(isOngoing, "the auction has not started");
 
         isOngoing = false;

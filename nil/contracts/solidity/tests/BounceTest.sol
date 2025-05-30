@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import "../lib/Nil.sol";
-import "../system/console.sol";
 
 contract Callee {
     int32 value;
@@ -55,7 +54,6 @@ contract BounceTest is NilBounceable {
     }
 
     function bounce(bytes memory returnData) external payable override onlyInternal {
-        console.log("BOUNCE RECEIVE: %_", returnData.length);
         if (returnData.length > 68) {
             assembly {
                 returnData := add(returnData, 0x04)
@@ -64,7 +62,6 @@ contract BounceTest is NilBounceable {
         } else {
             last_bounce_err = "<no revert reason>";
         }
-        console.log("BOUNCE MSG: %_", last_bounce_err);
     }
 
     function get_bounce_err() public view returns (string memory) {

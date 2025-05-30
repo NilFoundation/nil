@@ -3,6 +3,7 @@ package vm
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"math/big"
 	"sync/atomic"
 
@@ -143,6 +144,17 @@ func (evm *EVM) Call(
 		return nil, gas, ErrDepth
 	}
 
+	evm.StateDB.Logger().Debug().Msgf("%d CALL: %s", evm.depth, addr.Hex())
+	decoded, relayer, err := contracts.DecodeCallData(nil, input)
+	if err == nil {
+		evm.StateDB.Logger().Debug().Msgf("  decoded: %s", decoded)
+		evm.StateDB.Logger().Debug().Msgf("  relayer: %s", relayer)
+	}
+
+	if addr == types.HexToAddress("0x0002992541af88ea7c8a7cc2b7a6b24ac8334100") {
+		evm.StateDB.Logger().Debug().Msgf("  AAAAA")
+	}
+
 	// Fail if we're trying to transfer more than the available balance
 	if !value.IsZero() {
 		if can, err := evm.canTransfer(caller.Address(), value); err != nil {
@@ -182,7 +194,10 @@ func (evm *EVM) Call(
 			return nil, gas, err
 		}
 		if len(code) == 0 {
+			evm.StateDB.Logger().Debug().Msgf("Account has no code: %s", addr.Hex())
 			return nil, gas, nil // gas is unchanged
+		} else {
+			evm.StateDB.Logger().Debug().Msgf("Account has code: %s", addr.Hex())
 		}
 
 		// If the account has no code, we can abort here
@@ -220,6 +235,9 @@ func (evm *EVM) Call(
 		// } else {
 		//	evm.StateDB.DiscardSnapshot(snapshot)
 	}
+
+	evm.StateDB.Logger().Debug().Msgf("%d FINISH CALL", evm.depth)
+
 	return ret, gas, runErr
 }
 

@@ -69,8 +69,9 @@ contract Test is NilBase, NilAwaitable {
         uint value,
         address refundTo,
         address bounceTo,
-        bytes calldata callData
-    ) public payable {
+        bytes calldata callData,
+        uint64 asyncGas
+    ) public payable async(asyncGas) {
         Nil.asyncCall(
             dst,
             refundTo,

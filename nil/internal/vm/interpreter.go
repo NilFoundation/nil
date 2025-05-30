@@ -176,6 +176,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			return nil, StackOverflowError(sLen, operation.maxStack, op)
 		}
 		if !contract.UseGas(cost, in.evm.Config.Tracer, tracing.GasChangeIgnored) {
+			in.evm.StateDB.Logger().Error().Stringer("address", contract.Address()).Msg("out of gas")
 			return nil, ErrOutOfGas
 		}
 
@@ -184,6 +185,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		if operation.dynamicGas != nil {
 			memSize, dynamicCost, err := calcDynamicCosts(contract, operation, stack, in, mem)
 			if err != nil {
+				in.evm.StateDB.Logger().Error().Stringer("address", contract.Address()).Msg("out of gas dynamic")
 				return nil, err
 			}
 

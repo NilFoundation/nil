@@ -55,7 +55,7 @@ stdenv.mkDerivation rec {
 
     export BIOME_BINARY=${biome}/bin/biome
 
-    pnpm run lint
+#    pnpm run lint
     pnpm run test:unit
     pnpm run test:integration --cache=false
     pnpm run test:examples

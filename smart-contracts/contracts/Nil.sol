@@ -65,6 +65,7 @@ library Nil {
         bytes memory code,
         uint256 salt
     ) internal returns (address) {
+        console.log("asyncDeploy SHORT");
         return Nil.asyncDeploy(shardId, address(0), bounceTo, 0, FORWARD_REMAINING, value, code, salt);
     }
 
@@ -90,6 +91,8 @@ library Nil {
         bytes memory code,
         uint256 salt
     ) internal returns (address) {
+        console.log("asyncDeploy1: start");
+
         require(shardId != 0, "asyncDeploy: call to main shard is not allowed");
         require(shardId < SHARDS_NUM, "asyncDeploy: call to non-existing shard");
 
@@ -101,6 +104,8 @@ library Nil {
 
         uint256 codeHash = uint256(keccak256(code));
         address contractAddress = Nil.createAddress2(shardId, getRelayerAddress(), salt, codeHash);
+
+        console.log("asyncDeploy: value=%_, contractAddress=%_", value, contractAddress);
 
         Relayer(getRelayerAddress()).sendTxDeploy{value: valueToDeduct}(
             contractAddress,
@@ -177,6 +182,8 @@ library Nil {
         uint256 requestId,
         uint responseGas
     ) internal {
+        console.log("asyncCallWithTokens: dst=%_, callData=%_", dst, callData);
+
         require(Nil.getShardId(dst) != 0, "asyncCallWithTokens: call to main shard is not allowed");
         require(Nil.getShardId(dst) < SHARDS_NUM, "asyncCallWithTokens: call to non-existing shard");
 
@@ -471,9 +478,20 @@ contract NilBase {
     }
 
     modifier async(uint gas) {
+        console.log("ASYNC START: gas=%_", gas);
+        uint value_to_send = gas * tx.gasprice;
+        if (value_to_send > address(this).balance) {
+            console.log("ASYNC FAILED: addr=%_, value_to_send=%_, balance=%_", address(this), value_to_send, address(this).balance);
+        }
+
+        require (value_to_send <= address(this).balance, "Not enough balance to send async messages");
+
         Relayer(Nil.getRelayerAddress()).startAsync();
+        console.log("ASYNC RUN BODY");
         _;
-        Relayer(Nil.getRelayerAddress()).finalizeAsync{value: gas * tx.gasprice}(gas);
+        console.log("ASYNC FINALIZE: value_to_send=%_, balance=%_", value_to_send, address(this).balance);
+        Relayer(Nil.getRelayerAddress()).finalizeAsync{value: value_to_send}(gas);
+        console.log("ASYNC END");
     }
 
     // isInternalTransaction returns true if the current transaction is internal.

@@ -3,7 +3,7 @@
 pragma solidity ^0.8.9;
 
 import "../lib/NilTokenBase.sol";
-import "../system/console.sol";
+//import "../system/console.sol";
 
 contract TokensTest is NilTokenBase {
     // Perform sync call to send tokens to the destination address. Without calling any function.

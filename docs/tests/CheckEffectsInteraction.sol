@@ -23,7 +23,7 @@ contract CheckEffectsInteraction is NilBase, NilAwaitable {
     //startGoodCheckEffectsInteraction
     mapping(address => uint) exampleBalances;
 
-    function goodCheckEffectInteration(address dst, uint amount) public {
+    function goodCheckEffectInteration(address dst, uint amount) public async(2_000_000) {
         require(exampleBalances[msg.sender] >= amount);
         exampleBalances[msg.sender] -= amount;
 

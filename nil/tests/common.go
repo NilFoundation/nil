@@ -242,6 +242,9 @@ func analyzeReceiptRec(
 ) {
 	t.Helper()
 
+	//d, _ := json.MarshalIndent(receipt, "", "  ")
+	//fmt.Println(string(d))
+
 	value := getContractInfo(receipt.ContractAddress, valuesMap)
 	if namesMap != nil {
 		value.Name = namesMap[receipt.ContractAddress]

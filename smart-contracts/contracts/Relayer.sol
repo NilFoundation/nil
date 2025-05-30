@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./NilTokenManager.sol";
+import "./console.sol";
 
 /**
  * @title Relayer
@@ -23,6 +24,7 @@ contract Relayer {
         uint256 salt;
         bytes callData;
     }
+    uint constant gasForBounce = 200_000;
 
     // List of transactions to be sent
     Transaction[] private currentTransactions;
@@ -40,24 +42,11 @@ contract Relayer {
     // The number of nested async modifier runs
     int private asyncModifierNum;
 
-    /**
-     * @dev Emitted when a response fails to execute.
-     * @param from The address that initiated the response.
-     * @param to The target address of the response.
-     * @param success Indicates whether the response was successful.
-     * @param response The response data.
-     * @param requestId The ID of the request associated with the response.
-     * @param responseFeeCredit The fee credit allocated for the response.
-     */
-    event ResponseFailed(
-        address indexed from,
-        address indexed to,
-        bool success,
-        bytes response,
-        uint256 requestId,
-        uint256 responseFeeCredit
-    );
-
+    enum CallFailKind {
+        REGULAR,
+        DEPLOY,
+        RESPONSE
+    }
     /**
      * @dev Emitted when a call fails to execute.
      * @param from The address that initiated the call.
@@ -67,6 +56,7 @@ contract Relayer {
      * @param callData The calldata of the call.
      */
     event CallFailed(
+        CallFailKind indexed callKind,
         address indexed from,
         address indexed to,
         uint256 value,
@@ -92,13 +82,16 @@ contract Relayer {
      */
     function finalizeAsync(uint gas) public payable {
         asyncModifierNum--;
+        console.log("finalizeAsync: asyncModifierNum=%_", uint(asyncModifierNum));
         require (asyncModifierNum >= 0, "finalizeAsync: wrong async modifier run");
         if (asyncModifierNum != 0) {
             return;
         }
+        console.log("finalizeAsync: start");
 
         _forwardGas(gas);
         _resetForwarding();
+        console.log("finalizeAsync finish: gasleft=%_", gasleft());
     }
 
     /**
@@ -116,6 +109,7 @@ contract Relayer {
                 feeCredit -= txn.feeCredit;
             }
         }
+        console.log("forwardGas: 1");
 
         uint percentageTotal = 0;
         uint baseFeeCredit = feeCredit;
@@ -138,6 +132,7 @@ contract Relayer {
                 feeCredit -= txn.feeCredit;
             }
         }
+        console.log("forwardGas: 2");
 
         if (txsForwardedRemaining.length != 0) {
             if (feeCredit == 0) {
@@ -153,6 +148,7 @@ contract Relayer {
                 txn.feeCredit = feeCreditForward;
             }
         }
+        console.log("forwardGas: 3");
 
         for (uint256 i = 0; i < currentTransactions.length; i++) {
             Transaction storage txn = currentTransactions[i];
@@ -161,8 +157,9 @@ contract Relayer {
                 require(txn.feeCredit >= txn.responseFeeCredit, "sendTx: feeCredit must be greater than responseFeeCredit");
                 txn.feeCredit -= txn.responseFeeCredit;
             }
+            console.log("forwardGas: 3.5");
 
-            __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: txn.value}(
+            bool s = __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: txn.value}(
                 false,
                 txn.forwardKind,
                 txn.to,
@@ -172,9 +169,15 @@ contract Relayer {
                 txn.tokens,
                 txn.callData,
                 0, 0);
+            console.log("forwardGas: 3.6");
+            if (!s) {
+                console.log("forwardGas: 5");
+            }
         }
+        console.log("forwardGas: 4");
 
         if (feeCredit != 0) {
+            console.log("forwardGas: returning feeCredit=%_ to=%_", feeCredit, msg.sender);
             bytes memory data = abi.encodeWithSignature("nilReceive()");
             (bool success,) = payable(msg.sender).call{value: feeCredit}(data);
             if (!success) {
@@ -219,6 +222,8 @@ contract Relayer {
         uint256 requestId,
         uint256 responseGas
     ) public payable {
+        console.log("sendTx: to=%_, from=%_", to, msg.sender);
+
         require(asyncModifierNum != 0, "Relayer not initialized");
 
         if (forwardKind == Nil.FORWARD_REMAINING) {
@@ -263,6 +268,7 @@ contract Relayer {
                 0,
                 data)
         );
+        console.log("sendTx done: numtxs=%_", currentTransactions.length);
     }
 
     function sendTxDeploy(
@@ -275,6 +281,8 @@ contract Relayer {
         uint256 salt,
         bytes memory callData
     ) public payable {
+        console.log("sendTxDeploy1: gasleft=%_, fee=%_, to=%_, value=%_", gasleft(), feeCredit, to, value);
+
         require(asyncModifierNum != 0, "Relayer not initialized");
 
         if (forwardKind == Nil.FORWARD_REMAINING) {
@@ -298,6 +306,8 @@ contract Relayer {
         bytes memory data = abi.encodeWithSelector(
             this.receiveTxDeploy.selector, msg.sender, bounceTo, value, salt, callData);
 
+        console.log("sendTxDeploy finish: gasleft=%_, to=%_", gasleft(), to);
+
         currentTransactions.push(
             Transaction(
                 msg.sender,
@@ -313,6 +323,8 @@ contract Relayer {
                 salt,
                 data)
         );
+        console.log("sendTxDeploy finish 2: gasleft=%_", gasleft());
+
     }
 
     /**
@@ -336,13 +348,20 @@ contract Relayer {
         uint256 requestId,
         uint responseFeeCredit
     ) public payable returns(bytes memory) {
+        console.log("receiveTx: gas=%_, to=%_, value=%_", gasleft(), to, value);
+
         NilTokenManager(Nil.getTokenManagerAddress()).creditForRelay(to, tokens);
 
         uint gasForCall = calculateGasForTargetCall(requestId != 0);
 
+        console.log("receiveTx call: gas=%_", gasForCall);
+
         (bool success, bytes memory returnData) = to.call{value: value, gas: gasForCall}(callData);
 
+        console.log("receiveTx: success=%_, gasleft=%_", success, gasleft());
+
         NilTokenManager(Nil.getTokenManagerAddress()).resetTxTokens();
+
 
         if (requestId != 0) {
             uint256 returnValue = 0;
@@ -369,18 +388,23 @@ contract Relayer {
         if (!success) {
             printRevertData("receiveTx call failed", returnData);
 
-            emit CallFailed(from, to, value, tokens, callData);
+            if (bounceTo == address(0)) {
+                bounceTo = from;
+            }
+
+            emit CallFailed(CallFailKind.REGULAR, from, to, value, tokens, callData);
 
             NilTokenManager(Nil.getTokenManagerAddress()).deductForRelay(to, address(this), tokens);
 
             bytes memory data = abi.encodeWithSelector(this.receiveTxBounce.selector, bounceTo, value, tokens, returnData);
-            __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: value + 100_000 * tx.gasprice}(
+            uint feeForBounce = gasForBounce * tx.gasprice;
+            __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: value /*+ feeForBounce*/}(
                 false,
                 Nil.FORWARD_REMAINING,
-                Nil.getRelayerAddress(Nil.getShardId(from)),
+                Nil.getRelayerAddress(Nil.getShardId(bounceTo)),
                 address(this),
                 address(this),
-                100_000 * tx.gasprice,
+                feeForBounce,
                 tokens,
                 data,
                 0,
@@ -389,27 +413,6 @@ contract Relayer {
         }
 
         return returnData;
-    }
-
-    /**
-     * @dev Calculates the gas required for a target call.
-     * @param request Indicates whether the call is a request.
-     * @return The amount of gas required for the call of the target contract.
-     */
-    function calculateGasForTargetCall(bool request) internal view returns(uint) {
-        uint gasForResponse = 50_000;
-        uint requiredGasForFinish = 50_000;
-
-        if (request) {
-            requiredGasForFinish += gasForResponse;
-        }
-
-        if (gasleft() < requiredGasForFinish) {
-            requiredGasForFinish = 0;
-        } else {
-            requiredGasForFinish = gasleft() - requiredGasForFinish;
-        }
-        return requiredGasForFinish;
     }
 
     /**
@@ -428,20 +431,33 @@ contract Relayer {
         uint256 salt,
         bytes memory code
     ) public payable returns(bytes memory) {
+        console.log("receiveTxDeploy: gas=%_, salt=%_, value=%_", gasleft(), salt, value);
+
         address addr;
         assembly {
             addr := create2(value, add(code, 0x20), mload(code), salt)
         }
         bool success = addr != address(0);
+
+        console.log("receiveTxDeploy: addr=%_, balance=%_", addr, address(addr).balance);
+
         if (!success) {
+            emit CallFailed(CallFailKind.DEPLOY, from, address(0), value, new Nil.Token[](0), bytes(""));
+
+            if (bounceTo == address(0)) {
+                bounceTo = from;
+            }
+
             bytes memory data = abi.encodeWithSelector(this.receiveTxBounce.selector, bounceTo, value, new Nil.Token[](0), bytes(""));
-            __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: value + 100_000 * tx.gasprice}(
+            // At the moment Relayer pays for the bounce message. TODO: payment should be withheld from the sender
+            uint feeForBounce = gasForBounce * tx.gasprice;
+            __Precompile__(Nil.ASYNC_CALL).precompileAsyncCall{value: value/* + 100_000 * tx.gasprice*/}(
                 false,
                 Nil.FORWARD_REMAINING,
-                Nil.getRelayerAddress(Nil.getShardId(from)),
+                Nil.getRelayerAddress(Nil.getShardId(bounceTo)),
                 address(this),
                 address(this),
-                100_000 * tx.gasprice,
+                feeForBounce,
                 new Nil.Token[](0),
                 data,
                 0,
@@ -474,7 +490,7 @@ contract Relayer {
         bytes memory data = abi.encodeWithSignature("onFallback(uint256,bool,bytes)", requestId, success, response);
         (bool s, ) = to.call{gas: gas, value: value}(data);
         if (!s) {
-            emit ResponseFailed(to, from, success, response, requestId, responseFeeCredit);
+            emit CallFailed(CallFailKind.RESPONSE, from, to, value, new Nil.Token[](0), response);
         }
     }
 
@@ -505,15 +521,38 @@ contract Relayer {
         }
     }
 
-    function printRevertData(string memory /*str*/, bytes memory /*returnData*/) internal pure {
-//        if (returnData.length > 68) {
-//            assembly {
-//                returnData := add(returnData, 0x04)
-//            }
-//            string memory reason = abi.decode(returnData, (string));
-//            console.log("%_: %_", str, reason);
-//        } else {
-//            console.log("%_: <no revert reason>", str);
-//        }
+    /**
+     * @dev Calculates the gas required for a target call.
+     * @param request Indicates whether the call is a request.
+     * @return The amount of gas required for the call of the target contract.
+     */
+    function calculateGasForTargetCall(bool request) internal view returns(uint) {
+        uint gasForResponse = 50_000;
+        uint requiredGasForFinish = 50_000;
+
+        if (request) {
+            requiredGasForFinish += gasForResponse;
+        }
+
+        if (gasleft() < requiredGasForFinish) {
+            requiredGasForFinish = 0;
+        } else {
+            requiredGasForFinish = gasleft() - requiredGasForFinish;
+        }
+        return requiredGasForFinish;
     }
+
+    function printRevertData(string memory str, bytes memory returnData) internal pure {
+        if (returnData.length > 68) {
+            assembly {
+                returnData := add(returnData, 0x04)
+            }
+            string memory reason = abi.decode(returnData, (string));
+            console.log("%_: %_", str, reason);
+        } else {
+            console.log("%_: <no revert reason>", str);
+        }
+    }
+
+    function nilReceive() payable external {}
 }

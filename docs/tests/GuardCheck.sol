@@ -9,7 +9,7 @@ import "@nilfoundation/smart-contracts/contracts/NilAwaitable.sol";
 contract GuardCheck {
     uint256 successfulCallsCounter = 0;
 
-    function badGuardCheckExample(address dst, uint256 amount) public payable {
+    function badGuardCheckExample(address dst, uint256 amount) public payable async(2_000_000) {
         require(dst != address(0));
         require(msg.value != 0);
         require(msg.value > amount);
@@ -32,7 +32,7 @@ contract GoodGuardCheck is NilBase, NilAwaitable {
         guardCheckerIntermediaryAddress = _guardCheckerIntermediaryAddress;
     }
 
-    function goodGuardCheckExample(address dst, uint256 amount) public payable {
+    function goodGuardCheckExample(address dst, uint256 amount) public payable async(2_000_000) {
         require(dst != address(0));
         require(msg.value != 0);
         require(msg.value > amount);
