@@ -79,6 +79,8 @@ type RPCBlock struct {
 	PatchLevel          uint32              `json:"patchLevel"`
 	RollbackCounter     uint32              `json:"rollbackCounter"`
 	InTransactionsRoot  common.Hash         `json:"inTransactionsRoot"`
+	OutTransactionsRoot common.Hash         `json:"outTransactionsRoot"`
+	SmartContractsRoot  common.Hash         `json:"smartContractsRoot"`
 	ReceiptsRoot        common.Hash         `json:"receiptsRoot"`
 	ChildBlocksRootHash common.Hash         `json:"childBlocksRootHash"`
 	ShardId             types.ShardId       `json:"shardId"`
@@ -403,6 +405,8 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 		PatchLevel:          block.PatchLevel,
 		RollbackCounter:     block.RollbackCounter,
 		InTransactionsRoot:  block.InTransactionsRoot,
+		OutTransactionsRoot: block.OutTransactionsRoot,
+		SmartContractsRoot:  block.SmartContractsRoot,
 		ReceiptsRoot:        block.ReceiptsRoot,
 		ChildBlocksRootHash: block.ChildBlocksRootHash,
 		ShardId:             shardId,

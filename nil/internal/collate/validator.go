@@ -347,17 +347,6 @@ func (s *Validator) validateRepliedBlock(
 }
 
 // +checklocksread:s.mutex
-func (s *Validator) validateBlockForProposalUnlocked(ctx context.Context, block *types.BlockWithExtractedData) error {
-	proposal := &execution.Proposal{
-		PrevBlockId:   block.Id - 1,
-		PrevBlockHash: block.PrevBlock,
-		MainShardHash: block.MainShardHash,
-		ShardHashes:   block.ChildBlocks,
-	}
-	return s.validateProposalUnlocked(ctx, proposal)
-}
-
-// +checklocksread:s.mutex
 func (s *Validator) validateProposalUnlocked(ctx context.Context, proposal *execution.Proposal) error {
 	lastBlock, lastBlockHash, err := s.getLastBlockUnlocked(ctx)
 	if err != nil {
@@ -415,19 +404,20 @@ func (s *Validator) replayBlockUnlocked(ctx context.Context, block *types.BlockW
 		Stringer(logging.FieldBlockHash, blockHash).
 		Msg("Replaying block")
 
-	if err := s.validateBlockForProposalUnlocked(ctx, block); err != nil {
-		if errors.Is(err, cerrors.ErrHashMismatch) {
-			return returnErrorOrPanic(err)
-		}
-		return err
-	}
-
 	proposal := &execution.Proposal{
 		PrevBlockId:   block.Id - 1,
 		PrevBlockHash: block.PrevBlock,
 		MainShardHash: block.MainShardHash,
 		ShardHashes:   block.ChildBlocks,
 	}
+
+	if err := s.validateProposalUnlocked(ctx, proposal); err != nil {
+		if errors.Is(err, cerrors.ErrHashMismatch) {
+			return returnErrorOrPanic(err)
+		}
+		return err
+	}
+
 	proposal.InternalTxns, proposal.ExternalTxns = execution.SplitInTransactions(block.InTransactions)
 	proposal.ForwardTxns, _ = execution.SplitOutTransactions(block.OutTransactions, s.params.ShardId)
 
