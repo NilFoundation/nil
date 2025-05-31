@@ -48,7 +48,6 @@ const logo = {
   alignItems: "start",
   marginRight: "auto",
   ...linkOutlineStyles,
-  marginLeft: "32px",
   flexDirection: "column",
 };
 

@@ -82,6 +82,7 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
   }, [errors, warnings, preventNewlineOnCmdEnter]);
 
   const noCode = code.trim().length === 0;
+
   return (
     <Card
       overrides={{
@@ -92,11 +93,11 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
             maxWidth: "none",
             ...expandProperty("padding", "0"),
             height: "100%",
+            ...expandProperty("borderRadius", "16px"),
             ...getMobileStyles({
               width: "calc(100vw - 32px)",
-              height: "auto",
+              ...expandProperty("borderRadius", "0"),
             }),
-            ...expandProperty("borderRadius", "16px"),
           },
         },
         Body: {
@@ -141,8 +142,9 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
           <div
             className={css({
               width: "100%",
-              height: `calc(100% - ${isMobile ? "32px - 8px - 8px - 48px - 8px - 48px - 8px" : "0px"})`,
+              height: `calc(100% - ${isMobile ? "32px - 8px - 8px - 48px - 8px - 8px" : "0px"})`,
               ...expandProperty("borderRadius", "16px"),
+              overflow: "hidden",
             })}
           >
             <SolidityCodeField
@@ -167,6 +169,8 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
         {isMobile && (
           <div
             className={css({
+              position: "sticky",
+              bottom: "0",
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
               gridTemplateRows: "48px 48px",

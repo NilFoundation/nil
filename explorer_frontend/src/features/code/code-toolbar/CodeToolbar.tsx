@@ -1,6 +1,7 @@
 import { useStore } from "effector-react";
 import type { FC } from "react";
 import { useStyletron } from "styletron-react";
+import { getMobileStyles } from "../../../styleHelpers.ts";
 import { tutorialWithUrlStringRoute } from "../../routing/routes/tutorialRoute.ts";
 import { useMobile } from "../../shared/hooks/useMobile.ts";
 import { CompileVersionButton } from "./CompileVersionButton.tsx";
@@ -32,6 +33,10 @@ export const CodeToolbar: FC<CodeToolbarProps> = ({
         justifyContent: "flex-end",
         gap: "8px",
         flexGrow: 1,
+        ...getMobileStyles({
+          flexDirection: "row-reverse",
+          justifyContent: "flex-start",
+        }),
       })}
     >
       <ResourcesButton />
