@@ -2,6 +2,7 @@ import { useStore, useUnit } from "effector-react";
 import { type ReactNode, memo, useCallback } from "react";
 import { useStyletron } from "styletron-react";
 import { fetchSolidityCompiler } from "../../../../services/compiler";
+import { getMobileStyles } from "../../../../styleHelpers";
 import { CodeToolbar } from "../../../code/code-toolbar/CodeToolbar";
 import { useCompileButton } from "../../../code/hooks/useCompileButton";
 import { compile, compileCodeFx } from "../../../code/model";
@@ -37,8 +38,10 @@ export const Navbar = ({ children, showCodeInteractionButtons }: NavbarProps) =>
       className={css({
         ...styles.navbar,
         gridTemplateColumns: templateColumns,
-        gap: isMobile ? "0" : "8px",
-        paddingLeft: isTutorial ? "26px" : "",
+        ...getMobileStyles({
+          paddingTop: 0,
+          gap: "8px",
+        }),
       })}
     >
       <div
@@ -48,6 +51,10 @@ export const Navbar = ({ children, showCodeInteractionButtons }: NavbarProps) =>
           flexGrow: 1,
           width: "100%",
           alignItems: "center",
+          ...getMobileStyles({
+            gridColumn: "1 / -1",
+            justifyContent: "space-between",
+          }),
         })}
       >
         <Logo />
@@ -60,17 +67,19 @@ export const Navbar = ({ children, showCodeInteractionButtons }: NavbarProps) =>
           />
         )}
       </div>
-      <div
-        className={css({
-          width: "auto",
-          display: "flex",
-          justifyContent: "end",
-          alignItems: "center",
-          marginLeft: isMobile ? "8px" : "0",
-        })}
-      >
-        {children}
-      </div>
+      {children && (
+        <div
+          className={css({
+            width: "auto",
+            display: "flex",
+            justifyContent: "end",
+            alignItems: "center",
+            marginLeft: isMobile ? "8px" : "0",
+          })}
+        >
+          {children}
+        </div>
+      )}
     </nav>
   );
 };

@@ -41,6 +41,9 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
   return (
     <StatefulPopover
       popoverMargin={8}
+      placement={isMobile ? "bottomRight" : "bottom"}
+      autoFocus
+      onOpen={() => setCodeSnippetEvent()}
       content={
         <div
           className={css({
@@ -104,9 +107,6 @@ export const HyperlinkButton: FC<HyperlinkButtonProps> = ({ disabled }) => {
           )}
         </div>
       }
-      placement="bottom"
-      autoFocus
-      onOpen={() => setCodeSnippetEvent()}
     >
       <ButtonIcon
         disabled={disabled}
