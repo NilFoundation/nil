@@ -12,6 +12,7 @@ import { useStyletron } from "baseui";
 import type { TabsOverrides } from "baseui/tabs";
 import { useUnit } from "effector-react";
 import type { FC } from "react";
+import { getMobileStyles } from "../../../../styleHelpers";
 import { deploySmartContractFx, importSmartContractFx } from "../../models/base";
 import { $activeComponent, setActiveComponent } from "../../models/base";
 import { ActiveComponent } from "./ActiveComponent";
@@ -38,13 +39,18 @@ export const DeployContractModal: FC<DeployContractModalProps> = ({ onClose, isO
       isOpen={isOpen}
       onClose={onClose}
       closeable={!disabled}
-      size="min(770px, 80vw)"
+      size="min(770px, 90vw)"
       overrides={{
         Dialog: {
           style: {
             paddingBottom: 0,
             height: "557px",
             backgroundColor: theme.colors.backgroundPrimary,
+            ...getMobileStyles({
+              marginLeft: 0,
+              marginRight: 0,
+              paddingInline: "16px",
+            }),
           },
         },
       }}

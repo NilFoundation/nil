@@ -16,11 +16,17 @@ import { Navbar } from "../../features/shared/components/Layout/Navbar";
 import { mobileContainerStyle, styles } from "../../features/shared/components/Layout/styles";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { PlaygroundMobileLayout } from "./PlaygroundMobileLayout";
+import { $activeComponent, LayoutComponent } from "./model";
 
 export const PlaygroundPage = () => {
-  const [isDownloading, isRPCHealthy] = useUnit([fetchSolidityCompiler.pending, $rpcIsHealthy]);
+  const [isDownloading, isRPCHealthy, activeComponent] = useUnit([
+    fetchSolidityCompiler.pending,
+    $rpcIsHealthy,
+    $activeComponent,
+  ]);
   const [css] = useStyletron();
   const [isMobile] = useMobile();
+  const displayNavbar = !isMobile || activeComponent === LayoutComponent.Code;
 
   useEffect(() => {
     loadedPlaygroundPage();
@@ -33,9 +39,9 @@ export const PlaygroundPage = () => {
   return (
     <div className={css(isMobile ? mobileContainerStyle : styles.playgroundContainer)}>
       {!isRPCHealthy && <NetworkErrorNotification />}
-      <Navbar showCodeInteractionButtons={true}>
-        <AccountPane />
-      </Navbar>
+      {displayNavbar && (
+        <Navbar showCodeInteractionButtons={true}>{isMobile ? null : <AccountPane />}</Navbar>
+      )}
       <div
         className={css({
           width: "100%",

@@ -12,7 +12,7 @@ export const DownloadAppButton: FC<DownloadAppButtonProps> = ({
   disabled,
   kind = BUTTON_KIND.text,
 }) => {
-  const [css, theme] = useStyletron();
+  const [_, theme] = useStyletron();
   return (
     <StatefulTooltip
       content="Download contract and compilation artifacts"

@@ -41,9 +41,7 @@ export const Logs = () => {
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        ...getMobileStyles({
-          height: "calc(100vh - 109px)",
-        }),
+        position: "relative",
       })}
       data-testid="playground-logs"
     >
@@ -99,6 +97,7 @@ export const Logs = () => {
               paddingLeft: 0,
               paddingTop: 0,
               ...expandProperty("borderRadius", "16px"),
+              position: isMobile ? "static" : "relative",
             },
           },
           Contents: {
@@ -107,7 +106,7 @@ export const Logs = () => {
               flexDirection: "column",
               gap: SPACE[8],
               height: "100%",
-              position: "relative",
+              position: isMobile ? "static" : "relative",
             },
           },
           Body: {
@@ -182,6 +181,10 @@ export const Logs = () => {
                     backgroundColor:
                       theme.colors.inputButtonAndDropdownOverrideBackgroundHoverColor,
                   },
+                  ...getMobileStyles({
+                    top: 0,
+                    right: 0,
+                  }),
                 },
               },
             }}

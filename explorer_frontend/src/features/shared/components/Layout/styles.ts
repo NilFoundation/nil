@@ -48,7 +48,6 @@ const logo = {
   alignItems: "start",
   marginRight: "auto",
   ...linkOutlineStyles,
-  marginLeft: "32px",
   flexDirection: "column",
 };
 
@@ -116,9 +115,11 @@ export const styles = {
 };
 
 export const mobileContainerStyle: StyleObject = {
-  padding: "16px",
+  ...expandProperty("padding", "16px"),
   display: "flex",
+  width: "100%",
   flexDirection: "column",
+  flexGrow: 1,
 };
 
 export const mobileContentStyle = {

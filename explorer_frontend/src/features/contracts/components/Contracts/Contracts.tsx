@@ -1,22 +1,12 @@
 import { useUnit } from "effector-react";
 import { $contractWithState, $contracts } from "../../models/base";
 import "../../init";
-import {
-  ArrowUpIcon,
-  BUTTON_KIND,
-  BUTTON_SIZE,
-  Button,
-  COLORS,
-  LabelMedium,
-  SPACE,
-  Spinner,
-} from "@nilfoundation/ui-kit";
+import { COLORS, LabelMedium, Spinner } from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { memo } from "react";
 import { $smartAccount } from "../../../account-connector/model";
-import { clickOnBackButton, compileCodeFx } from "../../../code/model";
+import { compileCodeFx } from "../../../code/model";
 import { $rpcIsHealthy } from "../../../healthcheck/model";
-import { useMobile } from "../../../shared";
 import { Contract } from "./Contract";
 import { SmartAccountNotConnectedWarning } from "./SmartAccountNotConnectedWarning";
 
@@ -30,8 +20,7 @@ export const Contracts = () => {
     $smartAccount,
     $rpcIsHealthy,
   ]);
-  const [css, theme] = useStyletron();
-  const [isMobile] = useMobile();
+  const [css] = useStyletron();
   const smartAccountExists = smartAccount !== null;
 
   return (
@@ -40,51 +29,13 @@ export const Contracts = () => {
         display: "flex",
         flexDirection: "column",
         height: "100%",
+        width: "100%",
       })}
     >
-      {isMobile && (
-        <div
-          className={css({
-            display: "flex",
-            gap: "12px",
-            marginBottom: SPACE[12],
-            alignItems: "center",
-          })}
-        >
-          <Button
-            className={css({
-              width: "32px",
-              height: "32px",
-            })}
-            overrides={{
-              Root: {
-                style: {
-                  paddingLeft: 0,
-                  paddingRight: 0,
-                  backgroundColor: theme.colors.backgroundSecondary,
-                  ":hover": {
-                    backgroundColor: theme.colors.backgroundTertiary,
-                  },
-                },
-              },
-            }}
-            kind={BUTTON_KIND.secondary}
-            size={BUTTON_SIZE.compact}
-            onClick={() => clickOnBackButton()}
-          >
-            <ArrowUpIcon
-              size={12}
-              className={css({
-                transform: "rotate(-90deg)",
-              })}
-            />
-          </Button>
-          <LabelMedium color={COLORS.gray50}>Contracts</LabelMedium>
-        </div>
-      )}
       <div
         className={css({
           height: "100%",
+          width: "100%",
           overflowY: "auto",
         })}
       >
@@ -93,6 +44,7 @@ export const Contracts = () => {
           <div
             className={css({
               height: "100%",
+              width: "100%",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
