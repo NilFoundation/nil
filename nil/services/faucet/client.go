@@ -68,14 +68,39 @@ func (c *Client) TopUpViaFaucet(
 	contractAddressTo types.Address,
 	amount types.Value,
 ) (common.Hash, error) {
+	c.logger.Debug().
+		Stringer("faucetAddress", faucetAddress).
+		Stringer("contractAddressTo", contractAddressTo).
+		Stringer("amount", amount).
+		Msg("Initiating top-up via faucet")
+
 	response, err := c.sendRequest(ctx, "faucet_topUpViaFaucet", []any{faucetAddress, contractAddressTo, amount})
 	if err != nil {
+		c.logger.Error().
+			Err(err).
+			Stringer("faucetAddress", faucetAddress).
+			Stringer("contractAddressTo", contractAddressTo).
+			Stringer("amount", amount).
+			Msg("Failed to send faucet top-up request")
 		return common.EmptyHash, err
 	}
+
 	var hash common.Hash
 	if err := json.Unmarshal(response, &hash); err != nil {
+		c.logger.Error().
+			Err(err).
+			RawJSON("response", response).
+			Msg("Failed to unmarshal faucet top-up response")
 		return common.EmptyHash, err
 	}
+
+	c.logger.Info().
+		Stringer("faucetAddress", faucetAddress).
+		Stringer("contractAddressTo", contractAddressTo).
+		Stringer("amount", amount).
+		Stringer("txHash", hash).
+		Msg("Faucet top-up successful")
+
 	return hash, nil
 }
 
