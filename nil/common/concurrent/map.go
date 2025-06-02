@@ -1,3 +1,4 @@
+// +checklocksignore
 package concurrent
 
 import (
@@ -8,7 +9,6 @@ import (
 // Map provides a thread-safe map implementation using generics.
 // +checklocksignore: disabled until checklocks supports generics
 type Map[K comparable, T any] struct {
-	// +checklocks:mu
 	m  map[K]T
 	mu sync.RWMutex
 }
@@ -19,7 +19,6 @@ func NewMap[K comparable, T any]() *Map[K, T] {
 	}
 }
 
-// +checklocks:m.mu
 func (m *Map[K, T]) Get(k K) (res T, ok bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -27,7 +26,6 @@ func (m *Map[K, T]) Get(k K) (res T, ok bool) {
 	return res, ok
 }
 
-// +checklocks:m.mu
 func (m *Map[K, T]) Put(k K, v T) (T, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -36,7 +34,6 @@ func (m *Map[K, T]) Put(k K, v T) (T, bool) {
 	return old, ok
 }
 
-// +checklocks:m.mu
 func (m *Map[K, T]) Do(k K, fn func(T, bool) (T, bool)) (after T, ok bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -48,7 +45,6 @@ func (m *Map[K, T]) Do(k K, fn func(T, bool) (T, bool)) (after T, ok bool) {
 	return nv, ok
 }
 
-// +checklocks:m.mu
 func (m *Map[K, T]) DoAndStore(k K, fn func(t T, ok bool) T) (after T, ok bool) {
 	return m.Do(k, func(t T, b bool) (T, bool) {
 		res := fn(t, b)
@@ -56,7 +52,6 @@ func (m *Map[K, T]) DoAndStore(k K, fn func(t T, ok bool) T) (after T, ok bool) 
 	})
 }
 
-// +checklocks:m.mu
 func (m *Map[K, T]) Iterate() iter.Seq2[K, T] {
 	type Yield = func(K, T) bool
 	return func(yield Yield) {
@@ -70,7 +65,6 @@ func (m *Map[K, T]) Iterate() iter.Seq2[K, T] {
 	}
 }
 
-// +checklocks:m.mu
 func (m *Map[K, T]) Delete(k K) (t T, deleted bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
