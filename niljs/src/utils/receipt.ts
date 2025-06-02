@@ -17,7 +17,7 @@ import type {
  * @example
  * await waitTillCompleted(client, hash);
  */
- sync function waitTillCompleted(
+ async function waitTillCompleted(
   client: PublicClient,
   hash: ReceiptHash,
   options?: TransactionOptions,
