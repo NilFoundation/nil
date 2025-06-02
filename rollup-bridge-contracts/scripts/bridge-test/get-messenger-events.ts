@@ -1,3 +1,5 @@
+import { Provider, Interface } from "ethers";
+
 export const messageSentEventABI = {
     anonymous: false,
     inputs: [
@@ -45,12 +47,11 @@ export type MessageSentEvent = {
     };
 };
 
-export async function extractAndParseMessageSentEventLog(transactionHash: string,): Promise<MessageSentEvent | undefined> {
+export async function extractAndParseMessageSentEventLog(provider: Provider, transactionHash: string,): Promise<MessageSentEvent | undefined> {
     // Lazy import inside the function
     // @ts-ignore
-    const { ethers, network } = await import('hardhat');
     const topic = "0xbfb3547e572ab179830e84cfa839c8af59c5d574a07bd2dec32b18780fd1db15";
-    const transactionReceipt = await ethers.provider.getTransactionReceipt(transactionHash);
+    const transactionReceipt = await provider.getTransactionReceipt(transactionHash);
 
     // Filter logs by the specific topic
     const filteredLogs = transactionReceipt.logs.filter((log: any) =>
@@ -67,7 +68,7 @@ export async function extractAndParseMessageSentEventLog(transactionHash: string
         //console.log(`Log ${index + 1}:`, log);
     });
 
-    const iface = new ethers.Interface([messageSentEventABI]);
+    const iface = new Interface([messageSentEventABI]);
     const parsedLog = iface.parseLog(filteredLogs[0]);
 
     const eventDetails: MessageSentEvent = {
