@@ -33,6 +33,11 @@ if [ -z "$RELAYER_BIN" ]; then
     exit 1
 fi
 
+if [ -z "$FAUCET_BIN" ]; then
+    echo "FAUCET_BIN is not set!"
+    exit 1
+fi
+
 LOG_DIR=${LOG_DIR:-"."}
 GETH_DATA_DIR=${GETH_DATA_DIR:-"."}
 
@@ -107,7 +112,21 @@ echo "L1BridgeMessenger deployed to: $l1_contract_addr"
 echo "Starting nild"
 $NILD_BIN run --http-port 8529 --collator-tick-ms=100 --log-level=trace >$LOG_DIR/nild.log 2>&1 &
 pids+=("$!")
-wait_for_http_service "http://127.0.0.1:8529"
+
+nild_endpoint="http://127.0.0.1:8529"
+wait_for_http_service $nild_endpoint
+
+faucet_port=8527
+faucet_endpoint="http://127.0.0.1:$faucet_port"
+
+echo "Starting faucet service"
+$FAUCET_BIN run \
+    --port=$faucet_port \
+    --node-endpoint=$nild_endpoint \
+    >$LOG_DIR/faucet.log 2>&1 &
+pids+=("$!")
+wait_for_http_service $faucet_endpoint
+echo "Faucet service is up"
 
 npx hardhat l2-task-runner --networkname local --l1networkname geth
 l2_contract_addr=$(jq -r '.networks.local.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy' deploy/config/nil-deployment-config.json)
@@ -126,10 +145,10 @@ $RELAYER_BIN run \
     --debug-rpc-endpoint=tcp://127.0.0.1:7777 \
     --l1-endpoint=$GETH_DATA_DIR/geth.ipc \
     --l1-contract-addr=$l1_contract_addr \
-    --l2-endpoint=http://127.0.0.1:8529 \
+    --l2-endpoint=$nild_endpoint \
     --l2-debug-mode=true \
     --l2-smart-account-salt=1234567890 \
-    --l2-faucet-address=http://127.0.0.1:8529 \
+    --l2-faucet-address=$faucet_endpoint \
     --l2-contract-addr=$l2_contract_addr \
     --l2-bridges-addresses=$l2_eth_bridge_addr,$l2_enshrined_token_bridge_addr \
     >$LOG_DIR/relayer.log 2>&1 &
