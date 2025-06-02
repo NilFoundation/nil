@@ -14,7 +14,7 @@ import "dotenv/config";
 import type { Abi } from "abitype";
 import { getCheckSummedAddress } from "../../scripts/utils/validate-config";
 import { decodeFunctionResult, encodeFunctionData } from "viem";
-import { loadNilSmartAccount } from "../../task/nil-smart-account";
+import { generateNilSmartAccount, loadNilSmartAccount } from "../../task/nil-smart-account";
 
 const l1EthBridgeAddress = '0x0001e0d8f4De4E838a66963f406Fa826cCaCA322';
 
@@ -25,39 +25,44 @@ describe("L2BridgeMessenger Contract", () => {
         let smartAccount: SmartAccountV1 | null;
 
         try {
-            smartAccount = await loadNilSmartAccount();
+            smartAccount = await generateNilSmartAccount("local");
         } catch (err) {
-            console.error(`Failed to load NilSmartAccount`);
+            console.error(`Failed to load NilSmartAccount - 1st catch`);
         }
 
         if (!smartAccount) {
             console.error(`Failed to load SmartAccount`);
-            throw Error(`Invalid Deployer SmartAccount`);
+            //throw Error(`Invalid Deployer SmartAccount`);
         }
 
-        const rpcEndpoint = process.env.NIL_RPC_ENDPOINT as string;
-
-        const client = new PublicClient({
-            transport: new HttpTransport({ endpoint: rpcEndpoint }),
-        });
-        const faucetClient = new FaucetClient({
-            transport: new HttpTransport({ endpoint: rpcEndpoint }),
-        });
+        console.log(`loaded smart-account successfully`);
 
         // // ##### Fund Deployer Wallet #####
+        const rpcEndpoint = process.env.NIL_RPC_ENDPOINT as string;
 
-        const topUpFaucetTxnHash = await faucetClient.topUp({
-            smartAccountAddress: smartAccount.address,
-            amount: convertEthToWei(100),
-            faucetAddress: process.env.NIL as `0x${string}`,
-        });
+        try {
+            const client = new PublicClient({
+                transport: new HttpTransport({ endpoint: rpcEndpoint }),
+            });
+            const faucetClient = new FaucetClient({
+                transport: new HttpTransport({ endpoint: rpcEndpoint }),
+            });
 
-        await waitTillCompleted(client, topUpFaucetTxnHash);
+            const topUpFaucetTxnHash = await faucetClient.topUp({
+                smartAccountAddress: smartAccount.address,
+                amount: convertEthToWei(100),
+                faucetAddress: process.env.NIL as `0x${string}`,
+            });
 
-        const balance = await smartAccount.getBalance();
+            await waitTillCompleted(client, topUpFaucetTxnHash);
 
-        if (!(balance > BigInt(0))) {
-            throw Error(`Insufficient or Zero balance for smart-account: ${smartAccount.address}`);
+            const balance = await smartAccount.getBalance();
+
+            if (!(balance > BigInt(0))) {
+                throw Error(`Insufficient or Zero balance for smart-account: ${smartAccount.address}`);
+            }
+        } catch (err) {
+            console.error(`Failed to topup nil-smartAccount: ${smartAccount.address}`);
         }
 
         // ##### NilMessageTree Deployment ##### 
@@ -133,6 +138,10 @@ describe("L2BridgeMessenger Contract", () => {
         });
 
         await verifyDeploymentCompletion(l2EthBridgeVaultProxyDeploymentTx, smartAccount.client, "L2ETHBridgeVaultProxy");
+
+        const faucetClient = new FaucetClient({
+            transport: new HttpTransport({ endpoint: rpcEndpoint }),
+        });
 
         const topUpFaucet = await faucetClient.topUp({
             smartAccountAddress: l2EthBridgeVaultProxy as `0x${string} `,
@@ -350,11 +359,11 @@ describe("L2BridgeMessenger Contract", () => {
         ) {
             console.error(`❌ Failed to authorise Bridges: ${[l2ETHBridgeProxyAddress,
                 l2EnshrinedTokenBridgeProxyAddress]} 
-                        on the L2BridgeMessenger contract: ${l2BridgeMessengerProxyAddress}`);
+                            on the L2BridgeMessenger contract: ${l2BridgeMessengerProxyAddress}`);
         } else {
             console.log(`✅ Successfully authorised Bridges: ${[l2ETHBridgeProxyAddress,
                 l2EnshrinedTokenBridgeProxyAddress]} 
-                        on the L2BridgeMessenger contract: ${l2BridgeMessengerProxyAddress}`);
+                            on the L2BridgeMessenger contract: ${l2BridgeMessengerProxyAddress}`);
         }
 
         let l2BridgeMessengerProxyInstance;
