@@ -5,8 +5,10 @@ import (
 	sync "sync"
 )
 
-// +checklocks:mu
+// Map provides a thread-safe map implementation using generics.
+// +checklocksignore: disabled until checklocks supports generics
 type Map[K comparable, T any] struct {
+	// +checklocks:mu
 	m  map[K]T
 	mu sync.RWMutex
 }
