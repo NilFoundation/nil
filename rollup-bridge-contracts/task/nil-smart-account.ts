@@ -60,6 +60,7 @@ export async function loadL2DepositRecipientSmartAccount(): Promise<SmartAccount
 }
 
 export async function generateNilSmartAccount(networkName: string): Promise<[SmartAccountV1, SmartAccountV1]> {
+    console.log('DEBUG: Entered generateNilSmartAccount');
     const rpcEndpoint = process.env.NIL_RPC_ENDPOINT as string;
     const client = new PublicClient({
         transport: new HttpTransport({ endpoint: rpcEndpoint }),
@@ -69,6 +70,7 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
     let smartAccountAddress = process.env.NIL_SMART_ACCOUNT_ADDRESS as `0x${string}`;
 
     if (privateKey && smartAccountAddress) {
+        console.log('DEBUG: Loading existing nil smart account');
         const signer = new LocalECDSAKeySigner({ privateKey });
         smartAccount = new SmartAccountV1({
             signer,
@@ -95,6 +97,7 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
     }
 
     const depositRecipientPrivateKey = process.env.DEPOSIT_RECIPIENT_PRIVATE_KEY as `0x${string}`;
+    console.log('DEBUG: Creating deposit recipient smart account');
     let signer = new LocalECDSAKeySigner({ privateKey: depositRecipientPrivateKey });
     const depositRecipientSmartAccount = new SmartAccountV1({
         signer,
@@ -106,8 +109,8 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
     const depositRecipientSmartAccountAddress = depositRecipientSmartAccount.address;
     console.log("🆕 depositRecipient Smart Account Generated:", depositRecipientSmartAccountAddress);
 
-
     const nilFeeRefundAddressPrivateKey = process.env.NIL_FEE_REFUND_PRIVATE_KEY as `0x${string}`;
+    console.log('DEBUG: Creating fee refund smart account');
     signer = new LocalECDSAKeySigner({ privateKey: nilFeeRefundAddressPrivateKey });
     const feeRefundSmartAccount = new SmartAccountV1({
         signer,
@@ -124,18 +127,39 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
     });
 
     console.log(`about to topup  owner via faucet`);
-    const topUpFaucet = await faucetClient.topUp({
+    const topUpArgs = {
         smartAccountAddress: smartAccount.address,
         amount: convertEthToWei(0.1),
         faucetAddress: process.env.NIL as `0x${string}`,
-    });
+    } as TopUpParams;
 
-    console.log(`faucet topup initiation done`);
+    console.log('DEBUG: topUpArgs:', topUpArgs);
+    let topUpFaucet;
+    try {
+        topUpFaucet = await faucetClient.topUp(topUpArgs);
+        console.log('DEBUG: faucetClient.topUp returned:', topUpFaucet);
+    } catch (e) {
+        console.error('ERROR: faucetClient.topUp failed:', e);
+        throw e;
+    }
 
-    await waitTillCompleted(client, topUpFaucet);
+    console.log('faucet topup initiation done');
+
+    // <----- THIS IS WHERE SCRIPT STUCK ------>
+    console.log('DEBUG: Before waitTillCompleted');
+    try {
+        await waitTillCompleted(client, topUpFaucet);
+        console.log('DEBUG: waitTillCompleted finished');
+    } catch (e) {
+        console.error('ERROR: waitTillCompleted failed:', e);
+        throw e;
+    }
+    // <-------------------------------------------->
 
     if ((await smartAccount.checkDeploymentStatus()) === false) {
+        console.log(`inside checkDeploymentStatus`);
         await smartAccount.selfDeploy(true);
+        console.log('DEBUG: smartAccount.selfDeploy finished');
     }
 
     console.log("✅ Smart Account Funded (100 ETH)");
@@ -152,8 +176,11 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
     l1Config.l1TestConfig.l2FeeRefundRecipient = getCheckSummedAddress(feeRefundSmartAccountAddress);
 
     // Save the updated config
+    console.log('DEBUG: Saving configs');
     saveNilNetworkConfig(networkName, config);
     saveL1NetworkConfig("geth", l1Config);
 
+    console.log('DEBUG: Exiting generateNilSmartAccount');
     return [smartAccount, depositRecipientSmartAccount];
 }
+
