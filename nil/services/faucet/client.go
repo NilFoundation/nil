@@ -62,13 +62,15 @@ func (c *Client) sendRequest(ctx context.Context, method string, params []any) (
 	return rpcResponse["result"], nil
 }
 
+var logger = logging.NewLogger("faucet-client")
+
 func (c *Client) TopUpViaFaucet(
 	ctx context.Context,
 	faucetAddress types.Address,
 	contractAddressTo types.Address,
 	amount types.Value,
 ) (common.Hash, error) {
-	c.logger.Debug().
+	logger.Debug().
 		Stringer("faucetAddress", faucetAddress).
 		Stringer("contractAddressTo", contractAddressTo).
 		Stringer("amount", amount).
@@ -76,7 +78,7 @@ func (c *Client) TopUpViaFaucet(
 
 	response, err := c.sendRequest(ctx, "faucet_topUpViaFaucet", []any{faucetAddress, contractAddressTo, amount})
 	if err != nil {
-		c.logger.Error().
+		logger.Error().
 			Err(err).
 			Stringer("faucetAddress", faucetAddress).
 			Stringer("contractAddressTo", contractAddressTo).
@@ -87,14 +89,14 @@ func (c *Client) TopUpViaFaucet(
 
 	var hash common.Hash
 	if err := json.Unmarshal(response, &hash); err != nil {
-		c.logger.Error().
+		logger.Error().
 			Err(err).
 			RawJSON("response", response).
 			Msg("Failed to unmarshal faucet top-up response")
 		return common.EmptyHash, err
 	}
 
-	c.logger.Info().
+	logger.Info().
 		Stringer("faucetAddress", faucetAddress).
 		Stringer("contractAddressTo", contractAddressTo).
 		Stringer("amount", amount).
