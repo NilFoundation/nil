@@ -359,11 +359,11 @@ describe("L2BridgeMessenger Contract", () => {
         ) {
             console.error(`❌ Failed to authorise Bridges: ${[l2ETHBridgeProxyAddress,
                 l2EnshrinedTokenBridgeProxyAddress]} 
-                            on the L2BridgeMessenger contract: ${l2BridgeMessengerProxyAddress}`);
+                                on the L2BridgeMessenger contract: ${l2BridgeMessengerProxyAddress}`);
         } else {
             console.log(`✅ Successfully authorised Bridges: ${[l2ETHBridgeProxyAddress,
                 l2EnshrinedTokenBridgeProxyAddress]} 
-                            on the L2BridgeMessenger contract: ${l2BridgeMessengerProxyAddress}`);
+                                on the L2BridgeMessenger contract: ${l2BridgeMessengerProxyAddress}`);
         }
 
         let l2BridgeMessengerProxyInstance;
@@ -385,12 +385,12 @@ describe("L2BridgeMessenger Contract", () => {
             const isL2ETHBridgeAuthorised = await l2BridgeMessengerProxyInstance.read.isAuthorisedBridge([l2ETHBridgeProxyAddress]);
             if (!isL2ETHBridgeAuthorised) {
                 console.error(`❌ L2ETHBridge: ${l2ETHBridgeProxyAddress} is not authorised on L2BridgeMessenger: ${l2BridgeMessengerProxyAddress}`);
-                //expect.fail(`L2ETHBridge: ${l2ETHBridgeProxyAddress} is not authorised on L2BridgeMessenger: ${l2BridgeMessengerProxyAddress}`);
+                expect.fail(`L2ETHBridge: ${l2ETHBridgeProxyAddress} is not authorised on L2BridgeMessenger: ${l2BridgeMessengerProxyAddress}`);
             }
 
         } catch (err) {
             console.error(`❌ Error caught while getting an instance of L2BridgeMessenger: ${l2BridgeMessengerProxyAddress} `);
-            //expect.fail(`❌ Error caught while getting an instance of L2BridgeMessenger: ${l2BridgeMessengerProxyAddress} `);
+            expect.fail(`❌ Error caught while getting an instance of L2BridgeMessenger: ${l2BridgeMessengerProxyAddress} `);
         }
     });
 });
