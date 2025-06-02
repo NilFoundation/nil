@@ -33,6 +33,16 @@ if [ -z "$RELAYER_BIN" ]; then
     exit 1
 fi
 
+if [ -z "$SYNC_COMMITTEE_BIN" ]; then
+    echo "SYNC_COMMITTEE_BIN is not set!"
+    exit 1
+fi
+
+if [ -z "$PROOF_PROVIDER_BIN" ]; then
+    echo "PROOF_PROVIDER_BIN is not set!"
+    exit 1
+fi
+
 if [ -z "$FAUCET_BIN" ]; then
     echo "FAUCET_BIN is not set!"
     exit 1
@@ -128,7 +138,7 @@ $RELAYER_BIN run \
     --db-path=/tmp/relayer.db \
     --debug-rpc-endpoint=tcp://127.0.0.1:7777 \
     --l1-endpoint=$GETH_DATA_DIR/geth.ipc \
-    --l1-contract-addr=$l1_contract_addr \
+    --l1-contract-addr=$l1_bridge_contract_addr \
     --l2-endpoint=$nild_endpoint \
     --l2-debug-mode=true \
     --l2-smart-account-salt=1234567890 \
@@ -138,6 +148,32 @@ $RELAYER_BIN run \
     >$LOG_DIR/relayer.log 2>&1 &
 pids+=("$!")
 wait_for_http_service "http://127.0.0.1:7777"
+
+sync_committee_endpoint="http://127.0.0.1:8540"
+
+echo "Starting sync_committee"
+$SYNC_COMMITTEE_BIN run \
+    --endpoint=$nild_endpoint \
+    --db-path=/tmp/sync_committee.db \
+    --l1-contract-address=$l1_rollup_contract_addr \
+    --l1-endpoint=$GETH_DATA_DIR/geth.ipc \
+    --l1-private-key=$GETH_PRIVATE_KEY \
+    --own-endpoint=$sync_committee_endpoint \
+    >$LOG_DIR/sync_committee.log 2>&1 &
+pids+=("$!")
+wait_for_http_service $sync_committee_endpoint
+
+proof_provider_endpoint="http://127.0.0.1:8541"
+
+echo "Starting proof_provider"
+$PROOF_PROVIDER_BIN run \
+    --own-endpoint=$proof_provider_endpoint \
+    --sync-committee-endpoint $sync_committee_endpoint \
+    --skip 10 \
+    --db-path /tmp/proof_provider.db \
+    >$LOG_DIR/proof_provider.log 2>&1 &
+pids+=("$!")
+wait_for_http_service $proof_provider_endpoint
 
 echo "Triggering L1 deposit event"
 

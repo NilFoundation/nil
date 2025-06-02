@@ -113,13 +113,15 @@ stdenv.mkDerivation rec {
     export NILD_BIN=nild
     export FAUCET_BIN=faucet
     export RELAYER_BIN=relayer
+    export SYNC_COMMITTEE_BIN=sync_committee
+    export PROOF_PROVIDER_BIN=proof_provider
     export GETH_BIN=${lib.getExe pkgs.go-ethereum}
     export LOG_DIR=$(pwd)
     export GETH_DATA_DIR=/tmp/geth_data_dir
 
-    echo "Running bridge integration tests"
+    echo "Running Bridge and Rollup integration tests"
     bash test_integration.sh
-    echo "Bridge integration tests finished"
+    echo "Bridge and Rollup integration tests finished"
   '';
 
   installPhase = ''
