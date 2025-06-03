@@ -171,9 +171,6 @@ abstract class BaseCommand extends Command {
     const rpcClient = this.rpcClient ?? this.error("RPC client is not initialized");
     const receipt = await waitTillCompleted(rpcClient, hash);
     if (receipt.some((r) => !r.success)) {
-      function bigIntReplacer(unusedKey: string, value: unknown): unknown {
-        return typeof value === "bigint" ? value.toString() : value;
-      }
       this.error(
         `Transaction ${hash} failed. Receipts: ${JSON.stringify(receipt, bigIntReplacer)}`,
       );
@@ -195,4 +192,8 @@ abstract class BaseCommand extends Command {
   }
 }
 
-export { BaseCommand };
+function bigIntReplacer(unusedKey: string, value: unknown): unknown {
+  return typeof value === "bigint" ? value.toString() : value;
+}
+
+export { BaseCommand, bigIntReplacer };

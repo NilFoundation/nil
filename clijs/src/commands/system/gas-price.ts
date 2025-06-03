@@ -13,7 +13,7 @@ export default class GasPrice extends BaseCommand {
     }),
   };
 
-  async run(): Promise<bigint> {
+  async run(): Promise<string> {
     const { rpcClient } = this;
     if (!rpcClient) {
       this.error("RPC client is not initialized");
@@ -27,7 +27,7 @@ export default class GasPrice extends BaseCommand {
 
       this.log(gasPrice.toString());
 
-      return gasPrice;
+      return gasPrice.toString();
     } catch (error) {
       this.error(`Failed to get gas price: ${error}`);
     }

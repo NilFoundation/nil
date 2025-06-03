@@ -7,7 +7,7 @@ describe("contract:balance", () => {
 
     const { result, stdout } = await runCommand(["contract", "balance", contractAddress]);
 
-    expect(typeof result).toBe("bigint");
+    expect(typeof result).toBe("string");
     expect(stdout).toContain("Balance: ");
 
     const { result: quietResult, stdout: quietStdout } = await runCommand([
@@ -17,7 +17,7 @@ describe("contract:balance", () => {
       "-q",
     ]);
 
-    expect(typeof quietResult).toBe("bigint");
+    expect(typeof quietResult).toBe("string");
     expect(quietStdout).not.toContain("Balance: ");
     expect(quietStdout.trim()).toBe((quietResult as bigint).toString());
 
