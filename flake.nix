@@ -62,7 +62,7 @@
               enableTesting = false;
               enableRaceDetector = false;
               testGroup = "none";
-              subPackages = [ "nil/cmd/nil" "nil/cmd/nild" "nil/cmd/relayer" ];
+              subPackages = [ "nil/cmd/nil" "nil/cmd/nild" "nil/cmd/relayer" "nil/cmd/faucet" ];
             };
           in
           rec {

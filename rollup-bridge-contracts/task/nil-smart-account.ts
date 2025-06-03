@@ -17,11 +17,12 @@ let smartAccount: SmartAccountV1 | null = null;
 
 export async function loadNilSmartAccount(): Promise<SmartAccountV1> {
     const rpcEndpoint = process.env.NIL_RPC_ENDPOINT as string;
+    const faucetEndpoint = process.env.FAUCET_RPC_ENDPOINT as string;
     const client = new PublicClient({
         transport: new HttpTransport({ endpoint: rpcEndpoint }),
     });
     const faucetClient = new FaucetClient({
-        transport: new HttpTransport({ endpoint: rpcEndpoint }),
+        transport: new HttpTransport({ endpoint: faucetEndpoint }),
     });
 
     const privateKey = process.env.NIL_PRIVATE_KEY as `0x${string}`;
@@ -119,8 +120,9 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
     const feeRefundSmartAccountAddress = feeRefundSmartAccount.address;
     console.log("🆕 feeRefund Smart Account Generated:", feeRefundSmartAccountAddress);
 
+    const faucetEndpoint = process.env.FAUCET_RPC_ENDPOINT as string;
     const faucetClient = new FaucetClient({
-        transport: new HttpTransport({ endpoint: rpcEndpoint }),
+        transport: new HttpTransport({ endpoint: faucetEndpoint }),
     });
 
     console.log(`about to topup  owner via faucet`);
