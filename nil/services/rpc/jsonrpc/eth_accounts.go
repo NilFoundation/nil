@@ -7,13 +7,13 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // GetBalance implements eth_getBalance. Returns the balance of an account for a given address.
@@ -26,7 +26,7 @@ func (api *APIImplRo) GetBalance(
 	if err != nil {
 		return nil, err
 	}
-	return hexutil.NewBig(balance.ToBig()), nil
+	return (*hexutil.Big)(balance.ToBig()), nil
 }
 
 // GetTokens implements eth_getTokens. Returns the balance of all tokens of account for a given address.
@@ -102,7 +102,7 @@ func (api *APIImplRo) GetProof(
 	// Create the basic proof result
 	result := &EthProof{
 		Address:      address,
-		AccountProof: hexutil.FromBytesSlice(accountProofBytes),
+		AccountProof: fromBytesSlice(accountProofBytes),
 		StorageProof: storageProofs,
 	}
 
@@ -175,12 +175,12 @@ func generateStorageProofs(trie *mpt.Reader, storageKeys []common.Hash) ([]Stora
 		// Create storage proof for the key
 		storageProof := StorageProof{
 			Key:   hexutil.Big(*key.Big()),
-			Value: *hexutil.NewBig(common.BytesToHash(value).Big()),
+			Value: (hexutil.Big)(*common.BytesToHash(value).Big()),
 		}
 
 		// Add proof bytes if available
 		if len(proofBytesSlice) != 0 {
-			storageProof.Proof = hexutil.FromBytesSlice(proofBytesSlice)
+			storageProof.Proof = fromBytesSlice(proofBytesSlice)
 		}
 
 		storageProofs = append(storageProofs, storageProof)

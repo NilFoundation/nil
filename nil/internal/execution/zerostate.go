@@ -7,10 +7,11 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"gopkg.in/yaml.v3"
 )
@@ -189,7 +190,7 @@ func (es *ExecutionState) GenerateZeroState(stateConfig *ZeroStateConfig) error 
 				if arg[:2] != "0x" {
 					return fmt.Errorf("unknown constructor argument string pattern: %s", arg)
 				}
-				args = append(args, hexutil.FromHex(arg))
+				args = append(args, ethcommon.FromHex(arg))
 			default:
 				args = append(args, arg)
 			}

@@ -3,14 +3,14 @@ package common
 import (
 	"testing"
 
-	"github.com/NilFoundation/nil/nil/common/hexutil"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPubKeyAddressShardId(t *testing.T) {
 	t.Parallel()
 
-	bytes := hexutil.FromHex("251e2905595df18364cf17ef0e344927e4a3dcfd24e96c9d4dc209e3421c02a5" +
+	bytes := ethcommon.FromHex("251e2905595df18364cf17ef0e344927e4a3dcfd24e96c9d4dc209e3421c02a5" +
 		"0000000000000000000000000000000000000000000000000000000000000000")
 
 	// Test wrapper

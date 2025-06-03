@@ -18,7 +18,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -26,6 +25,8 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // CallError represents an error that occurs during a remote procedure call,
@@ -393,7 +394,7 @@ func (c *Client) GetCode(ctx context.Context, addr types.Address, blockId any) (
 	if err != nil {
 		return types.Code{}, err
 	}
-	return hexutil.FromHex(codeHex), nil
+	return ethcommon.FromHex(codeHex), nil
 }
 
 func (c *Client) getBlockRequest(shardId types.ShardId, blockId any, fullTx bool, isDebug bool) (*Request, error) {

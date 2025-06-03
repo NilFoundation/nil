@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/NilFoundation/nil/nil/tools/solc"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/compiler"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
@@ -22,7 +22,7 @@ var defaultMaxFeePerGas = types.MaxFeePerGasDefault
 func deployContract(t *testing.T, contract *compiler.Contract, state *ExecutionState, seqno types.Seqno) types.Address {
 	t.Helper()
 
-	return Deploy(t, state, types.BuildDeployPayload(hexutil.FromHex(contract.Code), common.EmptyHash),
+	return Deploy(t, state, types.BuildDeployPayload(ethcommon.FromHex(contract.Code), common.EmptyHash),
 		types.BaseShardId, types.Address{}, seqno)
 }
 
@@ -132,7 +132,7 @@ func TestCall(t *testing.T) {
 
 	res := state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
-	require.Equal(t, common.LeftPadBytes(hexutil.FromHex("0x2A"), 32), res.ReturnData)
+	require.Equal(t, common.LeftPadBytes(ethcommon.FromHex("0x2A"), 32), res.ReturnData)
 
 	// deploy and call Caller
 	caller := contracts["Caller"]
@@ -153,7 +153,7 @@ func TestCall(t *testing.T) {
 	// check that it changed the state of SimpleContract
 	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
-	require.Equal(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), res.ReturnData)
+	require.Equal(t, common.LeftPadBytes(ethcommon.FromHex("0x2b"), 32), res.ReturnData)
 
 	// check that callSetAndRevert does not change anything
 	calldata2, err = solc.ExtractABI(caller).Pack("callSetAndRevert", addr, big.NewInt(45))
@@ -169,7 +169,7 @@ func TestCall(t *testing.T) {
 	// check that did not change the state of SimpleContract
 	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
-	require.Equal(t, common.LeftPadBytes(hexutil.FromHex("0x2b"), 32), res.ReturnData)
+	require.Equal(t, common.LeftPadBytes(ethcommon.FromHex("0x2b"), 32), res.ReturnData)
 }
 
 func TestDelegate(t *testing.T) {
@@ -212,7 +212,7 @@ func TestDelegate(t *testing.T) {
 	res = state.AddAndHandleTransaction(ctx, callTransaction, dummyPayer{})
 	require.False(t, res.Failed())
 	// check that it returned 42
-	require.Equal(t, common.LeftPadBytes(hexutil.FromHex("0x2a"), 32), res.ReturnData)
+	require.Equal(t, common.LeftPadBytes(ethcommon.FromHex("0x2a"), 32), res.ReturnData)
 
 	// call ProxyContract.setValueStatic(delegateAddr, 42)
 	calldata, err = solc.ExtractABI(proxyContract).Pack("setValueStatic", delegateAddr, big.NewInt(42))
