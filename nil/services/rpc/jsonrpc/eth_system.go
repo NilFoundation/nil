@@ -3,8 +3,8 @@ package jsonrpc
 import (
 	"context"
 
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // ChainId implements eth_chainId. Returns the current ethereum chainId.

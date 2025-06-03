@@ -7,7 +7,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -16,6 +15,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // DirectClient is a client that interacts with the end api directly, without using the rpc server.

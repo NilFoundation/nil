@@ -6,10 +6,24 @@ import (
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/spf13/cobra"
 )
+
+type bytes struct {
+	hexutil.Bytes
+}
+
+func (b *bytes) Set(s string) error {
+	var err error
+	b.Bytes, err = hexutil.Decode(s)
+	return err
+}
+
+func (b bytes) Type() string {
+	return "bytes"
+}
 
 func GetInternalTransactionCommand() *cobra.Command {
 	var (
@@ -19,7 +33,7 @@ func GetInternalTransactionCommand() *cobra.Command {
 		forwardKind            types.ForwardKind = types.ForwardKindNone
 		to, refundTo, bounceTo types.Address
 		value                  types.Value
-		data                   hexutil.Bytes
+		data                   bytes
 	)
 
 	encodeCmd := &cobra.Command{
@@ -37,7 +51,7 @@ func GetInternalTransactionCommand() *cobra.Command {
 				BounceTo:    bounceTo,
 				Token:       nil,
 				Value:       value,
-				Data:        types.Code(data),
+				Data:        types.Code(data.Bytes),
 			}
 
 			transactionStr, err := json.MarshalIndent(transaction, "", " ")

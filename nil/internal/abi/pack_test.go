@@ -30,8 +30,8 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -192,36 +192,36 @@ func TestPackNumber(t *testing.T) {
 		packed []byte
 	}{
 		// Protocol limits
-		{reflect.ValueOf(0), hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000")},
-		{reflect.ValueOf(1), hexutil.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001")},
-		{reflect.ValueOf(-1), hexutil.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")},
+		{reflect.ValueOf(0), ethcommon.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000")},
+		{reflect.ValueOf(1), ethcommon.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001")},
+		{reflect.ValueOf(-1), ethcommon.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")},
 
 		// Type corner cases
-		{reflect.ValueOf(uint8(math.MaxUint8)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(uint8(math.MaxUint8)), ethcommon.Hex2Bytes(
 			"00000000000000000000000000000000000000000000000000000000000000ff")},
-		{reflect.ValueOf(uint16(math.MaxUint16)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(uint16(math.MaxUint16)), ethcommon.Hex2Bytes(
 			"000000000000000000000000000000000000000000000000000000000000ffff")},
-		{reflect.ValueOf(uint32(math.MaxUint32)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(uint32(math.MaxUint32)), ethcommon.Hex2Bytes(
 			"00000000000000000000000000000000000000000000000000000000ffffffff")},
-		{reflect.ValueOf(uint64(math.MaxUint64)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(uint64(math.MaxUint64)), ethcommon.Hex2Bytes(
 			"000000000000000000000000000000000000000000000000ffffffffffffffff")},
 
-		{reflect.ValueOf(int8(math.MaxInt8)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(int8(math.MaxInt8)), ethcommon.Hex2Bytes(
 			"000000000000000000000000000000000000000000000000000000000000007f")},
-		{reflect.ValueOf(int16(math.MaxInt16)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(int16(math.MaxInt16)), ethcommon.Hex2Bytes(
 			"0000000000000000000000000000000000000000000000000000000000007fff")},
-		{reflect.ValueOf(int32(math.MaxInt32)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(int32(math.MaxInt32)), ethcommon.Hex2Bytes(
 			"000000000000000000000000000000000000000000000000000000007fffffff")},
-		{reflect.ValueOf(int64(math.MaxInt64)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(int64(math.MaxInt64)), ethcommon.Hex2Bytes(
 			"0000000000000000000000000000000000000000000000007fffffffffffffff")},
 
-		{reflect.ValueOf(int8(math.MinInt8)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(int8(math.MinInt8)), ethcommon.Hex2Bytes(
 			"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80")},
-		{reflect.ValueOf(int16(math.MinInt16)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(int16(math.MinInt16)), ethcommon.Hex2Bytes(
 			"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8000")},
-		{reflect.ValueOf(int32(math.MinInt32)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(int32(math.MinInt32)), ethcommon.Hex2Bytes(
 			"ffffffffffffffffffffffffffffffffffffffffffffffffffffffff80000000")},
-		{reflect.ValueOf(int64(math.MinInt64)), hexutil.Hex2Bytes(
+		{reflect.ValueOf(int64(math.MinInt64)), ethcommon.Hex2Bytes(
 			"ffffffffffffffffffffffffffffffffffffffffffffffff8000000000000000")},
 	}
 	for i, tt := range tests {

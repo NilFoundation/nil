@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/NilFoundation/nil/nil/common/hexutil"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/fabelx/go-solc-select/pkg/config"
 	"github.com/fabelx/go-solc-select/pkg/installer"
 	"github.com/fabelx/go-solc-select/pkg/versions"
@@ -235,8 +235,8 @@ func CreateContractData(
 		}
 	}
 	contractData.Metadata = contractDescr.Metadata
-	contractData.Code = hexutil.MustDecode(contractDescr.Evm.DeployedBytecode.Object)
-	contractData.InitCode = hexutil.MustDecode(contractDescr.Evm.Bytecode.Object)
+	contractData.Code = ethcommon.FromHex(contractDescr.Evm.DeployedBytecode.Object)
+	contractData.InitCode = ethcommon.FromHex(contractDescr.Evm.Bytecode.Object)
 	abiJson, err := json.Marshal(contractDescr.Abi)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal abi: %w", err)

@@ -6,8 +6,8 @@ import (
 	"text/template"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // FetchDebugBlock fetches the block by number or hash with transactions related data.

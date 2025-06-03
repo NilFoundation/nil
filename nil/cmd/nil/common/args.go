@@ -13,15 +13,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 )
 
 func PrepareArgs(contractAbi abi.ABI, calldataOrMethod string, args []string) ([]byte, error) {
 	var calldata []byte
 	if strings.HasPrefix(calldataOrMethod, "0x") {
-		calldata = hexutil.FromHex(calldataOrMethod)
+		calldata = ethcommon.FromHex(calldataOrMethod)
 	} else {
 		var err error
 		calldata, err = ArgsToCalldata(contractAbi, calldataOrMethod, args)
@@ -55,19 +55,13 @@ func parseCallArgument(arg string, tp abi.Type) (any, error) {
 	case abi.StringTy:
 		val.SetString(arg)
 	case abi.FixedBytesTy:
-		data, err := hexutil.DecodeHex(arg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse bytes argument: %w", err)
-		}
+		data := ethcommon.FromHex(arg)
 		if len(data) != tp.Size {
 			return nil, fmt.Errorf("invalid data size: expected %d but got %d", tp.Size, len(data))
 		}
 		reflect.Copy(val, reflect.ValueOf(data[0:tp.Size]))
 	case abi.BytesTy:
-		data, err := hexutil.DecodeHex(arg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse bytes argument: %w", err)
-		}
+		data := ethcommon.FromHex(arg)
 		val.SetBytes(data)
 	case abi.BoolTy:
 		valBool, err := strconv.ParseBool(arg)
@@ -227,7 +221,7 @@ func ReadBytecode(filename string, abiPath string, args []string) (types.Code, e
 			return nil, fmt.Errorf("failed to read file: %w", err)
 		}
 
-		bytecode = hexutil.FromHex(string(codeHex))
+		bytecode = ethcommon.FromHex(string(codeHex))
 		if abiPath != "" {
 			abi, err := ReadAbiFromFile(abiPath)
 			if err != nil {
@@ -269,7 +263,7 @@ func ParseTokens(params []string) ([]types.TokenBalance, error) {
 			return nil, fmt.Errorf("invalid token format: %s, expected <tokenId>=<balance>", token)
 		}
 		// Not using Hash.Set because want to be able to parse tokenId without leading zeros
-		tokenBytes, err := hexutil.DecodeHex(tokAndBalance[0])
+		tokenBytes, err := hex.DecodeString(tokAndBalance[0])
 		if err != nil {
 			return nil, fmt.Errorf("invalid token id %s, can't parse hex: %w", tokAndBalance[0], err)
 		}

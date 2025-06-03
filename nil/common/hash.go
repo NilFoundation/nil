@@ -9,8 +9,9 @@ import (
 	"reflect"
 
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
@@ -169,7 +170,7 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 
 // HexToHash sets byte representation of s to hash.
 // If b is larger than len(h), b will be cropped from the left.
-func HexToHash(s string) Hash { return BytesToHash(hexutil.FromHex(s)) }
+func HexToHash(s string) Hash { return BytesToHash(ethcommon.FromHex(s)) }
 
 func (h *Hash) UnmarshalNil(buf []byte) error {
 	return rlp.DecodeBytes(buf, h)
