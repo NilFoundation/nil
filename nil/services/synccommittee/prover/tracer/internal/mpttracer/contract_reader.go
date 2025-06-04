@@ -2,8 +2,10 @@ package mpttracer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -43,6 +45,7 @@ type DebugApiContractReader struct {
 	shardBlockNumber types.BlockNumber
 	rwTx             db.RwTx
 	shardId          types.ShardId
+	logger           logging.Logger
 }
 
 // Ensure DebugApiContractReader implements ContractReader
@@ -54,12 +57,14 @@ func NewDebugApiContractReader(
 	shardBlockNumber types.BlockNumber,
 	rwTx db.RwTx,
 	shardId types.ShardId,
+	logger logging.Logger,
 ) *DebugApiContractReader {
 	return &DebugApiContractReader{
 		client:           client,
 		shardBlockNumber: shardBlockNumber,
 		rwTx:             rwTx,
 		shardId:          shardId,
+		logger:           logger,
 	}
 }
 
@@ -69,6 +74,7 @@ func (dacr *DebugApiContractReader) GetAccount(
 	ctx context.Context,
 	addr types.Address,
 ) (*types.SmartContract, mpt.Proof, error) {
+	dacr.logger.Debug().Msg("Calling GetDebugContract method")
 	debugRPCContract, err := dacr.client.GetDebugContract(ctx, addr, transport.BlockNumber(dacr.shardBlockNumber))
 	if err != nil || debugRPCContract == nil {
 		return nil, mpt.Proof{}, err
@@ -120,6 +126,7 @@ func (dacr *DebugApiContractReader) GetAccount(
 		return nil, mpt.Proof{}, err
 	}
 
+	fmt.Printf("wriging code with hash: %s\n", debugContract.Code.Hash())
 	err = db.WriteCode(dacr.rwTx, dacr.shardId, debugContract.Code.Hash(), debugContract.Code)
 	if err != nil {
 		return nil, mpt.Proof{}, err

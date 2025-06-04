@@ -35,7 +35,7 @@ func calculateStateChange(
 			contract.ExtSeqno = &as.ExtSeqno
 			contract.Balance = &as.Balance
 			contract.Code = (*hexutil.Bytes)(&as.Code)
-			contract.State = (*map[common.Hash]common.Hash)(&as.State)
+			contract.State = (*map[common.Hash]common.Hash)(&as.StateUpdates)
 			contract.AsyncContext = &as.AsyncContext
 		} else {
 			if as.Seqno != oldAs.Seqno {
@@ -58,12 +58,9 @@ func calculateStateChange(
 				contract.Code = (*hexutil.Bytes)(&as.Code)
 			}
 
-			for key, value := range as.State {
-				oldVal, err := oldAs.GetState(key)
-				if err != nil {
-					return nil, err
-				}
-				if value != oldVal {
+			for key, value := range as.StateUpdates {
+				initialVal, ok := as.InitialState[key]
+				if !ok || initialVal != value {
 					hasUpdates = true
 					if contract.StateDiff == nil {
 						m := make(map[common.Hash]common.Hash)

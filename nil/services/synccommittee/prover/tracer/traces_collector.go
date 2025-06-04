@@ -2,9 +2,9 @@ package tracer
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
@@ -14,13 +14,12 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer/api"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer/internal/mpttracer"
 )
 
 type RemoteTracesCollector interface {
 	GetBlockTraces(ctx context.Context, blockId BlockId) (*ExecutionTraces, error)
-	GetMPTTraces() (mpttracer.MPTTraces, error)
+	// GetMPTTraces() (mpttracer.MPTTraces, error)
 }
 
 type BlockId struct {
@@ -37,7 +36,7 @@ type TraceConfig struct {
 
 // remoteTracesCollectorImpl implements RemoteTracesCollector interface
 type remoteTracesCollectorImpl struct {
-	client          api.RpcClient
+	client          client.Client
 	logger          logging.Logger
 	mptTracer       *mpttracer.MPTTracer
 	rwTx            db.RwTx
@@ -49,7 +48,7 @@ var _ RemoteTracesCollector = (*remoteTracesCollectorImpl)(nil)
 // NewRemoteTracesCollector creates a new instance of RemoteTracesCollector
 func NewRemoteTracesCollector(
 	ctx context.Context,
-	client api.RpcClient,
+	client client.Client,
 	logger logging.Logger,
 ) (RemoteTracesCollector, error) {
 	localDb, err := db.NewBadgerDbInMemory()
@@ -75,7 +74,7 @@ func (tc *remoteTracesCollectorImpl) initMptTracer(
 	startBlockNum types.BlockNumber,
 	contractTrieRoot common.Hash,
 ) error {
-	tc.mptTracer = mpttracer.New(tc.client, startBlockNum, tc.rwTx, shardId)
+	tc.mptTracer = mpttracer.New(tc.client, startBlockNum, tc.rwTx, shardId, tc.logger)
 	return tc.mptTracer.SetRootHash(contractTrieRoot)
 }
 
@@ -292,6 +291,18 @@ func (tc *remoteTracesCollectorImpl) executeBlockAndCollectTraces(
 			ErrTracedBlockHashMismatch, expectedHash, generatedBlock.BlockHash)
 	}
 
+	mptTraces, err := tc.mptTracer.GetMPTTraces()
+	if err != nil {
+		return nil, err
+	}
+	esTracer.Traces.MPTTraces = &mptTraces
+
+	zethCache, err := tc.mptTracer.GetZethCache(ctx)
+	if err != nil {
+		return nil, err
+	}
+	esTracer.Traces.ZethCache = zethCache
+
 	return esTracer.Traces, nil
 }
 
@@ -406,24 +417,52 @@ func (tc *remoteTracesCollectorImpl) collectGasPrices(
 	return gasPrices, nil
 }
 
-// GetMPTTraces returns the collected MPT traces
-func (tc *remoteTracesCollectorImpl) GetMPTTraces() (mpttracer.MPTTraces, error) {
-	if tc.mptTracer == nil {
-		return mpttracer.MPTTraces{}, errors.New("MPT tracer not initialized")
-	}
-	return tc.mptTracer.GetMPTTraces()
-}
-
 // CollectTraces collects traces for blocks within the range specified in config. Traces are not written to a file,
 // thus, `MarshalMode` and `BaseFileName` fields of the config are not used and could be omitted.
 // Blocks in `BlockIDs` config field must be sequential, otherwise, `ErrBlocksNotSequential` will be raised.
-func CollectTraces(ctx context.Context, rpcClient api.RpcClient, cfg *TraceConfig) (*ExecutionTraces, error) {
-	remoteTracesCollector, err := NewRemoteTracesCollector(ctx, rpcClient, logging.NewLogger("tracer"))
+func CollectTraces(ctx context.Context, client client.Client, cfg *TraceConfig) (*ExecutionTraces, error) {
+	version, err := client.ClientVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	getBlockCaches := make([]mpttracer.GetBlockCache, 0, len(cfg.BlockIDs)+1)
+
+	remoteTracesCollector, err := NewRemoteTracesCollector(ctx, client, logging.NewLogger("tracer"))
 	if err != nil {
 		return nil, err
 	}
 	aggregatedTraces := NewExecutionTraces()
+	firstBlockId := cfg.BlockIDs[0]
+	prevBlockNum := *firstBlockId.Id.BlockNumber - 1
+	prevBlock, err := client.GetBlock(ctx, firstBlockId.ShardId, prevBlockNum, true)
+	if err != nil {
+		return nil, err
+	}
+	getBlockCache := mpttracer.GetBlockCache{
+		Args: mpttracer.BlockArgs{
+			BlockNo: prevBlockNum.Uint64(),
+			ShardID: uint64(firstBlockId.ShardId),
+		},
+		Block: *prevBlock,
+	}
+	getBlockCaches = append(getBlockCaches, getBlockCache)
 	for _, blockID := range cfg.BlockIDs {
+		fmt.Printf("blockID.Id: %+v\n", blockID.Id)
+		rpcBlock, err := client.GetBlock(ctx, blockID.ShardId, blockID.Id, true)
+		if err != nil {
+			return nil, err
+		}
+		getBlockCache := mpttracer.GetBlockCache{
+			Args: mpttracer.BlockArgs{
+				BlockNo: blockID.Id.BlockNumber.Uint64(),
+				ShardID: uint64(blockID.ShardId),
+			},
+			Block: *rpcBlock,
+		}
+		getBlockCaches = append(getBlockCaches, getBlockCache)
+
+		fmt.Println("GetBlockTraces")
 		traces, err := remoteTracesCollector.GetBlockTraces(ctx, blockID)
 		if err != nil {
 			return nil, err
@@ -431,19 +470,15 @@ func CollectTraces(ctx context.Context, rpcClient api.RpcClient, cfg *TraceConfi
 		aggregatedTraces.Append(traces)
 	}
 
-	// FIXME: MPT trace aggregates changes from multiple sequential blocks,
-	// and can't be constructed from multiple shards.
-	mptTraces, err := remoteTracesCollector.GetMPTTraces()
-	if err != nil {
-		return nil, err
-	}
-	aggregatedTraces.SetMptTraces(&mptTraces)
+	aggregatedTraces.ZethCache.ClientVersion = version
+	aggregatedTraces.ZethCache.FullBlocks = getBlockCaches
+	// aggregatedTraces.ZethCache.Receipts = // TODO
 
 	return aggregatedTraces, nil
 }
 
-func CollectTracesToFile(ctx context.Context, rpcClient api.RpcClient, cfg *TraceConfig) error {
-	traces, err := CollectTraces(ctx, rpcClient, cfg)
+func CollectTracesToFile(ctx context.Context, client client.Client, cfg *TraceConfig) error {
+	traces, err := CollectTraces(ctx, client, cfg)
 	if err != nil {
 		return err
 	}

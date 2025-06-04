@@ -155,6 +155,7 @@ func (api *DebugAPIImpl) GetBootstrapConfig(ctx context.Context) (*rpctypes.Boot
 	return api.rawApi.GetBootstrapConfig(ctx)
 }
 
+// AccountRange implements debug_accountRange
 func (api *DebugAPIImpl) AccountRange(
 	ctx context.Context,
 	shardId types.ShardId,
