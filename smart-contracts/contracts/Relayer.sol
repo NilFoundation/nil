@@ -18,7 +18,8 @@ contract Relayer {
 
     // Structure for cross-shard messages
     struct Message {
-        uint64 id;                   // Unique message identifier
+        uint64 id;                   // message ID
+        uint64 seqno;                // Sequence number
         address from;                // Source address
         address to;                  // Destination address
         address refundTo;            // Refund address
@@ -31,6 +32,7 @@ contract Relayer {
         uint64 requestId;           // For response tracking
         uint256 responseFeeCredit;   // Fee credit allocated for response
         bool isDeploy;               // Whether this is a deploy message
+        bool isRefund;               // Whether this is a refund message
         uint256 salt;                // For deploy messages
     }
     
@@ -46,6 +48,7 @@ contract Relayer {
         uint64 requestId;
         uint256 responseFeeCredit;
         bool isDeploy;
+        bool isRefund;
         uint256 salt;
     }
     
@@ -54,6 +57,9 @@ contract Relayer {
     uint64[_N_SHARDS] private inMsgCount;
     uint64[_N_SHARDS] private outMsgCount;
     uint64[_N_SHARDS] private currentBlockNumber;
+
+    // Seqno storage
+    mapping(address => uint64) seqnos;
 
     struct MessageRef {
         uint32 shardId;
@@ -112,34 +118,62 @@ contract Relayer {
     ) internal returns (MessageRef memory) {
         uint32 shardId = uint32(Nil.getShardId(params.to));
         uint64 messageId = outMsgCount[shardId]++;
+        uint64 seqno = seqnos[params.from]++;
         
         // Create a deep copy of tokens
         Nil.Token[] memory tokensCopy = _copyTokens(tokens);
         
-        messages[shardId].push(Message({
-            id: messageId,
-            from: params.from,
-            to: params.to,
-            refundTo: params.refundTo,
-            bounceTo: params.bounceTo,
-            value: params.value,
-            tokens: tokensCopy,
-            forwardKind: params.forwardKind,
-            feeCredit: params.feeCredit,
-            data: data,
-            requestId: params.requestId,
-            responseFeeCredit: params.responseFeeCredit,
-            isDeploy: params.isDeploy,
-            salt: params.salt
-        }));
+        // First add an empty message to get the index
+        messages[shardId].push();
+        uint32 index = uint32(messages[shardId].length - 1);
+        
+        // Then initialize it using storage reference
+        // This helps reduce stack depth
+        Message storage newMessage = messages[shardId][index];
+        _initializeMessage(
+            newMessage, 
+            messageId, 
+            seqno, 
+            params, 
+            tokensCopy, 
+            data
+        );
         
         emit MessageEnqueued(messageId, params.from, params.to, params.value);
         
         return MessageRef({
             shardId: shardId,
-            messageIndex: uint32(messages[shardId].length - 1)
+            messageIndex: index
         });
     }
+    
+    // Helper function to initialize message fields
+    function _initializeMessage(
+        Message storage message,
+        uint64 messageId,
+        uint64 seqno,
+        MessageParams memory params,
+        Nil.Token[] memory tokensCopy,
+        bytes memory data
+    ) private {
+        message.id = messageId;
+        message.seqno = seqno;
+        message.from = params.from;
+        message.to = params.to;
+        message.refundTo = params.refundTo;
+        message.bounceTo = params.bounceTo;
+        message.value = params.value;
+        message.tokens = tokensCopy;
+        message.forwardKind = params.forwardKind;
+        message.feeCredit = params.feeCredit;
+        message.data = data;
+        message.requestId = params.requestId;
+        message.responseFeeCredit = params.responseFeeCredit;
+        message.isDeploy = params.isDeploy;
+        message.isRefund = params.isRefund;
+        message.salt = params.salt;
+    }
+
     
     /**
      * @dev Gets pending messages for a specific shard
@@ -417,6 +451,7 @@ contract Relayer {
             requestId: requestId,
             responseFeeCredit: responseFeeCredit,
             isDeploy: false,
+            isRefund: false,
             salt: 0
         });
 
@@ -476,6 +511,7 @@ contract Relayer {
             requestId: 0,
             responseFeeCredit: 0,
             isDeploy: true,
+            isRefund: false,
             salt: salt
         });
 
@@ -516,10 +552,11 @@ contract Relayer {
             bounceTo: to,
             value: refundAmount,
             forwardKind: Nil.FORWARD_REMAINING,
-            feeCredit: 0,
+            feeCredit: 100_000 * tx.gasprice,
             requestId: 0,
             responseFeeCredit: 0,
             isDeploy: false,
+            isRefund: true,
             salt: 0
         });
         Nil.Token[] memory emptyTokens = new Nil.Token[](0);
@@ -615,6 +652,7 @@ contract Relayer {
             requestId: 0,
             responseFeeCredit: 0,
             isDeploy: false,
+            isRefund: false,
             salt: 0
         });
 
@@ -669,6 +707,7 @@ contract Relayer {
             requestId: 0,
             responseFeeCredit: 0,
             isDeploy: false,
+            isRefund: false,
             salt: 0
         });
         
@@ -744,6 +783,7 @@ contract Relayer {
             requestId: 0,
             responseFeeCredit: 0,
             isDeploy: false,
+            isRefund: false,
             salt: 0
         });
         

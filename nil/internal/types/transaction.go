@@ -193,9 +193,6 @@ type Transaction struct {
 	RequestId    uint64              `json:"requestId,omitempty" ch:"request_id"`
 	RequestChain []*AsyncRequestInfo `json:"response,omitempty" ch:"response" ssz-max:"4096"`
 
-	// Indicates if the transaction is a special transaction
-	IsSpecial bool `json:"isSpecial,omitempty" ch:"is_special"`
-
 	// This field should always be at the end of the structure for easy signing
 	Signature Signature `json:"signature,omitempty" ch:"signature" ssz-max:"256"`
 }
@@ -375,7 +372,7 @@ func (m *Transaction) IsExternal() bool {
 }
 
 func (m *Transaction) IsExecution() bool {
-	return !m.Flags.IsDeploy() && !m.Flags.IsRefund()
+	return !m.Flags.IsDeploy()
 }
 
 func (m *Transaction) IsBounce() bool {
