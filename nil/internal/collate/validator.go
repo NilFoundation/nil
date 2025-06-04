@@ -154,7 +154,7 @@ func (s *Validator) BuildProposal(ctx context.Context) (*execution.ProposalSSZ, 
 		return nil, fmt.Errorf("failed to generate proposal: %w", err)
 	}
 
-	p, err := execution.ConvertProposal(proposal)
+	p, err := ConvertProposal(ctx, s.txFabric, s.params.ShardId, proposal)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (s *Validator) buildBlockHashByProposal(ctx context.Context, proposal *exec
 }
 
 func (s *Validator) IsValidProposal(ctx context.Context, proposal *execution.ProposalSSZ) error {
-	p, err := execution.ConvertProposal(proposal)
+	p, err := ConvertProposal(ctx, s.txFabric, s.params.ShardId, proposal)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func (s *Validator) insertProposalUnlocked(
 	proposal *execution.ProposalSSZ,
 	consensusParams *types.ConsensusParams,
 ) error {
-	p, err := execution.ConvertProposal(proposal)
+	p, err := ConvertProposal(ctx, s.txFabric, s.params.ShardId, proposal)
 	if err != nil {
 		return err
 	}

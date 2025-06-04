@@ -52,7 +52,7 @@ func (s *ProposerTestSuite) generateProposal(p *proposer) *execution.Proposal {
 	s.Require().NoError(err)
 	s.Require().NotNil(proposalSSZ)
 
-	proposal, err := execution.ConvertProposal(proposalSSZ)
+	proposal, err := ConvertProposal(s.T().Context(), s.db, s.shardId, proposalSSZ)
 	s.Require().NoError(err)
 
 	return proposal

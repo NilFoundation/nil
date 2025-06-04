@@ -1,7 +1,6 @@
 package execution
 
 import (
-	"fmt"
 	"slices"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -128,57 +127,4 @@ func SplitOutTransactions(
 	return SplitTransactions(transactions, func(t *types.Transaction) bool {
 		return t.From.ShardId() == shardId
 	})
-}
-
-func convertTxnRefs(refs []*InternalTxnReference, parentBlocks []*ParentBlock) ([]*types.Transaction, error) {
-	res := make([]*types.Transaction, len(refs))
-	for i, ref := range refs {
-		if ref.ParentBlockIndex >= uint32(len(parentBlocks)) {
-			return nil, fmt.Errorf("invalid parent block index %d", ref.ParentBlockIndex)
-		}
-
-		pb := parentBlocks[ref.ParentBlockIndex]
-		txn, err := pb.TxnTrie.Fetch(ref.TxnIndex)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"faulty transaction %d in block (%s, %s): %w", ref.TxnIndex, pb.ShardId, pb.Block.Id, err)
-		}
-		res[i] = txn
-	}
-	return res, nil
-}
-
-func ConvertProposal(proposal *ProposalSSZ) (*Proposal, error) {
-	parentBlocks := make([]*ParentBlock, len(proposal.ParentBlocks))
-	for i, pb := range proposal.ParentBlocks {
-		converted, err := NewParentBlockFromSSZ(pb)
-		if err != nil {
-			return nil, fmt.Errorf("invalid parent block: %w", err)
-		}
-		parentBlocks[i] = converted
-	}
-
-	internalTxns, err := convertTxnRefs(proposal.InternalTxnRefs, parentBlocks)
-	if err != nil {
-		return nil, fmt.Errorf("invalid internal transactions: %w", err)
-	}
-	forwardTxns, err := convertTxnRefs(proposal.ForwardTxnRefs, parentBlocks)
-	if err != nil {
-		return nil, fmt.Errorf("invalid forward transactions: %w", err)
-	}
-
-	return &Proposal{
-		PrevBlockId:     proposal.PrevBlockId,
-		PrevBlockHash:   proposal.PrevBlockHash,
-		PatchLevel:      proposal.PatchLevel,
-		RollbackCounter: proposal.RollbackCounter,
-		CollatorState:   proposal.CollatorState,
-		MainShardHash:   proposal.MainShardHash,
-		ShardHashes:     proposal.ShardHashes,
-
-		// todo: special txns should be validated
-		InternalTxns: append(proposal.SpecialTxns, internalTxns...),
-		ExternalTxns: proposal.ExternalTxns,
-		ForwardTxns:  forwardTxns,
-	}, nil
 }

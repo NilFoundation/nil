@@ -68,19 +68,6 @@ func CallGetterByBlockNumber(
 	return CallGetterByBlock(ctx, tx, address, block, calldata)
 }
 
-func CallGetter(
-	ctx context.Context,
-	tx db.RoTx,
-	address types.Address,
-	calldata []byte,
-) ([]byte, error) {
-	block, _, err := db.ReadLastBlock(tx, address.ShardId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to read last block: %w", err)
-	}
-	return CallGetterByBlock(ctx, tx, address, block, calldata)
-}
-
 // RelayerMessage represents a message in the Relayer contract
 type RelayerMessage struct {
 	Id       uint64
@@ -96,10 +83,35 @@ type RelayerMessage struct {
 	ForwardKind       uint8
 	FeeCredit         *big.Int
 	Data              []byte
-	RequestId         *big.Int
+	RequestId         uint64
 	ResponseFeeCredit *big.Int
 	IsDeploy          bool
 	Salt              *big.Int
+}
+
+// ToTransaction converts a RelayerMessage to a Transaction
+func (msg *RelayerMessage) ToTransaction() *types.Transaction {
+	txn := &types.Transaction{
+		TransactionDigest: types.TransactionDigest{
+			Flags:   types.TransactionFlagsFromKind(true, types.ExecutionTransactionKind),
+			FeePack: types.NewFeePackFromFeeCredit(types.NewValueFromBigMust(msg.FeeCredit)),
+			To:      msg.To,
+			Data:    msg.Data,
+		},
+		From:      msg.From,
+		RefundTo:  msg.RefundTo,
+		BounceTo:  msg.BounceTo,
+		Value:     types.NewValueFromBigMust(msg.Value),
+		RequestId: msg.RequestId,
+		TxId:      types.TransactionIndex(msg.Id),
+	}
+
+	// Set flags based on message properties
+	if msg.IsDeploy {
+		txn.Flags.SetBit(types.TransactionFlagDeploy)
+	}
+
+	return txn
 }
 
 // TransactionWithParent couples a transaction with information about its parent block
@@ -111,15 +123,143 @@ type TransactionWithParent struct {
 	NeighborShardId types.ShardId
 }
 
+// RelayerReader provides read-only access to Relayer contract methods
+type RelayerReader struct {
+	relayerAddress types.Address
+	blockNumber    types.BlockNumber
+}
+
+// NewRelayerReader creates a new RelayerReader for the given shard ID
+func NewRelayerReader(shardId types.ShardId, blockNumber types.BlockNumber) *RelayerReader {
+	return &RelayerReader{
+		relayerAddress: types.GetRelayerAddress(shardId),
+		blockNumber:    blockNumber,
+	}
+}
+
+// GetInMsgCounts retrieves the inMsgCounts array from the Relayer contract
+func (r *RelayerReader) GetInMsgCounts(ctx context.Context, tx db.RoTx) ([]uint64, error) {
+	inMsgCounts := make([]uint64, 0)
+
+	calldata, err := contracts.NewCallData(contracts.NameRelayer, "getInMsgCount")
+	if err != nil {
+		return inMsgCounts, fmt.Errorf("failed to create getInMsgCount calldata: %w", err)
+	}
+
+	data, err := CallGetterByBlockNumber(ctx, tx, r.relayerAddress, r.blockNumber, calldata)
+	if err != nil {
+		return inMsgCounts, fmt.Errorf("failed to call getInMsgCount: %w", err)
+	}
+
+	relayerAbi, err := contracts.GetAbi(contracts.NameRelayer)
+	if err != nil {
+		return inMsgCounts, fmt.Errorf("failed to get Relayer ABI: %w", err)
+	}
+
+	if err := relayerAbi.UnpackIntoInterface(&inMsgCounts, "getInMsgCount", data); err != nil {
+		return inMsgCounts, fmt.Errorf("failed to unpack getInMsgCount result: %w", err)
+	}
+
+	return inMsgCounts, nil
+}
+
+// GetCurrentBlockNumbers retrieves the currentBlockNumber array from the Relayer contract
+func (r *RelayerReader) GetCurrentBlockNumbers(ctx context.Context, tx db.RoTx) ([]uint64, error) {
+	blockNumbers := make([]uint64, 0)
+
+	calldata, err := contracts.NewCallData(contracts.NameRelayer, "getCurrentBlockNumber")
+	if err != nil {
+		return blockNumbers, fmt.Errorf("failed to create getCurrentBlockNumber calldata: %w", err)
+	}
+
+	data, err := CallGetterByBlockNumber(ctx, tx, r.relayerAddress, r.blockNumber, calldata)
+	if err != nil {
+		return blockNumbers, fmt.Errorf("failed to call getCurrentBlockNumber: %w", err)
+	}
+
+	relayerAbi, err := contracts.GetAbi(contracts.NameRelayer)
+	if err != nil {
+		return blockNumbers, fmt.Errorf("failed to get Relayer ABI: %w", err)
+	}
+
+	if err := relayerAbi.UnpackIntoInterface(&blockNumbers, "getCurrentBlockNumber", data); err != nil {
+		return blockNumbers, fmt.Errorf("failed to unpack getCurrentBlockNumber result: %w", err)
+	}
+
+	return blockNumbers, nil
+}
+
+// GetPendingMessages retrieves pending messages from the Relayer contract at a specific block
+func (r *RelayerReader) GetPendingMessages(
+	ctx context.Context,
+	tx db.RoTx,
+	targetShardId types.ShardId,
+	fromMsgId uint64,
+	batchSize uint32,
+) ([]RelayerMessage, error) {
+	calldata, err := contracts.NewCallData(contracts.NameRelayer, "getPendingMessages",
+		uint32(targetShardId), fromMsgId, batchSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create getPendingMessages calldata: %w", err)
+	}
+
+	data, err := CallGetterByBlockNumber(ctx, tx, r.relayerAddress, r.blockNumber, calldata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending messages at block %d: %w", r.blockNumber, err)
+	}
+
+	var messages []RelayerMessage
+	relayerAbi, err := contracts.GetAbi(contracts.NameRelayer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Relayer ABI: %w", err)
+	}
+
+	if err := relayerAbi.UnpackIntoInterface(&messages, "getPendingMessages", data); err != nil {
+		return nil, fmt.Errorf("failed to unpack getPendingMessages result: %w", err)
+	}
+
+	return messages, nil
+}
+
+// GetMessageById retrieves a specific message by ID from the Relayer contract
+func (r *RelayerReader) GetMessageById(
+	ctx context.Context,
+	tx db.RoTx,
+	shardId types.ShardId,
+	msgId uint64,
+) (RelayerMessage, error) {
+	calldata, err := contracts.NewCallData(contracts.NameRelayer, "getMessageById", shardId, msgId)
+	if err != nil {
+		return RelayerMessage{}, fmt.Errorf("failed to create getMessageById calldata: %w", err)
+	}
+
+	data, err := CallGetterByBlockNumber(ctx, tx, r.relayerAddress, r.blockNumber, calldata)
+	if err != nil {
+		return RelayerMessage{}, fmt.Errorf("failed to get message by id: %w", err)
+	}
+
+	relayerAbi, err := contracts.GetAbi(contracts.NameRelayer)
+	if err != nil {
+		return RelayerMessage{}, fmt.Errorf("failed to get Relayer ABI: %w", err)
+	}
+
+	var msg RelayerMessage
+	if err := relayerAbi.UnpackIntoInterface(&msg, "getMessageById", data); err != nil {
+		return RelayerMessage{}, fmt.Errorf("failed to unpack getMessageById result: %w", err)
+	}
+
+	return msg, nil
+}
+
 // RelayerMessageQueueReader encapsulates logic for reading messages from Relayer contracts
 type RelayerMessageQueueReader struct {
-	ctx            context.Context
-	tx             db.RoTx
-	nShards        uint32
-	ourShardId     types.ShardId
-	ourRelayerAddr types.Address
-	neighbors      []types.ShardId
-	logger         logging.Logger
+	ctx        context.Context
+	tx         db.RoTx
+	nShards    uint32
+	ourShardId types.ShardId
+	ourRelayer *RelayerReader
+	neighbors  []types.ShardId
+	logger     logging.Logger
 
 	inMsgCounts         []uint64
 	currentBlockNumbers []uint64
@@ -140,25 +280,28 @@ func NewRelayerMessageQueueReader(
 	neighbors []types.ShardId,
 	logger logging.Logger,
 ) (*RelayerMessageQueueReader, error) {
+	block, _, err := db.ReadLastBlock(tx, shardId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read last block: %w", err)
+	}
 	r := &RelayerMessageQueueReader{
-		ctx:            ctx,
-		tx:             tx,
-		nShards:        nShards,
-		ourShardId:     shardId,
-		ourRelayerAddr: types.GetRelayerAddress(shardId),
-		neighbors:      neighbors,
-		logger:         logger,
-		parents:        make([]*execution.ParentBlock, 0),
+		ctx:        ctx,
+		tx:         tx,
+		nShards:    nShards,
+		ourShardId: shardId,
+		ourRelayer: NewRelayerReader(shardId, block.Id),
+		neighbors:  neighbors,
+		logger:     logger,
+		parents:    make([]*execution.ParentBlock, 0),
 	}
 
 	// Initialize with current values from the relayer contract
-	var err error
-	r.inMsgCounts, err = r.getInMsgCounts()
+	r.inMsgCounts, err = r.ourRelayer.GetInMsgCounts(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get inMsgCounts: %w", err)
 	}
 
-	r.currentBlockNumbers, err = r.getCurrentBlockNumbers()
+	r.currentBlockNumbers, err = r.ourRelayer.GetCurrentBlockNumbers(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get currentBlockNumbers: %w", err)
 	}
@@ -168,114 +311,6 @@ func NewRelayerMessageQueueReader(
 	copy(r.newBlockNumbers, r.currentBlockNumbers)
 
 	return r, nil
-}
-
-// getInMsgCounts retrieves the inMsgCounts array from our Relayer contract
-func (r *RelayerMessageQueueReader) getInMsgCounts() ([]uint64, error) {
-	inMsgCounts := make([]uint64, r.nShards)
-
-	calldata, err := contracts.NewCallData(contracts.NameRelayer, "getInMsgCount")
-	if err != nil {
-		return inMsgCounts, fmt.Errorf("failed to create getInMsgCount calldata: %w", err)
-	}
-
-	data, err := CallGetter(r.ctx, r.tx, r.ourRelayerAddr, calldata)
-	if err != nil {
-		return inMsgCounts, fmt.Errorf("failed to call getInMsgCount: %w", err)
-	}
-
-	relayerAbi, err := contracts.GetAbi(contracts.NameRelayer)
-	if err != nil {
-		return inMsgCounts, fmt.Errorf("failed to get Relayer ABI: %w", err)
-	}
-
-	if err := relayerAbi.UnpackIntoInterface(&inMsgCounts, "getInMsgCount", data); err != nil {
-		return inMsgCounts, fmt.Errorf("failed to unpack getInMsgCount result: %w", err)
-	}
-
-	return inMsgCounts, nil
-}
-
-// getCurrentBlockNumbers retrieves the currentBlockNumber array from our Relayer contract
-func (r *RelayerMessageQueueReader) getCurrentBlockNumbers() ([]uint64, error) {
-	blockNumbers := make([]uint64, r.nShards)
-
-	calldata, err := contracts.NewCallData(contracts.NameRelayer, "getCurrentBlockNumber")
-	if err != nil {
-		return blockNumbers, fmt.Errorf("failed to create getCurrentBlockNumber calldata: %w", err)
-	}
-
-	data, err := CallGetter(r.ctx, r.tx, r.ourRelayerAddr, calldata)
-	if err != nil {
-		return blockNumbers, fmt.Errorf("failed to call getCurrentBlockNumber: %w", err)
-	}
-
-	relayerAbi, err := contracts.GetAbi(contracts.NameRelayer)
-	if err != nil {
-		return blockNumbers, fmt.Errorf("failed to get Relayer ABI: %w", err)
-	}
-
-	if err := relayerAbi.UnpackIntoInterface(&blockNumbers, "getCurrentBlockNumber", data); err != nil {
-		return blockNumbers, fmt.Errorf("failed to unpack getCurrentBlockNumber result: %w", err)
-	}
-
-	return blockNumbers, nil
-}
-
-// getPendingMessages retrieves pending messages from a Relayer contract at a specific block
-func (r *RelayerMessageQueueReader) getPendingMessages(
-	neighborRelayerAddr types.Address,
-	fromMsgId uint64,
-	batchSize uint32,
-	blockNumber types.BlockNumber,
-) ([]RelayerMessage, error) {
-	calldata, err := contracts.NewCallData(contracts.NameRelayer, "getPendingMessages",
-		uint32(r.ourShardId), fromMsgId, batchSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create getPendingMessages calldata: %w", err)
-	}
-
-	data, err := CallGetterByBlockNumber(r.ctx, r.tx, neighborRelayerAddr, blockNumber, calldata)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get pending messages at block %d: %w", blockNumber, err)
-	}
-
-	var messages []RelayerMessage
-	relayerAbi, err := contracts.GetAbi(contracts.NameRelayer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Relayer ABI: %w", err)
-	}
-
-	if err := relayerAbi.UnpackIntoInterface(&messages, "getPendingMessages", data); err != nil {
-		return nil, fmt.Errorf("failed to unpack getPendingMessages result: %w", err)
-	}
-
-	return messages, nil
-}
-
-// convertMessageToTransaction converts a RelayerMessage to a Transaction
-func (r *RelayerMessageQueueReader) convertMessageToTransaction(msg RelayerMessage) *types.Transaction {
-	txn := &types.Transaction{
-		TransactionDigest: types.TransactionDigest{
-			Flags:   types.TransactionFlagsFromKind(true, types.ExecutionTransactionKind),
-			FeePack: types.NewFeePackFromFeeCredit(types.NewValueFromBigMust(msg.FeeCredit)),
-			To:      msg.To,
-			Data:    msg.Data,
-		},
-		From:      msg.From,
-		RefundTo:  msg.RefundTo,
-		BounceTo:  msg.BounceTo,
-		Value:     types.NewValueFromBigMust(msg.Value),
-		RequestId: msg.RequestId.Uint64(),
-		TxId:      types.TransactionIndex(msg.Id),
-	}
-
-	// Set flags based on message properties
-	if msg.IsDeploy {
-		txn.Flags.SetBit(types.TransactionFlagDeploy)
-	}
-
-	return txn
 }
 
 // findOrAddParentBlock finds a parent block in the list or adds it if not found
@@ -323,10 +358,10 @@ func (r *RelayerMessageQueueReader) CreateUpdateBlockNumbersTransaction() (*type
 		TransactionDigest: types.TransactionDigest{
 			Flags:   types.NewTransactionFlags(types.TransactionFlagInternal),
 			FeePack: types.NewFeePackFromGas(100_000), // Reasonable gas limit
-			To:      r.ourRelayerAddr,
+			To:      r.ourRelayer.relayerAddress,
 			Data:    calldata,
 		},
-		From: r.ourRelayerAddr,
+		From: r.ourRelayer.relayerAddress,
 	}
 
 	return txn, true
@@ -352,9 +387,6 @@ func (r *RelayerMessageQueueReader) Iter(checkLimits func() bool) iter.Seq[*Tran
 				r.hitLimit = true
 				return
 			}
-
-			// Get neighbor's Relayer address
-			neighborRelayerAddr := types.GetRelayerAddress(neighborId)
 
 			// Get our current inMsgCount for this neighbor
 			fromMsgId := r.inMsgCounts[neighborId]
@@ -398,12 +430,16 @@ func (r *RelayerMessageQueueReader) Iter(checkLimits func() bool) iter.Seq[*Tran
 						return
 					}
 
+					// Create a relayer reader for this neighbor
+					neighbourRelayer := NewRelayerReader(neighborId, currentBlockNum)
+
 					// Get a batch of pending messages for this block
-					messages, err := r.getPendingMessages(
-						neighborRelayerAddr,
+					messages, err := neighbourRelayer.GetPendingMessages(
+						r.ctx,
+						r.tx,
+						r.ourShardId,
 						fromMsgId,
 						batchSize,
-						currentBlockNum,
 					)
 					if err != nil {
 						r.logger.Warn().Err(err).Msgf(
@@ -431,7 +467,7 @@ func (r *RelayerMessageQueueReader) Iter(checkLimits func() bool) iter.Seq[*Tran
 						}
 
 						// Convert message to transaction
-						txn := r.convertMessageToTransaction(msg)
+						txn := msg.ToTransaction()
 						txnHash := txn.Hash()
 
 						// Find or add the parent block reference
@@ -439,6 +475,10 @@ func (r *RelayerMessageQueueReader) Iter(checkLimits func() bool) iter.Seq[*Tran
 						if err != nil {
 							r.logger.Error().Err(err).Msg("Failed to add parent block")
 							continue
+						}
+
+						if neighborId == 0 && neighborBlock.Id == 1 {
+							r.logger.Debug().Msgf("Relayer message: %s", txnHash)
 						}
 
 						// Create the transaction with parent info and yield it
