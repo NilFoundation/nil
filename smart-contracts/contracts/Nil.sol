@@ -186,6 +186,7 @@ library Nil {
             valueToDeduct += feeCredit;
         }
 
+        console.log("sendTx: BEGIN");
         Relayer(getRelayerAddress()).sendTx{value: valueToDeduct}(
             dst,
             refundTo,
@@ -198,6 +199,7 @@ library Nil {
             uint64(requestId),
             responseGas
         );
+        console.log("sendTx: END");
     }
 
     function getRelayerAddress() internal view returns (address) {

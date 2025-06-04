@@ -96,6 +96,8 @@ type ExecutionState struct {
 	InTxCounts          TxCounts
 	InTransactionHashes []common.Hash
 
+	RefundTransactions []*types.Transaction
+
 	// OutTransactions holds outbound transactions for every transaction in the executed block, where key is hash of
 	// Transaction that sends the transaction
 	OutTransactions map[common.Hash][]*types.OutboundTransaction
@@ -997,6 +999,12 @@ func (es *ExecutionState) SendResponseTransaction(txn *types.Transaction, res *E
 func (es *ExecutionState) AcceptInternalTransaction(tx *types.Transaction) error {
 	check.PanicIfNot(tx.IsInternal())
 
+	if tx.IsSpecial {
+		check.PanicIff(tx.IsDeploy(), "special transaction must not be deploy")
+		// Don't account for special transactions in the transaction count
+		return nil
+	}
+
 	nextTxId := es.InTxCounts[tx.From.ShardId()]
 	if tx.TxId != nextTxId {
 		return types.NewError(types.ErrorTxIdGap)
@@ -1191,6 +1199,61 @@ func (es *ExecutionState) handleDeployTransaction(_ context.Context, transaction
 		SetReturnData(ret).SetDebugInfo(es.evm.DebugInfo)
 }
 
+func (es *ExecutionState) AddRefundTransaction(txn *types.Transaction) {
+	es.logger.Debug().
+		Stringer(logging.FieldTransactionFrom, txn.From).
+		Stringer(logging.FieldTransactionTo, txn.To).
+		Stringer(logging.FieldTransactionHash, txn.Hash()).
+		Msg("Adding refund transaction...")
+
+	es.RefundTransactions = append(es.RefundTransactions, txn)
+}
+
+func (es *ExecutionState) handleRefunds() error {
+	prevTxnHash := es.InTransactionHash
+	defer func() { es.InTransactionHash = prevTxnHash }()
+
+	for _, txn := range es.RefundTransactions {
+		es.logger.Debug().
+			Stringer(logging.FieldTransactionFrom, txn.From).
+			Stringer(logging.FieldTransactionTo, txn.To).
+			Stringer(logging.FieldTransactionHash, txn.Hash()).
+			Msg("Handling refund transaction...")
+
+		txn.TxId = es.InTxCounts[txn.From.ShardId()]
+
+		if err := es.AcceptInternalTransaction(txn); err != nil {
+			es.logger.Error().
+				Err(err).
+				Msg("failed to accept refund transaction")
+			return err
+		}
+		es.AddInTransaction(txn)
+		res := es.HandleTransaction(context.Background(), txn, NewDummyPayer())
+		if res.Failed() {
+			var err string
+			var fatalErr string
+			if res.Error != nil {
+				err = res.Error.Error()
+			}
+			if res.FatalError != nil {
+				fatalErr = res.FatalError.Error()
+			}
+			es.logger.Error().
+				Stringer(logging.FieldTransactionFrom, txn.From).
+				Stringer(logging.FieldTransactionTo, txn.To).
+				Stringer(logging.FieldTransactionHash, txn.Hash()).
+				Str("error", err).
+				Str("fatal", fatalErr).
+				Msg("Error handling refund transaction")
+			return fmt.Errorf("failed to handle refund transaction: error: %w, fatal: %w", res.Error, res.FatalError)
+		}
+	}
+
+	es.RefundTransactions = nil
+	return nil
+}
+
 func (es *ExecutionState) handleExecutionTransaction(
 	_ context.Context,
 	transaction *types.Transaction,
@@ -1338,6 +1401,10 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 	if err := es.ContractTree.UpdateContracts(es.Accounts); err != nil {
 		return nil, err
 	}
+
+	// if err := es.handleRefunds(); err != nil {
+	// 	return nil, err
+	// }
 
 	treeShardsRootHash := common.EmptyHash
 	if len(es.ChildShardBlocks) > 0 {

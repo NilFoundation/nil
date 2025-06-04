@@ -5,6 +5,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
@@ -58,21 +59,55 @@ func (m transactionPayer) SubBalance(_ types.Value) {
 	// Already paid by sender
 }
 
+const GenerateRefundMaxGas = types.Gas(500_000)
+
+// GenerateRefundTransaction creates a transaction to refund value by calling sendTxRefund
+// in the Relayer contract
+func GenerateRefundTransaction(
+	relayerAddress types.Address,
+	from types.Address,
+	to types.Address,
+	refundAmount types.Value,
+) (*types.Transaction, error) {
+	// Create calldata for the sendTxRefund function
+	calldata, err := contracts.NewCallData(contracts.NameRelayer, "sendTxRefund",
+		from, to, refundAmount.ToBig())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create sendTxRefund calldata: %w", err)
+	}
+
+	// Create the transaction
+	txn := &types.Transaction{
+		TransactionDigest: types.TransactionDigest{
+			// Mark as internal transaction
+			Flags:   types.NewTransactionFlags(types.TransactionFlagInternal),
+			FeePack: types.NewFeePackFromGas(GenerateRefundMaxGas),
+			To:      relayerAddress,
+			Data:    calldata,
+		},
+		From:     relayerAddress, // From the relayer itself
+		RefundTo: relayerAddress, // Refund to relayer in case of failure
+		BounceTo: relayerAddress, // Bounce to relayer in case of failure
+	}
+
+	return txn, nil
+}
+
 func (m transactionPayer) AddBalance(delta types.Value) error {
 	if m.transaction.RefundTo.IsEmpty() {
 		return types.NewError(types.ErrorRefundAddressIsEmpty)
 	}
 
-	if _, err := m.es.AddOutTransaction(m.transaction.To, &types.InternalTransactionPayload{
-		Kind:  types.RefundTransactionKind,
-		To:    m.transaction.RefundTo,
-		Value: delta,
-	}, 0); err != nil {
+	txn, err := GenerateRefundTransaction(
+		types.GetRelayerAddress(m.es.GetShardID()), m.transaction.From, m.transaction.RefundTo, delta)
+	if err != nil {
 		sharedLogger.Error().
 			Err(err).
-			Stringer(logging.FieldTransactionHash, m.transaction.Hash()).
-			Msg("failed to add refund transaction")
+			Msg("failed to create refund transaction")
+		return err
 	}
+
+	m.es.AddRefundTransaction(txn)
 	return nil
 }
 
