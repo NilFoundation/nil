@@ -52,7 +52,8 @@ type AccountState struct {
 	// AsyncContextTree is a trie that stores the context for each request sent from this account.
 	AsyncContextTree *AsyncContextTrie
 
-	State               Storage
+	StateCache          Storage
+	StateUpdates        Storage
 	AsyncContext        map[types.TransactionIndex]*types.AsyncContext
 	AsyncContextRemoved []types.TransactionIndex
 	// Tokens holds the token changed during execution. If execution fails, these changes will be dropped.
@@ -95,7 +96,8 @@ func NewAccountState(
 		AsyncContextTree: NewDbAsyncContextTrie(es.GetRwTx(), shardId),
 		CodeHash:         types.EmptyCodeHash,
 
-		State:        make(Storage),
+		StateCache:   make(Storage),
+		StateUpdates: make(Storage),
 		AsyncContext: make(map[types.TransactionIndex]*types.AsyncContext),
 		Tokens:       make(map[types.TokenId]types.Value),
 		logger:       logger,
@@ -169,7 +171,12 @@ func (as *AccountState) SubBalance(amount types.Value, reason tracing.BalanceCha
 }
 
 func (as *AccountState) GetState(key common.Hash) (common.Hash, error) {
-	val, ok := as.State[key]
+	val, ok := as.StateUpdates[key]
+	if ok {
+		return val, nil
+	}
+
+	val, ok = as.StateCache[key]
 	if ok {
 		return val, nil
 	}
@@ -178,7 +185,7 @@ func (as *AccountState) GetState(key common.Hash) (common.Hash, error) {
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	as.State[key] = newVal
+	as.StateCache[key] = newVal
 	return newVal, nil
 }
 
@@ -315,14 +322,14 @@ func (as *AccountState) SetState(key common.Hash, value common.Hash) error {
 // Note this function should only be used for debugging purpose.
 func (as *AccountState) SetStorage(storage Storage) {
 	for key, value := range storage {
-		as.State[key] = value
+		as.StateUpdates[key] = value
 	}
 	// Don't bother journal since this function should only be used for
 	// debugging and the `fake` storage won't be committed to database.
 }
 
 func (as *AccountState) setState(key common.Hash, value common.Hash) {
-	as.State[key] = value
+	as.StateUpdates[key] = value
 }
 
 // GetCommittedState retrieves a value from the committed account storage trie.
@@ -340,9 +347,9 @@ func (as *AccountState) GetCommittedState(key common.Hash) (common.Hash, error) 
 
 func (as *AccountState) Commit() (*types.SmartContract, error) {
 	// Remove zero values from the state cache and the storage trie
-	for key, value := range as.State {
+	for key, value := range as.StateUpdates {
 		if value == common.EmptyHash {
-			delete(as.State, key)
+			delete(as.StateUpdates, key)
 			if err := as.StorageTree.Delete(key); err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 				return nil, fmt.Errorf("failed to delete key %s: %w", key, err)
 			}
@@ -351,7 +358,7 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 	// Update storage trie with the new values
 	if err := UpdateFromMap(
 		as.StorageTree,
-		as.State,
+		as.StateUpdates,
 		func(v common.Hash) *types.Uint256 {
 			return (*types.Uint256)(v.Uint256())
 		}); err != nil {

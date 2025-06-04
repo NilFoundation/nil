@@ -1,6 +1,7 @@
 package tracer
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -111,4 +112,12 @@ func unmarshalFromFile[Msg proto.Message](filename string, unmarshalFunc unmarsh
 		return err
 	}
 	return unmarshalFunc(data, out)
+}
+
+func marshalJSONToFile[T any](value T, filename string) error {
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filename, data, 0o600)
 }

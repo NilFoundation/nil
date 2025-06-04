@@ -84,7 +84,7 @@ type RPCBlock struct {
 	ReceiptsRoot        common.Hash         `json:"receiptsRoot"`
 	ChildBlocksRootHash common.Hash         `json:"childBlocksRootHash"`
 	ShardId             types.ShardId       `json:"shardId"`
-	Transactions        []*RPCInTransaction `json:"transactions,omitempty"`
+	Transactions        []*RPCInTransaction `json:"transactions"`
 	TransactionHashes   []common.Hash       `json:"transactionHashes,omitempty"`
 	ChildBlocks         []common.Hash       `json:"childBlocks"`
 	MainShardHash       common.Hash         `json:"mainShardHash"`
@@ -92,7 +92,7 @@ type RPCBlock struct {
 	BaseFee             types.Value         `json:"baseFee"`
 	L1Number            uint64              `json:"l1Number"`
 	LogsBloom           hexutil.Bytes       `json:"logsBloom,omitempty"`
-	GasUsed             types.Gas           `json:"gasUsed,omitempty"`
+	GasUsed             types.Gas           `json:"gasUsed"`
 }
 
 type ShardCount struct {
