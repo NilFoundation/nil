@@ -97,6 +97,7 @@ export const BlockPage = () => {
                     details: "all",
                   },
                   query: {},
+                  replace: true,
                 });
               }}
             >
@@ -127,6 +128,7 @@ export const BlockPage = () => {
                     details: "incoming",
                   },
                   query: {},
+                  replace: true,
                 });
               }}
             >
@@ -157,6 +159,7 @@ export const BlockPage = () => {
                     details: "outgoing",
                   },
                   query: {},
+                  replace: true,
                 });
               }}
             >
