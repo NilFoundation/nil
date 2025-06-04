@@ -111,8 +111,8 @@ type TransactionWithParent struct {
 	NeighborShardId types.ShardId
 }
 
-// RelayerReader encapsulates logic for reading messages from Relayer contracts
-type RelayerReader struct {
+// RelayerMessageQueueReader encapsulates logic for reading messages from Relayer contracts
+type RelayerMessageQueueReader struct {
 	ctx            context.Context
 	tx             db.RoTx
 	nShards        uint32
@@ -131,16 +131,16 @@ type RelayerReader struct {
 	hitLimit               bool
 }
 
-// NewRelayerReader creates a new RelayerReader
-func NewRelayerReader(
+// NewRelayerMessageQueueReader creates a new RelayerReader
+func NewRelayerMessageQueueReader(
 	ctx context.Context,
 	tx db.RoTx,
 	nShards uint32,
 	shardId types.ShardId,
 	neighbors []types.ShardId,
 	logger logging.Logger,
-) (*RelayerReader, error) {
-	r := &RelayerReader{
+) (*RelayerMessageQueueReader, error) {
+	r := &RelayerMessageQueueReader{
 		ctx:            ctx,
 		tx:             tx,
 		nShards:        nShards,
@@ -171,7 +171,7 @@ func NewRelayerReader(
 }
 
 // getInMsgCounts retrieves the inMsgCounts array from our Relayer contract
-func (r *RelayerReader) getInMsgCounts() ([]uint64, error) {
+func (r *RelayerMessageQueueReader) getInMsgCounts() ([]uint64, error) {
 	inMsgCounts := make([]uint64, r.nShards)
 
 	calldata, err := contracts.NewCallData(contracts.NameRelayer, "getInMsgCount")
@@ -197,7 +197,7 @@ func (r *RelayerReader) getInMsgCounts() ([]uint64, error) {
 }
 
 // getCurrentBlockNumbers retrieves the currentBlockNumber array from our Relayer contract
-func (r *RelayerReader) getCurrentBlockNumbers() ([]uint64, error) {
+func (r *RelayerMessageQueueReader) getCurrentBlockNumbers() ([]uint64, error) {
 	blockNumbers := make([]uint64, r.nShards)
 
 	calldata, err := contracts.NewCallData(contracts.NameRelayer, "getCurrentBlockNumber")
@@ -223,7 +223,7 @@ func (r *RelayerReader) getCurrentBlockNumbers() ([]uint64, error) {
 }
 
 // getPendingMessages retrieves pending messages from a Relayer contract at a specific block
-func (r *RelayerReader) getPendingMessages(
+func (r *RelayerMessageQueueReader) getPendingMessages(
 	neighborRelayerAddr types.Address,
 	fromMsgId uint64,
 	batchSize uint32,
@@ -254,7 +254,7 @@ func (r *RelayerReader) getPendingMessages(
 }
 
 // convertMessageToTransaction converts a RelayerMessage to a Transaction
-func (r *RelayerReader) convertMessageToTransaction(msg RelayerMessage) *types.Transaction {
+func (r *RelayerMessageQueueReader) convertMessageToTransaction(msg RelayerMessage) *types.Transaction {
 	txn := &types.Transaction{
 		TransactionDigest: types.TransactionDigest{
 			Flags:   types.TransactionFlagsFromKind(true, types.ExecutionTransactionKind),
@@ -279,7 +279,7 @@ func (r *RelayerReader) convertMessageToTransaction(msg RelayerMessage) *types.T
 }
 
 // findOrAddParentBlock finds a parent block in the list or adds it if not found
-func (r *RelayerReader) findOrAddParentBlock(
+func (r *RelayerMessageQueueReader) findOrAddParentBlock(
 	neighborId types.ShardId,
 	neighborBlock *types.Block,
 ) (int, error) {
@@ -295,7 +295,7 @@ func (r *RelayerReader) findOrAddParentBlock(
 }
 
 // markBlockProcessed updates the tracking of which blocks have been processed
-func (r *RelayerReader) markBlockProcessed(neighborId types.ShardId, blockNumber types.BlockNumber) {
+func (r *RelayerMessageQueueReader) markBlockProcessed(neighborId types.ShardId, blockNumber types.BlockNumber) {
 	if uint64(blockNumber) > r.newBlockNumbers[neighborId] {
 		r.newBlockNumbers[neighborId] = uint64(blockNumber)
 		r.needUpdateBlockNumbers = true
@@ -303,12 +303,12 @@ func (r *RelayerReader) markBlockProcessed(neighborId types.ShardId, blockNumber
 }
 
 // GetParentBlocks returns the parent blocks that were referenced
-func (r *RelayerReader) GetParentBlocks() []*execution.ParentBlock {
+func (r *RelayerMessageQueueReader) GetParentBlocks() []*execution.ParentBlock {
 	return r.parents
 }
 
 // CreateUpdateBlockNumbersTransaction creates a transaction to update the blockNumbers in the contract
-func (r *RelayerReader) CreateUpdateBlockNumbersTransaction() (*types.Transaction, bool) {
+func (r *RelayerMessageQueueReader) CreateUpdateBlockNumbersTransaction() (*types.Transaction, bool) {
 	if !r.needUpdateBlockNumbers {
 		return nil, false
 	}
@@ -333,17 +333,17 @@ func (r *RelayerReader) CreateUpdateBlockNumbersTransaction() (*types.Transactio
 }
 
 // HitLimit returns whether the reader hit a resource limit
-func (r *RelayerReader) HitLimit() bool {
+func (r *RelayerMessageQueueReader) HitLimit() bool {
 	return r.hitLimit
 }
 
 // SetLimit marks that the reader has hit a resource limit
-func (r *RelayerReader) SetLimit() {
+func (r *RelayerMessageQueueReader) SetLimit() {
 	r.hitLimit = true
 }
 
 // Iter returns an iterator over transactions from neighboring shards
-func (r *RelayerReader) Iter(checkLimits func() bool) iter.Seq[*TransactionWithParent] {
+func (r *RelayerMessageQueueReader) Iter(checkLimits func() bool) iter.Seq[*TransactionWithParent] {
 	return func(yield func(*TransactionWithParent) bool) {
 		// Process each neighbor
 		for _, neighborId := range r.neighbors {
