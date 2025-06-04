@@ -44,7 +44,11 @@ export const AddressPage = () => {
               key="overview"
               onClick={(e) => {
                 e.preventDefault();
-                addressRoute.open(params);
+                addressRoute.navigate({
+                  params,
+                  query: {},
+                  replace: true,
+                });
               }}
               kind={TAB_KIND.secondary}
             >
@@ -55,7 +59,11 @@ export const AddressPage = () => {
               key="transactions"
               onClick={(e) => {
                 e.preventDefault();
-                addressTransactionsRoute.open(params);
+                addressTransactionsRoute.navigate({
+                  params,
+                  query: {},
+                  replace: true,
+                });
               }}
               kind={TAB_KIND.secondary}
             >
