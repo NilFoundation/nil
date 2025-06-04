@@ -259,6 +259,31 @@ func (r *RelayerReader) GetMessageById(
 	return msg, nil
 }
 
+// GetRelayerSeqno retrieves the current sequence number of the Relayer contract
+func (r *RelayerReader) GetRelayerSeqno(ctx context.Context, tx db.RoTx) (uint64, error) {
+	calldata, err := contracts.NewCallData(contracts.NameRelayer, "getRelayerSeqno")
+	if err != nil {
+		return 0, fmt.Errorf("failed to create getRelayerSeqno calldata: %w", err)
+	}
+
+	data, err := CallGetterByBlockNumber(ctx, tx, r.relayerAddress, r.blockNumber, calldata)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get relayer seqno: %w", err)
+	}
+
+	relayerAbi, err := contracts.GetAbi(contracts.NameRelayer)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get Relayer ABI: %w", err)
+	}
+
+	var seqno uint64
+	if err := relayerAbi.UnpackIntoInterface(&seqno, "getRelayerSeqno", data); err != nil {
+		return 0, fmt.Errorf("failed to unpack getRelayerSeqno result: %w", err)
+	}
+
+	return seqno, nil
+}
+
 // RelayerMessageQueueReader encapsulates logic for reading messages from Relayer contracts
 type RelayerMessageQueueReader struct {
 	ctx        context.Context

@@ -961,6 +961,13 @@ contract Relayer {
     }
 
     /**
+     * @dev Returns the current seqno for the relayer
+     */
+    function getRelayerSeqno() public view returns (uint64) {
+        return seqnos[address(this)];
+    }
+
+    /**
      * @dev Updates the current block number for each shard
      */
     function updateCurrentBlockNumber(uint64[] memory blockNumbers) public {
