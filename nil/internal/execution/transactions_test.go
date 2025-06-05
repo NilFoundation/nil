@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -104,7 +104,7 @@ func (s *TransactionsSuite) TestValidateExternalTransaction() {
 
 			// contract that always returns "true",
 			// so verifies any transaction
-			s.Require().NoError(es.SetCode(txn.To, hexutil.FromHex("600160005260206000f3")))
+			s.Require().NoError(es.SetCode(txn.To, ethcommon.FromHex("600160005260206000f3")))
 		})
 
 		s.Run("NoBalance", func() {

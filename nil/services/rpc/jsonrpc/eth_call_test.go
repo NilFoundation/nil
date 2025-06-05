@@ -5,14 +5,15 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/tools/solc"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/compiler"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -53,7 +54,7 @@ func (s *SuiteEthCall) SetupSuite() {
 	mainBlock := execution.GenerateZeroState(s.T(), types.MainShardId, s.db)
 
 	m1 := execution.NewDeployTransaction(
-		types.BuildDeployPayload(hexutil.FromHex(s.contracts["Caller"].Code), common.EmptyHash),
+		types.BuildDeployPayload(ethcommon.FromHex(s.contracts["Caller"].Code), common.EmptyHash),
 		shardId,
 		types.GenerateRandomAddress(shardId),
 		0,
@@ -62,7 +63,7 @@ func (s *SuiteEthCall) SetupSuite() {
 	s.from = m1.To
 
 	m2 := execution.NewDeployTransaction(
-		types.BuildDeployPayload(hexutil.FromHex(s.contracts["SimpleContract"].Code), common.EmptyHash),
+		types.BuildDeployPayload(ethcommon.FromHex(s.contracts["SimpleContract"].Code), common.EmptyHash),
 		shardId,
 		s.from,
 		0,

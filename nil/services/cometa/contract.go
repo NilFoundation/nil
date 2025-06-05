@@ -1,13 +1,13 @@
 package cometa
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
@@ -154,7 +154,7 @@ func (c *Contract) DecodeCallData(calldata []byte) (string, error) {
 		return "", fmt.Errorf("invalid calldata length: %d", len(calldata))
 	}
 
-	hexFuncId := hexutil.EncodeNo0x(calldata[:4])
+	hexFuncId := hex.EncodeToString(calldata[:4])
 	methodSignature := ""
 	for signature, funcId := range c.Data.MethodIdentifiers {
 		if hexFuncId == funcId {

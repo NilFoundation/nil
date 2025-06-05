@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -12,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/suite"
 )
@@ -91,23 +91,23 @@ func (suite *SuiteEthAccounts) TestGetBalance() {
 	blockNum := transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err := suite.api.GetBalance(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.NewBigFromInt64(1234), res)
+	suite.EqualValues(1234, res.ToInt().Uint64())
 
 	blockHash := transport.BlockNumberOrHash{BlockHash: &suite.blockHash}
 	res, err = suite.api.GetBalance(ctx, suite.smcAddr, blockHash)
 	suite.Require().NoError(err)
-	suite.Equal(hexutil.NewBigFromInt64(1234), res)
+	suite.EqualValues(1234, res.ToInt().Uint64())
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.LatestBlock.BlockNumber}
 	res, err = suite.api.GetBalance(ctx, types.GenerateRandomAddress(types.BaseShardId), blockNum)
 	suite.Require().NoError(err)
-	suite.True(res.IsZero())
+	suite.Zero(res.ToInt().Uint64())
 
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	res, err = suite.api.GetBalance(ctx, suite.smcAddr, blockNum)
 	suite.Require().NoError(err)
-	suite.True(res.IsZero())
+	suite.Zero(res.ToInt().Uint64())
 }
 
 func (suite *SuiteEthAccounts) TestGetCode() {
@@ -234,11 +234,11 @@ func (suite *SuiteEthAccounts) TestGetProof() {
 	suite.Zero(resNonExisting.Nonce)
 	suite.Zero(resNonExisting.StorageHash)
 	suite.Len(resNonExisting.StorageProof, 2)
-	suite.EqualValues(1, resNonExisting.StorageProof[0].Key.Uint64())
-	suite.EqualValues(0, resNonExisting.StorageProof[0].Value.Uint64())
+	suite.EqualValues(1, resNonExisting.StorageProof[0].Key.ToInt().Uint64())
+	suite.EqualValues(0, resNonExisting.StorageProof[0].Value.ToInt().Uint64())
 	suite.Equal([]hexutil.Bytes{{0x80}}, resNonExisting.StorageProof[0].Proof)
-	suite.EqualValues(2, resNonExisting.StorageProof[1].Key.Uint64())
-	suite.EqualValues(0, resNonExisting.StorageProof[1].Value.Uint64())
+	suite.EqualValues(2, resNonExisting.StorageProof[1].Key.ToInt().Uint64())
+	suite.EqualValues(0, resNonExisting.StorageProof[1].Value.ToInt().Uint64())
 	suite.Equal([]hexutil.Bytes{{0x80}}, resNonExisting.StorageProof[1].Proof)
 }
 
@@ -248,7 +248,7 @@ func (suite *SuiteEthAccounts) verifyProofResult(res *EthProof, smartContractsRo
 
 	// Verify account proof
 	val, err := mpt.VerifyProof(smartContractsRoot,
-		suite.smcAddr.Hash().Bytes(), hexutil.ToBytesSlice(res.AccountProof))
+		suite.smcAddr.Hash().Bytes(), toBytesSlice(res.AccountProof))
 	suite.Require().NoError(err)
 
 	var sc types.SmartContract
@@ -290,17 +290,17 @@ func (suite *SuiteEthAccounts) verifyStorageProof(
 ) {
 	suite.T().Helper()
 
-	suite.Require().Equal(key.Big().Uint64(), storageProof.Key.Uint64())
+	suite.Require().EqualValues(*key.Big(), storageProof.Key)
 
 	if expectNil {
-		suite.Require().Equal(uint64(0), storageProof.Value.Uint64()) // no value for such key
+		suite.Require().Zero(storageProof.Value.ToInt().Uint64()) // no value for such key
 	} else {
 		var u types.Uint256
 		suite.Require().NoError(u.UnmarshalNil(storageProof.Value.ToInt().Bytes()))
 		suite.Require().Equal(expectedValue.Uint256(), u.Int())
 	}
 
-	val, err := mpt.VerifyProof(storageRoot, key.Bytes(), hexutil.ToBytesSlice(storageProof.Proof))
+	val, err := mpt.VerifyProof(storageRoot, key.Bytes(), toBytesSlice(storageProof.Proof))
 	suite.Require().NoError(err)
 
 	if expectNil {

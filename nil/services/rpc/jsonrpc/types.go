@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type (
@@ -168,14 +168,22 @@ func (c *ChainConfig) ToMap() (map[string][]byte, error) {
 	return result, nil
 }
 
+func fromBytesSlice(data [][]byte) []hexutil.Bytes {
+	result := make([]hexutil.Bytes, len(data))
+	for i, v := range data {
+		result[i] = hexutil.Bytes(v)
+	}
+	return result
+}
+
 func (b *DebugRPCBlock) Encode(block *types.RawBlockWithExtractedData) error {
 	b.Content = block.Block
 	b.ChildBlocks = block.ChildBlocks
-	b.InTransactions = hexutil.FromBytesSlice(block.InTransactions)
-	b.InTxCounts = hexutil.FromBytesSlice(block.InTxCounts)
-	b.OutTransactions = hexutil.FromBytesSlice(block.OutTransactions)
-	b.OutTxCounts = hexutil.FromBytesSlice(block.OutTxCounts)
-	b.Receipts = hexutil.FromBytesSlice(block.Receipts)
+	b.InTransactions = fromBytesSlice(block.InTransactions)
+	b.InTxCounts = fromBytesSlice(block.InTxCounts)
+	b.OutTransactions = fromBytesSlice(block.OutTransactions)
+	b.OutTxCounts = fromBytesSlice(block.OutTxCounts)
+	b.Receipts = fromBytesSlice(block.Receipts)
 	b.Errors = block.Errors
 
 	if block.Config != nil {
@@ -189,15 +197,23 @@ func (b *DebugRPCBlock) Encode(block *types.RawBlockWithExtractedData) error {
 	return nil
 }
 
+func toBytesSlice(data []hexutil.Bytes) [][]byte {
+	result := make([][]byte, len(data))
+	for i, v := range data {
+		result[i] = []byte(v)
+	}
+	return result
+}
+
 func (b *DebugRPCBlock) Decode() (*types.RawBlockWithExtractedData, error) {
 	decodedBlock := types.RawBlockWithExtractedData{
 		Block:           b.Content,
 		ChildBlocks:     b.ChildBlocks,
-		InTransactions:  hexutil.ToBytesSlice(b.InTransactions),
-		InTxCounts:      hexutil.ToBytesSlice(b.InTxCounts),
-		OutTransactions: hexutil.ToBytesSlice(b.OutTransactions),
-		OutTxCounts:     hexutil.ToBytesSlice(b.OutTxCounts),
-		Receipts:        hexutil.ToBytesSlice(b.Receipts),
+		InTransactions:  toBytesSlice(b.InTransactions),
+		InTxCounts:      toBytesSlice(b.InTxCounts),
+		OutTransactions: toBytesSlice(b.OutTransactions),
+		OutTxCounts:     toBytesSlice(b.OutTxCounts),
+		Receipts:        toBytesSlice(b.Receipts),
 		Errors:          b.Errors,
 	}
 	if b.Config != nil {
