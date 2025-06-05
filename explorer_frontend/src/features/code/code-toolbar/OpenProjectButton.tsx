@@ -20,7 +20,7 @@ import AsyncRequestExample from "../assets/AsyncRequestExample.sol";
 import HandlingExtTxExample from "../assets/HandlingExtTxExample.sol";
 import TokenExample from "../assets/TokenExample.sol";
 import { $recentProjects, changeCode, updateRecentProjects } from "../model";
-import { compile } from "../model";
+import { compileCode } from "../model";
 
 type OpenProjectButtonProps = {
   disabled?: boolean;
@@ -56,7 +56,7 @@ export const OpenProjectButton: FC<OpenProjectButtonProps> = ({ disabled }) => {
         onChange: () => {
           updateRecentProjects();
           changeCode(AsyncCallExample);
-          compile();
+          compileCode();
         },
       },
       {
@@ -64,7 +64,7 @@ export const OpenProjectButton: FC<OpenProjectButtonProps> = ({ disabled }) => {
         onChange: () => {
           updateRecentProjects();
           changeCode(AsyncRequestExample);
-          compile();
+          compileCode();
         },
       },
       {
@@ -72,7 +72,7 @@ export const OpenProjectButton: FC<OpenProjectButtonProps> = ({ disabled }) => {
         onChange: () => {
           updateRecentProjects();
           changeCode(HandlingExtTxExample);
-          compile();
+          compileCode();
         },
       },
       {
@@ -80,7 +80,7 @@ export const OpenProjectButton: FC<OpenProjectButtonProps> = ({ disabled }) => {
         onChange: () => {
           updateRecentProjects();
           changeCode(TokenExample);
-          compile();
+          compileCode();
         },
       },
       ...(anyRecentProjects ? [{ divider: true }] : []),
@@ -91,7 +91,7 @@ export const OpenProjectButton: FC<OpenProjectButtonProps> = ({ disabled }) => {
             label,
             onChange: () => {
               changeCode(code);
-              compile();
+              compileCode();
             },
           })),
         }

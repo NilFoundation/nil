@@ -1,22 +1,15 @@
 import { EditorView } from "@codemirror/view";
 import { isHexString } from "@nilfoundation/niljs";
-import {
-  CodeField,
-  HeadingXLarge,
-  ParagraphSmall,
-  SPACE,
-  Skeleton,
-  Spinner,
-} from "@nilfoundation/ui-kit";
+import { HeadingXLarge, ParagraphSmall, SPACE, Skeleton, Spinner } from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { useEffect } from "react";
 import { $cometaClient } from "../../cometa/model";
 import { addressRoute } from "../../routing/routes/addressRoute";
+import { CustomCodeField } from "../../shared/components/CustomCodeField";
 import { Divider } from "../../shared/components/Divider";
 import { Info } from "../../shared/components/Info";
 import { InfoBlock } from "../../shared/components/InfoBlock";
-import { SolidityCodeField } from "../../shared/components/SolidityCodeField";
 import { TokenDisplay } from "../../shared/components/Token";
 import { measure } from "../../shared/utils/measure";
 import {
@@ -101,7 +94,7 @@ export const AccountInfo = () => {
             label="Bytecode"
             value={
               account.code && account.code.length > 0 ? (
-                <CodeField
+                <CustomCodeField
                   extensions={[EditorView.lineWrapping]}
                   code={account.code}
                   className={css({ marginTop: "1ch" })}

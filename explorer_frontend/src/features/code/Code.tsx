@@ -2,45 +2,66 @@ import { BUTTON_KIND, BUTTON_SIZE, Button, Card, Spinner } from "@nilfoundation/
 import { useUnit } from "effector-react";
 import {
   $code,
-  $error,
-  $warnings,
+  $codeError,
+  $codeWarnings,
+  $script,
+  $scriptErrors,
   changeCode,
+  changeScript,
   clickOnContractsButton,
   clickOnLogButton,
-  compile,
+  compileCode,
   compileCodeFx,
-  fetchCodeSnippetFx,
+  fetchProjectFx,
+  runScript,
 } from "./model";
 import "./init";
+import { javascriptLanguage } from "@codemirror/lang-javascript";
 import { type Diagnostic, linter } from "@codemirror/lint";
 import { Prec } from "@codemirror/state";
 import { type EditorView, keymap } from "@codemirror/view";
+import { solidity } from "@replit/codemirror-lang-solidity";
+import { basicSetup } from "@uiw/react-codemirror";
 import { useStyletron } from "baseui";
 import { expandProperty } from "inline-style-expand-shorthand";
 import { type ReactNode, useMemo } from "react";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { getMobileStyles } from "../../styleHelpers";
 import { useMobile } from "../shared";
-import { SolidityCodeField } from "../shared/components/SolidityCodeField";
+import { CustomCodeField } from "../shared/components/CustomCodeField";
 import { CompileVersionButton } from "./code-toolbar/CompileVersionButton";
-import { useCompileButton } from "./hooks/useCompileButton";
-
+import { useCompileButton, useRunScriptButton } from "./hooks/useCompileButton";
 interface CodeProps {
   extraMobileButton?: ReactNode;
+  isSolidity?: boolean;
 }
 
-export const Code = ({ extraMobileButton }: CodeProps) => {
+export const Code = ({ extraMobileButton, isSolidity }: CodeProps) => {
   const [isMobile] = useMobile();
-  const [code, isDownloading, errors, fetchingCodeSnippet, compiling, warnings] = useUnit([
+  const [
+    code,
+    script,
+    isDownloading,
+    codeErrors,
+    fetchingCodeSnippet,
+    compiling,
+    warnings,
+    scriptErrors,
+  ] = useUnit([
     $code,
+    $script,
     fetchSolidityCompiler.pending,
-    $error,
-    fetchCodeSnippetFx.pending,
+    $codeError,
+    fetchProjectFx.pending,
     compileCodeFx.pending,
-    $warnings,
+    $codeWarnings,
+    $scriptErrors,
   ]);
   const [css, theme] = useStyletron();
-  const btnTextContent = useCompileButton();
+  const btnTextContent = isSolidity ? useCompileButton() : useRunScriptButton();
+
+  const changeEvent = isSolidity ? changeCode : changeScript;
+  const btnClickEvent = isSolidity ? compileCode : runScript;
 
   const preventNewlineOnCmdEnter = useMemo(
     () =>
@@ -56,8 +77,30 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
   );
 
   const codemirrorExtensions = useMemo(() => {
-    const solidityLinter = (view: EditorView) => {
-      const displayErrors: Diagnostic[] = errors.map((error) => {
+    const codeLinter = (view: EditorView) => {
+      if (isSolidity) {
+        const displayErrors: Diagnostic[] = codeErrors.map((error) => {
+          return {
+            from: view.state.doc.line(error.line).from,
+            to: view.state.doc.line(error.line).to,
+            message: error.message,
+            severity: "error",
+          };
+        });
+
+        const displayWarnings: Diagnostic[] = warnings.map((warning) => {
+          return {
+            from: view.state.doc.line(warning.line).from,
+            to: view.state.doc.line(warning.line).to,
+            message: warning.message,
+            severity: "warning",
+          };
+        });
+
+        return [...displayErrors, ...displayWarnings];
+      }
+
+      const displayErrors: Diagnostic[] = scriptErrors.map((error) => {
         return {
           from: view.state.doc.line(error.line).from,
           to: view.state.doc.line(error.line).to,
@@ -66,22 +109,25 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
         };
       });
 
-      const displayWarnings: Diagnostic[] = warnings.map((warning) => {
-        return {
-          from: view.state.doc.line(warning.line).from,
-          to: view.state.doc.line(warning.line).to,
-          message: warning.message,
-          severity: "warning",
-        };
-      });
-
-      return [...displayErrors, ...displayWarnings];
+      return [...displayErrors];
     };
 
-    return [preventNewlineOnCmdEnter, linter(solidityLinter)];
-  }, [errors, warnings, preventNewlineOnCmdEnter]);
+    const lang = isSolidity
+      ? solidity
+      : javascriptLanguage.configure({ dialect: "ts" }, "typescript");
+
+    return [
+      preventNewlineOnCmdEnter,
+      lang,
+      ...basicSetup({
+        lineNumbers: !isMobile,
+      }),
+      linter(codeLinter),
+    ];
+  }, [codeErrors, scriptErrors, warnings, preventNewlineOnCmdEnter, isMobile, isSolidity]);
 
   const noCode = code.trim().length === 0;
+  const resCode = isSolidity ? code : script;
 
   return (
     <Card
@@ -144,16 +190,14 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
               width: "100%",
               height: `calc(100% - ${isMobile ? "32px - 8px - 8px - 48px - 8px - 8px" : "0px"})`,
               ...expandProperty("borderRadius", "16px"),
-              overflow: "hidden",
+              overflow: "auto !important",
             })}
           >
-            <SolidityCodeField
+            <CustomCodeField
               extensions={codemirrorExtensions}
-              editable
-              readOnly={false}
-              code={code}
+              code={resCode}
               onChange={(text) => {
-                changeCode(`${text}`);
+                changeEvent(`${text}`);
               }}
               className={css({
                 paddingBottom: "0!important",
@@ -180,7 +224,7 @@ export const Code = ({ extraMobileButton }: CodeProps) => {
           >
             <CompileVersionButton
               isLoading={isDownloading || compiling}
-              onClick={() => compile()}
+              onClick={() => btnClickEvent()}
               disabled={noCode}
               content={btnTextContent}
             />

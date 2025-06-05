@@ -64,8 +64,9 @@ export const TransactionList = ({ type, identifier, view }: TransactionListProps
 
   const totalPages = useMemo(() => {
     return Math.ceil(filteredTransactions.length / transactionsPerPage);
-  }, [filteredTransactions.length, transactionsPerPage]);
+  }, [filteredTransactions.length]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   useEffect(() => {
     setCurrentPage(1);
   }, [view]);
@@ -74,7 +75,7 @@ export const TransactionList = ({ type, identifier, view }: TransactionListProps
     const startIndex = (currentPage - 1) * transactionsPerPage;
     const endIndex = startIndex + transactionsPerPage;
     return filteredTransactions.slice(startIndex, endIndex);
-  }, [filteredTransactions, currentPage, transactionsPerPage]);
+  }, [filteredTransactions, currentPage]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
