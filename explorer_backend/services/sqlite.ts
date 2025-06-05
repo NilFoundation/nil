@@ -18,9 +18,8 @@ CREATE TABLE IF NOT EXISTS code (
 const codeCnt = db.get(`SELECT COUNT(*) AS cnt
 FROM pragma_table_info('code')
 WHERE name = 'content';`);
-console.log(codeCnt);
-if (codeCnt.cnt == 0) {
-  db.exec(`alter table code add column content TEXT`);
+if (codeCnt.cnt === 0) {
+  db.exec("alter table code add column content TEXT");
 }
 
 db.exec(`
