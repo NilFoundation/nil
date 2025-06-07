@@ -31,7 +31,7 @@ const prepareSvgPattern = (ctx: CanvasRenderingContext2D) => {
   };
 
   img.src = url;
-}
+};
 
 export const getSvgPattern = (ctx: CanvasRenderingContext2D) => {
   if (!svgPattern) {
