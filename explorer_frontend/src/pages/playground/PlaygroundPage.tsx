@@ -1,4 +1,4 @@
-import { PROGRESS_BAR_SIZE, ProgressBar } from "@nilfoundation/ui-kit";
+import { COLORS, LabelXSmall, PROGRESS_BAR_SIZE, ProgressBar } from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
@@ -12,6 +12,7 @@ import { NetworkErrorNotification } from "../../features/healthcheck";
 import { $rpcIsHealthy } from "../../features/healthcheck/model";
 import { Logs } from "../../features/logs/components/Logs";
 import { useMobile } from "../../features/shared";
+import { Logo } from "../../features/shared/components/Layout/Logo";
 import { Navbar } from "../../features/shared/components/Layout/Navbar";
 import { mobileContainerStyle, styles } from "../../features/shared/components/Layout/styles";
 import { fetchSolidityCompiler } from "../../services/compiler";
@@ -40,7 +41,14 @@ export const PlaygroundPage = () => {
     <div className={css(isMobile ? mobileContainerStyle : styles.playgroundContainer)}>
       {!isRPCHealthy && <NetworkErrorNotification />}
       {displayNavbar && (
-        <Navbar showCodeInteractionButtons={true}>{isMobile ? null : <AccountPane />}</Navbar>
+        <Navbar
+          showCodeInteractionButtons={true}
+          logo={
+            <Logo subtitle={<LabelXSmall color={COLORS.gray400}>Playground v1.0</LabelXSmall>} />
+          }
+        >
+          {isMobile ? null : <AccountPane />}
+        </Navbar>
       )}
       <div
         className={css({
