@@ -1,4 +1,4 @@
-import { useStore, useUnit } from "effector-react";
+import { useUnit } from "effector-react";
 import { type ReactNode, memo, useCallback } from "react";
 import { useStyletron } from "styletron-react";
 import { fetchSolidityCompiler } from "../../../../services/compiler";
@@ -6,25 +6,23 @@ import { getMobileStyles } from "../../../../styleHelpers";
 import { CodeToolbar } from "../../../code/code-toolbar/CodeToolbar";
 import { useCompileButton } from "../../../code/hooks/useCompileButton";
 import { compile, compileCodeFx } from "../../../code/model";
-import { tutorialWithUrlStringRoute } from "../../../routing/routes/tutorialRoute";
 import { useMobile } from "../../hooks/useMobile";
-import { Logo } from "./Logo";
 import { styles } from "./styles";
 
 type NavbarProps = {
   children?: ReactNode;
   showCodeInteractionButtons?: boolean;
+  logo?: ReactNode;
 };
 
 const MemoizedCodeToolbar = memo(CodeToolbar);
 
-export const Navbar = ({ children, showCodeInteractionButtons }: NavbarProps) => {
+export const Navbar = ({ children, showCodeInteractionButtons, logo }: NavbarProps) => {
   const [css] = useStyletron();
   const [isDownloading, compiling] = useUnit([
     fetchSolidityCompiler.pending,
     compileCodeFx.pending,
   ]);
-  const isTutorial = useStore(tutorialWithUrlStringRoute.$isOpened);
   const [isMobile] = useMobile();
   const templateColumns = isMobile ? "93% 1fr" : "1fr 33%";
   const btnTextContent = useCompileButton();
@@ -57,7 +55,7 @@ export const Navbar = ({ children, showCodeInteractionButtons }: NavbarProps) =>
           }),
         })}
       >
-        <Logo />
+        {logo}
         {showCodeInteractionButtons && (
           <MemoizedCodeToolbar
             disabled={isDownloading}

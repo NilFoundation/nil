@@ -3,6 +3,7 @@ import {
   BUTTON_SIZE,
   Button,
   COLORS,
+  LabelXSmall,
   PROGRESS_BAR_SIZE,
   ProgressBar,
   Tab,
@@ -28,6 +29,7 @@ import { TutorialText } from "../../features/tutorial/TutorialText";
 import { fetchSolidityCompiler } from "../../services/compiler";
 import { TutorialMobileLayout } from "./TutorialMobileLayout";
 import "./init.ts";
+import { Logo } from "../../features/shared/components/Layout/Logo.tsx";
 import { runTutorialCheck, runTutorialCheckFx } from "../../features/tutorial-check/model.ts";
 import { TutorialsPanel } from "../../features/tutorial/TutorialsPanel.tsx";
 import { $tutorials } from "../../features/tutorial/model.ts";
@@ -98,7 +100,10 @@ export const TutorialPage = () => {
   return (
     <div className={css(isMobile ? mobileContainerStyle : styles.container)}>
       {!isRPCHealthy && <NetworkErrorNotification />}
-      <Navbar showCodeInteractionButtons={true}>
+      <Navbar
+        showCodeInteractionButtons={true}
+        logo={<Logo subtitle={<LabelXSmall color={COLORS.blue400}>Tutorials v1.0</LabelXSmall>} />}
+      >
         <AccountPane />
       </Navbar>
 
