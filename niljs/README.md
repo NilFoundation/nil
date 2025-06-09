@@ -193,7 +193,7 @@ await tx.wait();
 ```
 
 =nil; also supports token bouncing. If a transaction carries custom tokens, and
-it is unsuccesful, the funds will be returned to the address specified in the
+it is unsuccessful, the funds will be returned to the address specified in the
 `bounceTo` parameter when sending the transaction.
 
 ## Accessing the dev environment
