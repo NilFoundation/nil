@@ -149,6 +149,25 @@ func (api *nodeApiOverShardApis) GetTokens(
 	return result, nil
 }
 
+func (api *nodeApiOverShardApis) GetStorageAt(
+	ctx context.Context,
+	address types.Address,
+	key common.Hash,
+	blockReference rawapitypes.BlockReference,
+) (types.Uint256, error) {
+	methodName := methodNameChecked("GetStorageAt")
+	shardId := address.ShardId()
+	shardApi, ok := api.apisRo[shardId]
+	if !ok {
+		return types.Uint256{}, makeShardNotFoundError(methodName, shardId)
+	}
+	result, err := shardApi.GetStorageAt(ctx, address, key, blockReference)
+	if err != nil {
+		return types.Uint256{}, makeCallError(methodName, shardId, err)
+	}
+	return result, nil
+}
+
 func (api *nodeApiOverShardApis) GetContract(
 	ctx context.Context,
 	address types.Address,

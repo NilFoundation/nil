@@ -101,27 +101,11 @@ func (mt *MPTTracer) GetAccountState(addr types.Address) (execution.AccountState
 }
 
 func (mt *MPTTracer) UpdateContracts(contracts map[types.Address]execution.AccountState) error {
-	mt.accountsInitialStates = make(map[types.Address]execution.Storage, len(contracts))
-	mt.accountsStatesDiff = make(map[types.Address]execution.Storage, len(contracts))
-	mt.accountsDiff = make(map[types.Address]*types.SmartContract, len(contracts))
-
 	keys := make([]common.Hash, 0, len(contracts))
 	values := make([]*types.SmartContract, 0, len(contracts))
 	for addr, acc := range contracts {
 
 		mt.updatedAccounts[addr] = struct{}{}
-
-		// mt.accountsInitialStates[addr] = acc.initial
-		// stateDiff := make(execution.Storage)
-		// for k, v := range acc.StateUpdates {
-		// 	initialValue, ok := acc.StateCache[k]
-		// 	if !ok || initialValue != v {
-		// 		stateDiff[k] = v
-		// 	}
-		// }
-		// if len(stateDiff) != 0 {
-		// 	mt.accountsStatesDiff[addr] = stateDiff
-		// }
 
 		smartAccount, err := acc.Commit()
 		if err != nil {
@@ -129,17 +113,18 @@ func (mt *MPTTracer) UpdateContracts(contracts map[types.Address]execution.Accou
 		}
 		keys = append(keys, addr.Hash())
 		values = append(values, smartAccount)
-
-		initialAcc, ok := mt.initialAccounts[addr]
-		// since `initialAccounts` is populated on each account first read, there must be no absent keys
-		check.PanicIfNotf(ok, "initial acc data not found")
-		if initialAcc == nil || initialAcc.Hash() != smartAccount.Hash() {
-			mt.accountsDiff[addr] = smartAccount
-		}
 	}
 	contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
 
-	return contractTrie.UpdateBatch(keys, values)
+	if err := contractTrie.UpdateBatch(keys, values); err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			// TODO: if `db.KeyNotFound`, fetch it with `debug_accountRange`
+			panic("not implemented")
+		}
+		return err
+	}
+
+	return nil
 }
 
 func (mt *MPTTracer) RootHash() common.Hash {
@@ -181,7 +166,6 @@ func NewWithReader(
 		shardId:            shardId,
 		ContractSparseTrie: contractSparseTrie,
 		updatedAccounts:    make(map[types.Address]struct{}),
-		initialAccounts:    make(map[types.Address]*types.SmartContract),
 		client:             client,
 		logger:             logger,
 	}
@@ -203,8 +187,6 @@ func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, erro
 
 	blockNumToFetch := transport.BlockNumber(mt.blockNumber - 1)
 	for addr, accountState := range mt.accountsTraceableStates {
-
-		// TODO: add storage proofs
 		keysToProve := make(map[common.Hash]struct{}, len(accountState.initialSlots)+len(accountState.slotsUpdates))
 		for key, value := range accountState.initialSlots {
 			storageCache = append(storageCache, StorageCache{
@@ -311,8 +293,6 @@ func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, erro
 
 // GetMPTTraces retrieves all MPT traces including storage and contract trie traces
 func (mt *MPTTracer) GetMPTTraces() (MPTTraces, error) {
-	// TODO: in case of node deletion from MPT (SELFDESTRUCT and zero balance),
-	// extra nodes (not fetched previously) could be required, currently this is not handled.
 	contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
 	curRoot := mt.ContractSparseTrie.RootHash()
 

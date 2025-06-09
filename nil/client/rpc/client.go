@@ -74,6 +74,7 @@ const (
 	Eth_getBlockTransactionCountByHash   = "eth_getBlockTransactionCountByHash"
 	Eth_getBalance                       = "eth_getBalance"
 	Eth_getTokens                        = "eth_getTokens" //nolint:gosec
+	Eth_getStorageAt                     = "eth_getStorageAt"
 	Eth_getShardIdList                   = "eth_getShardIdList"
 	Eth_getNumShards                     = "eth_getNumShards"
 	Eth_gasPrice                         = "eth_gasPrice"
@@ -602,6 +603,14 @@ func (c *Client) GetTokens(ctx context.Context, address types.Address, blockId a
 		return nil, err
 	}
 	return simpleCall[types.TokensMap](ctx, c, Eth_getTokens, address, transport.BlockNumberOrHash(blockNrOrHash))
+}
+
+func (c *Client) GetStorageAt(ctx context.Context, address types.Address, key common.Hash, blockId any) (types.Uint256, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return types.Uint256{}, err
+	}
+	return simpleCall[types.Uint256](ctx, c, Eth_getStorageAt, address, key, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
 func (c *Client) GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error) {

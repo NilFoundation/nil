@@ -317,6 +317,23 @@ type EthAPIRo interface {
 	ChainId(ctx context.Context) (hexutil.Uint64, error)
 
 	/*
+		@name GetStorageAt
+		@summary Returns the value stored at a specific storage key of a contract at a given block.
+		@description Implements eth_getStorageAt.
+		@tags [Accounts]
+		@param address Contract address
+		@param key Storage key (32-byte hash)
+		@param blockNrOrHash Block number or block hash
+		@returns value Value stored at the specified key
+	*/
+	GetStorageAt(
+		ctx context.Context,
+		address types.Address,
+		key common.Hash,
+		blockNrOrHash transport.BlockNumberOrHash,
+	) (types.Uint256, error)
+
+	/*
 		@name GetTokens
 		@summary Returns the token balances of the account with the given address and at the given block.
 		@description Implements eth_getTokens.

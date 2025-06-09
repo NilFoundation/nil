@@ -41,6 +41,12 @@ type shardApiRo interface {
 		address types.Address,
 		blockReference rawapitypes.BlockReference,
 	) (map[types.TokenId]types.Value, error)
+	GetStorageAt(
+		ctx context.Context,
+		address types.Address,
+		key common.Hash,
+		blockReference rawapitypes.BlockReference,
+	) (types.Uint256, error)
 	GetContract(
 		ctx context.Context,
 		address types.Address,

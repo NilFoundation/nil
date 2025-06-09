@@ -81,6 +81,13 @@ func (api *shardApiClientRo) GetTokens(
 		ctx, api, "GetTokens", address, blockReference)
 }
 
+func (api *shardApiClientRo) GetStorageAt(
+	ctx context.Context, address types.Address, key common.Hash, blockReference rawapitypes.BlockReference,
+) (types.Uint256, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[types.Uint256](
+		ctx, api, "GetStorageAt", address, key, blockReference)
+}
+
 func (api *shardApiClientRo) GetContract(
 	ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference, noCode bool, noStorage bool,
 ) (*rawapitypes.SmartContract, error) {

@@ -451,3 +451,37 @@ func (api *localShardApiRo) GetContractRange(
 
 	return &rawapitypes.SmartContractRange{Contracts: contracts, Next: nextKey}, nil
 }
+
+// GetStorageAt implements `eth_getStorageAt`
+func (api *localShardApiRo) GetStorageAt(
+	ctx context.Context,
+	address types.Address,
+	key common.Hash,
+	blockReference rawapitypes.BlockReference,
+) (types.Uint256, error) {
+	shardId := address.ShardId()
+	if shardId != api.shardId() {
+		return types.Uint256{}, api.errWrongShard()
+	}
+
+	tx, err := api.db.CreateRoTx(ctx)
+	if err != nil {
+		return types.Uint256{}, fmt.Errorf("cannot open tx to find account: %w", err)
+	}
+	defer tx.Rollback()
+
+	acc, _, err := api.getSmartContract(tx, address, blockReference, false)
+	if err != nil {
+		return types.Uint256{}, err
+	}
+	if acc == nil {
+		return types.Uint256{}, nil
+	}
+
+	contractWithStorage, err := api.contractToRawEnriched(tx, acc, false, true)
+	if err != nil {
+		return types.Uint256{}, err
+	}
+
+	return contractWithStorage.Storage[key], nil
+}

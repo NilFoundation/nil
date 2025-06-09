@@ -45,6 +45,12 @@ type NodeApi interface {
 	) (map[types.TokenId]types.Value, error)
 	GetTransactionCount(
 		ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (uint64, error)
+	GetStorageAt(
+		ctx context.Context,
+		address types.Address,
+		key common.Hash,
+		blockReference rawapitypes.BlockReference,
+	) (types.Uint256, error)
 	GetContract(
 		ctx context.Context,
 		address types.Address,

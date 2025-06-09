@@ -2,7 +2,6 @@ package mpttracer
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -261,105 +260,7 @@ type StorageRangeResponse struct {
 	NextKey *hexutil.U256                              `json:"nextKey,omitempty"`
 }
 
-// BlockAddressRequest represents a request with block number and address
-// type BlockAddressRequest struct {
-// 	BlockNo int           `json:"block_no"`
-// 	Address types.Address `json:"address"`
-// }
-
-// // UnmarshalBlockchainData properly unmarshals the blockchain data
-// func UnmarshalBlockchainData(data []byte) (*BlockchainData, error) {
-// 	var result BlockchainData
-// 	if err := json.Unmarshal(data, &result); err != nil {
-// 		return nil, err
-// 	}
-// 	return &result, nil
-// }
-
-// // Custom unmarshal functions for different array items
-
-// // UnmarshalFullBlock unmarshals a full block item
-// func UnmarshalFullBlock(data []json.RawMessage) (*BlockReference, *Block, error) {
-// 	var blockRef BlockReference
-// 	var block Block
-
-// 	if err := json.Unmarshal(data[0], &blockRef); err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	if err := json.Unmarshal(data[1], &block); err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	return &blockRef, &block, nil
-// }
-
-// // UnmarshalProof unmarshals a proof item
-// func UnmarshalProof(data []json.RawMessage) (*AccountProofRequest, *AccountProofResult, error) {
-// 	var request AccountProofRequest
-// 	var result AccountProofResult
-
-// 	if err := json.Unmarshal(data[0], &request); err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	if err := json.Unmarshal(data[1], &result); err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	return &request, &result, nil
-// }
-
-// // UnmarshalTxCount unmarshals a transaction count item
-// func UnmarshalTxCount(data []json.RawMessage) (*BlockAddressRequest, *hexutil.Big, error) {
-// 	var request BlockAddressRequest
-// 	var count hexutil.Big
-
-// 	if err := json.Unmarshal(data[0], &request); err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	if err := json.Unmarshal(data[1], &count); err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	return &request, &count, nil
-// }
-
-// // UnmarshalBalance unmarshals a balance item
-// func UnmarshalBalance(data []json.RawMessage) (*BlockAddressRequest, *hexutil.Big, error) {
-// 	var request BlockAddressRequest
-// 	var balance hexutil.Big
-
-// 	if err := json.Unmarshal(data[0], &request); err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	if err := json.Unmarshal(data[1], &balance); err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	return &request, &balance, nil
-// }
-
-// // UnmarshalCode unmarshals a code item
-// func UnmarshalCode(data []json.RawMessage) (*BlockAddressRequest, *hexutil.Bytes, error) {
-// 	var request BlockAddressRequest
-// 	var code hexutil.Bytes
-
-// 	if err := json.Unmarshal(data[0], &request); err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	if err := json.Unmarshal(data[1], &code); err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	return &request, &code, nil
-// }
-
 func (c *FileProviderCache) Append(other *FileProviderCache) {
-	fmt.Printf("c = %s\n", c)
 	c.FullBlocks = append(c.FullBlocks, other.FullBlocks...)
 	c.UncleBlocks = append(c.UncleBlocks, other.UncleBlocks...)
 	c.Proofs = append(c.Proofs, other.Proofs...)

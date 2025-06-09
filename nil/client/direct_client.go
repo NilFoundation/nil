@@ -252,6 +252,20 @@ func (c *DirectClient) GetTokens(ctx context.Context, address types.Address, blo
 	return c.ethApi.GetTokens(ctx, address, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
+func (c *DirectClient) GetStorageAt(
+	ctx context.Context,
+	address types.Address,
+	key common.Hash,
+	blockId any,
+) (types.Uint256, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return types.Uint256{}, err
+	}
+
+	return c.ethApi.GetStorageAt(ctx, address, key, transport.BlockNumberOrHash(blockNrOrHash))
+}
+
 func (c *DirectClient) GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error) {
 	return c.ethApi.GasPrice(ctx, shardId)
 }
