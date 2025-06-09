@@ -108,8 +108,11 @@ task(
     `Oracle deployed at ${deployOracle} with hash ${deployOracleTx.hash} on shard 4`,
   );
 
-  // Deploy LendingPool contract on shard 1, linking all other contracts
-  const { address: deployLendingPool, tx: deployLendingPoolTx } =
+  // Deploy LendingPool contracts on all four shards
+  const lendingPoolAddresses: string[] = [];
+
+  // Deploy LendingPool contract on shard 1
+  const { address: deployLendingPool1, tx: deployLendingPool1Tx } =
     await deployerWallet.deployContract({
       shardId: 1,
       args: [
@@ -124,10 +127,96 @@ task(
       salt: BigInt(Math.floor(Math.random() * 10000)),
     });
 
-  await deployLendingPoolTx.wait();
+  await deployLendingPool1Tx.wait();
   console.log(
-    `Lending Pool deployed at ${deployLendingPool} with hash ${deployLendingPoolTx.hash} on shard 1`,
+    `Lending Pool deployed at ${deployLendingPool1} with hash ${deployLendingPool1Tx.hash} on shard 1`,
   );
+  lendingPoolAddresses.push(deployLendingPool1);
+
+  // Deploy LendingPool contract on shard 2
+  const { address: deployLendingPool2, tx: deployLendingPool2Tx } =
+    await deployerWallet.deployContract({
+      shardId: 2,
+      args: [
+        deployGlobalLedger,
+        deployInterestManager,
+        deployOracle,
+        process.env.USDT,
+        process.env.ETH,
+      ],
+      bytecode: LendingPool.bytecode as `0x${string}`,
+      abi: LendingPool.abi as Abi,
+      salt: BigInt(Math.floor(Math.random() * 10000)),
+    });
+
+  await deployLendingPool2Tx.wait();
+  console.log(
+    `Lending Pool deployed at ${deployLendingPool2} with hash ${deployLendingPool2Tx.hash} on shard 2`,
+  );
+  lendingPoolAddresses.push(deployLendingPool2);
+
+  // Deploy LendingPool contract on shard 3
+  const { address: deployLendingPool3, tx: deployLendingPool3Tx } =
+    await deployerWallet.deployContract({
+      shardId: 3,
+      args: [
+        deployGlobalLedger,
+        deployInterestManager,
+        deployOracle,
+        process.env.USDT,
+        process.env.ETH,
+      ],
+      bytecode: LendingPool.bytecode as `0x${string}`,
+      abi: LendingPool.abi as Abi,
+      salt: BigInt(Math.floor(Math.random() * 10000)),
+    });
+
+  await deployLendingPool3Tx.wait();
+  console.log(
+    `Lending Pool deployed at ${deployLendingPool3} with hash ${deployLendingPool3Tx.hash} on shard 3`,
+  );
+  lendingPoolAddresses.push(deployLendingPool3);
+
+  // Deploy LendingPool contract on shard 4
+  const { address: deployLendingPool4, tx: deployLendingPool4Tx } =
+    await deployerWallet.deployContract({
+      shardId: 4,
+      args: [
+        deployGlobalLedger,
+        deployInterestManager,
+        deployOracle,
+        process.env.USDT,
+        process.env.ETH,
+      ],
+      bytecode: LendingPool.bytecode as `0x${string}`,
+      abi: LendingPool.abi as Abi,
+      salt: BigInt(Math.floor(Math.random() * 10000)),
+    });
+
+  await deployLendingPool4Tx.wait();
+  console.log(
+    `Lending Pool deployed at ${deployLendingPool4} with hash ${deployLendingPool4Tx.hash} on shard 4`,
+  );
+  lendingPoolAddresses.push(deployLendingPool4);
+
+  // Register all lending pools in each lending pool contract for cross-shard communication
+  for (let i = 0; i < lendingPoolAddresses.length; i++) {
+    const registerPools = encodeFunctionData({
+      abi: LendingPool.abi as Abi,
+      functionName: "registerLendingPools",
+      args: [lendingPoolAddresses],
+    });
+
+    const registerPoolsTx = await deployerWallet.sendTransaction({
+      to: lendingPoolAddresses[i],
+      data: registerPools,
+    });
+
+    await registerPoolsTx.wait();
+    console.log(
+      `Registered all lending pools in lending pool ${lendingPoolAddresses[i]} with tx hash ${registerPoolsTx.hash}`,
+    );
+  }
 
   // Generate two smart accounts (account1 and account2)
   const account1 = await generateSmartAccount({
@@ -279,14 +368,15 @@ task(
   console.log(`Price of USDT is ${usdtPrice}`);
   console.log(`Price of ETH is ${ethPrice}`);
 
-  // Perform a deposit of USDT by account1 into the LendingPool
+  // Perform deposits across different shards
+  // Account1 deposits USDT into the LendingPool on shard 1
   const depositUSDT = {
     id: process.env.USDT as `0x${string}`,
     amount: 12n,
   };
 
   const depositUSDTResponse = await account1.sendTransaction({
-    to: deployLendingPool,
+    to: deployLendingPool1,
     functionName: "deposit",
     abi: LendingPool.abi as Abi,
     tokens: [depositUSDT],
@@ -296,14 +386,14 @@ task(
   await waitTillCompleted(client, depositUSDTResponse);
   console.log(`Account 1 deposited 12 USDT at tx hash ${depositUSDTResponse}`);
 
-  // Perform a deposit of ETH by account2 into the LendingPool
+  // Account2 deposits ETH into the LendingPool on shard 3
   const depositETH = {
     id: process.env.ETH as `0x${string}`,
     amount: 5n,
   };
 
   const depositETHResponse = await account2.sendTransaction({
-    to: deployLendingPool,
+    to: deployLendingPool3,
     functionName: "deposit",
     abi: LendingPool.abi as Abi,
     tokens: [depositETH],
@@ -312,7 +402,7 @@ task(
 
   await depositETHResponse.wait();
   console.log(
-    `Account 2 deposited 1 ETH at tx hash ${depositETHResponse.hash}`,
+    `Account 2 deposited 5 ETH at tx hash ${depositETHResponse.hash}`,
   );
 
   // Retrieve the deposit balances of account1 and account2 from GlobalLedger
@@ -334,7 +424,7 @@ task(
   console.log(`Account 1 balance in global ledger is ${account1Balance}`);
   console.log(`Account 2 balance in global ledger is ${account2Balance}`);
 
-  // Perform a borrow operation by account1 for 1 ETH
+  // Test cross-shard borrowing: Account1 tries to borrow ETH from shard 1, which will need to pull from shard 3
   const borrowETH = encodeFunctionData({
     abi: LendingPool.abi as Abi,
     functionName: "borrow",
@@ -348,7 +438,7 @@ task(
   console.log("Account 1 balance before borrow:", account1BalanceBeforeBorrow);
 
   const borrowETHResponse = await account1.sendTransaction({
-    to: deployLendingPool,
+    to: deployLendingPool1,
     data: borrowETH,
     feeCredit: convertEthToWei(0.001),
   });
@@ -395,14 +485,14 @@ task(
   });
 
   const repayETHResponse = await account1.sendTransaction({
-    to: deployLendingPool,
+    to: deployLendingPool1,
     data: repayETHData,
     tokens: repayETH,
     feeCredit: convertEthToWei(0.001),
   });
 
   await repayETHResponse.wait();
-  console.log(`Account 1 repaid 1 ETH at tx hash ${repayETHResponse.hash}`);
+  console.log(`Account 1 repaid 6 ETH at tx hash ${repayETHResponse.hash}`);
 
   const account1BalanceAfterRepay = await client.getTokens(
     account1.address,
