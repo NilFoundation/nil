@@ -1,7 +1,12 @@
 import { COLORS } from "@nilfoundation/ui-kit";
 import { MonoParagraphMedium } from "baseui/typography";
 import { nanoid } from "nanoid";
-import { compileCodeFx } from "../code/model";
+import {
+  compileCodeFx,
+  runScriptFx,
+  triggerCustomConsoleLogEvent,
+  triggerCustomConsoleWarnEvent,
+} from "../code/model";
 import {
   callFx,
   deploySmartContractFx,
@@ -21,6 +26,34 @@ import { TransactionSentLog } from "./components/TransactionSentLog";
 import { TxDetials } from "./components/TxDetails";
 import { $logs, type Log, LogTopic, LogType, clearLogs } from "./model";
 import { formatSolidityError } from "./utils";
+
+$logs.on(triggerCustomConsoleLogEvent, (logs, message) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Script,
+      type: LogType.Info,
+      shortDescription: <MonoParagraphMedium color={COLORS.gray400}>{message}</MonoParagraphMedium>,
+      timestamp: Date.now(),
+    },
+  ];
+});
+
+$logs.on(triggerCustomConsoleWarnEvent, (logs, message) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Script,
+      type: LogType.Warn,
+      shortDescription: (
+        <MonoParagraphMedium color={COLORS.yellow400}>{message}</MonoParagraphMedium>
+      ),
+      timestamp: Date.now(),
+    },
+  ];
+});
 
 $logs.on(deploySmartContractFx.doneData, (logs, { address, name, deployedFrom, txHash }) => {
   return [
@@ -296,6 +329,22 @@ $logs.on(registerContractInCometaFx.failData, (logs, error) => {
         </MonoParagraphMedium>
       ),
       payload: <MonoParagraphMedium color={COLORS.gray50}>{String(error)}</MonoParagraphMedium>,
+      timestamp: Date.now(),
+    },
+  ];
+});
+
+$logs.on(runScriptFx.fail, (logs, { error }) => {
+  return [
+    ...logs,
+    {
+      id: nanoid(),
+      topic: LogTopic.Script,
+      type: LogType.Error,
+      shortDescription: (
+        <MonoParagraphMedium color={COLORS.red200}>Script execution failed</MonoParagraphMedium>
+      ),
+      payload: <MonoParagraphMedium color={COLORS.red200}>{String(error)}</MonoParagraphMedium>,
       timestamp: Date.now(),
     },
   ];

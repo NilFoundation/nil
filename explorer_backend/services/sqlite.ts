@@ -10,26 +10,55 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS code (
     created_at TIMESTAMP,
     hash TEXT PRIMARY KEY,
-    code TEXT
+    code TEXT,
+    content TEXT
 );
 `);
 
-const getStmt = db.prepare("SELECT code FROM code WHERE hash = ?");
+const codeCnt = db.get(`SELECT COUNT(*) AS cnt
+FROM pragma_table_info('code')
+WHERE name = 'content';`);
+if (codeCnt.cnt === 0) {
+  db.exec("alter table code add column content TEXT");
+}
 
-export const getCode = (hash: string): string | null => {
-  const result = getStmt.get(hash) as { code: string } | undefined;
-  return result?.code || null;
+db.exec(`
+  UPDATE code 
+  SET content = json_object('Code.sol', code) 
+  WHERE content IS NULL;
+  `);
+
+const getStmt = db.prepare(`
+  SELECT content
+  FROM code
+  WHERE hash = ?
+  `);
+
+export const getCode = (hash: string): Record<string, string> | null => {
+  const result = getStmt.get(hash) as { content: string };
+  if (!result) {
+    return null;
+  }
+  const jsonResult = JSON.parse(result.content) as Record<string, string>;
+  return jsonResult;
 };
 
-export const setCode = async (code: string): Promise<string> => {
-  const hash = createHash("sha256").update(code).digest("hex");
+export const setCode = async (project: Record<string, string>): Promise<string> => {
+  const projectString = JSON.stringify(project);
+  const hash = createHash("sha256").update(projectString).digest("hex");
   const res = await getCode(hash);
   if (res) {
     return hash;
   }
-  db.prepare("INSERT INTO code (hash, code, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)").run([
-    hash,
-    code,
-  ]);
+
+  const sql = `
+    INSERT INTO code (hash, content, created_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+  `;
+
+  const params = [hash, projectString];
+
+  db.prepare(sql).run(params);
+
   return hash;
 };

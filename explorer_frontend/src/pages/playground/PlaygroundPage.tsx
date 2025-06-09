@@ -1,4 +1,11 @@
-import { COLORS, LabelXSmall, PROGRESS_BAR_SIZE, ProgressBar } from "@nilfoundation/ui-kit";
+import {
+  COLORS,
+  LabelXSmall,
+  PROGRESS_BAR_SIZE,
+  ProgressBar,
+  Tab,
+  Tabs,
+} from "@nilfoundation/ui-kit";
 import { useStyletron } from "baseui";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
@@ -6,7 +13,12 @@ import { useEffect } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { AccountPane } from "../../features/account-connector";
 import { Code } from "../../features/code/Code";
-import { loadedPlaygroundPage } from "../../features/code/model";
+import {
+  $projectTab,
+  type ProjectTab,
+  loadedPlaygroundPage,
+  setProjectTab,
+} from "../../features/code/model";
 import { ContractsContainer, closeApp } from "../../features/contracts";
 import { NetworkErrorNotification } from "../../features/healthcheck";
 import { $rpcIsHealthy } from "../../features/healthcheck/model";
@@ -20,14 +32,17 @@ import { PlaygroundMobileLayout } from "./PlaygroundMobileLayout";
 import { $activeComponent, LayoutComponent } from "./model";
 
 export const PlaygroundPage = () => {
-  const [isDownloading, isRPCHealthy, activeComponent] = useUnit([
+  const [isDownloading, isRPCHealthy, activeTab, activeComponent] = useUnit([
     fetchSolidityCompiler.pending,
     $rpcIsHealthy,
+    $projectTab,
     $activeComponent,
   ]);
   const [css] = useStyletron();
   const [isMobile] = useMobile();
   const displayNavbar = !isMobile || activeComponent === LayoutComponent.Code;
+
+  const playgroundVersion = import.meta.env.VITE_PLAYGROUND_VERSION;
 
   useEffect(() => {
     loadedPlaygroundPage();
@@ -77,7 +92,41 @@ export const PlaygroundPage = () => {
                       minSize={10}
                       order={1}
                     >
-                      <Code />
+                      <Tabs
+                        onChange={({ activeKey }) => {
+                          setProjectTab(activeKey as ProjectTab);
+                        }}
+                        activeKey={activeTab}
+                        overrides={{
+                          Root: {
+                            style: {
+                              height: "100%",
+                              display: "flex",
+                              flexDirection: "column",
+                            },
+                          },
+                          TabContent: {
+                            style: {
+                              height: "100%",
+                              flex: "1 1 auto",
+                              paddingLeft: "0px",
+                              paddingRight: "0px",
+                            },
+                          },
+                          TabBar: {
+                            style: {
+                              display: "flex",
+                            },
+                          },
+                        }}
+                      >
+                        <Tab title="Solidity code" key="code">
+                          <Code extraMobileButton={null} isSolidity={true} />
+                        </Tab>
+                        <Tab title="JS/TS scripts" key="script">
+                          <Code />
+                        </Tab>
+                      </Tabs>
                     </Panel>
                     <PanelResizeHandle
                       className={css({

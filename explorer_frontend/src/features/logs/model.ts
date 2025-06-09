@@ -17,6 +17,7 @@ export enum LogTopic {
   Deployment = "Deployment",
   Assign = "Assign",
   Log = "Log",
+  Script = "Script",
 }
 
 export type Log = {

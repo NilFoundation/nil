@@ -1,36 +1,29 @@
-import type { Extension } from "@codemirror/state";
 import { CodeField, type CodeFieldProps } from "@nilfoundation/ui-kit";
-import { solidity } from "@replit/codemirror-lang-solidity";
-import { basicSetup } from "@uiw/react-codemirror";
 import { useStyletron } from "baseui";
-import { useMemo } from "react";
-import { useMobile } from "..";
 
-export const SolidityCodeField = ({
+export interface CustomCodeFieldProps extends CodeFieldProps {
+  isSolidity?: boolean;
+}
+
+export const CustomCodeField = ({
   displayCopy = false,
   highlightOnHover = false,
   showLineNumbers = false,
-  extensions = [],
+  extensions,
+  code,
   ...rest
-}: CodeFieldProps) => {
+}: CustomCodeFieldProps) => {
   const [css, theme] = useStyletron();
-
-  const [isMobile] = useMobile();
-  const codemirrorExtensions = useMemo<Extension[]>(() => {
-    return [
-      solidity,
-      ...basicSetup({
-        lineNumbers: !isMobile,
-      }),
-    ].concat(extensions);
-  }, [isMobile, extensions]);
 
   return (
     <CodeField
-      extensions={codemirrorExtensions}
+      extensions={extensions}
+      editable
+      readOnly={false}
       displayCopy={displayCopy}
       highlightOnHover={highlightOnHover}
       showLineNumbers={showLineNumbers}
+      code={code}
       className={css({
         backgroundColor: `${theme.colors.backgroundPrimary} !important`,
       })}
