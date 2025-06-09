@@ -3,7 +3,6 @@ package mpttracer
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
@@ -26,19 +25,24 @@ type MPTTracer struct {
 	ContractSparseTrie  *mpt.MerklePatriciaTrie
 	initialContractRoot common.Hash
 	// since we can't iterate over sparse trie, keep accounts for explicit checks
-	touchedAccounts map[types.Address]struct{}
+	// in addition, not every touched acc would be committed into state
+	updatedAccounts map[types.Address]struct{}
 
-	accountsInitialStates map[types.Address]execution.Storage
-	accountsStatesDiff    map[types.Address]execution.Storage
-	initialAccounts       map[types.Address]*types.SmartContract
-	accountsDiff          map[types.Address]*types.SmartContract
+	accountsTraceableStates map[types.Address]*TraceableAccount
+	// accountsInitialStates  map[types.Address]execution.Storage
+	// accountsStatesDiff     map[types.Address]execution.Storage
+	// initialAccounts        map[types.Address]*types.SmartContract
+	// accountsDiff           map[types.Address]*types.SmartContract
 
 	client      client.Client
 	blockNumber types.BlockNumber
 	logger      logging.Logger
 }
 
-var _ execution.IContractMPTRepository = (*MPTTracer)(nil)
+var (
+	_ execution.ContractMPTRepository = (*MPTTracer)(nil)
+	_ execution.DbRwTxProvider        = (*MPTTracer)(nil)
+)
 
 func (mt *MPTTracer) SetRootHash(root common.Hash) error {
 	if mt.initialContractRoot == common.EmptyHash {
@@ -49,14 +53,14 @@ func (mt *MPTTracer) SetRootHash(root common.Hash) error {
 	return mt.ContractSparseTrie.SetRootHash(root)
 }
 
-func (mt *MPTTracer) GetContract(addr types.Address) (*types.SmartContract, error) {
+func (mt *MPTTracer) GetAccountState(addr types.Address) (execution.AccountState, error) {
 	contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
 
 	// try to fetch from cache
 	smartContract, err := contractTrie.Fetch(addr.Hash())
 	if smartContract != nil {
 		// we fetched this contract before (in could be even updated by this time)
-		return smartContract, nil
+		return mt.accountsTraceableStates[addr], nil
 	}
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
@@ -87,10 +91,16 @@ func (mt *MPTTracer) GetContract(addr types.Address) (*types.SmartContract, erro
 	if contract == nil {
 		return nil, db.ErrKeyNotFound
 	}
-	return contract, nil
+
+	traceableAcc, err := NewTracableAccountState(mt, addr, smartContract, mt.logger)
+	if err != nil {
+		return nil, err
+	}
+	mt.accountsTraceableStates[addr] = traceableAcc
+	return traceableAcc, nil
 }
 
-func (mt *MPTTracer) UpdateContracts(contracts map[types.Address]*execution.AccountState) error {
+func (mt *MPTTracer) UpdateContracts(contracts map[types.Address]execution.AccountState) error {
 	mt.accountsInitialStates = make(map[types.Address]execution.Storage, len(contracts))
 	mt.accountsStatesDiff = make(map[types.Address]execution.Storage, len(contracts))
 	mt.accountsDiff = make(map[types.Address]*types.SmartContract, len(contracts))
@@ -99,19 +109,19 @@ func (mt *MPTTracer) UpdateContracts(contracts map[types.Address]*execution.Acco
 	values := make([]*types.SmartContract, 0, len(contracts))
 	for addr, acc := range contracts {
 
-		mt.touchedAccounts[addr] = struct{}{}
+		mt.updatedAccounts[addr] = struct{}{}
 
-		mt.accountsInitialStates[addr] = acc.StateCache
-		stateDiff := make(execution.Storage)
-		for k, v := range acc.StateUpdates {
-			initialValue, ok := acc.StateCache[k]
-			if !ok || initialValue != v {
-				stateDiff[k] = v
-			}
-		}
-		if len(stateDiff) != 0 {
-			mt.accountsStatesDiff[addr] = stateDiff
-		}
+		// mt.accountsInitialStates[addr] = acc.initial
+		// stateDiff := make(execution.Storage)
+		// for k, v := range acc.StateUpdates {
+		// 	initialValue, ok := acc.StateCache[k]
+		// 	if !ok || initialValue != v {
+		// 		stateDiff[k] = v
+		// 	}
+		// }
+		// if len(stateDiff) != 0 {
+		// 	mt.accountsStatesDiff[addr] = stateDiff
+		// }
 
 		smartAccount, err := acc.Commit()
 		if err != nil {
@@ -137,7 +147,7 @@ func (mt *MPTTracer) RootHash() common.Hash {
 }
 
 func (mt *MPTTracer) Commit() (common.Hash, error) {
-	if len(mt.touchedAccounts) == 0 {
+	if len(mt.updatedAccounts) == 0 {
 		return mt.initialContractRoot, nil
 	}
 	return mt.ContractSparseTrie.Commit()
@@ -170,7 +180,7 @@ func NewWithReader(
 		rwTx:               rwTx,
 		shardId:            shardId,
 		ContractSparseTrie: contractSparseTrie,
-		touchedAccounts:    make(map[types.Address]struct{}),
+		updatedAccounts:    make(map[types.Address]struct{}),
 		initialAccounts:    make(map[types.Address]*types.SmartContract),
 		client:             client,
 		logger:             logger,
@@ -185,60 +195,49 @@ func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, erro
 	// 	return err
 	// }
 
-	getProofCache := make([]GetProofCache, 0, len(mt.accountsInitialStates)*2+len(mt.accountsStatesDiff))
-	transactionCountCache := make([]TransactionCountCache, 0, len(mt.accountsInitialStates))
-	balanceCache := make([]BalanceCache, 0, len(mt.accountsInitialStates))
-	codeCache := make([]CodeCache, 0, len(mt.accountsInitialStates))
-	storageCache := make([]StorageCache, 0, len(mt.accountsInitialStates))
+	getProofCache := make([]GetProofCache, 0, len(mt.accountsTraceableStates)*2)
+	transactionCountCache := make([]TransactionCountCache, 0, len(mt.accountsTraceableStates))
+	balanceCache := make([]BalanceCache, 0, len(mt.accountsTraceableStates))
+	codeCache := make([]CodeCache, 0, len(mt.accountsTraceableStates))
+	storageCache := make([]StorageCache, 0, len(mt.accountsTraceableStates))
 
-	keysToProve := make(map[types.Address]map[common.Hash]struct{}, len(mt.accountsInitialStates)+len(mt.accountsStatesDiff))
 	blockNumToFetch := transport.BlockNumber(mt.blockNumber - 1)
-	// initial proofs
-	for touchedAddr := range mt.touchedAccounts {
-		storage, storageExists := mt.accountsInitialStates[touchedAddr]
-		if storageExists {
-			// TODO: add storage proofs
-			for key, value := range storage {
-				storageCache = append(storageCache, StorageCache{
-					Args: StorageArgs{
-						BlockArgs: BlockArgs{
-							BlockNo: blockNumToFetch.Uint64(),
-							ShardID: uint64(mt.shardId),
-						},
-						Address: touchedAddr,
-						Key:     hexutil.U256(*key.Uint256()),
+	for addr, accountState := range mt.accountsTraceableStates {
+
+		// TODO: add storage proofs
+		keysToProve := make(map[common.Hash]struct{}, len(accountState.initialSlots)+len(accountState.slotsUpdates))
+		for key, value := range accountState.initialSlots {
+			storageCache = append(storageCache, StorageCache{
+				Args: StorageArgs{
+					BlockArgs: BlockArgs{
+						BlockNo: blockNumToFetch.Uint64(),
+						ShardID: uint64(mt.shardId),
 					},
-					Storage: hexutil.U256(*value.Uint256()),
-				})
-			}
-
-			keysToProve[touchedAddr] = make(map[common.Hash]struct{}, len(storage))
-			for k := range storage {
-				keysToProve[touchedAddr][k] = struct{}{}
-			}
-			keys := make([]common.Hash, 0, len(keysToProve[touchedAddr]))
-			for k := range keysToProve[touchedAddr] {
-				keys = append(keys, k)
-			}
-
-			proof, err := mt.client.GetProof(ctx, touchedAddr, keys, blockNumToFetch)
-			if err != nil {
-				return nil, err
-			}
-			getProofCache = append(getProofCache, GetProofCache{
-				Args: GetProofArgs{
-					BlockNo: blockNumToFetch.Uint64(),
-					Address: touchedAddr,
-					Indices: keys,
+					Address: addr,
+					Key:     hexutil.U256(*key.Uint256()),
 				},
-				Proof: *proof,
+				Storage: hexutil.U256(*value.Uint256()),
 			})
+			keysToProve[key] = struct{}{}
 		}
 
-		accountData, exists := mt.initialAccounts[touchedAddr]
-		check.PanicIfNot(exists)
-
-		check.PanicIfNotf(exists, "address must me in cache")
+		// initial proofs
+		keysArg := make([]common.Hash, 0, len(keysToProve))
+		for k := range keysToProve {
+			keysArg = append(keysArg, k)
+		}
+		proof, err := mt.client.GetProof(ctx, addr, keysArg, blockNumToFetch)
+		if err != nil {
+			return nil, err
+		}
+		getProofCache = append(getProofCache, GetProofCache{
+			Args: GetProofArgs{
+				BlockNo: blockNumToFetch.Uint64(),
+				Address: addr,
+				Indices: keysArg,
+			},
+			Proof: *proof,
+		})
 
 		transactionCountCache = append(transactionCountCache, TransactionCountCache{
 			Args: TransactionCountArgs{
@@ -246,9 +245,9 @@ func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, erro
 					BlockNo: blockNumToFetch.Uint64(),
 					ShardID: uint64(mt.shardId),
 				},
-				Address: touchedAddr,
+				Address: addr,
 			},
-			Seqno: accountData.Seqno,
+			Seqno: accountState.initialValues.Seqno,
 		})
 		balanceCache = append(balanceCache, BalanceCache{
 			Args: BalanceArgs{
@@ -256,12 +255,12 @@ func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, erro
 					BlockNo: blockNumToFetch.Uint64(),
 					ShardID: uint64(mt.shardId),
 				},
-				Address: touchedAddr,
+				Address: addr,
 			},
-			Balance: accountData.Balance,
+			Balance: accountState.initialValues.Balance,
 		})
-		fmt.Printf("reading code with hash: %s\n", accountData.CodeHash)
-		code, err := db.ReadCode(mt.rwTx, mt.shardId, accountData.CodeHash)
+
+		code, err := db.ReadCode(mt.rwTx, mt.shardId, accountState.initialValues.CodeHash)
 		if err != nil {
 			return nil, err
 		}
@@ -271,42 +270,20 @@ func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, erro
 					BlockNo: blockNumToFetch.Uint64(),
 					ShardID: uint64(mt.shardId),
 				},
-				Address: touchedAddr,
+				Address: addr,
 			},
 			Code: code,
 		})
-		for key, value := range storage {
-			storageCache = append(storageCache, StorageCache{
-				Args: StorageArgs{
-					BlockArgs: BlockArgs{
-						BlockNo: blockNumToFetch.Uint64(),
-						ShardID: uint64(mt.shardId),
-					},
-					Address: touchedAddr,
-					Key:     hexutil.U256(*key.Uint256()),
-				},
-				Storage: hexutil.U256(*value.Uint256()),
-			})
-		}
-	}
 
-	// latest proofs
-	for addr, storage := range mt.accountsStatesDiff {
-		_, exists := keysToProve[addr]
-		if !exists {
-			keysToProve[addr] = make(map[common.Hash]struct{}, len(storage))
+		// latest proofs (initial keys + updated ones for N+1 block)
+		for key := range accountState.slotsUpdates {
+			keysToProve[key] = struct{}{}
 		}
-
-		for k := range storage {
-			keysToProve[addr][k] = struct{}{}
+		keysArg = make([]common.Hash, 0, len(keysToProve))
+		for k := range keysToProve {
+			keysArg = append(keysArg, k)
 		}
-
-		keys := make([]common.Hash, 0, len(keysToProve[addr]))
-		for k := range keysToProve[addr] {
-			keys = append(keys, k)
-		}
-
-		proof, err := mt.client.GetProof(ctx, addr, keys, mt.blockNumber+1)
+		proof, err = mt.client.GetProof(ctx, addr, keysArg, mt.blockNumber+1)
 		if err != nil {
 			return nil, err
 		}
@@ -314,7 +291,7 @@ func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, erro
 			Args: GetProofArgs{
 				BlockNo: mt.blockNumber.Uint64() + 1,
 				Address: addr,
-				Indices: keys,
+				Indices: keysArg,
 			},
 			Proof: *proof,
 		})
@@ -340,7 +317,7 @@ func (mt *MPTTracer) GetMPTTraces() (MPTTraces, error) {
 	curRoot := mt.ContractSparseTrie.RootHash()
 
 	storageTracesByAccount := make(map[types.Address][]StorageTrieUpdateTrace)
-	for addr := range mt.touchedAccounts {
+	for addr := range mt.updatedAccounts {
 		// contractTrie.SetRootHash() affects underlying ContractSpa rseTrie, so we need to change
 		// it each time we switch between current and initial tries
 		if err := contractTrie.SetRootHash(mt.initialContractRoot); err != nil {
@@ -530,4 +507,8 @@ func (mt *MPTTracer) getAccountTrieTraces(
 ) ([]ContractTrieUpdateTrace, error) {
 	rawMpt := mpt.NewDbMPT(mt.rwTx, mt.shardId, db.ContractTrieTable)
 	return getTrieTraces(rawMpt, execution.NewContractTrie, initialRoot, currentRoot)
+}
+
+func (mt *MPTTracer) GetRwTx() db.RwTx {
+	return mt.rwTx
 }
