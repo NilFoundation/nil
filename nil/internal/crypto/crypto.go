@@ -5,12 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 
-	"github.com/NilFoundation/nil/nil/common/hexutil"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 )
 
-var secp256k1N = new(uint256.Int).SetBytes(hexutil.MustDecodeHex(
+var secp256k1N = new(uint256.Int).SetBytes(gethcommon.FromHex(
 	"0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"))
 
 // PrivateKeyToEthereumFormat formats the private key in Ethereum format (hexadecimal)

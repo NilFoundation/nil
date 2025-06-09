@@ -2,10 +2,10 @@ package v1
 
 import (
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	coreTypes "github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types/proto"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 func uint256ToProtoUint256(u coreTypes.Uint256) *proto.Uint256 {
@@ -36,7 +36,7 @@ func ConvertToProto(batch *types.PrunedBatch) *proto.Batch {
 		for _, l2Tx := range l2Blk.Transactions {
 			tx := &proto.BlobTransaction{
 				Flags: uint32(l2Tx.Flags.Bits),
-				SeqNo: l2Tx.Seqno.Uint64(),
+				SeqNo: uint64(l2Tx.Seqno),
 				AddrFrom: &proto.Address{
 					AddressBytes: l2Tx.From.Bytes(),
 				},

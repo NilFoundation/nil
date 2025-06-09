@@ -8,13 +8,13 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/internal/vm"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -67,7 +67,7 @@ func (s *SuiteExecutionState) TestExecState() {
 	s.Run("DeployTransactions", func() {
 		from := types.GenerateRandomAddress(shardId)
 		for i := range numTransactions {
-			Deploy(s.T(), es, types.BuildDeployPayload(hexutil.FromHex(code), common.BytesToHash([]byte{byte(i)})),
+			Deploy(s.T(), es, types.BuildDeployPayload(ethcommon.FromHex(code), common.BytesToHash([]byte{byte(i)})),
 				shardId, from, i)
 		}
 	})
@@ -111,7 +111,7 @@ func (s *SuiteExecutionState) TestExecState() {
 			s.Require().NoError(err)
 
 			deploy := types.BuildDeployPayload(
-				hexutil.FromHex(code),
+				ethcommon.FromHex(code),
 				common.BytesToHash([]byte{byte(transactionIndex)}))
 			s.Equal(types.Code(deploy.Bytes()), m.Data)
 

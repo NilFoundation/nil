@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // API describes the set of methods offered over the RPC interface

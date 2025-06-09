@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type bytesBacked interface {

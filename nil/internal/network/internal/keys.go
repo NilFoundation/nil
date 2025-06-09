@@ -5,7 +5,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/NilFoundation/nil/nil/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"gopkg.in/yaml.v3"

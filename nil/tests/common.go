@@ -10,7 +10,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -18,6 +17,8 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/tools/solc"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	l1types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
@@ -131,7 +132,7 @@ func LoadContract(t *testing.T, path string, name string) (types.Code, abi.ABI) 
 
 	contracts, err := solc.CompileSource(path)
 	require.NoError(t, err)
-	code := hexutil.FromHex(contracts[name].Code)
+	code := ethcommon.FromHex(contracts[name].Code)
 	abi := solc.ExtractABI(contracts[name])
 	return code, abi
 }

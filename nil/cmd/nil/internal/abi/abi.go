@@ -5,7 +5,8 @@ import (
 
 	"github.com/NilFoundation/nil/nil/cmd/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/spf13/cobra"
 )
 
@@ -47,11 +48,7 @@ func GetCommand() *cobra.Command {
 		Args:         cobra.MinimumNArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, err := hexutil.DecodeHex(args[1])
-			if err != nil {
-				return err
-			}
-
+			data := ethcommon.FromHex(args[1])
 			abi, err := common.ReadAbiFromFile(path)
 			if err != nil {
 				return err
@@ -78,8 +75,7 @@ func GetCommand() *cobra.Command {
 	)
 	check.PanicIfErr(abiCmd.MarkPersistentFlagRequired(pathFlag))
 
-	abiCmd.AddCommand(encodeCmd)
-	abiCmd.AddCommand(decodeCmd)
+	abiCmd.AddCommand(encodeCmd, decodeCmd)
 
 	return abiCmd
 }

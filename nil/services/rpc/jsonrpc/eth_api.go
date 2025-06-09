@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -12,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/filters"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type EthAPIRo interface {

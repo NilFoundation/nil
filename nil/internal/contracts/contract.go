@@ -13,10 +13,11 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/concurrent"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/contracts"
 	"github.com/NilFoundation/nil/nil/internal/abi"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 const (
@@ -47,7 +48,7 @@ func GetCode(name string) (types.Code, error) {
 		return nil, err
 	}
 
-	res := types.Code(hexutil.FromHex(string(code)))
+	res := types.Code(ethcommon.FromHex(string(code)))
 	codeCache.Put(name, res)
 	return res.Clone(), nil
 }

@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 func unmarshalTxnAndReceipt(data *rawapitypes.TransactionInfo) (*types.Transaction, *types.Receipt, error) {

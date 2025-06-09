@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,12 +31,12 @@ func TestDebugBlockToText(t *testing.T) {
 			Flags:   types.TransactionFlagsFromKind(true, types.ExecutionTransactionKind),
 			ChainId: 1,
 			Seqno:   0,
-			To:      types.BytesToAddress(hexutil.FromHex("0x02")),
-			Data:    hexutil.FromHex("0xDEADC0DE"),
+			To:      types.BytesToAddress(ethcommon.FromHex("0x02")),
+			Data:    ethcommon.FromHex("0xDEADC0DE"),
 		},
-		From:      types.BytesToAddress(hexutil.FromHex("0x01")),
-		RefundTo:  types.BytesToAddress(hexutil.FromHex("0x03")),
-		BounceTo:  types.BytesToAddress(hexutil.FromHex("0x04")),
+		From:      types.BytesToAddress(ethcommon.FromHex("0x01")),
+		RefundTo:  types.BytesToAddress(ethcommon.FromHex("0x03")),
+		BounceTo:  types.BytesToAddress(ethcommon.FromHex("0x04")),
 		Value:     types.NewValueFromUint64(300),
 		Token:     makeTokens(0x666, 0x777),
 		Signature: nil,
@@ -49,11 +49,11 @@ func TestDebugBlockToText(t *testing.T) {
 			Flags:   types.TransactionFlagsFromKind(false, types.DeployTransactionKind),
 			ChainId: 1,
 			Seqno:   0,
-			To:      types.BytesToAddress(hexutil.FromHex("0x0200")),
+			To:      types.BytesToAddress(ethcommon.FromHex("0x0200")),
 		},
-		From:      types.BytesToAddress(hexutil.FromHex("0x0100")),
-		RefundTo:  types.BytesToAddress(hexutil.FromHex("0x0300")),
-		BounceTo:  types.BytesToAddress(hexutil.FromHex("0x0400")),
+		From:      types.BytesToAddress(ethcommon.FromHex("0x0100")),
+		RefundTo:  types.BytesToAddress(ethcommon.FromHex("0x0300")),
+		BounceTo:  types.BytesToAddress(ethcommon.FromHex("0x0400")),
 		Value:     types.Value0,
 		Token:     nil,
 		Signature: []byte("Signature"),
@@ -64,8 +64,8 @@ func TestDebugBlockToText(t *testing.T) {
 			Flags:   types.TransactionFlagsFromKind(true, types.ExecutionTransactionKind),
 			ChainId: 1,
 			Seqno:   0,
-			To:      types.BytesToAddress(hexutil.FromHex("0x999")),
-			Data: hexutil.FromHex("0x" +
+			To:      types.BytesToAddress(ethcommon.FromHex("0x999")),
+			Data: ethcommon.FromHex("0x" +
 				"0000000000" +
 				"1111111111" +
 				"2222222222" +
@@ -83,9 +83,9 @@ func TestDebugBlockToText(t *testing.T) {
 				"EEEEEEEEEE" +
 				"FFFFFFFFFF"),
 		},
-		From:     types.BytesToAddress(hexutil.FromHex("0x0200")),
-		RefundTo: types.BytesToAddress(hexutil.FromHex("0x0")),
-		BounceTo: types.BytesToAddress(hexutil.FromHex("0x0")),
+		From:     types.BytesToAddress(ethcommon.FromHex("0x0200")),
+		RefundTo: types.BytesToAddress(ethcommon.FromHex("0x0")),
+		BounceTo: types.BytesToAddress(ethcommon.FromHex("0x0")),
 		Value:    types.NewValueFromUint64(1234),
 		Token:    makeTokens(0x888),
 	}

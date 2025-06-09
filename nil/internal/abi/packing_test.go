@@ -22,8 +22,8 @@ package abi
 import (
 	"math/big"
 
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 )
 
 type packUnpackTest struct {
@@ -382,7 +382,7 @@ var packUnpackTests = []packUnpackTest{
 		packed: "0000000000000000000000000000000000000000000000000000000000000020" +
 			"0000000000000000000000000000000000000000000000000000000000000020" +
 			"0100000000000000000000000000000000000000000000000000000000000000",
-		unpacked: hexutil.Hex2Bytes("0100000000000000000000000000000000000000000000000000000000000000"),
+		unpacked: ethcommon.Hex2Bytes("0100000000000000000000000000000000000000000000000000000000000000"),
 	},
 	{
 		def:    `[{"type": "bytes32"}]`,

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/crypto/bls"
 	"github.com/NilFoundation/nil/nil/internal/crypto/bls/kyber"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"gopkg.in/yaml.v3"
 )
 
