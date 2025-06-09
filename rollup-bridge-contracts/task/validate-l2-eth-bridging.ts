@@ -83,7 +83,6 @@ export async function validateL2EthBridging(
     if (!(ethBalanceAftBridgeFinality > BigInt(0))) {
         throw Error(`Insufficient or Zero balance for smart-account: ${depositRecipientSmartAccount.address}`);
     }
-
     console.log(`Deposit-recipient has ETH balance: ${ethBalanceAftBridgeFinality}`);
 }
 

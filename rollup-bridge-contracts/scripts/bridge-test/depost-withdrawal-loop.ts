@@ -4,6 +4,7 @@ import { generateNilSmartAccount } from "../../task/nil-smart-account";
 import { bridgeETHAux } from "./bridge-eth-impl";
 import { validateL2EthBridging } from "../../task/validate-l2-eth-bridging";
 import { fetchRelayer } from "../../task/fetch-relayeraddress-from-relayer";
+import { withdrawETH } from "./withdraw-eth";
 import { ethers } from "ethers";
 import { 
     FaucetClient, 
@@ -89,6 +90,10 @@ export async function depositAndWithdrawLoop(params: BridgeLoadGeneratorParams) 
             balanceL2 = await testingL2Account.client.getBalance(testingL2Account.address);
 
             console.log("L2 account balance after deposit:", balanceL2);  
+
+            await withdrawETH("local", testingL2Account, l1Wallet.address, BigInt(weiAmount)); 
+
+            // TODO checks that funds are back on L1 account
         }
     }
 
