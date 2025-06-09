@@ -13,34 +13,73 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-type AccountStateReader struct {
-	// Tokens is a pointer to map of token in Account. This map holds token that is changed during execution.
-	Tokens *map[types.TokenId]types.Value
-	// TokenTrieReader is a reader for token from the storage. If Tokens doesn't have some token, it will
-	// be fetched from TokenTrieReader.
-	TokenTrieReader *TokenTrieReader
-}
-
-func (asr *AccountStateReader) GetTokenBalance(id types.TokenId) types.Value {
-	if res, ok := (*asr.Tokens)[id]; ok {
-		return res
-	}
-	res, err := asr.TokenTrieReader.Fetch(id)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return types.Value{}
-	}
-	check.PanicIfErr(err)
-	return *res
-}
-
-type IAccountExecutionState interface {
+type JournalAppender interface {
 	AppendToJournal(entry JournalEntry)
+}
+
+type DbRwTxProvider interface {
 	GetRwTx() db.RwTx
 }
 
-type AccountState struct {
-	db      IAccountExecutionState
-	address types.Address // address of the ethereum account
+type AccountWriter interface {
+	SetAddress(*types.Address)
+
+	AddBalance(amount types.Value, reason tracing.BalanceChangeReason) error
+	SubBalance(amount types.Value, reason tracing.BalanceChangeReason) error
+	SetBalance(amount types.Value)
+
+	SetState(key common.Hash, value common.Hash) error
+	SetStorage(storage Storage)
+
+	SetTokenBalance(id types.TokenId, amount types.Value)
+
+	SetSeqno(seqno types.Seqno)
+	SetExtSeqno(seqno types.Seqno)
+
+	SetCode(codeHash common.Hash, code []byte)
+
+	SetAsyncContext(index types.TransactionIndex, ctx *types.AsyncContext)
+	UndoSetAsyncContext(index types.TransactionIndex)
+	GetAndRemoveAsyncContext(index types.TransactionIndex) (*types.AsyncContext, error)
+
+	SetIsNew(val bool)
+	SetIsSelfDestructed(val bool)
+
+	Commit() (*types.SmartContract, error)
+}
+
+type AccountReader interface {
+	GetAddress() *types.Address
+
+	GetBalance() types.Value
+	GetState(key common.Hash) (common.Hash, error)
+	GetCommittedState(key common.Hash) (common.Hash, error)
+	GetStorageRoot() common.Hash
+
+	GetTokenBalance(id types.TokenId) *types.Value
+	GetTokens() map[types.TokenId]types.Value
+
+	GetSeqno() types.Seqno
+	GetExtSeqno() types.Seqno
+
+	GetCode() types.Code
+	GetCodeHash() common.Hash
+
+	GetAsyncContext(index types.TransactionIndex) (*types.AsyncContext, error)
+
+	IsNew() bool
+	IsSelfDestructed() bool
+	IsEmpty() bool
+}
+
+type AccountState interface {
+	AccountReader
+	AccountWriter
+}
+
+type AccountStateImpl struct {
+	dbRwTxProvider DbRwTxProvider
+	address        types.Address // address of the ethereum account
 
 	Balance     types.Value
 	Code        types.Code
@@ -52,12 +91,11 @@ type AccountState struct {
 	// AsyncContextTree is a trie that stores the context for each request sent from this account.
 	AsyncContextTree *AsyncContextTrie
 
-	StateCache          Storage
-	StateUpdates        Storage
+	State               Storage
 	AsyncContext        map[types.TransactionIndex]*types.AsyncContext
 	AsyncContextRemoved []types.TransactionIndex
 	// Tokens holds the token changed during execution. If execution fails, these changes will be dropped.
-	Tokens map[types.TokenId]types.Value
+	Tokens map[types.TokenId]*types.Value
 
 	// Flag whether the account was marked as self-destructed. The self-destructed
 	// account is still accessible in the scope of same transaction.
@@ -68,77 +106,69 @@ type AccountState struct {
 	// the contract is just created within the current transaction, or when the
 	// object was previously existent and is being deployed as a contract within
 	// the current transaction.
-	NewContract bool
+	newContract bool
 
 	logger logging.Logger
 }
 
-func NewAccountStateReader(account *AccountState) *AccountStateReader {
-	return &AccountStateReader{
-		Tokens:          &account.Tokens,
-		TokenTrieReader: account.TokenTree.BaseMPTReader,
-	}
-}
+var _ AccountState = (*AccountStateImpl)(nil)
 
 func NewAccountState(
-	es IAccountExecutionState,
+	dbRwTxProvider DbRwTxProvider,
 	addr types.Address,
 	account *types.SmartContract,
 	logger logging.Logger,
-) (*AccountState, error) {
+) (AccountState, error) {
 	shardId := addr.ShardId()
 
-	accountState := &AccountState{
-		db:               es,
+	rwTx := dbRwTxProvider.GetRwTx()
+	accountState := &AccountStateImpl{
+		dbRwTxProvider:   dbRwTxProvider,
 		address:          addr,
-		TokenTree:        NewDbTokenTrie(es.GetRwTx(), shardId),
-		StorageTree:      NewDbStorageTrie(es.GetRwTx(), shardId),
-		AsyncContextTree: NewDbAsyncContextTrie(es.GetRwTx(), shardId),
+		TokenTree:        NewDbTokenTrie(rwTx, shardId),
+		StorageTree:      NewDbStorageTrie(rwTx, shardId),
+		AsyncContextTree: NewDbAsyncContextTrie(rwTx, shardId),
 		CodeHash:         types.EmptyCodeHash,
 
-		StateCache:   make(Storage),
-		StateUpdates: make(Storage),
+		State:        make(Storage),
 		AsyncContext: make(map[types.TransactionIndex]*types.AsyncContext),
-		Tokens:       make(map[types.TokenId]types.Value),
+		Tokens:       make(map[types.TokenId]*types.Value),
 		logger:       logger,
 	}
 
-	tokenRoot := mpt.EmptyRootHash
-	storageRoot := mpt.EmptyRootHash
-	asyncContextRoot := mpt.EmptyRootHash
 	if account != nil {
 		accountState.Balance = account.Balance
-		tokenRoot = account.TokenRoot
-		storageRoot = account.StorageRoot
+		accountState.TokenTree.SetRootHash(account.TokenRoot)
+		accountState.StorageTree.SetRootHash(account.StorageRoot)
 		accountState.CodeHash = account.CodeHash
-		asyncContextRoot = account.AsyncContextRoot
+		accountState.AsyncContextTree.SetRootHash(account.AsyncContextRoot)
 		var err error
-		accountState.Code, err = db.ReadCode(es.GetRwTx(), shardId, account.CodeHash)
+		accountState.Code, err = db.ReadCode(rwTx, shardId, account.CodeHash)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read contract code: %w", err)
 		}
 		accountState.ExtSeqno = account.ExtSeqno
 		accountState.Seqno = account.Seqno
 	}
-	if err := accountState.TokenTree.SetRootHash(tokenRoot); err != nil {
-		return nil, fmt.Errorf("failed to set token root hash: %w", err)
-	}
-	if err := accountState.StorageTree.SetRootHash(storageRoot); err != nil {
-		return nil, fmt.Errorf("failed to set storage root hash: %w", err)
-	}
-	if err := accountState.AsyncContextTree.SetRootHash(asyncContextRoot); err != nil {
-		return nil, fmt.Errorf("failed to set async context root hash: %w", err)
-	}
+
 	return accountState, nil
 }
 
-func (as *AccountState) empty() bool {
-	return as.Seqno == 0 && as.Balance.IsZero() && len(as.Code) == 0
+func (asr *AccountStateImpl) GetAddress() *types.Address {
+	return &asr.address
 }
 
-// AddBalance adds amount to s's balance.
+func (asr *AccountStateImpl) SetAddress(addr *types.Address) {
+	asr.address = *addr
+}
+
+func (as *AccountStateImpl) GetBalance() types.Value {
+	return as.Balance
+}
+
+// AddBalance adds amount to as's balance.
 // It is used to add funds to the destination account of a transfer.
-func (as *AccountState) AddBalance(amount types.Value, reason tracing.BalanceChangeReason) error {
+func (as *AccountStateImpl) AddBalance(amount types.Value, reason tracing.BalanceChangeReason) error {
 	if amount.IsZero() {
 		return nil
 	}
@@ -153,9 +183,9 @@ func (as *AccountState) AddBalance(amount types.Value, reason tracing.BalanceCha
 	return nil
 }
 
-// SubBalance removes amount from s's balance.
+// SubBalance removes amount from as's balance.
 // It is used to remove funds from the origin account of a transfer.
-func (as *AccountState) SubBalance(amount types.Value, reason tracing.BalanceChangeReason) error {
+func (as *AccountStateImpl) SubBalance(amount types.Value, reason tracing.BalanceChangeReason) error {
 	if amount.IsZero() {
 		return nil
 	}
@@ -170,13 +200,12 @@ func (as *AccountState) SubBalance(amount types.Value, reason tracing.BalanceCha
 	return nil
 }
 
-func (as *AccountState) GetState(key common.Hash) (common.Hash, error) {
-	val, ok := as.StateUpdates[key]
-	if ok {
-		return val, nil
-	}
+func (as *AccountStateImpl) SetBalance(amount types.Value) {
+	as.Balance = amount
+}
 
-	val, ok = as.StateCache[key]
+func (as *AccountStateImpl) GetState(key common.Hash) (common.Hash, error) {
+	val, ok := as.State[key]
 	if ok {
 		return val, nil
 	}
@@ -185,155 +214,12 @@ func (as *AccountState) GetState(key common.Hash) (common.Hash, error) {
 	if err != nil {
 		return common.EmptyHash, err
 	}
-	as.StateCache[key] = newVal
+	as.State[key] = newVal
 	return newVal, nil
 }
 
-func (as *AccountState) SetBalance(amount types.Value) {
-	as.db.AppendToJournal(balanceChange{
-		account: &as.address,
-		prev:    as.Balance,
-	})
-	as.setBalance(amount)
-}
-
-func (as *AccountState) setBalance(amount types.Value) {
-	as.Balance = amount
-}
-
-func (as *AccountState) SetTokenBalance(id types.TokenId, amount types.Value) {
-	prev := as.GetTokenBalance(id)
-	change := tokenChange{
-		account: &as.address,
-		id:      id,
-	}
-	if prev != nil {
-		change.prev = *prev
-	}
-	as.db.AppendToJournal(change)
-	as.setTokenBalance(id, amount)
-}
-
-func (as *AccountState) setTokenBalance(id types.TokenId, amount types.Value) {
-	as.Tokens[id] = amount
-	as.logger.Debug().
-		Stringer("address", as.address).
-		Hex("id", id[:]).
-		Stringer("amount", amount).
-		Msg("Set balance token")
-}
-
-func (as *AccountState) GetTokenBalance(id types.TokenId) *types.Value {
-	if value, exists := as.Tokens[id]; exists {
-		return &value
-	}
-
-	prev, err := as.TokenTree.Fetch(id)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil
-	}
-	check.PanicIfErr(err)
-
-	if prev != nil {
-		as.Tokens[id] = *prev
-	}
-	return prev
-}
-
-func (as *AccountState) SetSeqno(seqno types.Seqno) {
-	as.db.AppendToJournal(seqnoChange{
-		account: &as.address,
-		prev:    as.Seqno,
-	})
-	as.Seqno = seqno
-}
-
-func (as *AccountState) SetExtSeqno(seqno types.Seqno) {
-	as.db.AppendToJournal(extSeqnoChange{
-		account: &as.address,
-		prev:    as.ExtSeqno,
-	})
-	as.ExtSeqno = seqno
-}
-
-func (as *AccountState) SetCode(codeHash common.Hash, code []byte) {
-	prevcode := as.Code
-	as.db.AppendToJournal(codeChange{
-		account:  &as.address,
-		prevhash: as.CodeHash[:],
-		prevcode: prevcode,
-	})
-	as.setCode(codeHash, code)
-}
-
-func (as *AccountState) SetAsyncContext(index types.TransactionIndex, ctx *types.AsyncContext) {
-	as.db.AppendToJournal(asyncContextChange{
-		account:   &as.address,
-		requestId: index,
-	})
-	as.AsyncContext[index] = ctx
-}
-
-func (as *AccountState) GetAsyncContext(index types.TransactionIndex) (*types.AsyncContext, error) {
-	ctx, exists := as.AsyncContext[index]
-	if exists {
-		return ctx, nil
-	}
-	return as.AsyncContextTree.Fetch(index)
-}
-
-func (as *AccountState) GetAndRemoveAsyncContext(index types.TransactionIndex) (*types.AsyncContext, error) {
-	_, exists := as.AsyncContext[index]
-	check.PanicIff(exists, "AsyncContext %d already exists", index)
-	as.AsyncContextRemoved = append(as.AsyncContextRemoved, index)
-	return as.AsyncContextTree.Fetch(index)
-}
-
-func (as *AccountState) setCode(codeHash common.Hash, code []byte) {
-	as.Code = code
-	as.CodeHash = common.Hash(codeHash[:])
-}
-
-func (as *AccountState) SetState(key common.Hash, value common.Hash) error {
-	// If the new value is the same as old, don't set. Otherwise, track only the
-	// dirty changes, supporting reverting all of it back to no change.
-	prev, err := as.GetState(key)
-	if err != nil {
-		return err
-	}
-	if prev == value {
-		return nil
-	}
-	// New value is different, update and journal the change
-	as.db.AppendToJournal(storageChange{
-		account:   &as.address,
-		key:       key,
-		prevvalue: prev,
-	})
-	as.setState(key, value)
-	return nil
-}
-
-// SetStorage replaces the entire state storage with the given one.
-//
-// After this function is called, all original state will be ignored and state
-// lookup only happens in the fake state storage.
-//
-// Note this function should only be used for debugging purpose.
-func (as *AccountState) SetStorage(storage Storage) {
-	for key, value := range storage {
-		as.StateUpdates[key] = value
-	}
-	// Don't bother journal since this function should only be used for
-	// debugging and the `fake` storage won't be committed to database.
-}
-
-func (as *AccountState) setState(key common.Hash, value common.Hash) {
-	as.StateUpdates[key] = value
-}
-
 // GetCommittedState retrieves a value from the committed account storage trie.
-func (as *AccountState) GetCommittedState(key common.Hash) (common.Hash, error) {
+func (as *AccountStateImpl) GetCommittedState(key common.Hash) (common.Hash, error) {
 	res, err := as.StorageTree.Fetch(key)
 	if errors.Is(err, db.ErrKeyNotFound) {
 		return common.EmptyHash, nil
@@ -345,11 +231,136 @@ func (as *AccountState) GetCommittedState(key common.Hash) (common.Hash, error) 
 	return res.Bytes32(), nil
 }
 
-func (as *AccountState) Commit() (*types.SmartContract, error) {
+func (asr *AccountStateImpl) SetState(key common.Hash, value common.Hash) error {
+	asr.State[key] = value
+	return nil
+}
+
+// SetStorage replaces the entire state storage with the given one.
+//
+// After this function is called, all original state will be ignored and state
+// lookup only happens in the fake state storage.
+//
+// Note this function should only be used for debugging purpose.
+func (as *AccountStateImpl) SetStorage(storage Storage) {
+	for key, value := range storage {
+		as.State[key] = value
+	}
+	// Don't bother journal since this function should only be used for
+	// debugging and the `fake` storage won't be committed to database.
+}
+
+// GetStorageRoot retrieves the root hash of the storage.
+func (as *AccountStateImpl) GetStorageRoot() common.Hash {
+	storageRootHash := as.StorageTree.RootHash()
+	if storageRootHash == mpt.EmptyRootHash {
+		return common.EmptyHash
+	}
+	return storageRootHash
+}
+
+func (as *AccountStateImpl) GetTokenBalance(id types.TokenId) *types.Value {
+	if value, exists := as.Tokens[id]; exists {
+		return value
+	}
+
+	tokenBalance, err := as.TokenTree.Fetch(id)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil
+	}
+	check.PanicIfErr(err)
+
+	as.Tokens[id] = tokenBalance
+	return tokenBalance
+}
+
+func (as *AccountStateImpl) SetTokenBalance(id types.TokenId, amount types.Value) {
+	as.Tokens[id] = &amount
+	as.logger.Debug().
+		Stringer("address", as.address).
+		Hex("id", id[:]).
+		Stringer("amount", amount).
+		Msg("Set balance token")
+}
+
+func (as *AccountStateImpl) GetTokens() map[types.TokenId]types.Value {
+	res := make(map[types.TokenId]types.Value)
+	for k, v := range as.TokenTree.Iterate() {
+		var c types.TokenBalance
+		c.Token = types.TokenId(k)
+		if err := c.Balance.UnmarshalNil(v); err != nil {
+			as.logger.Error().Err(err).Msg("failed to unmarshal token balance")
+			continue
+		}
+		res[c.Token] = c.Balance
+	}
+	// If some token was changed during execution, we need to set it to the result. It will probably rewrite values
+	// fetched from the storage above.
+	for id, balance := range as.Tokens {
+		if balance != nil {
+			res[id] = *balance
+		}
+	}
+	return res
+}
+
+func (as *AccountStateImpl) GetSeqno() types.Seqno {
+	return as.Seqno
+}
+
+func (as *AccountStateImpl) SetSeqno(seqno types.Seqno) {
+	as.Seqno = seqno
+}
+
+func (as *AccountStateImpl) GetExtSeqno() types.Seqno {
+	return as.ExtSeqno
+}
+
+func (as *AccountStateImpl) SetExtSeqno(seqno types.Seqno) {
+	as.ExtSeqno = seqno
+}
+
+func (as *AccountStateImpl) GetCode() types.Code {
+	return as.Code
+}
+
+func (as *AccountStateImpl) SetCode(codeHash common.Hash, code []byte) {
+	as.Code = code
+	as.CodeHash = common.Hash(codeHash[:])
+}
+
+func (as *AccountStateImpl) GetCodeHash() common.Hash {
+	return as.CodeHash
+}
+
+func (as *AccountStateImpl) GetAsyncContext(index types.TransactionIndex) (*types.AsyncContext, error) {
+	ctx, exists := as.AsyncContext[index]
+	if exists {
+		return ctx, nil
+	}
+	return as.AsyncContextTree.Fetch(index)
+}
+
+func (as *AccountStateImpl) SetAsyncContext(index types.TransactionIndex, ctx *types.AsyncContext) {
+	as.AsyncContext[index] = ctx
+}
+
+func (as *AccountStateImpl) UndoSetAsyncContext(index types.TransactionIndex) {
+	delete(as.AsyncContext, index)
+}
+
+func (as *AccountStateImpl) GetAndRemoveAsyncContext(index types.TransactionIndex) (*types.AsyncContext, error) {
+	_, exists := as.AsyncContext[index]
+	check.PanicIff(exists, "AsyncContext %d already exists", index)
+	as.AsyncContextRemoved = append(as.AsyncContextRemoved, index)
+	return as.AsyncContextTree.Fetch(index)
+}
+
+func (as *AccountStateImpl) Commit() (*types.SmartContract, error) {
 	// Remove zero values from the state cache and the storage trie
-	for key, value := range as.StateUpdates {
+	for key, value := range as.State {
 		if value == common.EmptyHash {
-			delete(as.StateUpdates, key)
+			delete(as.State, key)
 			if err := as.StorageTree.Delete(key); err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 				return nil, fmt.Errorf("failed to delete key %s: %w", key, err)
 			}
@@ -358,7 +369,7 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 	// Update storage trie with the new values
 	if err := UpdateFromMap(
 		as.StorageTree,
-		as.StateUpdates,
+		as.State,
 		func(v common.Hash) *types.Uint256 {
 			return (*types.Uint256)(v.Uint256())
 		}); err != nil {
@@ -387,37 +398,164 @@ func (as *AccountState) Commit() (*types.SmartContract, error) {
 		}
 	}
 
-	if err := UpdateFromMap(as.TokenTree, as.Tokens, func(val types.Value) *types.Value { return &val }); err != nil {
-		return nil, err
-	}
-
-	storageRoot, err := as.StorageTree.Commit()
-	if err != nil {
-		return nil, err
-	}
-	tokenTree, err := as.TokenTree.Commit()
-	if err != nil {
-		return nil, err
-	}
-	asyncContextTree, err := as.AsyncContextTree.Commit()
-	if err != nil {
+	if err := UpdateFromMap(as.TokenTree, as.Tokens, nil); err != nil {
 		return nil, err
 	}
 
 	acc := &types.SmartContract{
 		Address:          as.address,
 		Balance:          as.Balance,
-		StorageRoot:      storageRoot,
-		TokenRoot:        tokenTree,
-		AsyncContextRoot: asyncContextTree,
+		StorageRoot:      as.StorageTree.RootHash(),
+		TokenRoot:        as.TokenTree.RootHash(),
+		AsyncContextRoot: as.AsyncContextTree.RootHash(),
 		CodeHash:         as.CodeHash,
 		ExtSeqno:         as.ExtSeqno,
 		Seqno:            as.Seqno,
 	}
 
-	if err := db.WriteCode(as.db.GetRwTx(), as.address.ShardId(), as.CodeHash, as.Code); err != nil {
+	// TODO: dbRwTxProvider is used only here, move WriteCode func to inteface
+	if err := db.WriteCode(as.dbRwTxProvider.GetRwTx(), as.address.ShardId(), as.CodeHash, as.Code); err != nil {
 		return nil, err
 	}
 
 	return acc, nil
+}
+
+// IsNew returns if the account has been just created.
+func (as *AccountStateImpl) IsNew() bool {
+	return as.newContract
+}
+
+// SetIsNew marks account as just created
+func (as *AccountStateImpl) SetIsNew(val bool) {
+	as.newContract = val
+}
+
+// IsSelfDestructed returns if the account has been marked as self-destructed.
+func (as *AccountStateImpl) IsSelfDestructed() bool {
+	return as.selfDestructed
+}
+
+// SetSelfDestructed marks account as self-destructed
+func (as *AccountStateImpl) SetIsSelfDestructed(val bool) {
+	as.selfDestructed = val
+}
+
+// IsEmpty returns if the account is considered empty according to EIP-161.
+func (asr *AccountStateImpl) IsEmpty() bool {
+	return asr.Seqno == 0 && asr.Balance.IsZero() && len(asr.Code) == 0
+}
+
+type JournaledAccountState struct {
+	AccountState
+	journalAppender JournalAppender
+	logger          logging.Logger
+}
+
+var _ AccountState = (*JournaledAccountState)(nil)
+
+// NewJournaledAccountStateWrapper takes AccountState as input and adds journalling to it
+func NewJournaledAccountStateFromRaw(
+	journalAppender JournalAppender,
+	accountState AccountState,
+	logger logging.Logger,
+) AccountState {
+	return &JournaledAccountState{
+		AccountState:    accountState,
+		journalAppender: journalAppender,
+		logger:          logger,
+	}
+}
+
+// NewJournaledAccountState creates raw account, then wraps it into journalled account.
+// func NewJournaledAccountState(
+// 	dbRwTxProvider DbRwTxProvider,
+// 	journalAppender JournalAppender,
+// 	addr types.Address,
+// 	account *types.SmartContract,
+// 	logger logging.Logger,
+// ) (AccountState, error) {
+// 	acccountStateRaw, err := NewAccountState(
+// 		dbRwTxProvider,
+// 		addr,
+// 		account,
+// 		logger,
+// 	)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return NewJournaledAccountStateFromRaw(journalAppender, acccountStateRaw, logger), nil
+// }
+
+func (as *JournaledAccountState) SetBalance(amount types.Value) {
+	as.journalAppender.AppendToJournal(balanceChange{
+		account: as.GetAddress(),
+		prev:    as.GetBalance(),
+	})
+	as.AccountState.SetBalance(amount)
+}
+
+func (jas *JournaledAccountState) SetState(key common.Hash, value common.Hash) error {
+	// If the new value is the same as old, don't set. Otherwise, track only the
+	// dirty changes, supporting reverting all of it back to no change.
+	prev, err := jas.GetState(key)
+	if err != nil {
+		return err
+	}
+	if prev == value {
+		return nil
+	}
+	// New value is different, update and journal the change
+	jas.journalAppender.AppendToJournal(storageChange{
+		account:   jas.GetAddress(),
+		key:       key,
+		prevvalue: prev,
+	})
+	return jas.AccountState.SetState(key, value)
+}
+
+func (as *JournaledAccountState) SetTokenBalance(id types.TokenId, amount types.Value) {
+	prev := as.GetTokenBalance(id)
+	change := tokenChange{
+		account: as.GetAddress(),
+		id:      id,
+	}
+	if prev != nil {
+		change.prev = *prev
+	}
+	as.journalAppender.AppendToJournal(change)
+	as.AccountState.SetTokenBalance(id, amount)
+}
+
+func (as *JournaledAccountState) SetSeqno(seqno types.Seqno) {
+	as.journalAppender.AppendToJournal(seqnoChange{
+		account: as.GetAddress(),
+		prev:    as.GetSeqno(),
+	})
+	as.AccountState.SetSeqno(seqno)
+}
+
+func (as *JournaledAccountState) SetExtSeqno(seqno types.Seqno) {
+	as.journalAppender.AppendToJournal(extSeqnoChange{
+		account: as.GetAddress(),
+		prev:    as.GetExtSeqno(),
+	})
+	as.AccountState.SetExtSeqno(seqno)
+}
+
+func (as *JournaledAccountState) SetCode(codeHash common.Hash, code []byte) {
+	as.journalAppender.AppendToJournal(codeChange{
+		account:  as.GetAddress(),
+		prevhash: as.GetCodeHash().Bytes(),
+		prevcode: as.GetCode(),
+	})
+	as.AccountState.SetCode(codeHash, code)
+}
+
+func (as *JournaledAccountState) SetAsyncContext(index types.TransactionIndex, ctx *types.AsyncContext) {
+	as.journalAppender.AppendToJournal(asyncContextChange{
+		account:   as.GetAddress(),
+		requestId: index,
+	})
+	as.AccountState.SetAsyncContext(index, ctx)
 }

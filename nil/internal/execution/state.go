@@ -63,10 +63,10 @@ type RollbackParams struct {
 	SearchDepth uint32
 }
 
-type IContractMPTRepository interface {
+type ContractMPTRepository interface {
 	SetRootHash(root common.Hash) error
-	GetContract(addr types.Address) (*types.SmartContract, error)
-	UpdateContracts(contracts map[types.Address]*AccountState) error
+	GetAccountState(addr types.Address) (AccountState, error)
+	UpdateContracts(contracts map[types.Address]AccountState) error
 	RootHash() common.Hash
 	Commit() (common.Hash, error)
 }
@@ -75,7 +75,7 @@ type TxCounts map[types.ShardId]types.TransactionIndex
 
 type ExecutionState struct {
 	tx               db.RwTx
-	ContractTree     IContractMPTRepository
+	ContractTree     ContractMPTRepository
 	ReceiptTree      *ReceiptTrie
 	PrevBlock        common.Hash
 	MainShardHash    common.Hash
@@ -94,7 +94,7 @@ type ExecutionState struct {
 	Logs              map[common.Hash][]*types.Log
 	DebugLogs         map[common.Hash][]*types.DebugLog
 
-	Accounts            map[types.Address]*AccountState
+	Accounts            map[types.Address]AccountState
 	InTransactions      []*types.Transaction
 	InTxCounts          TxCounts
 	InTransactionHashes []common.Hash
@@ -148,8 +148,8 @@ type ExecutionState struct {
 }
 
 var (
-	_ vm.StateDB                = new(ExecutionState)
-	_ IRevertableExecutionState = new(ExecutionState)
+	_ vm.StateDB               = new(ExecutionState)
+	_ RevertableExecutionState = new(ExecutionState)
 )
 
 type ExecutionResult struct {
@@ -292,7 +292,7 @@ type StateParams struct {
 	FeeCalculator         FeeCalculator
 	Mode                  string
 	GasLimit              types.Gas
-	ContractMptRepository IContractMPTRepository
+	ContractMptRepository ContractMPTRepository
 }
 
 func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*ExecutionState, error) {
@@ -341,7 +341,7 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		PrevBlock:        prevBlockHash,
 		ShardId:          shardId,
 		ChildShardBlocks: map[types.ShardId]common.Hash{},
-		Accounts:         map[types.Address]*AccountState{},
+		Accounts:         map[types.Address]AccountState{},
 		OutTransactions:  map[common.Hash][]*types.OutboundTransaction{},
 		OutTxCounts:      TxCounts{},
 		InTxCounts:       TxCounts{},
@@ -371,13 +371,25 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 
 type DbContractAccessor struct {
 	*ContractTrie
+	rwTxProvider DbRwTxProvider
+	logger       logging.Logger
 }
 
-func (ca *DbContractAccessor) GetContract(addr types.Address) (*types.SmartContract, error) {
-	return ca.Fetch(addr.Hash())
+var _ ContractMPTRepository = (*DbContractAccessor)(nil)
+
+func (ca *DbContractAccessor) GetAccountState(addr types.Address) (AccountState, error) {
+	smartContract, err := ca.Fetch(addr.Hash())
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("GetAccount failed: %w", err)
+	}
+
+	return NewAccountState(ca.rwTxProvider, addr, smartContract, ca.logger)
 }
 
-func (ca *DbContractAccessor) UpdateContracts(contracts map[types.Address]*AccountState) error {
+func (ca *DbContractAccessor) UpdateContracts(contracts map[types.Address]AccountState) error {
 	keys := make([]common.Hash, 0, len(contracts))
 	values := make([]*types.SmartContract, 0, len(contracts))
 	for addr, acc := range contracts {
@@ -418,7 +430,11 @@ func (es *ExecutionState) initTries(params *StateParams) error {
 	if params.ContractMptRepository != nil {
 		es.ContractTree = params.ContractMptRepository
 	} else {
-		es.ContractTree = &DbContractAccessor{NewDbContractTrie(es.tx, es.ShardId)}
+		es.ContractTree = &DbContractAccessor{
+			ContractTrie: NewDbContractTrie(es.tx, es.ShardId),
+			rwTxProvider: es,
+			logger:       es.logger,
+		}
 		if err := es.ContractTree.SetRootHash(smartContractsRoot); err != nil {
 			return err
 		}
@@ -445,40 +461,36 @@ func (es *ExecutionState) GetReceipt(txnIndex types.TransactionIndex) (*types.Re
 	return es.ReceiptTree.Fetch(txnIndex)
 }
 
-func (es *ExecutionState) GetAccountReader(addr types.Address) (*AccountStateReader, error) {
-	acc, err := es.GetAccount(addr)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewAccountStateReader(acc), nil
+func (es *ExecutionState) GetAccountReader(addr types.Address) (AccountReader, error) {
+	return es.GetAccount(addr)
 }
 
-func (es *ExecutionState) GetAccount(addr types.Address) (*AccountState, error) {
+func (es *ExecutionState) GetAccount(addr types.Address) (AccountState, error) {
 	acc, ok := es.Accounts[addr]
 	if ok {
 		return acc, nil
 	}
 
-	data, err := es.ContractTree.GetContract(addr)
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
-	}
+	accountState, err := es.ContractTree.GetAccountState(addr)
+	// if errors.Is(err, db.ErrKeyNotFound) {
+	// 	return nil, nil
+	// }
 	if err != nil {
 		return nil, fmt.Errorf("GetAccount failed: %w", err)
 	}
 
-	acc, err = NewAccountState(es, addr, data, es.logger)
-	if err != nil {
-		return nil, fmt.Errorf("NewAccountState failed: %w", err)
-	}
-
-	es.Accounts[addr] = acc
+	// acc, err = NewAccountState(es, addr, data, es.logger)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("NewAccountState failed: %w", err)
+	// }
+	// cache accont state even if nil
+	es.Accounts[addr] = accountState
 	return acc, nil
 }
 
-func (es *ExecutionState) setAccountObject(acc *AccountState) {
-	es.Accounts[acc.address] = acc
+func (es *ExecutionState) setAccountObject(acc AccountState) {
+	// TODO: why unwrap here
+	es.Accounts[*acc.GetAddress()] = acc
 }
 
 func (es *ExecutionState) AddAddressToAccessList(addr types.Address) {
@@ -539,7 +551,7 @@ func (es *ExecutionState) AddressInAccessList(addr types.Address) bool {
 
 func (es *ExecutionState) Empty(addr types.Address) (bool, error) {
 	acc, err := es.GetAccount(addr)
-	return acc == nil || acc.empty(), err
+	return acc == nil || acc.IsEmpty(), err
 }
 
 func (es *ExecutionState) Exists(addr types.Address) (bool, error) {
@@ -552,7 +564,7 @@ func (es *ExecutionState) GetCode(addr types.Address) ([]byte, common.Hash, erro
 	if err != nil || acc == nil {
 		return nil, types.EmptyCodeHash, err
 	}
-	return acc.Code, acc.CodeHash, nil
+	return acc.GetCode(), acc.GetCodeHash(), nil
 }
 
 func (es *ExecutionState) GetCommittedState(types.Address, common.Hash) common.Hash {
@@ -588,10 +600,7 @@ func (es *ExecutionState) GetStorageRoot(addr types.Address) (common.Hash, error
 	if err != nil || acc == nil {
 		return common.EmptyHash, err
 	}
-	storageRootHash := acc.StorageTree.RootHash()
-	if storageRootHash == mpt.EmptyRootHash {
-		return common.EmptyHash, nil
-	}
+	storageRootHash := acc.GetStorageRoot()
 	return storageRootHash, nil
 }
 
@@ -627,14 +636,14 @@ func (es *ExecutionState) GetTransientState(addr types.Address, key common.Hash)
 //
 // The account's state object is still available until the state is committed,
 // GetAccount will return a non-nil account after SelfDestruct.
-func (es *ExecutionState) selfDestruct(stateObject *AccountState) {
+func (es *ExecutionState) selfDestruct(stateObject AccountState) {
 	es.AppendToJournal(selfDestructChange{
-		account:     &stateObject.address,
-		prev:        stateObject.selfDestructed,
-		prevbalance: stateObject.Balance,
+		account:     stateObject.GetAddress(),
+		prev:        stateObject.IsSelfDestructed(),
+		prevbalance: stateObject.GetBalance(),
 	})
-	stateObject.selfDestructed = true
-	stateObject.Balance = types.Value{}
+	stateObject.SetIsSelfDestructed(true)
+	stateObject.SetBalance(types.Value{})
 }
 
 func (es *ExecutionState) Selfdestruct6780(addr types.Address) error {
@@ -642,7 +651,7 @@ func (es *ExecutionState) Selfdestruct6780(addr types.Address) error {
 	if err != nil || stateObject == nil {
 		return err
 	}
-	if stateObject.NewContract {
+	if stateObject.IsNew() {
 		es.selfDestruct(stateObject)
 	}
 	return nil
@@ -653,7 +662,7 @@ func (es *ExecutionState) HasSelfDestructed(addr types.Address) (bool, error) {
 	if err != nil || stateObject == nil {
 		return false, err
 	}
-	return stateObject.selfDestructed, nil
+	return stateObject.IsSelfDestructed(), nil
 }
 
 func (es *ExecutionState) SetCode(addr types.Address, code []byte) error {
@@ -670,7 +679,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, transaction *types.Tr
 	if err != nil {
 		return err
 	}
-	acc.Seqno = transaction.Seqno
+	acc.SetSeqno(transaction.Seqno)
 
 	if err := es.newVm(transaction.IsInternal(), transaction.From); err != nil {
 		return err
@@ -745,7 +754,7 @@ func (es *ExecutionState) GetBalance(addr types.Address) (types.Value, error) {
 	if err != nil || acc == nil {
 		return types.Value{}, err
 	}
-	return acc.Balance, nil
+	return acc.GetBalance(), nil
 }
 
 func (es *ExecutionState) GetSeqno(addr types.Address) (types.Seqno, error) {
@@ -753,7 +762,7 @@ func (es *ExecutionState) GetSeqno(addr types.Address) (types.Seqno, error) {
 	if err != nil || acc == nil {
 		return 0, err
 	}
-	return acc.Seqno, nil
+	return acc.GetSeqno(), nil
 }
 
 func (es *ExecutionState) GetExtSeqno(addr types.Address) (types.Seqno, error) {
@@ -761,10 +770,10 @@ func (es *ExecutionState) GetExtSeqno(addr types.Address) (types.Seqno, error) {
 	if err != nil || acc == nil {
 		return 0, err
 	}
-	return acc.ExtSeqno, nil
+	return acc.GetExtSeqno(), nil
 }
 
-func (es *ExecutionState) getOrNewAccount(addr types.Address) (*AccountState, error) {
+func (es *ExecutionState) getOrNewAccount(addr types.Address) (AccountState, error) {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
 		return nil, err
@@ -807,7 +816,7 @@ func (es *ExecutionState) CreateAccount(addr types.Address) error {
 	return err
 }
 
-func (es *ExecutionState) createAccount(addr types.Address) (*AccountState, error) {
+func (es *ExecutionState) createAccount(addr types.Address) (AccountState, error) {
 	if addr.ShardId() != es.ShardId {
 		return nil, fmt.Errorf(
 			"attempt to create account %v from %v shard on %v shard", addr, addr.ShardId(), es.ShardId)
@@ -822,12 +831,14 @@ func (es *ExecutionState) createAccount(addr types.Address) (*AccountState, erro
 
 	es.AppendToJournal(createAccountChange{account: &addr})
 
-	accountState, err := NewAccountState(es, addr, nil, es.logger)
+	accountState, err := es.ContractTree.GetAccountState(addr)
 	if err != nil {
 		return nil, err
 	}
-	es.Accounts[addr] = accountState
-	return accountState, nil
+
+	journaledAccountState := NewJournaledAccountStateFromRaw(es, accountState, es.logger)
+	es.Accounts[addr] = journaledAccountState
+	return journaledAccountState, nil
 }
 
 // CreateContract is used whenever a contract is created. This may be preceded
@@ -840,8 +851,8 @@ func (es *ExecutionState) CreateContract(addr types.Address) error {
 	if err != nil {
 		return err
 	}
-	if !obj.NewContract {
-		obj.NewContract = true
+	if !obj.IsNew() {
+		obj.SetIsNew(true)
 		es.AppendToJournal(accountBecameContractChange{account: addr})
 	}
 	return nil
@@ -1789,7 +1800,7 @@ func (es *ExecutionState) GetShardID() types.ShardId {
 
 func (es *ExecutionState) CallVerifyExternal(
 	transaction *types.Transaction,
-	account *AccountState,
+	account AccountState,
 ) (res *ExecutionResult) {
 	methodSignature := "verifyExternal(uint256,bytes)"
 	methodSelector := crypto.Keccak256([]byte(methodSignature))[:4]
@@ -1819,14 +1830,14 @@ func (es *ExecutionState) CallVerifyExternal(
 	defer func() { es.postTxHookCall(transaction, res) }()
 
 	gasCreditLimit := ExternalTransactionVerificationMaxGas
-	gasAvailable := account.Balance.ToGas(es.GasPrice)
+	gasAvailable := account.GetBalance().ToGas(es.GasPrice)
 
 	if gasAvailable.Lt(gasCreditLimit) {
 		gasCreditLimit = gasAvailable
 	}
 
 	ret, leftOverGas, err := es.evm.StaticCall(
-		(vm.AccountRef)(account.address), account.address, calldata, gasCreditLimit.Uint64())
+		(vm.AccountRef)(*account.GetAddress()), *account.GetAddress(), calldata, gasCreditLimit.Uint64())
 	if err != nil {
 		if types.IsOutOfGasError(err) && gasCreditLimit.Lt(ExternalTransactionVerificationMaxGas) {
 			// This condition means that account has not enough balance even to execute the verification.
@@ -1914,23 +1925,7 @@ func (es *ExecutionState) GetTokens(addr types.Address) map[types.TokenId]types.
 		return nil
 	}
 
-	res := make(map[types.TokenId]types.Value)
-	for k, v := range acc.TokenTrieReader.Iterate() {
-		var c types.TokenBalance
-		c.Token = types.TokenId(k)
-		if err := c.Balance.UnmarshalNil(v); err != nil {
-			es.logger.Error().Err(err).Msg("failed to unmarshal token balance")
-			continue
-		}
-		res[c.Token] = c.Balance
-	}
-	// If some token was changed during execution, we need to set it to the result. It will probably rewrite values
-	// fetched from the storage above.
-	for id, balance := range *acc.Tokens {
-		res[id] = balance
-	}
-
-	return res
+	return acc.GetTokens()
 }
 
 func (es *ExecutionState) GetGasPrice(shardId types.ShardId) (types.Value, error) {
