@@ -54,6 +54,7 @@ type AccountReader interface {
 	GetBalance() types.Value
 	GetState(key common.Hash) (common.Hash, error)
 	GetCommittedState(key common.Hash) (common.Hash, error)
+	GetFullState() Storage
 	GetStorageRoot() common.Hash
 
 	GetTokenBalance(id types.TokenId) *types.Value
@@ -66,6 +67,7 @@ type AccountReader interface {
 	GetCodeHash() common.Hash
 
 	GetAsyncContext(index types.TransactionIndex) (*types.AsyncContext, error)
+	GetAllAsyncContexts() map[types.TransactionIndex]*types.AsyncContext
 
 	IsNew() bool
 	IsSelfDestructed() bool
@@ -231,6 +233,11 @@ func (as *AccountStateImpl) GetCommittedState(key common.Hash) (common.Hash, err
 	return res.Bytes32(), nil
 }
 
+// GetFullState retrieves full state of the account as a map.
+func (as *AccountStateImpl) GetFullState() Storage {
+	return as.State
+}
+
 func (asr *AccountStateImpl) SetState(key common.Hash, value common.Hash) error {
 	asr.State[key] = value
 	return nil
@@ -339,6 +346,10 @@ func (as *AccountStateImpl) GetAsyncContext(index types.TransactionIndex) (*type
 		return ctx, nil
 	}
 	return as.AsyncContextTree.Fetch(index)
+}
+
+func (as *AccountStateImpl) GetAllAsyncContexts() map[types.TransactionIndex]*types.AsyncContext {
+	return as.AsyncContext
 }
 
 func (as *AccountStateImpl) SetAsyncContext(index types.TransactionIndex, ctx *types.AsyncContext) {

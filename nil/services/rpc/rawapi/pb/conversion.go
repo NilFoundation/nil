@@ -195,7 +195,6 @@ func (ar *FullAccountRequest) UnpackProtoMessage() (types.Address, rawapitypes.B
 }
 
 func (ar *FullAccountRequest) PackProtoMessage(address types.Address, blockReference rawapitypes.BlockReference, noCode bool, noStorage bool) error {
-	// check.PanicIfNot(ar.GetBaseRequest() != nil)
 	ar.BaseRequest = &AccountRequest{}
 	if err := ar.GetBaseRequest().PackProtoMessage(address, blockReference); err != nil {
 		return err
@@ -435,6 +434,7 @@ func (br *StringResponse) UnpackProtoMessage() (string, error) {
 	}
 }
 
+// BalanceResponse converters
 func (br *BalanceResponse) PackProtoMessage(balance types.Value, err error) error {
 	if err != nil {
 		br.Result = &BalanceResponse_Error{Error: new(Error).PackProtoMessage(err)}
@@ -513,6 +513,50 @@ func (cr *TokensResponse) UnpackProtoMessage() (map[types.TokenId]types.Value, e
 		return result, nil
 	}
 	return nil, errors.New("unexpected response type")
+}
+
+// StorageAt converters
+func (ar *StorageAtRequest) PackProtoMessage(address types.Address, blockReference rawapitypes.BlockReference, key common.Hash) error {
+	ar.BaseRequest = &AccountRequest{}
+	if err := ar.GetBaseRequest().PackProtoMessage(address, blockReference); err != nil {
+		return err
+	}
+	ar.Key = &Uint256{}
+	ar.Key.PackProtoMessage(types.Uint256(*key.Uint256()))
+	return nil
+}
+
+func (ar *StorageAtRequest) UnpackProtoMessage() (types.Address, rawapitypes.BlockReference, types.Uint256, error) {
+	addr, blockRef, err := ar.GetBaseRequest().UnpackProtoMessage()
+	if err != nil {
+		return types.EmptyAddress, rawapitypes.BlockReference{}, types.Uint256{}, err
+	}
+
+	return addr, blockRef, ar.GetKey().UnpackProtoMessage(), nil
+}
+
+func (cr *StorageAtResponse) PackProtoMessage(value types.Uint256, err error) error {
+	if err != nil {
+		cr.Result = &StorageAtResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	v := &Uint256{}
+	v.PackProtoMessage(value)
+	cr.Result = &StorageAtResponse_Value{Value: v}
+	return nil
+}
+
+func (cr *StorageAtResponse) UnpackProtoMessage() (types.Uint256, error) {
+	switch cr.GetResult().(type) {
+	case *StorageAtResponse_Error:
+		return types.Uint256{}, cr.GetError().UnpackProtoMessage()
+
+	case *StorageAtResponse_Value:
+		v := cr.GetValue()
+		return v.UnpackProtoMessage(), nil
+	}
+	return types.Uint256{}, errors.New("unexpected response type")
 }
 
 // AsyncContext converters

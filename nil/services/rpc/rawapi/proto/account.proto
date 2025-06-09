@@ -17,6 +17,18 @@ message BalanceResponse {
   }
 }
 
+message StorageAtRequest {
+  AccountRequest base_request = 1;
+  Uint256 key = 2;
+}
+
+message StorageAtResponse {
+  oneof result {
+    Error error = 1;
+    Uint256 value = 2;
+  }
+}
+
 message CodeResponse {
   oneof result {
     Error error = 1;

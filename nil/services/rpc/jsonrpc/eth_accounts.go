@@ -222,3 +222,13 @@ func toBlockReference(blockNrOrHash transport.BlockNumberOrHash) rawapitypes.Blo
 	check.PanicIfNot(ok)
 	return rawapitypes.BlockHashAsBlockReference(hash)
 }
+
+// GetStorageAt implements `eth_getStorageAt`
+func (api *APIImplRo) GetStorageAt(
+	ctx context.Context,
+	address types.Address,
+	key common.Hash,
+	blockNrOrHash transport.BlockNumberOrHash,
+) (types.Uint256, error) {
+	return api.rawapi.GetStorageAt(ctx, address, key, toBlockReference(blockNrOrHash))
+}

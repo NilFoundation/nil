@@ -448,7 +448,6 @@ func CollectTraces(ctx context.Context, client client.Client, cfg *TraceConfig) 
 	}
 	getBlockCaches = append(getBlockCaches, getBlockCache)
 	for _, blockID := range cfg.BlockIDs {
-		fmt.Printf("blockID.Id: %+v\n", blockID.Id)
 		rpcBlock, err := client.GetBlock(ctx, blockID.ShardId, blockID.Id, true)
 		if err != nil {
 			return nil, err
@@ -462,7 +461,6 @@ func CollectTraces(ctx context.Context, client client.Client, cfg *TraceConfig) 
 		}
 		getBlockCaches = append(getBlockCaches, getBlockCache)
 
-		fmt.Println("GetBlockTraces")
 		traces, err := remoteTracesCollector.GetBlockTraces(ctx, blockID)
 		if err != nil {
 			return nil, err
