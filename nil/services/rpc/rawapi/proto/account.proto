@@ -19,7 +19,7 @@ message BalanceResponse {
 
 message StorageAtRequest {
   AccountRequest base_request = 1;
-  Uint256 key = 2;
+  Hash key = 2;
 }
 
 message StorageAtResponse {

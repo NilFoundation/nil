@@ -452,7 +452,6 @@ func (api *localShardApiRo) GetContractRange(
 	return &rawapitypes.SmartContractRange{Contracts: contracts, Next: nextKey}, nil
 }
 
-// GetStorageAt implements `eth_getStorageAt`
 func (api *localShardApiRo) GetStorageAt(
 	ctx context.Context,
 	address types.Address,

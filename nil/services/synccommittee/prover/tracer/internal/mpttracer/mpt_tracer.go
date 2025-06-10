@@ -53,7 +53,7 @@ func (mt *MPTTracer) SetRootHash(root common.Hash) error {
 	return mt.ContractSparseTrie.SetRootHash(root)
 }
 
-func (mt *MPTTracer) GetAccountState(addr types.Address) (execution.AccountState, error) {
+func (mt *MPTTracer) GetAccountState(addr types.Address, createIfNotExists bool) (execution.AccountState, error) {
 	contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
 
 	// try to fetch from cache
@@ -86,13 +86,13 @@ func (mt *MPTTracer) GetAccountState(addr types.Address) (execution.AccountState
 		return nil, err
 	}
 
-	mt.initialAccounts[addr] = contract
+	// mt.initialAccounts[addr] = contract
 
-	if contract == nil {
-		return nil, db.ErrKeyNotFound
+	if contract == nil && !createIfNotExists {
+		return nil, nil
 	}
 
-	traceableAcc, err := NewTracableAccountState(mt, addr, smartContract, mt.logger)
+	traceableAcc, err := NewTracableAccountState(mt, addr, contract, mt.logger)
 	if err != nil {
 		return nil, err
 	}

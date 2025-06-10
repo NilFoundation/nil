@@ -242,7 +242,7 @@ func (s *ProposerTestSuite) getBalance(shardId types.ShardId, addr types.Address
 	if acc == nil {
 		return types.Value{}
 	}
-	return acc.Balance
+	return acc.GetBalance()
 }
 
 func (s *ProposerTestSuite) checkSeqno(shardId types.ShardId) {

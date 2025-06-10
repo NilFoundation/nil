@@ -516,23 +516,26 @@ func (cr *TokensResponse) UnpackProtoMessage() (map[types.TokenId]types.Value, e
 }
 
 // StorageAt converters
-func (ar *StorageAtRequest) PackProtoMessage(address types.Address, blockReference rawapitypes.BlockReference, key common.Hash) error {
+func (ar *StorageAtRequest) PackProtoMessage(address types.Address, key common.Hash, blockReference rawapitypes.BlockReference) error {
 	ar.BaseRequest = &AccountRequest{}
 	if err := ar.GetBaseRequest().PackProtoMessage(address, blockReference); err != nil {
 		return err
 	}
-	ar.Key = &Uint256{}
-	ar.Key.PackProtoMessage(types.Uint256(*key.Uint256()))
+	ar.Key = &Hash{}
+	ar.Key.PackProtoMessage(key)
 	return nil
 }
 
-func (ar *StorageAtRequest) UnpackProtoMessage() (types.Address, rawapitypes.BlockReference, types.Uint256, error) {
+func (ar *StorageAtRequest) UnpackProtoMessage() (types.Address, common.Hash, rawapitypes.BlockReference, error) {
 	addr, blockRef, err := ar.GetBaseRequest().UnpackProtoMessage()
 	if err != nil {
-		return types.EmptyAddress, rawapitypes.BlockReference{}, types.Uint256{}, err
+		return types.EmptyAddress, common.EmptyHash, rawapitypes.BlockReference{}, err
 	}
-
-	return addr, blockRef, ar.GetKey().UnpackProtoMessage(), nil
+	key, err := ar.GetKey().UnpackProtoMessage()
+	if err != nil {
+		return types.EmptyAddress, common.EmptyHash, rawapitypes.BlockReference{}, err
+	}
+	return addr, key, blockRef, nil
 }
 
 func (cr *StorageAtResponse) PackProtoMessage(value types.Uint256, err error) error {
