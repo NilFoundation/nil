@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/client/rpc"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
 	"github.com/NilFoundation/nil/nil/services/faucet"
@@ -91,7 +92,6 @@ func initDebugL2SmartAccount(
 	debugDeployer := cliservice.NewService(ctx, l2Client, key, faucetClient)
 
 	amount := types.NewValueFromUint64(2_000_000_000_000_000)
-	fee := types.NewFeePackFromFeeCredit(types.NewValueFromUint64(200_000_000_000_000))
 
 	salt := types.NewUint256(0)
 	if len(config.SmartAccountSalt) > 0 {
@@ -103,13 +103,9 @@ func initDebugL2SmartAccount(
 		logger.Warn().Msg("smart account salt is not set, using default")
 	}
 
-	addr, err := debugDeployer.CreateSmartAccount(
-		types.BaseShardId,
-		salt,
-		amount,
-		fee,
-		&key.PublicKey,
-	)
+	pubkey := crypto.FromECDSAPub(&key.PublicKey)
+	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pubkey)
+	addr, err := debugDeployer.Deploy(types.BaseShardId, smartAccountCode, *salt, amount)
 	if errors.Is(err, cliservice.ErrSmartAccountExists) {
 		if config.SmartAccountAddress != "" {
 			check.PanicIfNotf(

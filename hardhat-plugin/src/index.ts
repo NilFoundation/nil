@@ -1,6 +1,7 @@
 import { extendEnvironment } from "hardhat/config";
 import "./tasks/wallet";
 import {
+  FaucetClient,
   HttpTransport,
   LocalECDSAKeySigner,
   PublicClient,
@@ -22,6 +23,9 @@ extendEnvironment((hre) => {
     const publicClient = new PublicClient({
       transport: nilProvider,
     });
+    const faucetClient = new FaucetClient({
+      transport: nilProvider,
+    });
 
     const pk = <`0x${string}`>`0x${process.env.PRIVATE_KEY}`;
     const signer = new LocalECDSAKeySigner({
@@ -30,6 +34,9 @@ extendEnvironment((hre) => {
 
     hre.nil = {
       provider: publicClient,
+      getFaucetClient: () => {
+        return faucetClient;
+      },
       getPublicClient: () => {
         return publicClient;
       },

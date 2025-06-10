@@ -81,6 +81,8 @@ export default class SmartAccountNew extends BaseCommand {
       throw new Error("Faucet client is not initialized");
     }
 
+    logger.debug("Deploying new smart-account");
+
     const pubkey = signer.getPublicKey();
     const smartAccount = new SmartAccountV1({
       pubkey: pubkey,
@@ -91,20 +93,8 @@ export default class SmartAccountNew extends BaseCommand {
     });
     const smartAccountAddress = smartAccount.address;
 
-    logger.debug(`Withdrawing ${flags.amount} to ${smartAccountAddress}`);
-
-    const faucets = await this.faucetClient.getAllFaucets();
-    await this.faucetClient.topUpAndWaitUntilCompletion(
-      {
-        amount: flags.amount,
-        smartAccountAddress: smartAccountAddress,
-        faucetAddress: faucets.NIL,
-      },
-      this.rpcClient,
-    );
-
-    const tx = await smartAccount.selfDeploy(true);
-    this.info(`Successfully deployed smart account with tx hash: ${tx.hash}`);
+    const address = await smartAccount.selfDeploy(this.faucetClient);
+    this.info(`Successfully deployed smart account at: ${address}`);
 
     if (this.quiet) {
       this.log(smartAccountAddress);

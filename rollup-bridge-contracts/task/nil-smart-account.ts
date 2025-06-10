@@ -124,35 +124,19 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
         transport: new HttpTransport({ endpoint: faucetEndpoint }),
     });
 
-    console.log(`about to topup  owner via faucet`);
-    let topUpFaucet = await faucetClient.topUp({
-        smartAccountAddress: smartAccount.address,
-        amount: convertEthToWei(0.1),
-        faucetAddress: process.env.NIL as `0x${string}`,
-    });
-    console.log(`faucet topup initiation done`);
-    await waitTillCompleted(client, topUpFaucet);
-
+    console.log(`about to deploy owner via faucet`);
     if ((await smartAccount.checkDeploymentStatus()) === false) {
-        await smartAccount.selfDeploy(true);
+        await smartAccount.selfDeploy(faucetClient);
     }
 
-    console.log(`about to topup testing account via faucet`);
-    topUpFaucet = await faucetClient.topUp({
-        smartAccountAddress: depositRecipientSmartAccount.address,
-        amount: convertEthToWei(0.0001),
-        faucetAddress: process.env.NIL as `0x${string}`,
-    });
-    console.log(`faucet topup initiation done`);
-    await waitTillCompleted(client, topUpFaucet);
-
+    console.log(`about to deploy testing account via faucet`);
     if ((await depositRecipientSmartAccount.checkDeploymentStatus()) === false) {
-        await depositRecipientSmartAccount.selfDeploy(true);
+        await depositRecipientSmartAccount.selfDeploy(faucetClient);
     }
 
     console.log("✅ Smart Account Funded (100 ETH)");
 
-    // update 
+    // update
     const config: L2NetworkConfig = loadNilNetworkConfig(networkName);
 
     config.l2CommonConfig.owner = getCheckSummedAddress(smartAccountAddress);

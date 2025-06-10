@@ -10,7 +10,6 @@ import {
   LocalECDSAKeySigner,
   SmartAccountV1,
   generateRandomPrivateKey,
-  waitTillCompleted,
 } from "@nilfoundation/niljs";
 import { PublicClient } from "@nilfoundation/niljs";
 import type { Errors } from "@oclif/core";
@@ -126,19 +125,7 @@ export const CliTest = test.extend<CliTestFixture>({
       signer: signer,
     });
 
-    const faucets = await faucetClient.getAllFaucets();
-    await faucetClient.topUpAndWaitUntilCompletion(
-      {
-        faucetAddress: faucets.NIL,
-        smartAccountAddress: smartAccount.address,
-        amount: 1_000_000_000_000_000_000n,
-      },
-      rpcClient,
-    );
-
-    const deployTx = await smartAccount.selfDeploy(true);
-
-    await waitTillCompleted(rpcClient, deployTx.hash);
+    await smartAccount.selfDeploy(faucetClient);
     await use(smartAccount);
   },
 });

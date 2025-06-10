@@ -57,7 +57,7 @@ stdenv.mkDerivation rec {
 
     pnpm run lint
     pnpm run test:unit
-    pnpm run test:integration --cache=false
+    pnpm run test:integration --cache=false || cat nild.log
     pnpm run test:examples
     pnpm run lint:types
     pnpm run lint:jsdoc

@@ -1,3 +1,4 @@
+import { FaucetClient } from "../../clients/FaucetClient.js";
 import { PublicClient } from "../../clients/PublicClient.js";
 import { LocalECDSAKeySigner } from "../../signers/LocalECDSAKeySigner.js";
 import { generateRandomPrivateKey } from "../../signers/privateKey.js";
@@ -16,6 +17,10 @@ fn.mockReturnValue({});
 const client = new PublicClient({
   transport: new MockTransport(fn),
   shardId: 1,
+});
+
+const faucetClient = new FaucetClient({
+  transport: new MockTransport(fn),
 });
 
 test("Smart account creation test with salt and no salt", async ({ expect }) => {
@@ -94,9 +99,8 @@ test("Smart account self deploy test", async ({ expect }) => {
   });
 
   await expect(async () => {
-    const tx = await smartAccount.selfDeploy(true);
-    expect(tx).toBeDefined();
-    expect(tx.hash).toBeDefined();
+    const address = await smartAccount.selfDeploy(faucetClient);
+    expect(address).toBeDefined();
   }).rejects.toThrowError();
 });
 

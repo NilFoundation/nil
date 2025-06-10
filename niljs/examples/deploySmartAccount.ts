@@ -1,11 +1,11 @@
 import {
+  FaucetClient,
   HttpTransport,
   LocalECDSAKeySigner,
   PublicClient,
   SmartAccountV1,
   bytesToHex,
   generateRandomPrivateKey,
-  topUp,
 } from "../src/index.js";
 import { FAUCET_ENDPOINT, RPC_ENDPOINT } from "./helpers.js";
 
@@ -14,6 +14,12 @@ const client = new PublicClient({
     endpoint: RPC_ENDPOINT,
   }),
   shardId: 1,
+});
+
+const faucetClinet = new FaucetClient({
+  transport: new HttpTransport({
+    endpoint: FAUCET_ENDPOINT,
+  }),
 });
 
 const signer = new LocalECDSAKeySigner({
@@ -33,13 +39,7 @@ const smartAccountAddress = smartAccount.address;
 
 console.log("smartAccountAddress", smartAccountAddress);
 
-await topUp({
-  address: smartAccountAddress,
-  faucetEndpoint: FAUCET_ENDPOINT,
-  rpcEndpoint: RPC_ENDPOINT,
-});
-
-await smartAccount.selfDeploy(true);
+await smartAccount.selfDeploy(faucetClinet);
 
 const code = await client.getCode(smartAccountAddress, "latest");
 

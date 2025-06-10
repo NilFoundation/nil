@@ -67,7 +67,7 @@ test("register contract", async () => {
     bytecode: base64ToHex(contractCompilationResult.initCode),
     abi: JSON.parse(contractCompilationResult.abi),
     args: [],
-    feeCredit: convertEthToWei(0.00001),
+    feeCredit: convertEthToWei(0.001),
     salt: BigInt(Math.floor(Math.random() * 10000000000000000)),
     shardId: 1,
   });

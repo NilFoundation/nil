@@ -3,7 +3,6 @@ import {
   LocalECDSAKeySigner,
   type PublicClient,
   SmartAccountV1,
-  convertEthToWei,
   generateRandomPrivateKey,
   topUp,
 } from "@nilfoundation/niljs";
@@ -25,23 +24,10 @@ export async function deployWallet(
     signer,
   });
 
-  if (faucetClient) {
-    const faucets = await faucetClient.getAllFaucets();
-    await faucetClient.topUpAndWaitUntilCompletion(
-      {
-        amount: convertEthToWei(1),
-        smartAccountAddress: address,
-        faucetAddress: faucets.NIL,
-      },
-      client,
-    );
-    console.log("Faucet depositing to smart account", smartAccount.address);
-  }
-
   const deployed = await smartAccount.checkDeploymentStatus();
-  if (!deployed) {
+  if (faucetClient && !deployed) {
     console.log("Deploying smartAccount", smartAccount.address);
-    await smartAccount.selfDeploy(true);
+    await smartAccount.selfDeploy(faucetClient);
   }
   return smartAccount;
 }
@@ -51,6 +37,7 @@ export async function createSmartAccount(
   config: CreateSmartAccountConfig,
 ): Promise<SmartAccountV1> {
   const client = hre.nil.getPublicClient();
+  const faucetClient = hre.nil.getFaucetClient();
   const pk = generateRandomPrivateKey();
   const signer = new LocalECDSAKeySigner({
     privateKey: pk,
@@ -67,7 +54,7 @@ export async function createSmartAccount(
     await topUpSmartAccount(smartAccount.address, (hre.network.config as HttpNetworkConfig).url);
   }
 
-  await smartAccount.selfDeploy(true);
+  await smartAccount.selfDeploy(faucetClient);
   console.log("SmartAccount PK:", pk);
   return smartAccount;
 }

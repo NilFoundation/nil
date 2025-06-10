@@ -11,6 +11,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/version"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type Client struct {
@@ -77,6 +78,24 @@ func (c *Client) TopUpViaFaucet(
 		return common.EmptyHash, err
 	}
 	return hash, nil
+}
+
+func (c *Client) Deploy(
+	ctx context.Context,
+	shardId types.ShardId,
+	code hexutil.Bytes,
+	salt types.Uint256,
+	amount types.Value,
+) (types.Address, error) {
+	response, err := c.sendRequest(ctx, "faucet_deploy", []any{shardId, code, salt, amount})
+	if err != nil {
+		return types.EmptyAddress, err
+	}
+	var addr types.Address
+	if err := json.Unmarshal(response, &addr); err != nil {
+		return types.EmptyAddress, err
+	}
+	return addr, nil
 }
 
 func (c *Client) GetFaucets(ctx context.Context) (map[string]types.Address, error) {

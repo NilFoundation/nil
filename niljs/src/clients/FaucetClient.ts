@@ -15,6 +15,16 @@ export type TopUpParams = {
 };
 
 /**
+ * The parameters for the deploy request.
+ */
+export type FaucetDeployParams = {
+  shardId: number;
+  code: Hex | Uint8Array;
+  salt: bigint;
+  amount: bigint;
+};
+
+/**
  * FaucetClient is a client that interacts with the faucet api.
  * It is used to get information about the faucet and to top up the account with custom tokens.
  * @class FaucetClient
@@ -57,6 +67,22 @@ class FaucetClient extends BaseClient {
     return await this.request<Hex>({
       method: "faucet_topUpViaFaucet",
       params: [faucetAddress, smartAccountAddress, toHex(amount)],
+    });
+  }
+
+  /**
+   * Topups the smart account with the specified amount of token which can be issued by the faucet.
+   * @param param - The parameters for the top up request.
+   * @param param.shardId -
+   * @param param.code -
+   * @param param.salt -
+   * @param param.amount - Initial wallet balance.
+   * @returns The transaction hash of the top up transaction.
+   */
+  public async deploy({ shardId, code, salt, amount }: FaucetDeployParams) {
+    return await this.request<Hex>({
+      method: "faucet_deploy",
+      params: [shardId, toHex(code), salt.toString(), amount.toString()],
     });
   }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/common/version"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
@@ -115,8 +116,6 @@ func CreateNewSmartAccount(rpcEndpoint string, logger logging.Logger) (string, s
 
 	salt := types.NewUint256(0)
 	amount := types.NewValueFromUint64(2_000_000_000_000_000)
-	fee := types.NewFeePackFromFeeCredit(types.NewValueFromUint64(200_000_000_000_000))
-
 	srv, err := CreateCliService(rpcEndpoint, hexKey, logger)
 	if err != nil {
 		return "", "", err
@@ -125,7 +124,10 @@ func CreateNewSmartAccount(rpcEndpoint string, logger logging.Logger) (string, s
 	if err != nil {
 		return "", "", err
 	}
-	smartAccount, err := srv.CreateSmartAccount(types.BaseShardId, salt, amount, fee, &privateKey.PublicKey)
+
+	pubkey := crypto.FromECDSAPub(&privateKey.PublicKey)
+	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pubkey)
+	smartAccount, err := srv.Deploy(types.BaseShardId, smartAccountCode, *salt, amount)
 	if err != nil {
 		return "", "", err
 	}

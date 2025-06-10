@@ -6,8 +6,10 @@ import (
 	"github.com/NilFoundation/nil/nil/cmd/nil/common"
 	"github.com/NilFoundation/nil/nil/cmd/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
 )
 
@@ -74,8 +76,10 @@ func runNew(cmd *cobra.Command, _ []string, cfg *common.Config, params *smartAcc
 	}
 	srv := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, faucet)
 	check.PanicIfNotf(cfg.PrivateKey != nil, "A private key is not set in the config file")
-	smartAccountAddress, err := srv.CreateSmartAccount(params.shardId, &params.salt, amount,
-		types.NewFeePackFromFeeCredit(params.Fee.FeeCredit), &cfg.PrivateKey.PublicKey)
+
+	pubkey := crypto.FromECDSAPub(&cfg.PrivateKey.PublicKey)
+	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pubkey)
+	smartAccountAddress, err := srv.Deploy(params.shardId, smartAccountCode, params.salt, amount)
 	if err != nil {
 		return err
 	}

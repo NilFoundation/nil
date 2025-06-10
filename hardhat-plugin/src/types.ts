@@ -1,6 +1,7 @@
 import type {
   CommonReadContractMethods,
   CommonWriteContractMethods,
+  FaucetClient,
   IAddress,
   ISigner,
   PublicClient,
@@ -54,6 +55,7 @@ export declare function createSmartAccount(
 export type NilHelper = {
   provider: PublicClient;
   getPublicClient: () => PublicClient;
+  getFaucetClient: () => FaucetClient;
   getSmartAccount: () => Promise<SmartAccountInterface>;
   getContractAt: typeof getContractAt;
   deployContract: typeof deployContract;

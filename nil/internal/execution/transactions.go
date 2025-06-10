@@ -110,7 +110,7 @@ func (a accountPayer) AddBalance(amount types.Value) error {
 }
 
 func (a accountPayer) String() string {
-	return fmt.Sprintf("account %v", a.transaction.From.Hex())
+	return fmt.Sprintf("account %x", a.transaction.From)
 }
 
 func buyGas(payer Payer, transaction *types.Transaction) error {

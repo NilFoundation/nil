@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/client/rpc"
@@ -13,11 +15,15 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type API interface {
 	TopUpViaFaucet(
 		ctx context.Context, faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
+	Deploy(
+		ctx context.Context, shardId types.ShardId, pubKey hexutil.Bytes, salt types.Uint256, amount types.Value,
+	) (types.Address, error)
 	GetFaucets() map[string]types.Address
 }
 
@@ -126,6 +132,89 @@ func (c *APIImpl) TopUpViaFaucet(
 	c.seqnos[faucetAddress] = seqno + 1
 
 	return hash, nil
+}
+
+func (c *APIImpl) Deploy(
+	ctx context.Context, shardId types.ShardId, code hexutil.Bytes, salt types.Uint256, amount types.Value,
+) (types.Address, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	seqno, err := c.getOrFetchSeqno(ctx, types.FaucetAddress)
+	if err != nil {
+		return types.EmptyAddress, err
+	}
+
+	contractName := contracts.NameFaucet
+	callData, err := contracts.NewCallData(contractName, "deploy",
+		big.NewInt(int64(shardId)), []byte(code), salt.Bytes32(), amount.ToBig())
+	if err != nil {
+		return types.EmptyAddress, err
+	}
+	extTxn := &types.ExternalTransaction{
+		To:      types.FaucetAddress,
+		Data:    callData,
+		Seqno:   seqno,
+		Kind:    types.ExecutionTransactionKind,
+		FeePack: types.NewFeePackFromGas(5_000_000),
+	}
+
+	data, err := extTxn.MarshalNil()
+	if err != nil {
+		return types.EmptyAddress, err
+	}
+
+	hash, err := c.client.SendRawTransaction(ctx, data)
+	if err != nil && !errors.Is(err, rpc.ErrRPCError) && !errors.Is(err, jsonrpc.ErrTransactionDiscarded) {
+		return types.EmptyAddress, err
+	}
+	if err != nil {
+		actualSeqno, err2 := c.fetchSeqno(ctx, types.FaucetAddress)
+		if err2 != nil {
+			return types.EmptyAddress, fmt.Errorf(
+				"failed to send transaction %d with %w and failed to get seqno: %w", seqno, err, err2)
+		}
+
+		extTxn.Seqno = actualSeqno
+		data, err2 = extTxn.MarshalNil()
+		if err2 != nil {
+			return types.EmptyAddress, err2
+		}
+
+		hash, err2 = c.client.SendRawTransaction(ctx, data)
+		if err2 != nil {
+			return types.EmptyAddress, fmt.Errorf(
+				"failed to send transaction %d with %w and then %d with %w", seqno, err, actualSeqno, err2)
+		}
+
+		seqno = actualSeqno
+	}
+
+	c.seqnos[types.FaucetAddress] = seqno + 1
+
+	var receipt *jsonrpc.RPCReceipt
+	for {
+		var err error
+		receipt, err = c.client.GetInTransactionReceipt(ctx, hash)
+		if err != nil {
+			return types.EmptyAddress, fmt.Errorf("failed to get receipt for transaction %s: %w", hash, err)
+		}
+		if receipt.IsComplete() {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return types.EmptyAddress, ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+
+	if receipt == nil || !receipt.AllSuccess() {
+		return types.EmptyAddress, fmt.Errorf("transaction %s for contract deployment failed", hash)
+	}
+
+	dp := types.BuildDeployPayload(types.Code(code), salt.Bytes32())
+	return types.CreateAddress(shardId, dp), nil
 }
 
 func (c *APIImpl) GetFaucets() map[string]types.Address {
