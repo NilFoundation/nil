@@ -93,6 +93,7 @@ func NewAccountState(
 		TokenTree:        NewDbTokenTrie(es.GetRwTx(), shardId),
 		StorageTree:      NewDbStorageTrie(es.GetRwTx(), shardId),
 		AsyncContextTree: NewDbAsyncContextTrie(es.GetRwTx(), shardId),
+		CodeHash:         types.EmptyCodeHash,
 
 		State:        make(Storage),
 		AsyncContext: make(map[types.TransactionIndex]*types.AsyncContext),
@@ -112,7 +113,7 @@ func NewAccountState(
 		var err error
 		accountState.Code, err = db.ReadCode(es.GetRwTx(), shardId, account.CodeHash)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read contract code: %w", err)
 		}
 		accountState.ExtSeqno = account.ExtSeqno
 		accountState.Seqno = account.Seqno

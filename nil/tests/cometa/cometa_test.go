@@ -135,7 +135,7 @@ func (s *SuiteCometa) SetupSuite() {
 func (s *SuiteCometa) TestTwinContracts() {
 	pk, err := crypto.GenerateKey()
 	s.Require().NoError(err)
-	pub := crypto.CompressPubkey(&pk.PublicKey)
+	pub := crypto.FromECDSAPub(&pk.PublicKey)
 	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pub)
 	deployCode1 := types.BuildDeployPayload(smartAccountCode, common.EmptyHash)
 	deployCode2 := types.BuildDeployPayload(smartAccountCode, common.HexToHash("0x1234"))

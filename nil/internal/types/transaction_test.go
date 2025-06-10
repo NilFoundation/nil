@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	nilcrypto "github.com/NilFoundation/nil/nil/internal/crypto"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,13 +31,12 @@ func TestTransactionSign(t *testing.T) {
 	err = txn.Sign(key)
 	require.NoError(t, err)
 	assert.Len(t, txn.AuthData, common.SignatureSize)
-	assert.True(t, nilcrypto.TransactionSignatureIsValidBytes(txn.AuthData[:]))
 
 	pub, err := crypto.SigToPub(h.Bytes(), txn.AuthData[:])
 	require.NoError(t, err)
 	assert.Equal(t, key.PublicKey, *pub)
 
-	pubBytes := crypto.CompressPubkey(pub)
+	pubBytes := crypto.FromECDSAPub(pub)
 	assert.True(t, crypto.VerifySignature(pubBytes, h.Bytes(), txn.AuthData[:64]))
 }
 

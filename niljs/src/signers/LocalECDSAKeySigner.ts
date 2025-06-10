@@ -95,7 +95,7 @@ class LocalECDSAKeySigner implements ISigner {
       return hexToBytes(this.publicKey);
     }
 
-    const publicKey = getPublicKey(this.privateKey, true);
+    const publicKey = getPublicKey(this.privateKey, false);
 
     this.publicKey = publicKey;
     return hexToBytes(this.publicKey);

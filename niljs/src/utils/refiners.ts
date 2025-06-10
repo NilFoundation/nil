@@ -24,9 +24,9 @@ const refineBigintSalt = (salt: Uint8Array | bigint): bigint => {
   return BigInt(addHexPrefix(bytesToHex(salt)));
 };
 
-const refineCompressedPublicKey = (pubkey: Uint8Array | `0x${string}`): Uint8Array => {
+const refinePublicKey = (pubkey: Uint8Array | `0x${string}`): Uint8Array => {
   const res = typeof pubkey === "string" ? hexToBytes(pubkey) : pubkey;
-  invariant(res.length === 33, "Invalid pubkey length");
+  invariant(res.length === 65, "Invalid pubkey length");
 
   return res;
 };
@@ -57,4 +57,4 @@ const refineFunctionHexData = ({
   });
 };
 
-export { refineSalt, refineCompressedPublicKey, refineFunctionHexData, refineBigintSalt };
+export { refineSalt, refinePublicKey, refineFunctionHexData, refineBigintSalt };

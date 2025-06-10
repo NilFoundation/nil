@@ -168,6 +168,9 @@ func WriteCode(tx RwTx, shardId types.ShardId, hash common.Hash, code types.Code
 }
 
 func ReadCode(tx RoTx, shardId types.ShardId, hash common.Hash) (types.Code, error) {
+	if hash == types.EmptyCodeHash {
+		return types.Code{}, nil
+	}
 	return tx.GetFromShard(shardId, codeTable, hash.Bytes())
 }
 
