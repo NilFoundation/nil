@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
+	"time"
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/client/rpc"
@@ -13,11 +15,15 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type API interface {
 	TopUpViaFaucet(
 		ctx context.Context, faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
+	Deploy(
+		ctx context.Context, shardId types.ShardId, pubKey hexutil.Bytes, salt types.Uint256, amount types.Value,
+	) (types.Address, error)
 	GetFaucets() map[string]types.Address
 }
 
@@ -62,11 +68,11 @@ func (c *APIImpl) getOrFetchSeqno(ctx context.Context, faucetAddress types.Addre
 	return seqno, nil
 }
 
-func (c *APIImpl) TopUpViaFaucet(
+func (c *APIImpl) sendRawTransactionWithRetry(
 	ctx context.Context,
 	faucetAddress types.Address,
-	contractAddressTo types.Address,
-	amount types.Value,
+	calldata []byte,
+	gas types.Gas,
 ) (common.Hash, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -76,20 +82,12 @@ func (c *APIImpl) TopUpViaFaucet(
 		return common.EmptyHash, err
 	}
 
-	contractName := contracts.NameFaucet
-	if faucetAddress != types.FaucetAddress {
-		contractName = contracts.NameFaucetToken
-	}
-	callData, err := contracts.NewCallData(contractName, "withdrawTo", contractAddressTo, amount.ToBig())
-	if err != nil {
-		return common.EmptyHash, err
-	}
 	extTxn := &types.ExternalTransaction{
 		To:      faucetAddress,
-		Data:    callData,
+		Data:    calldata,
 		Seqno:   seqno,
 		Kind:    types.ExecutionTransactionKind,
-		FeePack: types.NewFeePackFromGas(100_000),
+		FeePack: types.NewFeePackFromGas(gas),
 	}
 
 	data, err := extTxn.MarshalNil()
@@ -125,7 +123,63 @@ func (c *APIImpl) TopUpViaFaucet(
 
 	c.seqnos[faucetAddress] = seqno + 1
 
+	var receipt *jsonrpc.RPCReceipt
+	for {
+		var err error
+		receipt, err = c.client.GetInTransactionReceipt(ctx, hash)
+		if err != nil {
+			return common.EmptyHash, fmt.Errorf("failed to get receipt for transaction %s: %w", hash, err)
+		}
+		if receipt.IsComplete() {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return common.EmptyHash, ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+
+	if receipt == nil || !receipt.AllSuccess() {
+		return common.EmptyHash, fmt.Errorf("transaction %s for failed", hash)
+	}
+
 	return hash, nil
+}
+
+func (c *APIImpl) TopUpViaFaucet(
+	ctx context.Context,
+	faucetAddress types.Address,
+	contractAddressTo types.Address,
+	amount types.Value,
+) (common.Hash, error) {
+	contractName := contracts.NameFaucet
+	if faucetAddress != types.FaucetAddress {
+		contractName = contracts.NameFaucetToken
+	}
+	callData, err := contracts.NewCallData(contractName, "withdrawTo", contractAddressTo, amount.ToBig())
+	if err != nil {
+		return common.EmptyHash, err
+	}
+	return c.sendRawTransactionWithRetry(ctx, faucetAddress, callData, 100_000)
+}
+
+func (c *APIImpl) Deploy(
+	ctx context.Context, shardId types.ShardId, code hexutil.Bytes, salt types.Uint256, amount types.Value,
+) (types.Address, error) {
+	contractName := contracts.NameFaucet
+	callData, err := contracts.NewCallData(contractName, "deploy",
+		big.NewInt(int64(shardId)), []byte(code), salt.Bytes32(), amount.ToBig())
+	if err != nil {
+		return types.EmptyAddress, err
+	}
+
+	if _, err := c.sendRawTransactionWithRetry(ctx, types.FaucetAddress, callData, 5_000_000); err != nil {
+		return types.EmptyAddress, err
+	}
+
+	dp := types.BuildDeployPayload(types.Code(code), salt.Bytes32())
+	return types.CreateAddress(shardId, dp), nil
 }
 
 func (c *APIImpl) GetFaucets() map[string]types.Address {

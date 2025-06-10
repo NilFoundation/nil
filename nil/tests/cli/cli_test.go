@@ -214,8 +214,8 @@ func (s *SuiteCliService) testNewSmartAccountOnShard(shardId types.ShardId) {
 		crypto.FromECDSAPub(&ownerPrivateKey.PublicKey))
 	code := types.BuildDeployPayload(smartAccountCode, common.EmptyHash)
 	expectedAddress := types.CreateAddress(shardId, code)
-	smartAccountAddres, err := s.cli.CreateSmartAccount(shardId, types.NewUint256(0), types.GasToValue(10_000_000),
-		types.FeePack{}, &ownerPrivateKey.PublicKey)
+	smartAccountAddres, err := s.cli.DeploySmartAccount(shardId, ownerPrivateKey, *types.NewUint256(0),
+		types.GasToValue(10_000_000))
 	s.Require().NoError(err)
 	s.Require().Equal(expectedAddress, smartAccountAddres)
 }
@@ -363,7 +363,7 @@ faucet_endpoint = {{ .FaucetUrl }}
 
 	s.Run("Check seqno", func() {
 		res := s.RunCli("-c", cfgPath, "smart-account", "seqno")
-		s.Contains(res, "Smart account seqno: 1")
+		s.Contains(res, "Smart account seqno: 0")
 	})
 
 	var addr string
@@ -392,7 +392,7 @@ faucet_endpoint = {{ .FaucetUrl }}
 
 	s.Run("Check seqno", func() {
 		res := s.RunCli("-c", cfgPath, "smart-account", "seqno")
-		s.Contains(res, "Smart account seqno: 2")
+		s.Contains(res, "Smart account seqno: 1")
 
 		res = s.RunCli("-c", cfgPath, "contract", "seqno", addr)
 		s.Contains(res, "Contract seqno: 0")

@@ -74,8 +74,8 @@ func runNew(cmd *cobra.Command, _ []string, cfg *common.Config, params *smartAcc
 	}
 	srv := cliservice.NewService(cmd.Context(), common.GetRpcClient(), cfg.PrivateKey, faucet)
 	check.PanicIfNotf(cfg.PrivateKey != nil, "A private key is not set in the config file")
-	smartAccountAddress, err := srv.CreateSmartAccount(params.shardId, &params.salt, amount,
-		types.NewFeePackFromFeeCredit(params.Fee.FeeCredit), &cfg.PrivateKey.PublicKey)
+
+	smartAccountAddress, err := srv.DeploySmartAccount(params.shardId, cfg.PrivateKey, params.salt, amount)
 	if err != nil {
 		return err
 	}

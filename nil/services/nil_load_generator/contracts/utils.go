@@ -33,8 +33,7 @@ func NewSmartAccount(service *cliservice.Service, shardId types.ShardId) (SmartA
 	}
 	salt := types.NewUint256(0)
 
-	smartAccountAdr, err := service.CreateSmartAccount(
-		shardId, salt, types.GasToValue(1_000_000_000), types.FeePack{}, &pk.PublicKey)
+	smartAccountAdr, err := service.DeploySmartAccount(shardId, pk, *salt, types.GasToValue(1_000_000_000))
 	if err != nil {
 		if !strings.Contains(err.Error(), "smart account already exists") {
 			return SmartAccount{}, err

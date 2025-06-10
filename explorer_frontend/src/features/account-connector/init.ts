@@ -116,7 +116,7 @@ createSmartAccountFx.use(async ({ privateKey, rpcUrl }) => {
 
   const code = await client.getCode(smartAccount.address);
   if (code.length === 0) {
-    await smartAccount.selfDeploy(true);
+    await smartAccount.selfDeploy(faucetClient);
   }
 
   setInitializingSmartAccountState("Adding some tokens...");
