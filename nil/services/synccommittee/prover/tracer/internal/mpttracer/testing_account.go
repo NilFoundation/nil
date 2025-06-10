@@ -6,7 +6,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -47,8 +49,9 @@ func CreateTestAccountAndTracer(t *testing.T) (types.Address, *MPTTracer, db.RwT
 		RwTx:         rwTx,
 		ContractTrie: contractTrie,
 	}
+	clientMock := &client.ClientMock{}
 
-	mptTracer := NewWithReader(contractReader, rwTx, shardId)
+	mptTracer := NewWithReader(contractReader, rwTx, shardId, clientMock, logging.NewLogger("mpttracer"))
 
 	return addr, mptTracer, rwTx
 }

@@ -65,7 +65,7 @@ type RollbackParams struct {
 
 type ContractMPTRepository interface {
 	SetRootHash(root common.Hash) error
-	GetAccountState(addr types.Address) (AccountState, error)
+	GetAccountState(addr types.Address, createIfNotExists bool) (AccountState, error)
 	UpdateContracts(contracts map[types.Address]AccountState) error
 	RootHash() common.Hash
 	Commit() (common.Hash, error)
@@ -377,13 +377,13 @@ type DbContractAccessor struct {
 
 var _ ContractMPTRepository = (*DbContractAccessor)(nil)
 
-func (ca *DbContractAccessor) GetAccountState(addr types.Address) (AccountState, error) {
+func (ca *DbContractAccessor) GetAccountState(addr types.Address, createIfNotExists bool) (AccountState, error) {
 	smartContract, err := ca.Fetch(addr.Hash())
-	if errors.Is(err, db.ErrKeyNotFound) {
-		return nil, nil
-	}
-	if err != nil {
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, fmt.Errorf("GetAccount failed: %w", err)
+	}
+	if errors.Is(err, db.ErrKeyNotFound) && !createIfNotExists {
+		return nil, nil
 	}
 
 	return NewAccountState(ca.rwTxProvider, addr, smartContract, ca.logger)
@@ -471,7 +471,7 @@ func (es *ExecutionState) GetAccount(addr types.Address) (AccountState, error) {
 		return acc, nil
 	}
 
-	accountState, err := es.ContractTree.GetAccountState(addr)
+	accountState, err := es.ContractTree.GetAccountState(addr, false)
 	// if errors.Is(err, db.ErrKeyNotFound) {
 	// 	return nil, nil
 	// }
@@ -484,8 +484,10 @@ func (es *ExecutionState) GetAccount(addr types.Address) (AccountState, error) {
 	// 	return nil, fmt.Errorf("NewAccountState failed: %w", err)
 	// }
 	// cache accont state even if nil
-	es.Accounts[addr] = accountState
-	return acc, nil
+	if accountState != nil {
+		es.Accounts[addr] = accountState
+	}
+	return accountState, nil
 }
 
 func (es *ExecutionState) setAccountObject(acc AccountState) {
@@ -507,6 +509,7 @@ func (es *ExecutionState) AddBalance(addr types.Address, amount types.Value, rea
 
 // SubBalance subtracts amount from the account associated with addr.
 func (es *ExecutionState) SubBalance(addr types.Address, amount types.Value, reason tracing.BalanceChangeReason) error {
+	fmt.Printf("SubBalance addr: %s, amount: %s\n", addr, amount)
 	stateObject, err := es.getOrNewAccount(addr)
 	if err != nil || stateObject == nil {
 		return err
@@ -831,12 +834,15 @@ func (es *ExecutionState) createAccount(addr types.Address) (AccountState, error
 
 	es.AppendToJournal(createAccountChange{account: &addr})
 
-	accountState, err := es.ContractTree.GetAccountState(addr)
+	accountState, err := es.ContractTree.GetAccountState(addr, true)
 	if err != nil {
 		return nil, err
 	}
 
+	check.PanicIfNot(accountState != nil)
+
 	journaledAccountState := NewJournaledAccountStateFromRaw(es, accountState, es.logger)
+	// fmt.Printf("journaledAccountState: %+v\n", journaledAccountState)
 	es.Accounts[addr] = journaledAccountState
 	return journaledAccountState, nil
 }
@@ -851,6 +857,7 @@ func (es *ExecutionState) CreateContract(addr types.Address) error {
 	if err != nil {
 		return err
 	}
+	// fmt.Printf("obj: %+v\n", obj)
 	if !obj.IsNew() {
 		obj.SetIsNew(true)
 		es.AppendToJournal(accountBecameContractChange{account: addr})
@@ -1854,6 +1861,7 @@ func (es *ExecutionState) CallVerifyExternal(
 	spentGas := gasCreditLimit.Sub(types.Gas(leftOverGas))
 	res.SetUsed(spentGas, es.GasPrice)
 	es.GasUsed += res.GasUsed
+	fmt.Printf("SubBalance addr: %s, res.CoinsUsed(): %s\n", account.GetAddress(), res.CoinsUsed())
 	check.PanicIfErr(account.SubBalance(res.CoinsUsed(), tracing.BalanceDecreaseVerifyExternal))
 	return res
 }
