@@ -97,7 +97,6 @@ export class SmartAccountV1 implements SmartAccountInterface {
       salt: salt,
       shard: shardId,
     });
-
     return refineAddress(address);
   }
 

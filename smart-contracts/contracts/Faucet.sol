@@ -76,13 +76,27 @@ contract Faucet {
         emit Send(addr, value);
     }
 
-    function createSmartAccount(bytes memory ownerPubkey, bytes32 salt, uint256 value) external returns (address) {
-        SmartAccount smartAccount = new SmartAccount{salt: salt}(ownerPubkey);
-        address addr = address(smartAccount);
-        emit Deploy(addr);
+    function createSmartAccount(
+        uint shardId,
+        bytes memory ownerPubkey,
+        bytes32 salt,
+        uint256 value
+    ) external returns (address) {
+        bytes memory code = abi.encodePacked(
+            type(SmartAccount).creationCode,
+            abi.encode(ownerPubkey)
+        );
 
-        bool success = payable(addr).send(value);
-        require(success, "Send value failed");
+        address addr = Nil.createAddress(shardId, code, uint256(salt));
+
+        Nil.asyncDeploy(
+            shardId,
+            address(this),
+            value,
+            code,
+            uint256(salt)
+        );
+        emit Deploy(addr);
         emit Send(addr, value);
 
         return addr;

@@ -44,3 +44,30 @@ export async function topUp({
     client,
   );
 }
+
+export async function createSmartAccount({
+  faucetEndpoint,
+  shardId,
+  publicKey,
+  salt,
+  amount,
+}: {
+  faucetEndpoint: string;
+  shardId: number;
+  publicKey: Uint8Array | Hex;
+  salt: bigint;
+  amount: bigint;
+}): Promise<Hex> {
+  const faucetClient = new FaucetClient({
+    transport: new HttpTransport({
+      endpoint: faucetEndpoint,
+    }),
+  });
+
+  return await faucetClient.createSmartAccount({
+    shardId,
+    publicKey,
+    salt,
+    amount,
+  });
+}

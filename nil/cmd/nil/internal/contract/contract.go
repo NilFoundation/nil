@@ -29,7 +29,6 @@ func GetCommand(cfg *common.Config) *cobra.Command {
 		GetTokensCommand(cfg),
 		GetCodeCommand(cfg),
 		GetCallReadonlyCommand(cfg),
-		GetDeployCommand(cfg),
 		GetSendExternalTransactionCommand(cfg),
 		GetEstimateFeeCommand(cfg),
 		GetTopUpCommand(cfg),

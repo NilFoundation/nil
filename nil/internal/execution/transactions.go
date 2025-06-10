@@ -95,6 +95,7 @@ type accountPayer struct {
 func (a accountPayer) CanPay(amount types.Value) bool {
 	value, overflow := a.transaction.Value.AddOverflow(amount)
 	check.PanicIfNot(!overflow)
+	logging.GlobalLogger.Error().Msgf("a.account.Balance = %v", a.account.Balance)
 	return a.account.Balance.Cmp(value) >= 0
 }
 
@@ -203,6 +204,9 @@ func ValidateExternalTransaction(es *ExecutionState, transaction *types.Transact
 	if account, err := es.GetAccount(transaction.To); err != nil {
 		return NewExecutionResult().SetError(types.KeepOrWrapError(types.ErrorNoAccount, err))
 	} else if account == nil {
+		es.logger.Error().
+			Stringer(logging.FieldTransactionHash, transaction.Hash()).
+			Msgf("Account %s does not exist", transaction.To.Hex())
 		return NewExecutionResult().SetError(types.NewError(types.ErrorDestinationContractDoesNotExist))
 	}
 

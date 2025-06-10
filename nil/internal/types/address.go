@@ -10,6 +10,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
@@ -204,6 +205,8 @@ func createAddress(shardId ShardId, deployPayload []byte) Address {
 	raw := make([]byte, ShardIdSize, AddrSize)
 	raw = setShardId(raw, shardId)
 	offset := common.HashSize - AddrSize + ShardIdSize
+	logging.GlobalLogger.Error().Msgf("code: %s", hex.EncodeToString(deployPayload))
+	logging.GlobalLogger.Error().Msgf("codeHash: %s", hex.EncodeToString(common.KeccakHash(deployPayload).Bytes()))
 	raw = append(raw, common.KeccakHash(deployPayload).Bytes()[offset:]...)
 	return BytesToAddress(raw)
 }

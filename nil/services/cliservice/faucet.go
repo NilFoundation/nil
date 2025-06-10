@@ -9,9 +9,7 @@ import (
 	"time"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -161,44 +159,9 @@ func (s *Service) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address,
 
 func (s *Service) CreateSmartAccount(
 	shardId types.ShardId,
-	salt *types.Uint256,
-	balance types.Value,
-	fee types.FeePack,
 	pubKey *ecdsa.PublicKey,
+	salt types.Uint256,
+	balance types.Value,
 ) (types.Address, error) {
-	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(crypto.FromECDSAPub(pubKey))
-	smartAccountAddress := s.ContractAddress(shardId, *salt, smartAccountCode)
-
-	code, err := s.client.GetCode(s.ctx, smartAccountAddress, "latest")
-	if err != nil {
-		return types.EmptyAddress, err
-	}
-	if len(code) > 0 {
-		return smartAccountAddress, fmt.Errorf("%w: %s", ErrSmartAccountExists, smartAccountAddress)
-	}
-
-	// NOTE: we deploy smart account code with ext transaction
-	// in current implementation this costs 629_160
-	err = s.TopUpViaFaucet(types.FaucetAddress, smartAccountAddress, balance)
-	if err != nil {
-		return types.EmptyAddress, err
-	}
-
-	deployPayload := types.BuildDeployPayload(smartAccountCode, common.Hash(salt.Bytes32()))
-	txnHash, addr, err := s.DeployContractExternal(shardId, deployPayload, fee)
-	if err != nil {
-		return types.EmptyAddress, err
-	}
-	check.PanicIfNotf(addr == smartAccountAddress, "contract was deployed to unexpected address")
-	res, err := s.WaitForReceipt(txnHash)
-	if err != nil {
-		return types.EmptyAddress, errors.New("error during waiting for receipt")
-	}
-	if !res.IsComplete() {
-		return types.EmptyAddress, errors.New("deploy transaction processing failed")
-	}
-	if !res.AllSuccess() {
-		return types.EmptyAddress, fmt.Errorf("deploy transaction processing failed: %s", res.ErrorMessage)
-	}
-	return addr, nil
+	return s.faucetClient.CreateSmartAccount(s.ctx, shardId, crypto.FromECDSAPub(pubKey), salt, balance)
 }
