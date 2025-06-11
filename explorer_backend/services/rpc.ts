@@ -36,7 +36,7 @@ export const fetchShardsGasPrice = async () => {
 
   const gasPrices = await Promise.all(promises);
   const gasPriceMap = Object.fromEntries(
-    shardsIds.map((shardId, index) => [shardId, gasPrices[index]])
+    shardsIds.map((shardId, index) => [shardId, gasPrices[index].toString(10)]),
   );
 
   return gasPriceMap;

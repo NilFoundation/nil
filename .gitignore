@@ -10,7 +10,8 @@ result
 deb-package-nil
 clickhouse
 !nil/services/indexer/clickhouse
-exporter.yaml
+indexer.yaml
+indexer.yml
 
 # compiled solidity contracts
 *.bin

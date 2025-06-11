@@ -16,18 +16,27 @@ export const $totalTxOnShards = $shards.map((shards) =>
 
 export const $shardsGasPriceMap = explorerShardsList.createStore<Record<string, bigint>>({});
 
-export const $busiestShard = $shardsGasPriceMap.map((shardsGasPriceMap) => {
-  const maxGasPriceValue = Math.max(...Object.values(shardsGasPriceMap).map(Number));
-  return Object.entries(shardsGasPriceMap).find(
-    ([_, gasPrice]) => Number(gasPrice) === maxGasPriceValue,
-  );
+const $shardsGasPriceMapWithoutMain = $shardsGasPriceMap.map((shards) => {
+  const newShards = { ...shards };
+  // biome-ignore lint/performance/noDelete: it des not affect performance for objects.
+  delete newShards[0];
+  return newShards;
 });
 
-export const $bestShard = $shardsGasPriceMap.map((shardsGasPriceMap) => {
-  const minGasPriceValue = Math.min(...Object.values(shardsGasPriceMap).map(Number));
-  return Object.entries(shardsGasPriceMap).find(
-    ([_, gasPrice]) => Number(gasPrice) === minGasPriceValue,
+export const $busiestShard = $shardsGasPriceMapWithoutMain.map((shardsGasPriceMap) => {
+  const busiestShard = Object.entries(shardsGasPriceMap).reduce(
+    (max, [shardId, gasPrice]) => (gasPrice > max[1] ? [shardId, gasPrice] : max),
+    ["", BigInt(0)],
   );
+  return busiestShard;
+});
+
+export const $bestShard = $shardsGasPriceMapWithoutMain.map((shardsGasPriceMap) => {
+  const bestShard = Object.entries(shardsGasPriceMap).reduce(
+    (min, [shardId, gasPrice]) => (gasPrice < min[1] ? [shardId, gasPrice] : min),
+    ["", BigInt(Number.MAX_SAFE_INTEGER)],
+  );
+  return bestShard;
 });
 
 export const fetchShardsFx = createEffect<void, Shards, Error>();
@@ -36,4 +45,9 @@ fetchShardsFx.use(fetchShards);
 
 export const fetchShrdsGasPriceFx = createEffect<void, Record<string, bigint>, Error>();
 
-fetchShrdsGasPriceFx.use(fetchShardsGasPrice);
+fetchShrdsGasPriceFx.use(async () => {
+  const gasPriceMap = await fetchShardsGasPrice();
+  return Object.fromEntries(
+    Object.entries(gasPriceMap).map(([shardId, gasPrice]) => [shardId, BigInt(gasPrice)]),
+  );
+});

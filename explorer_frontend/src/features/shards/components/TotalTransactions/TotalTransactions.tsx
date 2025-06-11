@@ -2,8 +2,10 @@ import { COLORS, HeadingMedium, LabelLarge, ParagraphXSmall, Spinner } from "@ni
 import { ParagraphLarge } from "baseui/typography";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
+import { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { useStyletron } from "styletron-react";
+import { formatEther } from "viem";
 import { getMobileStyles } from "../../../../styleHelpers";
 import { InfoContainer } from "../../../shared";
 import { formatNumber } from "../../../shared/utils/formatNumber";
@@ -11,77 +13,12 @@ import {
   $bestShard,
   $busiestShard,
   $shards,
+  $shardsGasPriceMap,
   $totalTxOnShards,
   fetchShardsFx,
   fetchShrdsGasPriceFx,
 } from "../../models/model";
 import { TotalTxChart } from "./TotalTxChart";
-
-const shardsTxData = [
-  {
-    time: {
-      year: 1,
-      month: 1,
-      day: 1,
-    },
-    customValues: {
-      values: [200000, 0],
-    },
-  },
-  {
-    time: {
-      year: 2,
-      month: 1,
-      day: 1,
-    },
-    customValues: {
-      values: [300000, 0],
-    },
-  },
-  {
-    time: {
-      year: 3,
-      month: 1,
-      day: 1,
-    },
-    customValues: {
-      values: [250000, 0],
-    },
-  },
-];
-
-const shardsGasPriceData = [
-  {
-    time: {
-      year: 1,
-      month: 1,
-      day: 1,
-    },
-    customValues: {
-      values: [0, 1],
-    },
-  },
-  {
-    time: {
-      year: 2,
-      month: 1,
-      day: 1,
-    },
-    customValues: {
-      values: [0, 2],
-    },
-  },
-  {
-    time: {
-      year: 3,
-      month: 1,
-      day: 1,
-    },
-    customValues: {
-      values: [0, 4],
-    },
-  },
-];
 
 const ErrorView = () => {
   const [css] = useStyletron();
@@ -115,6 +52,7 @@ export const TotalTransactions = () => {
     bestShard,
     fetchingShardsGasPrice,
     fetchingShardsStat,
+    shardsGasPriceMap,
   ] = useUnit([
     $shards,
     $totalTxOnShards,
@@ -122,17 +60,53 @@ export const TotalTransactions = () => {
     $bestShard,
     fetchShrdsGasPriceFx.pending,
     fetchShardsFx.pending,
+    $shardsGasPriceMap,
   ]);
-  const shardsCount = Object.keys(shards).length;
   const [css] = useStyletron();
 
+  const shardsCount = Object.keys(shards).length;
   const busiestShardId = busiestShard?.[0];
   const bestShardId = bestShard?.[0];
-  const busiestShardGasPrice = busiestShard?.[1] ?? "-";
-  const bestShardGasPrice = bestShard?.[1] ?? "-";
-  const data = [""];
+  const busiestShardGasPrice = busiestShard?.[1] ? `${formatEther(busiestShard?.[1])} ETH` : "-";
+  const bestShardGasPrice = bestShard?.[1] ? `${formatEther(bestShard?.[1])} ETH` : "-";
 
-  if ((fetchingShardsGasPrice || fetchingShardsStat) && data.length === 0) {
+  const shardsTxData = useMemo(
+    () =>
+      shards
+        .map((shard) => ({
+          time: {
+            year: shard.shard_id,
+            month: 1,
+            day: 1,
+          },
+          customValues: {
+            values: [shard.tx_count, 0],
+          },
+        }))
+        .sort((a, b) => a.time.year - b.time.year),
+    [shards],
+  );
+
+  const shardsGasPriceData = useMemo(
+    () =>
+      Object.entries(shardsGasPriceMap)
+        .map(([shardId, gasPrice]) => ({
+          time: {
+            year: Number(shardId),
+            month: 1,
+            day: 1,
+          },
+          customValues: {
+            values: [0, Number(formatEther(gasPrice, "gwei")).toFixed(1)],
+          },
+        }))
+        .sort((a, b) => a.time.year - b.time.year),
+    [shardsGasPriceMap],
+  );
+
+  console.log(shardsGasPriceData);
+
+  if ((fetchingShardsGasPrice || fetchingShardsStat) && shardsTxData.length === 0) {
     return (
       <InfoContainer title="Total transactions across shards">
         <div
@@ -211,7 +185,7 @@ export const TotalTransactions = () => {
                 backgroundColor: COLORS.green800,
               })}
             >
-              <HeadingMedium>{`Best shard: ${bestShardId ? `#${bestShardId}` : "-"}`}</HeadingMedium>
+              <HeadingMedium>{`Best deployment shard: ${bestShardId ? `#${bestShardId}` : "-"}`}</HeadingMedium>
               <ParagraphXSmall
                 color={COLORS.gray200}
                 marginTop="8px"
