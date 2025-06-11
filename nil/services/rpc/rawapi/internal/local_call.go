@@ -215,9 +215,9 @@ func (api *localShardApiRo) Call(
 		hash = mainBlockHash
 	}
 
-	block, err := db.ReadBlock(tx, shardId, hash)
+	block, err := api.accessor.Access(tx, shardId).GetBlockHeaderByHash(hash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read block %s: %w", hash, err)
+		return nil, err
 	}
 
 	configAccessor, err := config.NewConfigAccessorFromBlockWithTx(tx, block, shardId)
