@@ -99,65 +99,48 @@ func (api *localShardApiRo) getBlockByHash(
 	hash common.Hash,
 	withTransactions bool,
 ) (*types.RawBlockWithExtractedData, error) {
-	accessor := api.accessor.RawAccess(tx, api.shardId()).GetBlock()
-	if withTransactions {
-		accessor = accessor.
-			WithInTransactions().
-			WithOutTransactions().
-			WithReceipts().
-			WithChildBlocks().
-			WithDbTimestamp().
-			WithConfig()
-	}
-
-	data, err := accessor.ByHash(hash)
+	result, err := api.accessor.RawAccess(tx, api.shardId()).GetBlockByHash(hash, withTransactions)
 	if err != nil {
 		return nil, err
 	}
 
-	if data.Block() == nil {
-		return nil, nil
-	}
-
 	if assert.Enable {
 		var block types.Block
-		if err := block.UnmarshalNil(data.Block()); err != nil {
+		if err := block.UnmarshalNil(result.Block); err != nil {
 			return nil, err
 		}
 		blockHash := block.Hash(api.shardId())
 		check.PanicIfNotf(blockHash == hash, "block hash mismatch: %s != %s", blockHash, hash)
 	}
 
-	result := &types.RawBlockWithExtractedData{
-		Block: data.Block(),
-	}
 	if withTransactions {
-		result.InTransactions = data.InTransactions()
-		result.InTxCounts = data.InTxCounts()
-		result.OutTransactions = data.OutTransactions()
-		result.OutTxCounts = data.OutTxCounts()
-		result.Receipts = data.Receipts()
-		result.Errors = make(map[common.Hash]string)
-		result.ChildBlocks = data.ChildBlocks()
-		result.DbTimestamp = data.DbTimestamp()
-		result.Config = data.Config()
+		return fixTxns(tx, result)
+	}
 
-		// Need to decode transactions to get its hashes because external transaction hash
-		// calculated in a bit different way (not just Hash(bytes)).
-		transactions, err := serialization.DecodeContainer[*types.Transaction](result.InTransactions)
-		if err != nil {
+	return result, nil
+}
+
+func fixTxns(tx db.RoTx, result *types.RawBlockWithExtractedData) (*types.RawBlockWithExtractedData, error) {
+	// Need to decode transactions to get its hashes because external transaction hash
+	// calculated in a bit different way (not just Hash(bytes)).
+	transactions, err := serialization.DecodeContainer[*types.Transaction](result.InTransactions)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, transaction := range transactions {
+		txnHash := transaction.Hash()
+		errMsg, err := db.ReadError(tx, txnHash)
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return nil, err
 		}
-		for _, transaction := range transactions {
-			txnHash := transaction.Hash()
-			errMsg, err := db.ReadError(tx, txnHash)
-			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-				return nil, err
+		if len(errMsg) > 0 {
+			if result.Errors == nil {
+				result.Errors = make(map[common.Hash]string)
 			}
-			if len(errMsg) > 0 {
-				result.Errors[txnHash] = errMsg
-			}
+			result.Errors[txnHash] = errMsg
 		}
 	}
+
 	return result, nil
 }

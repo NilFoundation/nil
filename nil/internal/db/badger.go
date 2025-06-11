@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"runtime"
 	"sync"
@@ -226,7 +227,7 @@ func (tx *BadgerRwTx) Put(tableName TableName, key, value []byte) error {
 func (tx *BadgerRoTx) Get(tableName TableName, key []byte) ([]byte, error) {
 	item, err := tx.tx.Get(MakeKey(tableName, key))
 	if errors.Is(err, badger.ErrKeyNotFound) {
-		return nil, ErrKeyNotFound
+		return nil, fmt.Errorf("%w: table %s", ErrKeyNotFound, tableName)
 	}
 	if err != nil {
 		return nil, err
