@@ -1,0 +1,63 @@
+on:
+  workflow_call:
+    inputs:
+      upload_artifacts:
+        description: "Upload binaries as artifacts"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  nix_check_macos:
+    name: ${{ matrix.platform.os}} (${{ matrix.platform.arch }}) - ${{ matrix.check }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        check: ["nil", "clijs"]
+        platform:
+          # N.B. The architecture is chosen by GitHub at `runs-on` depending on the label (`os`)
+          # See https://github.com/actions/runner-images?tab=readme-ov-file#available-images
+          # The other fields only affect the logic of our steps
+          - os: macos-latest
+            arch: aarch64
+            nixArch: aarch64-darwin
+          - os: macos-15-large
+            arch: x64
+            nixArch: x86_64-darwin
+    steps:
+      - name: Checkout local actions
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix-macos
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # The following "build" command can be used for debugging without having to wait a long time:
+      # nix-build -E 'let pkgs = import (builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-24.05.tar.gz") {}; in pkgs.writeText "example" "001"'
+      # Counter 001 can be modified to check for cache hits or misses.
+      - name: Run check
+        run: nix build .#checks.${{ matrix.platform.nixArch }}.${{ matrix.check == 'nil' && 'others' || matrix.check }} -L
+
+      - name: Upload nil binary as artifact
+        if: inputs.upload_artifacts && matrix.check == 'clijs'
+        uses: actions/upload-artifact@v4
+        with:
+          name: clijs-darwin-${{ matrix.platform.arch }}
+          path: |
+            result/clijs
+
+      - name: Upload old nil binary as artifact
+        if: inputs.upload_artifacts && matrix.check == 'nil'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nil-darwin-${{ matrix.platform.arch }}
+          path: |
+            result/bin/nil

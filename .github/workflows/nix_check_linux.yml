@@ -1,0 +1,29 @@
+on: workflow_call
+
+jobs:
+  nix_check:
+    name: Test - ${{ matrix.check }}
+    runs-on: ["self-hosted", "aws_autoscaling"]
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - ibft
+          - heavy
+          - nil
+          - nildocs
+          - niljs
+          - nilexplorer
+          - uniswap
+          - rollup-bridge-contracts
+          - clijs
+          - walletextension
+          - nilhardhat
+    steps:
+      - name: checkout local actions
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: run check
+        run: nix build .#checks.x86_64-linux.${{ matrix.check == 'nil' && 'others' || matrix.check }} -L
