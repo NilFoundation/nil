@@ -99,7 +99,10 @@ func SerializeToFile(proofs *ExecutionTraces, mode MarshalMode, baseFileName str
 	}
 
 	eg.Go(func() error {
-		return marshalJSONToFile(proofs.ZethCache, fmt.Sprintf("%s.%s.%s", baseFileName, zethCacheExtension, MarshalModeJSON))
+		return marshalJSONToFile(
+			proofs.ZethCache,
+			fmt.Sprintf("%s.%s.%s", baseFileName, zethCacheExtension, MarshalModeJSON),
+		)
 	})
 
 	return eg.Wait()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -13,6 +14,10 @@ import (
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+)
+
+const (
+	RangeResponseLimit = 256
 )
 
 type DebugAPI interface {
@@ -43,10 +48,10 @@ type DebugAPI interface {
 		ctx context.Context,
 		blockHash common.Hash,
 		txId types.TransactionIndex,
-		contractAddress types.Address,
-		keyStart common.Hash,
-		maxResult uint,
-	)
+		contractAddr types.Address,
+		keyStart *common.Hash,
+		maxResults uint,
+	) (*StorageRange, error)
 }
 
 type DebugAPIImpl struct {
@@ -172,11 +177,14 @@ func (api *DebugAPIImpl) AccountRange(
 	// so there's no need to track incomplete entries — the `incompletes` parameter is unused.
 	_ = incompletes
 
+	maxResults = min(maxResults, RangeResponseLimit)
 	if start == nil {
 		start = &common.EmptyHash
 	}
 
-	accountRange, err := api.rawApi.GetContractRange(ctx, shardId, toBlockReference(blockNrOrHash), *start, maxResults, !noCode, !noStorage)
+	accountRange, err := api.rawApi.GetContractRange(
+		ctx, shardId, toBlockReference(blockNrOrHash), *start, maxResults, !noCode, !noStorage,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -206,15 +214,52 @@ func (api *DebugAPIImpl) AccountRange(
 	}, nil
 }
 
+// StorageRangeAt implements `debug_storageRangeAt` method. `txId` parameter is unsupported yet.
 func (api *DebugAPIImpl) StorageRangeAt(
 	ctx context.Context,
 	blockHash common.Hash,
 	txId types.TransactionIndex,
-	contractAddress types.Address,
-	keyStart common.Hash,
-	maxResult uint,
-) {
-	return
+	contractAddr types.Address,
+	keyStart *common.Hash,
+	maxResults uint,
+) (*StorageRange, error) {
+	if txId != types.TransactionIndex(0) {
+		return nil, errors.New("txId is unsupported")
+	}
+
+	maxResults = min(maxResults, RangeResponseLimit)
+
+	contract, err := api.rawApi.GetContract(
+		ctx, contractAddr, rawapitypes.BlockHashAsBlockReference(blockHash), true, false,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Prepare storage data for trie
+	keys, values := extractStorageKeyValues(contract.Storage)
+
+	// Build storage trie
+	trie, err := buildStorageTrie(keys, values)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build storage trie: %w", err)
+	}
+
+	var ctr uint
+	var nextKey *common.Hash
+	storage := make(map[common.Hash]hexutil.Big)
+	for key, value := range trie.IterateFromKey(keyStart.Bytes()) {
+		if ctr == maxResults {
+			nextHash := common.BytesToHash(key)
+			nextKey = &nextHash
+			break
+		}
+		var bigValue big.Int
+		bigValue.SetBytes(value)
+		storage[common.BytesToHash(key)] = hexutil.Big(bigValue)
+		ctr++
+	}
+	return &StorageRange{Storage: storage, NextKey: nextKey}, nil
 }
 
 func rangeAccountFromRawapi(rawApiSc *rawapitypes.SmartContract) (*RangedAccount, error) {
@@ -258,4 +303,10 @@ type AccountsRange struct {
 	// `Next` can be set to represent that this range is only partial, and `Next`
 	// is where an iterator should be positioned in order to continue the range.
 	Next *common.Hash `json:"next,omitempty"` // nil if no more accounts
+}
+
+// StorageRange is the result of a debug_storageRangeAt API call.
+type StorageRange struct {
+	Storage map[common.Hash]hexutil.Big `json:"storage"`
+	NextKey *common.Hash                `json:"nextKey"` // nil if Storage includes the last key in the trie.
 }

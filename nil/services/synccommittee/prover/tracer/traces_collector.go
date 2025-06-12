@@ -19,7 +19,6 @@ import (
 
 type RemoteTracesCollector interface {
 	GetBlockTraces(ctx context.Context, blockId BlockId) (*ExecutionTraces, error)
-	// GetMPTTraces() (mpttracer.MPTTraces, error)
 }
 
 type BlockId struct {
@@ -293,13 +292,13 @@ func (tc *remoteTracesCollectorImpl) executeBlockAndCollectTraces(
 
 	mptTraces, err := tc.mptTracer.GetMPTTraces()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting mpt traces: %w", err)
 	}
 	esTracer.Traces.MPTTraces = &mptTraces
 
 	zethCache, err := tc.mptTracer.GetZethCache(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting zeth cache: %w", err)
 	}
 	esTracer.Traces.ZethCache = zethCache
 

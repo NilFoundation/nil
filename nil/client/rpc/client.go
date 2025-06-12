@@ -605,7 +605,12 @@ func (c *Client) GetTokens(ctx context.Context, address types.Address, blockId a
 	return simpleCall[types.TokensMap](ctx, c, Eth_getTokens, address, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
-func (c *Client) GetStorageAt(ctx context.Context, address types.Address, key common.Hash, blockId any) (types.Uint256, error) {
+func (c *Client) GetStorageAt(
+	ctx context.Context,
+	address types.Address,
+	key common.Hash,
+	blockId any,
+) (types.Uint256, error) {
 	blockNrOrHash, err := transport.AsBlockReference(blockId)
 	if err != nil {
 		return types.Uint256{}, err
@@ -987,7 +992,9 @@ func (c *Client) GetProof(
 		return nil, err
 	}
 
-	return simpleCall[*jsonrpc.EthProof](ctx, c, Eth_getProof, address, storageKeys, transport.BlockNumberOrHash(blockNrOrHash))
+	return simpleCall[*jsonrpc.EthProof](
+		ctx, c, Eth_getProof, address, storageKeys, transport.BlockNumberOrHash(blockNrOrHash),
+	)
 }
 
 func simpleCall[ReturnType any](ctx context.Context, c *Client, method string, params ...any) (ReturnType, error) {

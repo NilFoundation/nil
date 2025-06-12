@@ -104,7 +104,6 @@ func (mt *MPTTracer) UpdateContracts(contracts map[types.Address]execution.Accou
 	keys := make([]common.Hash, 0, len(contracts))
 	values := make([]*types.SmartContract, 0, len(contracts))
 	for addr, acc := range contracts {
-
 		mt.updatedAccounts[addr] = struct{}{}
 
 		smartAccount, err := acc.Commit()
@@ -161,18 +160,19 @@ func NewWithReader(
 	contractSparseTrie := mpt.NewDbMPT(rwTx, shardId, db.ContractTrieTable)
 	check.PanicIfErr(contractSparseTrie.SetRootHash(mpt.EmptyRootHash))
 	return &MPTTracer{
-		contractReader:     contractReader,
-		rwTx:               rwTx,
-		shardId:            shardId,
-		ContractSparseTrie: contractSparseTrie,
-		updatedAccounts:    make(map[types.Address]struct{}),
-		client:             client,
-		logger:             logger,
+		contractReader:          contractReader,
+		rwTx:                    rwTx,
+		shardId:                 shardId,
+		ContractSparseTrie:      contractSparseTrie,
+		updatedAccounts:         make(map[types.Address]struct{}),
+		accountsTraceableStates: make(map[types.Address]*TraceableAccount),
+		client:                  client,
+		logger:                  logger,
 	}
 }
 
 func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, error) {
-	mt.logger.Debug().Msg("Getting zeth cache")
+	mt.logger.Debug().Msg("getting zeth cache")
 	// contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
 	// curRoot := mt.ContractSparseTrie.RootHash()
 	// if err := contractTrie.SetRootHash(mt.initialContractRoot); err != nil {
@@ -265,13 +265,13 @@ func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, erro
 		for k := range keysToProve {
 			keysArg = append(keysArg, k)
 		}
-		proof, err = mt.client.GetProof(ctx, addr, keysArg, mt.blockNumber+1)
+		proof, err = mt.client.GetProof(ctx, addr, keysArg, transport.BlockNumber(mt.blockNumber))
 		if err != nil {
 			return nil, err
 		}
 		getProofCache = append(getProofCache, GetProofCache{
 			Args: GetProofArgs{
-				BlockNo: mt.blockNumber.Uint64() + 1,
+				BlockNo: mt.blockNumber.Uint64(),
 				Address: addr,
 				Indices: keysArg,
 			},

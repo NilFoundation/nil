@@ -28,7 +28,7 @@ type AccountWriter interface {
 	SubBalance(amount types.Value, reason tracing.BalanceChangeReason) error
 	SetBalance(amount types.Value)
 
-	SetState(key common.Hash, value common.Hash) error
+	SetState(key common.Hash, value common.Hash)
 	SetStorage(storage Storage)
 
 	SetTokenBalance(id types.TokenId, amount types.Value)
@@ -77,6 +77,28 @@ type AccountReader interface {
 type AccountState interface {
 	AccountReader
 	AccountWriter
+}
+
+type JournaledAccountState interface {
+	AccountState
+
+	JournaledAddBalance(amount types.Value, reason tracing.BalanceChangeReason) error
+	JournaledSubBalance(amount types.Value, reason tracing.BalanceChangeReason) error
+	JournaledSetBalance(amount types.Value)
+
+	JournaledSetState(key common.Hash, value common.Hash) error
+
+	JournaledSetTokenBalance(id types.TokenId, amount types.Value)
+
+	JournaledSetSeqno(seqno types.Seqno)
+	JournaledSetExtSeqno(seqno types.Seqno)
+
+	JournaledSetCode(codeHash common.Hash, code []byte)
+
+	JournaledSetAsyncContext(index types.TransactionIndex, ctx *types.AsyncContext)
+
+	JournaledSetIsNew(val bool)
+	JournaledSetIsSelfDestructed(val bool)
 }
 
 type AccountStateImpl struct {
@@ -137,11 +159,6 @@ func NewAccountState(
 		Tokens:       make(map[types.TokenId]*types.Value),
 		logger:       logger,
 	}
-
-	// fmt.Printf("creating account state, addr: %s, ptr: %p\n", addr, accountState)
-	// buf := make([]byte, 1<<16) // 64KB buffer
-	// n := runtime.Stack(buf, false)
-	// fmt.Printf("Stack trace:\n%s\n", buf[:n])
 
 	tokenRoot := mpt.EmptyRootHash
 	storageRoot := mpt.EmptyRootHash
@@ -223,11 +240,8 @@ func (as *AccountStateImpl) SetBalance(amount types.Value) {
 }
 
 func (as *AccountStateImpl) GetState(key common.Hash) (common.Hash, error) {
-	// fmt.Printf("getting state at %s, addr: %s\n", key, as.address)
-	// fmt.Printf("%p\n", as)
 	val, ok := as.State[key]
 	if ok {
-		// fmt.Printf("value from cache %s\n", val)
 		return val, nil
 	}
 
@@ -236,7 +250,7 @@ func (as *AccountStateImpl) GetState(key common.Hash) (common.Hash, error) {
 		return common.EmptyHash, err
 	}
 	as.State[key] = newVal
-	// fmt.Printf("value NOT from cache %s\n", newVal)
+
 	return newVal, nil
 }
 
@@ -258,9 +272,8 @@ func (as *AccountStateImpl) GetFullState() Storage {
 	return as.State
 }
 
-func (asr *AccountStateImpl) SetState(key common.Hash, value common.Hash) error {
+func (asr *AccountStateImpl) SetState(key common.Hash, value common.Hash) {
 	asr.State[key] = value
-	return nil
 }
 
 // SetStorage replaces the entire state storage with the given one.
@@ -480,6 +493,10 @@ func (as *AccountStateImpl) IsSelfDestructed() bool {
 }
 
 // SetSelfDestructed marks account as self-destructed
+// This clears the account balance.
+//
+// The account's state object is still available until the state is committed,
+// GetAccount will return a non-nil account after SelfDestruct.
 func (as *AccountStateImpl) SetIsSelfDestructed(val bool) {
 	as.selfDestructed = val
 }
@@ -489,57 +506,64 @@ func (asr *AccountStateImpl) IsEmpty() bool {
 	return asr.Seqno == 0 && asr.Balance.IsZero() && len(asr.Code) == 0
 }
 
-type JournaledAccountState struct {
+type JournaledAccountStateImpl struct {
 	AccountState
 	journalAppender JournalAppender
 	logger          logging.Logger
 }
 
-var _ AccountState = (*JournaledAccountState)(nil)
+var _ JournaledAccountState = (*JournaledAccountStateImpl)(nil)
 
 // NewJournaledAccountStateWrapper takes AccountState as input and adds journalling to it
 func NewJournaledAccountStateFromRaw(
 	journalAppender JournalAppender,
 	accountState AccountState,
 	logger logging.Logger,
-) AccountState {
-	return &JournaledAccountState{
+) JournaledAccountState {
+	return &JournaledAccountStateImpl{
 		AccountState:    accountState,
 		journalAppender: journalAppender,
 		logger:          logger,
 	}
 }
 
-// NewJournaledAccountState creates raw account, then wraps it into journalled account.
-// func NewJournaledAccountState(
-// 	dbRwTxProvider DbRwTxProvider,
-// 	journalAppender JournalAppender,
-// 	addr types.Address,
-// 	account *types.SmartContract,
-// 	logger logging.Logger,
-// ) (AccountState, error) {
-// 	acccountStateRaw, err := NewAccountState(
-// 		dbRwTxProvider,
-// 		addr,
-// 		account,
-// 		logger,
-// 	)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return NewJournaledAccountStateFromRaw(journalAppender, acccountStateRaw, logger), nil
-// }
-
-func (as *JournaledAccountState) SetBalance(amount types.Value) {
-	as.journalAppender.AppendToJournal(balanceChange{
-		account: as.GetAddress(),
-		prev:    as.AccountState.GetBalance(),
-	})
-	as.AccountState.SetBalance(amount)
+func (as *JournaledAccountStateImpl) JournaledAddBalance(amount types.Value, reason tracing.BalanceChangeReason) error {
+	prevValue := as.GetBalance()
+	if err := as.AddBalance(amount, reason); err != nil {
+		return err
+	}
+	if prevValue != as.GetBalance() {
+		as.journalAppender.AppendToJournal(balanceChange{
+			account: as.GetAddress(),
+			prev:    prevValue,
+		})
+	}
+	return nil
 }
 
-func (jas *JournaledAccountState) SetState(key common.Hash, value common.Hash) error {
-	// fmt.Printf("setting %s to %s\n", key, value)
+func (as *JournaledAccountStateImpl) JournaledSubBalance(amount types.Value, reason tracing.BalanceChangeReason) error {
+	prevValue := as.GetBalance()
+	if err := as.SubBalance(amount, reason); err != nil {
+		return err
+	}
+	if prevValue != as.GetBalance() {
+		as.journalAppender.AppendToJournal(balanceChange{
+			account: as.GetAddress(),
+			prev:    prevValue,
+		})
+	}
+	return nil
+}
+
+func (as *JournaledAccountStateImpl) JournaledSetBalance(amount types.Value) {
+	as.journalAppender.AppendToJournal(balanceChange{
+		account: as.GetAddress(),
+		prev:    as.GetBalance(),
+	})
+	as.SetBalance(amount)
+}
+
+func (jas *JournaledAccountStateImpl) JournaledSetState(key common.Hash, value common.Hash) error {
 	// If the new value is the same as old, don't set. Otherwise, track only the
 	// dirty changes, supporting reverting all of it back to no change.
 	prev, err := jas.GetState(key)
@@ -547,7 +571,6 @@ func (jas *JournaledAccountState) SetState(key common.Hash, value common.Hash) e
 		return err
 	}
 	if prev == value {
-		// fmt.Println("same value")
 		return nil
 	}
 	// New value is different, update and journal the change
@@ -556,10 +579,11 @@ func (jas *JournaledAccountState) SetState(key common.Hash, value common.Hash) e
 		key:       key,
 		prevvalue: prev,
 	})
-	return jas.AccountState.SetState(key, value)
+	jas.SetState(key, value)
+	return nil
 }
 
-func (as *JournaledAccountState) SetTokenBalance(id types.TokenId, amount types.Value) {
+func (as *JournaledAccountStateImpl) JournaledSetTokenBalance(id types.TokenId, amount types.Value) {
 	prev := as.GetTokenBalance(id)
 	change := tokenChange{
 		account: as.GetAddress(),
@@ -569,38 +593,55 @@ func (as *JournaledAccountState) SetTokenBalance(id types.TokenId, amount types.
 		change.prev = *prev
 	}
 	as.journalAppender.AppendToJournal(change)
-	as.AccountState.SetTokenBalance(id, amount)
+	as.SetTokenBalance(id, amount)
 }
 
-func (as *JournaledAccountState) SetSeqno(seqno types.Seqno) {
+func (as *JournaledAccountStateImpl) JournaledSetSeqno(seqno types.Seqno) {
 	as.journalAppender.AppendToJournal(seqnoChange{
 		account: as.GetAddress(),
 		prev:    as.GetSeqno(),
 	})
-	as.AccountState.SetSeqno(seqno)
+	as.SetSeqno(seqno)
 }
 
-func (as *JournaledAccountState) SetExtSeqno(seqno types.Seqno) {
+func (as *JournaledAccountStateImpl) JournaledSetExtSeqno(seqno types.Seqno) {
 	as.journalAppender.AppendToJournal(extSeqnoChange{
 		account: as.GetAddress(),
 		prev:    as.GetExtSeqno(),
 	})
-	as.AccountState.SetExtSeqno(seqno)
+	as.SetExtSeqno(seqno)
 }
 
-func (as *JournaledAccountState) SetCode(codeHash common.Hash, code []byte) {
+func (as *JournaledAccountStateImpl) JournaledSetCode(codeHash common.Hash, code []byte) {
 	as.journalAppender.AppendToJournal(codeChange{
 		account:  as.GetAddress(),
 		prevhash: as.GetCodeHash().Bytes(),
 		prevcode: as.GetCode(),
 	})
-	as.AccountState.SetCode(codeHash, code)
+	as.SetCode(codeHash, code)
 }
 
-func (as *JournaledAccountState) SetAsyncContext(index types.TransactionIndex, ctx *types.AsyncContext) {
+func (as *JournaledAccountStateImpl) JournaledSetAsyncContext(index types.TransactionIndex, ctx *types.AsyncContext) {
 	as.journalAppender.AppendToJournal(asyncContextChange{
 		account:   as.GetAddress(),
 		requestId: index,
 	})
-	as.AccountState.SetAsyncContext(index, ctx)
+	as.SetAsyncContext(index, ctx)
+}
+
+func (as *JournaledAccountStateImpl) JournaledSetIsNew(isNew bool) {
+	as.journalAppender.AppendToJournal(accountBecameContractChange{
+		account: as.GetAddress(),
+	})
+	as.SetIsNew(isNew)
+}
+
+func (as *JournaledAccountStateImpl) JournaledSetIsSelfDestructed(isSelfDestructed bool) {
+	as.journalAppender.AppendToJournal(selfDestructChange{
+		account:     as.GetAddress(),
+		prev:        as.IsSelfDestructed(),
+		prevbalance: as.GetBalance(),
+	})
+	as.SetIsSelfDestructed(true)
+	as.SetBalance(types.Value{})
 }
