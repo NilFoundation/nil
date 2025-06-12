@@ -135,29 +135,6 @@ func (p StorageCache) MarshalJSON() ([]byte, error) {
 	return json.Marshal([]any{p.Args, p.Storage})
 }
 
-// Transaction represents a blockchain transaction
-type Transaction struct {
-	Flags                []string      `json:"flags"`
-	Success              bool          `json:"success"`
-	RequestID            hexutil.Uint  `json:"requestId"`
-	Data                 hexutil.Bytes `json:"data"`
-	BlockHash            common.Hash   `json:"blockHash"`
-	BlockNumber          hexutil.Uint  `json:"blockNumber"`
-	From                 types.Address `json:"from"`
-	GasUsed              string        `json:"gasUsed"`
-	FeeCredit            hexutil.Big   `json:"feeCredit"`
-	MaxPriorityFeePerGas hexutil.Big   `json:"maxPriorityFeePerGas"`
-	MaxFeePerGas         hexutil.Big   `json:"maxFeePerGas"`
-	Hash                 common.Hash   `json:"hash"`
-	Seqno                hexutil.Big   `json:"seqno"`
-	To                   types.Address `json:"to"`
-	RefundTo             types.Address `json:"refundTo"`
-	BounceTo             types.Address `json:"bounceTo"`
-	Index                hexutil.Big   `json:"index"`
-	Value                hexutil.Big   `json:"value"`
-	Signature            hexutil.Bytes `json:"signature"`
-}
-
 // AccountProofRequest represents a request for an account proof
 type AccountProofRequest struct {
 	BlockNo uint64        `json:"block_no"`

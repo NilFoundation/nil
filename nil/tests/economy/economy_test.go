@@ -212,16 +212,15 @@ func (s *SuiteEconomy) TestSeparateGasAndValue() {
 		execution.MainPrivateKey,
 		data,
 		feePack,
-		types.NewValueFromUint64(3000),
+		types.NewValueFromUint64(1000),
 		nil)
 	fmt.Printf("receipt: %+v\n", receipt)
 	fmt.Printf("computed value: %s\n", receipt.GasUsed.ToValue(receipt.GasPrice))
 	info = s.AnalyzeReceipt(receipt, s.namesMap)
 	s.Require().True(info[s.smartAccountAddress].IsSuccess())
 	s.Require().False(info[s.testAddress1].IsSuccess())
-	// s.Require().False(info[s.testAddress1].)
 	s.Require().True(info.ContainsOnly(s.smartAccountAddress, s.testAddress1))
-	s.Require().Equal(types.NewValueFromUint64(3000), info[s.smartAccountAddress].BounceReceived)
+	s.Require().Equal(types.NewValueFromUint64(1000), info[s.smartAccountAddress].BounceReceived)
 	s.Require().Equal(info[s.smartAccountAddress].GetValueSpent(), info[s.testAddress1].ValueUsed)
 	initialBalance = s.checkBalance(info, initialBalance)
 
@@ -827,16 +826,9 @@ func (s *SuiteEconomy) checkBalance(infoMap tests.ReceiptInfo, balance types.Val
 
 	newRealBalance := newBalance
 
-	fmt.Printf("s.GetBalance(s.testAddress1): %s\n", s.GetBalance(s.testAddress1))
-	fmt.Printf("s.GetBalance(s.testAddress2): %s\n", s.GetBalance(s.testAddress2))
-	fmt.Printf("s.GetBalance(s.testAddress3): %s\n", s.GetBalance(s.testAddress3))
-	fmt.Printf("s.GetBalance(s.testAddress4): %s\n", s.GetBalance(s.testAddress4))
-	fmt.Printf("s.GetBalance(s.smartAccountAddress): %s\n", s.GetBalance(s.smartAccountAddress))
 	for _, info := range infoMap {
-		fmt.Printf("info.Name: %s, info.ValueUsed: %s\n", info.Name, info.ValueUsed)
 		newBalance = newBalance.Add(info.ValueUsed)
 	}
-	fmt.Printf("expected: %s, actual: %s\n", balance, newBalance)
 	s.Require().Equal(balance, newBalance)
 
 	return newRealBalance

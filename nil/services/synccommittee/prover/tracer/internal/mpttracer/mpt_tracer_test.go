@@ -41,9 +41,6 @@ func TestMPTTracer_GetAccountSlotChangeTraces(t *testing.T) {
 	acc.SetState(key2, value2)
 
 	// To get correct result from GetMPTTraces we need to commit account with UpdateContracts, not acc.Commit()
-	// newAcc, err := execution.NewAccountState(
-	// 	&MockAccountExecutionState{rwTx}, addr, contract, logging.NewLogger("test"),
-	// )
 	err = mptTracer.UpdateContracts(map[types.Address]execution.AccountState{addr: acc})
 	require.NoError(t, err)
 
@@ -78,10 +75,6 @@ func TestMPTTracer_MultipleUpdatesToSameSlot(t *testing.T) {
 
 	// Set slot multiple times
 	acc, err := mptTracer.GetAccountState(addr, false)
-	require.NoError(t, err)
-	// acc, err := execution.NewAccountState(
-	// 	&MockAccountExecutionState{rwTx}, contract.Address, contract, logging.NewLogger("test"),
-	// )
 	require.NoError(t, err)
 	acc.SetState(key, value1)
 	acc.SetState(key, value2)

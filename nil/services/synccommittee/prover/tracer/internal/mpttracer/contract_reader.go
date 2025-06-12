@@ -2,7 +2,6 @@ package mpttracer
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
@@ -126,7 +125,6 @@ func (dacr *DebugApiContractReader) GetAccount(
 		return nil, mpt.Proof{}, err
 	}
 
-	fmt.Printf("wriging code with hash: %s\n", debugContract.Code.Hash())
 	err = db.WriteCode(dacr.rwTx, dacr.shardId, debugContract.Code.Hash(), debugContract.Code)
 	if err != nil {
 		return nil, mpt.Proof{}, err
