@@ -12,7 +12,7 @@ const (
 
 type RevertableExecutionState interface {
 	DeleteAccount(addr types.Address)
-	GetAccount(addr types.Address) (AccountState, error)
+	GetAccount(addr types.Address) (JournaledAccountState, error)
 	SetRefund(value uint64)
 	DeleteLog(txHash common.Hash)
 	SetTransientNoJournal(addr types.Address, key common.Hash, prevValue common.Hash)
@@ -67,7 +67,7 @@ type (
 	// This event happens prior to executing initcode. The journal-event simply
 	// manages the created-flag, in order to allow same-tx destruction.
 	accountBecameContractChange struct {
-		account types.Address
+		account *types.Address
 	}
 
 	selfDestructChange struct {
@@ -133,7 +133,7 @@ func (ch createAccountChange) revert(s RevertableExecutionState) {
 }
 
 func (ch accountBecameContractChange) revert(s RevertableExecutionState) {
-	reverter{s}.revertAccountBecameContractChange(ch.account)
+	reverter{s}.revertAccountBecameContractChange(*ch.account)
 }
 
 func (ch selfDestructChange) revert(s RevertableExecutionState) {

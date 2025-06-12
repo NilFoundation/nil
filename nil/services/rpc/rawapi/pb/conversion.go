@@ -195,7 +195,12 @@ func (ar *FullAccountRequest) UnpackProtoMessage() (types.Address, rawapitypes.B
 	return addr, blockRef, opts.GetNoCode(), opts.GetNoStorage(), nil
 }
 
-func (ar *FullAccountRequest) PackProtoMessage(address types.Address, blockReference rawapitypes.BlockReference, noCode bool, noStorage bool) error {
+func (ar *FullAccountRequest) PackProtoMessage(
+	address types.Address,
+	blockReference rawapitypes.BlockReference,
+	noCode bool,
+	noStorage bool,
+) error {
 	ar.BaseRequest = &AccountRequest{}
 	if err := ar.GetBaseRequest().PackProtoMessage(address, blockReference); err != nil {
 		return err
@@ -518,14 +523,17 @@ func (cr *TokensResponse) UnpackProtoMessage() (map[types.TokenId]types.Value, e
 }
 
 // StorageAt converters
-func (ar *StorageAtRequest) PackProtoMessage(address types.Address, key common.Hash, blockReference rawapitypes.BlockReference) error {
+func (ar *StorageAtRequest) PackProtoMessage(
+	address types.Address,
+	key common.Hash,
+	blockReference rawapitypes.BlockReference,
+) error {
 	ar.BaseRequest = &AccountRequest{}
 	if err := ar.GetBaseRequest().PackProtoMessage(address, blockReference); err != nil {
 		return err
 	}
 	ar.Key = &Hash{}
-	ar.Key.PackProtoMessage(key)
-	return nil
+	return ar.GetKey().PackProtoMessage(key)
 }
 
 func (ar *StorageAtRequest) UnpackProtoMessage() (types.Address, common.Hash, rawapitypes.BlockReference, error) {
@@ -1502,18 +1510,22 @@ func (txn *RawTxnsResponse) UnpackProtoMessage() ([]*types.Transaction, error) {
 }
 
 // Account range converters
-func (ar *AccountRangeRequest) PackProtoMessage(blockReference rawapitypes.BlockReference, from common.Hash, maxResults uint64, noCode bool, noStorage bool) error {
+func (ar *AccountRangeRequest) PackProtoMessage(
+	blockReference rawapitypes.BlockReference, from common.Hash, maxResults uint64, noCode bool, noStorage bool,
+) error {
 	ar.MaxResults = maxResults
 	ar.Options = &FullAccountRequestOptions{NoCode: noCode, NoStorage: noStorage}
 	ar.From = &Hash{}
-	if err := ar.From.PackProtoMessage(from); err != nil {
+	if err := ar.GetFrom().PackProtoMessage(from); err != nil {
 		return err
 	}
 	ar.BlockReference = &BlockReference{}
 	return ar.GetBlockReference().PackProtoMessage(blockReference)
 }
 
-func (ar *AccountRangeRequest) UnpackProtoMessage() (rawapitypes.BlockReference, common.Hash, uint64, bool, bool, error) {
+func (ar *AccountRangeRequest) UnpackProtoMessage() (
+	rawapitypes.BlockReference, common.Hash, uint64, bool, bool, error,
+) {
 	blockReference, err := ar.GetBlockReference().UnpackProtoMessage()
 	if err != nil {
 		return rawapitypes.BlockReference{}, common.EmptyHash, 0, false, false, err
@@ -1532,7 +1544,9 @@ func (ar *AccountRangeRequest) UnpackProtoMessage() (rawapitypes.BlockReference,
 func (ard *AccountRangeData) PackProtoMessage(contracts []*rawapitypes.SmartContract, next *common.Hash) error {
 	if next != nil {
 		ard.Next = &Hash{}
-		ard.Next.PackProtoMessage(*next)
+		if err := ard.GetNext().PackProtoMessage(*next); err != nil {
+			return err
+		}
 	}
 
 	pbContracts := make([]*RawContract, len(contracts))

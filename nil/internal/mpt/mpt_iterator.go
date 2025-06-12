@@ -10,6 +10,7 @@ func (m *Reader) Iterate() iter.Seq2[[]byte, []byte] {
 	return m.IterateFromKey(nil)
 }
 
+// IterateFromKey returns an iterator that yields all key-value pairs starting from the given key (inclusive).
 func (m *Reader) IterateFromKey(start []byte) iter.Seq2[[]byte, []byte] {
 	type Yield = func([]byte, []byte) bool
 	return func(yield Yield) {

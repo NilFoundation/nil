@@ -350,7 +350,8 @@ type EthAPIRo interface {
 
 	/*
 		@name GetProof
-		@summary Returns the account and storage values, along with Merkle proofs, for the specified address and storage keys at the given block.
+		@summary Returns the account and storage values, along with Merkle proofs,
+		         for the specified address and storage keys at the given block.
 		@description Implements eth_getProof.
 		@tags [Accounts]
 		@param address Address

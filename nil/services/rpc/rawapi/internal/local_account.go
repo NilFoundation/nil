@@ -221,14 +221,6 @@ func (api *localShardApiRo) GetContract(
 	return contractRaw, nil
 }
 
-type proofBuilder = func(operation mpt.Operation) (mpt.Proof, error)
-
-func makeProofBuilder(root *mpt.Reader, key []byte) proofBuilder {
-	return func(operation mpt.Operation) (mpt.Proof, error) {
-		return mpt.BuildProof(root, key, operation)
-	}
-}
-
 // getSmartContract attempts to retrieve a smart contract from the database.
 // If the contract exists, it returns the contract, `nil` otherwise.
 // If `withProof` is true, it also returns a Merkle proof of existence or absence.
@@ -277,62 +269,6 @@ func (api *localShardApiRo) getSmartContract(
 	return contract, proof, nil
 }
 
-// getFirstMatchedSmartContract returns the smart contract at the given address,
-// or, if none exists, the next contract in lexicographical (alphabetical) order.
-// Useful for address-based lookups in sorted collections.
-func (api *localShardApiRo) getFirstMatchedSmartContract(
-	tx db.RoTx,
-	address types.Address,
-	blockReference rawapitypes.BlockReference,
-) ([]byte, *mpt.Proof, error) {
-	rawBlock, err := api.getBlockByReference(tx, blockReference, false)
-	if err != nil {
-		return nil, nil, err
-	}
-	var block types.Block
-	if err := block.UnmarshalNil(rawBlock.Block); err != nil {
-		return nil, nil, err
-	}
-
-	reader := mpt.NewDbReader(tx, api.shardId(), db.ContractTrieTable)
-	reader.SetRootHash(block.SmartContractsRoot)
-	addressBytes := address.Hash().Bytes()
-	// Create proof regardless of whether we have contract data
-	proof, err := mpt.BuildProof(reader, addressBytes, mpt.ReadOperation)
-	if err != nil {
-		return nil, nil, err
-	}
-	contractRaw, err := reader.Get(addressBytes)
-	if err != nil {
-		if errors.Is(err, db.ErrKeyNotFound) {
-			// there is no such contract, provide proof of absence
-			return nil, &proof, nil
-		}
-		return nil, nil, err
-	}
-
-	return contractRaw, &proof, nil
-}
-
-// func (api *localShardApiRo) getRawSmartContract(
-// 	tx db.RoTx,
-// 	address types.Address,
-// 	blockReference rawapitypes.BlockReference,
-// ) (*types.SmartContract, error) {
-// 	contractRaw, _, err := api.getRawSmartContract(tx, address, blockReference)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	contract := new(types.SmartContract)
-// 	if err := contract.UnmarshalNil(contractRaw); err != nil {
-// 		return nil, err
-// 	}
-
-// 	return contract, nil
-// }
-
-// TODO: change to RO
 func (api *localShardApiRw) GetTransactionCount(
 	ctx context.Context,
 	address types.Address,
@@ -405,30 +341,23 @@ func (api *localShardApiRo) GetContractRange(
 		WithCode:    withCode,
 		WithStorage: withStorage,
 		Start:       start,
-		Max:         uint64(maxResults),
+		Max:         maxResults,
 	}
 
 	trieReader := execution.NewDbContractTrieReader(tx, api.shardId())
 	if err := trieReader.SetRootHash(block.SmartContractsRoot); err != nil {
 		return nil, err
 	}
-	// Sanitize the input to allow nil configs
-	// if conf == nil {
-	// 	conf = new(GetRangeConfig)
-	// }
 
 	contracts := make([]*rawapitypes.SmartContract, 0)
-	it := trieReader.ItemsFromKey(&conf.Start)
 	var ctr uint64
 	var nextKey *common.Hash
-	hasNextContract := false
-	for key, contract := range it {
-		// If we've already set nextKey, peek ahead to see if more contracts exist
-		if nextKey != nil {
-			hasNextContract = true
+	for key, contract := range trieReader.ItemsFromKey(&conf.Start) {
+		if ctr == conf.Max && conf.Max > 0 {
+			nextKey = &key
 			break
 		}
-		ctr++
+
 		contractRaw, err := api.contractToRawEnriched(tx, &contract, conf.WithCode, conf.WithStorage)
 		if err != nil {
 			return nil, err
@@ -436,17 +365,7 @@ func (api *localShardApiRo) GetContractRange(
 
 		contracts = append(contracts, contractRaw)
 
-		if ctr == conf.Max && conf.Max > 0 {
-			// Underlying iteration starts at the key after the given start key.
-			// To continue from the same place, we have to pass the last contract of the previous
-			// response as `Next` parameter.
-			nextKey = &key
-		}
-	}
-
-	// Only return nextKey if there are actually more contracts to iterate over
-	if !hasNextContract {
-		nextKey = nil
+		ctr++
 	}
 
 	return &rawapitypes.SmartContractRange{Contracts: contracts, Next: nextKey}, nil

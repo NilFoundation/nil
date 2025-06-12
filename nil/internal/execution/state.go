@@ -94,7 +94,7 @@ type ExecutionState struct {
 	Logs              map[common.Hash][]*types.Log
 	DebugLogs         map[common.Hash][]*types.DebugLog
 
-	Accounts            map[types.Address]AccountState
+	Accounts            map[types.Address]JournaledAccountState
 	InTransactions      []*types.Transaction
 	InTxCounts          TxCounts
 	InTransactionHashes []common.Hash
@@ -341,7 +341,7 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		PrevBlock:        prevBlockHash,
 		ShardId:          shardId,
 		ChildShardBlocks: map[types.ShardId]common.Hash{},
-		Accounts:         map[types.Address]AccountState{},
+		Accounts:         map[types.Address]JournaledAccountState{},
 		OutTransactions:  map[common.Hash][]*types.OutboundTransaction{},
 		OutTxCounts:      TxCounts{},
 		InTxCounts:       TxCounts{},
@@ -465,7 +465,7 @@ func (es *ExecutionState) GetAccountReader(addr types.Address) (AccountReader, e
 	return es.GetAccount(addr)
 }
 
-func (es *ExecutionState) GetAccount(addr types.Address) (AccountState, error) {
+func (es *ExecutionState) GetAccount(addr types.Address) (JournaledAccountState, error) {
 	acc, ok := es.Accounts[addr]
 	if ok {
 		return acc, nil
@@ -484,13 +484,16 @@ func (es *ExecutionState) GetAccount(addr types.Address) (AccountState, error) {
 	// 	return nil, fmt.Errorf("NewAccountState failed: %w", err)
 	// }
 	// cache accont state even if nil
-	if accountState != nil {
-		es.Accounts[addr] = accountState
+	if accountState == nil {
+		return nil, nil
 	}
-	return accountState, nil
+
+	journaledAccountState := NewJournaledAccountStateFromRaw(es, accountState, es.logger)
+	es.Accounts[addr] = journaledAccountState
+	return journaledAccountState, nil
 }
 
-func (es *ExecutionState) setAccountObject(acc AccountState) {
+func (es *ExecutionState) setAccountObject(acc JournaledAccountState) {
 	// TODO: why unwrap here
 	es.Accounts[*acc.GetAddress()] = acc
 }
@@ -504,7 +507,7 @@ func (es *ExecutionState) AddBalance(addr types.Address, amount types.Value, rea
 	if err != nil || stateObject == nil {
 		return err
 	}
-	return stateObject.AddBalance(amount, reason)
+	return stateObject.JournaledAddBalance(amount, reason)
 }
 
 // SubBalance subtracts amount from the account associated with addr.
@@ -514,7 +517,7 @@ func (es *ExecutionState) SubBalance(addr types.Address, amount types.Value, rea
 	if err != nil || stateObject == nil {
 		return err
 	}
-	return stateObject.SubBalance(amount, reason)
+	return stateObject.JournaledSubBalance(amount, reason)
 }
 
 func (es *ExecutionState) AddLog(log *types.Log) error {
@@ -634,28 +637,13 @@ func (es *ExecutionState) GetTransientState(addr types.Address, key common.Hash)
 	return es.transientStorage.Get(addr, key)
 }
 
-// SelfDestruct marks the given account as self-destructed.
-// This clears the account balance.
-//
-// The account's state object is still available until the state is committed,
-// GetAccount will return a non-nil account after SelfDestruct.
-func (es *ExecutionState) selfDestruct(stateObject AccountState) {
-	es.AppendToJournal(selfDestructChange{
-		account:     stateObject.GetAddress(),
-		prev:        stateObject.IsSelfDestructed(),
-		prevbalance: stateObject.GetBalance(),
-	})
-	stateObject.SetIsSelfDestructed(true)
-	stateObject.SetBalance(types.Value{})
-}
-
 func (es *ExecutionState) Selfdestruct6780(addr types.Address) error {
 	stateObject, err := es.GetAccount(addr)
 	if err != nil || stateObject == nil {
 		return err
 	}
 	if stateObject.IsNew() {
-		es.selfDestruct(stateObject)
+		stateObject.JournaledSetIsSelfDestructed(true)
 	}
 	return nil
 }
@@ -673,7 +661,7 @@ func (es *ExecutionState) SetCode(addr types.Address, code []byte) error {
 	if err != nil {
 		return err
 	}
-	acc.SetCode(types.Code(code).Hash(), code)
+	acc.JournaledSetCode(types.Code(code).Hash(), code)
 	return nil
 }
 
@@ -727,7 +715,7 @@ func (es *ExecutionState) SetState(addr types.Address, key common.Hash, val comm
 	if err != nil {
 		return err
 	}
-	return acc.SetState(key, val)
+	return acc.JournaledSetState(key, val)
 }
 
 func (es *ExecutionState) SetAsyncContext(
@@ -737,7 +725,7 @@ func (es *ExecutionState) SetAsyncContext(
 	if err != nil {
 		return err
 	}
-	acc.SetAsyncContext(index, val)
+	acc.JournaledSetAsyncContext(index, val)
 	return nil
 }
 
@@ -776,7 +764,7 @@ func (es *ExecutionState) GetExtSeqno(addr types.Address) (types.Seqno, error) {
 	return acc.GetExtSeqno(), nil
 }
 
-func (es *ExecutionState) getOrNewAccount(addr types.Address) (AccountState, error) {
+func (es *ExecutionState) getOrNewAccount(addr types.Address) (JournaledAccountState, error) {
 	acc, err := es.GetAccount(addr)
 	if err != nil {
 		return nil, err
@@ -792,7 +780,7 @@ func (es *ExecutionState) SetBalance(addr types.Address, balance types.Value) er
 	if err != nil {
 		return err
 	}
-	acc.SetBalance(balance)
+	acc.JournaledSetBalance(balance)
 	return nil
 }
 
@@ -801,7 +789,7 @@ func (es *ExecutionState) SetSeqno(addr types.Address, seqno types.Seqno) error 
 	if err != nil {
 		return err
 	}
-	acc.SetSeqno(seqno)
+	acc.JournaledSetSeqno(seqno)
 	return nil
 }
 
@@ -810,7 +798,7 @@ func (es *ExecutionState) SetExtSeqno(addr types.Address, seqno types.Seqno) err
 	if err != nil {
 		return err
 	}
-	acc.SetExtSeqno(seqno)
+	acc.JournaledSetExtSeqno(seqno)
 	return nil
 }
 
@@ -819,7 +807,7 @@ func (es *ExecutionState) CreateAccount(addr types.Address) error {
 	return err
 }
 
-func (es *ExecutionState) createAccount(addr types.Address) (AccountState, error) {
+func (es *ExecutionState) createAccount(addr types.Address) (JournaledAccountState, error) {
 	if addr.ShardId() != es.ShardId {
 		return nil, fmt.Errorf(
 			"attempt to create account %v from %v shard on %v shard", addr, addr.ShardId(), es.ShardId)
@@ -842,7 +830,7 @@ func (es *ExecutionState) createAccount(addr types.Address) (AccountState, error
 	check.PanicIfNot(accountState != nil)
 
 	journaledAccountState := NewJournaledAccountStateFromRaw(es, accountState, es.logger)
-	// fmt.Printf("journaledAccountState: %+v\n", journaledAccountState)
+
 	es.Accounts[addr] = journaledAccountState
 	return journaledAccountState, nil
 }
@@ -857,10 +845,8 @@ func (es *ExecutionState) CreateContract(addr types.Address) error {
 	if err != nil {
 		return err
 	}
-	// fmt.Printf("obj: %+v\n", obj)
 	if !obj.IsNew() {
-		obj.SetIsNew(true)
-		es.AppendToJournal(accountBecameContractChange{account: addr})
+		obj.JournaledSetIsNew(true)
 	}
 	return nil
 }
@@ -1005,7 +991,7 @@ func (es *ExecutionState) AddOutTransaction(
 		acc, err := es.GetAccount(caller)
 		check.PanicIfErr(err)
 
-		acc.SetAsyncContext(types.TransactionIndex(txn.RequestId), &types.AsyncContext{
+		acc.JournaledSetAsyncContext(types.TransactionIndex(txn.RequestId), &types.AsyncContext{
 			ResponseProcessingGas: responseProcessingGas,
 		})
 	}
@@ -1508,7 +1494,12 @@ func (es *ExecutionState) writeTxCounts(root common.Hash, counts TxCounts) (comm
 }
 
 func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGenerationResult, error) {
-	if err := es.ContractTree.UpdateContracts(es.Accounts); err != nil {
+	accounts := make(map[types.Address]AccountState)
+	for addr, journaledState := range es.Accounts {
+		accounts[addr] = journaledState
+	}
+
+	if err := es.ContractTree.UpdateContracts(accounts); err != nil {
 		return nil, err
 	}
 
@@ -1890,7 +1881,7 @@ func (es *ExecutionState) AddToken(addr types.Address, tokenId types.TokenId, am
 	if newBalance.Cmp(types.Value{}) < 0 {
 		newBalance = types.Value{}
 	}
-	acc.SetTokenBalance(tokenId, newBalance)
+	acc.JournaledSetTokenBalance(tokenId, newBalance)
 
 	return nil
 }
@@ -1918,7 +1909,7 @@ func (es *ExecutionState) SubToken(addr types.Address, tokenId types.TokenId, am
 		return fmt.Errorf("%w: %s < %s, token %s",
 			vm.ErrInsufficientBalance, balance, amount, tokenId)
 	}
-	acc.SetTokenBalance(tokenId, balance.Sub(amount))
+	acc.JournaledSetTokenBalance(tokenId, balance.Sub(amount))
 
 	return nil
 }
