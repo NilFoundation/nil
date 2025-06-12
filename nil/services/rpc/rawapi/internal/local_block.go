@@ -74,10 +74,8 @@ func (api *localShardApiRo) getBlockByReference(
 ) (*types.RawBlockWithExtractedData, error) {
 	blockHash, err := api.getBlockHashByReference(tx, blockReference)
 	if err != nil {
-		// return nil, err
 		return nil, handleBlockFetchError(err)
 	}
-	// return api.getBlockByHash(tx, blockHash, withTransactions)
 
 	block, err := api.getBlockByHash(tx, blockHash, withTransactions)
 	if err != nil {

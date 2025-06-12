@@ -30,7 +30,7 @@ func NewTracableAccountState(
 		return nil, err
 	}
 	if account == nil {
-		account = &types.SmartContract{}
+		account = &types.SmartContract{CodeHash: types.EmptyCodeHash}
 	}
 	return &TraceableAccount{
 		AccountState:  accountState,

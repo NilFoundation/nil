@@ -29,10 +29,6 @@ type MPTTracer struct {
 	updatedAccounts map[types.Address]struct{}
 
 	accountsTraceableStates map[types.Address]*TraceableAccount
-	// accountsInitialStates  map[types.Address]execution.Storage
-	// accountsStatesDiff     map[types.Address]execution.Storage
-	// initialAccounts        map[types.Address]*types.SmartContract
-	// accountsDiff           map[types.Address]*types.SmartContract
 
 	client      client.Client
 	blockNumber types.BlockNumber
@@ -85,8 +81,6 @@ func (mt *MPTTracer) GetAccountState(addr types.Address, createIfNotExists bool)
 	if err := mt.ContractSparseTrie.SetRootHash(rootBeforePopulation); err != nil {
 		return nil, err
 	}
-
-	// mt.initialAccounts[addr] = contract
 
 	if contract == nil && !createIfNotExists {
 		return nil, nil
@@ -173,11 +167,6 @@ func NewWithReader(
 
 func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, error) {
 	mt.logger.Debug().Msg("getting zeth cache")
-	// contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
-	// curRoot := mt.ContractSparseTrie.RootHash()
-	// if err := contractTrie.SetRootHash(mt.initialContractRoot); err != nil {
-	// 	return err
-	// }
 
 	getProofCache := make([]GetProofCache, 0, len(mt.accountsTraceableStates)*2)
 	transactionCountCache := make([]TransactionCountCache, 0, len(mt.accountsTraceableStates))

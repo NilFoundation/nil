@@ -22,7 +22,7 @@ func (c Code) Clone() Code {
 
 func (c Code) Hash() common.Hash {
 	if len(c) == 0 {
-		return common.EmptyHash
+		return EmptyCodeHash
 	}
 	return common.KeccakHash(c[:])
 }

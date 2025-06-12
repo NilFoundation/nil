@@ -105,7 +105,6 @@ func (api *DebugAPIImpl) GetBlockByHash(
 	return api.getBlockByReference(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash), withTransactions)
 }
 
-// TODO: rename other handleError func introduces somewhere
 func suppressBlockNotFound(err error) error {
 	if errors.Is(err, rawapitypes.ErrBlockNotFound) {
 		return nil

@@ -37,6 +37,7 @@ func CreateTestAccountAndTracer(t *testing.T) (types.Address, *MPTTracer, db.RwT
 	smartContract := types.SmartContract{
 		Address:     addr,
 		StorageRoot: storageTrie.RootHash(),
+		CodeHash:    types.EmptyCodeHash,
 	}
 	err = contractTrie.Update(smartContract.Address.Hash(), &smartContract)
 	require.NoError(t, err)

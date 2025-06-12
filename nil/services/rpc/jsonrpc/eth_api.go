@@ -321,9 +321,9 @@ type EthAPIRo interface {
 		@summary Returns the value stored at a specific storage key of a contract at a given block.
 		@description Implements eth_getStorageAt.
 		@tags [Accounts]
-		@param address Contract address
-		@param key Storage key (32-byte hash)
-		@param blockNrOrHash Block number or block hash
+		@param address Address
+		@param key StorageKey
+		@param blockNrOrHash BlockNumberOrHash
 		@returns value Value stored at the specified key
 	*/
 	GetStorageAt(
@@ -355,9 +355,9 @@ type EthAPIRo interface {
 		@description Implements eth_getProof.
 		@tags [Accounts]
 		@param address Address
-		@param storageKeys Array of storage keys
-		@param blockNumberOrHash BlockNumberOrHash
-		@returns proof Account and storage values with Merkle proofs
+		@param storageKeys StorageKeys
+		@param blockNrOrHash BlockNumberOrHash
+		@returns proof AccountProof
 	*/
 	GetProof(
 		ctx context.Context,
