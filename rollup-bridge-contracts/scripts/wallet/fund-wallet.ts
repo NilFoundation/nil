@@ -7,6 +7,7 @@ async function createAndUseWallet() {
     const GETH_RPC_ENDPOINT = process.env.GETH_RPC_ENDPOINT as string;
     console.log('L1 RPC Endpoint:', GETH_RPC_ENDPOINT);
     const provider = new ethers.JsonRpcProvider(GETH_RPC_ENDPOINT);
+    console.log('Provider created: ', GETH_RPC_ENDPOINT);
 
     const accounts = await provider.send('eth_accounts', []);
     const defaultAccount = accounts[0];

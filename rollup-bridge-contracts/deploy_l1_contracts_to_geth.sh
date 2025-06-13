@@ -1,5 +1,7 @@
 echo "Deploying L1 contracts to geth"
 
+set -e
+
 rm -rf deployments
 npx hardhat run scripts/wallet/fund-wallet.ts
 npx hardhat run scripts/deploy-and-wire.ts --network geth
