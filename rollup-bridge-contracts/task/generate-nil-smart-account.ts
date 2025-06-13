@@ -25,6 +25,6 @@ task("generate-nil-smart-account", "Deploys a SmartAccount on Nil Chain")
     const networkName = taskArgs.networkname;
     console.log(`Running task on network: ${networkName}`);
 
-    deployerAccount = await generateNilSmartAccount(networkName);
+    [deployerAccount] = await generateNilSmartAccount(networkName);
     if (!deployerAccount) throw new Error("SmartAccount is not initialized.");
   });

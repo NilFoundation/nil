@@ -180,15 +180,12 @@ contract L2ETHBridgeVault is
     if (msg.sender != address(l2ETHBridge)) {
       revert ErrorCallerNotL2ETHBridge();
     }
-
     if (depositRecipient == address(0)) {
       revert ErrorInvalidRecipientAddress();
     }
-
     if (depositAmount == 0) {
       revert ErrorInvalidTransferAmount();
     }
-
     if (address(this).balance < depositAmount) {
       revert ErrorInsufficientVaultBalance();
     }
@@ -197,11 +194,11 @@ contract L2ETHBridgeVault is
 
     /// @notice Encoding the context to process the loan after the price is fetched
     /// @dev The context contains the borrower’s details, loan amount, borrow token, and collateral token.
-    bytes memory ethTransferCallbackContext = abi.encode("0x");
+    // bytes memory ethTransferCallbackContext = abi.encode("0x");
 
     /// @notice Send a request to the token contract to get token minted.
     /// @dev This request is processed with a fee for the transaction, allowing the system to fetch the token price.
-    sendRequest(depositRecipient, depositAmount, Nil.ASYNC_REQUEST_MIN_GAS, ethTransferCallbackContext, "0x", handleETHTransferResponse);
+    sendRequest(depositRecipient, depositAmount, Nil.ASYNC_REQUEST_MIN_GAS, "", "", handleETHTransferResponse);
   }
 
   function handleETHTransferResponse(bool success, bytes memory returnData, bytes memory context) public pure {

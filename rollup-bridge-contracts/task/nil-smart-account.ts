@@ -107,7 +107,6 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
     const depositRecipientSmartAccountAddress = depositRecipientSmartAccount.address;
     console.log("🆕 depositRecipient Smart Account Generated:", depositRecipientSmartAccountAddress);
 
-
     const nilFeeRefundAddressPrivateKey = process.env.NIL_FEE_REFUND_PRIVATE_KEY as `0x${string}`;
     signer = new LocalECDSAKeySigner({ privateKey: nilFeeRefundAddressPrivateKey });
     const feeRefundSmartAccount = new SmartAccountV1({
@@ -126,18 +125,29 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
     });
 
     console.log(`about to topup  owner via faucet`);
-    const topUpFaucet = await faucetClient.topUp({
+    let topUpFaucet = await faucetClient.topUp({
         smartAccountAddress: smartAccount.address,
         amount: convertEthToWei(0.1),
         faucetAddress: process.env.NIL as `0x${string}`,
     });
-
     console.log(`faucet topup initiation done`);
-
     await waitTillCompleted(client, topUpFaucet);
 
     if ((await smartAccount.checkDeploymentStatus()) === false) {
         await smartAccount.selfDeploy(true);
+    }
+
+    console.log(`about to topup testing account via faucet`);
+    topUpFaucet = await faucetClient.topUp({
+        smartAccountAddress: depositRecipientSmartAccount.address,
+        amount: convertEthToWei(0.0001),
+        faucetAddress: process.env.NIL as `0x${string}`,
+    });
+    console.log(`faucet topup initiation done`);
+    await waitTillCompleted(client, topUpFaucet);
+
+    if ((await depositRecipientSmartAccount.checkDeploymentStatus()) === false) {
+        await depositRecipientSmartAccount.selfDeploy(true);
     }
 
     console.log("✅ Smart Account Funded (100 ETH)");
