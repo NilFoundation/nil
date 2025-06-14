@@ -60,6 +60,7 @@ type BlockGenerationResult struct {
 	InTxnHashes  []common.Hash
 	OutTxns      []*types.Transaction
 	OutTxnHashes []common.Hash
+	Receipts     []*types.Receipt
 	ConfigParams map[string][]byte
 
 	Counters *BlockGeneratorCounters

@@ -125,7 +125,7 @@ type ExecutionState struct {
 	// Tracing hooks set for every EVM created during execution
 	EvmTracingHooks *tracing.Hooks
 
-	shardAccessor *shardAccessor
+	shardAccessor ShardAccessor
 
 	// Pointer to currently executed VM
 	evm *vm.EVM
@@ -256,25 +256,23 @@ type revision struct {
 
 // NewEVMBlockContext creates a new context for use in the EVM.
 func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
-	data, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
+	block, err := es.shardAccessor.GetBlockByHash(es.PrevBlock)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
 	}
 
 	currentBlockId := uint64(0)
-	var header *types.Block
 	time := uint64(0)
 	rollbackCounter := uint32(0)
 	if err == nil {
-		header = data.Block()
-		currentBlockId = header.Id.Uint64() + 1
+		currentBlockId = block.Id.Uint64() + 1
 		// TODO: we need to use header.Timestamp instead of but it's always zero for now.
 		// Let's return some kind of logical timestamp (monotonic increasing block number).
-		time = header.Id.Uint64()
-		rollbackCounter = header.RollbackCounter
+		time = block.Id.Uint64()
+		rollbackCounter = block.RollbackCounter
 	}
 	return &vm.BlockContext{
-		GetHash:     getHashFn(es, header),
+		GetHash:     getHashFn(es, block),
 		BlockNumber: currentBlockId,
 		Random:      &common.EmptyHash,
 		BaseFee:     big.NewInt(10),
@@ -393,7 +391,7 @@ func (ca *DbContractAccessor) UpdateContracts(contracts map[types.Address]*Accou
 }
 
 func (es *ExecutionState) initTries(params *StateParams) error {
-	data, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
+	block, err := es.shardAccessor.GetBlockByHash(es.PrevBlock)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return err
 	}
@@ -403,7 +401,6 @@ func (es *ExecutionState) initTries(params *StateParams) error {
 	outTransactionsRoot := mpt.EmptyRootHash
 	inTransactionsRoot := mpt.EmptyRootHash
 	if err == nil {
-		block := data.Block()
 		smartContractsRoot = block.SmartContractsRoot
 		outTransactionsRoot = block.OutTransactionsRoot
 		inTransactionsRoot = block.InTransactionsRoot
@@ -1658,6 +1655,7 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 		InTxnHashes:  es.InTransactionHashes,
 		OutTxns:      outTxnValues,
 		OutTxnHashes: outTxnHashes,
+		Receipts:     es.Receipts,
 		ConfigParams: configParams,
 	}, nil
 }
@@ -1979,14 +1977,9 @@ func (es *ExecutionState) resetVm() {
 }
 
 func (es *ExecutionState) MarshalJSON() ([]byte, error) {
-	prevBlockRes, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
+	prevBlock, err := es.shardAccessor.GetBlockByHash(es.PrevBlock)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
-	}
-
-	var prevBlock *types.Block
-	if err == nil {
-		prevBlock = prevBlockRes.Block()
 	}
 
 	data := struct {
