@@ -105,10 +105,7 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 
 	l2BridgeMessengerAddress := types.HexToAddress(cfg.L2BridgeMessengerAddress)
 
-	bridgeStateGetter := bridgecontract.NewBridgeStateGetter(
-		nilClient,
-		l2BridgeMessengerAddress,
-	)
+	bridgeStateGetter := bridgecontract.NewBridgeStateGetter(nilClient, l2BridgeMessengerAddress, logger)
 
 	proposer, err := NewProposer(
 		cfg.ProposerParams,

@@ -147,7 +147,7 @@ func (s *ProposerTestSuite) SetupSuite() {
 	fetcher := fetching.NewFetcher(s.rpcClientMock, logger)
 	l1Syncer := syncer.NewStateRootSyncer(fetcher, contractWrapper, s.storage, logger, syncer.NewDefaultConfig())
 	resetLauncher := reset.NewResetLauncher(s.storage, l1Syncer, nil, logger)
-	bridgeStateGetter := bridgecontract.NewBridgeStateGetter(s.rpcClientMock, l2BridgeMessengerContractAddr)
+	bridgeStateGetter := bridgecontract.NewBridgeStateGetter(s.rpcClientMock, l2BridgeMessengerContractAddr, logger)
 
 	s.proposer, err = NewProposer(
 		s.params,
