@@ -20,7 +20,7 @@ abstract contract NilTokenBase is NilBase {
      * @return The total supply of the token.
      */
     function getTokenTotalSupply() public view returns(uint) {
-        return totalSupply;
+        return TokenManager(Nil.getTokenManagerAddress()).totalSupply(address(this));
     }
 
     /**
@@ -88,8 +88,7 @@ abstract contract NilTokenBase is NilBase {
      * @param amount The amount of token to mint.
      */
     function mintTokenInternal(uint256 amount) internal {
-        bool success = __Precompile__(Nil.MANAGE_TOKEN).precompileManageToken(amount, true);
-        require(success, "Mint failed");
+        TokenManager(Nil.getTokenManagerAddress()).mint(address(this), amount);
         totalSupply += amount;
     }
 
@@ -99,9 +98,7 @@ abstract contract NilTokenBase is NilBase {
      * @param amount The amount of token to mint.
      */
     function burnTokenInternal(uint256 amount) internal {
-        require(totalSupply >= amount, "Burn failed: not enough tokens");
-        bool success = __Precompile__(Nil.MANAGE_TOKEN).precompileManageToken(amount, false);
-        require(success, "Burn failed");
+        TokenManager(Nil.getTokenManagerAddress()).burn(address(this), amount);
         totalSupply -= amount;
     }
 
