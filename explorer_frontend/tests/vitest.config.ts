@@ -16,7 +16,7 @@ export default defineConfig({
     hookTimeout: 20_000,
     testTimeout: 20_000,
     globals: true,
-    setupFiles: ["./tests/unit/setupUnitTests.ts", "jest-canvas-mock"],
+    setupFiles: ["./tests/unit/setupUnitTests.ts", "jest-canvas-mock", "./tests/unit/uiKit.tsx"],
     deps: {
       optimizer: {
         web: {

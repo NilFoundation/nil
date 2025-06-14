@@ -37,3 +37,16 @@ export const getShardStats = async () => {
     query.close();
   }
 };
+
+export const getShardIdsList = async () => {
+  const query = await client.query({
+    query: "SELECT DISTINCT shard_id FROM blocks",
+    format: "JSON",
+  });
+  try {
+    const res = await query.json<{ shard_id: string }>();
+    return res.data.map((item) => Number.parseInt(item.shard_id));
+  } finally {
+    query.close();
+  }
+};

@@ -218,7 +218,7 @@ importers:
         version: 3.7.0(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@khannanov-nil/openrpc-docusaurus':
         specifier: 0.7.1
-        version: 0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(encoding@0.1.13)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)
+        version: 0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)
       '@mdx-js/react':
         specifier: ^3.0.0
         version: 3.1.0(@types/react@17.0.85)(react@18.3.1)
@@ -529,8 +529,8 @@ importers:
         specifier: workspace:*
         version: link:../smart-contracts
       '@nilfoundation/ui-kit':
-        specifier: 2.5.28
-        version: 2.5.28(@codemirror/state@6.5.0)(@codemirror/view@6.36.5)(@lezer/highlight@1.2.1)(@uiw/codemirror-themes@4.21.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.0)(@codemirror/view@6.36.5))(@uiw/react-codemirror@4.21.0(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.0)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(baseui@13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0))(lightweight-charts@4.2.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(ts-xor@1.3.0)(typescript@5.8.2)
+        specifier: 2.7.0
+        version: 2.7.0(@codemirror/state@6.5.0)(@codemirror/view@6.36.5)(@lezer/highlight@1.2.1)(@uiw/codemirror-themes@4.21.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.0)(@codemirror/view@6.36.5))(@uiw/react-codemirror@4.21.0(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.0)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(baseui@13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0))(lightweight-charts@5.0.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(ts-xor@1.3.0)(typescript@5.8.2)
       '@noble/curves':
         specifier: ^1.4.0
         version: 1.8.1
@@ -590,7 +590,7 @@ importers:
         version: 6.1.1(effector@22.8.8)
       esbuild-wasm:
         specifier: ^0.25.2
-        version: 0.25.2
+        version: 0.25.5
       ethers:
         specifier: ^6.13.1
         version: 6.13.5
@@ -607,8 +607,11 @@ importers:
         specifier: ^3.10.1
         version: 3.10.1
       lightweight-charts:
-        specifier: ^4.1.1
-        version: 4.2.3
+        specifier: 5.0.6
+        version: 5.0.6
+      lightweight-charts-react-components:
+        specifier: 0.4.0
+        version: 0.4.0(lightweight-charts@5.0.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       lottie-web:
         specifier: ^5.12.2
         version: 5.12.2
@@ -4274,8 +4277,8 @@ packages:
   '@lezer/highlight@1.2.1':
     resolution: {integrity: sha512-Z5duk4RN/3zuVO7Jq0pGLJ3qynpxUVsh7IbUbGj88+uV2ApSAn6kWg2au3iJb+0Zi7kKtqffIESgNcRXWZWmSA==}
 
-  '@lezer/javascript@1.4.21':
-    resolution: {integrity: sha512-lL+1fcuxWYPURMM/oFZLEDm0XuLN128QPV+VuGtKpeaOGdcl9F2LYC3nh1S9LkPqx9M0mndZFdXCipNAZpzIkQ==}
+  '@lezer/javascript@1.5.1':
+    resolution: {integrity: sha512-ATOImjeVJuvgm3JQ/bpo2Tmv55HSScE2MTPnKRMRIPx2cLhHGyX2VnqpHhtIV1tVzIjZDbcWQm+NCTF40ggZVw==}
 
   '@lezer/lr@1.4.2':
     resolution: {integrity: sha512-pu0K1jCIdnQ12aWNaAVU5bzi7Bd1w54J3ECgANPmYLtQKP0HBj2cE/5coBD66MT10xbtIuUr7tg0Shbsvk0mDA==}
@@ -4460,8 +4463,8 @@ packages:
     resolution: {integrity: sha512-h1XF7ZL3bclc3skNVAgJ53k7gRxSVFaIZ7aExfFniLeb+HkBAo1gVWua7n4sK7b0pTrxzOYU40YTW9iIDa41sA==}
     engines: {node: '>=14'}
 
-  '@nilfoundation/ui-kit@2.5.28':
-    resolution: {integrity: sha512-GwXGO4nI0uNTkEAFnjOB0bq4NDv4ZuSD7xnBe8QFgSWTcrz5JgHZLOjp5y7X+kKa2x46UbXEh2oyjEhWHU9wQw==}
+  '@nilfoundation/ui-kit@2.5.29':
+    resolution: {integrity: sha512-gs1yf2uKdEFRdSTWSoBBJPp4cG9zW/mkvxHoizO0aF5uR4355wlO1xiVAiTifXkMjNJsrmFQPdC2uaAMB3apNQ==}
     peerDependencies:
       '@codemirror/state': 6.5.0
       '@codemirror/view': '>=6.4.0 < 7'
@@ -4475,8 +4478,8 @@ packages:
       styletron-react: '>=6.1.0 < 7'
       ts-xor: '>=1.1.0 < 2'
 
-  '@nilfoundation/ui-kit@2.5.29':
-    resolution: {integrity: sha512-gs1yf2uKdEFRdSTWSoBBJPp4cG9zW/mkvxHoizO0aF5uR4355wlO1xiVAiTifXkMjNJsrmFQPdC2uaAMB3apNQ==}
+  '@nilfoundation/ui-kit@2.7.0':
+    resolution: {integrity: sha512-OdBqz2bf2Fvy4TxnAoQbxTlIYM3Kon28Rg7wusarbuM5C/yvGywFJSFIz4t7qexC/Upyaw7NC9V69gEr2his0Q==}
     peerDependencies:
       '@codemirror/state': 6.5.0
       '@codemirror/view': '>=6.4.0 < 7'
@@ -4484,7 +4487,7 @@ packages:
       '@uiw/codemirror-themes': '>=4.21.0 < 5'
       '@uiw/react-codemirror': '>=4.21.0 < 5'
       baseui: '>=13.0.0 < 14'
-      lightweight-charts: '>=4.0.0 < 5'
+      lightweight-charts: '>=5.0.0 < 6'
       react: '>=18 < 19'
       react-dom: '>=18 < 19'
       styletron-react: '>=6.1.0 < 7'
@@ -9448,8 +9451,8 @@ packages:
   esast-util-from-js@2.0.1:
     resolution: {integrity: sha512-8Ja+rNJ0Lt56Pcf3TAmpBZjmx8ZcK5Ts4cAzIOjsjevg9oSXJnl6SUQ2EevU8tv3h6ZLWmoKL5H4fgWvdvfETw==}
 
-  esbuild-wasm@0.25.2:
-    resolution: {integrity: sha512-vL9PSK1YFGsvrlYPDxfRxpakIDTe1wCS/JO2D45muxwtd7GR/9+fYRU+K8tKs4ZDXaEy5jr6YqrGgDL/iyufyQ==}
+  esbuild-wasm@0.25.5:
+    resolution: {integrity: sha512-V/rbdOws2gDcnCAECfPrajhuafI0WY4WumUgc8ZHwOLnvmM0doLQ+dqvVFI2qkVxQsvo6880aC9IjpyDqcwwTw==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -12216,13 +12219,18 @@ packages:
 
   libsql@0.4.7:
     resolution: {integrity: sha512-T9eIRCs6b0J1SHKYIvD8+KCJMcWZ900iZyxdnSCdqxN12Z1ijzT+jY5nrk72Jw4B0HGzms2NgpryArlJqvc3Lw==}
+    cpu: [x64, arm64, wasm32]
     os: [darwin, linux, win32]
 
   lie@3.3.0:
     resolution: {integrity: sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==}
 
-  lightweight-charts@4.2.3:
-    resolution: {integrity: sha512-5kS/2hY3wNYNzhnS8Gb+GAS07DX8GPF2YVDnd2NMC85gJVQ6RLU6YrXNgNJ6eg0AnWPwCnvaGtYmGky3HiLQEw==}
+  lightweight-charts-react-components@0.4.0:
+    resolution: {integrity: sha512-0897jgj9T5QXw7dEZk7S6vYZ1B4Z1nvmY22Za6KTStMO4I6Mm5VEQNjl2DOZ2ALWdgpceYwvD7LPAdeWXbpSqA==}
+    peerDependencies:
+      lightweight-charts: '>=5 < 6'
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   lightweight-charts@5.0.6:
     resolution: {integrity: sha512-A7mkToJ3ZPecKkWWM5afN5PZUUf5BlQ+UgcYbWuSlpe1V18n61ahtbtToCSIL0VpSgE5sQPJ/k+/ieQ7/FJe+Q==}
@@ -16930,6 +16938,10 @@ packages:
     resolution: {integrity: sha512-q5W7tVM71e2xjHZTlgfTDoPF/SmqKG5hddq9SzR49CH2hayqRKJtQ4mtRlSxKaJlR/+9rEM+mnBHf7I2/BQcpQ==}
     engines: {node: '>=6.10'}
 
+  ts-deepmerge@7.0.3:
+    resolution: {integrity: sha512-Du/ZW2RfwV/D4cmA5rXafYjBQVuvu4qGiEEla4EmEHVHgRdx68Gftx7i66jn2bzHPwSVZY36Ae6OuDn9el4ZKA==}
+    engines: {node: '>=14.13.1'}
+
   ts-easing@0.2.0:
     resolution: {integrity: sha512-Z86EW+fFFh/IFB1fqQ3/+7Zpf9t2ebOAxNI/V6Wo7r5gqiqtxmgTlQ1qbqQcjLKYeSHPTsEmvlJUDg/EuL0uHQ==}
 
@@ -20072,7 +20084,7 @@ snapshots:
       '@codemirror/state': 6.5.0
       '@codemirror/view': 6.36.5
       '@lezer/common': 1.2.3
-      '@lezer/javascript': 1.4.21
+      '@lezer/javascript': 1.5.1
 
   '@codemirror/language@6.11.0':
     dependencies:
@@ -22329,9 +22341,9 @@ snapshots:
 
   '@json-schema-spec/json-pointer@0.1.2': {}
 
-  '@json-schema-tools/dereferencer@1.5.5(encoding@0.1.13)':
+  '@json-schema-tools/dereferencer@1.5.5':
     dependencies:
-      '@json-schema-tools/reference-resolver': 1.2.4(encoding@0.1.13)
+      '@json-schema-tools/reference-resolver': 1.2.4
       '@json-schema-tools/traverse': 1.10.4
       fast-safe-stringify: 2.1.1
     transitivePeerDependencies:
@@ -22339,7 +22351,7 @@ snapshots:
 
   '@json-schema-tools/meta-schema@1.6.19': {}
 
-  '@json-schema-tools/reference-resolver@1.2.4(encoding@0.1.13)':
+  '@json-schema-tools/reference-resolver@1.2.4':
     dependencies:
       '@json-schema-spec/json-pointer': 0.1.2
       isomorphic-fetch: 3.0.0(encoding@0.1.13)
@@ -22350,7 +22362,7 @@ snapshots:
 
   '@juggle/resize-observer@3.4.0': {}
 
-  '@khannanov-nil/nil-open-rpc-docs-react@0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@khannanov-nil/nil-open-rpc-docs-react@0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@json-schema-tools/traverse': 1.10.4
       '@open-rpc/client-js': 1.8.1
@@ -22390,7 +22402,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@khannanov-nil/openrpc-docusaurus@0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(encoding@0.1.13)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)':
+  '@khannanov-nil/openrpc-docusaurus@0.7.1(@algolia/client-search@5.23.0)(@babel/core@7.26.10)(@babel/template@7.27.0)(@docusaurus/core@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@docusaurus/theme-common@3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)(webpack@5.98.0)':
     dependencies:
       '@docusaurus/core': 3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2)
       '@docusaurus/plugin-content-blog': 3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2)
@@ -22405,8 +22417,8 @@ snapshots:
       '@docusaurus/theme-common': 3.7.0(@docusaurus/plugin-content-docs@3.7.0(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2))(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@docusaurus/theme-search-algolia': 3.7.0(@algolia/client-search@5.23.0)(@mdx-js/react@3.1.0(@types/react@17.0.85)(react@18.3.1))(@types/react@17.0.85)(acorn@8.14.1)(eslint@9.23.0(jiti@1.21.7))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.8.2)
       '@docusaurus/types': 3.7.0(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@khannanov-nil/nil-open-rpc-docs-react': 0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@open-rpc/schema-utils-js': 1.16.2(encoding@0.1.13)
+      '@khannanov-nil/nil-open-rpc-docs-react': 0.4.9(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@17.0.85)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@open-rpc/schema-utils-js': 1.16.2
       node-polyfill-webpack-plugin: 2.0.1(webpack@5.98.0)
       process: 0.11.10
       react: 18.3.1
@@ -22552,7 +22564,7 @@ snapshots:
     dependencies:
       '@lezer/common': 1.2.3
 
-  '@lezer/javascript@1.4.21':
+  '@lezer/javascript@1.5.1':
     dependencies:
       '@lezer/common': 1.2.3
       '@lezer/highlight': 1.2.1
@@ -22816,26 +22828,6 @@ snapshots:
 
   '@nilfoundation/smart-contracts@0.7.0': {}
 
-  '@nilfoundation/ui-kit@2.5.28(@codemirror/state@6.5.0)(@codemirror/view@6.36.5)(@lezer/highlight@1.2.1)(@uiw/codemirror-themes@4.21.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.0)(@codemirror/view@6.36.5))(@uiw/react-codemirror@4.21.0(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.0)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(baseui@13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0))(lightweight-charts@4.2.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(ts-xor@1.3.0)(typescript@5.8.2)':
-    dependencies:
-      '@codemirror/state': 6.5.0
-      '@codemirror/view': 6.36.5
-      '@lezer/highlight': 1.2.1
-      '@uiw/codemirror-themes': 4.21.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.0)(@codemirror/view@6.36.5)
-      '@uiw/react-codemirror': 4.21.0(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.0)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      baseui: 13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0)
-      copy-to-clipboard: 3.3.3
-      inline-style-expand-shorthand: 1.6.0
-      lightweight-charts: 4.2.3
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      styletron-react: 6.1.1(react@18.3.1)
-      styletron-standard: 3.1.0
-      ts-essentials: 10.0.4(typescript@5.8.2)
-      ts-xor: 1.3.0
-    transitivePeerDependencies:
-      - typescript
-
   '@nilfoundation/ui-kit@2.5.29(@codemirror/state@6.5.0)(@codemirror/view@6.36.5)(@lezer/highlight@1.2.1)(@uiw/codemirror-themes@4.21.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.0)(@codemirror/view@6.36.5))(@uiw/react-codemirror@4.21.0(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.0)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(baseui@13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0))(lightweight-charts@5.0.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(ts-xor@1.3.0)(typescript@5.6.3)':
     dependencies:
       '@codemirror/state': 6.5.0
@@ -22852,6 +22844,28 @@ snapshots:
       styletron-react: 6.1.1(react@18.3.1)
       styletron-standard: 3.1.0
       ts-essentials: 10.0.4(typescript@5.6.3)
+      ts-xor: 1.3.0
+    transitivePeerDependencies:
+      - typescript
+
+  '@nilfoundation/ui-kit@2.7.0(@codemirror/state@6.5.0)(@codemirror/view@6.36.5)(@lezer/highlight@1.2.1)(@uiw/codemirror-themes@4.21.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.0)(@codemirror/view@6.36.5))(@uiw/react-codemirror@4.21.0(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.0)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(baseui@13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0))(lightweight-charts@5.0.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(ts-xor@1.3.0)(typescript@5.8.2)':
+    dependencies:
+      '@codemirror/state': 6.5.0
+      '@codemirror/view': 6.36.5
+      '@lezer/highlight': 1.2.1
+      '@uiw/codemirror-themes': 4.21.0(@codemirror/language@6.11.0)(@codemirror/state@6.5.0)(@codemirror/view@6.36.5)
+      '@uiw/react-codemirror': 4.21.0(@babel/runtime@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.0)(@codemirror/lint@6.8.5)(@codemirror/search@6.5.10)(@codemirror/state@6.5.0)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.36.5)(codemirror@6.0.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      baseui: 13.0.0(@mdx-js/react@3.1.0(@types/react@18.3.1)(react@18.3.1))(@types/react@18.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styletron-react@6.1.1(react@18.3.1))(webpack@5.98.0)
+      copy-to-clipboard: 3.3.3
+      inline-style-expand-shorthand: 1.6.0
+      lightweight-charts: 5.0.6
+      lightweight-charts-react-components: 0.4.0(lightweight-charts@5.0.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      styletron-react: 6.1.1(react@18.3.1)
+      styletron-standard: 3.1.0
+      ts-deepmerge: 7.0.3
+      ts-essentials: 10.0.4(typescript@5.8.2)
       ts-xor: 1.3.0
     transitivePeerDependencies:
       - typescript
@@ -23298,11 +23312,11 @@ snapshots:
 
   '@open-rpc/meta-schema@1.14.2': {}
 
-  '@open-rpc/schema-utils-js@1.16.2(encoding@0.1.13)':
+  '@open-rpc/schema-utils-js@1.16.2':
     dependencies:
-      '@json-schema-tools/dereferencer': 1.5.5(encoding@0.1.13)
+      '@json-schema-tools/dereferencer': 1.5.5
       '@json-schema-tools/meta-schema': 1.6.19
-      '@json-schema-tools/reference-resolver': 1.2.4(encoding@0.1.13)
+      '@json-schema-tools/reference-resolver': 1.2.4
       '@open-rpc/meta-schema': 1.14.2
       ajv: 6.12.6
       detect-node: 2.1.0
@@ -29209,7 +29223,7 @@ snapshots:
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.2
 
-  esbuild-wasm@0.25.2: {}
+  esbuild-wasm@0.25.5: {}
 
   esbuild@0.21.5:
     optionalDependencies:
@@ -32813,9 +32827,11 @@ snapshots:
     dependencies:
       immediate: 3.0.6
 
-  lightweight-charts@4.2.3:
+  lightweight-charts-react-components@0.4.0(lightweight-charts@5.0.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
-      fancy-canvas: 2.1.0
+      lightweight-charts: 5.0.6
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   lightweight-charts@5.0.6:
     dependencies:
@@ -38739,6 +38755,8 @@ snapshots:
       string-format: 2.0.0
 
   ts-dedent@2.2.0: {}
+
+  ts-deepmerge@7.0.3: {}
 
   ts-easing@0.2.0: {}
 

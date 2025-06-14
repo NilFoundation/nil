@@ -6,7 +6,7 @@ import { Shards } from "../../features/shards";
 import { Card, Heading, Layout, Meta, Sidebar } from "../../features/shared";
 import { useMobile } from "../../features/shared";
 import { Navigation } from "../../features/shared/components/Layout/Navigation";
-import { TransactionStat } from "../../features/transaction-stat";
+import { TotalTransactions, TransactionHistory } from "../../features/transaction-stat";
 import { explorerContainer } from "../../styleHelpers";
 import { styles } from "./styles";
 
@@ -24,8 +24,11 @@ export const ExplorerPage = () => {
         <Meta title={import.meta.env.VITE_APP_TITLE} description="zkSharding for Ethereum" />
         <div className={css(isMobile ? styles.mobileContainer : styles.container)}>
           <Heading className={css(styles.heading)} />
-          <Card className={css(styles.chart)}>
-            <TransactionStat />
+          <Card className={css(styles.totalTrx)}>
+            <TotalTransactions />
+          </Card>
+          <Card className={css(styles.transactionHistory)}>
+            <TransactionHistory />
           </Card>
           <Card className={css(styles.shards)}>
             <Shards />

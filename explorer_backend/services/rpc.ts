@@ -2,10 +2,12 @@ import { HttpTransport, addHexPrefix } from "@nilfoundation/niljs";
 import { PublicClient } from "@nilfoundation/niljs";
 import { config } from "../config";
 import { bytesToHex } from "viem";
+import { getShardIdsList } from "../daos/shards";
 
 const client = new PublicClient({
   transport: new HttpTransport({
     endpoint: config.RPC_URL,
+    timeout: 10000,
   }),
   shardId: 1,
 });
@@ -26,4 +28,16 @@ export const fetchAccountState = async (address: `0x${string}`) => {
     isInitialized: code.length > 0,
     tokens,
   };
+};
+
+export const fetchShardsGasPrice = async () => {
+  const shardsIds = await getShardIdsList();
+  const promises = shardsIds.map((shardId) => client.getGasPrice(shardId));
+
+  const gasPrices = await Promise.all(promises);
+  const gasPriceMap = Object.fromEntries(
+    shardsIds.map((shardId, index) => [shardId, gasPrices[index].toString(10)]),
+  );
+
+  return gasPriceMap;
 };
