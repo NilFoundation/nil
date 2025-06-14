@@ -80,7 +80,7 @@ func (m transactionPayer) String() string {
 	return "transaction"
 }
 
-func NewAccountPayer(account *AccountState, transaction *types.Transaction) accountPayer {
+func NewAccountPayer(account AccountState, transaction *types.Transaction) accountPayer {
 	return accountPayer{
 		account:     account,
 		transaction: transaction,
@@ -88,14 +88,14 @@ func NewAccountPayer(account *AccountState, transaction *types.Transaction) acco
 }
 
 type accountPayer struct {
-	account     *AccountState
+	account     AccountState
 	transaction *types.Transaction
 }
 
 func (a accountPayer) CanPay(amount types.Value) bool {
 	value, overflow := a.transaction.Value.AddOverflow(amount)
 	check.PanicIfNot(!overflow)
-	return a.account.Balance.Cmp(value) >= 0
+	return a.account.GetBalance().Cmp(value) >= 0
 }
 
 func (a accountPayer) SubBalance(amount types.Value) {
@@ -180,8 +180,8 @@ func validateExternalExecutionTransaction(es *ExecutionState, transaction *types
 
 	account, err := es.GetAccount(to)
 	check.PanicIfErr(err)
-	if account.ExtSeqno != transaction.Seqno {
-		err = fmt.Errorf("account %v != transaction %v", account.ExtSeqno, transaction.Seqno)
+	if account.GetExtSeqno() != transaction.Seqno {
+		err = fmt.Errorf("account %v != transaction %v", account.GetExtSeqno(), transaction.Seqno)
 		return NewExecutionResult().SetError(types.NewWrapError(types.ErrorSeqnoGap, err))
 	}
 

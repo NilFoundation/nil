@@ -82,6 +82,7 @@ type Client interface {
 	GetTransactionCount(ctx context.Context, address types.Address, blockId any) (types.Seqno, error)
 	GetBlockTransactionCount(ctx context.Context, shardId types.ShardId, blockId any) (uint64, error)
 	GetBalance(ctx context.Context, address types.Address, blockId any) (types.Value, error)
+	GetStorageAt(ctx context.Context, address types.Address, key common.Hash, blockId any) (types.Uint256, error)
 	GetShardIdList(ctx context.Context) ([]types.ShardId, error)
 	GetNumShards(ctx context.Context) (uint64, error)
 	GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error)
@@ -135,6 +136,13 @@ type Client interface {
 	GetDebugContract(ctx context.Context, contractAddr types.Address, blockId any) (*jsonrpc.DebugRPCContract, error)
 
 	GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error)
+
+	GetProof(
+		ctx context.Context,
+		address types.Address,
+		storageKeys []common.Hash,
+		blockId any,
+	) (*jsonrpc.EthProof, error)
 }
 
 func EstimateFeeExternal(

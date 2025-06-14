@@ -149,10 +149,31 @@ func (api *nodeApiOverShardApis) GetTokens(
 	return result, nil
 }
 
+func (api *nodeApiOverShardApis) GetStorageAt(
+	ctx context.Context,
+	address types.Address,
+	key common.Hash,
+	blockReference rawapitypes.BlockReference,
+) (types.Uint256, error) {
+	methodName := methodNameChecked("GetStorageAt")
+	shardId := address.ShardId()
+	shardApi, ok := api.apisRo[shardId]
+	if !ok {
+		return types.Uint256{}, makeShardNotFoundError(methodName, shardId)
+	}
+	result, err := shardApi.GetStorageAt(ctx, address, key, blockReference)
+	if err != nil {
+		return types.Uint256{}, makeCallError(methodName, shardId, err)
+	}
+	return result, nil
+}
+
 func (api *nodeApiOverShardApis) GetContract(
 	ctx context.Context,
 	address types.Address,
 	blockReference rawapitypes.BlockReference,
+	withCode bool,
+	withStorage bool,
 ) (*rawapitypes.SmartContract, error) {
 	methodName := methodNameChecked("GetContract")
 	shardId := address.ShardId()
@@ -160,7 +181,7 @@ func (api *nodeApiOverShardApis) GetContract(
 	if !ok {
 		return nil, makeShardNotFoundError(methodName, shardId)
 	}
-	result, err := shardApi.GetContract(ctx, address, blockReference)
+	result, err := shardApi.GetContract(ctx, address, blockReference, withCode, withStorage)
 	if err != nil {
 		return nil, makeCallError(methodName, shardId, err)
 	}
@@ -386,4 +407,25 @@ func (api *nodeApiOverShardApis) SetP2pRequestHandlers(
 		}
 	}
 	return nil
+}
+
+func (api *nodeApiOverShardApis) GetContractRange(
+	ctx context.Context,
+	shardId types.ShardId,
+	blockReference rawapitypes.BlockReference,
+	start common.Hash,
+	maxResults uint64,
+	withCode bool,
+	withStorage bool,
+) (*rawapitypes.SmartContractRange, error) {
+	methodName := methodNameChecked("GetContractRange")
+	shardApi, ok := api.apisRo[shardId]
+	if !ok {
+		return nil, makeShardNotFoundError(methodName, shardId)
+	}
+	accountRange, err := shardApi.GetContractRange(ctx, blockReference, start, maxResults, withCode, withStorage)
+	if err != nil {
+		return nil, makeCallError(methodName, shardId, err)
+	}
+	return accountRange, nil
 }

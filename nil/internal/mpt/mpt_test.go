@@ -116,9 +116,11 @@ func TestIterate(t *testing.T) {
 
 	trie := mpt.NewInMemMPT()
 	// Check iteration on the empty trie
-	//nolint: revive
+	reached := false
 	for range trie.Iterate() {
+		reached = true
 	}
+	assert.False(t, reached)
 
 	keys := [][]byte{[]byte("do"), []byte("dog"), []byte("doge"), []byte("horse")}
 	values := [][]byte{[]byte("verb"), []byte("puppy"), []byte("coin"), []byte("stallion")}
@@ -138,6 +140,69 @@ func TestIterate(t *testing.T) {
 	rootHash, err := trie.Commit()
 	require.NoError(t, err)
 	assert.NotEqual(t, mpt.EmptyRootHash, rootHash)
+}
+
+func createTestTrie(keys, values [][]byte) *mpt.MerklePatriciaTrie {
+	trie := mpt.NewInMemMPT()
+	for i := range keys {
+		_ = trie.Set(keys[i], values[i])
+	}
+	return trie
+}
+
+func TestIterateFromKey(t *testing.T) {
+	t.Parallel()
+	keys := [][]byte{[]byte("do"), []byte("dog"), []byte("doge"), []byte("horse")}
+	values := [][]byte{[]byte("verb"), []byte("puppy"), []byte("coin"), []byte("stallion")}
+	// should return all elements
+	t.Run("iterate from empty string", func(t *testing.T) {
+		t.Parallel()
+		trie := createTestTrie(keys, values)
+		i := 0
+		for k, v := range trie.IterateFromKey([]byte("")) {
+			require.Equal(t, k, keys[i])
+			require.Equal(t, v, values[i])
+			i++
+		}
+		require.Len(t, keys, i)
+	})
+
+	// should return all elements (start parameter is inclusive)
+	t.Run("iterate from first key", func(t *testing.T) {
+		t.Parallel()
+		trie := createTestTrie(keys, values)
+		i := 0
+		for k, v := range trie.IterateFromKey([]byte("do")) {
+			require.Equal(t, k, keys[i])
+			require.Equal(t, v, values[i])
+			i++
+		}
+		require.Len(t, keys, i)
+	})
+
+	// iterate from key after the first one (should skip one element)
+	t.Run("iterate from middle key", func(t *testing.T) {
+		t.Parallel()
+		trie := createTestTrie(keys, values)
+		i := 1
+		for k, v := range trie.IterateFromKey([]byte("doa")) {
+			require.Equal(t, k, keys[i])
+			require.Equal(t, v, values[i])
+			i++
+		}
+		require.Len(t, keys, i)
+	})
+
+	// iterate from key after the last one (should return nothing)
+	t.Run("iterate from key after last", func(t *testing.T) {
+		t.Parallel()
+		trie := createTestTrie(keys, values)
+		reached := false
+		for range trie.IterateFromKey([]byte("zebra")) {
+			reached = true
+		}
+		require.False(t, reached)
+	})
 }
 
 func TestInsertGetLots(t *testing.T) {
