@@ -46,10 +46,11 @@ func (s *SuiteFaucet) createSmartAccountViaFaucet(
 	s.T().Helper()
 
 	ownerPublicKey := crypto.FromECDSAPub(&ownerPrivateKey.PublicKey)
+	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(ownerPublicKey)
 
 	salt := uint256.NewInt(123).Bytes32()
 	callData, err := contracts.NewCallData(
-		contracts.NameFaucet, "createSmartAccount", big.NewInt(int64(shardId)), ownerPublicKey, salt, big.NewInt(value))
+		contracts.NameFaucet, "deploy", big.NewInt(int64(shardId)), []byte(smartAccountCode), salt, big.NewInt(value))
 	s.Require().NoError(err)
 
 	resHash, err := s.DefaultClient.SendExternalTransaction(
@@ -59,7 +60,6 @@ func (s *SuiteFaucet) createSmartAccountViaFaucet(
 	res := s.WaitIncludedInMain(resHash)
 	s.Require().True(res.AllSuccess())
 
-	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(ownerPublicKey)
 	dp := types.BuildDeployPayload(smartAccountCode, salt)
 	smartAccountAddr := types.CreateAddress(shardId, dp)
 	s.Require().Equal(common.LeftPadBytes(smartAccountAddr.Bytes(), 32), []byte(res.Logs[0].Data[:]))

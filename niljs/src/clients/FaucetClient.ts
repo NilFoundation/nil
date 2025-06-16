@@ -17,9 +17,9 @@ export type TopUpParams = {
 /**
  * The parameters for the top up request.
  */
-export type CreateSmartAccountParams = {
+export type FaucetDeployParams = {
   shardId: number;
-  publicKey: Hex | Uint8Array;
+  code: Hex | Uint8Array;
   salt: bigint;
   amount: bigint;
 };
@@ -74,15 +74,15 @@ class FaucetClient extends BaseClient {
    * Topups the smart account with the specified amount of token which can be issued by the faucet.
    * @param param - The parameters for the top up request.
    * @param param.shardId -
-   * @param param.publicKey -
+   * @param param.code -
    * @param param.salt -
    * @param param.amount - Initial wallet balance.
    * @returns The transaction hash of the top up transaction.
    */
-  public async createSmartAccount({ shardId, publicKey, salt, amount }: CreateSmartAccountParams) {
+  public async deploy({ shardId, code, salt, amount }: FaucetDeployParams) {
     return await this.request<Hex>({
-      method: "faucet_createSmartAccount",
-      params: [shardId, toHex(publicKey), salt.toString(), amount.toString()],
+      method: "faucet_deploy",
+      params: [shardId, toHex(code), salt.toString(), amount.toString()],
     });
   }
 

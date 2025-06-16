@@ -2,7 +2,6 @@ package cliservice
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const (
@@ -157,11 +155,11 @@ func (s *Service) TopUpViaFaucet(faucetAddress, contractAddressTo types.Address,
 	return fmt.Errorf("failed to top up contract %s: %s", contractAddressTo, r.ErrorMessage)
 }
 
-func (s *Service) CreateSmartAccount(
+func (s *Service) Deploy(
 	shardId types.ShardId,
-	pubKey *ecdsa.PublicKey,
+	code []byte,
 	salt types.Uint256,
 	balance types.Value,
 ) (types.Address, error) {
-	return s.faucetClient.CreateSmartAccount(s.ctx, shardId, crypto.FromECDSAPub(pubKey), salt, balance)
+	return s.faucetClient.Deploy(s.ctx, shardId, code, salt, balance)
 }

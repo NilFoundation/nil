@@ -80,14 +80,14 @@ func (c *Client) TopUpViaFaucet(
 	return hash, nil
 }
 
-func (c *Client) CreateSmartAccount(
+func (c *Client) Deploy(
 	ctx context.Context,
 	shardId types.ShardId,
-	publicKey hexutil.Bytes,
+	code hexutil.Bytes,
 	salt types.Uint256,
 	amount types.Value,
 ) (types.Address, error) {
-	response, err := c.sendRequest(ctx, "faucet_createSmartAccount", []any{shardId, publicKey, salt, amount})
+	response, err := c.sendRequest(ctx, "faucet_deploy", []any{shardId, code, salt, amount})
 	if err != nil {
 		return types.EmptyAddress, err
 	}

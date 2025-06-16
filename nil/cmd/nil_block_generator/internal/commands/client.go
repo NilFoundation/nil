@@ -14,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/concurrent"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/common/version"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/cliservice"
@@ -123,7 +124,10 @@ func CreateNewSmartAccount(rpcEndpoint string, logger logging.Logger) (string, s
 	if err != nil {
 		return "", "", err
 	}
-	smartAccount, err := srv.CreateSmartAccount(types.BaseShardId, &privateKey.PublicKey, *salt, amount)
+
+	pubkey := crypto.FromECDSAPub(&privateKey.PublicKey)
+	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pubkey)
+	smartAccount, err := srv.Deploy(types.BaseShardId, smartAccountCode, *salt, amount)
 	if err != nil {
 		return "", "", err
 	}

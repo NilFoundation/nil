@@ -76,20 +76,13 @@ contract Faucet {
         emit Send(addr, value);
     }
 
-    function createSmartAccount(
+    function deploy(
         uint shardId,
-        bytes memory ownerPubkey,
+        bytes memory code,
         bytes32 salt,
         uint256 value
     ) external returns (address) {
-        bytes memory code = abi.encodePacked(
-            type(SmartAccount).creationCode,
-            abi.encode(ownerPubkey)
-        );
-
-        address addr = Nil.createAddress(shardId, code, uint256(salt));
-
-        Nil.asyncDeploy(
+        address addr = Nil.asyncDeploy(
             shardId,
             address(this),
             value,
@@ -98,7 +91,6 @@ contract Faucet {
         );
         emit Deploy(addr);
         emit Send(addr, value);
-
         return addr;
     }
 }

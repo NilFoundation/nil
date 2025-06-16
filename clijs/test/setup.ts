@@ -117,21 +117,15 @@ export const CliTest = test.extend<CliTestFixture>({
   },
 
   smartAccount: async ({ rpcClient, faucetClient, signer }, use) => {
-    const pubkey = signer.getPublicKey();
-    const address = await faucetClient.createSmartAccount({
-      publicKey: pubkey,
-      amount: 1_000_000_000_000_000_000n,
+    const smartAccount = new SmartAccountV1({
+      pubkey: signer.getPublicKey(),
       salt: 100n,
       shardId: 1,
-    });
-
-    const smartAccount = new SmartAccountV1({
-      pubkey: pubkey,
-      address: address,
       client: rpcClient,
       signer: signer,
     });
 
+    await smartAccount.selfDeploy(faucetClient);
     await use(smartAccount);
   },
 });

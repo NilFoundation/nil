@@ -95,7 +95,6 @@ type accountPayer struct {
 func (a accountPayer) CanPay(amount types.Value) bool {
 	value, overflow := a.transaction.Value.AddOverflow(amount)
 	check.PanicIfNot(!overflow)
-	logging.GlobalLogger.Error().Msgf("a.account.Balance = %v", a.account.Balance)
 	return a.account.Balance.Cmp(value) >= 0
 }
 
@@ -111,7 +110,7 @@ func (a accountPayer) AddBalance(amount types.Value) error {
 }
 
 func (a accountPayer) String() string {
-	return fmt.Sprintf("account %v", a.transaction.From.Hex())
+	return fmt.Sprintf("account %x", a.transaction.From)
 }
 
 func buyGas(payer Payer, transaction *types.Transaction) error {

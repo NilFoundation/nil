@@ -2,6 +2,7 @@ import { SmartAccount } from "@nilfoundation/smart-contracts";
 import type { Abi } from "abitype";
 import invariant from "tiny-invariant";
 import { bytesToHex, encodeDeployData, encodeFunctionData } from "viem";
+import type { FaucetClient } from "../../clients/FaucetClient.js";
 import type { PublicClient } from "../../clients/PublicClient.js";
 import type { ContractFunctionName } from "../../contract-factory/ContractFactory.js";
 import { prepareDeployPart } from "../../encoding/deployPart.js";
@@ -97,6 +98,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
       salt: salt,
       shard: shardId,
     });
+
     return refineAddress(address);
   }
 
@@ -164,6 +166,80 @@ export class SmartAccountV1 implements SmartAccountInterface {
       this.salt = refineSalt(salt);
     }
     this.shardId = getShardIdFromAddress(this.address);
+  }
+
+  /**
+   * Deploys the smart account.
+   *
+   * @async
+   * @param {string} [faucetEndpoint] Faucet endpoint.
+   * @returns {Promise<Hex>} An Address of the smart account that can be awaited for completion.
+   * @example
+   * import {
+       Faucet,
+       HttpTransport,
+       LocalECDSAKeySigner,
+       PublicClient,
+       FaucetClient,
+       SmartAccountV1,
+       generateRandomPrivateKey,
+     } from '@nilfoundation/niljs';
+   * const client = new PublicClient({
+       transport: new HttpTransport({
+         endpoint: RPC_ENDPOINT,
+       }),
+       shardId: 1,
+     });
+   * const faucetClient = new FaucetClient({
+       transport: new HttpTransport({
+         endpoint: FAUCET_ENDPOINT,
+       }),
+     });
+   * const signer = new LocalECDSAKeySigner({
+       privateKey: generateRandomPrivateKey(),
+     });
+   * const pubkey = signer.getPublicKey();
+   * const smartAccount = new SmartAccountV1({
+       pubkey: pubkey,
+       salt: 100n,
+       shardId: 1,
+       client,
+       signer,
+       address: SmartAccountV1.calculateSmartAccountAddress({
+         pubKey: pubkey,
+         shardId: 1,
+         salt: 100n,
+       }),
+     });
+   * await smartAccount.selfDeploy(faucetClient);
+   */
+  async selfDeploy(faucetClient: FaucetClient, amount = 1_000_000_000_000_000_000n): Promise<Hex> {
+    invariant(
+      typeof this.salt !== "undefined",
+      "Salt is required for external deployment. Please provide salt for walelt",
+    );
+
+    const [balance, code] = await Promise.all([
+      await this.client.getBalance(this.address, "latest"),
+      await this.client.getCode(this.address, "latest").catch(() => Uint8Array.from([])),
+    ]);
+
+    invariant(code.length === 0, "Contract already deployed");
+
+    const { data } = prepareDeployPart({
+      abi: SmartAccount.abi as Abi,
+      bytecode: SmartAccountV1.code,
+      args: [bytesToHex(this.pubkey)],
+      salt: this.salt,
+      shard: this.shardId,
+    });
+
+    return faucetClient.deploy({
+      shardId: this.shardId,
+      code: data.slice(0, data.length - 32), // remove salt from code
+      salt: refineBigintSalt(this.salt),
+      amount: amount,
+    });
   }
 
   /**

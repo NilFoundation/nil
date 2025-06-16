@@ -21,7 +21,7 @@ import (
 type API interface {
 	TopUpViaFaucet(
 		ctx context.Context, faucetAddress, contractAddressTo types.Address, amount types.Value) (common.Hash, error)
-	CreateSmartAccount(
+	Deploy(
 		ctx context.Context, shardId types.ShardId, pubKey hexutil.Bytes, salt types.Uint256, amount types.Value,
 	) (types.Address, error)
 	GetFaucets() map[string]types.Address
@@ -134,8 +134,8 @@ func (c *APIImpl) TopUpViaFaucet(
 	return hash, nil
 }
 
-func (c *APIImpl) CreateSmartAccount(
-	ctx context.Context, shardId types.ShardId, pubKey hexutil.Bytes, salt types.Uint256, amount types.Value,
+func (c *APIImpl) Deploy(
+	ctx context.Context, shardId types.ShardId, code hexutil.Bytes, salt types.Uint256, amount types.Value,
 ) (types.Address, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -146,8 +146,8 @@ func (c *APIImpl) CreateSmartAccount(
 	}
 
 	contractName := contracts.NameFaucet
-	callData, err := contracts.NewCallData(contractName, "createSmartAccount",
-		big.NewInt(int64(shardId)), []byte(pubKey), salt.Bytes32(), amount.ToBig())
+	callData, err := contracts.NewCallData(contractName, "deploy",
+		big.NewInt(int64(shardId)), []byte(code), salt.Bytes32(), amount.ToBig())
 	if err != nil {
 		return types.EmptyAddress, err
 	}
@@ -213,9 +213,8 @@ func (c *APIImpl) CreateSmartAccount(
 		return types.EmptyAddress, fmt.Errorf("transaction %s for contract deployment failed", hash)
 	}
 
-	smartAccountCode := contracts.PrepareDefaultSmartAccountForOwnerCode(pubKey)
-	code := types.BuildDeployPayload(smartAccountCode, salt.Bytes32())
-	return types.CreateAddress(shardId, code), nil
+	dp := types.BuildDeployPayload(types.Code(code), salt.Bytes32())
+	return types.CreateAddress(shardId, dp), nil
 }
 
 func (c *APIImpl) GetFaucets() map[string]types.Address {

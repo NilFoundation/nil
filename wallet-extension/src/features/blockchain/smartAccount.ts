@@ -17,7 +17,6 @@ import { encodeFunctionData } from "viem";
 import { ActivityType } from "../../background/storage";
 import { addActivity } from "../store/model/activities.ts";
 import { generateRandomSalt } from "../utils";
-import { createSmartAccount } from "./faucet.ts";
 
 // Create Public Client
 export function createClient(rpcEndpoint: string, shardId: number): PublicClient {
@@ -64,29 +63,24 @@ export async function initializeOrDeploySmartAccount(params: {
 
     // Otherwise, deploy a new smartAccount
     console.log("Deploying a new smart account...");
+    const smartAccount = new SmartAccountV1({
+      pubkey,
+      salt: generateRandomSalt(),
+      shardId: shardId,
+      client,
+      signer,
+    });
 
     try {
       // Deploy the smartAccount
-      const smartAccountAddress = await createSmartAccount({
-        faucetEndpoint: faucetClient.endpoint,
-        shardId,
-        publicKey: pubkey,
-        salt: generateRandomSalt(),
-        amount: 100_000_000_000_000_000_000_000n,
-      });
-
-      const smartAccount = new SmartAccountV1({
-        pubkey,
-        address: smartAccountAddress,
-        client,
-        signer,
-      });
+      await smartAccount.selfDeploy(faucetClient);
       console.log("SmartAccount deployed successfully at:", smartAccount.address);
-      return smartAccount;
     } catch (e) {
       console.error("Failed to self-deploy the smartAccount:", e);
       throw new Error("Failed to self-deploy smartAccount");
     }
+
+    return smartAccount;
   } catch (e) {
     console.error("Error during smartAccount initialization or deployment:", e);
     throw new Error("SmartAccount initialization or deployment failed");

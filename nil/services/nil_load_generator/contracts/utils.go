@@ -33,7 +33,9 @@ func NewSmartAccount(service *cliservice.Service, shardId types.ShardId) (SmartA
 	}
 	salt := types.NewUint256(0)
 
-	smartAccountAdr, err := service.CreateSmartAccount(shardId, &pk.PublicKey, *salt, types.GasToValue(1_000_000_000))
+	pubkey := crypto.FromECDSAPub(&pk.PublicKey)
+	code := contracts.PrepareDefaultSmartAccountForOwnerCode(pubkey)
+	smartAccountAdr, err := service.Deploy(shardId, code, *salt, types.GasToValue(1_000_000_000))
 	if err != nil {
 		if !strings.Contains(err.Error(), "smart account already exists") {
 			return SmartAccount{}, err

@@ -45,16 +45,16 @@ export async function topUp({
   );
 }
 
-export async function createSmartAccount({
+export async function deploy({
   faucetEndpoint,
   shardId,
-  publicKey,
+  code,
   salt,
   amount,
 }: {
   faucetEndpoint: string;
   shardId: number;
-  publicKey: Uint8Array | Hex;
+  code: Uint8Array | Hex;
   salt: bigint;
   amount: bigint;
 }): Promise<Hex> {
@@ -64,9 +64,9 @@ export async function createSmartAccount({
     }),
   });
 
-  return await faucetClient.createSmartAccount({
+  return await faucetClient.deploy({
     shardId,
-    publicKey,
+    code,
     salt,
     amount,
   });
