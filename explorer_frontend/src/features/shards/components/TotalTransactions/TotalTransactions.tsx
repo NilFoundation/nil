@@ -1,4 +1,10 @@
-import { COLORS, HeadingMedium, LabelLarge, ParagraphXSmall, Spinner } from "@nilfoundation/ui-kit";
+import {
+  COLORS,
+  HeadingLarge,
+  HeadingMedium,
+  ParagraphXSmall,
+  Spinner,
+} from "@nilfoundation/ui-kit";
 import { ParagraphLarge } from "baseui/typography";
 import { useUnit } from "effector-react";
 import { expandProperty } from "inline-style-expand-shorthand";
@@ -143,7 +149,7 @@ export const TotalTransactions = () => {
             height: "100%",
           })}
         >
-          <LabelLarge
+          <HeadingLarge
             className={css({
               fontSize: "24px",
               lineHeight: "32px",
@@ -151,7 +157,7 @@ export const TotalTransactions = () => {
             })}
           >
             {formatNumber(totalTxCount)}
-          </LabelLarge>
+          </HeadingLarge>
           <div
             className={css({
               display: "flex",

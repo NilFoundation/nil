@@ -3,7 +3,7 @@ import { useStyletron } from "styletron-react";
 import { Blocks } from "../../features/latest-blocks";
 import { explorerRoute } from "../../features/routing";
 import { Shards } from "../../features/shards";
-import { Card, Heading, Layout, Meta, Sidebar } from "../../features/shared";
+import { Card, Heading, Layout, Meta } from "../../features/shared";
 import { useMobile } from "../../features/shared";
 import { Navigation } from "../../features/shared/components/Layout/Navigation";
 import { TotalTransactions, TransactionHistory } from "../../features/transaction-stat";
@@ -20,7 +20,7 @@ export const ExplorerPage = () => {
 
   return (
     <div className={css(explorerContainer)}>
-      <Layout sidebar={<Sidebar />} navbar={isMobile ? null : <Navigation />}>
+      <Layout navbar={isMobile ? null : <Navigation />}>
         <Meta title={import.meta.env.VITE_APP_TITLE} description="zkSharding for Ethereum" />
         <div className={css(isMobile ? styles.mobileContainer : styles.container)}>
           <Heading className={css(styles.heading)} />

@@ -8,7 +8,6 @@ export { Card } from "./components/Card";
 export { StyledList } from "./components/StyledList";
 export { OverflowEllipsis } from "./components/OverflowEllipsis";
 export { Space } from "./components/Space";
-export { Sidebar } from "./components/Sidebar";
 export { Heading } from "./components/Heading";
 export { InfoContainer } from "./components/InfoContainer";
 export { Divider } from "./components/Divider";

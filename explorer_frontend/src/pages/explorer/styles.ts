@@ -15,7 +15,7 @@ const container: StyleObject = {
 const mobileContainer: StyleObject = {
   display: "grid",
   gridTemplateColumns: "1fr",
-  gridTemplateRows: "auto 456px 456px 403px 540px",
+  gridTemplateRows: "auto 520px 520px 408px 608px",
   height: "100%",
   rowGap: SPACE[24],
   flexGrow: 1,
@@ -35,9 +35,9 @@ const transactionHistory: StyleObject = {
 };
 
 const shards: StyleObject = {
-  gridColumn: "1 / 4",
+  gridColumn: "1 / 3",
   gridRow: "3 / 4",
-  ...getMobileStyles({ gridColumn: "1 / 3", gridRow: "3 / 4" }),
+  ...getMobileStyles({ gridColumn: "1 / 3", gridRow: "4 / 5" }),
   ...getTabletStyles({ overflowX: "hidden" }),
 };
 

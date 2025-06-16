@@ -1,5 +1,5 @@
 import { useUnit } from "effector-react";
-import { type ReactNode, memo, useCallback } from "react";
+import { type ReactNode, memo } from "react";
 import { useStyletron } from "styletron-react";
 import { fetchSolidityCompiler } from "../../../../services/compiler";
 import { getMobileStyles } from "../../../../styleHelpers";
@@ -26,10 +26,6 @@ export const Navbar = ({ children, showCodeInteractionButtons, logo }: NavbarPro
   const [isMobile] = useMobile();
   const templateColumns = isMobile ? "93% 1fr" : "1fr 33%";
   const btnTextContent = useCompileButton();
-
-  const cb = useCallback(() => {
-    compileCode();
-  }, []);
 
   return (
     <nav

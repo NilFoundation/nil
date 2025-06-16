@@ -3,7 +3,6 @@ import type { StyleObject } from "styletron-react";
 
 export const mobileMaxScreenSize = 768;
 export const tabletMaxScreenSize = 1440;
-export const mediumMaxScreenSize = 1920;
 
 export const getMobileStyles = (styles: StyleObject) => ({
   [`@media screen and (max-width: ${mobileMaxScreenSize}px)`]: {

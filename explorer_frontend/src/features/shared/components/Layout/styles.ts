@@ -1,7 +1,7 @@
 import { COLORS, SPACE } from "@nilfoundation/ui-kit";
 import { expandProperty } from "inline-style-expand-shorthand";
 import type { StyleObject } from "styletron-react";
-import { getMobileStyles, getTabletStyles } from "../../../../styleHelpers";
+import { getMobileStyles } from "../../../../styleHelpers";
 
 const linkOutlineStyles = {
   borderRadius: "4px",
@@ -14,7 +14,6 @@ const linkOutlineStyles = {
 
 const container: StyleObject = {
   width: "100%",
-  maxWidth: "84rem",
   color: COLORS.gray50,
   display: "flex",
   flexDirection: "column",
@@ -25,12 +24,12 @@ const container: StyleObject = {
 };
 
 const content = {
-  display: "grid",
-  gridTemplateColumns: "180px 9fr 1fr",
-  ...getTabletStyles({ gridTemplateColumns: "1fr 6fr" }),
+  display: "flex",
+  flexDirection: "column",
   paddingTop: SPACE[48],
   gap: SPACE[32],
   width: "100%",
+  height: "100%",
 };
 
 const navbar = {
@@ -55,6 +54,7 @@ const navigation = {
   display: "flex",
   alignItems: "center",
   justifyContent: "flex-end",
+  gap: "12px",
 };
 
 const tutorialText = {
@@ -82,7 +82,6 @@ const navItem = {
 };
 
 const navLink = {
-  color: COLORS.gray200,
   ...linkOutlineStyles,
 };
 
