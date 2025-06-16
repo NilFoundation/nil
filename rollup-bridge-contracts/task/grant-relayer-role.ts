@@ -23,15 +23,11 @@ task("grant-relayer-role", "Grant relayer role to the smart-account of relayer n
             throw Error(`Invalid L2BridgeMessengerJson ABI`);
         }
 
-        console.log(`Inside grant-relayer-role hardhat task`);
-
         const deployerAccount = await loadNilSmartAccount();
 
         if (!deployerAccount) {
             throw Error(`Invalid Deployer SmartAccount`);
         }
-
-        console.log(`loaded deloyerAccount`);
 
         const balance = await deployerAccount.getBalance();
 
@@ -43,10 +39,8 @@ task("grant-relayer-role", "Grant relayer role to the smart-account of relayer n
 
         validateAddress(l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy, "l2NetworkConfig.l2BridgeMessengerConfig.l2BridgeMessengerContracts.l2BridgeMessengerProxy");
 
-        const relayerAddress = deployerAccount.address;
+        const relayerAddress = await fetchRelayer();
         l2NetworkConfig.l2CommonConfig.relayer = relayerAddress;
-
-        console.log(`got relayer address as: ${relayerAddress}`);
 
         // Save the updated config
         saveNilNetworkConfig(networkName, l2NetworkConfig);
