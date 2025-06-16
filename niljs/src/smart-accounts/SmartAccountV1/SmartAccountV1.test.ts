@@ -81,25 +81,6 @@ test("Smart account creation test with salt and no salt", async ({ expect }) => 
   ).toBeDefined();
 });
 
-test("Smart account self deploy test", async ({ expect }) => {
-  const smartAccount = new SmartAccountV1({
-    pubkey: pubkey,
-    client,
-    signer,
-    address: SmartAccountV1.calculateSmartAccountAddress({
-      pubKey: pubkey,
-      shardId: 1,
-      salt: 100n,
-    }),
-  });
-
-  await expect(async () => {
-    const tx = await smartAccount.selfDeploy(true);
-    expect(tx).toBeDefined();
-    expect(tx.hash).toBeDefined();
-  }).rejects.toThrowError();
-});
-
 test("Deploy through smart account", async ({ expect }) => {
   const fn = vi.fn();
   fn.mockReturnValue({});

@@ -85,7 +85,7 @@ createSmartAccountFx.use(async ({ privateKey, rpcUrl }) => {
   const faucets = await faucetClient.getAllFaucets();
 
   const pubkey = signer.getPublicKey();
-  const smartAccount = new SmartAccountV1({
+  let smartAccount = new SmartAccountV1({
     pubkey,
     salt: 100n,
     shardId: 1,
@@ -116,7 +116,18 @@ createSmartAccountFx.use(async ({ privateKey, rpcUrl }) => {
 
   const code = await client.getCode(smartAccount.address);
   if (code.length === 0) {
-    await smartAccount.selfDeploy(true);
+    const address = await faucetClient.createSmartAccount({
+      publicKey: pubkey,
+      amount: 1_000_000_000_000_000_000n,
+      salt: 100n,
+      shardId: 1,
+    });
+    smartAccount = new SmartAccountV1({
+      pubkey,
+      address,
+      client,
+      signer,
+    });
   }
 
   setInitializingSmartAccountState("Adding some tokens...");

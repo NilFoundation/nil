@@ -4,8 +4,8 @@ import {
   PublicClient,
   SmartAccountV1,
   bytesToHex,
+  createSmartAccount,
   generateRandomPrivateKey,
-  topUp,
 } from "../src/index.js";
 import { FAUCET_ENDPOINT, RPC_ENDPOINT } from "./helpers.js";
 
@@ -22,26 +22,24 @@ const signer = new LocalECDSAKeySigner({
 
 const pubkey = signer.getPublicKey();
 
-const smartAccount = new SmartAccountV1({
-  pubkey: pubkey,
-  salt: 100n,
+const smartAccountAddress = await createSmartAccount({
+  faucetEndpoint: FAUCET_ENDPOINT,
   shardId: 1,
-  client,
-  signer,
+  publicKey: pubkey,
+  amount: 100_000_000_000_000_000_000_000n,
+  salt: 100n,
 });
-const smartAccountAddress = smartAccount.address;
 
 console.log("smartAccountAddress", smartAccountAddress);
 
-await topUp({
+const smartAccount = new SmartAccountV1({
   address: smartAccountAddress,
-  faucetEndpoint: FAUCET_ENDPOINT,
-  rpcEndpoint: RPC_ENDPOINT,
+  pubkey: pubkey,
+  client,
+  signer,
 });
 
-await smartAccount.selfDeploy(true);
-
-const code = await client.getCode(smartAccountAddress, "latest");
+const code = await client.getCode(smartAccount.address, "latest");
 
 console.log("code", bytesToHex(code));
 

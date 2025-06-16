@@ -1,4 +1,4 @@
-import { type Hex, LocalECDSAKeySigner, SmartAccountV1 } from "@nilfoundation/niljs";
+import { type Hex, LocalECDSAKeySigner } from "@nilfoundation/niljs";
 import { Flags } from "@oclif/core";
 import { BaseCommand } from "../../base.js";
 import { ConfigKeys } from "../../common/config.js";
@@ -82,29 +82,17 @@ export default class SmartAccountNew extends BaseCommand {
     }
 
     const pubkey = signer.getPublicKey();
-    const smartAccount = new SmartAccountV1({
-      pubkey: pubkey,
+
+    logger.debug("Deploying new smart-account");
+
+    const smartAccountAddress = await this.faucetClient.createSmartAccount({
+      publicKey: pubkey,
+      amount: flags.amount,
       salt: BigInt(flags.salt),
       shardId: flags.shardId,
-      client: this.rpcClient,
-      signer,
     });
-    const smartAccountAddress = smartAccount.address;
 
-    logger.debug(`Withdrawing ${flags.amount} to ${smartAccountAddress}`);
-
-    const faucets = await this.faucetClient.getAllFaucets();
-    await this.faucetClient.topUpAndWaitUntilCompletion(
-      {
-        amount: flags.amount,
-        smartAccountAddress: smartAccountAddress,
-        faucetAddress: faucets.NIL,
-      },
-      this.rpcClient,
-    );
-
-    const tx = await smartAccount.selfDeploy(true);
-    this.info(`Successfully deployed smart account with tx hash: ${tx.hash}`);
+    this.info("Successfully deployed smart account");
 
     if (this.quiet) {
       this.log(smartAccountAddress);

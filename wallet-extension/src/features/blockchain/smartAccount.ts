@@ -15,10 +15,9 @@ import {
 import { SmartAccount } from "@nilfoundation/smart-contracts";
 import { encodeFunctionData } from "viem";
 import { ActivityType } from "../../background/storage";
-import { TokenNames } from "../components/token";
 import { addActivity } from "../store/model/activities.ts";
 import { generateRandomSalt } from "../utils";
-import { topUpSpecificToken } from "./faucet.ts";
+import { createSmartAccount } from "./faucet.ts";
 
 // Create Public Client
 export function createClient(rpcEndpoint: string, shardId: number): PublicClient {
@@ -65,38 +64,29 @@ export async function initializeOrDeploySmartAccount(params: {
 
     // Otherwise, deploy a new smartAccount
     console.log("Deploying a new smart account...");
-    const smartAccount = new SmartAccountV1({
-      pubkey,
-      salt: generateRandomSalt(),
-      shardId: shardId,
-      client,
-      signer,
-    });
-
-    try {
-      // Top up smartAccount with 0.1 native token
-      await topUpSpecificToken(
-        smartAccount,
-        faucetClient,
-        TokenNames.NIL,
-        convertEthToWei(0.009),
-        false,
-      );
-    } catch (e) {
-      console.error("Failed to top up smartAccount during deployment:", e);
-      throw new Error("Failed to top up smartAccount");
-    }
 
     try {
       // Deploy the smartAccount
-      await smartAccount.selfDeploy(true);
+      const smartAccountAddress = await createSmartAccount({
+        faucetEndpoint: faucetClient.endpoint,
+        shardId,
+        publicKey: pubkey,
+        salt: generateRandomSalt(),
+        amount: 100_000_000_000_000_000_000_000n,
+      });
+
+      const smartAccount = new SmartAccountV1({
+        pubkey,
+        address: smartAccountAddress,
+        client,
+        signer,
+      });
       console.log("SmartAccount deployed successfully at:", smartAccount.address);
+      return smartAccount;
     } catch (e) {
       console.error("Failed to self-deploy the smartAccount:", e);
       throw new Error("Failed to self-deploy smartAccount");
     }
-
-    return smartAccount;
   } catch (e) {
     console.error("Error during smartAccount initialization or deployment:", e);
     throw new Error("SmartAccount initialization or deployment failed");
