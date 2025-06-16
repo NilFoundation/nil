@@ -47,7 +47,8 @@ const blocks = {
 };
 
 const heading: StyleObject = {
-  gridColumn: "1 / 5",
+  gridColumn: "1 / 3",
+  marginBottom: SPACE[24],
 };
 
 export const styles = {
