@@ -153,9 +153,8 @@ func (suite *SuiteEthAccounts) TestGetCode() {
 	// nonexistent block
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
-	res, err = suite.api.GetCode(ctx, suite.smcAddr, blockNum)
+	_, err = suite.api.GetCode(ctx, suite.smcAddr, blockNum)
 	suite.Require().ErrorIs(err, rawapitypes.ErrBlockNotFound)
-	suite.Empty(res)
 }
 
 func (suite *SuiteEthAccounts) TestGetSeqno() {

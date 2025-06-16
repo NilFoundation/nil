@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
+//go:generate go run github.com/matryer/moq -out account_state_helpers_generated_mock.go -rm . DbRwTxProvider JournalAppender
 type JournalAppender interface {
 	AppendToJournal(entry JournalEntry)
 }

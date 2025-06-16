@@ -36,8 +36,8 @@ type MPTTracer struct {
 }
 
 var (
-	_ execution.ContractMPTRepository = (*MPTTracer)(nil)
-	_ execution.DbRwTxProvider        = (*MPTTracer)(nil)
+	_ execution.IContractMPTRepository = (*MPTTracer)(nil)
+	_ execution.DbRwTxProvider         = (*MPTTracer)(nil)
 )
 
 func (mt *MPTTracer) SetRootHash(root common.Hash) error {
@@ -140,7 +140,7 @@ func New(
 	logger logging.Logger,
 ) *MPTTracer {
 	debugApiReader := NewDebugApiContractReader(client, shardBlockNumber, rwTx, shardId, logger)
-	return NewWithReader(debugApiReader, rwTx, shardId, client, logger)
+	return NewWithReader(debugApiReader, rwTx, shardId, shardBlockNumber, client, logger)
 }
 
 // NewWithReader creates a new MPTTracer with a provided contract reader
@@ -179,7 +179,7 @@ func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, erro
 	if mt.blockNumber == 0 {
 		return nil, errors.New("genesis block cache not supported; block number must be > 0")
 	}
-	blockNumToFetch := transport.BlockNumber(mt.blockNumber - 1)
+	blockNumToFetch := transport.BlockNumber(mt.blockNumber)
 	for addr, accountState := range mt.accountsTraceableStates {
 		keysToProve := make(map[common.Hash]struct{}, len(accountState.initialSlots)+len(accountState.slotsUpdates))
 		for key, value := range accountState.initialSlots {
@@ -259,7 +259,7 @@ func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, erro
 		for k := range keysToProve {
 			keysArg = append(keysArg, k)
 		}
-		proof, err = mt.client.GetProof(ctx, addr, keysArg, transport.BlockNumber(mt.blockNumber))
+		proof, err = mt.client.GetProof(ctx, addr, keysArg, transport.BlockNumber(mt.blockNumber+1))
 		if err != nil {
 			return nil, err
 		}

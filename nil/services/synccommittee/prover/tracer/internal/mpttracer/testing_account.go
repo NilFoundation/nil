@@ -52,7 +52,9 @@ func CreateTestAccountAndTracer(t *testing.T) (types.Address, *MPTTracer, db.RwT
 	}
 	clientMock := &client.ClientMock{}
 
-	mptTracer := NewWithReader(contractReader, rwTx, shardId, clientMock, logging.NewLogger("mpttracer"))
+	mptTracer := NewWithReader(
+		contractReader, rwTx, shardId, types.BlockNumber(1), clientMock, logging.NewLogger("mpttracer"),
+	)
 
 	return addr, mptTracer, rwTx
 }

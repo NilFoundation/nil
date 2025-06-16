@@ -10,7 +10,7 @@ const (
 	doNotRevertLogsFeatureEnabled = false
 )
 
-type RevertableExecutionState interface {
+type IRevertableExecutionState interface {
 	DeleteAccount(addr types.Address)
 	GetAccount(addr types.Address) (JournaledAccountState, error)
 	SetRefund(value uint64)
@@ -23,7 +23,7 @@ type RevertableExecutionState interface {
 // reverted on demand.
 type JournalEntry interface {
 	// revert undoes the changes introduced by this journal entry.
-	revert(RevertableExecutionState)
+	revert(IRevertableExecutionState)
 }
 
 // journal contains the list of state modifications applied since the last state
@@ -44,7 +44,7 @@ func (j *journal) append(entry JournalEntry) {
 }
 
 // revert undoes a batch of journalled modifications
-func (j *journal) revert(statedb RevertableExecutionState, snapshot int) {
+func (j *journal) revert(statedb IRevertableExecutionState, snapshot int) {
 	for i := len(j.entries) - 1; i >= snapshot; i-- {
 		// Undo the changes made by the operation
 		j.entries[i].revert(statedb)
@@ -128,64 +128,64 @@ type (
 	}
 )
 
-func (ch createAccountChange) revert(s RevertableExecutionState) {
+func (ch createAccountChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertCreateAccount(*ch.account)
 }
 
-func (ch accountBecameContractChange) revert(s RevertableExecutionState) {
+func (ch accountBecameContractChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertAccountBecameContractChange(*ch.account)
 }
 
-func (ch selfDestructChange) revert(s RevertableExecutionState) {
+func (ch selfDestructChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertSelfDestructChange(*ch.account, ch.prev, ch.prevbalance)
 }
 
-func (ch balanceChange) revert(s RevertableExecutionState) {
+func (ch balanceChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertBalanceChange(*ch.account, ch.prev)
 }
 
-func (ch tokenChange) revert(s RevertableExecutionState) {
+func (ch tokenChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertTokenChange(*ch.account, ch.id, ch.prev)
 }
 
-func (ch seqnoChange) revert(s RevertableExecutionState) {
+func (ch seqnoChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertSeqnoChange(*ch.account, ch.prev)
 }
 
-func (ch extSeqnoChange) revert(s RevertableExecutionState) {
+func (ch extSeqnoChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertExtSeqnoChange(*ch.account, ch.prev)
 }
 
-func (ch codeChange) revert(s RevertableExecutionState) {
+func (ch codeChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertCodeChange(*ch.account, common.BytesToHash(ch.prevhash), ch.prevcode)
 }
 
-func (ch storageChange) revert(s RevertableExecutionState) {
+func (ch storageChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertStorageChange(*ch.account, ch.key, ch.prevvalue)
 }
 
-func (ch refundChange) revert(s RevertableExecutionState) {
+func (ch refundChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertRefundChange(ch.prev)
 }
 
-func (ch addLogChange) revert(s RevertableExecutionState) {
+func (ch addLogChange) revert(s IRevertableExecutionState) {
 	reverter{s}.deleteLog(ch.txhash)
 }
 
-func (ch transientStorageChange) revert(s RevertableExecutionState) {
+func (ch transientStorageChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertTransientStorageChange(*ch.account, ch.key, ch.prevalue)
 }
 
-func (ch outTransactionsChange) revert(s RevertableExecutionState) {
+func (ch outTransactionsChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertOutTransactionsChange(ch.index, ch.txnHash)
 }
 
-func (ch asyncContextChange) revert(s RevertableExecutionState) {
+func (ch asyncContextChange) revert(s IRevertableExecutionState) {
 	reverter{s}.revertAsyncContextChange(*ch.account, ch.requestId)
 }
 
 type reverter struct {
-	es RevertableExecutionState
+	es IRevertableExecutionState
 }
 
 func (w reverter) revertCreateAccount(addr types.Address) {

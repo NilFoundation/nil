@@ -73,7 +73,6 @@ func (dacr *DebugApiContractReader) GetAccount(
 	ctx context.Context,
 	addr types.Address,
 ) (*types.SmartContract, mpt.Proof, error) {
-	dacr.logger.Debug().Msg("Calling GetDebugContract method")
 	debugRPCContract, err := dacr.client.GetDebugContract(ctx, addr, transport.BlockNumber(dacr.shardBlockNumber))
 	if err != nil || debugRPCContract == nil {
 		return nil, mpt.Proof{}, err

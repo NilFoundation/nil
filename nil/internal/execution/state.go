@@ -63,7 +63,7 @@ type RollbackParams struct {
 	SearchDepth uint32
 }
 
-type ContractMPTRepository interface {
+type IContractMPTRepository interface {
 	SetRootHash(root common.Hash) error
 	GetAccountState(addr types.Address, createIfNotExists bool) (AccountState, error)
 	UpdateContracts(contracts map[types.Address]AccountState) error
@@ -75,7 +75,7 @@ type TxCounts map[types.ShardId]types.TransactionIndex
 
 type ExecutionState struct {
 	tx               db.RwTx
-	ContractTree     ContractMPTRepository
+	ContractTree     IContractMPTRepository
 	ReceiptTree      *ReceiptTrie
 	PrevBlock        common.Hash
 	MainShardHash    common.Hash
@@ -148,8 +148,8 @@ type ExecutionState struct {
 }
 
 var (
-	_ vm.StateDB               = new(ExecutionState)
-	_ RevertableExecutionState = new(ExecutionState)
+	_ vm.StateDB                = new(ExecutionState)
+	_ IRevertableExecutionState = new(ExecutionState)
 )
 
 type ExecutionResult struct {
@@ -292,7 +292,7 @@ type StateParams struct {
 	FeeCalculator         FeeCalculator
 	Mode                  string
 	GasLimit              types.Gas
-	ContractMptRepository ContractMPTRepository
+	ContractMptRepository IContractMPTRepository
 }
 
 func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*ExecutionState, error) {
@@ -375,7 +375,7 @@ type DbContractAccessor struct {
 	logger       logging.Logger
 }
 
-var _ ContractMPTRepository = (*DbContractAccessor)(nil)
+var _ IContractMPTRepository = (*DbContractAccessor)(nil)
 
 func (ca *DbContractAccessor) GetAccountState(addr types.Address, createIfNotExists bool) (AccountState, error) {
 	smartContract, err := ca.Fetch(addr.Hash())

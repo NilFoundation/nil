@@ -40,7 +40,7 @@ type dummyMptTracer struct {
 	rwTx         db.RwTx
 }
 
-var _ execution.ContractMPTRepository = (*dummyMptTracer)(nil)
+var _ execution.IContractMPTRepository = (*dummyMptTracer)(nil)
 
 func newDummyMptTracer(
 	accountCodes map[types.Address]types.Code,
