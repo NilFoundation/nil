@@ -20,7 +20,6 @@ const Search = () => {
   return (
     <div
       className={css({
-        marginLeft: "32px",
         width: "100%",
         position: "relative",
         zIndex: 2,
