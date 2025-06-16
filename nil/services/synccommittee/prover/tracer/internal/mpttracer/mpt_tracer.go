@@ -148,6 +148,7 @@ func NewWithReader(
 	contractReader ContractReader,
 	rwTx db.RwTx,
 	shardId types.ShardId,
+	blockNumber types.BlockNumber,
 	client client.Client,
 	logger logging.Logger,
 ) *MPTTracer {
@@ -161,6 +162,7 @@ func NewWithReader(
 		updatedAccounts:         make(map[types.Address]struct{}),
 		accountsTraceableStates: make(map[types.Address]*TraceableAccount),
 		client:                  client,
+		blockNumber:             blockNumber,
 		logger:                  logger,
 	}
 }
@@ -174,6 +176,9 @@ func (mt *MPTTracer) GetZethCache(ctx context.Context) (*FileProviderCache, erro
 	codeCache := make([]CodeCache, 0, len(mt.accountsTraceableStates))
 	storageCache := make([]StorageCache, 0, len(mt.accountsTraceableStates))
 
+	if mt.blockNumber == 0 {
+		return nil, errors.New("genesis block cache not supported; block number must be > 0")
+	}
 	blockNumToFetch := transport.BlockNumber(mt.blockNumber - 1)
 	for addr, accountState := range mt.accountsTraceableStates {
 		keysToProve := make(map[common.Hash]struct{}, len(accountState.initialSlots)+len(accountState.slotsUpdates))
