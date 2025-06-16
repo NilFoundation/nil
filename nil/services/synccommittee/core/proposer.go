@@ -126,12 +126,12 @@ func (p *proposer) updateState(
 		return fmt.Errorf("failed to get batch with id=%s: %w", proposalData.BatchId, err)
 	}
 
-	blockRef, ok := batch.LatestRefs()[types.ShardId(p.config.BridgeStateKeeperShardId)]
+	bridgeContractShardBlock, ok := batch.LatestBlocks()[types.ShardId(p.config.BridgeStateKeeperShardId)]
 	if !ok {
-		return fmt.Errorf("failed to get latest block ref for shard %d", p.config.BridgeStateKeeperShardId)
+		return fmt.Errorf("failed to get latest block for shard %d", p.config.BridgeStateKeeperShardId)
 	}
 
-	bridgeData, err := p.bridgeStateGetter.GetBridgeState(ctx, blockRef.Hash)
+	bridgeData, err := p.bridgeStateGetter.GetBridgeState(ctx, bridgeContractShardBlock.MainShardHash)
 	if err != nil {
 		return fmt.Errorf("failed to get bridge state: %w", err)
 	}
@@ -139,8 +139,8 @@ func (p *proposer) updateState(
 	updateStateData := scTypes.NewUpdateStateData(
 		proposalData,
 		[]byte{0x0A, 0x0B, 0x0C}, // TODO place valid proof
-		common.BigToHash(bridgeData.L2toL1Root),
-		common.BigToHash(bridgeData.L1MessageHash),
+		bridgeData.L2toL1Root,
+		bridgeData.L1MessageHash,
 		bridgeData.DepositNonce,
 	)
 
