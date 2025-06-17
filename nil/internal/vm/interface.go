@@ -99,6 +99,9 @@ type StateDB interface {
 
 	Rollback(counter, patchLevel uint32, mainBlock uint64) error
 	Logger() *logging.Logger
+
+	EnableVmTracing()
+	DisableVmTracing()
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM

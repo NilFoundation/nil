@@ -22,10 +22,12 @@ contract MasterChild {
     }
 }
 
-contract CloneFactory {
+contract CloneFactory is NilBase {
     address public masterChildAddress;
 
-    constructor(address _masterChildAddress) {
+    event counterCloneCreated(address indexed addr);
+
+    constructor(address _masterChildAddress) payable {
         masterChildAddress = _masterChildAddress;
     }
 
@@ -49,14 +51,18 @@ contract CloneFactory {
         finalBytecode = code;
     }
 
-    function createCounterClone(uint256 salt) public returns (address) {
+    function createCounterClone(uint256 salt) public async(2_000_000) returns (address) {
+        //console.log("createCounterClone 1");
         bytes memory cloneBytecode = createCloneBytecode(masterChildAddress);
+        //console.log("createCounterClone 2: %_", cloneBytecode.length);
         uint shardId = Nil.getShardId(masterChildAddress);
+        //console.log("createCounterClone 3: %_", shardId);
         uint shardIdFactory = Nil.getShardId(address(this));
         require(
             shardId == shardIdFactory,
             "factory and child are not on the same shard!"
         );
+        //console.log("createCounterClone 4");
         address result = Nil.asyncDeploy(
             shardId,
             address(this),
@@ -67,17 +73,26 @@ contract CloneFactory {
             cloneBytecode,
             salt
         );
+        emit counterCloneCreated(result);
+        //console.log("createCounterClone 5");
 
         return result;
     }
 }
 
-contract FactoryManager {
+contract FactoryManager is NilBase {
     mapping(uint => address) public factories;
     mapping(uint => address) public masterChildren;
     bytes private code = type(CloneFactory).creationCode;
 
-    function deployNewMasterChild(uint shardId, uint256 salt) public {
+    event factoryDeployed(address indexed addr);
+    event masterChildDeployed(address indexed addr);
+
+    constructor() payable {}
+
+    function deployNewMasterChild(uint shardId, uint256 salt) public async(2_000_000) {
+        //console.log("deployNewMasterChild 1");
+
         address result = Nil.asyncDeploy(
             shardId,
             address(this),
@@ -88,11 +103,12 @@ contract FactoryManager {
             type(MasterChild).creationCode,
             salt
         );
+        emit masterChildDeployed(result);
 
         masterChildren[shardId] = result;
     }
 
-    function deployNewFactory(uint shardId, uint256 salt) public {
+    function deployNewFactory(uint shardId, uint256 salt) public async(2_000_000) {
         require(factories[shardId] == address(0), "factory already exists!");
         bytes memory data = bytes.concat(
             type(CloneFactory).creationCode,
@@ -104,10 +120,11 @@ contract FactoryManager {
             address(this),
             0,
             Nil.FORWARD_REMAINING,
-            0,
+            5000000 * tx.gasprice,
             data,
             salt
         );
+        emit factoryDeployed(result);
 
         factories[shardId] = result;
     }

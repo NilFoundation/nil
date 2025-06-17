@@ -11,7 +11,7 @@ contract Retailer {
 
     function orderProduct(address dst, string calldata name) public {
         dst.asyncCall(
-            msg.sender,
+            Nil.msgSender(),
             0,
             abi.encodeWithSignature("createProduct(string)", name)
         );
@@ -52,7 +52,7 @@ contract Manufacturer is NilBase {
     function createProduct(
         string calldata productName
     ) public onlyInternal returns (bool) {
-        if (msg.sender == retailerContractAddress) {
+        if (Nil.msgSender() == retailerContractAddress) {
             products[nextProductId] = Product(nextProductId, productName);
             nextProductId++;
             return true;

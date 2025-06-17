@@ -5,14 +5,14 @@ pragma solidity ^0.8.0;
 
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
-contract Retailer {
+contract Retailer is NilBase {
     using Nil for address;
 
     receive() external payable {}
 
-    function orderProduct(address dst, string calldata name) public {
+    function orderProduct(address dst, string calldata name) public async(2_000_000) {
         dst.asyncCall(
-            msg.sender,
+            Nil.msgSender(),
             0,
             abi.encodeWithSignature("createProduct(string)", name)
         );

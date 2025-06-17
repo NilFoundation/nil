@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
+	io "io"
 	"math"
 	"math/big"
 	"sort"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -311,6 +314,11 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 	}
 	logger := l.Logger()
 
+	// FIXME: remove
+	if params.Mode != ModeProposalGen {
+		logger = logging.NewLoggerWithWriter("", io.Discard)
+	}
+
 	feeCalculator := params.FeeCalculator
 	if feeCalculator == nil {
 		feeCalculator = &MainFeeCalculator{}
@@ -330,6 +338,14 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 	}
 	if params.GasLimit == 0 {
 		params.GasLimit = types.DefaultMaxGasInBlock
+	}
+
+	//logger.Debug().Msgf("New ExecState: block=%s", prevBlockHash.Hex())
+	if params.Block != nil {
+		logger = logger.With().Int("block_id", int(params.Block.Id)).Logger()
+		//logger.Debug().Msgf("     id=%d", params.Block.Id)
+	} else {
+		logger = logger.With().Int("block_id", -1).Logger()
 	}
 
 	res := &ExecutionState{
@@ -1009,11 +1025,14 @@ func (es *ExecutionState) AcceptInternalTransaction(tx *types.Transaction) error
 	return nil
 }
 
+var txnMap = make(map[common.Hash]any)
+
 func (es *ExecutionState) HandleTransaction(
 	ctx context.Context, txn *types.Transaction, payer Payer,
 ) (retError *ExecutionResult) {
 	check.PanicIff(txn.IsRequest(), "request transactions are deprecated")
 	check.PanicIff(txn.IsBounce(), "bounce transactions are deprecated")
+	var res *ExecutionResult
 
 	defer func() {
 		var ev *logging.Event
@@ -1037,7 +1056,9 @@ func (es *ExecutionState) HandleTransaction(
 				failedPc = retError.DebugInfo.Pc
 			}
 			ev.Int("failedPc", int(failedPc))
-		}
+		} /* else if res != nil && len(res.ReturnData) > 0 {
+			ev.Str("returnData", types.Code(res.ReturnData).Hex())
+		}*/
 		if retError.Failed() {
 			ev.Msg("Transaction completed with error")
 		} else {
@@ -1058,6 +1079,14 @@ func (es *ExecutionState) HandleTransaction(
 			}
 		}
 	}()
+
+	//hash := txn.Hash()
+	//if _, ok := txnMap[hash]; ok {
+	//	fmt.Println(hash.Hex())
+	//	panic("duplicate transaction hash")
+	//} else {
+	//	txnMap[hash] = nil
+	//}
 
 	if txn.IsExternal() {
 		addr := txn.To
@@ -1095,7 +1124,6 @@ func (es *ExecutionState) HandleTransaction(
 		return NewExecutionResult().SetError(types.KeepOrWrapError(types.ErrorValidation, err))
 	}
 
-	var res *ExecutionResult
 	switch {
 	case txn.IsRefund():
 		return NewExecutionResult().SetFatal(es.handleRefundTransaction(ctx, txn))
@@ -1216,6 +1244,21 @@ func (es *ExecutionState) handleExecutionTransaction(
 		return NewExecutionResult().SetFatal(err)
 	}
 	defer es.resetVm()
+
+	//if binary.BigEndian.Uint32(transaction.Data[:4]) == 0xcbd91649 {
+	//	es.EnableVmTracing()
+	//}
+
+	decoded, relaeyrDecoded, err := contracts.DecodeCallData(nil, transaction.Data)
+	if err == nil {
+		es.logger.Debug().Msgf("Decoded: %s", decoded)
+		if relaeyrDecoded != "" {
+			es.logger.Debug().Msgf("Relayer decoded: %s", relaeyrDecoded)
+		}
+		if strings.Contains(decoded, "receiveTxDeploy") {
+			//es.EnableVmTracing()
+		}
+	}
 
 	es.preTxHookCall(transaction)
 	defer func() { es.postTxHookCall(transaction, res) }()
@@ -1815,7 +1858,9 @@ func (es *ExecutionState) EnableVmTracing() {
 		},
 	}
 }
-
+func (es *ExecutionState) DisableVmTracing() {
+	es.evm.Config.Tracer = nil
+}
 func VerboseTracingHooks(logger logging.Logger) *tracing.Hooks {
 	return &tracing.Hooks{
 		OnOpcode: func(

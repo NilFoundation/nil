@@ -99,30 +99,45 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
 
     // this low-level function should be called from a contract which performs important safety checks
     function mint(address to) public lock returns (uint liquidity) {
+        //console.log("START MINT");
         (uint256 _reserve0, uint256 _reserve1) = getReserves(); // gas savings
         uint balance0 = Nil.tokenBalance(address(this), tokenId0);
         uint balance1 = Nil.tokenBalance(address(this), tokenId1);
+        //console.log("MINT 1");
 
         uint amount0 = balance0.sub(_reserve0);
         uint amount1 = balance1.sub(_reserve1);
         uint _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+        //console.log("MINT 2");
 
         if (_totalSupply == 0) {
             liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
+            //console.log("MINT 201");
             totalSupply = totalSupply + liquidity; // permanently lock the first MINIMUM_LIQUIDITY
         } else {
+            require(_reserve0 != 0 && _reserve1 != 0, "UniswapV2: _reserve0 or _reserve1 is 0");
+            //console.log("MINT 210: %_ %_", _reserve0, _reserve1);
+            //console.log("MINT 210a: %_ %_ %_", amount0, amount1, _totalSupply);
             liquidity = Math.min(
                 amount0.mul(_totalSupply) / _reserve0,
                 amount1.mul(_totalSupply) / _reserve1
             );
         }
+        //console.log("MINT 3");
+
         require(liquidity > 0, "UniswapV2: INSUFFICIENT_LIQUIDITY_MINTED");
 
         mintTokenInternal(liquidity);
         sendTokenInternal(to, getTokenId(), liquidity);
+
+        //console.log("MINT 4");
+
         _update(balance0, balance1, _reserve0, _reserve1);
         // if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are p-to-date
         emit Mint(msg.sender, amount0, amount1);
+
+        //console.log("MINT FINISH");
+
     }
 
     // this low-level function should be called from a contract which performs important safety checks

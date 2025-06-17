@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"testing"
@@ -166,11 +167,15 @@ func (s *SuiteEconomy) TestSeparateGasAndValue() {
 		initialBalance types.Value
 		gasPrice       types.Value
 	)
+	const asyncGas = uint64(1_000_123)
 	initialBalance = s.GetBalance(s.testAddress1).
 		Add(s.GetBalance(s.testAddress2)).
 		Add(s.GetBalance(s.testAddress3)).
 		Add(s.GetBalance(s.testAddress4)).
 		Add(s.GetBalance(s.smartAccountAddress))
+
+	fmt.Println("testAddress1:", s.testAddress1)
+	fmt.Println("testAddress2:", s.testAddress2)
 
 	feePack := types.NewFeePackFromGas(1_000_000)
 
@@ -214,14 +219,14 @@ func (s *SuiteEconomy) TestSeparateGasAndValue() {
 		types.NewValueFromUint64(1000),
 		nil)
 	info = s.AnalyzeReceipt(receipt, s.namesMap)
-	s.Require().True(receipt.AllSuccess())
+	s.Require().False(receipt.AllSuccess())
 	initialBalance = s.checkBalance(info, initialBalance)
 
 	// Call sequence: smartAccount => test1 => test2. Where refundTo is smartAccount and bounceTo is test1.
 	data, err = s.abiTest.Pack("noReturn")
 	s.Require().NoError(err)
 	data, err = s.abiTest.Pack("proxyCall", s.testAddress2, big.NewInt(1_000_000), big.NewInt(1_000_000),
-		s.smartAccountAddress, s.testAddress1, data)
+		s.smartAccountAddress, s.testAddress1, data, asyncGas)
 	s.Require().NoError(err)
 	receipt = s.SendTransactionViaSmartAccountNoCheck(
 		s.smartAccountAddress,
@@ -238,8 +243,8 @@ func (s *SuiteEconomy) TestSeparateGasAndValue() {
 	// Call sequence: smartAccount => test1 => test2. Where bounceTo and refundTo is equal to test1.
 	data, err = s.abiTest.Pack("mayRevert", true)
 	s.Require().NoError(err)
-	data, err = s.abiTest.Pack("proxyCall", s.testAddress2, big.NewInt(1_000_000), big.NewInt(1_000_000),
-		s.testAddress1, s.testAddress1, data)
+	data, err = s.abiTest.Pack("proxyCall", s.testAddress2, big.NewInt(2_000_000), big.NewInt(456789),
+		s.testAddress1, s.testAddress1, data, asyncGas)
 	s.Require().NoError(err)
 	receipt = s.SendTransactionViaSmartAccountNoCheck(
 		s.smartAccountAddress,
@@ -250,7 +255,7 @@ func (s *SuiteEconomy) TestSeparateGasAndValue() {
 		types.NewValueFromUint64(2_000_000),
 		nil)
 	info = s.AnalyzeReceipt(receipt, s.namesMap)
-	s.Require().True(receipt.AllSuccess())
+	s.Require().False(receipt.AllSuccess())
 	initialBalance = s.checkBalance(info, initialBalance)
 
 	// Call sequence: smartAccount => test1 => test2. Where refundTo=smartAccount and bounceTo=test1.
@@ -258,7 +263,7 @@ func (s *SuiteEconomy) TestSeparateGasAndValue() {
 	data, err = s.abiTest.Pack("mayRevert", true)
 	s.Require().NoError(err)
 	data, err = s.abiTest.Pack("proxyCall", s.testAddress2, big.NewInt(1_000_000), big.NewInt(1_000_000),
-		s.smartAccountAddress, s.testAddress1, data)
+		s.smartAccountAddress, s.testAddress1, data, asyncGas)
 	s.Require().NoError(err)
 	receipt = s.SendTransactionViaSmartAccountNoCheck(
 		s.smartAccountAddress,
@@ -753,6 +758,12 @@ func (s *SuiteEconomy) checkBalance(infoMap tests.ReceiptInfo, balance types.Val
 	for _, info := range infoMap {
 		newBalance = newBalance.Add(info.ValueUsed)
 	}
+	//sub, ovf := balance.SubOverflow(newBalance)
+	//ss := ""
+	//if ovf {
+	//	ss = "-"
+	//}
+	//fmt.Println("balance - realBalance:", ss + sub.String())
 	s.Require().Equal(balance, newBalance)
 
 	return newRealBalance

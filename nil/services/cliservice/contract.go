@@ -132,7 +132,7 @@ func (s *Service) DeployContractViaSmartAccount(
 	value types.Value,
 ) (common.Hash, types.Address, error) {
 	txHash, contractAddr, err := s.client.DeployContract(s.ctx, shardId, smartAccount, deployPayload, value,
-		types.NewFeePackFromGas(10_000_000), s.privateKey)
+		types.NewFeePackFromGas(15_000_000), s.privateKey)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to send new transaction")
 		return common.EmptyHash, types.EmptyAddress, err

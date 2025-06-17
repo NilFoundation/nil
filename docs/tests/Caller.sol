@@ -5,7 +5,7 @@ pragma solidity ^0.8.9;
 
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
-contract Caller {
+contract Caller is NilBase {
     using Nil for address;
 
     receive() external payable {}
@@ -13,7 +13,7 @@ contract Caller {
     function call(address dst) public async(2_000_000) {
         Nil.asyncCall(
             dst,
-            msg.sender,
+            Nil.msgSender(),
             0,
             abi.encodeWithSignature("increment()")
         );

@@ -18,6 +18,7 @@ package vm
 
 import (
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -648,6 +649,8 @@ func opCreate2(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 		stackvalue.SetBytes(addr.Bytes())
 	}
 	scope.Stack.push(&stackvalue)
+
+	fmt.Printf("COOOOOOOOOOOOOOOODE: addr: %s, size: %d, salt: %s, code: %s\n", addr.Hex(), len(input), salt.String(), types.Code(input).Hex())
 
 	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 

@@ -6,7 +6,7 @@ import "./interfaces/IUniswapV2Factory.sol";
 import "./UniswapV2Pair.sol";
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
-contract UniswapV2Factory is IUniswapV2Factory {
+contract UniswapV2Factory is IUniswapV2Factory, NilBase {
     address public feeTo;
     address public feeToSetter;
 
@@ -20,7 +20,7 @@ contract UniswapV2Factory is IUniswapV2Factory {
         uint
     );
 
-    constructor(address _feeToSetter) {
+    constructor(address _feeToSetter) payable {
         feeToSetter = _feeToSetter;
     }
 
@@ -33,7 +33,8 @@ contract UniswapV2Factory is IUniswapV2Factory {
         address tokenB,
         uint256 salt,
         uint256 shard
-    ) public returns (address pair) {
+    ) public async(30_000_000) returns (address pair) {
+        //console.log("createPair: tokenA=%_, tokenB=%_", tokenA, tokenB);
         require(tokenA != tokenB, "UniswapV2: IDENTICAL(_ADDRESSES");
         (address token0, address token1) = tokenA < tokenB
             ? (tokenA, tokenB)
@@ -56,11 +57,14 @@ contract UniswapV2Factory is IUniswapV2Factory {
         address tokenA,
         address tokenB
     ) public view returns (address) {
+        //console.log("getTokenPair: tokenA=%_, tokenB=%_", tokenA, tokenB);
         require(tokenA != tokenB, "UniswapV2: IDENTICAL(_ADDRESSES");
+        //console.log("getTokenPair: 1");
         (address token0, address token1) = tokenA < tokenB
             ? (tokenA, tokenB)
             : (tokenB, tokenA);
         require(token0 != address(0), "UniswapV2: ZERO_ADDRESS");
+        //console.log("getTokenPair: res=%_", getPair[token0][token1]);
         return getPair[token0][token1];
     }
 
@@ -77,15 +81,16 @@ contract UniswapV2Factory is IUniswapV2Factory {
     function deployPair(
         uint256 shard,
         uint256 salt
-    ) private returns (address deployedAddress) {
+    ) private async(20_000_000) returns (address deployedAddress) {
         bytes memory code = abi.encodePacked(
             type(UniswapV2Pair).creationCode,
             abi.encode(msg.sender)
         );
+        //console.log("deployPair: shard=%_", shard);
         address contractAddress = Nil.asyncDeploy(
             shard,
             msg.sender,
-            0,
+            40_000_000 * tx.gasprice,
             code,
             salt
         );

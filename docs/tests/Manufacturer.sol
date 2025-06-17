@@ -32,7 +32,7 @@ contract Manufacturer is NilBase {
     function createProduct(
         string calldata productName
     ) public onlyInternal returns (bool) {
-        if (msg.sender == retailerContractAddress) {
+        if (Relayer(Nil.getRelayerAddress()).txSender() == retailerContractAddress) {
             products[nextProductId] = Product(nextProductId, productName);
             nextProductId++;
             return true;

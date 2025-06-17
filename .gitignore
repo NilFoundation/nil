@@ -17,7 +17,7 @@ exporter.yaml
 *.abi
 
 # Ignore console.sol because it is generated and intended for internal debug only
-/nil/contracts/solidity/system/console.sol
+/nil/contracts/solidity/lib/console.sol
 
 *.hash.json
 

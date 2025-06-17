@@ -203,7 +203,8 @@ func ValidateExternalTransaction(es *ExecutionState, transaction *types.Transact
 	if account, err := es.GetAccount(transaction.To); err != nil {
 		return NewExecutionResult().SetError(types.KeepOrWrapError(types.ErrorNoAccount, err))
 	} else if account == nil {
-		return NewExecutionResult().SetError(types.NewError(types.ErrorDestinationContractDoesNotExist))
+		return NewExecutionResult().SetError(types.NewVerboseError(types.ErrorDestinationContractDoesNotExist,
+			fmt.Sprintf("contract %s does not exist", transaction.To)))
 	}
 
 	switch {
