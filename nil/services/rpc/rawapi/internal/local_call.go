@@ -266,6 +266,10 @@ func (api *localShardApiRo) Call(
 		payer = execution.NewAccountPayer(toAs, txn)
 	}
 
+	//bt, _ := execution.NewBlocksTracer()
+	//fmt.Println("READONLY CALL:")
+	//bt.PrintTransaction(txn, common.EmptyHash)
+
 	txn.TxId = es.InTxCounts[txn.From.ShardId()]
 	txnHash := es.AddInTransaction(txn)
 	res := es.HandleTransaction(ctx, txn, payer)

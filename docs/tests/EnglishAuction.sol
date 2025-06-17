@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@nilfoundation/smart-contracts/contracts/NilOwnable.sol";
 
 /**
  * @title EnglishAuction
@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @notice This contract implements an auction where contracts can place bids
  * @notice and the contract owner decides when to start and end the auction.
  */
-contract EnglishAuction is Ownable {
+contract EnglishAuction is NilOwnable, NilBase {
     event Start();
     event Bid(address indexed sender, uint256 amount);
     event Withdraw(address indexed bidder, uint256 amount);
@@ -38,10 +38,10 @@ contract EnglishAuction is Ownable {
      * and accepts the initial bid.
      * @param _nft The address of the NFT contract.
      */
-    constructor(address _nft) payable Ownable(msg.sender) {
+    constructor(address _nft, uint _highestBid) payable NilOwnable(Nil.msgSender()) {
         nft = _nft;
         isOngoing = false;
-        highestBid = msg.value;
+        highestBid = _highestBid;
     }
 
     //endContractProperties
@@ -50,7 +50,7 @@ contract EnglishAuction is Ownable {
      * @notice This function starts the auction and sends a transaction
      * for minting the NFT.
      */
-    function start() public onlyOwner {
+    function start() public onlyOwner async(2_000_000) {
         require(!isOngoing, "the auction has already started");
 
         Nil.asyncCall(
@@ -83,30 +83,30 @@ contract EnglishAuction is Ownable {
             bids[highestBidder] += highestBid;
         }
 
-        highestBidder = msg.sender;
+        highestBidder = Nil.msgSender();
         highestBid = msg.value;
 
-        emit Bid(msg.sender, msg.value);
+        emit Bid(Nil.msgSender(), msg.value);
     }
 
     /**
      * @notice This function exists so a bidder can withdraw their funds
      * if they change their mind.
      */
-    function withdraw() public {
-        uint256 bal = bids[msg.sender];
-        bids[msg.sender] = 0;
+    function withdraw() public async(2_000_000) {
+        uint256 bal = bids[Nil.msgSender()];
+        bids[Nil.msgSender()] = 0;
 
-        Nil.asyncCall(msg.sender, address(this), bal, "");
+        Nil.asyncCall(Nil.msgSender(), address(this), bal, "");
 
-        emit Withdraw(msg.sender, bal);
+        emit Withdraw(Nil.msgSender(), bal);
     }
 
     /**
      * @notice This function ends the auction and requests the NFT contract
      * to provide the NFT to the winner.
      */
-    function end() public onlyOwner {
+    function end() public payable onlyOwner async(2_000_000) {
         require(isOngoing, "the auction has not started");
 
         isOngoing = false;
@@ -117,7 +117,7 @@ contract EnglishAuction is Ownable {
             address(this),
             0,
             Nil.FORWARD_REMAINING,
-            0,
+            msg.value,
             abi.encodeWithSignature("sendNFT(address)", highestBidder)
         );
 

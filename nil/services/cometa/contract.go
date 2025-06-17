@@ -171,7 +171,8 @@ func (c *Contract) DecodeCallData(calldata []byte) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("method not found in ABI: %s", methodName)
 	}
-	return contracts.DecodeCallData(&method, calldata)
+	res, _, err := contracts.DecodeCallData(&method, calldata)
+	return res, err
 }
 
 func (c *Contract) DecodeLog(log *jsonrpc.RPCLog) (string, error) {

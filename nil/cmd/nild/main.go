@@ -206,6 +206,8 @@ func parseArgs(logger logging.Logger) *nildconfig.Config {
 	cmdflags.AddNetwork(runCmd.Flags(), cfg.Network)
 	cmdflags.AddTelemetry(runCmd.Flags(), cfg.Telemetry)
 
+	cfg.DisableConsensus = true
+
 	replayCmd := &cobra.Command{
 		Use:   "replay-block",
 		Short: "Start server in single-shard mode to replay particular block",

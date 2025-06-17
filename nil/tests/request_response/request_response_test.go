@@ -255,8 +255,9 @@ func (s *SuiteRequestResponse) TestRequestResponse() {
 		receipt := s.SendExternalTransactionNoCheck(data, s.testAddress0)
 		s.Require().True(receipt.AllSuccess())
 		s.Require().Len(receipt.OutReceipts, 1)
-		requestReceipt := receipt.OutReceipts[0]
-		s.Require().Len(requestReceipt.OutReceipts, 1)
+		// TODO: uncomment once native refund messages are removed, now there are two receipts: response and refund
+		// requestReceipt := receipt.OutReceipts[0]
+		// s.Require().Len(requestReceipt.OutReceipts, 1)
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
 		initialBalance = s.CheckBalance(info, initialBalance, s.accounts)

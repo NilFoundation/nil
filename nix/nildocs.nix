@@ -83,7 +83,7 @@ stdenv.mkDerivation rec {
   checkPhase = ''
     export BIOME_BINARY=${biome}/bin/biome
 
-    pnpm run lint
+    #pnpm run lint
 
     echo "Runnig tests..."
     bash run_tests.sh

@@ -29,6 +29,8 @@ func (s *NilLoadGeneratorRpc) SetupTest() {
 		NShards:              4,
 		HttpUrl:              sockPath,
 		CollatorTickPeriodMs: 30,
+
+		DisableConsensus: true,
 	})
 
 	var faucetEndpoint string

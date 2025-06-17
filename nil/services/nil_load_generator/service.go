@@ -143,6 +143,15 @@ func (s *Service) init(ctx context.Context, cfg *Config, shardIdList []types.Sha
 	}
 
 	s.pairs = make([]*uniswap.Pair, len(s.shardIdList))
+
+	fmt.Println("AAAAAAAAAAAAAAAAAAAAA DEPLOY FACTORY")
+
+	//for i := range s.shardIdList {
+	//	var e error
+	//	s.pairs[i], e = s.deployPair(ctx, i)
+	//	return e
+	//}
+	//return nil
 	return s.parallelizeAcrossShards(func(i int) error {
 		var e error
 		s.pairs[i], e = s.deployPair(ctx, i)
@@ -414,6 +423,7 @@ func Run(ctx context.Context, cfg *Config, logger logging.Logger) error {
 			return err
 		}
 		logger.Info().Msg("Smart accounts created successfully.")
+		//return nil
 	}
 	service.isInitialized.Store(true)
 	logger.Info().Msg("Starting main loop.")

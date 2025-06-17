@@ -244,7 +244,7 @@ func (s *SuiteCliService) TestSendExternalTransaction() {
 
 	balance, err := s.cli.GetBalance(addr)
 	s.Require().NoError(err)
-	s.Equal(uint64(200000000000000), balance.Uint64())
+	s.Equal(10_000_000*types.DefaultGasPrice.Uint64(), balance.Uint64())
 
 	getCalldata, err := abi.Pack("get")
 	s.Require().NoError(err)
@@ -414,7 +414,7 @@ faucet_endpoint = {{ .FaucetUrl }}
 		s.Contains(res, "Hash: ")
 		s.Contains(res, "Address: "+addr)
 		s.Contains(res, "Balance: 0")
-		s.Contains(res, "Seqno: 2")
+		s.Contains(res, "Seqno: 1")
 		s.Contains(res, "ExtSeqno: 0")
 		s.Contains(res, "StorageRoot: ")
 	})

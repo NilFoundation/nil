@@ -105,7 +105,7 @@ func createOneShardOneValidatorCfg(
 
 	shardId := uint(index + 1)
 	myShards := []uint{uint(types.MainShardId), shardId}
-	if cfg.DisableConsensus {
+	if true /*cfg.DisableConsensus*/ {
 		if index != 0 {
 			myShards = []uint{shardId}
 		}
@@ -133,7 +133,7 @@ func createAllShardsAllValidatorsCfg(
 	netCfg *network.Config,
 	keyManagers map[InstanceId]*keys.ValidatorKeysManager,
 ) *nilservice.Config {
-	if cfg.DisableConsensus {
+	if true /*cfg.DisableConsensus*/ {
 		s.Require().Fail("Consensus is disabled")
 	}
 

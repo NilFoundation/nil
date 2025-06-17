@@ -10,10 +10,10 @@ contract CheckEffectsInteraction is NilBase, NilAwaitable {
     //startBadCheckEffectsInteraction
     mapping(address => uint) balances;
 
-    function badCheckEffectsInteraction(address dst, uint amount) public {
-        require(balances[msg.sender] >= amount);
+    function badCheckEffectsInteraction(address dst, uint amount) public async(2_000_000) {
+        require(balances[Nil.msgSender()] >= amount);
 
-        balances[msg.sender] -= amount;
+        balances[Nil.msgSender()] -= amount;
 
         Nil.asyncCall(dst, address(this), amount, "");
     }
@@ -23,9 +23,9 @@ contract CheckEffectsInteraction is NilBase, NilAwaitable {
     //startGoodCheckEffectsInteraction
     mapping(address => uint) exampleBalances;
 
-    function goodCheckEffectInteration(address dst, uint amount) public {
-        require(exampleBalances[msg.sender] >= amount);
-        exampleBalances[msg.sender] -= amount;
+    function goodCheckEffectInteration(address dst, uint amount) public async(2_000_000) {
+        require(exampleBalances[Nil.msgSender()] >= amount);
+        exampleBalances[Nil.msgSender()] -= amount;
 
         bytes memory context = abi.encode(amount);
         sendRequest(dst, amount, Nil.ASYNC_REQUEST_MIN_GAS, context, "", callback);
@@ -38,7 +38,7 @@ contract CheckEffectsInteraction is NilBase, NilAwaitable {
     ) public payable onlyResponse {
         uint amount = abi.decode(context, (uint));
         if (!success) {
-            exampleBalances[msg.sender] += amount;
+            exampleBalances[Nil.msgSender()] += amount;
         }
     }
 

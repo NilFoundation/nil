@@ -69,6 +69,11 @@ func (api *APIImplRo) EstimateFee(
 	feeCreditCap, err := types.NewValueFromDecimal("500000000000000000000000") // 0.5 MEther
 	check.PanicIfErr(err)
 
+	//funcId := binary.BigEndian.Uint32((*args.Data)[:4])
+	//if funcId == 0x0eec02cb {
+	//	fmt.Println("AAAAAAAAA")
+	//}
+
 	blockRef := rawapitypes.BlockReferenceAsBlockReferenceOrHashWithChildren(toBlockReference(mainBlockNrOrHash))
 	execute := func(balance, feeCredit types.Value) (*rpctypes.CallResWithGasPrice, error) {
 		args.Fee = types.NewFeePackFromFeeCredit(feeCredit)
@@ -97,6 +102,10 @@ func (api *APIImplRo) EstimateFee(
 		return nil, err
 	}
 
+	if res.Error != "" {
+		return nil, errors.New(res.Error)
+	}
+
 	result := res.CoinsUsed.
 		Add(args.Value).
 		Add(SstoreSentryGas.ToValue(res.BaseFee)).
@@ -114,6 +123,7 @@ func (api *APIImplRo) EstimateFee(
 		}
 	}
 	return &EstimateFeeRes{
+		Error: res.Error,
 		FeeCredit:          refineResult(result),
 		AveragePriorityFee: types.Value0,
 		MaxBasFee:          maxBaseFee,

@@ -40,7 +40,7 @@ library Nil {
     // Do not forward gas from inbound transaction, take gas from the account instead.
     uint8 public constant FORWARD_NONE = 3;
     // Minimal amount of gas reserved by asyncCall with response processing.
-    uint public constant ASYNC_REQUEST_MIN_GAS = 100_000;
+    uint public constant ASYNC_REQUEST_MIN_GAS = 200_000;
 
     // Token is a struct that represents a token with an id and amount.
     struct Token {
@@ -65,6 +65,7 @@ library Nil {
         bytes memory code,
         uint256 salt
     ) internal returns (address) {
+        //console.log("asyncDeploy SHORT");
         return Nil.asyncDeploy(shardId, address(0), bounceTo, 0, FORWARD_REMAINING, value, code, salt);
     }
 
@@ -90,10 +91,32 @@ library Nil {
         bytes memory code,
         uint256 salt
     ) internal returns (address) {
-        Token[] memory tokens;
-        address contractAddress = Nil.createAddress(shardId, code, salt);
-        __Precompile__(ASYNC_CALL).precompileAsyncCall{value: value}(true, forwardKind, contractAddress, refundTo,
-            bounceTo, feeCredit, tokens, bytes.concat(code, bytes32(salt)), 0, 0);
+        //console.log("asyncDeploy: shardId=%_, salt=%_, value=%_", shardId, salt, value);
+
+        require(shardId != 0, "asyncDeploy: call to main shard is not allowed");
+        require(shardId < SHARDS_NUM, "asyncDeploy: call to non-existing shard");
+
+        uint256 valueToDeduct = value;
+        if (forwardKind == FORWARD_NONE) {
+            // Deduct feeCredit from the caller account
+            valueToDeduct += feeCredit;
+        }
+
+        uint256 codeHash = uint256(keccak256(code));
+        address contractAddress = Nil.createAddress2(shardId, getRelayerAddress(shardId), salt, codeHash);
+
+        //console.log("asyncDeploy: value=%_, contractAddress=%_", value, contractAddress);
+
+        Relayer(getRelayerAddress()).sendTxDeploy{value: valueToDeduct}(
+            contractAddress,
+            refundTo,
+            bounceTo,
+            feeCredit,
+            forwardKind,
+            value,
+            salt,
+            code
+        );
         return contractAddress;
     }
 
@@ -137,6 +160,30 @@ library Nil {
         asyncCallWithTokens(dst, refundTo, bounceTo, feeCredit, forwardKind, value, tokens, callData, 0, 0);
     }
 
+    function asyncCallWithTokens(
+            address dst,
+            address refundTo,
+            address bounceTo,
+            uint feeCredit,
+            uint8 forwardKind,
+            uint value,
+            Token[] memory tokens,
+            bytes memory callData
+        ) internal {
+        return asyncCallWithTokens(
+            dst,
+            refundTo,
+            bounceTo,
+            feeCredit,
+            forwardKind,
+            value,
+            tokens,
+            callData,
+            0, // requestId
+            0  // responseGas
+        );
+    }
+
     /**
      * @dev Makes an asynchronous call to a contract with tokens.
      * @param dst Destination address of the call.
@@ -159,6 +206,8 @@ library Nil {
         uint256 requestId,
         uint responseGas
     ) internal {
+        //console.log("asyncCallWithTokens: dst=%_, callData=%_", dst, callData);
+
         require(Nil.getShardId(dst) != 0, "asyncCallWithTokens: call to main shard is not allowed");
         require(Nil.getShardId(dst) < SHARDS_NUM, "asyncCallWithTokens: call to non-existing shard");
 
@@ -166,13 +215,6 @@ library Nil {
         if (forwardKind == FORWARD_NONE) {
             // Deduct feeCredit from the caller account
             valueToDeduct += feeCredit;
-        } else if (forwardKind == Nil.FORWARD_REMAINING) {
-            // TODO: We should deduct feeCredit from the caller account. And properly calculate remaining gas.
-            feeCredit = gasleft() * Nil.getGasPrice(address(this));
-        } else if (forwardKind == FORWARD_VALUE) {
-            revert("FORWARD_VALUE is not supported");
-        } else if (forwardKind == FORWARD_PERCENTAGE) {
-            revert("FORWARD_PERCENTAGE is not supported");
         }
 
         Relayer(getRelayerAddress()).sendTx{value: valueToDeduct}(
@@ -188,6 +230,14 @@ library Nil {
             responseGas
         );
     }
+
+    function msgSender() internal view returns (address) {
+        if (msg.sender == Nil.getRelayerAddress()) {
+            return Relayer(Nil.getRelayerAddress()).txSender();
+        }
+        return msg.sender;
+    }
+
 
     function getRelayerAddress() internal view returns (address) {
         uint160 addr = uint160(getCurrentShardId()) << (18 * 8);
@@ -317,11 +367,7 @@ library Nil {
      * @return Address of the created contract.
      */
     function createAddress(uint shardId, bytes memory code, uint256 salt) internal pure returns(address) {
-        require(shardId < 0xffff, "Shard id is too big");
-        uint160 addr = uint160(uint256(keccak256(abi.encodePacked(code, salt))));
-        addr &= 0xffffffffffffffffffffffffffffffffffff;
-        addr |= uint160(shardId) << (18 * 8);
-        return address(addr);
+        return createAddress2(shardId, Nil.getRelayerAddress(shardId), salt, uint256(keccak256(code)));
     }
 
     /**
@@ -334,6 +380,7 @@ library Nil {
      */
     function createAddress2(uint shardId, address sender, uint256 salt, uint256 codeHash) internal pure returns(address) {
         require(shardId < 0xffff, "Shard id is too big");
+        //console.log("createAddress2: shardId=%_, sender=%_, salt=%_, codeHash=%_", shardId, sender, salt, abi.encode(codeHash));
         uint160 addr = uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), sender, salt, codeHash))));
         addr &= 0xffffffffffffffffffffffffffffffffffff;
         addr |= uint160(shardId) << (18 * 8);
@@ -463,6 +510,23 @@ contract NilBase {
         _;
     }
 
+    modifier async(uint gas) {
+        //console.log("ASYNC START: gas=%_", gas);
+        uint value_to_send = gas * tx.gasprice;
+        if (value_to_send > address(this).balance) {
+            //console.log("ASYNC FAILED: addr=%_, value_to_send=%_, balance=%_", address(this), value_to_send, address(this).balance);
+        }
+
+        require (value_to_send <= address(this).balance, "Not enough balance to send async messages");
+
+        Relayer(Nil.getRelayerAddress()).startAsync();
+        //console.log("ASYNC RUN BODY");
+        _;
+        //console.log("ASYNC FINALIZE: value_to_send=%_, balance=%_", value_to_send, address(this).balance);
+        Relayer(Nil.getRelayerAddress()).finalizeAsync{value: value_to_send}(gas);
+        //console.log("ASYNC END");
+    }
+
     // isInternalTransaction returns true if the current transaction is internal.
     function isInternalTransaction() internal view returns (bool) {
         bytes memory data;
@@ -471,10 +535,12 @@ contract NilBase {
         require(returnData.length > 0, "'IS_INTERNAL_TRANSACTION' returns invalid data");
         return abi.decode(returnData, (bool));
     }
+
+    function nilReceive() virtual payable external {}
 }
 
 abstract contract NilBounceable is NilBase {
-    function bounce(bytes memory returnData) virtual payable external;
+    function bounce(bytes memory returnData) virtual payable external {}
 }
 
 // WARNING: User should never use this contract directly.
