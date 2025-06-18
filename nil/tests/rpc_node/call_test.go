@@ -135,7 +135,7 @@ func (s *SuiteRpcNodeCall) TestCall() {
 		}
 
 		_, err = s.DefaultClient.EstimateFee(s.Context, callArgs, "latest")
-		s.NoError(err, db.ErrKeyNotFound.Error())
+		s.NoError(err)
 	})
 }
 

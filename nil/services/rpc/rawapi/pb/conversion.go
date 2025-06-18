@@ -3,6 +3,7 @@ package pb
 import (
 	"encoding/binary"
 	"errors"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -187,7 +188,7 @@ func (ar *AccountRequest) PackProtoMessage(address types.Address, blockReference
 // Error converters
 
 func (e *Error) UnpackProtoMessage() error {
-	if e.GetMessage() == db.ErrKeyNotFound.Error() {
+	if strings.HasPrefix(e.GetMessage(), db.ErrKeyNotFound.Error()) {
 		return db.ErrKeyNotFound
 	}
 	return errors.New(e.GetMessage())
