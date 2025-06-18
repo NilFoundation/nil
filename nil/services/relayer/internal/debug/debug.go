@@ -33,7 +33,7 @@ type Config struct {
 	Endpoint string
 }
 
-func DegaultConfig() *Config {
+func DefaultConfig() *Config {
 	return &Config{
 		Endpoint: "",
 	}

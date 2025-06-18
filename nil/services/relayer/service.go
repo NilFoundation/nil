@@ -8,6 +8,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/debug"
+	"github.com/NilFoundation/nil/nil/services/relayer/internal/debug/metrics"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l1"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l2"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/storage"
@@ -22,6 +23,7 @@ type RelayerConfig struct {
 	L2ContractConfig        *l2.ContractConfig
 	TelemetryConfig         *telemetry.Config
 	DebugAPIConfig          *debug.Config
+	HeartbeatConfig         *debug.HeartbeatConfig
 }
 
 func DefaultRelayerConfig() *RelayerConfig {
@@ -33,7 +35,8 @@ func DefaultRelayerConfig() *RelayerConfig {
 		TelemetryConfig: &telemetry.Config{
 			ServiceName: "relayer",
 		},
-		DebugAPIConfig: debug.DegaultConfig(),
+		DebugAPIConfig:  debug.DefaultConfig(),
+		HeartbeatConfig: debug.DefaultHeartbeatConfig(),
 	}
 }
 
@@ -44,6 +47,7 @@ type RelayerService struct {
 	L1FinalityEnsurer   *l1.FinalityEnsurer
 	L2TransactionSender *l2.TransactionSender
 	DebugListener       *debug.RPCListener
+	HeartbeatSender     *debug.HeartbeatSender
 }
 
 func New(
@@ -182,11 +186,27 @@ func New(
 		rs.Logger,
 	)
 
+	metrics, err := metrics.NewHeartbeatMetricHandler()
+	if err != nil {
+		return nil, err
+	}
+	rs.HeartbeatSender = debug.NewHeartbeatSender(
+		config.HeartbeatConfig,
+		metrics,
+		clock,
+		rs.Logger,
+	)
+
 	return rs, nil
 }
 
 func (rs *RelayerService) Run(ctx context.Context) error {
 	eg, gCtx := errgroup.WithContext(ctx)
+
+	heartbeatStarted := make(chan struct{})
+	eg.Go(func() error {
+		return rs.HeartbeatSender.Run(gCtx, heartbeatStarted)
+	})
 
 	eventListenerStarted := make(chan struct{})
 	eg.Go(func() error {
@@ -203,6 +223,7 @@ func (rs *RelayerService) Run(ctx context.Context) error {
 		return rs.L2TransactionSender.Run(ctx, transactionSenderStarted)
 	})
 
+	<-heartbeatStarted
 	<-eventListenerStarted
 	<-finalityEnsurerStarted
 	<-transactionSenderStarted
