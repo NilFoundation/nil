@@ -6,7 +6,7 @@
   "bin": {
     "clijs": "./bin/run.js"
   },
-  "bugs": "https://github.com/nil-blockchain/issues",
+  "bugs": "",
   "dependencies": {
     "@libp2p/peer-id": "^5.0.9",
     "@nilfoundation/niljs": "workspace:*",
@@ -38,7 +38,7 @@
     "/dist",
     "/oclif.manifest.json"
   ],
-  "homepage": "https://github.com/nil-blockchain/clijs",
+  "homepage": "",
   "keywords": [
     "oclif"
   ],
