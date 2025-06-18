@@ -20,10 +20,19 @@ export const shardsRouter = router({
   }),
   shardsGasPrice: publicProcedure.output(z.record(z.string())).query(async () => {
     try {
-      const gasPricemap = await fetchShardsGasPrice();
+      const [gasPricemap] = await getCacheWithSetter(
+        "shardsGasPrice",
+        () => fetchShardsGasPrice(),
+        {
+          type: CacheType.TIMER,
+          time: 60000,
+        },
+      )
+
       return gasPricemap;
     } catch (e) {
       throw new Error("Failed to fetch shards gas price", { cause: e });
     }
   }),
 });
+  

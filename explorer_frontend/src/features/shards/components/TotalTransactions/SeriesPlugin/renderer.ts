@@ -107,17 +107,17 @@ export class GroupedBarsSeriesRenderer<TData extends GroupedBarsData>
       let lastX: number;
       // biome-ignore lint/complexity/noForEach: <explanation>
       group.singleBars.forEach((bar) => {
+        const ctx = renderingScope.context;
+
         const yPos = positionsBox(zeroY, bar.y, renderingScope.verticalPixelRatio);
         const xPos = positionsLine(
           bar.x,
           renderingScope.horizontalPixelRatio,
           group.singleBarWidth,
         );
-        renderingScope.context.beginPath();
-        renderingScope.context.fillStyle = "white";
+
         const offset = lastX ? xPos.position - lastX : 0;
 
-        const ctx = renderingScope.context;
         const radius = 10;
         const x = xPos.position - offset;
         const y = yPos.position;
@@ -125,6 +125,10 @@ export class GroupedBarsSeriesRenderer<TData extends GroupedBarsData>
         const height = yPos.length;
 
         lastX = xPos.position + xPos.length;
+
+        if (width <= 1 || height <= 1) {
+          return;
+        }
 
         ctx.beginPath();
         ctx.moveTo(x, y + height);
@@ -136,11 +140,11 @@ export class GroupedBarsSeriesRenderer<TData extends GroupedBarsData>
         ctx.lineTo(x, y + height);
 
         if (typeof bar.color === "function") {
-          const pattern = bar.color(renderingScope.context);
+          const pattern = bar.color(ctx, () => {
+            this._drawImpl(renderingScope, priceToCoordinate);
+          });
 
-          if (pattern) {
-            ctx.fillStyle = pattern;
-          }
+          ctx.fillStyle = pattern ?? "transparent";
         } else {
           ctx.fillStyle = bar.color;
         }

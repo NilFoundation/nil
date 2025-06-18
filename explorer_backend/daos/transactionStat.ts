@@ -14,14 +14,14 @@ const mapToTransactionStat = (data: RawTransactionStat): TransactionStat => ({
 });
 
 const createQuery = (aggregateBlock: number, limit: number) => `
-    SELECT
-    ceil(transactions.block_id/${aggregateBlock}) as time,
-    min(transactions.block_id) as earliest_block,
-    count() as value
-    FROM transactions
-    GROUP BY time
-    ORDER BY time DESC
-    LIMIT ${limit}
+  SELECT
+  ceil(transactions.block_id/${aggregateBlock}) as time,
+  min(transactions.block_id) as earliest_block,
+  count() as value
+  FROM transactions
+  GROUP BY time
+  ORDER BY time DESC
+  LIMIT ${limit}
 `;
 
 const BLOCKS_PER_MINUTE = 29;

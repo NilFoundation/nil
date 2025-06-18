@@ -7,6 +7,7 @@ import { $shards, $shardsGasPriceMap, fetchShardsFx, fetchShrdsGasPriceFx } from
 const { tick } = interval({
   timeout: 1000 * 6,
   start: merge([explorerRoute.navigated, loadedPlaygroundPage]),
+  stop: merge([explorerRoute.closed, loadedPlaygroundPage]),
   leading: true,
 });
 
@@ -22,5 +23,3 @@ sample({
 
 $shards.on(fetchShardsFx.doneData, (_, data) => data);
 $shardsGasPriceMap.on(fetchShrdsGasPriceFx.doneData, (_, data) => data);
-
-$shardsGasPriceMap.watch(console.log);

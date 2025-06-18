@@ -31,8 +31,7 @@ persist({
 
 $timeInterval.on(changeTimeInterval, (_, timeInterval) => timeInterval);
 
-$transactionsStat.reset(explorerRoute.navigated);
-
 $transactionsStat.on(fetchTransactionsStatFx.doneData, (_, data) => data);
 
 $transactionsStat.on(changeTimeInterval, () => []);
+$transactionsStat.watch(console.log)
