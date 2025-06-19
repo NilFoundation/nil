@@ -1,0 +1,64 @@
+on:
+  workflow_call:
+    inputs:
+      upload_artifacts:
+        description: "Upload binaries as artifacts"
+        required: false
+        default: false
+        type: boolean
+      upload_packages_to_s3:
+        description: "Upload packages to s3"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  lint_and_build:
+    name: Lint and build
+    runs-on: ["self-hosted", "aws_autoscaling"]
+    environment: prod
+    steps:
+      - name: checkout local actions
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run formatters
+        run: |
+          ./scripts/sh_format_all.sh -n -c
+          ./scripts/nix_format_all.sh -n -c
+
+      - name: Generate required go files
+        run: nix develop -c make generated
+
+      - name: golangci-lint
+        run: nix develop -c make golangci-lint
+
+      - name: Run checklocks
+        run: nix develop -c make checklocks
+
+      - name: build
+        run: nix build -L
+
+      - name: Upload nil binary as artifact
+        if: inputs.upload_artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nil-linux-x64
+          path: |
+            result/bin/nil
+
+      - name: upload packages to s3
+        if: inputs.upload_packages_to_s3
+        env:
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+        run: |
+          export PATH=/home/ec2-user/.local/bin:${PATH}
+          nix bundle --bundler . .#nil -L
+          sudo yum update -y
+          sudo yum install -y awscli python3-pip
+          pip3 install -U mkrepo
+          aws s3 cp "deb-package-nil/`ls deb-package-nil`" s3://nil-deb-repo/ubuntu/pool/main/d/nil/
+          mkrepo s3://nil-deb-repo/ubuntu

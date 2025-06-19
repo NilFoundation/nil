@@ -1,0 +1,118 @@
+name: "Setup Nix (macOS)"
+description: "Install Nix, hook S3 cache; macOS only"
+
+inputs:
+  aws_region:
+    description: "AWS region"
+    required: true
+    default: eu-west-2
+  aws_role_to_assume:
+    description: AWS role to assume
+    required: true
+    default: "arn:aws:iam::070427263827:role/github-actions/gha_nix_cache"
+  s3_location_nix_cache:
+    description: S3 Nix cache location
+    required: true
+    default: "s3://nil-githhub-actions-nix-cache-qrba32i47dik503juihjai4x"
+  nix_cache_key_pub:
+    description: Nix cache public key
+    required: true
+    default: "nil-nix-cache:LX95txIkFncQOsRIXc3KjQkdjikbxDlSFISV/s9+aps="
+  nix_cache_key_pub_ssm_parameter:
+    description: Path to nix_cache_key_pub SSM parameter
+    required: true
+    default: "arn:aws:ssm:eu-west-2:070427263827:parameter/github-action-runners/nil-githhub-actions/runners/config/nix_cache_key_pub"
+  nix_cache_key_sec_ssm_parameter:
+    description: Path to nix_cache_key_sec SSM parameter
+    required: true
+    default: "arn:aws:ssm:eu-west-2:070427263827:parameter/github-action-runners/nil-githhub-actions/runners/config/nix_cache_key_sec"
+  github_access_token:
+    description: Configure nix to pull from github using the given github token.
+
+runs:
+  using: "composite"
+  steps:
+    - name: Try configure AWS credentials via OIDC
+      continue-on-error: true
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws_role_to_assume }}
+        aws-region: ${{ inputs.aws_region }}
+        role-duration-seconds: 7200 # 2h
+        retry-max-attempts: 3
+
+    - name: Decide write flag
+      id: calculate_write_flag
+      run: if [[ -n "$AWS_ACCESS_KEY_ID" ]]; then echo "has_write=1" >> "$GITHUB_OUTPUT"; fi
+      shell: bash
+
+    - name: Show AWS identity
+      if: steps.calculate_write_flag.outputs.has_write
+      run: aws sts get-caller-identity
+      shell: bash
+
+    # The source of truth for nix_cache_key_pub is SSM. But we cannot read values from it anonymously.
+    # Since this is a public key, it is acceptable to hardcode it directly in the workflow. Additionally, we can use
+    # OIDC authorized runs to verify that our hardcoded value is not outdated.
+    - name: Compare nix_cache_key_pub input with value saved in SSM
+      if: steps.calculate_write_flag.outputs.has_write
+      run: |
+        param=$(aws ssm get-parameter --name ${{ inputs.nix_cache_key_pub_ssm_parameter }} --with-decryption | jq -r '.Parameter.Value')
+        test "${{ inputs.nix_cache_key_pub }}" == "$param" || { \
+          echo "ERROR: nix_cache_key_pub input value does not match" \
+          "the reference stored in SSM ('$param'). The SSM value should be considered" \
+          "authoritative. Please update the input value in the workflow file.";
+          exit 1; \
+        }
+      shell: bash
+
+    - name: Get nix_cache_key_sec from SSM
+      if: steps.calculate_write_flag.outputs.has_write
+      id: get_nix_cache_key_sec
+      run: |
+        param=$(aws ssm get-parameter --name ${{ inputs.nix_cache_key_sec_ssm_parameter }} --with-decryption | jq -r '.Parameter.Value')
+        echo "$param" | sudo cp /dev/stdin /private/nix-signing-key
+      shell: bash
+
+    - name: Create /etc/nix/upload-to-cache.sh
+      if: steps.calculate_write_flag.outputs.has_write
+      run: |
+        sudo mkdir -p /etc/nix
+        sudo tee /etc/nix/upload-to-cache.sh <<EOL
+        #!/bin/bash
+
+        set -f # disable globbing
+        export IFS=' '
+        echo "Signing and uploading paths" \$OUT_PATHS
+
+        exec /nix/var/nix/profiles/default/bin/nix copy --to '${{ inputs.s3_location_nix_cache }}?region=${{ inputs.aws_region }}&secret-key=/private/nix-signing-key' \$OUT_PATHS
+        EOL
+        sudo chmod a+x /etc/nix/upload-to-cache.sh
+      shell: bash
+
+    - name: Expose AWS credentials to the nix-daemon
+      if: steps.calculate_write_flag.outputs.has_write
+      run: |
+        sudo launchctl setenv AWS_ACCESS_KEY_ID     "$AWS_ACCESS_KEY_ID"
+        sudo launchctl setenv AWS_SECRET_ACCESS_KEY "$AWS_SECRET_ACCESS_KEY"
+        sudo launchctl setenv AWS_SESSION_TOKEN     "$AWS_SESSION_TOKEN"
+      shell: bash
+
+    # https://github.com/NixOS/nix/issues/2242#issuecomment-2336841344
+    - name: macOS 15 eDSRecordAlreadyExists workaround
+      run: echo "NIX_FIRST_BUILD_UID=30001" >> "$GITHUB_ENV"
+      shell: bash
+
+    - name: Install Nix
+      uses: cachix/install-nix-action@v27
+      with:
+        github_access_token: ${{ inputs.github_access_token }}
+        extra_nix_config: |
+          max-jobs = 1
+          extra-substituters = ${{ inputs.s3_location_nix_cache }}?region=${{ inputs.aws_region }}
+          extra-trusted-public-keys = ${{ inputs.nix_cache_key_pub }}
+          ${{ steps.calculate_write_flag.outputs.has_write && 'post-build-hook = /etc/nix/upload-to-cache.sh' }}
+
+    - name: Show /etc/nix/nix.conf
+      run: cat /etc/nix/nix.conf
+      shell: bash

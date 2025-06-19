@@ -1,10 +1,9 @@
-name: Build artifacts
+name: Cluster CI
 
 on:
+  pull_request:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+  merge_group:
 
 permissions:
   id-token: write
@@ -15,18 +14,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  nix_check_linux:
+    name: Linux
+    uses: ./.github/workflows/nix_check_linux.yml
+
   nix_check_macos:
     name: macOS
     uses: ./.github/workflows/nix_check_macos.yml
-    if: github.event_name == 'workflow_dispatch'
-    with:
-      upload_artifacts: true
-
-  lint_and_build:
-    name: Linux
-    uses: ./.github/workflows/lint_and_build.yml
-    secrets: inherit
-    environment: prod
     with:
       upload_artifacts: ${{ github.event_name == 'workflow_dispatch' }}
-      upload_packages_to_s3: true
+
+  lint_and_build:
+    name: Lint and build
+    uses: ./.github/workflows/lint_and_build.yml
+    secrets: inherit
+    with:
+      upload_artifacts: ${{ github.event_name == 'workflow_dispatch' }}
+      upload_packages_to_s3: false
