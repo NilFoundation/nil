@@ -201,25 +201,35 @@ func New(
 }
 
 func (rs *RelayerService) Run(ctx context.Context) error {
-	eg, gCtx := errgroup.WithContext(ctx)
+	egg, gCtx := errgroup.WithContext(ctx)
 
 	heartbeatStarted := make(chan struct{})
-	eg.Go(func() error {
+	egg.Go(func() error {
+		rs.Logger.Info().Msg("Starting heartbeat sender")
+		rs.Logger.Info().Msg("Submitting heartbeat metrics")
 		return rs.HeartbeatSender.Run(gCtx, heartbeatStarted)
 	})
 
+	rs.Logger.Info().Msg("refreshed actual finalized block number")
+
 	eventListenerStarted := make(chan struct{})
-	eg.Go(func() error {
+	egg.Go(func() error {
+		rs.Logger.Info().Msg("Starting L1 event listener")
+		rs.Logger.Info().Msg("Submitting L1 event listener metrics")
 		return rs.L1EventListener.Run(gCtx, eventListenerStarted)
 	})
 
 	finalityEnsurerStarted := make(chan struct{})
-	eg.Go(func() error {
+	egg.Go(func() error {
+		rs.Logger.Info().Msg("Starting finality ensurer")
+		rs.Logger.Info().Msg("Submitting finality ensurer metrics")
 		return rs.L1FinalityEnsurer.Run(gCtx, finalityEnsurerStarted)
 	})
 
 	transactionSenderStarted := make(chan struct{})
-	eg.Go(func() error {
+	egg.Go(func() error {
+		rs.Logger.Info().Msg("Starting L2 transaction sender")
+		rs.Logger.Info().Msg("Submitting L2 transaction sender metrics")
 		return rs.L2TransactionSender.Run(ctx, transactionSenderStarted)
 	})
 
@@ -229,10 +239,11 @@ func (rs *RelayerService) Run(ctx context.Context) error {
 	<-transactionSenderStarted
 
 	// start debug api after all other services are up and running
-	eg.Go(func() error {
+	egg.Go(func() error {
 		started := make(chan struct{})
+		rs.Logger.Info().Msg("Starting debug listener")
 		return rs.DebugListener.Run(gCtx, started)
 	})
 
-	return eg.Wait()
+	return egg.Wait()
 }
