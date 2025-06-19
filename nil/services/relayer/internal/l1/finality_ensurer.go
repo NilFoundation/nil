@@ -216,7 +216,7 @@ func (fe *FinalityEnsurer) pendingEventPoller(ctx context.Context, started chan 
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.Chan():
-			fe.logger.Debug().Msg("wake up by timer")
+			fe.logger.Debug().Msg("relayer1: wake up by timer")
 		case <-fe.eventProvider.EventReceived():
 			fe.logger.Debug().Msg("wake up by event emitter")
 		}

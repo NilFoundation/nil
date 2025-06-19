@@ -88,7 +88,7 @@ func (ts *TransactionSender) Run(ctx context.Context, started chan<- struct{}) e
 			return ctx.Err()
 
 		case <-ticker.Chan():
-			ts.logger.Debug().Msg("wake up by timer")
+			ts.logger.Debug().Msg("relayer2: wake up by timer")
 		case <-ts.eventFinProvider.EventFinalized():
 			ts.logger.Debug().Msg("wake up by event emitter")
 		}

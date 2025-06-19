@@ -210,7 +210,7 @@ func (rs *RelayerService) Run(ctx context.Context) error {
 		return rs.HeartbeatSender.Run(gCtx, heartbeatStarted)
 	})
 
-	rs.Logger.Info().Msg("refreshed actual finalized block number")
+	rs.Logger.Info().Msg("relayer: refreshed actual finalized block number")
 
 	eventListenerStarted := make(chan struct{})
 	egg.Go(func() error {
