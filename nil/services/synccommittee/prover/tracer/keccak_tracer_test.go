@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// traceExpOperation encapsulates the setup and invocation of tracing an KECCAK256 operation.
+// traceKeccakOperation encapsulates the setup and invocation of tracing an KECCAK256 operation.
 func traceKeccakOperation(t *testing.T, tracer *KeccakTracer, opCode vm.OpCode, offset, size uint64, mem []byte) bool {
 	t.Helper()
 	stack := []uint256.Int{*uint256.NewInt(size), *uint256.NewInt(offset)}
