@@ -6,7 +6,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/filters"
 	"github.com/NilFoundation/nil/nil/services/rpc/rawapi"
@@ -349,8 +348,6 @@ type EthAPI interface {
 
 // APIImpl is implementation of the EthAPI interface based on remote Db access
 type APIImplRo struct {
-	accessor *execution.StateAccessor
-
 	logs            *LogsAggregator
 	logger          logging.Logger
 	clientEventsLog logging.Logger
@@ -374,10 +371,8 @@ func NewEthAPIRo(
 	pollBlocksForLogs bool,
 	logClientEvents bool,
 ) *APIImplRo {
-	accessor := execution.NewStateAccessor()
 	api := &APIImplRo{
 		logger:          logging.NewLogger("eth-api"),
-		accessor:        accessor,
 		rawapi:          rawapi,
 		clientEventsLog: logging.NewLogger("eth-api-rpc-requests"),
 	}

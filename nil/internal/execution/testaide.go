@@ -34,11 +34,37 @@ func init() {
 	check.PanicIfErr(err)
 }
 
+func NewTestExecutionState(t *testing.T, tx db.RoTx, shardId types.ShardId, params StateParams) *ExecutionState {
+	t.Helper()
+
+	if params.ConfigAccessor == nil {
+		params.ConfigAccessor = config.GetStubAccessor()
+	}
+	if params.StateAccessor == nil {
+		params.StateAccessor = NewStateAccessor(32, 0)
+	}
+
+	es, err := NewExecutionState(tx, shardId, params)
+	require.NoError(t, err)
+
+	if es.BaseFee.IsZero() {
+		es.BaseFee = types.DefaultGasPrice
+	}
+
+	return es
+}
+
+func NewTestBlockGeneratorParams(shardId types.ShardId, nShards uint32) BlockGeneratorParams {
+	res := NewBlockGeneratorParams(shardId, nShards)
+	res.StateAccessor = NewStateAccessor(32, 0)
+	return res
+}
+
 func GenerateZeroState(t *testing.T, shardId types.ShardId, txFabric db.DB) *types.Block {
 	t.Helper()
 
 	g, err := NewBlockGenerator(t.Context(),
-		NewBlockGeneratorParams(shardId, 1),
+		NewTestBlockGeneratorParams(shardId, 1),
 		txFabric, nil)
 	require.NoError(t, err)
 	defer g.Rollback()
@@ -82,19 +108,15 @@ func generateBlockFromTransactions(t *testing.T, execute bool,
 	require.NoError(t, err)
 	defer tx.Rollback()
 
-	prevBlock, err := db.ReadBlock(tx, shardId, prevBlockHash)
-	if err != nil {
-		require.ErrorIs(t, err, db.ErrKeyNotFound)
-	} else {
+	var prevBlock *types.Block
+	if !prevBlockHash.Empty() {
+		prevBlock, err = db.ReadBlock(tx, shardId, prevBlockHash)
 		require.NoError(t, err)
 	}
 
-	es, err := NewExecutionState(tx, shardId, StateParams{
-		Block:          prevBlock,
-		ConfigAccessor: config.GetStubAccessor(),
+	es := NewTestExecutionState(t, tx, shardId, StateParams{
+		Block: prevBlock,
 	})
-	require.NoError(t, err)
-	es.BaseFee = types.DefaultGasPrice
 
 	for _, txn := range txns {
 		txn.TxId = es.InTxCounts[txn.From.ShardId()]

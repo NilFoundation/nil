@@ -6,7 +6,6 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -129,11 +128,7 @@ func (suite *SuiteDbgContracts) SetupSuite() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
-		ConfigAccessor: config.GetStubAccessor(),
-	})
-	suite.Require().NoError(err)
-	es.BaseFee = types.DefaultGasPrice
+	es := execution.NewTestExecutionState(suite.T(), tx, shardId, execution.StateParams{})
 
 	suite.smcAddr = types.GenerateRandomAddress(shardId)
 	suite.Require().NotEmpty(suite.smcAddr)
@@ -191,13 +186,11 @@ func (suite *SuiteDbgContracts) TestGetContract() {
 		defer tx.Rollback()
 
 		shardId := suite.smcAddr.ShardId()
-		accessor := execution.NewStateAccessor().Access(tx, shardId).GetBlock()
-		data, err := accessor.ByHash(suite.blockHash)
+		block, err := db.ReadBlock(tx, shardId, suite.blockHash)
 		suite.Require().NoError(err)
-		suite.Require().NotNil(data.Block())
 
 		contractRawReader := mpt.NewDbReader(tx, shardId, db.ContractTrieTable)
-		suite.Require().NoError(contractRawReader.SetRootHash(data.Block().SmartContractsRoot))
+		suite.Require().NoError(contractRawReader.SetRootHash(block.SmartContractsRoot))
 
 		expectedContract, err := contractRawReader.Get(suite.smcAddr.Hash().Bytes())
 		suite.Require().NoError(err)
@@ -205,7 +198,7 @@ func (suite *SuiteDbgContracts) TestGetContract() {
 		proof, err := mpt.DecodeProof(res.Proof)
 		suite.Require().NoError(err)
 
-		ok, err := proof.VerifyRead(suite.smcAddr.Hash().Bytes(), expectedContract, data.Block().SmartContractsRoot)
+		ok, err := proof.VerifyRead(suite.smcAddr.Hash().Bytes(), expectedContract, block.SmartContractsRoot)
 		suite.Require().NoError(err)
 		suite.Require().True(ok)
 	})

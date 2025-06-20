@@ -228,6 +228,7 @@ func (api *localShardApiRo) Call(
 	es, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
 		Block:          block,
 		ConfigAccessor: configAccessor,
+		StateAccessor:  api.accessor,
 		Mode:           execution.ModeReadOnly,
 	})
 	if err != nil {
@@ -285,6 +286,7 @@ func (api *localShardApiRo) Call(
 	esOld, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
 		Block:          block,
 		ConfigAccessor: config.GetStubAccessor(),
+		StateAccessor:  api.accessor,
 		Mode:           execution.ModeReadOnly,
 	})
 	if err != nil {

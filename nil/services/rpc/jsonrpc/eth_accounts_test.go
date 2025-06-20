@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -49,11 +48,7 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
-		ConfigAccessor: config.GetStubAccessor(),
-	})
-	suite.Require().NoError(err)
-	es.BaseFee = types.DefaultGasPrice
+	es := execution.NewTestExecutionState(suite.T(), tx, shardId, execution.StateParams{})
 
 	suite.smcAddr = types.GenerateRandomAddress(shardId)
 	suite.Require().NotEmpty(suite.smcAddr)

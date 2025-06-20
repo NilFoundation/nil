@@ -69,10 +69,15 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	}
 	defer tx.Rollback()
 
-	prevBlock, prevBlockHash, err := db.ReadLastBlock(tx, p.params.ShardId)
+	prevBlockHash, err := db.ReadLastBlockHash(tx, p.params.ShardId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch previous block: %w", err)
 	}
+	data, err := p.params.StateAccessor.Access(tx, p.params.ShardId).GetBlock().ByHash(prevBlockHash)
+	if err != nil {
+		return nil, err
+	}
+	prevBlock := data.Block()
 
 	if prevBlock.PatchLevel > validatorPatchLevel {
 		return nil, fmt.Errorf(
@@ -89,6 +94,7 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	p.executionState, err = execution.NewExecutionState(tx, p.params.ShardId, execution.StateParams{
 		Block:          prevBlock,
 		ConfigAccessor: configAccessor,
+		StateAccessor:  p.params.StateAccessor,
 		FeeCalculator:  p.params.FeeCalculator,
 		Mode:           execution.ModeProposal,
 	})
@@ -375,29 +381,17 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 		neighbor := &state.Neighbors[position]
 		nextTx := p.executionState.InTxCounts[neighborId]
 
-		var lastBlockNumber types.BlockNumber
-		lastBlock, _, err := db.ReadLastBlock(tx, neighborId)
-		if !errors.Is(err, db.ErrKeyNotFound) {
-			if err != nil {
-				return err
-			}
-			lastBlockNumber = lastBlock.Id
-		}
+		shardAccessor := p.params.StateAccessor.Access(tx, neighborId)
 
 		for checkLimits() {
-			// We will break the loop when lastBlockNumber is reached anyway,
-			// but in case of read-through mode, we will make unnecessary requests to the server
-			// if we don't check it here.
-			if lastBlockNumber < neighbor.BlockNumber {
-				break
-			}
-			block, err := db.ReadBlockByNumber(tx, neighborId, neighbor.BlockNumber)
+			data, err := shardAccessor.GetBlock().ByNumber(neighbor.BlockNumber)
 			if errors.Is(err, db.ErrKeyNotFound) {
 				break
 			}
 			if err != nil {
 				return err
 			}
+			block := data.Block()
 
 			outTxnTrie := execution.NewDbTransactionTrieReader(tx, neighborId)
 			if err := outTxnTrie.SetRootHash(block.OutTransactionsRoot); err != nil {

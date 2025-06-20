@@ -42,17 +42,14 @@ type StateAccessor struct {
 	rawCache *rawAccessorCache
 }
 
-func NewStateAccessor() *StateAccessor {
-	const (
-		blocksLRUSize          = 128 // ~32Mb
-		inTransactionsLRUSize  = 32
-		outTransactionsLRUSize = 32
-		receiptsLRUSize        = 32
-	)
-
+func NewStateAccessor(blockLRUSize, txnLRUSize int) *StateAccessor {
+	if txnLRUSize <= 0 {
+		// todo: fix with rework of transaction accessors
+		txnLRUSize = blockLRUSize
+	}
 	return &StateAccessor{
-		cache:    newAccessorCache(blocksLRUSize, inTransactionsLRUSize, outTransactionsLRUSize, receiptsLRUSize),
-		rawCache: newRawAccessorCache(blocksLRUSize, inTransactionsLRUSize, outTransactionsLRUSize, receiptsLRUSize),
+		cache:    newAccessorCache(blockLRUSize, txnLRUSize),
+		rawCache: newRawAccessorCache(blockLRUSize, txnLRUSize),
 	}
 }
 
@@ -76,22 +73,17 @@ type accessorCache struct {
 	receiptsLRU        *lru.Cache[common.Hash, []*types.Receipt]
 }
 
-func newAccessorCache(
-	blocksLRUSize int,
-	outTransactionsLRUSize int,
-	inTransactionsLRUSize int,
-	receiptsLRUSize int,
-) *accessorCache {
-	blocksLRU, err := lru.New[common.Hash, *types.Block](blocksLRUSize)
+func newAccessorCache(blockLRUSize, txnLRUSize int) *accessorCache {
+	blocksLRU, err := lru.New[common.Hash, *types.Block](blockLRUSize)
 	check.PanicIfErr(err)
 
-	outTransactionsLRU, err := lru.New[common.Hash, []*types.Transaction](outTransactionsLRUSize)
+	outTransactionsLRU, err := lru.New[common.Hash, []*types.Transaction](txnLRUSize)
 	check.PanicIfErr(err)
 
-	inTransactionsLRU, err := lru.New[common.Hash, []*types.Transaction](inTransactionsLRUSize)
+	inTransactionsLRU, err := lru.New[common.Hash, []*types.Transaction](txnLRUSize)
 	check.PanicIfErr(err)
 
-	receiptsLRU, err := lru.New[common.Hash, []*types.Receipt](receiptsLRUSize)
+	receiptsLRU, err := lru.New[common.Hash, []*types.Receipt](txnLRUSize)
 	check.PanicIfErr(err)
 
 	return &accessorCache{
@@ -111,28 +103,23 @@ type rawAccessorCache struct {
 	receiptsLRU        *lru.Cache[common.Hash, [][]byte]
 }
 
-func newRawAccessorCache(
-	blocksLRUSize int,
-	outTransactionsLRUSize int,
-	inTransactionsLRUSize int,
-	receiptsLRUSize int,
-) *rawAccessorCache {
-	blocksLRU, err := lru.New[common.Hash, []byte](blocksLRUSize)
+func newRawAccessorCache(blockLRUSize, txnLRUSize int) *rawAccessorCache {
+	blocksLRU, err := lru.New[common.Hash, []byte](blockLRUSize)
 	check.PanicIfErr(err)
 
-	outTransactionsLRU, err := lru.New[common.Hash, [][]byte](outTransactionsLRUSize)
+	outTransactionsLRU, err := lru.New[common.Hash, [][]byte](txnLRUSize)
 	check.PanicIfErr(err)
 
-	outTxCountsLRU, err := lru.New[common.Hash, [][]byte](outTransactionsLRUSize)
+	outTxCountsLRU, err := lru.New[common.Hash, [][]byte](txnLRUSize)
 	check.PanicIfErr(err)
 
-	inTransactionsLRU, err := lru.New[common.Hash, [][]byte](inTransactionsLRUSize)
+	inTransactionsLRU, err := lru.New[common.Hash, [][]byte](txnLRUSize)
 	check.PanicIfErr(err)
 
-	inTxCountsLRU, err := lru.New[common.Hash, [][]byte](inTransactionsLRUSize)
+	inTxCountsLRU, err := lru.New[common.Hash, [][]byte](txnLRUSize)
 	check.PanicIfErr(err)
 
-	receiptsLRU, err := lru.New[common.Hash, [][]byte](receiptsLRUSize)
+	receiptsLRU, err := lru.New[common.Hash, [][]byte](txnLRUSize)
 	check.PanicIfErr(err)
 
 	return &rawAccessorCache{

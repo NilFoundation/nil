@@ -184,7 +184,7 @@ func SetBlockRequestHandler(
 	}
 
 	// Sharing accessor between all handlers enables caching.
-	accessor := execution.NewStateAccessor()
+	accessor := execution.NewStateAccessor(128, 0)
 	handler := func(s network.Stream) {
 		if err := s.SetDeadline(time.Now().Add(requestTimeout)); err != nil {
 			return

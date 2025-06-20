@@ -48,6 +48,7 @@ func writeTestBlock(t *testing.T, tx db.RwTx, shardId types.ShardId, blockNumber
 		InTxnHashes:  inTxnHashes,
 		OutTxns:      outTransactions,
 		OutTxnHashes: outTxnHashes,
+		Receipts:     receipts,
 	}
 }
 

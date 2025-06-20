@@ -119,8 +119,6 @@ func (s *SuiteZeroState) TestWithdrawFromFaucet() {
 func TestZerostateFromConfig(t *testing.T) {
 	t.Parallel()
 
-	var state *ExecutionState
-
 	database, err := db.NewBadgerDbInMemory()
 	require.NoError(t, err)
 	tx, err := database.CreateRwTx(t.Context())
@@ -129,8 +127,9 @@ func TestZerostateFromConfig(t *testing.T) {
 
 	configAccessor, err := config.NewConfigAccessorTx(tx, nil)
 	require.NoError(t, err)
-	state, err = NewExecutionState(tx, 0, StateParams{ConfigAccessor: configAccessor})
-	require.NoError(t, err)
+	state := NewTestExecutionState(t, tx, types.MainShardId, StateParams{
+		ConfigAccessor: configAccessor,
+	})
 
 	zeroState := &ZeroStateConfig{
 		ConfigParams: ConfigParams{
@@ -143,10 +142,7 @@ func TestZerostateFromConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, state.GasPrice.Cmp(types.NewValueFromUint64(1)))
 
-	state, err = NewExecutionState(tx, 1, StateParams{
-		ConfigAccessor: config.GetStubAccessor(),
-	})
-	require.NoError(t, err)
+	state = NewTestExecutionState(t, tx, 1, StateParams{})
 	zeroState = &ZeroStateConfig{
 		ConfigParams: ConfigParams{
 			GasPrice: config.ParamGasPrice{
@@ -159,10 +155,7 @@ func TestZerostateFromConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, state.GasPrice.Cmp(types.NewValueFromUint64(2)))
 
-	state, err = NewExecutionState(tx, 2, StateParams{
-		ConfigAccessor: config.GetStubAccessor(),
-	})
-	require.NoError(t, err)
+	state = NewTestExecutionState(t, tx, 2, StateParams{})
 	zeroState = &ZeroStateConfig{
 		ConfigParams: ConfigParams{
 			GasPrice: config.ParamGasPrice{
@@ -177,8 +170,9 @@ func TestZerostateFromConfig(t *testing.T) {
 
 	smartAccountAddr := types.ShardAndHexToAddress(types.MainShardId, "0x111111111111111111111111111111111111")
 
-	state, err = NewExecutionState(tx, types.MainShardId, StateParams{ConfigAccessor: configAccessor})
-	require.NoError(t, err)
+	state = NewTestExecutionState(t, tx, types.MainShardId, StateParams{
+		ConfigAccessor: configAccessor,
+	})
 	zeroState = &ZeroStateConfig{
 		Contracts: []*ContractDescr{
 			{Name: "Faucet", Value: types.NewValueFromUint64(87654321), Contract: "Faucet"},
@@ -210,9 +204,7 @@ func TestZerostateFromConfig(t *testing.T) {
 	require.Equal(t, faucet.Balance, types.NewValueFromUint64(87654321))
 
 	// Test should fail because contract hasn't `code` item
-	state, err = NewExecutionState(tx, types.BaseShardId, StateParams{
-		ConfigAccessor: config.GetStubAccessor(),
-	})
+	state = NewTestExecutionState(t, tx, types.BaseShardId, StateParams{})
 	require.NoError(t, err)
 	zeroState = &ZeroStateConfig{
 		Contracts: []*ContractDescr{
@@ -223,10 +215,7 @@ func TestZerostateFromConfig(t *testing.T) {
 	require.Error(t, err)
 
 	// Test only one contract should deployed in specific shard
-	state, err = NewExecutionState(tx, types.BaseShardId, StateParams{
-		ConfigAccessor: config.GetStubAccessor(),
-	})
-	require.NoError(t, err)
+	state = NewTestExecutionState(t, tx, types.BaseShardId, StateParams{})
 	zeroState = &ZeroStateConfig{
 		Contracts: []*ContractDescr{
 			{Name: "Faucet", Value: types.NewValueFromUint64(87654321), Contract: "Faucet", Shard: 1},

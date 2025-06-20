@@ -237,16 +237,11 @@ func (s *TracerMockClientTestSuite) simpleContractCallTrace(code []byte) *Execut
 	mptTracer, err := newDummyMptTracer(s.accounts, s.shardId, rwTx)
 	s.Require().NoError(err)
 
-	es, err := execution.NewExecutionState(
-		rwTx,
-		s.shardId,
-		execution.StateParams{
-			Block:                 prevBlock.Block,
-			ConfigAccessor:        configAccessor,
-			ContractMptRepository: mptTracer,
-		},
-	)
-	s.Require().NoError(err)
+	es := execution.NewTestExecutionState(s.T(), rwTx, s.shardId, execution.StateParams{
+		Block:                 prevBlock.Block,
+		ConfigAccessor:        configAccessor,
+		ContractMptRepository: mptTracer,
+	})
 
 	esTracer := NewEVMTracer(es)
 

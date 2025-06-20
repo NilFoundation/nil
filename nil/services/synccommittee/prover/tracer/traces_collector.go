@@ -41,6 +41,7 @@ type remoteTracesCollectorImpl struct {
 	logger          logging.Logger
 	mptTracer       *mpttracer.MPTTracer
 	rwTx            db.RwTx
+	stateAccessor   *execution.StateAccessor
 	lastTracedBlock *types.BlockNumber
 }
 
@@ -63,9 +64,10 @@ func NewRemoteTracesCollector(
 	}
 
 	return &remoteTracesCollectorImpl{
-		client: client,
-		logger: logger,
-		rwTx:   rwTx,
+		client:        client,
+		logger:        logger,
+		rwTx:          rwTx,
+		stateAccessor: execution.NewStateAccessor(32, 0),
 	}, nil
 }
 
@@ -239,6 +241,7 @@ func (tc *remoteTracesCollectorImpl) executeBlockAndCollectTraces(
 		execution.StateParams{
 			Block:                 prevBlock.Block,
 			ConfigAccessor:        configAccessor,
+			StateAccessor:         tc.stateAccessor,
 			ContractMptRepository: tc.mptTracer,
 		},
 	)
@@ -254,6 +257,7 @@ func (tc *remoteTracesCollectorImpl) executeBlockAndCollectTraces(
 	// Create block generator params
 	blockGeneratorParams := execution.NewBlockGeneratorParams(shardId, uint32(len(gasPrices)))
 	blockGeneratorParams.EvmTracingHooks = es.EvmTracingHooks
+	blockGeneratorParams.StateAccessor = tc.stateAccessor
 
 	// Create block generator
 	blockGenerator, err := execution.NewBlockGeneratorWithEs(
