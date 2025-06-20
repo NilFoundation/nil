@@ -29,12 +29,12 @@ func newLocalShardApiRo(
 	shardId types.ShardId,
 	db db.ReadOnlyDB,
 	bootstrapConfig *rpctypes.BootstrapConfig,
+	accessor *execution.StateAccessor,
 ) *localShardApiRo {
-	stateAccessor := execution.NewStateAccessor()
 	return &localShardApiRo{
 		bootstrapConfig: bootstrapConfig,
 		db:              db,
-		accessor:        stateAccessor,
+		accessor:        accessor,
 		shard:           shardId,
 		logger:          logging.NewLogger("local_api"),
 	}

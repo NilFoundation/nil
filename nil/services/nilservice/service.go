@@ -497,6 +497,10 @@ func CreateNode(
 		return nil, err
 	}
 
+	if cfg.StateAccessor == nil {
+		cfg.StateAccessor = execution.NewStateAccessor(1024, 0)
+	}
+
 	var txnPools map[types.ShardId]txnpool.Pool
 	var syncersResult *syncersResult
 	switch cfg.RunMode {

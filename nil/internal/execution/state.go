@@ -287,24 +287,28 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 }
 
 type StateParams struct {
-	Block                 *types.Block
-	ConfigAccessor        config.ConfigAccessor
+	// Block must be set for non-genesis block.
+	Block *types.Block
+
+	// Required parameters
+	ConfigAccessor config.ConfigAccessor
+	StateAccessor  *StateAccessor
+
+	// Optional parameters
 	FeeCalculator         FeeCalculator
 	Mode                  string
 	GasLimit              types.Gas
 	ContractMptRepository IContractMPTRepository
 }
 
-func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*ExecutionState, error) {
+func NewExecutionState(tx db.RoTx, shardId types.ShardId, params StateParams) (*ExecutionState, error) {
 	var resTx db.RwTx
 	isReadOnly := false
 	if rwTx, ok := tx.(db.RwTx); ok {
 		resTx = rwTx
-	} else if roTx, ok := tx.(db.RoTx); ok {
-		isReadOnly = true
-		resTx = &db.RwWrapper{RoTx: roTx}
 	} else {
-		return nil, errors.New("invalid tx type")
+		isReadOnly = true
+		resTx = &db.RwWrapper{RoTx: tx}
 	}
 
 	l := logging.NewLogger("execution").
@@ -352,7 +356,7 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 		journal:          newJournal(),
 		transientStorage: newTransientStorage(),
 
-		shardAccessor:  NewStateAccessor().Access(resTx, shardId),
+		shardAccessor:  params.StateAccessor.Access(tx, shardId),
 		configAccessor: params.ConfigAccessor,
 
 		BaseFee:  baseFeePerGas,
@@ -393,20 +397,14 @@ func (ca *DbContractAccessor) UpdateContracts(contracts map[types.Address]*Accou
 }
 
 func (es *ExecutionState) initTries(params *StateParams) error {
-	data, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return err
-	}
-
 	es.ReceiptTree = NewDbReceiptTrie(es.tx, es.ShardId)
 	smartContractsRoot := mpt.EmptyRootHash
 	outTransactionsRoot := mpt.EmptyRootHash
 	inTransactionsRoot := mpt.EmptyRootHash
-	if err == nil {
-		block := data.Block()
-		smartContractsRoot = block.SmartContractsRoot
-		outTransactionsRoot = block.OutTransactionsRoot
-		inTransactionsRoot = block.InTransactionsRoot
+	if params.Block != nil {
+		smartContractsRoot = params.Block.SmartContractsRoot
+		outTransactionsRoot = params.Block.OutTransactionsRoot
+		inTransactionsRoot = params.Block.InTransactionsRoot
 	}
 	if err := es.fetchTxCounts(outTransactionsRoot, es.OutTxCounts); err != nil {
 		return err
@@ -1658,6 +1656,7 @@ func (es *ExecutionState) BuildBlock(blockId types.BlockNumber) (*BlockGeneratio
 		InTxnHashes:  es.InTransactionHashes,
 		OutTxns:      outTxnValues,
 		OutTxnHashes: outTxnHashes,
+		Receipts:     es.Receipts,
 		ConfigParams: configParams,
 	}, nil
 }

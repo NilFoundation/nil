@@ -53,11 +53,7 @@ func (s *SuiteExecutionState) TestExecState() {
 	addr := types.GenerateRandomAddress(shardId)
 	storageKey := common.BytesToHash([]byte("storage-key"))
 
-	es, err := NewExecutionState(tx, shardId, StateParams{
-		ConfigAccessor: config.GetStubAccessor(),
-	})
-	s.Require().NoError(err)
-	es.BaseFee = types.DefaultGasPrice
+	es := NewTestExecutionState(s.T(), tx, shardId, StateParams{})
 
 	s.Run("CreateAccount", func() {
 		s.Require().NoError(es.CreateAccount(addr))
@@ -80,11 +76,9 @@ func (s *SuiteExecutionState) TestExecState() {
 	})
 
 	s.Run("CheckAccount", func() {
-		es, err := NewExecutionState(tx, shardId, StateParams{
-			Block:          blockRes.Block,
-			ConfigAccessor: config.GetStubAccessor(),
+		es := NewTestExecutionState(s.T(), tx, shardId, StateParams{
+			Block: blockRes.Block,
 		})
-		s.Require().NoError(err)
 
 		storageVal, err := es.GetState(addr, storageKey)
 		s.Require().NoError(err)
@@ -138,11 +132,7 @@ func (s *SuiteExecutionState) TestDeployAndCall() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := NewExecutionState(tx, shardId, StateParams{
-		ConfigAccessor: config.GetStubAccessor(),
-	})
-	s.Require().NoError(err)
-	es.BaseFee = types.DefaultGasPrice
+	es := NewTestExecutionState(s.T(), tx, shardId, StateParams{})
 
 	s.Run("Deploy", func() {
 		seqno, err := es.GetSeqno(addrSmartAccount)
@@ -233,11 +223,9 @@ func newState(t *testing.T) *ExecutionState {
 		Shards: []types.Uint256{*types.NewUint256(10), *types.NewUint256(10), *types.NewUint256(10)},
 	}))
 
-	state, err := NewExecutionState(tx, types.BaseShardId, StateParams{
+	state := NewTestExecutionState(t, tx, types.BaseShardId, StateParams{
 		ConfigAccessor: cfgAccessor,
 	})
-	state.BaseFee = types.DefaultGasPrice
-	require.NoError(t, err)
 
 	defaultZeroStateConfig, err := CreateDefaultZeroStateConfig(MainPublicKey)
 	require.NoError(t, err)
@@ -400,11 +388,9 @@ func (s *SuiteExecutionState) TestTransactionStatus() {
 		Shards: []types.Uint256{defGP, defGP, defGP, defGP, defGP},
 	}))
 
-	es, err := NewExecutionState(tx, shardId, StateParams{
+	es := NewTestExecutionState(s.T(), tx, shardId, StateParams{
 		ConfigAccessor: cfgAccessor,
 	})
-	s.Require().NoError(err)
-	es.BaseFee = types.DefaultGasPrice
 
 	var counterAddr, faucetAddr types.Address
 
@@ -624,11 +610,7 @@ func (s *SuiteExecutionState) TestPanic() {
 
 	txMock := db.NewTxMock(tx)
 
-	es, err := NewExecutionState(txMock, types.ShardId(1), StateParams{
-		ConfigAccessor: config.GetStubAccessor(),
-	})
-	s.Require().NoError(err)
-	es.BaseFee = types.DefaultGasPrice
+	es := NewTestExecutionState(s.T(), txMock, 1, StateParams{})
 
 	// Check normal execution is ok
 	txn := NewExecutionTransaction(types.MainSmartAccountAddress, types.MainSmartAccountAddress, 1,
@@ -662,12 +644,12 @@ func BenchmarkBlockGeneration(b *testing.B) {
 		},
 	}
 
-	gen, err := NewBlockGenerator(ctx, NewBlockGeneratorParams(0, 2), database, nil)
+	gen, err := NewBlockGenerator(ctx, NewTestBlockGeneratorParams(0, 2), database, nil)
 	require.NoError(b, err)
 	_, err = gen.GenerateZeroState(zeroState)
 	require.NoError(b, err)
 
-	params := NewBlockGeneratorParams(1, 2)
+	params := NewTestBlockGeneratorParams(1, 2)
 	gen, err = NewBlockGenerator(ctx, params, database, nil)
 	require.NoError(b, err)
 	block, err := gen.GenerateZeroState(zeroState)

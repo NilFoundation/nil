@@ -98,20 +98,25 @@ func (s *Validator) getLastBlockUnlocked(ctx context.Context) (*types.Block, com
 		return s.lastBlock, s.lastBlockHash, nil
 	}
 
-	rotx, err := s.txFabric.CreateRoTx(ctx)
+	tx, err := s.txFabric.CreateRoTx(ctx)
 	if err != nil {
 		return nil, common.EmptyHash, err
 	}
-	defer rotx.Rollback()
+	defer tx.Rollback()
 
-	block, hash, err := db.ReadLastBlock(rotx, s.params.ShardId)
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+	hash, err := db.ReadLastBlockHash(tx, s.params.ShardId)
+	if err != nil {
+		if errors.Is(err, db.ErrKeyNotFound) {
+			return nil, common.EmptyHash, nil
+		}
 		return nil, common.EmptyHash, err
 	}
-	if err == nil {
-		return block, hash, err
+
+	block, err := s.params.StateAccessor.Access(tx, s.params.ShardId).GetBlock().ByHash(hash)
+	if err != nil {
+		return nil, common.EmptyHash, err
 	}
-	return nil, common.EmptyHash, nil
+	return block.Block(), hash, nil
 }
 
 func (s *Validator) GetLastBlock(ctx context.Context) (*types.Block, common.Hash, error) {
@@ -135,11 +140,11 @@ func (s *Validator) getBlock(ctx context.Context, hash common.Hash) (*types.Bloc
 	}
 	defer tx.Rollback()
 
-	block, err := db.ReadBlock(tx, s.params.ShardId, hash)
+	block, err := s.params.StateAccessor.Access(tx, s.params.ShardId).GetBlock().ByHash(hash)
 	if err != nil {
 		return nil, err
 	}
-	return block, nil
+	return block.Block(), nil
 }
 
 func (s *Validator) TxPool() TxnPool {

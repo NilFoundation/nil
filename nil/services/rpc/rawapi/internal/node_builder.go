@@ -3,6 +3,7 @@ package internal
 import (
 	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/internal/db"
+	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
@@ -15,6 +16,7 @@ type nodeApiBuilder struct {
 	// common dependencies
 	db             db.ReadOnlyDB
 	networkManager network.Manager
+	accessor       *execution.StateAccessor
 }
 
 func NodeApiBuilder(db db.DB, networkManager network.Manager) *nodeApiBuilder {
@@ -27,6 +29,7 @@ func NodeApiBuilder(db db.DB, networkManager network.Manager) *nodeApiBuilder {
 		},
 		db:             db,
 		networkManager: networkManager,
+		accessor:       execution.NewStateAccessor(1000, 2000),
 	}
 }
 
@@ -43,7 +46,7 @@ func (nb *nodeApiBuilder) WithLocalShardApiRo(
 	shardId types.ShardId,
 	bootstrapConfig *rpctypes.BootstrapConfig,
 ) *nodeApiBuilder {
-	var localShardApi shardApiRo = newLocalShardApiRo(shardId, nb.db, bootstrapConfig)
+	var localShardApi shardApiRo = newLocalShardApiRo(shardId, nb.db, bootstrapConfig, nb.accessor)
 	if assert.Enable {
 		localShardApi = newShardApiClientDirectEmulatorRo(localShardApi)
 	}
@@ -54,7 +57,9 @@ func (nb *nodeApiBuilder) WithLocalShardApiRo(
 
 func (nb *nodeApiBuilder) WithLocalShardApiRw(shardId types.ShardId, txnpool txnpool.Pool) *nodeApiBuilder {
 	var bootstrapConfig *rpctypes.BootstrapConfig // = nil — not used in rw API methods
-	var localShardApi shardApiRw = newLocalShardApiRw(newLocalShardApiRo(shardId, nb.db, bootstrapConfig), txnpool)
+	var localShardApi shardApiRw = newLocalShardApiRw(
+		newLocalShardApiRo(shardId, nb.db, bootstrapConfig, nb.accessor),
+		txnpool)
 	if assert.Enable {
 		localShardApi = newShardApiClientDirectEmulatorRw(localShardApi)
 	}

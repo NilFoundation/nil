@@ -18,11 +18,12 @@ import (
 type BlockGeneratorParams struct {
 	ShardId          types.ShardId
 	NShards          uint32
-	EvmTracingHooks  *tracing.Hooks
 	MainKeysPath     string
 	DisableConsensus bool
-	FeeCalculator    FeeCalculator
 	ExecutionMode    string
+	StateAccessor    *StateAccessor
+	FeeCalculator    FeeCalculator
+	EvmTracingHooks  *tracing.Hooks
 }
 
 func NewBlockGeneratorParams(shardId types.ShardId, nShards uint32) BlockGeneratorParams {
@@ -60,6 +61,7 @@ type BlockGenerationResult struct {
 	InTxnHashes  []common.Hash
 	OutTxns      []*types.Transaction
 	OutTxnHashes []common.Hash
+	Receipts     []*types.Receipt
 	ConfigParams map[string][]byte
 
 	Counters *BlockGeneratorCounters
@@ -83,6 +85,7 @@ func NewBlockGenerator(
 
 	executionState, err := NewExecutionState(rwTx, params.ShardId, StateParams{
 		Block:          prevBlock,
+		StateAccessor:  params.StateAccessor,
 		ConfigAccessor: configAccessor,
 		FeeCalculator:  params.FeeCalculator,
 		Mode:           params.ExecutionMode,

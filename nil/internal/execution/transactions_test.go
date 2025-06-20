@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -38,12 +37,7 @@ func (s *TransactionsSuite) TestValidateExternalTransaction() {
 	s.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := NewExecutionState(tx, types.BaseShardId, StateParams{
-		ConfigAccessor: config.GetStubAccessor(),
-	})
-	s.Require().NoError(err)
-	s.Require().NotNil(es)
-	es.BaseFee = types.DefaultGasPrice
+	es := NewTestExecutionState(s.T(), tx, types.BaseShardId, StateParams{})
 	es.GasPrice = es.BaseFee
 
 	validate := func(txn *types.Transaction) types.ExecError {

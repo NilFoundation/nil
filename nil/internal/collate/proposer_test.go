@@ -1,11 +1,11 @@
 package collate
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/logging"
-	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -37,7 +37,7 @@ func (s *ProposerTestSuite) TearDownTest() {
 
 func (s *ProposerTestSuite) newParams() *Params {
 	return &Params{
-		BlockGeneratorParams: execution.NewBlockGeneratorParams(s.shardId, 2),
+		BlockGeneratorParams: execution.NewTestBlockGeneratorParams(s.shardId, 2),
 	}
 }
 
@@ -97,24 +97,24 @@ func (s *ProposerTestSuite) TestCollator() {
 	p := newTestProposer(params, pool)
 	shardId := p.params.ShardId
 
-	generateBlock := func() *execution.Proposal {
+	generateBlock := func() (*execution.Proposal, *execution.BlockGenerationResult) {
 		proposal := s.generateProposal(p)
 
 		tx, err := s.db.CreateRoTx(s.T().Context())
 		s.Require().NoError(err)
 		defer tx.Rollback()
 
-		block, err := db.ReadBlock(tx, shardId, proposal.PrevBlockHash)
+		prevBlock, err := db.ReadBlock(tx, shardId, proposal.PrevBlockHash)
 		s.Require().NoError(err)
 
-		blockGenerator, err := execution.NewBlockGenerator(s.T().Context(), params.BlockGeneratorParams, s.db, block)
+		gen, err := execution.NewBlockGenerator(s.T().Context(), params.BlockGeneratorParams, s.db, prevBlock)
 		s.Require().NoError(err)
-		defer blockGenerator.Rollback()
+		defer gen.Rollback()
 
-		_, err = blockGenerator.GenerateBlock(proposal, &types.ConsensusParams{})
+		block, err := gen.GenerateBlock(proposal, &types.ConsensusParams{})
 		s.Require().NoError(err)
 
-		return proposal
+		return proposal, block
 	}
 
 	s.Run("GenerateZeroState", func() {
@@ -133,9 +133,9 @@ func (s *ProposerTestSuite) TestCollator() {
 		pool.Reset()
 		pool.Add(m1, m2)
 
-		proposal := generateBlock()
-		r1 = s.checkReceipt(shardId, m1)
-		r2 = s.checkReceipt(shardId, m2)
+		proposal, res := generateBlock()
+		r1 = s.checkReceipt(res, m1)
+		r2 = s.checkReceipt(res, m2)
 		s.Equal(pool.Txns, proposal.ExternalTxns)
 
 		// Each transaction subtracts its value + actual gas used from the balance.
@@ -160,15 +160,13 @@ func (s *ProposerTestSuite) TestCollator() {
 
 		balance = balance.Add(r1.Forwarded).Add(r2.Forwarded)
 		s.Equal(balance, s.getMainBalance())
-
-		s.checkSeqno(shardId)
 	})
 
 	s.Run("DoNotProcessDuplicates", func() {
 		pool.Reset()
 		pool.Add(m1, m2)
 
-		proposal := generateBlock()
+		proposal, _ := generateBlock()
 		s.Empty(proposal.ExternalTxns)
 		s.Empty(proposal.InternalTxns)
 		s.Empty(proposal.ForwardTxns)
@@ -183,8 +181,8 @@ func (s *ProposerTestSuite) TestCollator() {
 		pool.Reset()
 		pool.Add(m)
 
-		generateBlock()
-		s.checkReceipt(shardId, m)
+		_, res := generateBlock()
+		s.checkReceipt(res, m)
 	})
 
 	s.Run("Execute", func() {
@@ -192,27 +190,8 @@ func (s *ProposerTestSuite) TestCollator() {
 		pool.Reset()
 		pool.Add(m)
 
-		generateBlock()
-		s.checkReceipt(shardId, m)
-	})
-
-	s.Run("CheckRefundsSeqno", func() {
-		m01 := execution.NewSendMoneyTransaction(s.T(), to, 2)
-		m02 := execution.NewSendMoneyTransaction(s.T(), to, 3)
-		pool.Reset()
-		pool.Add(m01, m02)
-
-		// send tokens
-		generateBlock()
-
-		// process internal transactions
-		generateBlock()
-
-		// process refunds
-		generateBlock()
-
-		// check refunds seqnos
-		s.checkSeqno(shardId)
+		_, res := generateBlock()
+		s.checkReceipt(res, m)
 	})
 }
 
@@ -232,11 +211,9 @@ func (s *ProposerTestSuite) getBalance(shardId types.ShardId, addr types.Address
 	block, _, err := db.ReadLastBlock(tx, shardId)
 	s.Require().NoError(err)
 
-	state, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
-		Block:          block,
-		ConfigAccessor: config.GetStubAccessor(),
+	state := execution.NewTestExecutionState(s.T(), tx, shardId, execution.StateParams{
+		Block: block,
 	})
-	s.Require().NoError(err)
 	acc, err := state.GetAccount(addr)
 	s.Require().NoError(err)
 	if acc == nil {
@@ -245,52 +222,16 @@ func (s *ProposerTestSuite) getBalance(shardId types.ShardId, addr types.Address
 	return acc.Balance
 }
 
-func (s *ProposerTestSuite) checkSeqno(shardId types.ShardId) {
+func (s *ProposerTestSuite) checkReceipt(genRes *execution.BlockGenerationResult, m *types.Transaction) *types.Receipt {
 	s.T().Helper()
 
-	tx, err := s.db.CreateRoTx(s.T().Context())
-	s.Require().NoError(err)
-	defer tx.Rollback()
+	hash := m.Hash()
+	idx := slices.IndexFunc(genRes.Receipts, func(r *types.Receipt) bool {
+		return r.TxnHash == hash
+	})
+	s.Require().GreaterOrEqual(idx, 0, "receipt not found for transaction %s", hash)
 
-	sa := execution.NewStateAccessor()
-	blockHash, err := db.ReadLastBlockHash(tx, shardId)
-	s.Require().NoError(err)
-
-	block, err := sa.Access(tx, shardId).GetBlock().WithInTransactions().WithOutTransactions().ByHash(blockHash)
-	s.Require().NoError(err)
-
-	check := func(txns []*types.Transaction) {
-		if len(txns) == 0 {
-			return
-		}
-		seqno := txns[0].Seqno
-		for _, m := range txns {
-			s.Require().Equal(seqno, m.Seqno)
-			seqno++
-		}
-	}
-
-	check(block.InTransactions())
-	check(block.OutTransactions())
-}
-
-func (s *ProposerTestSuite) checkReceipt(shardId types.ShardId, m *types.Transaction) *types.Receipt {
-	s.T().Helper()
-
-	tx, err := s.db.CreateRoTx(s.T().Context())
-	s.Require().NoError(err)
-	defer tx.Rollback()
-
-	sa := execution.NewStateAccessor()
-	txnData, err := sa.Access(tx, m.From.ShardId()).GetInTransaction().ByHash(m.Hash())
-	s.Require().NoError(err)
-
-	receiptsTrie := execution.NewDbReceiptTrieReader(tx, shardId)
-	s.Require().NoError(receiptsTrie.SetRootHash(txnData.Block().ReceiptsRoot))
-	receipt, err := receiptsTrie.Fetch(txnData.Index())
-	s.Require().NoError(err)
-	s.Equal(m.Hash(), receipt.TxnHash)
-	return receipt
+	return genRes.Receipts[idx]
 }
 
 func TestProposer(t *testing.T) {

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -37,11 +36,9 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	es, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
-		Block:          mainBlock,
-		ConfigAccessor: config.GetStubAccessor(),
+	es := execution.NewTestExecutionState(suite.T(), tx, shardId, execution.StateParams{
+		Block: mainBlock,
 	})
-	suite.Require().NoError(err)
 
 	suite.smcAddr = types.CreateAddress(shardId, types.BuildDeployPayload([]byte("1234"), common.EmptyHash))
 	suite.Require().NotEqual(types.Address{}, suite.smcAddr)
