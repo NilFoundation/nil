@@ -191,6 +191,8 @@ func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) error {
 		"Faucet address for L2 transaction sender (debug-only)",
 	)
 
+	runCmd.Flags().BoolVar(&cfg.TelemetryConfig.ExportMetrics, "metrics", cfg.TelemetryConfig.ExportMetrics, "export metrics via grpc")
+
 	runCmd.Flags().BoolVar(&cfg.TelemetryConfig.ExportMetrics,
 		"metrics",
 		cfg.TelemetryConfig.ExportMetrics,
@@ -221,6 +223,9 @@ func runService(ctx context.Context, cfg *Config) error {
 		return fmt.Errorf("failed to initialize relayer service: %w", err)
 	}
 
+	svc.Logger.Info().Msg("FaucetAddress")
+	svc.Logger.Info().Msg(cfg.L2ContractConfig.FaucetAddress)
+
 	if svc != nil && svc.Config != nil && svc.Config.TelemetryConfig != nil {
 		if svc.Config.TelemetryConfig.ExportMetrics {
 			svc.Logger.Info().Msg("metrics export is enabled")
@@ -234,6 +239,20 @@ func runService(ctx context.Context, cfg *Config) error {
 	err = svc.Run(ctx)
 	if err != nil && !errors.Is(err, context.Canceled) {
 		return err
+	}
+
+	svc.Logger.Info().Msg("FaucetAddress after")
+	svc.Logger.Info().Msg(cfg.L2ContractConfig.FaucetAddress)
+
+	svc.Logger.Info().Msg("after run")
+	if svc != nil && svc.Config != nil && svc.Config.TelemetryConfig != nil {
+		if svc.Config.TelemetryConfig.ExportMetrics {
+			svc.Logger.Info().Msg("metrics export is enabled")
+		} else {
+			svc.Logger.Info().Msg("metrics export is disabled")
+		}
+	} else {
+		svc.Logger.Info().Msg("telemetry configuration not available; metrics status unknown")
 	}
 
 	return nil
