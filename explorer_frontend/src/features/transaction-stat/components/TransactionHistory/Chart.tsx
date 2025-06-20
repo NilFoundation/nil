@@ -45,6 +45,7 @@ export const Chart = () => {
   ]);
   const timeInterval = useStore($timeInterval);
   const now = Math.round(Date.now() / (1000 * 60)) * 1000 * 60;
+
   let lastBlock = 0;
   if (transactionsStat.length > 0) {
     lastBlock = transactionsStat[0].earliest_block;
@@ -65,11 +66,12 @@ export const Chart = () => {
     return last?.value.toFixed() ?? "-";
   }, []);
 
+  const blocksPerMinute = 29;
   const mappedData = useMemo(
     () =>
       transactionsStat
         .map((item) => ({
-          time: (now - ((lastBlock - item.earliest_block) * 60000) / 29) as Time,
+          time: (now - ((lastBlock - item.earliest_block) * 60000) / blocksPerMinute) as Time,
           value: item.value,
         }))
         .reverse(),
@@ -93,7 +95,7 @@ export const Chart = () => {
   }, [param, mappedData, getLastBarValue]);
 
   const handleCrosshairMove = useCallback((param: MouseEventParams) => {
-    setParam(param);
+    setParam((prev) => (prev?.time === param.time ? prev : param));
   }, []);
 
   const range = useGetLogicalRange(mappedData.length);

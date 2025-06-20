@@ -63,6 +63,8 @@ export const TotalTxChart = ({ shardsGasPriceData, shardsTxData }: TotalTxChartP
               top: 0.5,
               bottom: 0,
             },
+            entireTextOnly: true,
+            ticksVisible: true,
           }}
         />
         <PriceScale
@@ -72,6 +74,8 @@ export const TotalTxChart = ({ shardsGasPriceData, shardsTxData }: TotalTxChartP
               bottom: 0,
               top: 0.1,
             },
+            entireTextOnly: true,
+            ticksVisible: true,
           }}
         />
         <TimeScale

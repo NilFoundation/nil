@@ -12,7 +12,7 @@ export const svgInlined = encodeInlineSvg(svg);
 
 let svgPattern: CanvasPattern | null = null;
 
-const prepareSvgPattern = (ctx: CanvasRenderingContext2D) => {
+const prepareSvgPattern = (ctx: CanvasRenderingContext2D, onReady: () => void) => {
   const size = 12;
   const svgBlob = new Blob([svg], { type: "image/svg+xml" });
   const url = URL.createObjectURL(svgBlob);
@@ -28,14 +28,15 @@ const prepareSvgPattern = (ctx: CanvasRenderingContext2D) => {
       svgPattern = ctx.createPattern(canvas, "repeat");
     }
     URL.revokeObjectURL(url);
+    onReady();
   };
 
   img.src = url;
 };
 
-export const getSvgPattern = (ctx: CanvasRenderingContext2D) => {
+export const getSvgPattern = (ctx: CanvasRenderingContext2D, onReady: () => void) => {
   if (!svgPattern) {
-    prepareSvgPattern(ctx);
+    prepareSvgPattern(ctx, onReady);
   }
   return svgPattern;
 };

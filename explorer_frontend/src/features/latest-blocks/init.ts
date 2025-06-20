@@ -15,6 +15,4 @@ sample({
   target: fetchLatestBlocksFx,
 });
 
-$latestBlocks.reset(explorerRoute.navigated);
-
 $latestBlocks.on(fetchLatestBlocksFx.doneData, (_, list) => list);

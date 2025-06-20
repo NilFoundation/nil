@@ -9,7 +9,7 @@
 		"start": "tsx ./index.ts",
 		"lint": "biome check .",
 		"lint:fix": "biome check . --write .",
-		"watch": "tsx watch ./index.ts",
+		"dev": "tsx watch ./index.ts",
 		"build": "rimraf dist && rollup -c ./rollup/rollup.config.js -o dist/explorer.js --bundleConfigAsCjs"
 	},
 	"author": "",

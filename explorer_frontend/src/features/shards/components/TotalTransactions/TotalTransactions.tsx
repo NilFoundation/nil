@@ -73,8 +73,10 @@ export const TotalTransactions = () => {
   const shardsCount = Object.keys(shards).length;
   const busiestShardId = busiestShard?.[0];
   const bestShardId = bestShard?.[0];
-  const busiestShardGasPrice = busiestShard?.[1] ? `${formatEther(busiestShard?.[1])} ETH` : "-";
-  const bestShardGasPrice = bestShard?.[1] ? `${formatEther(bestShard?.[1])} ETH` : "-";
+  const busiestShardGasPrice = busiestShard?.[1]
+    ? `${formatEther(busiestShard?.[1], "gwei")} Gwei`
+    : "-";
+  const bestShardGasPrice = bestShard?.[1] ? `${formatEther(bestShard?.[1], "gwei")} Gwei` : "-";
 
   const shardsTxData = useMemo(
     () =>
@@ -103,14 +105,12 @@ export const TotalTransactions = () => {
             day: 1,
           },
           customValues: {
-            values: [0, Number(formatEther(gasPrice, "gwei")).toFixed(1)],
+            values: [0, Number(Number.parseFloat(formatEther(gasPrice, "gwei")).toFixed(1))],
           },
         }))
         .sort((a, b) => a.time.year - b.time.year),
     [shardsGasPriceMap],
   );
-
-  console.log(shardsGasPriceData);
 
   if ((fetchingShardsGasPrice || fetchingShardsStat) && shardsTxData.length === 0) {
     return (
