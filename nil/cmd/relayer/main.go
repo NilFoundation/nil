@@ -193,12 +193,6 @@ func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) error {
 
 	runCmd.Flags().BoolVar(&cfg.TelemetryConfig.ExportMetrics, "metrics", cfg.TelemetryConfig.ExportMetrics, "export metrics via grpc")
 
-	runCmd.Flags().BoolVar(&cfg.TelemetryConfig.ExportMetrics,
-		"metrics",
-		cfg.TelemetryConfig.ExportMetrics,
-		"export metrics via grpc",
-	)
-
 	return viper.BindPFlags(runCmd.Flags())
 }
 
