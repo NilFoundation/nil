@@ -38,11 +38,10 @@ const refineLegendValue = (value: string) => {
 export const Chart = () => {
   const [isMobile] = useMobile();
   const [param, setParam] = useState<MouseEventParams>();
-  const [transactionsStat, pending, latestBlocks, interval] = useUnit([
+  const [transactionsStat, pending, latestBlocks] = useUnit([
     $transactionsStat,
     fetchTransactionsStatFx.pending,
     $latestBlocks,
-    $timeInterval,
   ]);
   const timeInterval = useStore($timeInterval);
   const now = Math.round(Date.now() / (1000 * 60)) * 1000 * 60;
@@ -72,7 +71,7 @@ export const Chart = () => {
     () =>
       transactionsStat
         .map((item) => ({
-          time: (now - ((lastBlock - item.earliest_block) * 60 * 1000) / blocksPerMinute) as Time,
+          time: (now - ((lastBlock - item.earliest_block) * 60000) / blocksPerMinute) as Time,
           value: item.value,
         }))
         .reverse(),

@@ -34,4 +34,3 @@ $timeInterval.on(changeTimeInterval, (_, timeInterval) => timeInterval);
 $transactionsStat.on(fetchTransactionsStatFx.doneData, (_, data) => data);
 
 $transactionsStat.on(changeTimeInterval, () => []);
-$transactionsStat.watch(console.log)

@@ -73,7 +73,9 @@ export const TotalTransactions = () => {
   const shardsCount = Object.keys(shards).length;
   const busiestShardId = busiestShard?.[0];
   const bestShardId = bestShard?.[0];
-  const busiestShardGasPrice = busiestShard?.[1] ? `${formatEther(busiestShard?.[1], "gwei")} Gwei` : "-";
+  const busiestShardGasPrice = busiestShard?.[1]
+    ? `${formatEther(busiestShard?.[1], "gwei")} Gwei`
+    : "-";
   const bestShardGasPrice = bestShard?.[1] ? `${formatEther(bestShard?.[1], "gwei")} Gwei` : "-";
 
   const shardsTxData = useMemo(

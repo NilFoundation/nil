@@ -27,7 +27,7 @@ export const shardsRouter = router({
           type: CacheType.TIMER,
           time: 60000,
         },
-      )
+      );
 
       return gasPricemap;
     } catch (e) {
@@ -35,4 +35,3 @@ export const shardsRouter = router({
     }
   }),
 });
-  
