@@ -75,6 +75,26 @@ type Block struct {
 	ConsensusParams
 }
 
+type BlockWithHash struct {
+	*Block
+
+	Hash common.Hash
+}
+
+func NewBlockWithHash(b *Block, shardId ShardId) *BlockWithHash {
+	return &BlockWithHash{
+		Block: b,
+		Hash:  b.Hash(shardId),
+	}
+}
+
+func NewBlockWithRawHash(b *Block, rawHash common.Hash) *BlockWithHash {
+	return &BlockWithHash{
+		Block: b,
+		Hash:  rawHash,
+	}
+}
+
 type RawBlockWithExtractedData struct {
 	Block           serialization.EncodedData
 	InTransactions  []serialization.EncodedData
@@ -175,7 +195,7 @@ func (b *RawBlockWithExtractedData) DecodeBytes() (*BlockWithExtractedData, erro
 		ChildBlocks:     b.ChildBlocks,
 		DbTimestamp:     b.DbTimestamp,
 		Config: common.TransformMap(b.Config, func(k string, v []byte) (string, hexutil.Bytes) {
-			return k, hexutil.Bytes(v)
+			return k, v
 		}),
 	}, nil
 }
@@ -216,7 +236,7 @@ func (b *BlockWithExtractedData) EncodeToBytes() (*RawBlockWithExtractedData, er
 		ChildBlocks:     b.ChildBlocks,
 		DbTimestamp:     b.DbTimestamp,
 		Config: common.TransformMap(b.Config, func(k string, v hexutil.Bytes) (string, []byte) {
-			return k, []byte(v)
+			return k, v
 		}),
 	}, nil
 }

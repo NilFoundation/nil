@@ -5,8 +5,6 @@ import (
 	"errors"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/assert"
-	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -23,11 +21,11 @@ func (api *localShardApiRo) GetBlockHeader(
 	}
 	defer tx.Rollback()
 
-	block, err := api.getBlockByReference(tx, blockReference, false)
+	block, err := api.getRawHeaderByRef(tx, blockReference)
 	if err != nil {
 		return nil, err
 	}
-	return block.Block, nil
+	return block, nil
 }
 
 func (api *localShardApiRo) GetFullBlockData(
@@ -40,7 +38,7 @@ func (api *localShardApiRo) GetFullBlockData(
 	}
 	defer tx.Rollback()
 
-	return api.getBlockByReference(tx, blockReference, true)
+	return api.getFullBlockByRef(tx, blockReference)
 }
 
 func (api *localShardApiRo) GetBlockTransactionCount(
@@ -53,27 +51,50 @@ func (api *localShardApiRo) GetBlockTransactionCount(
 	}
 	defer tx.Rollback()
 
-	res, err := api.getBlockByReference(tx, blockReference, true)
+	// We're caching blocks, so taking a full block is not a serious problem.
+	// (Unless we're attacked by transaction count lovers.)
+	res, err := api.getFullBlockByRef(tx, blockReference)
 	if err != nil {
 		return 0, err
 	}
 	return uint64(len(res.InTransactions)), nil
 }
 
-func (api *localShardApiRo) getBlockByReference(
-	tx db.RoTx,
-	blockReference rawapitypes.BlockReference,
-	withTransactions bool,
-) (*types.RawBlockWithExtractedData, error) {
-	blockHash, err := api.getBlockHashByReference(tx, blockReference)
+func (api *localShardApiRo) getRawHeaderByRef(tx db.RoTx, ref rawapitypes.BlockReference) ([]byte, error) {
+	hash, err := api.getBlockHashByRef(tx, ref)
 	if err != nil {
 		return nil, err
 	}
 
-	return api.getBlockByHash(tx, blockHash, withTransactions)
+	return api.accessor.RawAccess(tx, api.shardId()).GetBlockHeaderByHash(hash)
 }
 
-func (api *localShardApiRo) getBlockHashByReference(
+func (api *localShardApiRo) getHeaderByRef(tx db.RoTx, ref rawapitypes.BlockReference) (*types.Block, error) {
+	hash, err := api.getBlockHashByRef(tx, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	return api.accessor.Access(tx, api.shardId()).GetBlockHeaderByHash(hash)
+}
+
+func (api *localShardApiRo) getFullBlockByRef(
+	tx db.RoTx, ref rawapitypes.BlockReference,
+) (*types.RawBlockWithExtractedData, error) {
+	hash, err := api.getBlockHashByRef(tx, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := api.accessor.RawAccess(tx, api.shardId()).GetFullBlockByHash(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return fixTxns(tx, result)
+}
+
+func (api *localShardApiRo) getBlockHashByRef(
 	tx db.RoTx,
 	blockReference rawapitypes.BlockReference,
 ) (common.Hash, error) {
@@ -94,70 +115,27 @@ func (api *localShardApiRo) getBlockHashByReference(
 	return common.EmptyHash, errors.New("unknown block reference type")
 }
 
-func (api *localShardApiRo) getBlockByHash(
-	tx db.RoTx,
-	hash common.Hash,
-	withTransactions bool,
-) (*types.RawBlockWithExtractedData, error) {
-	accessor := api.accessor.RawAccess(tx, api.shardId()).GetBlock()
-	if withTransactions {
-		accessor = accessor.
-			WithInTransactions().
-			WithOutTransactions().
-			WithReceipts().
-			WithChildBlocks().
-			WithDbTimestamp().
-			WithConfig()
-	}
-
-	data, err := accessor.ByHash(hash)
+func fixTxns(tx db.RoTx, result *types.RawBlockWithExtractedData) (*types.RawBlockWithExtractedData, error) {
+	// Need to decode transactions to get its hashes because external transaction hash
+	// calculated in a bit different way (not just Hash(bytes)).
+	transactions, err := serialization.DecodeContainer[*types.Transaction](result.InTransactions)
 	if err != nil {
 		return nil, err
 	}
 
-	if data.Block() == nil {
-		return nil, nil
-	}
-
-	if assert.Enable {
-		var block types.Block
-		if err := block.UnmarshalNil(data.Block()); err != nil {
+	for _, transaction := range transactions {
+		txnHash := transaction.Hash()
+		errMsg, err := db.ReadError(tx, txnHash)
+		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 			return nil, err
 		}
-		blockHash := block.Hash(api.shardId())
-		check.PanicIfNotf(blockHash == hash, "block hash mismatch: %s != %s", blockHash, hash)
-	}
-
-	result := &types.RawBlockWithExtractedData{
-		Block: data.Block(),
-	}
-	if withTransactions {
-		result.InTransactions = data.InTransactions()
-		result.InTxCounts = data.InTxCounts()
-		result.OutTransactions = data.OutTransactions()
-		result.OutTxCounts = data.OutTxCounts()
-		result.Receipts = data.Receipts()
-		result.Errors = make(map[common.Hash]string)
-		result.ChildBlocks = data.ChildBlocks()
-		result.DbTimestamp = data.DbTimestamp()
-		result.Config = data.Config()
-
-		// Need to decode transactions to get its hashes because external transaction hash
-		// calculated in a bit different way (not just Hash(bytes)).
-		transactions, err := serialization.DecodeContainer[*types.Transaction](result.InTransactions)
-		if err != nil {
-			return nil, err
-		}
-		for _, transaction := range transactions {
-			txnHash := transaction.Hash()
-			errMsg, err := db.ReadError(tx, txnHash)
-			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-				return nil, err
+		if len(errMsg) > 0 {
+			if result.Errors == nil {
+				result.Errors = make(map[common.Hash]string)
 			}
-			if len(errMsg) > 0 {
-				result.Errors[txnHash] = errMsg
-			}
+			result.Errors[txnHash] = errMsg
 		}
 	}
+
 	return result, nil
 }

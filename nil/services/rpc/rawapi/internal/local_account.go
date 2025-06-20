@@ -13,8 +13,6 @@ import (
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
 
-var errBlockNotFound = errors.New("block not found")
-
 func (api *localShardApiRo) GetBalance(
 	ctx context.Context,
 	address types.Address,
@@ -210,15 +208,8 @@ func (api *localShardApiRo) getRawSmartContract(
 	address types.Address,
 	blockReference rawapitypes.BlockReference,
 ) ([]byte, proofBuilder, error) {
-	rawBlock, err := api.getBlockByReference(tx, blockReference, false)
+	block, err := api.getHeaderByRef(tx, blockReference)
 	if err != nil {
-		return nil, nil, err
-	}
-	if rawBlock == nil {
-		return nil, nil, errBlockNotFound
-	}
-	var block types.Block
-	if err := block.UnmarshalNil(rawBlock.Block); err != nil {
 		return nil, nil, err
 	}
 

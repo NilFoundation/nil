@@ -191,13 +191,11 @@ func (suite *SuiteDbgContracts) TestGetContract() {
 		defer tx.Rollback()
 
 		shardId := suite.smcAddr.ShardId()
-		accessor := execution.NewStateAccessor().Access(tx, shardId).GetBlock()
-		data, err := accessor.ByHash(suite.blockHash)
+		block, err := execution.NewStateAccessor().Access(tx, shardId).GetBlockHeaderByHash(suite.blockHash)
 		suite.Require().NoError(err)
-		suite.Require().NotNil(data.Block())
 
 		contractRawReader := mpt.NewDbReader(tx, shardId, db.ContractTrieTable)
-		suite.Require().NoError(contractRawReader.SetRootHash(data.Block().SmartContractsRoot))
+		suite.Require().NoError(contractRawReader.SetRootHash(block.SmartContractsRoot))
 
 		expectedContract, err := contractRawReader.Get(suite.smcAddr.Hash().Bytes())
 		suite.Require().NoError(err)
@@ -205,7 +203,7 @@ func (suite *SuiteDbgContracts) TestGetContract() {
 		proof, err := mpt.DecodeProof(res.Proof)
 		suite.Require().NoError(err)
 
-		ok, err := proof.VerifyRead(suite.smcAddr.Hash().Bytes(), expectedContract, data.Block().SmartContractsRoot)
+		ok, err := proof.VerifyRead(suite.smcAddr.Hash().Bytes(), expectedContract, block.SmartContractsRoot)
 		suite.Require().NoError(err)
 		suite.Require().True(ok)
 	})
