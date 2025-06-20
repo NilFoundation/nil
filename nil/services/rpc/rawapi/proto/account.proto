@@ -17,6 +17,18 @@ message BalanceResponse {
   }
 }
 
+message StorageAtRequest {
+  AccountRequest base_request = 1;
+  Hash key = 2;
+}
+
+message StorageAtResponse {
+  oneof result {
+    Error error = 1;
+    Uint256 value = 2;
+  }
+}
+
 message CodeResponse {
   oneof result {
     Error error = 1;
@@ -39,6 +51,16 @@ message AsyncContext {
   uint64 responseProcessingGas = 1;
 }
 
+message FullAccountRequestOptions {
+  bool no_code = 1;
+  bool no_storage = 2;
+}
+
+message FullAccountRequest {
+  AccountRequest base_request = 1;
+  FullAccountRequestOptions options = 2;
+}
+
 message RawContract {
   bytes contractBytes = 1;
   bytes code = 2;
@@ -52,5 +74,24 @@ message RawContractResponse {
   oneof result {
     Error error = 1;
     RawContract data = 2;
+  }
+}
+
+message AccountRangeRequest {
+  BlockReference blockReference = 1;
+  Hash from = 2;
+  uint64 maxResults = 3;
+  FullAccountRequestOptions options = 4;
+}
+
+message AccountRangeData {
+  repeated RawContract contracts = 1;
+  Hash next = 2;
+}
+
+message AccountRangeResponse {
+  oneof result {
+    Error error = 1;
+    AccountRangeData data = 2;
   }
 }

@@ -39,7 +39,6 @@ func (api *localShardApiRo) GetFullBlockData(
 		return nil, err
 	}
 	defer tx.Rollback()
-
 	return api.getBlockByReference(tx, blockReference, true)
 }
 
@@ -60,6 +59,14 @@ func (api *localShardApiRo) GetBlockTransactionCount(
 	return uint64(len(res.InTransactions)), nil
 }
 
+func handleBlockFetchError(err error) error {
+	if errors.Is(err, db.ErrKeyNotFound) {
+		return rawapitypes.ErrBlockNotFound
+	}
+	return err
+}
+
+// getBlockByReference tries to fetch the block from db, if such block is not in the db, `rawapitypes.ErrBlockNotFound`
 func (api *localShardApiRo) getBlockByReference(
 	tx db.RoTx,
 	blockReference rawapitypes.BlockReference,
@@ -67,10 +74,15 @@ func (api *localShardApiRo) getBlockByReference(
 ) (*types.RawBlockWithExtractedData, error) {
 	blockHash, err := api.getBlockHashByReference(tx, blockReference)
 	if err != nil {
-		return nil, err
+		return nil, handleBlockFetchError(err)
 	}
 
-	return api.getBlockByHash(tx, blockHash, withTransactions)
+	block, err := api.getBlockByHash(tx, blockHash, withTransactions)
+	if err != nil {
+		return nil, handleBlockFetchError(err)
+	}
+
+	return block, nil
 }
 
 func (api *localShardApiRo) getBlockHashByReference(
@@ -110,13 +122,10 @@ func (api *localShardApiRo) getBlockByHash(
 			WithConfig()
 	}
 
+	// Unmarshalling happens inside, can't be nil
 	data, err := accessor.ByHash(hash)
 	if err != nil {
 		return nil, err
-	}
-
-	if data.Block() == nil {
-		return nil, nil
 	}
 
 	if assert.Enable {

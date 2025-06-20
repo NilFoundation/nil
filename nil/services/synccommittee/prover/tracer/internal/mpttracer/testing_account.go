@@ -6,7 +6,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -35,6 +37,7 @@ func CreateTestAccountAndTracer(t *testing.T) (types.Address, *MPTTracer, db.RwT
 	smartContract := types.SmartContract{
 		Address:     addr,
 		StorageRoot: storageTrie.RootHash(),
+		CodeHash:    types.EmptyCodeHash,
 	}
 	err = contractTrie.Update(smartContract.Address.Hash(), &smartContract)
 	require.NoError(t, err)
@@ -47,8 +50,11 @@ func CreateTestAccountAndTracer(t *testing.T) (types.Address, *MPTTracer, db.RwT
 		RwTx:         rwTx,
 		ContractTrie: contractTrie,
 	}
+	clientMock := &client.ClientMock{}
 
-	mptTracer := NewWithReader(contractReader, rwTx, shardId)
+	mptTracer := NewWithReader(
+		contractReader, rwTx, shardId, types.BlockNumber(1), clientMock, logging.NewLogger("mpttracer"),
+	)
 
 	return addr, mptTracer, rwTx
 }

@@ -15,6 +15,7 @@ type ExecutionTraces struct {
 	CopyEvents   []CopyEvent
 	KeccakTraces []KeccakBuffer
 	MPTTraces    *mpttracer.MPTTraces
+	ZethCache    *mpttracer.FileProviderCache
 
 	ContractsBytecode map[types.Address][]byte
 }
@@ -25,47 +26,13 @@ func NewExecutionTraces() *ExecutionTraces {
 	}
 }
 
-func (tr *ExecutionTraces) AddMemoryOps(ops []MemoryOp) {
-	tr.MemoryOps = append(tr.MemoryOps, ops...)
-}
-
-func (tr *ExecutionTraces) AddStackOps(ops []StackOp) {
-	tr.StackOps = append(tr.StackOps, ops...)
-}
-
-func (tr *ExecutionTraces) AddStorageOps(ops []StorageOp) {
-	tr.StorageOps = append(tr.StorageOps, ops...)
-}
-
-func (tr *ExecutionTraces) AddZKEVMStates(states []ZKEVMState) {
-	tr.ZKEVMStates = append(tr.ZKEVMStates, states...)
-}
-
-func (tr *ExecutionTraces) AddCopyEvents(events []CopyEvent) {
-	tr.CopyEvents = append(tr.CopyEvents, events...)
-}
-
 func (tr *ExecutionTraces) AddContractBytecode(addr types.Address, code []byte) {
 	tr.ContractsBytecode[addr] = code
 }
 
-func (tr *ExecutionTraces) AddExpOps(ops []ExpOp) {
-	tr.ExpOps = append(tr.ExpOps, ops...)
-}
-
-func (tr *ExecutionTraces) AddKeccakOps(ops []KeccakBuffer) {
-	tr.KeccakTraces = append(tr.KeccakTraces, ops...)
-}
-
-func (tr *ExecutionTraces) SetMptTraces(mptTraces *mpttracer.MPTTraces) {
-	tr.MPTTraces = mptTraces
-}
-
 // Append adds `other` to the end of traces slices, adds kv pairs from `otherTrace` maps
 func (tr *ExecutionTraces) Append(other *ExecutionTraces) {
-	if tr.MPTTraces != nil {
-		panic("you should not merge MPT traces, call `SetMptTraces` once at the end")
-	}
+	// TODO: add merging when MPT circuit is designed. Currently, only the last block mpt traces are saved.
 	tr.MPTTraces = other.MPTTraces
 
 	tr.MemoryOps = append(tr.MemoryOps, other.MemoryOps...)
@@ -75,6 +42,11 @@ func (tr *ExecutionTraces) Append(other *ExecutionTraces) {
 	tr.ZKEVMStates = append(tr.ZKEVMStates, other.ZKEVMStates...)
 	tr.CopyEvents = append(tr.CopyEvents, other.CopyEvents...)
 	tr.KeccakTraces = append(tr.KeccakTraces, other.KeccakTraces...)
+	if tr.ZethCache == nil {
+		tr.ZethCache = other.ZethCache
+	} else {
+		tr.ZethCache.Append(other.ZethCache)
+	}
 
 	for addr, code := range other.ContractsBytecode {
 		tr.ContractsBytecode[addr] = code
