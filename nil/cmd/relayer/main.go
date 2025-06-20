@@ -57,7 +57,7 @@ func execute() error {
 		Short: "Run nil L1<->L2 relayer",
 	}
 
-	logLevel := rootCmd.PersistentFlags().String("log-level", "info", "app log level")
+	logLevel := rootCmd.PersistentFlags().String("log-level", "trace", "app log level")
 	rootCmd.PreRun = func(cmd *cobra.Command, args []string) {
 		logging.SetupGlobalLogger(*logLevel)
 	}
@@ -213,6 +213,16 @@ func runService(ctx context.Context, cfg *Config) error {
 	svc, err := relayer.New(ctx, database, sysClock, cfg.RelayerConfig, l1Client)
 	if err != nil {
 		return fmt.Errorf("failed to initialize relayer service: %w", err)
+	}
+
+	if svc != nil && svc.Config != nil && svc.Config.TelemetryConfig != nil {
+		if svc.Config.TelemetryConfig.ExportMetrics {
+			svc.Logger.Info().Msg("metrics export is enabled")
+		} else {
+			svc.Logger.Info().Msg("metrics export is disabled")
+		}
+	} else {
+		svc.Logger.Info().Msg("telemetry configuration not available; metrics status unknown")
 	}
 
 	err = svc.Run(ctx)
