@@ -33,7 +33,8 @@ func DefaultRelayerConfig() *RelayerConfig {
 		TransactionSenderConfig: l2.DefaultTransactionSenderConfig(),
 		L2ContractConfig:        l2.DefaultContractConfig(),
 		TelemetryConfig: &telemetry.Config{
-			ServiceName: "relayer",
+			ServiceName:   "relayer",
+			ExportMetrics: true,
 		},
 		DebugAPIConfig:  debug.DefaultConfig(),
 		HeartbeatConfig: debug.DefaultHeartbeatConfig(),
