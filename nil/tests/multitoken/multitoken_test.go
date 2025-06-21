@@ -664,7 +664,7 @@ func (s *SuiteMultiTokenRpc) TestIncomingBalance() {
 	checkBalance(big.NewInt(20_000), big.NewInt(20_100), receipt.OutReceipts[0])
 }
 
-// NameTokensTestNoExternalAccess contract has no external access to token
+// TestNoExternalAccess contract has no external access to token
 func (s *SuiteMultiTokenRpc) TestNoExternalAccess() {
 	abiTest, err := contracts.GetAbi(contracts.NameTokensTestNoExternalAccess)
 	s.Require().NoError(err)
