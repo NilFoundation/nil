@@ -208,7 +208,7 @@ func (rs *RelayerService) Run(ctx context.Context) error {
 	egg.Go(func() error {
 		rs.Logger.Info().Msg("Starting heartbeat sender")
 		rs.Logger.Info().Msg("Submitting heartbeat metrics")
-		return rs.HeartbeatSender.Run(gCtx, heartbeatStarted)
+		return rs.HeartbeatSender.Run(gCtx, heartbeatStarted, rs.Logger)
 	})
 
 	rs.Logger.Info().Msg("relayer: refreshed actual finalized block number")

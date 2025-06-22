@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/internal/telemetry"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/metrics"
@@ -26,6 +27,7 @@ func (h *heartbeatMetricHandler) Init(name string, meter telemetry.Meter, attrs 
 	h.attributes = attrs
 	var err error
 
+	fmt.Println("Init heartbeat")
 	if h.heartbeat, err = meter.Int64Counter(name + ".heartbeat"); err != nil {
 		return err
 	}

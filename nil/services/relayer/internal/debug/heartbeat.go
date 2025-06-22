@@ -51,8 +51,10 @@ func (h *HeartbeatSender) Name() string {
 	return "heartbeat-sender"
 }
 
-func (h *HeartbeatSender) Run(ctx context.Context, started chan<- struct{}) error {
+func (h *HeartbeatSender) Run(ctx context.Context, started chan<- struct{}, logger logging.Logger) error {
 	eg, gCtx := errgroup.WithContext(ctx)
+
+	logger.Info().Dur("interval", h.config.Interval).Msg("heartbeat metrics Run")
 
 	eg.Go(func() error {
 		ticker := h.clock.NewTicker(h.config.Interval)
@@ -62,8 +64,10 @@ func (h *HeartbeatSender) Run(ctx context.Context, started chan<- struct{}) erro
 		for {
 			select {
 			case <-gCtx.Done():
+				logger.Info().Msg("heartbeat sender shutting down")
 				return gCtx.Err()
 			case <-ticker.Chan():
+				logger.Debug().Msg("sending heartbeat")
 				h.metrics.Heartbeat(gCtx)
 			}
 		}
