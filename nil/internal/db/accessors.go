@@ -7,6 +7,8 @@ import (
 	"reflect"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/assert"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
@@ -175,10 +177,22 @@ func ReadError(tx RoTx, txnHash common.Hash) (string, error) {
 }
 
 func WriteCode(tx RwTx, shardId types.ShardId, hash common.Hash, code types.Code) error {
+	if len(code) == 0 {
+		if assert.Enable {
+			check.PanicIfNot(hash == types.EmptyCodeHash)
+		}
+
+		return nil
+	}
+
 	return tx.PutToShard(shardId, codeTable, hash.Bytes(), code[:])
 }
 
 func ReadCode(tx RoTx, shardId types.ShardId, hash common.Hash) (types.Code, error) {
+	if assert.Enable {
+		check.PanicIfNot(!hash.Empty())
+	}
+
 	if hash == types.EmptyCodeHash {
 		return types.Code{}, nil
 	}
