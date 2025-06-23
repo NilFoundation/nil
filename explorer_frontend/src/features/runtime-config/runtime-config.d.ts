@@ -14,6 +14,7 @@ const keys = [
   "RPC_API_URL",
   "API_REQUESTS_ENABLE_BATCHING",
   "RECENT_PROJECTS_STORAGE_LIMIT",
+  "PLAYGROUND_VERSION",
 ] as const;
 
 type RuntimConfigKeys = (typeof keys)[number];

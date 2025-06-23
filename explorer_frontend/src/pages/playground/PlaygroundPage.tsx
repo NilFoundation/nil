@@ -23,6 +23,7 @@ import { ContractsContainer, closeApp } from "../../features/contracts";
 import { NetworkErrorNotification } from "../../features/healthcheck";
 import { $rpcIsHealthy } from "../../features/healthcheck/model";
 import { Logs } from "../../features/logs/components/Logs";
+import { getRuntimeConfigOrThrow } from "../../features/runtime-config/getRuntimeConfigOrThrow";
 import { useMobile } from "../../features/shared";
 import { Logo } from "../../features/shared/components/Layout/Logo";
 import { Navbar } from "../../features/shared/components/Layout/Navbar";
@@ -32,6 +33,7 @@ import { PlaygroundMobileLayout } from "./PlaygroundMobileLayout";
 import { $activeComponent, LayoutComponent } from "./model";
 
 export const PlaygroundPage = () => {
+  const playgroundVersionMock = "1.0";
   const [isDownloading, isRPCHealthy, activeTab, activeComponent] = useUnit([
     fetchSolidityCompiler.pending,
     $rpcIsHealthy,
@@ -42,7 +44,7 @@ export const PlaygroundPage = () => {
   const [isMobile] = useMobile();
   const displayNavbar = !isMobile || activeComponent === LayoutComponent.Code;
 
-  const playgroundVersion = import.meta.env.VITE_PLAYGROUND_VERSION;
+  const playgroundVersion = getRuntimeConfigOrThrow().PLAYGROUND_VERSION || playgroundVersionMock;
 
   useEffect(() => {
     loadedPlaygroundPage();
@@ -59,7 +61,13 @@ export const PlaygroundPage = () => {
         <Navbar
           showCodeInteractionButtons={true}
           logo={
-            <Logo subtitle={<LabelXSmall color={COLORS.gray400}>Playground v1.0</LabelXSmall>} />
+            <Logo
+              subtitle={
+                <LabelXSmall
+                  color={COLORS.gray400}
+                >{`Playground v${playgroundVersion}`}</LabelXSmall>
+              }
+            />
           }
         >
           {isMobile ? null : <AccountPane />}

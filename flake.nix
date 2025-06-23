@@ -140,8 +140,6 @@
                 mkdir -p ./usr/share/${packages.docsaibackend.name}
                 mkdir -p ./usr/share/${packages.rollup-bridge-contracts.name}
 
-                echo "${version}" > ./VERSION
-
                 cp -r ${pkg}/bin ./usr/
                 cp -r ${pkg}/share ./usr/
                 cp -r ${packages.nildocs.outPath}/* ./usr/share/${packages.nildocs.pname}
@@ -154,6 +152,8 @@
                 chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nildocs.pname}
                 chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.nilexplorer.name}
                 chmod -R u+rwx,g+rx,o+rx ./usr/share/${packages.docsaibackend.name}
+
+                echo "PLAYGROUND_VERSION = '${versionFull}'">> ./usr/share/${packages.nilexplorer.name}/frontend/runtime-config.toml
 
                 mv ./usr/bin/cometa ./usr/bin/nil-cometa
                 mv ./usr/bin/indexer ./usr/bin/nil-indexer
