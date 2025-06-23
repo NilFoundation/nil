@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"encoding/json"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -32,6 +33,14 @@ type SyncCommittee struct {
 
 func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, error) {
 	logger := logging.NewLogger("sync_committee")
+
+	// Log full config as JSON
+	cfgJSON, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		logger.Warn().Err(err).Msg("Failed to marshal SyncCommittee config")
+	} else {
+		logger.Info().RawJSON("sync_committee_config", cfgJSON).Msg("Loaded SyncCommittee config")
+	}
 
 	if err := telemetry.Init(ctx, cfg.Telemetry); err != nil {
 		logger.Error().Err(err).Msg("failed to initialize telemetry")
