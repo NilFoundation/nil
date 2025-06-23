@@ -39,7 +39,15 @@ func New(ctx context.Context, cfg *Config, database db.DB) (*SyncCommittee, erro
 	if err != nil {
 		logger.Warn().Err(err).Msg("Failed to marshal SyncCommittee config")
 	} else {
-		logger.Info().RawJSON("sync_committee_config", cfgJSON).Msg("Loaded SyncCommittee config")
+		logger.Info().Msgf("Loaded SyncCommittee config:\n%s", cfgJSON)
+	}
+
+
+	telemetryJSON, err := json.MarshalIndent(cfg.Telemetry, "", "  ")
+	if err != nil {
+		logger.Warn().Err(err).Msg("Failed to marshal telemetry config")
+	} else {
+		logger.Info().Msgf("Telemetry config:\n%s", telemetryJSON)
 	}
 
 	if err := telemetry.Init(ctx, cfg.Telemetry); err != nil {
