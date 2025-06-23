@@ -76,7 +76,7 @@ func (t *dummyMptTracer) GetAccountState(addr types.Address, createIfNotExists b
 	)
 }
 
-func (tt *dummyMptTracer) UpdateContracts(contracts map[types.Address]execution.AccountState) error {
+func (t *dummyMptTracer) UpdateContracts(contracts map[types.Address]execution.AccountState) error {
 	panic("UpdateContracts")
 }
 
