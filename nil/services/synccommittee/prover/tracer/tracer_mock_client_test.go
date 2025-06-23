@@ -9,6 +9,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
@@ -57,20 +58,25 @@ func newDummyMptTracer(
 		rwTx,
 	}, nil
 }
-
+func (t *dummyMptTracer) GetRwTx() db.RwTx                   { return t.rwTx }
 func (t *dummyMptTracer) SetRootHash(root common.Hash) error { return nil }
-func (t *dummyMptTracer) GetContract(addr types.Address) (*types.SmartContract, error) {
+func (t *dummyMptTracer) GetAccountState(addr types.Address, createIfNotExists bool) (execution.AccountState, error) {
 	code, ok := t.accountCodes[addr]
 	if !ok {
 		return nil, errors.New("no code for account found")
 	}
-	return &types.SmartContract{
-		Address:  addr,
-		CodeHash: code.Hash(),
-	}, nil
+	return execution.NewAccountState(
+		t,
+		addr,
+		&types.SmartContract{
+			Address:  addr,
+			CodeHash: code.Hash(),
+		},
+		logging.NewLogger("dummy_tracer"),
+	)
 }
 
-func (t *dummyMptTracer) UpdateContracts(contracts map[types.Address]*execution.AccountState) error {
+func (tt *dummyMptTracer) UpdateContracts(contracts map[types.Address]execution.AccountState) error {
 	panic("UpdateContracts")
 }
 

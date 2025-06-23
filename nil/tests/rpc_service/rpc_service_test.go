@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/nilservice"
 	"github.com/NilFoundation/nil/nil/services/rpc"
 	"github.com/NilFoundation/nil/nil/services/rpc/jsonrpc"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/tests"
 	"github.com/rs/zerolog"
@@ -77,11 +78,11 @@ func (s *SuiteRpcService) TestRpcBasicGetters() {
 	s.EqualValues(0, count)
 
 	count, err = s.Client.GetBlockTransactionCount(s.Context, types.BaseShardId, someRandomMissingBlock)
-	s.Require().NoError(err)
+	s.Require().ErrorContains(err, rawapitypes.ErrBlockNotFound.Error())
 	s.EqualValues(0, count)
 
 	res, err = s.Client.GetBlock(s.Context, types.BaseShardId, someRandomMissingBlock, false)
-	s.Require().NoError(err)
+	s.Require().ErrorContains(err, rawapitypes.ErrBlockNotFound.Error())
 	s.Require().Nil(res)
 
 	res, err = s.Client.GetBlock(s.Context, types.BaseShardId, transport.EarliestBlockNumber, false)

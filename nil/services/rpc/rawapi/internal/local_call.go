@@ -31,34 +31,34 @@ func calculateStateChange(
 
 		if oldAs == nil {
 			hasUpdates = true
-			contract.Seqno = &as.Seqno
-			contract.ExtSeqno = &as.ExtSeqno
-			contract.Balance = &as.Balance
-			contract.Code = (*hexutil.Bytes)(&as.Code)
-			contract.State = (*map[common.Hash]common.Hash)(&as.State)
-			contract.AsyncContext = &as.AsyncContext
+			contract.Seqno = common.Ptr(as.GetSeqno())
+			contract.ExtSeqno = common.Ptr(as.GetExtSeqno())
+			contract.Balance = common.Ptr(as.GetBalance())
+			contract.Code = (*hexutil.Bytes)(common.Ptr(as.GetCode()))
+			contract.State = (*map[common.Hash]common.Hash)(common.Ptr(as.GetFullState()))
+			contract.AsyncContext = common.Ptr(as.GetAllAsyncContexts())
 		} else {
-			if as.Seqno != oldAs.Seqno {
+			if as.GetSeqno() != oldAs.GetSeqno() {
 				hasUpdates = true
-				contract.Seqno = &as.Seqno
+				contract.Seqno = common.Ptr(as.GetSeqno())
 			}
 
-			if as.ExtSeqno != oldAs.ExtSeqno {
+			if as.GetExtSeqno() != oldAs.GetExtSeqno() {
 				hasUpdates = true
-				contract.ExtSeqno = &as.ExtSeqno
+				contract.ExtSeqno = common.Ptr(as.GetExtSeqno())
 			}
 
-			if !as.Balance.Eq(oldAs.Balance) {
+			if !as.GetBalance().Eq(oldAs.GetBalance()) {
 				hasUpdates = true
-				contract.Balance = &as.Balance
+				contract.Balance = common.Ptr(as.GetBalance())
 			}
 
-			if !bytes.Equal(as.Code, oldAs.Code) {
+			if !bytes.Equal(as.GetCode(), oldAs.GetCode()) {
 				hasUpdates = true
-				contract.Code = (*hexutil.Bytes)(&as.Code)
+				contract.Code = (*hexutil.Bytes)(common.Ptr(as.GetCode()))
 			}
 
-			for key, value := range as.State {
+			for key, value := range as.GetFullState() {
 				oldVal, err := oldAs.GetState(key)
 				if err != nil {
 					return nil, err
@@ -73,9 +73,9 @@ func calculateStateChange(
 				}
 			}
 
-			asyncContextHasUpdates := len(as.AsyncContext) != len(oldAs.AsyncContext)
+			asyncContextHasUpdates := len(as.GetAllAsyncContexts()) != len(oldAs.GetAllAsyncContexts())
 			if !asyncContextHasUpdates {
-				for key, value := range as.AsyncContext {
+				for key, value := range as.GetAllAsyncContexts() {
 					oldVal, err := oldAs.GetAsyncContext(key)
 					if err != nil {
 						if !errors.Is(err, db.ErrKeyNotFound) {
@@ -93,7 +93,7 @@ func calculateStateChange(
 
 			if asyncContextHasUpdates {
 				hasUpdates = true
-				contract.AsyncContext = &as.AsyncContext
+				contract.AsyncContext = common.Ptr(as.GetAllAsyncContexts())
 			}
 		}
 
@@ -258,7 +258,7 @@ func (api *localShardApiRo) Call(
 	case txn.IsInternal():
 		payer = execution.NewTransactionPayer(txn, es)
 	default:
-		var toAs *execution.AccountState
+		var toAs execution.AccountState
 		if toAs, err = es.GetAccount(txn.To); err != nil {
 			return nil, err
 		} else if toAs == nil {

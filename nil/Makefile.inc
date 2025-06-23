@@ -1,9 +1,11 @@
 include nil/services/synccommittee/Makefile.inc
 include nil/services/relayer/Makefile.inc
+include nil/internal/types/Makefile.inc
 
 root_client = nil/client
 root_vm = nil/internal/vm
 root_db = nil/internal/db
+root_execution = nil/internal/execution
 root_rollup = nil/services/rollup
 
 .PHONY: gen_rollup_contracts_bindings
@@ -22,6 +24,7 @@ generate_mocks: \
 	$(root_db)/rwtx_generated_mock.go \
 	$(root_db)/db_generated_mock.go \
 	$(root_rollup)/l1_fetcher_generated_mock.go \
+	$(root_execution)/account_state_helpers_generated_mock.go \
 
 $(root_client)/client_generated_mock.go: $(root_client)/client.go rlp_types
 	cd $(root_client) && go generate
@@ -37,3 +40,6 @@ $(root_db)/db_generated_mock.go: $(root_db)/kv.go $(root_db)/rwtx_generated_mock
 
 $(root_rollup)/l1_fetcher_generated_mock.go: $(root_rollup)/l1_fetcher.go
 	cd $(root_rollup) && go generate l1_fetcher.go
+
+$(root_execution)/account_state_helpers_generated_mock.go: $(root_execution)/account_state.go error_stringer
+	cd $(root_execution) && go generate account_state.go

@@ -80,11 +80,18 @@ func (api *shardApiClientRo) GetTokens(
 		ctx, api, "GetTokens", address, blockReference)
 }
 
+func (api *shardApiClientRo) GetStorageAt(
+	ctx context.Context, address types.Address, key common.Hash, blockReference rawapitypes.BlockReference,
+) (types.Uint256, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[types.Uint256](
+		ctx, api, "GetStorageAt", address, key, blockReference)
+}
+
 func (api *shardApiClientRo) GetContract(
-	ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference,
+	ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference, noCode bool, noStorage bool,
 ) (*rawapitypes.SmartContract, error) {
 	return sendRequestAndGetResponseWithCallerMethodName[*rawapitypes.SmartContract](
-		ctx, api, "GetContract", address, blockReference)
+		ctx, api, "GetContract", address, blockReference, noCode, noStorage)
 }
 
 func (api *shardApiClientRo) Call(
@@ -129,4 +136,16 @@ func (api *shardApiClientRo) ClientVersion(ctx context.Context) (string, error) 
 
 func (api *shardApiClientRo) GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error) {
 	return sendRequestAndGetResponseWithCallerMethodName[*rpctypes.BootstrapConfig](ctx, api, "GetBootstrapConfig")
+}
+
+func (api *shardApiClientRo) GetContractRange(
+	ctx context.Context,
+	blockReference rawapitypes.BlockReference,
+	start common.Hash,
+	maxResults uint64,
+	withCode bool,
+	withStorage bool,
+) (*rawapitypes.SmartContractRange, error) {
+	return sendRequestAndGetResponseWithCallerMethodName[*rawapitypes.SmartContractRange](
+		ctx, api, "GetContractRange", blockReference, start, maxResults, withCode, withStorage)
 }

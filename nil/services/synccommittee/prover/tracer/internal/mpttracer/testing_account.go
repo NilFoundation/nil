@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -48,7 +49,7 @@ func CreateTestAccountAndTracer(t *testing.T) (types.Address, *MPTTracer, db.RwT
 		ContractTrie: contractTrie,
 	}
 
-	mptTracer := NewWithReader(contractReader, rwTx, shardId)
+	mptTracer := NewWithReader(contractReader, rwTx, shardId, logging.NewLogger("mpttracer"))
 
 	return addr, mptTracer, rwTx
 }

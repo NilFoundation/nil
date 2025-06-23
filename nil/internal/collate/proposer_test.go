@@ -219,7 +219,7 @@ func (s *ProposerTestSuite) getBalance(shardId types.ShardId, addr types.Address
 	if acc == nil {
 		return types.Value{}
 	}
-	return acc.Balance
+	return acc.GetBalance()
 }
 
 func (s *ProposerTestSuite) checkReceipt(genRes *execution.BlockGenerationResult, m *types.Transaction) *types.Receipt {

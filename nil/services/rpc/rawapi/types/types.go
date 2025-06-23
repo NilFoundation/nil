@@ -9,7 +9,10 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
 
-var ErrShardNotFound = errors.New("shard API not found")
+var (
+	ErrShardNotFound = errors.New("shard API not found")
+	ErrBlockNotFound = errors.New("requested block not found")
+)
 
 type BlockReferenceType uint8
 
@@ -155,4 +158,9 @@ type SmartContract struct {
 	Storage       map[common.Hash]types.Uint256
 	Tokens        map[types.TokenId]types.Value
 	AsyncContext  map[types.TransactionIndex]types.AsyncContext
+}
+
+type SmartContractRange struct {
+	Contracts []*SmartContract
+	Next      *common.Hash
 }

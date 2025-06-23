@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
-	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -21,12 +20,12 @@ func (es *MockAccountExecutionState) GetRwTx() db.RwTx {
 	return es.rwTx
 }
 
-var _ execution.IAccountExecutionState = (*MockAccountExecutionState)(nil)
+var _ execution.DbRwTxProvider = (*MockAccountExecutionState)(nil)
 
 func TestMPTTracer_GetAccountSlotChangeTraces(t *testing.T) {
 	t.Parallel()
 
-	addr, mptTracer, rwTx := CreateTestAccountAndTracer(t)
+	addr, mptTracer, _ := CreateTestAccountAndTracer(t)
 
 	// Set multiple slots
 	key1 := common.BytesToHash([]byte("key1"))
@@ -34,20 +33,14 @@ func TestMPTTracer_GetAccountSlotChangeTraces(t *testing.T) {
 	key2 := common.BytesToHash([]byte("key2"))
 	value2 := common.BytesToHash([]byte("value2"))
 
-	contract, err := mptTracer.GetContract(addr)
-	require.NoError(t, err)
-	acc, err := execution.NewAccountState(
-		&MockAccountExecutionState{rwTx}, contract.Address, contract, logging.NewLogger("test"),
-	)
+	acc, err := mptTracer.GetAccountState(addr, false)
 	require.NoError(t, err)
 
-	err = acc.SetState(key1, value1)
-	require.NoError(t, err)
-	err = acc.SetState(key2, value2)
-	require.NoError(t, err)
+	acc.SetState(key1, value1)
+	acc.SetState(key2, value2)
 
 	// To get correct result from GetMPTTraces we need to commit account with UpdateContracts, not acc.Commit()
-	err = mptTracer.UpdateContracts(map[types.Address]*execution.AccountState{contract.Address: acc})
+	err = mptTracer.UpdateContracts(map[types.Address]execution.AccountState{addr: acc})
 	require.NoError(t, err)
 
 	_, err = mptTracer.Commit()
@@ -73,30 +66,24 @@ func TestMPTTracer_GetAccountSlotChangeTraces(t *testing.T) {
 func TestMPTTracer_MultipleUpdatesToSameSlot(t *testing.T) {
 	t.Parallel()
 
-	addr, mptTracer, rwTx := CreateTestAccountAndTracer(t)
+	addr, mptTracer, _ := CreateTestAccountAndTracer(t)
 
 	key := common.BytesToHash([]byte("test_key"))
 	value1 := common.BytesToHash([]byte("value1"))
 	value2 := common.BytesToHash([]byte("value2"))
 
 	// Set slot multiple times
-	contract, err := mptTracer.GetContract(addr)
+	acc, err := mptTracer.GetAccountState(addr, false)
 	require.NoError(t, err)
-	acc, err := execution.NewAccountState(
-		&MockAccountExecutionState{rwTx}, contract.Address, contract, logging.NewLogger("test"),
-	)
-	require.NoError(t, err)
-	err = acc.SetState(key, value1)
-	require.NoError(t, err)
-	err = acc.SetState(key, value2)
-	require.NoError(t, err)
+	acc.SetState(key, value1)
+	acc.SetState(key, value2)
 
 	// Verify final value
 	retrievedValue, err := acc.GetState(key)
 	require.NoError(t, err)
 	assert.Equal(t, value2, retrievedValue)
 
-	initialStorageRoot := acc.StorageTree.RootHash()
+	initialStorageRoot := acc.GetStorageRoot()
 	committedContract, err := acc.Commit()
 	require.NoError(t, err)
 

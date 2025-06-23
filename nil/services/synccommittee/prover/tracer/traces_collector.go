@@ -77,7 +77,7 @@ func (tc *remoteTracesCollectorImpl) initMptTracer(
 	startBlockNum types.BlockNumber,
 	contractTrieRoot common.Hash,
 ) error {
-	tc.mptTracer = mpttracer.New(tc.client, startBlockNum, tc.rwTx, shardId)
+	tc.mptTracer = mpttracer.New(tc.client, startBlockNum, tc.rwTx, shardId, tc.logger)
 	return tc.mptTracer.SetRootHash(contractTrieRoot)
 }
 

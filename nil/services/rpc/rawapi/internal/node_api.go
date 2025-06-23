@@ -45,10 +45,18 @@ type NodeApi interface {
 	) (map[types.TokenId]types.Value, error)
 	GetTransactionCount(
 		ctx context.Context, address types.Address, blockReference rawapitypes.BlockReference) (uint64, error)
+	GetStorageAt(
+		ctx context.Context,
+		address types.Address,
+		key common.Hash,
+		blockReference rawapitypes.BlockReference,
+	) (types.Uint256, error)
 	GetContract(
 		ctx context.Context,
 		address types.Address,
 		blockReference rawapitypes.BlockReference,
+		noCode bool,
+		noStorage bool,
 	) (*rawapitypes.SmartContract, error)
 
 	Call(
@@ -73,4 +81,14 @@ type NodeApi interface {
 	DoPanicOnShard(ctx context.Context, shardId types.ShardId) (uint64, error)
 
 	SetP2pRequestHandlers(ctx context.Context, networkManager network.Manager, logger logging.Logger) error
+
+	GetContractRange(
+		ctx context.Context,
+		shardId types.ShardId,
+		blockReference rawapitypes.BlockReference,
+		start common.Hash,
+		maxResults uint64,
+		noCode bool,
+		noStorage bool,
+	) (*rawapitypes.SmartContractRange, error)
 }

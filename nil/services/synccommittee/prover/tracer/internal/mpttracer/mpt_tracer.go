@@ -6,6 +6,7 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -21,8 +22,10 @@ type MPTTracer struct {
 	shardId             types.ShardId
 	ContractSparseTrie  *mpt.MerklePatriciaTrie
 	initialContractRoot common.Hash
+	accountsStates      map[types.Address]execution.AccountState
 	// since we can't iterate over sparse trie, keep accounts for explicit checks
 	touchedAccounts map[types.Address]struct{}
+	logger          logging.Logger
 }
 
 var _ execution.IContractMPTRepository = (*MPTTracer)(nil)
@@ -36,14 +39,14 @@ func (mt *MPTTracer) SetRootHash(root common.Hash) error {
 	return mt.ContractSparseTrie.SetRootHash(root)
 }
 
-func (mt *MPTTracer) GetContract(addr types.Address) (*types.SmartContract, error) {
+func (mt *MPTTracer) GetAccountState(addr types.Address, createIfNotExists bool) (execution.AccountState, error) {
 	contractTrie := execution.NewContractTrie(mt.ContractSparseTrie)
 
 	// try to fetch from cache
 	smartContract, err := contractTrie.Fetch(addr.Hash())
 	if smartContract != nil {
 		// we fetched this contract before (in could be even updated by this time)
-		return smartContract, nil
+		return mt.accountsStates[addr], nil
 	}
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
@@ -69,13 +72,18 @@ func (mt *MPTTracer) GetContract(addr types.Address) (*types.SmartContract, erro
 		return nil, err
 	}
 
-	if contract == nil {
-		err = db.ErrKeyNotFound
+	if contract == nil && !createIfNotExists {
+		return nil, nil
 	}
-	return contract, err
+	accountState, err := execution.NewAccountState(mt, addr, contract, mt.logger)
+	if err != nil {
+		return nil, err
+	}
+	mt.accountsStates[addr] = accountState
+	return accountState, nil
 }
 
-func (mt *MPTTracer) UpdateContracts(contracts map[types.Address]*execution.AccountState) error {
+func (mt *MPTTracer) UpdateContracts(contracts map[types.Address]execution.AccountState) error {
 	keys := make([]common.Hash, 0, len(contracts))
 	values := make([]*types.SmartContract, 0, len(contracts))
 	for addr, acc := range contracts {
@@ -110,9 +118,10 @@ func New(
 	shardBlockNumber types.BlockNumber,
 	rwTx db.RwTx,
 	shardId types.ShardId,
+	logger logging.Logger,
 ) *MPTTracer {
 	debugApiReader := NewDebugApiContractReader(client, shardBlockNumber, rwTx, shardId)
-	return NewWithReader(debugApiReader, rwTx, shardId)
+	return NewWithReader(debugApiReader, rwTx, shardId, logger)
 }
 
 // NewWithReader creates a new MPTTracer with a provided contract reader
@@ -120,6 +129,7 @@ func NewWithReader(
 	contractReader ContractReader,
 	rwTx db.RwTx,
 	shardId types.ShardId,
+	logger logging.Logger,
 ) *MPTTracer {
 	contractSparseTrie := mpt.NewDbMPT(rwTx, shardId, db.ContractTrieTable)
 	check.PanicIfErr(contractSparseTrie.SetRootHash(mpt.EmptyRootHash))
@@ -128,7 +138,9 @@ func NewWithReader(
 		rwTx:               rwTx,
 		shardId:            shardId,
 		ContractSparseTrie: contractSparseTrie,
+		accountsStates:     make(map[types.Address]execution.AccountState),
 		touchedAccounts:    make(map[types.Address]struct{}),
+		logger:             logger,
 	}
 }
 
@@ -330,4 +342,8 @@ func (mt *MPTTracer) getAccountTrieTraces(
 ) ([]ContractTrieUpdateTrace, error) {
 	rawMpt := mpt.NewDbMPT(mt.rwTx, mt.shardId, db.ContractTrieTable)
 	return getTrieTraces(rawMpt, execution.NewContractTrie, initialRoot, currentRoot)
+}
+
+func (mt *MPTTracer) GetRwTx() db.RwTx {
+	return mt.rwTx
 }

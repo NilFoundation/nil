@@ -74,6 +74,7 @@ const (
 	Eth_getBlockTransactionCountByHash   = "eth_getBlockTransactionCountByHash"
 	Eth_getBalance                       = "eth_getBalance"
 	Eth_getTokens                        = "eth_getTokens" //nolint:gosec
+	Eth_getStorageAt                     = "eth_getStorageAt"
 	Eth_getShardIdList                   = "eth_getShardIdList"
 	Eth_getNumShards                     = "eth_getNumShards"
 	Eth_gasPrice                         = "eth_gasPrice"
@@ -604,6 +605,19 @@ func (c *Client) GetTokens(ctx context.Context, address types.Address, blockId a
 	return simpleCall[types.TokensMap](ctx, c, Eth_getTokens, address, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
+func (c *Client) GetStorageAt(
+	ctx context.Context,
+	address types.Address,
+	key common.Hash,
+	blockId any,
+) (types.Uint256, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return types.Uint256{}, err
+	}
+	return simpleCall[types.Uint256](ctx, c, Eth_getStorageAt, address, key, transport.BlockNumberOrHash(blockNrOrHash))
+}
+
 func (c *Client) GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error) {
 	return simpleCall[types.Value](ctx, c, Eth_gasPrice, shardId)
 }
@@ -965,6 +979,22 @@ func (c *Client) GetTxpoolContent(ctx context.Context, shardId types.ShardId) (j
 
 func (c *Client) GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error) {
 	return simpleCall[*rpctypes.BootstrapConfig](ctx, c, Debug_getBootstrapConfig)
+}
+
+func (c *Client) GetProof(
+	ctx context.Context,
+	address types.Address,
+	storageKeys []common.Hash,
+	blockId any,
+) (*jsonrpc.EthProof, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return nil, err
+	}
+
+	return simpleCall[*jsonrpc.EthProof](
+		ctx, c, Eth_getProof, address, storageKeys, transport.BlockNumberOrHash(blockNrOrHash),
+	)
 }
 
 func simpleCall[ReturnType any](ctx context.Context, c *Client, method string, params ...any) (ReturnType, error) {

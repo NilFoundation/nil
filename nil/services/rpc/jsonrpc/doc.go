@@ -39,3 +39,6 @@ package jsonrpc
 // @componentprop BlockHash blockHash string false "(Optional) The hash of the block. Either this or BlockNumber is required."
 // @componentprop BlockNumber blockNumber integer false "(Optional) The number of the block. Either this or BlockHash is required."
 // @component StateOverrides stateOverrides object "(Optional) Map of address-state pairs to be overrided."
+// @component StorageKey storageKey string "The key (slot) to fetch from smart contract storage. 32-byte hash."
+// @component StorageKeys storageKeys array "The array of keys (slots) to fetch from smart contract storage. 32-byte hashes."
+// @component AccountProof accountProof object "Account data and storage values with Merkle proofs"

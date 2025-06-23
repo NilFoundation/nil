@@ -316,6 +316,23 @@ type EthAPIRo interface {
 	ChainId(ctx context.Context) (hexutil.Uint64, error)
 
 	/*
+		@name GetStorageAt
+		@summary Returns the value stored at a specific storage key of a contract at a given block.
+		@description Implements eth_getStorageAt.
+		@tags [Accounts]
+		@param address Address
+		@param key StorageKey
+		@param blockNrOrHash BlockNumberOrHash
+		@returns value Value stored at the specified key
+	*/
+	GetStorageAt(
+		ctx context.Context,
+		address types.Address,
+		key common.Hash,
+		blockNrOrHash transport.BlockNumberOrHash,
+	) (types.Uint256, error)
+
+	/*
 		@name GetTokens
 		@summary Returns the token balances of the account with the given address and at the given block.
 		@description Implements eth_getTokens.
@@ -329,6 +346,24 @@ type EthAPIRo interface {
 		address types.Address,
 		blockNrOrHash transport.BlockNumberOrHash,
 	) (map[types.TokenId]types.Value, error)
+
+	/*
+		@name GetProof
+		@summary Returns the account and storage values, along with Merkle proofs,
+		         for the specified address and storage keys at the given block.
+		@description Implements eth_getProof.
+		@tags [Accounts]
+		@param address Address
+		@param storageKeys StorageKeys
+		@param blockNrOrHash BlockNumberOrHash
+		@returns proof AccountProof
+	*/
+	GetProof(
+		ctx context.Context,
+		address types.Address,
+		storageKeys []common.Hash,
+		blockNrOrHash transport.BlockNumberOrHash,
+	) (*EthProof, error)
 }
 
 // EthAPI is a collection of functions that are exposed in the JSON-RPC API.
