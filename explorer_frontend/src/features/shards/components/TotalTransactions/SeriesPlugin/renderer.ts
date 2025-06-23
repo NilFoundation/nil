@@ -88,7 +88,7 @@ export class GroupedBarsSeriesRenderer<TData extends GroupedBarsData>
     const barWidth = this._data.barSpacing;
     const groups: GroupedBarsBarItem[] = this._data.bars.map((bar) => {
       const count = bar.originalData.customValues?.values.length;
-      const singleBarWidth = barWidth / (count + 1);
+      const singleBarWidth = barWidth / (count + 0.5);
       const padding = singleBarWidth / 2;
       const startX = padding + bar.x - barWidth / 2 + singleBarWidth / 2;
       return {
@@ -119,7 +119,7 @@ export class GroupedBarsSeriesRenderer<TData extends GroupedBarsData>
         const offset = lastX ? xPos.position - lastX : 0;
 
         const radius = 10;
-        const x = xPos.position - offset;
+        const x = xPos.position - offset - 15;
         const y = yPos.position;
         const width = xPos.length + offset;
         const height = yPos.length;
