@@ -13,6 +13,7 @@ import (
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l1"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/l2"
 	"github.com/NilFoundation/nil/nil/services/relayer/internal/storage"
+	syncmetrics "github.com/NilFoundation/nil/nil/services/relayer/internal/metrics"
 	"github.com/jonboulle/clockwork"
 	"golang.org/x/sync/errgroup"
 )
@@ -76,6 +77,11 @@ func New(
 		return nil, fmt.Errorf("failed to init telemetry: %w", err)
 	}
 
+	metricsHandler, err := syncmetrics.NewSyncCommitteeMetrics()
+	if err != nil {
+		return nil, fmt.Errorf("error initializing metrics: %w", err)
+	}
+	metricsHandler.Heartbeat(ctx)
 	storageMetrics, err := storage.NewTableMetrics()
 	if err != nil {
 		return nil, err

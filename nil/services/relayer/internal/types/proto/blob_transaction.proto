@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package sync_committee_types;
+option go_package = "/proto";
+
+// Uint256 represents a 256-bit unsigned integer as a sequence of uint64 parts
+message Uint256 {
+    repeated uint64 word_parts = 1;  // 4 uint64 parts composing the 256-bit number
+}
+
+// Address represents an Ethereum address
+message Address {
+    bytes address_bytes = 1;  // 20-byte address
+}
+
+// Nil transaction binary representation which is going to be stored on the L1 in blob format
+message BlobTransaction {
+    uint32 flags = 1;
+    uint64 seq_no = 2;
+    Address addr_from = 3;
+    Address addr_to = 4;
+    optional Address addr_bounce_to = 5;
+    optional Address addr_refund_to = 6;
+    Uint256 value = 7;
+    bytes Data = 8;
+}
+
+message BlobBlock {
+    uint32 shard_id = 1;
+    uint64 block_number = 2;
+    bytes prev_block_hash = 3;
+    uint64 timestamp = 4;
+    repeated BlobTransaction transactions = 5;
+}
+
+message Batch {
+    string batch_id = 1;
+    uint64 last_block_timestamp = 2;
+    uint64 total_tx_count = 3;
+    repeated BlobBlock blocks = 4;
+}
