@@ -191,6 +191,13 @@ func addRunCommandFlags(runCmd *cobra.Command, cfg *Config) error {
 		"Faucet address for L2 transaction sender (debug-only)",
 	)
 
+	runCmd.Flags().BoolVar(
+		&cfg.TelemetryConfig.ExportMetrics,
+		"metrics",
+		cfg.TelemetryConfig.ExportMetrics,
+		"export metrics via grpc",
+	)
+
 	return viper.BindPFlags(runCmd.Flags())
 }
 
