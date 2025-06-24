@@ -38,6 +38,9 @@ const (
 	ModeSyncReplay   = "syncer-replay"
 	ModeManualReplay = "manual-replay"
 	ModeVerify       = "verify"
+
+	// TODO: align with protocol – currently using a dummy address to match Ethereum block structure
+	CoinbaseShardIndependentAddr = "0x0"
 )
 
 var blocksTracer *BlocksTracer
@@ -108,6 +111,8 @@ type ExecutionState struct {
 	Errors   map[common.Hash]error
 
 	GasUsed types.Gas
+
+	CoinbaseAddress types.Address
 
 	// Transient storage
 	transientStorage transientStorage
@@ -281,6 +286,7 @@ func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
 		BlobBaseFee: big.NewInt(10),
 		GasLimit:    es.GasLimit.Uint64(),
 		Time:        time,
+		Coinbase:    es.CoinbaseAddress,
 
 		RollbackCounter: rollbackCounter,
 	}, nil
@@ -352,6 +358,7 @@ func NewExecutionState(tx db.RoTx, shardId types.ShardId, params StateParams) (*
 		Logs:             map[common.Hash][]*types.Log{},
 		DebugLogs:        map[common.Hash][]*types.DebugLog{},
 		Errors:           map[common.Hash]error{},
+		CoinbaseAddress:  types.ShardAndHexToAddress(shardId, CoinbaseShardIndependentAddr),
 
 		journal:          newJournal(),
 		transientStorage: newTransientStorage(),
@@ -1186,6 +1193,11 @@ func (es *ExecutionState) HandleTransaction(
 	default:
 		res = es.handleExecutionTransaction(ctx, txn)
 	}
+
+	if err := es.transferPriorityFee(res.GasUsed.ToValue(txn.MaxPriorityFeePerGas)); err != nil {
+		return NewExecutionResult().SetFatal(fmt.Errorf("transferPriorityFee failed: %w", err))
+	}
+
 	responseWasSent := false
 	bounced := false
 	if txn.IsRequest() {
@@ -2192,4 +2204,8 @@ func VerboseTracingHooks(logger logging.Logger) *tracing.Hooks {
 			logger.Debug().Msgf("%04x: %s", pc, vm.OpCode(op).String())
 		},
 	}
+}
+
+func (es *ExecutionState) transferPriorityFee(priorityFee types.Value) error {
+	return es.AddBalance(es.CoinbaseAddress, priorityFee, tracing.BalanceIncreaseRewardTransactionFee)
 }

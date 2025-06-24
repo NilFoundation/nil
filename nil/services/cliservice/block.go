@@ -123,6 +123,7 @@ Block #{{ .block.Id }} [{{ .color.bold }}{{ .block.Hash .shardId }}{{ .color.res
   PrevBlock: {{ .block.PrevBlock }}
   BaseFee: {{ .block.BaseFee }}
   GasUsed: {{ .block.GasUsed }}
+  Coinbase: {{ .block.Coinbase }}
   ChildBlocksRootHash: {{ .block.ChildBlocksRootHash }}
 {{- if len .block.ChildBlocks}}
   ChildBlocks:

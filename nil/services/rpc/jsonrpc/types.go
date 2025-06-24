@@ -72,6 +72,7 @@ type RPCInTransaction struct {
 // @componentprop ParentHash parentHash string true "The hash of the parent block."
 // @componentprop ReceiptsRoot receiptsRoot string true "The root of the block receipts."
 // @componentprop ShardId shardId integer true "The ID of the shard where the block was generated."
+// @componentprop Coinbase miner string true "The address of the fee recipient that receives priority fees."
 type RPCBlock struct {
 	Number              types.BlockNumber   `json:"number"`
 	Hash                common.Hash         `json:"hash"`
@@ -93,6 +94,7 @@ type RPCBlock struct {
 	L1Number            uint64              `json:"l1Number"`
 	LogsBloom           hexutil.Bytes       `json:"logsBloom,omitempty"`
 	GasUsed             types.Gas           `json:"gasUsed,omitempty"`
+	Coinbase            types.Address       `json:"miner"`
 }
 
 type ShardCount struct {
@@ -435,6 +437,7 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 		LogsBloom:           bloom,
 		L1Number:            block.L1BlockNumber,
 		GasUsed:             block.GasUsed,
+		Coinbase:            block.Coinbase,
 	}, nil
 }
 

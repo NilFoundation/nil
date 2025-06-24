@@ -55,8 +55,12 @@ func (mt *MPTTracer) GetAccountState(addr types.Address, createIfNotExists bool)
 	// try to fetch from cache
 	smartContract, err := contractTrie.Fetch(addr.Hash())
 	if smartContract != nil {
-		// we fetched this contract before (in could be even updated by this time)
-		return mt.accountsTraceableStates[addr], nil
+		cachedAcc, exists := mt.accountsTraceableStates[addr]
+		if exists {
+			return cachedAcc, nil
+		}
+		// it could exist in the trie, but not in cache. E.g., the trie is reused between tracing
+		return mt.createTraceableAccount(addr, smartContract)
 	}
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
@@ -86,6 +90,13 @@ func (mt *MPTTracer) GetAccountState(addr types.Address, createIfNotExists bool)
 		return nil, nil
 	}
 
+	return mt.createTraceableAccount(addr, contract)
+}
+
+func (mt *MPTTracer) createTraceableAccount(
+	addr types.Address,
+	contract *types.SmartContract,
+) (*TraceableAccount, error) {
 	traceableAcc, err := NewTracableAccountState(mt, addr, contract, mt.logger)
 	if err != nil {
 		return nil, err

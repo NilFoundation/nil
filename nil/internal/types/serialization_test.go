@@ -34,7 +34,7 @@ func TestSerializeBlock(t *testing.T) {
 	h, err := common.Keccak(&block2)
 	require.NoError(t, err)
 
-	h2, err := hex.DecodeString("24ff2a9b05d533266c08cc1906bffcd746ecd1a427255de2319f9a9a45fa1a75")
+	h2, err := hex.DecodeString("03b723f064c70966267e9ded7d13fc07e1a082f5ea4e2156c77765cfe933c657")
 	require.NoError(t, err)
 
 	require.Equal(t, common.BytesToHash(h2), common.BytesToHash(h[:]))
