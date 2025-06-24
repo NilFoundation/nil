@@ -3,6 +3,7 @@ package relayer
 import (
 	"context"
 	"fmt"
+        "encoding/json"
 
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -61,6 +62,14 @@ func New(
 	rs := &RelayerService{
 		Logger: logging.NewLogger("relayer"),
 		Config: config,
+	}
+
+	// Log full config as JSON
+	cfgJSON, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		rs.Logger.Warn().Err(err).Msg("Failed to marshal relayer config")
+	} else {
+		rs.Logger.Info().Msgf("Loaded relayer config:\n%s", cfgJSON)
 	}
 
 	if err := telemetry.Init(ctx, config.TelemetryConfig); err != nil {
