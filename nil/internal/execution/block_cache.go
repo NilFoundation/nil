@@ -35,7 +35,7 @@ func getHashFn(es *ExecutionState, ref *types.Block) func(n uint64) (common.Hash
 		lastKnownHash := cache[len(cache)-1]
 
 		for {
-			data, err := es.shardAccessor.GetBlock().ByHash(lastKnownHash)
+			b, err := es.blockAccessor.GetByHash(es.tx, es.ShardId, lastKnownHash)
 			if errors.Is(err, db.ErrKeyNotFound) {
 				break
 			}
@@ -43,9 +43,9 @@ func getHashFn(es *ExecutionState, ref *types.Block) func(n uint64) (common.Hash
 				return common.EmptyHash, err
 			}
 
-			cache = append(cache, data.Block().PrevBlock)
-			lastKnownHash = data.Block().PrevBlock
-			lastKnownNumber := data.Block().Id.Uint64() - 1
+			cache = append(cache, b.PrevBlock)
+			lastKnownHash = b.PrevBlock
+			lastKnownNumber := b.Id.Uint64() - 1
 			if n == lastKnownNumber {
 				return lastKnownHash, nil
 			}
