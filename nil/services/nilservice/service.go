@@ -497,8 +497,8 @@ func CreateNode(
 		return nil, err
 	}
 
-	if cfg.StateAccessor == nil {
-		cfg.StateAccessor = execution.NewStateAccessor(1024, 0)
+	if cfg.BlockAccessor == nil {
+		cfg.BlockAccessor = execution.NewBlockAccessor(1024)
 	}
 
 	var txnPools map[types.ShardId]txnpool.Pool

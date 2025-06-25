@@ -130,7 +130,7 @@ type ExecutionState struct {
 	// Tracing hooks set for every EVM created during execution
 	EvmTracingHooks *tracing.Hooks
 
-	shardAccessor *shardAccessor
+	blockAccessor *BlockAccessor
 
 	// Pointer to currently executed VM
 	evm *vm.EVM
@@ -261,17 +261,15 @@ type revision struct {
 
 // NewEVMBlockContext creates a new context for use in the EVM.
 func NewEVMBlockContext(es *ExecutionState) (*vm.BlockContext, error) {
-	data, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
+	header, err := es.blockAccessor.GetByHash(es.tx, es.ShardId, es.PrevBlock)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
 	}
 
 	currentBlockId := uint64(0)
-	var header *types.Block
 	time := uint64(0)
 	rollbackCounter := uint32(0)
 	if err == nil {
-		header = data.Block()
 		currentBlockId = header.Id.Uint64() + 1
 		// TODO: we need to use header.Timestamp instead of but it's always zero for now.
 		// Let's return some kind of logical timestamp (monotonic increasing block number).
@@ -298,7 +296,7 @@ type StateParams struct {
 
 	// Required parameters
 	ConfigAccessor config.ConfigAccessor
-	StateAccessor  *StateAccessor
+	BlockAccessor  *BlockAccessor
 
 	// Optional parameters
 	FeeCalculator         FeeCalculator
@@ -363,7 +361,7 @@ func NewExecutionState(tx db.RoTx, shardId types.ShardId, params StateParams) (*
 		journal:          newJournal(),
 		transientStorage: newTransientStorage(),
 
-		shardAccessor:  params.StateAccessor.Access(tx, shardId),
+		blockAccessor:  params.BlockAccessor,
 		configAccessor: params.ConfigAccessor,
 
 		BaseFee:  baseFeePerGas,
@@ -1605,14 +1603,12 @@ func (es *ExecutionState) buildTransactionTrees(outTxnValues []*types.Transactio
 
 func (es *ExecutionState) buildInboundTransactionTree() (common.Hash, error) {
 	inTxnKeys := make([]types.TransactionIndex, 0, len(es.InTransactions))
-	inTxnValues := make([]*types.Transaction, 0, len(es.InTransactions))
-	for i, txn := range es.InTransactions {
+	for i := range es.InTransactions {
 		inTxnKeys = append(inTxnKeys, types.TransactionIndex(i))
-		inTxnValues = append(inTxnValues, txn)
 	}
 
 	inTransactionTree := NewDbTransactionTrie(es.tx, es.ShardId)
-	if err := inTransactionTree.UpdateBatch(inTxnKeys, inTxnValues); err != nil {
+	if err := inTransactionTree.UpdateBatch(inTxnKeys, es.InTransactions); err != nil {
 		return common.Hash{}, err
 	}
 
@@ -2096,14 +2092,9 @@ func (es *ExecutionState) resetVm() {
 }
 
 func (es *ExecutionState) MarshalJSON() ([]byte, error) {
-	prevBlockRes, err := es.shardAccessor.GetBlock().ByHash(es.PrevBlock)
+	prevBlock, err := es.blockAccessor.GetByHash(es.tx, es.ShardId, es.PrevBlock)
 	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
 		return nil, err
-	}
-
-	var prevBlock *types.Block
-	if err == nil {
-		prevBlock = prevBlockRes.Block()
 	}
 
 	data := struct {
