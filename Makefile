@@ -50,7 +50,6 @@ $(COMMANDS): %: generated %.cmd
 
 include nil/internal/serialization/Makefile.inc
 include nil/internal/db/Makefile.inc
-include nil/internal/types/Makefile.inc
 include nil/internal/config/Makefile.inc
 include nil/internal/execution/Makefile.inc
 include nil/services/rpc/rawapi/proto/Makefile.inc

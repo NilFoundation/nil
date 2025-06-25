@@ -26,7 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
-	zerolog "github.com/rs/zerolog"
+	"github.com/rs/zerolog"
 )
 
 const (
@@ -496,7 +496,7 @@ func (es *ExecutionState) setAccountObject(acc JournaledAccountState) {
 	es.Accounts[*acc.GetAddress()] = acc
 }
 
-func (es *ExecutionState) AddAddressToAccessList(addr types.Address) {
+func (es *ExecutionState) AddAddressToAccessList(types.Address) {
 }
 
 // AddBalance adds amount to the account associated with addr.
@@ -546,10 +546,10 @@ func (es *ExecutionState) GetRefund() uint64 {
 	return es.refund
 }
 
-func (es *ExecutionState) AddSlotToAccessList(addr types.Address, slot common.Hash) {
+func (es *ExecutionState) AddSlotToAccessList(types.Address, common.Hash) {
 }
 
-func (es *ExecutionState) AddressInAccessList(addr types.Address) bool {
+func (es *ExecutionState) AddressInAccessList(types.Address) bool {
 	return true // FIXME
 }
 
@@ -686,7 +686,7 @@ func (es *ExecutionState) SetInitState(addr types.Address, transaction *types.Tr
 	return nil
 }
 
-func (es *ExecutionState) SlotInAccessList(addr types.Address, slot common.Hash) (addressOk bool, slotOk bool) {
+func (es *ExecutionState) SlotInAccessList(types.Address, common.Hash) (addressOk bool, slotOk bool) {
 	return true, true // FIXME
 }
 
