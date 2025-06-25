@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/assert"
 	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
@@ -165,13 +166,17 @@ func NewAccountState(
 	storageRoot := mpt.EmptyRootHash
 	asyncContextRoot := mpt.EmptyRootHash
 	if account != nil {
+		if assert.Enable {
+			check.PanicIfNot(!account.CodeHash.Empty())
+		}
+
 		accountState.Balance = account.Balance
 		tokenRoot = account.TokenRoot
 		storageRoot = account.StorageRoot
 		accountState.CodeHash = account.CodeHash
 		asyncContextRoot = account.AsyncContextRoot
 		var err error
-		accountState.Code, err = db.ReadCode(rwTx, shardId, account.CodeHash)
+		accountState.Code, err = db.ReadCode(rwTx, shardId, accountState.CodeHash)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read contract code: %w", err)
 		}
@@ -637,7 +642,7 @@ func (as *JournaledAccountStateImpl) JournaledSetIsNew(isNew bool) {
 	as.SetIsNew(isNew)
 }
 
-func (as *JournaledAccountStateImpl) JournaledSetIsSelfDestructed(isSelfDestructed bool) {
+func (as *JournaledAccountStateImpl) JournaledSetIsSelfDestructed(bool) {
 	as.journalAppender.AppendToJournal(selfDestructChange{
 		account:     as.GetAddress(),
 		prev:        as.IsSelfDestructed(),

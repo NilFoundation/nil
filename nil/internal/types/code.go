@@ -6,7 +6,10 @@ import (
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
+
+var EmptyCodeHash = common.Hash(ethtypes.EmptyCodeHash)
 
 type Code []byte
 
