@@ -73,7 +73,7 @@ func (api *APIImplRo) GetProof(
 	blockNrOrHash transport.BlockNumberOrHash,
 ) (*EthProof, error) {
 	// Fetch the smart contract data
-	smartContract, err := api.rawapi.GetContract(ctx, address, toBlockReference(blockNrOrHash))
+	smartContract, err := api.rawapi.GetContract(ctx, address, toBlockReference(blockNrOrHash), true, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get contract: %w", err)
 	}
@@ -221,4 +221,14 @@ func toBlockReference(blockNrOrHash transport.BlockNumberOrHash) rawapitypes.Blo
 	hash, ok := blockNrOrHash.Hash()
 	check.PanicIfNot(ok)
 	return rawapitypes.BlockHashAsBlockReference(hash)
+}
+
+// GetStorageAt implements `eth_getStorageAt`
+func (api *APIImplRo) GetStorageAt(
+	ctx context.Context,
+	address types.Address,
+	key common.Hash,
+	blockNrOrHash transport.BlockNumberOrHash,
+) (types.Uint256, error) {
+	return api.rawapi.GetStorageAt(ctx, address, key, toBlockReference(blockNrOrHash))
 }

@@ -17,9 +17,10 @@ import (
 
 type SuiteAccountsBase struct {
 	suite.Suite
-	db        db.DB
-	smcAddr   types.Address
-	blockHash common.Hash
+	db                 db.DB
+	smcAddr            types.Address
+	blockHash          common.Hash
+	lastGeneratedBlock *types.Block
 }
 
 type SuiteEthAccounts struct {
@@ -37,34 +38,41 @@ func (suite *SuiteAccountsBase) TearDownSuite() {
 	suite.db.Close()
 }
 
-func (suite *SuiteEthAccounts) SetupSuite() {
-	suite.SuiteAccountsBase.SetupSuite()
+// createAccount creates a new account with code, storage, and balance,
+// commits the state (advances block number by 1), and returns the account address and block hash.
+func (suite *SuiteAccountsBase) createAccount(
+	storage map[common.Hash]common.Hash,
+) (types.Address, common.Hash) {
+	suite.T().Helper()
 
 	shardId := types.BaseShardId
-	ctx := suite.T().Context()
 
-	var err error
+	ctx := suite.T().Context()
 	tx, err := suite.db.CreateRwTx(ctx)
 	suite.Require().NoError(err)
 	defer tx.Rollback()
 
-	es := execution.NewTestExecutionState(suite.T(), tx, shardId, execution.StateParams{})
+	stateParams := execution.StateParams{}
+	if suite.lastGeneratedBlock != nil {
+		stateParams.Block = suite.lastGeneratedBlock
+	}
+	es := execution.NewTestExecutionState(suite.T(), tx, shardId, stateParams)
 
-	suite.smcAddr = types.GenerateRandomAddress(shardId)
-	suite.Require().NotEmpty(suite.smcAddr)
+	suite.Require().NoError(err)
+	es.BaseFee = types.DefaultGasPrice
+	addr := types.GenerateRandomAddress(shardId)
+	suite.Require().NotEmpty(addr)
+	suite.Require().NoError(es.CreateAccount(addr))
+	suite.Require().NoError(es.SetCode(addr, []byte("some code")))
+	for k, v := range storage {
+		suite.Require().NoError(es.SetState(addr, k, v))
+	}
 
-	suite.Require().NoError(es.CreateAccount(suite.smcAddr))
-	suite.Require().NoError(es.SetCode(suite.smcAddr, []byte("some code")))
-
-	suite.Require().NoError(es.SetBalance(suite.smcAddr, types.NewValueFromUint64(1234)))
-	suite.Require().NoError(es.SetExtSeqno(suite.smcAddr, 567))
-
-	suite.Require().NoError(es.SetState(suite.smcAddr, common.HexToHash("0x1"), common.HexToHash("0x2")))
-	suite.Require().NoError(es.SetState(suite.smcAddr, common.HexToHash("0x3"), common.HexToHash("0x4")))
+	suite.Require().NoError(es.SetBalance(addr, types.NewValueFromUint64(1234)))
+	suite.Require().NoError(es.SetExtSeqno(addr, 567))
 
 	blockRes, err := es.Commit(0, nil)
 	suite.Require().NoError(err)
-	suite.blockHash = blockRes.BlockHash
 
 	err = execution.PostprocessBlock(tx, shardId, blockRes, execution.ModeVerify)
 	suite.Require().NotNil(blockRes.Block)
@@ -72,6 +80,21 @@ func (suite *SuiteEthAccounts) SetupSuite() {
 
 	err = tx.Commit()
 	suite.Require().NoError(err)
+
+	suite.lastGeneratedBlock = blockRes.Block
+
+	return addr, blockRes.BlockHash
+}
+
+func (suite *SuiteEthAccounts) SetupSuite() {
+	suite.SuiteAccountsBase.SetupSuite()
+
+	ctx := suite.T().Context()
+
+	suite.smcAddr, suite.blockHash = suite.createAccount(map[common.Hash]common.Hash{
+		common.HexToHash("0x01"): common.HexToHash("0x02"),
+		common.HexToHash("0x03"): common.HexToHash("0x04"),
+	})
 
 	suite.api = NewTestEthAPI(ctx, suite.T(), suite.db, 2)
 }
@@ -98,11 +121,12 @@ func (suite *SuiteEthAccounts) TestGetBalance() {
 	suite.Require().NoError(err)
 	suite.Zero(res.ToInt().Uint64())
 
+	// nonexistent block
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	res, err = suite.api.GetBalance(ctx, suite.smcAddr, blockNum)
-	suite.Require().NoError(err)
-	suite.Zero(res.ToInt().Uint64())
+	suite.Require().ErrorIs(err, rawapitypes.ErrBlockNotFound)
+	suite.Nil(res)
 }
 
 func (suite *SuiteEthAccounts) TestGetCode() {
@@ -123,11 +147,11 @@ func (suite *SuiteEthAccounts) TestGetCode() {
 	suite.Require().NoError(err)
 	suite.Empty(res)
 
+	// nonexistent block
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
-	res, err = suite.api.GetCode(ctx, suite.smcAddr, blockNum)
-	suite.Require().NoError(err)
-	suite.Empty(res)
+	_, err = suite.api.GetCode(ctx, suite.smcAddr, blockNum)
+	suite.Require().ErrorIs(err, rawapitypes.ErrBlockNotFound)
 }
 
 func (suite *SuiteEthAccounts) TestGetSeqno() {
@@ -148,10 +172,11 @@ func (suite *SuiteEthAccounts) TestGetSeqno() {
 	suite.Require().NoError(err)
 	suite.Equal(hexutil.Uint64(0), res)
 
+	// nonexistent block
 	blockNumber := transport.BlockNumber(1000)
 	blockNum = transport.BlockNumberOrHash{BlockNumber: &blockNumber}
 	res, err = suite.api.GetTransactionCount(ctx, suite.smcAddr, blockNum)
-	suite.Require().NoError(err)
+	suite.Require().ErrorIs(err, rawapitypes.ErrBlockNotFound)
 	suite.Equal(hexutil.Uint64(0), res)
 
 	blockNum = transport.BlockNumberOrHash{BlockNumber: transport.PendingBlock.BlockNumber}
@@ -290,9 +315,7 @@ func (suite *SuiteEthAccounts) verifyStorageProof(
 	if expectNil {
 		suite.Require().Zero(storageProof.Value.ToInt().Uint64()) // no value for such key
 	} else {
-		var u types.Uint256
-		suite.Require().NoError(u.UnmarshalNil(storageProof.Value.ToInt().Bytes()))
-		suite.Require().Equal(expectedValue.Uint256(), u.Int())
+		suite.Require().Equal(expectedValue, common.BytesToHash(storageProof.Value.ToInt().Bytes()))
 	}
 
 	val, err := mpt.VerifyProof(storageRoot, key.Bytes(), toBytesSlice(storageProof.Proof))

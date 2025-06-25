@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"testing"
@@ -213,6 +214,8 @@ func (s *SuiteEconomy) TestSeparateGasAndValue() {
 		feePack,
 		types.NewValueFromUint64(1000),
 		nil)
+	fmt.Printf("receipt: %+v\n", receipt)
+	fmt.Printf("computed value: %s\n", receipt.GasUsed.ToValue(receipt.GasPrice))
 	info = s.AnalyzeReceipt(receipt, s.namesMap)
 	s.Require().True(info[s.smartAccountAddress].IsSuccess())
 	s.Require().False(info[s.testAddress1].IsSuccess())

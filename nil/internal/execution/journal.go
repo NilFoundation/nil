@@ -12,7 +12,7 @@ const (
 
 type IRevertableExecutionState interface {
 	DeleteAccount(addr types.Address)
-	GetAccount(addr types.Address) (*AccountState, error)
+	GetAccount(addr types.Address) (JournaledAccountState, error)
 	SetRefund(value uint64)
 	DeleteLog(txHash common.Hash)
 	SetTransientNoJournal(addr types.Address, key common.Hash, prevValue common.Hash)
@@ -67,7 +67,7 @@ type (
 	// This event happens prior to executing initcode. The journal-event simply
 	// manages the created-flag, in order to allow same-tx destruction.
 	accountBecameContractChange struct {
-		account types.Address
+		account *types.Address
 	}
 
 	selfDestructChange struct {
@@ -133,7 +133,7 @@ func (ch createAccountChange) revert(s IRevertableExecutionState) {
 }
 
 func (ch accountBecameContractChange) revert(s IRevertableExecutionState) {
-	reverter{s}.revertAccountBecameContractChange(ch.account)
+	reverter{s}.revertAccountBecameContractChange(*ch.account)
 }
 
 func (ch selfDestructChange) revert(s IRevertableExecutionState) {
@@ -196,7 +196,7 @@ func (w reverter) revertAccountBecameContractChange(addr types.Address) {
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
-		account.NewContract = false
+		account.SetIsNew(false)
 	}
 }
 
@@ -204,8 +204,8 @@ func (w reverter) revertSelfDestructChange(addr types.Address, prev bool, prevBa
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
-		account.selfDestructed = prev
-		account.setBalance(prevBalance)
+		account.SetIsSelfDestructed(prev)
+		account.SetBalance(prevBalance)
 	}
 }
 
@@ -213,7 +213,7 @@ func (w reverter) revertBalanceChange(addr types.Address, prevBalance types.Valu
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
-		account.setBalance(prevBalance)
+		account.SetBalance(prevBalance)
 	}
 }
 
@@ -221,7 +221,7 @@ func (w reverter) revertTokenChange(addr types.Address, tokenId types.TokenId, p
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
-		account.setTokenBalance(tokenId, prevValue)
+		account.SetTokenBalance(tokenId, prevValue)
 	}
 }
 
@@ -229,7 +229,7 @@ func (w reverter) revertSeqnoChange(addr types.Address, prevSeqno types.Seqno) {
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
-		account.Seqno = prevSeqno
+		account.SetSeqno(prevSeqno)
 	}
 }
 
@@ -237,7 +237,7 @@ func (w reverter) revertExtSeqnoChange(addr types.Address, prevExtSeqno types.Se
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
-		account.ExtSeqno = prevExtSeqno
+		account.SetExtSeqno(prevExtSeqno)
 	}
 }
 
@@ -245,7 +245,7 @@ func (w reverter) revertCodeChange(addr types.Address, prevCodeHash common.Hash,
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
-		account.setCode(prevCodeHash, prevCode)
+		account.SetCode(prevCodeHash, prevCode)
 	}
 }
 
@@ -253,7 +253,7 @@ func (w reverter) revertStorageChange(addr types.Address, key common.Hash, prevV
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
-		account.setState(key, prevValue)
+		account.SetState(key, prevValue)
 	}
 }
 
@@ -280,6 +280,6 @@ func (w reverter) revertAsyncContextChange(addr types.Address, requestId types.T
 	account, err := w.es.GetAccount(addr)
 	check.PanicIfErr(err)
 	if account != nil {
-		delete(account.AsyncContext, requestId)
+		account.UndoSetAsyncContext(requestId)
 	}
 }

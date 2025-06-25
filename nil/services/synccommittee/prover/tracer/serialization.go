@@ -29,13 +29,14 @@ type PbTracesSet struct {
 
 // Each message is serialized into file with corresponding extension added to base file path
 const (
-	bytecodeExtension = "bc"
-	rwExtension       = "rw"
-	zkevmExtension    = "zkevm"
-	copyExtension     = "copy"
-	mptExtension      = "mpt"
-	expExtension      = "exp"
-	keccakExtension   = "keccak"
+	bytecodeExtension  = "bc"
+	rwExtension        = "rw"
+	zkevmExtension     = "zkevm"
+	copyExtension      = "copy"
+	mptExtension       = "mpt"
+	expExtension       = "exp"
+	keccakExtension    = "keccak"
+	zethCacheExtension = "zeth"
 )
 
 func SerializeToFile(proofs *ExecutionTraces, mode MarshalMode, baseFileName string) error {
@@ -96,6 +97,13 @@ func SerializeToFile(proofs *ExecutionTraces, mode MarshalMode, baseFileName str
 				marshalFunc, fmt.Sprintf("%s.%s.%s", baseFileName, keccakExtension, ext))
 		})
 	}
+
+	eg.Go(func() error {
+		return marshalJSONToFile(
+			proofs.ZethCache,
+			fmt.Sprintf("%s.%s.%s", baseFileName, zethCacheExtension, MarshalModeJSON),
+		)
+	})
 
 	return eg.Wait()
 }

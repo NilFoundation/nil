@@ -185,13 +185,43 @@ func (ar *AccountRequest) PackProtoMessage(address types.Address, blockReference
 	return ar.GetBlockReference().PackProtoMessage(blockReference)
 }
 
+func (ar *FullAccountRequest) UnpackProtoMessage() (types.Address, rawapitypes.BlockReference, bool, bool, error) {
+	addr, blockRef, err := ar.GetBaseRequest().UnpackProtoMessage()
+	if err != nil {
+		return types.EmptyAddress, rawapitypes.BlockReference{}, false, false, err
+	}
+	opts := ar.GetOptions()
+
+	return addr, blockRef, opts.GetNoCode(), opts.GetNoStorage(), nil
+}
+
+func (ar *FullAccountRequest) PackProtoMessage(
+	address types.Address,
+	blockReference rawapitypes.BlockReference,
+	noCode bool,
+	noStorage bool,
+) error {
+	ar.BaseRequest = &AccountRequest{}
+	if err := ar.GetBaseRequest().PackProtoMessage(address, blockReference); err != nil {
+		return err
+	}
+	ar.Options = &FullAccountRequestOptions{NoCode: noCode, NoStorage: noStorage}
+	return nil
+}
+
 // Error converters
 
 func (e *Error) UnpackProtoMessage() error {
-	if strings.HasPrefix(e.GetMessage(), db.ErrKeyNotFound.Error()) {
+	msg := e.GetMessage()
+	if strings.HasPrefix(msg, db.ErrKeyNotFound.Error()) {
 		return db.ErrKeyNotFound
 	}
-	return errors.New(e.GetMessage())
+	switch msg {
+	case rawapitypes.ErrBlockNotFound.Error():
+		return rawapitypes.ErrBlockNotFound
+	default:
+		return errors.New(msg)
+	}
 }
 
 func (e *Error) PackProtoMessage(err error) *Error {
@@ -411,6 +441,7 @@ func (br *StringResponse) UnpackProtoMessage() (string, error) {
 	}
 }
 
+// BalanceResponse converters
 func (br *BalanceResponse) PackProtoMessage(balance types.Value, err error) error {
 	if err != nil {
 		br.Result = &BalanceResponse_Error{Error: new(Error).PackProtoMessage(err)}
@@ -489,6 +520,56 @@ func (cr *TokensResponse) UnpackProtoMessage() (map[types.TokenId]types.Value, e
 		return result, nil
 	}
 	return nil, errors.New("unexpected response type")
+}
+
+// StorageAt converters
+func (ar *StorageAtRequest) PackProtoMessage(
+	address types.Address,
+	key common.Hash,
+	blockReference rawapitypes.BlockReference,
+) error {
+	ar.BaseRequest = &AccountRequest{}
+	if err := ar.GetBaseRequest().PackProtoMessage(address, blockReference); err != nil {
+		return err
+	}
+	ar.Key = &Hash{}
+	return ar.GetKey().PackProtoMessage(key)
+}
+
+func (ar *StorageAtRequest) UnpackProtoMessage() (types.Address, common.Hash, rawapitypes.BlockReference, error) {
+	addr, blockRef, err := ar.GetBaseRequest().UnpackProtoMessage()
+	if err != nil {
+		return types.EmptyAddress, common.EmptyHash, rawapitypes.BlockReference{}, err
+	}
+	key, err := ar.GetKey().UnpackProtoMessage()
+	if err != nil {
+		return types.EmptyAddress, common.EmptyHash, rawapitypes.BlockReference{}, err
+	}
+	return addr, key, blockRef, nil
+}
+
+func (cr *StorageAtResponse) PackProtoMessage(value types.Uint256, err error) error {
+	if err != nil {
+		cr.Result = &StorageAtResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	v := &Uint256{}
+	v.PackProtoMessage(value)
+	cr.Result = &StorageAtResponse_Value{Value: v}
+	return nil
+}
+
+func (cr *StorageAtResponse) UnpackProtoMessage() (types.Uint256, error) {
+	switch cr.GetResult().(type) {
+	case *StorageAtResponse_Error:
+		return types.Uint256{}, cr.GetError().UnpackProtoMessage()
+
+	case *StorageAtResponse_Value:
+		v := cr.GetValue()
+		return v.UnpackProtoMessage(), nil
+	}
+	return types.Uint256{}, errors.New("unexpected response type")
 }
 
 // AsyncContext converters
@@ -1424,6 +1505,105 @@ func (txn *RawTxnsResponse) UnpackProtoMessage() ([]*types.Transaction, error) {
 			return []*types.Transaction{}, nil
 		}
 		return serialization.DecodeContainer[*types.Transaction](data)
+	}
+	return nil, errors.New("unexpected response type")
+}
+
+// Account range converters
+func (ar *AccountRangeRequest) PackProtoMessage(
+	blockReference rawapitypes.BlockReference, from common.Hash, maxResults uint64, noCode bool, noStorage bool,
+) error {
+	ar.MaxResults = maxResults
+	ar.Options = &FullAccountRequestOptions{NoCode: noCode, NoStorage: noStorage}
+	ar.From = &Hash{}
+	if err := ar.GetFrom().PackProtoMessage(from); err != nil {
+		return err
+	}
+	ar.BlockReference = &BlockReference{}
+	return ar.GetBlockReference().PackProtoMessage(blockReference)
+}
+
+func (ar *AccountRangeRequest) UnpackProtoMessage() (
+	rawapitypes.BlockReference, common.Hash, uint64, bool, bool, error,
+) {
+	blockReference, err := ar.GetBlockReference().UnpackProtoMessage()
+	if err != nil {
+		return rawapitypes.BlockReference{}, common.EmptyHash, 0, false, false, err
+	}
+
+	from, err := ar.GetFrom().UnpackProtoMessage()
+	if err != nil {
+		return rawapitypes.BlockReference{}, common.EmptyHash, 0, false, false, err
+	}
+
+	opts := ar.GetOptions()
+
+	return blockReference, from, ar.GetMaxResults(), opts.GetNoCode(), opts.GetNoStorage(), nil
+}
+
+func (ard *AccountRangeData) PackProtoMessage(contracts []*rawapitypes.SmartContract, next *common.Hash) error {
+	if next != nil {
+		ard.Next = &Hash{}
+		if err := ard.GetNext().PackProtoMessage(*next); err != nil {
+			return err
+		}
+	}
+
+	pbContracts := make([]*RawContract, len(contracts))
+	for i, contract := range contracts {
+		pbContracts[i] = new(RawContract)
+		if err := pbContracts[i].PackProtoMessage(contract); err != nil {
+			return err
+		}
+	}
+	ard.Contracts = pbContracts
+
+	return nil
+}
+
+func (ard *AccountRangeData) UnpackProtoMessage() (*rawapitypes.SmartContractRange, error) {
+	var next *common.Hash
+	if nextPb := ard.GetNext(); nextPb != nil {
+		hash, err := nextPb.UnpackProtoMessage()
+		if err != nil {
+			return nil, err
+		}
+		next = &hash
+	}
+	contracts := make([]*rawapitypes.SmartContract, len(ard.GetContracts()))
+	for i, pbContract := range ard.GetContracts() {
+		contract, err := pbContract.UnpackProtoMessage()
+		if err != nil {
+			return nil, err
+		}
+		contracts[i] = contract
+	}
+
+	return &rawapitypes.SmartContractRange{Contracts: contracts, Next: next}, nil
+}
+
+func (arr *AccountRangeResponse) PackProtoMessage(contractRange *rawapitypes.SmartContractRange, err error) error {
+	if err != nil {
+		arr.Result = &AccountRangeResponse_Error{Error: new(Error).PackProtoMessage(err)}
+		return nil
+	}
+
+	rawContractRange := new(AccountRangeData)
+	if err := rawContractRange.PackProtoMessage(contractRange.Contracts, contractRange.Next); err != nil {
+		return err
+	}
+
+	arr.Result = &AccountRangeResponse_Data{Data: rawContractRange}
+	return nil
+}
+
+func (arr *AccountRangeResponse) UnpackProtoMessage() (*rawapitypes.SmartContractRange, error) {
+	switch arr.GetResult().(type) {
+	case *AccountRangeResponse_Error:
+		return nil, arr.GetError().UnpackProtoMessage()
+
+	case *AccountRangeResponse_Data:
+		return arr.GetData().UnpackProtoMessage()
 	}
 	return nil, errors.New("unexpected response type")
 }

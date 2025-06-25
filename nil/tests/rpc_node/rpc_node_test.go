@@ -7,6 +7,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/nilservice"
+	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	"github.com/NilFoundation/nil/nil/tests"
 	"github.com/stretchr/testify/suite"
 )
@@ -79,7 +80,7 @@ func (s *SuiteRpcNode) TestRpcNode() {
 		s.Zero(count)
 
 		count, err = s.DefaultClient.GetBlockTransactionCount(s.Context, types.MainShardId, math.MaxUint32)
-		s.Require().NoError(err)
+		s.Require().ErrorContains(err, rawapitypes.ErrBlockNotFound.Error())
 		s.Zero(count)
 	})
 

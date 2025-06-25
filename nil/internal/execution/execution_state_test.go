@@ -82,7 +82,7 @@ func (s *SuiteExecutionState) TestExecState() {
 
 		storageVal, err := es.GetState(addr, storageKey)
 		s.Require().NoError(err)
-		s.Equal(storageVal, common.IntToHash(123456))
+		s.Equal(common.IntToHash(123456), storageVal)
 	})
 
 	s.Run("CheckTransactions", func() {
@@ -369,7 +369,7 @@ func TestAccountState(t *testing.T) {
 	acc, err = state.GetAccount(addr)
 	require.NoError(t, err)
 	require.NotNil(t, acc)
-	assert.Equal(t, balance, acc.Balance)
+	assert.Equal(t, balance, acc.GetBalance())
 }
 
 func (s *SuiteExecutionState) TestTransactionStatus() {

@@ -283,9 +283,17 @@ func (m *BaseMPTReader[K, V, VPtr]) Fetch(key K) (VPtr, error) {
 }
 
 func (m *BaseMPTReader[K, V, VPtr]) Items() iter.Seq2[K, V] {
+	return m.ItemsFromKey(nil)
+}
+
+func (m *BaseMPTReader[K, V, VPtr]) ItemsFromKey(start *K) iter.Seq2[K, V] {
 	type Yield = func(K, V) bool
+	var keyBytes []byte
+	if start != nil {
+		keyBytes = m.keyToBytes(*start)
+	}
 	return func(yield Yield) {
-		for key, value := range m.Iterate() {
+		for key, value := range m.IterateFromKey(keyBytes) {
 			k := m.keyFromBytes(key)
 			if k == nil {
 				continue

@@ -297,9 +297,6 @@ func (s *TracerNildTestSuite) checkBlocksRangeTracesSerialization(from []types.B
 					continue
 				}
 				s.Require().NoError(err)
-				mptTraces, err := tracer.GetMPTTraces()
-				s.Require().NoError(err)
-				traces.SetMptTraces(&mptTraces)
 
 				s.checkTracesSerialization(traces)
 			}

@@ -51,6 +51,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 	api := NewTestEthAPI(ctx, t, badger, 1)
 
 	// Call GetBlockByNumber for transaction which is not in the database
-	_, err = api.GetBlockByNumber(ctx, types.MainShardId, transport.LatestBlockNumber, false)
-	require.ErrorIs(t, err, db.ErrKeyNotFound)
+	res, err := api.GetBlockByNumber(ctx, types.MainShardId, transport.LatestBlockNumber, false)
+	require.NoError(t, err)
+	require.Nil(t, res)
 }

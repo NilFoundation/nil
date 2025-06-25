@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/mpt"
@@ -43,6 +44,7 @@ type DebugApiContractReader struct {
 	shardBlockNumber types.BlockNumber
 	rwTx             db.RwTx
 	shardId          types.ShardId
+	logger           logging.Logger
 }
 
 // Ensure DebugApiContractReader implements ContractReader
@@ -54,12 +56,14 @@ func NewDebugApiContractReader(
 	shardBlockNumber types.BlockNumber,
 	rwTx db.RwTx,
 	shardId types.ShardId,
+	logger logging.Logger,
 ) *DebugApiContractReader {
 	return &DebugApiContractReader{
 		client:           client,
 		shardBlockNumber: shardBlockNumber,
 		rwTx:             rwTx,
 		shardId:          shardId,
+		logger:           logger,
 	}
 }
 

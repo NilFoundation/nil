@@ -62,7 +62,7 @@ func (s *SuiteZeroState) getBalance(address types.Address) types.Value {
 
 	account, ok := s.state.Accounts[address]
 	s.Require().True(ok)
-	return account.Balance
+	return account.GetBalance()
 }
 
 func (s *SuiteZeroState) TestYamlSerialization() {
@@ -192,7 +192,7 @@ func TestZerostateFromConfig(t *testing.T) {
 	smartAccount, err := state.GetAccount(smartAccountAddr)
 	require.NoError(t, err)
 	require.NotNil(t, smartAccount)
-	require.Equal(t, smartAccount.Balance, types.NewValueFromUint64(12345678))
+	require.Equal(t, smartAccount.GetBalance(), types.NewValueFromUint64(12345678))
 
 	faucetCode, err := contracts.GetCode(contracts.NameFaucet)
 	require.NoError(t, err)
@@ -201,7 +201,7 @@ func TestZerostateFromConfig(t *testing.T) {
 	faucet, err := state.GetAccount(faucetAddr)
 	require.NoError(t, err)
 	require.NotNil(t, faucet)
-	require.Equal(t, faucet.Balance, types.NewValueFromUint64(87654321))
+	require.Equal(t, faucet.GetBalance(), types.NewValueFromUint64(87654321))
 
 	// Test should fail because contract hasn't `code` item
 	state = NewTestExecutionState(t, tx, types.BaseShardId, StateParams{})

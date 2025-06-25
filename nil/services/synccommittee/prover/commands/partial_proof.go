@@ -7,16 +7,16 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/NilFoundation/nil/nil/client"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/services/rpc/transport"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/rpc"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/internal/types"
 	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer"
-	"github.com/NilFoundation/nil/nil/services/synccommittee/prover/tracer/api"
 )
 
 type partialProofCmd struct {
-	client         api.RpcClient
+	client         client.Client
 	logger         logging.Logger
 	nilRpcEndpoint string
 	cmdCommon

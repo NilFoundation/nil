@@ -252,6 +252,20 @@ func (c *DirectClient) GetTokens(ctx context.Context, address types.Address, blo
 	return c.ethApi.GetTokens(ctx, address, transport.BlockNumberOrHash(blockNrOrHash))
 }
 
+func (c *DirectClient) GetStorageAt(
+	ctx context.Context,
+	address types.Address,
+	key common.Hash,
+	blockId any,
+) (types.Uint256, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return types.Uint256{}, err
+	}
+
+	return c.ethApi.GetStorageAt(ctx, address, key, transport.BlockNumberOrHash(blockNrOrHash))
+}
+
 func (c *DirectClient) GasPrice(ctx context.Context, shardId types.ShardId) (types.Value, error) {
 	return c.ethApi.GasPrice(ctx, shardId)
 }
@@ -442,4 +456,17 @@ func (c *DirectClient) GetTxpoolContent(ctx context.Context, shardId types.Shard
 
 func (c *DirectClient) GetBootstrapConfig(ctx context.Context) (*rpctypes.BootstrapConfig, error) {
 	return c.debugApi.GetBootstrapConfig(ctx)
+}
+
+func (c *DirectClient) GetProof(
+	ctx context.Context,
+	address types.Address,
+	storageKeys []common.Hash,
+	blockId any,
+) (*jsonrpc.EthProof, error) {
+	blockNrOrHash, err := transport.AsBlockReference(blockId)
+	if err != nil {
+		return nil, err
+	}
+	return c.ethApi.GetProof(ctx, address, storageKeys, transport.BlockNumberOrHash(blockNrOrHash))
 }
