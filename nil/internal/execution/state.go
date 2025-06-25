@@ -510,7 +510,6 @@ func (es *ExecutionState) AddBalance(addr types.Address, amount types.Value, rea
 
 // SubBalance subtracts amount from the account associated with addr.
 func (es *ExecutionState) SubBalance(addr types.Address, amount types.Value, reason tracing.BalanceChangeReason) error {
-	fmt.Printf("SubBalance addr: %s, amount: %s\n", addr, amount)
 	stateObject, err := es.getOrNewAccount(addr)
 	if err != nil || stateObject == nil {
 		return err
@@ -1965,7 +1964,6 @@ func (es *ExecutionState) CallVerifyExternal(
 	spentGas := gasCreditLimit.Sub(types.Gas(leftOverGas))
 	res.SetUsed(spentGas, es.GasPrice)
 	es.GasUsed += res.GasUsed
-	fmt.Printf("SubBalance addr: %s, res.CoinsUsed(): %s\n", account.GetAddress(), res.CoinsUsed())
 	check.PanicIfErr(account.SubBalance(res.CoinsUsed(), tracing.BalanceDecreaseVerifyExternal))
 	return res
 }
