@@ -215,9 +215,9 @@ func (api *localShardApiRo) Call(
 		hash = mainBlockHash
 	}
 
-	block, err := db.ReadBlock(tx, shardId, hash)
+	block, err := api.accessor.Access(tx, shardId).GetBlockHeaderByHash(hash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read block %s: %w", hash, err)
+		return nil, err
 	}
 
 	configAccessor, err := config.NewConfigAccessorFromBlockWithTx(tx, block, shardId)
@@ -228,7 +228,7 @@ func (api *localShardApiRo) Call(
 	es, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
 		Block:          block,
 		ConfigAccessor: configAccessor,
-		BlockAccessor:  execution.NewBlockAccessor(32), // todo: use shared accessor
+		BlockAccessor:  api.accessor.BlockAccessor(),
 		Mode:           execution.ModeReadOnly,
 	})
 	if err != nil {
@@ -286,7 +286,7 @@ func (api *localShardApiRo) Call(
 	esOld, err := execution.NewExecutionState(tx, shardId, execution.StateParams{
 		Block:          block,
 		ConfigAccessor: config.GetStubAccessor(),
-		BlockAccessor:  execution.NewBlockAccessor(32), // todo: use shared accessor
+		BlockAccessor:  api.accessor.BlockAccessor(),
 		Mode:           execution.ModeReadOnly,
 	})
 	if err != nil {

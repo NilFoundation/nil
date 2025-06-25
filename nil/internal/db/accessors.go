@@ -211,3 +211,19 @@ func ReadBlockByNumber(tx RoTx, shardId types.ShardId, blockNumber types.BlockNu
 	}
 	return ReadBlock(tx, shardId, blockHash)
 }
+
+func ReadTxnNumberByHash(
+	tx RoTx, shardId types.ShardId, hash common.Hash,
+) (BlockHashAndTransactionIndex, error) {
+	var idx BlockHashAndTransactionIndex
+
+	value, err := GetFromShard(tx, shardId, BlockHashAndInTransactionIndexByTransactionHash, hash)
+	if err != nil {
+		return idx, err
+	}
+
+	if err := idx.UnmarshalNil(value); err != nil {
+		return idx, err
+	}
+	return idx, nil
+}

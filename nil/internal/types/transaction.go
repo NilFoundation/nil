@@ -75,6 +75,10 @@ type TransactionIndex uint64
 
 const TransactionIndexSize = 8
 
+func (ti TransactionIndex) String() string {
+	return strconv.FormatUint(uint64(ti), 10)
+}
+
 func (ti TransactionIndex) Bytes() []byte {
 	res, err := ti.MarshalNil()
 	check.PanicIfErr(err)

@@ -9,8 +9,6 @@ import (
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
-	"github.com/NilFoundation/nil/nil/internal/mpt"
-	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 )
@@ -25,103 +23,82 @@ func (api *localShardApiRo) GetInTransactionReceipt(
 	}
 	defer tx.Rollback()
 
-	block, indexes, err := api.getBlockAndInTransactionIndexByTransactionHash(tx, api.shardId(), hash)
-	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-		return nil, err
-	}
-
-	var receipt *types.Receipt
-	var transaction *types.Transaction
-	var gasPrice types.Value
-
-	includedInMain := false
-	if block != nil {
-		receipt, err = getBlockEntity[*types.Receipt](
-			tx, api.shardId(), db.ReceiptTrieTable, block.ReceiptsRoot, indexes.TransactionIndex.Bytes())
-		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-			return nil, err
-		}
-		transaction, err = getBlockEntity[*types.Transaction](
-			tx,
-			api.shardId(),
-			db.TransactionTrieTable,
-			block.InTransactionsRoot,
-			indexes.TransactionIndex.Bytes())
-		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
-			return nil, err
-		}
-
-		if priorityFee, ok := execution.GetEffectivePriorityFee(block.BaseFee, transaction); ok {
-			gasPrice = block.BaseFee.Add(priorityFee)
-		} else if receipt.Status != types.ErrorBaseFeeTooHigh {
-			api.logger.Error().
-				Stringer(logging.FieldTransactionHash, hash).
-				Msgf("Calculation of EffectivePriorityFee failed with wrong status: %s", receipt.Status)
-		}
-
-		// Check if the transaction is included in the main chain
-		rawMainBlock, err := api.nodeApi.GetFullBlockData(
-			ctx,
-			types.MainShardId,
-			rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
-		if err == nil {
-			mainBlockData, err := rawMainBlock.DecodeBytes()
-			if err != nil {
-				return nil, err
-			}
-
-			if api.shardId().IsMainShard() {
-				includedInMain = mainBlockData.Id >= block.Id
-			} else {
-				if len(rawMainBlock.ChildBlocks) < int(api.shardId()) {
-					return nil, fmt.Errorf(
-						"%w: main shard includes only %d blocks",
-						makeShardNotFoundError(methodNameChecked("GetInTransactionReceipt"), api.shardId()),
-						len(rawMainBlock.ChildBlocks))
-				}
-				blockHash := rawMainBlock.ChildBlocks[api.shardId()-1]
-				if last, err := api.accessor.Access(tx, api.shardId()).GetBlock().ByHash(blockHash); err == nil {
-					includedInMain = last.Block().Id >= block.Id
-				}
-			}
-		}
-	} else {
-		gasPrice = types.DefaultGasPrice
-	}
-
-	var errMsg string
-	var cachedReceipt bool
-	if receipt == nil {
-		var receiptWithError execution.ReceiptWithError
-		receiptWithError, cachedReceipt = execution.FailureReceiptCache.Get(hash)
+	txn, err := api.accessor.Access(tx, api.shardId()).GetInTxnByHash(hash)
+	if errors.Is(err, db.ErrKeyNotFound) {
+		receiptWithError, cachedReceipt := execution.FailureReceiptCache.Get(hash)
 		if !cachedReceipt {
+			// If the transaction is not found and there is no cached receipt, we have nothing to return.
 			return nil, nil
 		}
 
-		receipt = receiptWithError.Receipt
-		errMsg = receiptWithError.Error.Error()
-	} else {
-		errMsg, err = db.ReadError(tx, hash)
-		if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		receiptBytes, err := receiptWithError.Receipt.MarshalNil()
+		if err != nil {
 			return nil, err
 		}
+		return &rawapitypes.ReceiptInfo{
+			ReceiptBytes: receiptBytes,
+			ErrorMessage: receiptWithError.Error.Error(),
+			Temporary:    true,
+		}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var gasPrice types.Value
+	includedInMain := false
+	if priorityFee, ok := execution.GetEffectivePriorityFee(txn.Block.BaseFee, txn.Transaction); ok {
+		gasPrice = txn.Block.BaseFee.Add(priorityFee)
+	} else if txn.Receipt.Status != types.ErrorBaseFeeTooHigh {
+		api.logger.Error().
+			Stringer(logging.FieldTransactionHash, hash).
+			Msgf("Calculation of EffectivePriorityFee failed with wrong status: %s", txn.Receipt.Status)
+	}
+
+	// Check if the transaction is included in the main chain
+	rawMainBlock, err := api.nodeApi.GetFullBlockData(ctx, types.MainShardId,
+		rawapitypes.NamedBlockIdentifierAsBlockReference(rawapitypes.LatestBlock))
+	if err == nil {
+		mainBlockData, err := rawMainBlock.DecodeBytes()
+		if err != nil {
+			return nil, err
+		}
+
+		if api.shardId().IsMainShard() {
+			includedInMain = mainBlockData.Id >= txn.Block.Id
+		} else {
+			if len(rawMainBlock.ChildBlocks) < int(api.shardId()) {
+				return nil, fmt.Errorf(
+					"%w: main shard includes only %d blocks",
+					makeShardNotFoundError(methodNameChecked("GetInTransactionReceipt"), api.shardId()),
+					len(rawMainBlock.ChildBlocks))
+			}
+			blockHash := rawMainBlock.ChildBlocks[api.shardId()-1]
+			if last, err := api.accessor.Access(tx, api.shardId()).GetBlockHeaderByHash(blockHash); err == nil {
+				includedInMain = last.Id >= txn.Block.Id
+			}
+		}
+	}
+
+	errMsg, err := db.ReadError(tx, hash)
+	if err != nil && !errors.Is(err, db.ErrKeyNotFound) {
+		return nil, err
 	}
 
 	var outReceipts []*rawapitypes.ReceiptInfo
 	var outTransactions []common.Hash
 
-	if receipt.OutTxnNum != 0 {
-		outReceipts = make([]*rawapitypes.ReceiptInfo, 0, receipt.OutTxnNum)
-		for i := receipt.OutTxnIndex; i < receipt.OutTxnIndex+receipt.OutTxnNum; i++ {
-			res, err := api.accessor.
-				Access(tx, api.shardId()).
-				GetOutTransaction().
-				ByIndex(types.TransactionIndex(i), block)
+	if txn.Receipt.OutTxnNum != 0 {
+		outReceipts = make([]*rawapitypes.ReceiptInfo, 0, txn.Receipt.OutTxnNum)
+		outTransactions = make([]common.Hash, 0, txn.Receipt.OutTxnNum)
+		for i := txn.Receipt.OutTxnIndex; i < txn.Receipt.OutTxnIndex+txn.Receipt.OutTxnNum; i++ {
+			res, err := api.accessor.Access(tx, api.shardId()).
+				GetOutTxnByIndex(types.TransactionIndex(i), txn.Block)
 			if err != nil {
 				return nil, err
 			}
-			txnHash := res.Transaction().Hash()
-			r, err := api.nodeApi.GetInTransactionReceipt(ctx, res.Transaction().To.ShardId(), txnHash)
+			txnHash := res.Transaction.Hash()
+			r, err := api.nodeApi.GetInTransactionReceipt(ctx, res.Transaction.To.ShardId(), txnHash)
 			if err != nil {
 				return nil, err
 			}
@@ -130,78 +107,16 @@ func (api *localShardApiRo) GetInTransactionReceipt(
 		}
 	}
 
-	var receiptBytes []byte
-	if receipt != nil {
-		receiptBytes, err = receipt.MarshalNil()
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal receipt: %w", err)
-		}
-	}
-
-	var flags types.TransactionFlags
-	if transaction != nil {
-		flags = transaction.Flags
-	}
-
-	var blockId types.BlockNumber
-	var blockHash common.Hash
-	if block != nil {
-		blockId = block.Id
-		blockHash = block.Hash(api.shardId())
-	}
-
 	return &rawapitypes.ReceiptInfo{
-		ReceiptBytes:    receiptBytes,
-		Flags:           flags,
-		Index:           indexes.TransactionIndex,
-		BlockHash:       blockHash,
-		BlockId:         blockId,
+		ReceiptBytes:    txn.RawReceipt,
+		Flags:           txn.Transaction.Flags,
+		Index:           txn.Index,
+		BlockHash:       txn.Block.Hash,
+		BlockId:         txn.Block.Id,
 		IncludedInMain:  includedInMain,
 		OutReceipts:     outReceipts,
 		OutTransactions: outTransactions,
 		ErrorMessage:    errMsg,
 		GasPrice:        gasPrice,
-		Temporary:       cachedReceipt,
 	}, nil
-}
-
-func (api *localShardApiRo) getBlockAndInTransactionIndexByTransactionHash(
-	tx db.RoTx,
-	shardId types.ShardId,
-	hash common.Hash,
-) (*types.Block, db.BlockHashAndTransactionIndex, error) {
-	var index db.BlockHashAndTransactionIndex
-	value, err := tx.GetFromShard(shardId, db.BlockHashAndInTransactionIndexByTransactionHash, hash.Bytes())
-	if err != nil {
-		return nil, index, err
-	}
-	if err := index.UnmarshalNil(value); err != nil {
-		return nil, index, err
-	}
-
-	data, err := api.accessor.Access(tx, shardId).GetBlock().ByHash(index.BlockHash)
-	if err != nil {
-		return nil, db.BlockHashAndTransactionIndex{}, err
-	}
-	return data.Block(), index, nil
-}
-
-func getBlockEntity[
-	T interface {
-		~*S
-		serialization.NilUnmarshaler
-	},
-	S any,
-](
-	tx db.RoTx,
-	shardId types.ShardId,
-	tableName db.ShardedTableName,
-	rootHash common.Hash,
-	entityKey []byte,
-) (*S, error) {
-	root := mpt.NewDbReader(tx, shardId, tableName)
-	if err := root.SetRootHash(rootHash); err != nil {
-		return nil, err
-	}
-	return mpt.GetEntity[T](root, entityKey)
 }

@@ -45,13 +45,13 @@ func (api *localShardApiRo) GetShardIdList(ctx context.Context) ([]types.ShardId
 		return nil, err
 	}
 
-	block, err := api.accessor.Access(tx, types.MainShardId).GetBlock().ByHash(blockHash)
+	block, err := api.accessor.Access(tx, types.MainShardId).GetBlockHeaderByHash(blockHash)
 	if err != nil {
 		return nil, err
 	}
 
-	treeShards := execution.NewDbShardBlocksTrieReader(tx, types.MainShardId, block.Block().Id)
-	if err := treeShards.SetRootHash(block.Block().ChildBlocksRootHash); err != nil {
+	treeShards := execution.NewDbShardBlocksTrieReader(tx, types.MainShardId, block.Id)
+	if err := treeShards.SetRootHash(block.ChildBlocksRootHash); err != nil {
 		return nil, err
 	}
 	return treeShards.Keys()

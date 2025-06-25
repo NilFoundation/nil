@@ -3,7 +3,6 @@ package mpt
 import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/internal/db"
-	"github.com/NilFoundation/nil/nil/internal/serialization"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -120,21 +119,6 @@ func NewMPT(setter Setter, reader *Reader) *MerklePatriciaTrie {
 
 func NewDbMPT(tx db.RwTx, shardId types.ShardId, name db.ShardedTableName) *MerklePatriciaTrie {
 	return NewMPT(NewDbSetter(tx, shardId, name), NewDbReader(tx, shardId, name))
-}
-
-func GetEntity[
-	T interface {
-		~*S
-		serialization.NilUnmarshaler
-	},
-	S any,
-](r *Reader, key []byte) (*S, error) {
-	data, err := r.Get(key)
-	if err != nil {
-		return nil, err
-	}
-	var s S
-	return &s, T(&s).UnmarshalNil(data)
 }
 
 // Implements database.NodeDatabase

@@ -230,12 +230,8 @@ func (api *localShardApiRo) getSmartContract(
 	blockReference rawapitypes.BlockReference,
 	withProof bool,
 ) (*types.SmartContract, *mpt.Proof, error) {
-	rawBlock, err := api.getBlockByReference(tx, blockReference, false)
+	block, err := api.getHeaderByRef(tx, blockReference)
 	if err != nil {
-		return nil, nil, err
-	}
-	var block types.Block
-	if err := block.UnmarshalNil(rawBlock.Block); err != nil {
 		return nil, nil, err
 	}
 
@@ -313,7 +309,7 @@ type GetRangeConfig struct {
 	Max         uint64
 }
 
-// GetContractRange returnes a range off accounts starting from the next after `start` address.
+// GetContractRange returns a range off accounts starting from the next after `start` address.
 func (api *localShardApiRo) GetContractRange(
 	ctx context.Context,
 	blockReference rawapitypes.BlockReference,
@@ -328,12 +324,8 @@ func (api *localShardApiRo) GetContractRange(
 	}
 	defer tx.Rollback()
 
-	rawBlock, err := api.getBlockByReference(tx, blockReference, false)
+	block, err := api.getHeaderByRef(tx, blockReference)
 	if err != nil {
-		return nil, err
-	}
-	var block types.Block
-	if err := block.UnmarshalNil(rawBlock.Block); err != nil {
 		return nil, err
 	}
 
