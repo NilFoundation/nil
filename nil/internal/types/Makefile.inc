@@ -1,3 +1,6 @@
+ifndef RLP_TARGETS_INCLUDED
+RLP_TARGETS_INCLUDED := true
+
 RLP_TARGETS = \
     nil/internal/types/signature_rlp_encoding.go \
     nil/internal/types/log_rlp_encoding.go \
@@ -84,3 +87,5 @@ nil/internal/types/token_balance_rlp_encoding.go: nil/internal/types/account.go
 
 nil/internal/types/version_info_rlp_encoding.go: nil/internal/types/version_info.go
 	$(TYPES_RLPGEN) -type VersionInfo -out version_info_rlp_encoding.go -decoder
+
+endif

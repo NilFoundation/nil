@@ -41,5 +41,5 @@ $(root_db)/db_generated_mock.go: $(root_db)/kv.go $(root_db)/rwtx_generated_mock
 $(root_rollup)/l1_fetcher_generated_mock.go: $(root_rollup)/l1_fetcher.go
 	cd $(root_rollup) && go generate l1_fetcher.go
 
-$(root_execution)/account_state_helpers_generated_mock.go: $(root_execution)/account_state.go error_stringer
+$(root_execution)/account_state_helpers_generated_mock.go: $(root_execution)/account_state.go rlp_execution
 	cd $(root_execution) && go generate account_state.go
