@@ -1,11 +1,13 @@
 package execution
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
 )
@@ -43,8 +45,16 @@ func (pp *blockPostprocessor) fillLastBlockTable() error {
 }
 
 func (pp *blockPostprocessor) fillBlockHashByNumberIndex() error {
+	key := pp.blockResult.Block.Id.Bytes()
+	value := pp.blockResult.BlockHash.Bytes()
+
+	present, err := pp.tx.GetFromShard(pp.shardId, db.BlockHashByNumberIndex, key)
+	check.PanicIfNot(err == nil || errors.Is(err, db.ErrKeyNotFound))
+	check.PanicIfNotf(err != nil || bytes.Equal(value, present), "block hash by number index already exists: %x != %x",
+		present, value)
+
 	return pp.tx.PutToShard(
-		pp.shardId, db.BlockHashByNumberIndex, pp.blockResult.Block.Id.Bytes(), pp.blockResult.BlockHash.Bytes())
+		pp.shardId, db.BlockHashByNumberIndex, key, value)
 }
 
 func (pp *blockPostprocessor) fillBlockHashAndTransactionIndexByTransactionHash() error {
