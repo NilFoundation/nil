@@ -4,6 +4,7 @@ import { setMockCounterpartyInBridges } from './bridges/l1/set-mock-counterparty
 import { setRouterInBridge } from './bridges/l1/set-router-in-bridges';
 import { setTokenMappings } from './bridges/l1/set-token-mappings';
 import { setUserGasFeeInOracle } from './bridges/l1/set-user-gas-fee-in-oracle';
+import { setMessengerInRollup } from './rollup/l1/set-messenger-in-rollup';
 
 // npx hardhat run scripts/wiring/wiring-master.ts --network geth
 export async function wiringMasterRunner() {
@@ -21,13 +22,6 @@ export async function wiringMaster(networkName: string) {
     await setRouterInBridge(networkName);
     await setTokenMappings(networkName);
     await setUserGasFeeInOracle(networkName);
+
+    await setMessengerInRollup(networkName);
 }
-
-// async function main() {
-//     await wiringMasterRunner();
-// }
-
-// main().catch((error) => {
-//     console.error(error);
-//     process.exit(1);
-// });
