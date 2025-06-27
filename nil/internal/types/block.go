@@ -51,6 +51,7 @@ type BlockData struct {
 	BaseFee             Value            `json:"gasPrice" ch:"gas_price"`
 	GasUsed             Gas              `json:"gasUsed" ch:"gas_used"`
 	L1BlockNumber       uint64           `json:"l1BlockNumber" ch:"l1_block_number"`
+	Coinbase            Address          `json:"miner" ch:"miner"`
 
 	// Incremented after every rollback, used to prevent rollback replay attacks
 	RollbackCounter uint32 `json:"rollbackCounter" ch:"rollback_counter"`

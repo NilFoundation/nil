@@ -91,6 +91,7 @@ func (suite *SuiteEthBlock) TestGetBlockByHash() {
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 	suite.Equal(suite.lastBlockHash, data.Hash)
+	suite.Equal(data.Coinbase, types.ShardAndHexToAddress(shardId, "0x0"))
 }
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByHash() {

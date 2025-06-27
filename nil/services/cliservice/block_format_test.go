@@ -147,10 +147,11 @@ func TestDebugBlockToText(t *testing.T) {
 		text, err := s.debugBlockToText(types.ShardId(13), block, false, false)
 		require.NoError(t, err)
 
-		expectedText := `Block #100500 [0x000d1288cfedf4f9c748f80d9d0e3edb422c092a2a17725878e36aa9383c6bfa] @ 13 shard
+		expectedText := `Block #100500 [0x000dcc04885a7be4c360239bfbad32edb62f486770189fe98244c43c793ae9b6] @ 13 shard
   PrevBlock: 0x00000000000000000000000000000000000000000000000000000000deadbeef
   BaseFee: 0
   GasUsed: 1234
+  Coinbase: 0x0000000000000000000000000000000000000000
   ChildBlocksRootHash: 0x00000000000000000000000000000000000000000000000000000000deadbabe
   ChildBlocks:
     - 1: 0x0000000000000000000000000000000000000000000000000000000000000111
