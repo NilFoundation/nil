@@ -38,7 +38,9 @@ func newBridgeState(
 var BridgeStateEmpty = newBridgeState(common.EmptyHash, common.EmptyHash, big.NewInt(0))
 
 type BridgeStateGetter interface {
-	GetBridgeState(ctx context.Context, blockHash common.Hash) (*BridgeState, error)
+	GetBridgeState(
+		ctx context.Context, execShardBlockHash common.Hash, mainShardBlockHash common.Hash,
+	) (*BridgeState, error)
 }
 
 type bridgeStateGetter struct {
@@ -61,14 +63,16 @@ func NewBridgeStateGetter(
 	}
 }
 
-func (b *bridgeStateGetter) GetBridgeState(ctx context.Context, blockHash common.Hash) (*BridgeState, error) {
-	exists, err := b.contactExistsAtBlock(ctx, blockHash)
+func (b *bridgeStateGetter) GetBridgeState(
+	ctx context.Context, execShardBlockHash common.Hash, mainShardBlockHash common.Hash,
+) (*BridgeState, error) {
+	exists, err := b.contactExistsAtBlock(ctx, execShardBlockHash)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
 		b.logger.Warn().
-			Any(logging.FieldBlockHash, blockHash).
+			Any(logging.FieldBlockHash, execShardBlockHash).
 			Msg("L2 bridge contract does not exist at specified block, empty state will be returned")
 		return &BridgeStateEmpty, nil
 	}
@@ -78,9 +82,9 @@ func (b *bridgeStateGetter) GetBridgeState(ctx context.Context, blockHash common
 	var l1MessageHash common.Hash
 	eg.Go(func() error {
 		const method = "l1MessageHash"
-		ret, err := callContract[bytes32](gCtx, b.nilClient, blockHash, b.contractAddr, b.abi, method)
+		ret, err := callContract[bytes32](gCtx, b.nilClient, mainShardBlockHash, b.contractAddr, b.abi, method)
 		if err != nil {
-			return b.callError(method, blockHash, err)
+			return b.callError(method, mainShardBlockHash, err)
 		}
 		l1MessageHash = common.BytesToHash(ret[:])
 		return nil
@@ -89,9 +93,9 @@ func (b *bridgeStateGetter) GetBridgeState(ctx context.Context, blockHash common
 	var l2ToL1Root common.Hash
 	eg.Go(func() error {
 		const method = "getL2ToL1Root"
-		ret, err := callContract[bytes32](gCtx, b.nilClient, blockHash, b.contractAddr, b.abi, method)
+		ret, err := callContract[bytes32](gCtx, b.nilClient, mainShardBlockHash, b.contractAddr, b.abi, method)
 		if err != nil {
-			return b.callError(method, blockHash, err)
+			return b.callError(method, mainShardBlockHash, err)
 		}
 		l2ToL1Root = common.BytesToHash(ret[:])
 		return nil
@@ -100,9 +104,9 @@ func (b *bridgeStateGetter) GetBridgeState(ctx context.Context, blockHash common
 	var depositNonce *big.Int
 	eg.Go(func() error {
 		const method = "getLatestDepositNonce"
-		ret, err := callContract[*big.Int](gCtx, b.nilClient, blockHash, b.contractAddr, b.abi, method)
+		ret, err := callContract[*big.Int](gCtx, b.nilClient, mainShardBlockHash, b.contractAddr, b.abi, method)
 		if err != nil {
-			return b.callError(method, blockHash, err)
+			return b.callError(method, mainShardBlockHash, err)
 		}
 		depositNonce = ret
 		return nil
