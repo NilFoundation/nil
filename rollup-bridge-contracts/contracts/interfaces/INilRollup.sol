@@ -95,7 +95,11 @@ interface INilRollup is INilAccessControlUpgradeable {
 
   error ErrorDuplicateL2ToL1Root();
 
+  error ErrorL1BridgeMessengerAddressNotSet();
+
   error ErrorL1MessageHashMismatch(bytes32 computedL1MessageHash, bytes32 expectedL1MessageHash);
+
+  error ErrorInconsistentDepositNonce(uint256 receivedDepositNonce, uint256 l1BridgeQueueHeadIndex);
 
   error ErrorInvalidPublicDataInfo();
 
@@ -262,6 +266,12 @@ interface INilRollup is INilAccessControlUpgradeable {
     bytes calldata validityProof,
     PublicDataInfo calldata publicDataInfo
   ) external;
+
+  /**
+   * @dev Sets the address of the L1BridgeMessenger contract.
+   * @param l1BridgeMessengerAddress The new address of the L1BridgeMessenger contract.
+   */
+  function setL1BridgeMessenger(address l1BridgeMessengerAddress) external;
 
   /**
    * @dev Sets the address of the NilVerifier contract.

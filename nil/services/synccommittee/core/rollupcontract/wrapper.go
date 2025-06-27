@@ -387,6 +387,8 @@ var contractErrorMap = map[string]error{
 	"ErrorNewStateRootAlreadyFinalized":              ErrNewStateRootAlreadyFinalized,
 	"ErrorOldStateRootMismatch":                      ErrOldStateRootMismatch,
 	"ErrorIncorrectDataProofSize":                    ErrIncorrectDataProofSize,
+	"ErrorL1BridgeMessengerAddressNotSet":            ErrL1BridgeMessengerAddressNotSet,
+	"ErrorInconsistentDepositNonce":                  ErrInconsistentDepositNonce,
 	"ErrorInvalidPublicDataInfo":                     ErrInvalidPublicDataInfo,
 	"ErrorL1MessageHashMismatch":                     ErrL1MessageHashMismatch,
 	"ErrorInvalidDataProofItem":                      ErrInvalidDataProofItem,
