@@ -175,6 +175,22 @@ func unmarshalBlock(pbBlock *pb.RawFullBlock) (*types.BlockWithExtractedData, er
 	return raw.DecodeBytes()
 }
 
+type blockByNumberCache struct {
+	blockByHash       *execution.BlockByHashAccessor
+	blockHashByNumber *execution.BlockHashByNumberAccessor
+}
+
+func (b blockByNumberCache) Get(
+	tx db.RoTx, shardId types.ShardId, num types.BlockNumber,
+) (*types.RawBlockWithExtractedData, error) {
+	hash, err := b.blockHashByNumber.Get(tx, shardId, num)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.blockByHash.Get(tx, shardId, hash)
+}
+
 func SetBlockRequestHandler(
 	ctx context.Context, networkManager network.Manager, shardId types.ShardId, database db.DB, logger logging.Logger,
 ) {
@@ -183,8 +199,10 @@ func SetBlockRequestHandler(
 		return
 	}
 
-	// Sharing accessor between all handlers enables caching.
-	accessor := execution.NewStateAccessor(128, 0)
+	accessor := &blockByNumberCache{
+		blockByHash:       execution.NewBlockByHashAccessor(128),
+		blockHashByNumber: execution.NewBlockHashByNumberAccessor(),
+	}
 	handler := func(s network.Stream) {
 		if err := s.SetDeadline(time.Now().Add(requestTimeout)); err != nil {
 			return
@@ -212,15 +230,8 @@ func SetBlockRequestHandler(
 		}
 		defer tx.Rollback()
 
-		acc := accessor.RawAccess(tx, shardId).
-			GetBlock().
-			WithOutTransactions().
-			WithInTransactions().
-			WithChildBlocks().
-			WithConfig()
-
 		for id := blockReq.GetId(); ; id++ {
-			resp, err := acc.ByNumber(types.BlockNumber(id))
+			resp, err := accessor.Get(tx, shardId, types.BlockNumber(id))
 			if err != nil {
 				if !errors.Is(err, db.ErrKeyNotFound) {
 					logError(logger, err, "DB error")
@@ -229,11 +240,11 @@ func SetBlockRequestHandler(
 			}
 
 			b := &pb.RawFullBlock{
-				BlockBytes:           resp.Block(),
-				OutTransactionsBytes: resp.OutTransactions(),
-				InTransactionsBytes:  resp.InTransactions(),
-				ChildBlocks:          pb.PackHashes(resp.ChildBlocks()),
-				Config:               resp.Config(),
+				BlockBytes:           resp.Block,
+				OutTransactionsBytes: resp.OutTransactions,
+				InTransactionsBytes:  resp.InTransactions,
+				ChildBlocks:          pb.PackHashes(resp.ChildBlocks),
+				Config:               resp.Config,
 			}
 
 			if err := writeBlockToStream(s, b); err != nil {

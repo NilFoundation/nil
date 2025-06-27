@@ -87,7 +87,7 @@ type Config struct {
 
 	L1Fetcher rollup.L1BlockFetcher `yaml:"-"`
 
-	StateAccessor *execution.StateAccessor `yaml:"-"`
+	BlockAccessor *execution.BlockAccessor `yaml:"-"`
 
 	NetworkManagerFactory func(ctx context.Context, cfg *Config, db db.DB) (network.Manager, error) `yaml:"-"`
 }
@@ -227,6 +227,6 @@ func (c *Config) BlockGeneratorParams(shardId types.ShardId) execution.BlockGene
 		EvmTracingHooks:  verboseTracingHook,
 		MainKeysPath:     c.MainKeysPath,
 		DisableConsensus: c.DisableConsensus,
-		StateAccessor:    c.StateAccessor,
+		BlockAccessor:    c.BlockAccessor,
 	}
 }

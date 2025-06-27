@@ -112,11 +112,11 @@ func (s *Validator) getLastBlockUnlocked(ctx context.Context) (*types.Block, com
 		return nil, common.EmptyHash, err
 	}
 
-	block, err := s.params.StateAccessor.Access(tx, s.params.ShardId).GetBlock().ByHash(hash)
+	block, err := s.params.BlockAccessor.GetByHash(tx, s.params.ShardId, hash)
 	if err != nil {
 		return nil, common.EmptyHash, err
 	}
-	return block.Block(), hash, nil
+	return block, hash, nil
 }
 
 func (s *Validator) GetLastBlock(ctx context.Context) (*types.Block, common.Hash, error) {
@@ -140,11 +140,11 @@ func (s *Validator) getBlock(ctx context.Context, hash common.Hash) (*types.Bloc
 	}
 	defer tx.Rollback()
 
-	block, err := s.params.StateAccessor.Access(tx, s.params.ShardId).GetBlock().ByHash(hash)
+	block, err := s.params.BlockAccessor.GetByHash(tx, s.params.ShardId, hash)
 	if err != nil {
 		return nil, err
 	}
-	return block.Block(), nil
+	return block, nil
 }
 
 func (s *Validator) TxPool() TxnPool {

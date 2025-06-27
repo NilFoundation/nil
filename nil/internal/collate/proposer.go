@@ -73,11 +73,10 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch previous block: %w", err)
 	}
-	data, err := p.params.StateAccessor.Access(tx, p.params.ShardId).GetBlock().ByHash(prevBlockHash)
+	prevBlock, err := p.params.BlockAccessor.GetByHash(tx, p.params.ShardId, prevBlockHash)
 	if err != nil {
 		return nil, err
 	}
-	prevBlock := data.Block()
 
 	if prevBlock.PatchLevel > validatorPatchLevel {
 		return nil, fmt.Errorf(
@@ -94,7 +93,7 @@ func (p *proposer) GenerateProposal(ctx context.Context, txFabric db.DB) (*execu
 	p.executionState, err = execution.NewExecutionState(tx, p.params.ShardId, execution.StateParams{
 		Block:          prevBlock,
 		ConfigAccessor: configAccessor,
-		StateAccessor:  p.params.StateAccessor,
+		BlockAccessor:  p.params.BlockAccessor,
 		FeeCalculator:  p.params.FeeCalculator,
 		Mode:           execution.ModeProposal,
 	})
@@ -381,17 +380,14 @@ func (p *proposer) handleTransactionsFromNeighbors(tx db.RoTx) error {
 		neighbor := &state.Neighbors[position]
 		nextTx := p.executionState.InTxCounts[neighborId]
 
-		shardAccessor := p.params.StateAccessor.Access(tx, neighborId)
-
 		for checkLimits() {
-			data, err := shardAccessor.GetBlock().ByNumber(neighbor.BlockNumber)
+			block, err := p.params.BlockAccessor.GetByNumber(tx, neighborId, neighbor.BlockNumber)
 			if errors.Is(err, db.ErrKeyNotFound) {
 				break
 			}
 			if err != nil {
 				return err
 			}
-			block := data.Block()
 
 			outTxnTrie := execution.NewDbTransactionTrieReader(tx, neighborId)
 			if err := outTxnTrie.SetRootHash(block.OutTransactionsRoot); err != nil {

@@ -86,15 +86,13 @@ func (s *SuiteExecutionState) TestExecState() {
 	})
 
 	s.Run("CheckTransactions", func() {
-		data, err := es.shardAccessor.GetBlock().ByHash(blockRes.BlockHash)
+		block, err := es.blockAccessor.GetByHash(es.tx, es.ShardId, blockRes.BlockHash)
 		s.Require().NoError(err)
-		s.Require().NotNil(data)
-		s.Require().NotNil(data.Block())
 
 		transactionsRoot := NewDbTransactionTrieReader(tx, es.ShardId)
-		s.Require().NoError(transactionsRoot.SetRootHash(data.Block().InTransactionsRoot))
+		s.Require().NoError(transactionsRoot.SetRootHash(block.InTransactionsRoot))
 		receiptsRoot := NewDbReceiptTrieReader(tx, es.ShardId)
-		s.Require().NoError(receiptsRoot.SetRootHash(data.Block().ReceiptsRoot))
+		s.Require().NoError(receiptsRoot.SetRootHash(block.ReceiptsRoot))
 
 		var transactionIndex types.TransactionIndex
 		for {
