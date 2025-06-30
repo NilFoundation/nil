@@ -54,7 +54,7 @@ buildGoLatestModule rec {
   ];
 
   # to obtain run `nix build` with vendorHash = "";
-  vendorHash = "sha256-7h5H7wPcz/SYNU7nWLNZzpnoGNb+LbD60jHTiNDE0Ig=";
+  vendorHash = "sha256-OaokAyPI4Icg20+dcI3M0m5jkIStSd/XNs3p2CqBjZM=";
 
   postInstall = ''
     mkdir -p $out/share/doc/nil
