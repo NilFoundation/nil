@@ -409,8 +409,17 @@ contract NilRollup is OwnableUpgradeable, PausableUpgradeable, NilAccessControlU
   }
 
   function validatePublicDataInput(PublicDataInfo calldata publicDataInfo) private {
+    if (address(l1BridgeMessenger) == address(0)) {
+      revert ErrorL1BridgeMessengerAddressNotSet();
+    }
+
+    uint256 bridgeQueueHeadIndex = l1BridgeMessenger.getQueueHeadIndex();
+    if (bridgeQueueHeadIndex > publicDataInfo.depositNonce) {
+      revert ErrorInconsistentDepositNonce(publicDataInfo.depositNonce, bridgeQueueHeadIndex);
+    }
+
     // get the messageCount from the publicInput
-    uint256 depositMessageCount = publicDataInfo.depositNonce - l1BridgeMessenger.getQueueHeadIndex();
+    uint256 depositMessageCount = publicDataInfo.depositNonce - bridgeQueueHeadIndex;
 
     if (
       depositMessageCount > 0 &&
