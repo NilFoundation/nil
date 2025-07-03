@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -121,10 +122,8 @@ func (s *Server) validateRequest(r *http.Request) (int, error) {
 
 	// Check content-type
 	if mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err == nil {
-		for _, accepted := range s.acceptedContentTypes {
-			if accepted == mt {
-				return 0, nil
-			}
+		if slices.Contains(s.acceptedContentTypes, mt) {
+			return 0, nil
 		}
 	}
 	// Invalid content-type
