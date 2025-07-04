@@ -60,7 +60,7 @@ func startRpcServer(
 	httpConfig := &httpcfg.HttpCfg{
 		HttpURL:         addr,
 		HttpCompression: true,
-		TraceRequests:   true,
+		TraceRequests:   false,
 		HTTPTimeouts:    httpcfg.DefaultHTTPTimeouts,
 		HttpCORSDomain:  []string{"*"},
 		KeepHeaders:     []string{"Client-Version", "Client-Type", "X-UID"},
