@@ -10,7 +10,6 @@ import * as fs from "fs";
 dotenv.config();
 
 function getRemappings() {
-  //const remappingsTxt = fs.readFileSync("remappings.txt", "utf8");
   const remappingsTxt = fs.readFileSync(resolve(__dirname, "remappings.txt"), "utf8");
   return remappingsTxt
     .split("\n")
