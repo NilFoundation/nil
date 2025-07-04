@@ -2,6 +2,7 @@ import { SmartAccount } from "@nilfoundation/smart-contracts";
 import type { Abi } from "abitype";
 import invariant from "tiny-invariant";
 import { bytesToHex, encodeDeployData, encodeFunctionData } from "viem";
+import type { FaucetClient } from "../../clients/FaucetClient.js";
 import type { PublicClient } from "../../clients/PublicClient.js";
 import type { ContractFunctionName } from "../../contract-factory/ContractFactory.js";
 import { prepareDeployPart } from "../../encoding/deployPart.js";
@@ -171,15 +172,15 @@ export class SmartAccountV1 implements SmartAccountInterface {
    * Deploys the smart account.
    *
    * @async
-   * @param {boolean} [waitTillConfirmation=true] The flag that determines whether the function waits for deployment confirmation before exiting.
-   * @param {bigint} [feeCredit] The fee credit for processing the deployment transaction. If not set, it will be estimated automatically.
-   * @returns {Promise<Transaction>} A Transaction object that can be awaited for completion.
+   * @param {string} [faucetEndpoint] Faucet endpoint.
+   * @returns {Promise<Hex>} An Address of the smart account that can be awaited for completion.
    * @example
    * import {
        Faucet,
        HttpTransport,
        LocalECDSAKeySigner,
        PublicClient,
+       FaucetClient,
        SmartAccountV1,
        generateRandomPrivateKey,
      } from '@nilfoundation/niljs';
@@ -189,11 +190,14 @@ export class SmartAccountV1 implements SmartAccountInterface {
        }),
        shardId: 1,
      });
+   * const faucetClient = new FaucetClient({
+       transport: new HttpTransport({
+         endpoint: FAUCET_ENDPOINT,
+       }),
+     });
    * const signer = new LocalECDSAKeySigner({
        privateKey: generateRandomPrivateKey(),
      });
-   * const faucet = new Faucet(client);
-   * await faucet.withdrawTo(smartAccountAddress, 100000n);
    * const pubkey = signer.getPublicKey();
    * const smartAccount = new SmartAccountV1({
        pubkey: pubkey,
@@ -207,9 +211,9 @@ export class SmartAccountV1 implements SmartAccountInterface {
          salt: 100n,
        }),
      });
-   * await smartAccount.selfDeploy(true);
+   * await smartAccount.selfDeploy(faucetClient);
    */
-  async selfDeploy(waitTillConfirmation = true, feeCredit?: bigint): Promise<Transaction> {
+  async selfDeploy(faucetClient: FaucetClient, amount = 1_000_000_000_000_000_000n): Promise<Hex> {
     invariant(
       typeof this.salt !== "undefined",
       "Salt is required for external deployment. Please provide salt for walelt",
@@ -221,7 +225,6 @@ export class SmartAccountV1 implements SmartAccountInterface {
     ]);
 
     invariant(code.length === 0, "Contract already deployed");
-    invariant(balance > 0n, "Insufficient balance");
 
     const { data } = prepareDeployPart({
       abi: SmartAccount.abi as Abi,
@@ -231,45 +234,12 @@ export class SmartAccountV1 implements SmartAccountInterface {
       shard: this.shardId,
     });
 
-    let refinedCredit = feeCredit;
-    // TODO: remove hardcoded value
-    let maxPriorityFeePerGas = 0n;
-    // TODO: remove hardcoded value
-    let maxFeePerGas = 1_000_000_000_000_000n;
-
-    if (!refinedCredit) {
-      const balance = await this.getBalance();
-
-      const estimatedFee = await this.client.estimateGas(
-        {
-          flags: ["Deploy"],
-          to: this.address,
-          data: data,
-        },
-        "latest",
-      );
-
-      refinedCredit = refinedCredit || estimatedFee.feeCredit;
-      maxPriorityFeePerGas = estimatedFee.averagePriorityFee;
-      maxFeePerGas = estimatedFee.maxBaseFee;
-    }
-
-    const { hash } = await this.requestToSmartAccount({
-      data: data,
-      deploy: true,
-      seqno: 0,
-      feeCredit: refinedCredit,
-      maxPriorityFeePerGas: maxPriorityFeePerGas,
-      maxFeePerGas: maxFeePerGas,
+    return faucetClient.deploy({
+      shardId: this.shardId,
+      code: data.slice(0, data.length - 32), // remove salt from code
+      salt: refineBigintSalt(this.salt),
+      amount: amount,
     });
-
-    const tx = new Transaction(hash, this.client);
-
-    if (waitTillConfirmation) {
-      await tx.wait();
-    }
-
-    return tx;
   }
 
   /**

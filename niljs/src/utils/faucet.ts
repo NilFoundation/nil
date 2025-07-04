@@ -44,3 +44,30 @@ export async function topUp({
     client,
   );
 }
+
+export async function deploy({
+  faucetEndpoint,
+  shardId,
+  code,
+  salt,
+  amount,
+}: {
+  faucetEndpoint: string;
+  shardId: number;
+  code: Uint8Array | Hex;
+  salt: bigint;
+  amount: bigint;
+}): Promise<Hex> {
+  const faucetClient = new FaucetClient({
+    transport: new HttpTransport({
+      endpoint: faucetEndpoint,
+    }),
+  });
+
+  return await faucetClient.deploy({
+    shardId,
+    code,
+    salt,
+    amount,
+  });
+}

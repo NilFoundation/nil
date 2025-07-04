@@ -145,25 +145,6 @@ func (s *Service) DeployContractViaSmartAccount(
 	return txHash, contractAddr, nil
 }
 
-// DeployContractExternal deploys a new smart contract with the given bytecode via external transaction
-func (s *Service) DeployContractExternal(
-	shardId types.ShardId,
-	payload types.DeployPayload,
-	fee types.FeePack,
-) (common.Hash, types.Address, error) {
-	txHash, contractAddr, err := s.client.DeployExternal(s.ctx, shardId, payload, fee)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to send new transaction")
-		return common.EmptyHash, types.EmptyAddress, err
-	}
-	s.logger.Info().Msgf("Contract address: 0x%x", contractAddr)
-	s.logger.Info().
-		Stringer(logging.FieldShardId, shardId).
-		Stringer(logging.FieldTransactionHash, txHash).
-		Send()
-	return txHash, contractAddr, nil
-}
-
 // CallContract performs read-only call to the contract
 func (s *Service) CallContract(
 	contract types.Address, fee types.FeePack, calldata []byte, overrides *jsonrpc.StateOverrides,

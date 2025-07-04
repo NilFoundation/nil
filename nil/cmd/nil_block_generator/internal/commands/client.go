@@ -115,8 +115,6 @@ func CreateNewSmartAccount(rpcEndpoint string, logger logging.Logger) (string, s
 
 	salt := types.NewUint256(0)
 	amount := types.NewValueFromUint64(2_000_000_000_000_000)
-	fee := types.NewFeePackFromFeeCredit(types.NewValueFromUint64(200_000_000_000_000))
-
 	srv, err := CreateCliService(rpcEndpoint, hexKey, logger)
 	if err != nil {
 		return "", "", err
@@ -125,7 +123,8 @@ func CreateNewSmartAccount(rpcEndpoint string, logger logging.Logger) (string, s
 	if err != nil {
 		return "", "", err
 	}
-	smartAccount, err := srv.CreateSmartAccount(types.BaseShardId, salt, amount, fee, &privateKey.PublicKey)
+
+	smartAccount, err := srv.DeploySmartAccount(types.BaseShardId, privateKey, *salt, amount)
 	if err != nil {
 		return "", "", err
 	}
