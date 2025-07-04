@@ -1,29 +1,43 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "extends": ["../biome.json"],
-  "organizeImports": {
-    "enabled": true
-  },
-  "linter": {
-    "rules": {
-      "style": {
-        "noNonNullAssertion": "off"
-      },
-      "suspicious": {
-        "noExplicitAny": "off"
-      },
-      "complexity": {
-        "noForEach": "warn"
-      },
-      "a11y": {
-        "useKeyWithClickEvents": "off"
-      },
-      "correctness": {
-        "useExhaustiveDependencies": "warn"
-      }
-    }
-  },
-  "files": {
-    "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"]
-  }
+	"root": false,
+	"$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+	"extends": ["../biome.json"],
+	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"linter": {
+		"rules": {
+			"style": {
+				"noNonNullAssertion": "off",
+				"noParameterAssign": "error",
+				"useAsConstAssertion": "error",
+				"useDefaultParameterLast": "error",
+				"useEnumInitializers": "error",
+				"useSelfClosingElements": "error",
+				"useSingleVarDeclarator": "error",
+				"noUnusedTemplateLiteral": "error",
+				"useNumberNamespace": "error",
+				"noInferrableTypes": "error",
+				"noUselessElse": "error"
+			},
+			"suspicious": {
+				"noExplicitAny": "off"
+			},
+			"complexity": {
+				"noForEach": "warn"
+			},
+			"a11y": {
+				"useKeyWithClickEvents": "off"
+			},
+			"correctness": {
+				"useExhaustiveDependencies": "warn"
+			}
+		}
+	},
+	"files": {
+		"includes": [
+			"**/src/**/*.ts",
+			"**/src/**/*.tsx",
+			"**/tests/**/*.ts",
+			"**/tests/**/*.tsx"
+		]
+	}
 }
