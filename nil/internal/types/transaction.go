@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/check"
@@ -69,6 +70,28 @@ func (seqno Seqno) Uint64() uint64 {
 
 func (seqno Seqno) String() string {
 	return strconv.FormatUint(uint64(seqno), 10)
+}
+
+func (seqno Seqno) Hex() string {
+	return fmt.Sprintf("0x%x", uint64(seqno))
+}
+
+func (seqno Seqno) MarshalJSON() ([]byte, error) {
+	return json.Marshal(seqno.Hex())
+}
+
+// UnmarshalJSON decodes a hex string (e.g., "0x1") into Seqno
+func (seqno *Seqno) UnmarshalJSON(data []byte) error {
+	str := strings.Trim(string(data), "\"")
+	if !strings.HasPrefix(str, "0x") {
+		return fmt.Errorf("invalid hex format: %s", str)
+	}
+	value, err := strconv.ParseUint(str[2:], 16, 64)
+	if err != nil {
+		return err
+	}
+	*seqno = Seqno(value)
+	return nil
 }
 
 type TransactionIndex uint64

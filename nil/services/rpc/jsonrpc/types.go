@@ -1,6 +1,7 @@
 package jsonrpc
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -93,8 +94,26 @@ type RPCBlock struct {
 	BaseFee             types.Value         `json:"baseFee"`
 	L1Number            uint64              `json:"l1Number"`
 	LogsBloom           hexutil.Bytes       `json:"logsBloom,omitempty"`
-	GasUsed             types.Gas           `json:"gasUsed,omitempty"`
+	GasUsed             types.Gas           `json:"gasUsed"`
 	Coinbase            types.Address       `json:"miner"`
+}
+
+func (b RPCBlock) MarshalJSON() ([]byte, error) {
+	type Alias RPCBlock
+
+	if b.Transactions == nil {
+		// When nil, use omitempty behavior
+		return json.Marshal((*Alias)(&b))
+	}
+
+	// When not nil (including empty slice), include the field
+	return json.Marshal(&struct {
+		*Alias
+		Transactions []*RPCInTransaction `json:"transactions"`
+	}{
+		Alias:        (*Alias)(&b),
+		Transactions: b.Transactions,
+	})
 }
 
 type ShardCount struct {
@@ -416,7 +435,7 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 		}
 	}
 
-	return &RPCBlock{
+	rpcBlock := &RPCBlock{
 		Number:              blockId,
 		Hash:                blockHash,
 		ParentHash:          block.PrevBlock,
@@ -428,8 +447,6 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 		ReceiptsRoot:        block.ReceiptsRoot,
 		ChildBlocksRootHash: block.ChildBlocksRootHash,
 		ShardId:             shardId,
-		Transactions:        transactionsRes,
-		TransactionHashes:   transactionHashesRes,
 		ChildBlocks:         childBlocks,
 		MainShardHash:       block.MainShardHash,
 		DbTimestamp:         dbTimestamp,
@@ -438,7 +455,14 @@ func NewRPCBlock(shardId types.ShardId, data *BlockWithEntities, fullTx bool) (*
 		L1Number:            block.L1BlockNumber,
 		GasUsed:             block.GasUsed,
 		Coinbase:            block.Coinbase,
-	}, nil
+	}
+	if fullTx {
+		rpcBlock.Transactions = transactionsRes
+	} else {
+		rpcBlock.TransactionHashes = transactionHashesRes
+	}
+
+	return rpcBlock, nil
 }
 
 func NewRPCLog(

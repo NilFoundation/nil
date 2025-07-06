@@ -82,7 +82,7 @@ func (s *SuiteRpcService) TestRpcBasicGetters() {
 	s.EqualValues(0, count)
 
 	res, err = s.Client.GetBlock(s.Context, types.BaseShardId, someRandomMissingBlock, false)
-	s.Require().ErrorContains(err, rawapitypes.ErrBlockNotFound.Error())
+	s.Require().NoError(err)
 	s.Require().Nil(res)
 
 	res, err = s.Client.GetBlock(s.Context, types.BaseShardId, transport.EarliestBlockNumber, false)

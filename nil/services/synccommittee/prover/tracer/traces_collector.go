@@ -447,7 +447,7 @@ func CollectTraces(ctx context.Context, client client.Client, cfg *TraceConfig) 
 			BlockNo: prevBlockNum.Uint64(),
 			ShardID: uint64(firstBlockId.ShardId),
 		},
-		Block: *prevBlock,
+		Block: prevBlock,
 	}
 	getBlockCaches = append(getBlockCaches, getBlockCache)
 	for _, blockID := range cfg.BlockIDs {
@@ -460,7 +460,7 @@ func CollectTraces(ctx context.Context, client client.Client, cfg *TraceConfig) 
 				BlockNo: blockID.Id.BlockNumber.Uint64(),
 				ShardID: uint64(blockID.ShardId),
 			},
-			Block: *rpcBlock,
+			Block: rpcBlock,
 		}
 		getBlockCaches = append(getBlockCaches, getBlockCache)
 

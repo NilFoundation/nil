@@ -42,11 +42,11 @@ type FileProviderCache struct {
 
 type GetBlockCache struct {
 	Args  BlockArgs
-	Block jsonrpc.RPCBlock
+	Block *jsonrpc.RPCBlock
 }
 
 func (p GetBlockCache) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]any{p.Args, p.Block})
+	return json.Marshal([]any{p.Args, &p.Block})
 }
 
 type BlockArgs struct {

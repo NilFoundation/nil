@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"context"
-	"strconv"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -21,10 +20,11 @@ const shardId = types.MainShardId
 type SuiteEthBlock struct {
 	suite.Suite
 
-	ctx           context.Context
-	db            db.DB
-	api           *APIImpl
-	lastBlockHash common.Hash
+	ctx            context.Context
+	db             db.DB
+	api            *APIImpl
+	lastBlockHash  common.Hash
+	emptyBlockHash common.Hash
 }
 
 func (suite *SuiteEthBlock) SetupSuite() {
@@ -35,16 +35,17 @@ func (suite *SuiteEthBlock) SetupSuite() {
 	suite.Require().NoError(err)
 
 	suite.lastBlockHash = execution.GenerateZeroState(suite.T(), types.MainShardId, suite.db).Hash(types.MainShardId)
-	for i := 1; i < int(types.BlockNumber(2)); i++ {
-		txns := make([]*types.Transaction, 0, i)
-		for j := range i {
-			txn := types.NewEmptyTransaction()
-			txn.Data = types.Code(strconv.FormatUint(uint64(j), 10))
-			txns = append(txns, txn)
-		}
-		suite.lastBlockHash = execution.GenerateBlockFromTransactionsWithoutExecution(suite.T(),
-			shardId, types.BlockNumber(i), suite.lastBlockHash, suite.db, txns...)
-	}
+
+	suite.lastBlockHash = execution.GenerateBlockFromTransactionsWithoutExecution(suite.T(),
+		shardId, types.BlockNumber(1), suite.lastBlockHash, suite.db)
+	suite.emptyBlockHash = suite.lastBlockHash
+
+	txns := make([]*types.Transaction, 0, 1)
+	txn := types.NewEmptyTransaction()
+	txn.Data = types.Code([]byte{1})
+	txns = append(txns, txn)
+	suite.lastBlockHash = execution.GenerateBlockFromTransactionsWithoutExecution(suite.T(),
+		shardId, types.BlockNumber(2), suite.lastBlockHash, suite.db, txns...)
 
 	suite.api = NewTestEthAPI(suite.ctx, suite.T(), suite.db, 1)
 }
@@ -76,7 +77,7 @@ func (suite *SuiteEthBlock) TestGetBlockByNumber() {
 	suite.Require().NotNil(data)
 	suite.Equal(common.EmptyHash, data.ParentHash)
 
-	data, err = suite.api.GetBlockByNumber(suite.ctx, shardId, transport.BlockNumber(1), false)
+	data, err = suite.api.GetBlockByNumber(suite.ctx, shardId, transport.BlockNumber(2), false)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(data)
 	suite.Equal(suite.lastBlockHash, data.Hash)
@@ -108,16 +109,21 @@ func (suite *SuiteEthBlock) TestGetBlockContent() {
 	resNoFullTx, err := suite.api.GetBlockByHash(suite.ctx, suite.lastBlockHash, false)
 	suite.Require().NoError(err)
 	suite.Len(resNoFullTx.TransactionHashes, 1)
-	suite.Empty(resNoFullTx.Transactions)
+	suite.Nil(resNoFullTx.Transactions)
 
 	resFullTx, err := suite.api.GetBlockByHash(suite.ctx, suite.lastBlockHash, true)
 	suite.Require().NoError(err)
 	suite.Len(resFullTx.Transactions, 1)
-	suite.Empty(resFullTx.TransactionHashes)
+	suite.Nil(resFullTx.TransactionHashes)
 
 	for i, txn := range resFullTx.Transactions {
 		suite.Equal(resNoFullTx.TransactionHashes[i], txn.Hash)
 	}
+
+	resFullTx, err = suite.api.GetBlockByHash(suite.ctx, suite.emptyBlockHash, true)
+	suite.Require().NoError(err)
+	suite.NotNil(resFullTx.Transactions)
+	suite.Empty(resFullTx.Transactions)
 }
 
 func (suite *SuiteEthBlock) TestGetBlockTransactionCountByNumber() {

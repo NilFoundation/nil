@@ -171,7 +171,8 @@ func (v *Value) UnmarshalText(input []byte) error {
 }
 
 func (v Value) MarshalJSON() ([]byte, error) {
-	return v.safeInt().MarshalJSON()
+	hex := v.safeInt().Hex()
+	return []byte(`"` + hex + `"`), nil
 }
 
 func (v Value) MarshalText() ([]byte, error) {

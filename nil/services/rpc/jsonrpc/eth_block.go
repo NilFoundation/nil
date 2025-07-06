@@ -53,6 +53,9 @@ func (api *APIImplRo) GetBlockByHash(ctx context.Context, hash common.Hash, full
 	shardId := types.ShardIdFromHash(hash)
 	res, err := api.rawapi.GetFullBlockData(ctx, shardId, rawapitypes.BlockHashAsBlockReference(hash))
 	if err != nil {
+		if errors.Is(err, rawapitypes.ErrBlockNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return rawToRPCBlock(shardId, res, fullTx)

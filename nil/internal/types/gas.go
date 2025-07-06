@@ -2,8 +2,9 @@ package types
 
 import (
 	"encoding/json"
-	"reflect"
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/NilFoundation/nil/nil/common/check"
 )
@@ -62,14 +63,21 @@ func (g *Gas) UnmarshalText(input []byte) error {
 }
 
 func (g Gas) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + g.String() + `"`), nil
+	return json.Marshal(g.Hex())
 }
 
 func (g *Gas) UnmarshalJSON(input []byte) error {
-	if len(input) < 2 || input[0] != '"' || input[len(input)-1] != '"' {
-		return &json.UnmarshalTypeError{Value: "non-string", Type: reflect.TypeOf(g)}
+	// trim quotes
+	var str string
+	if err := json.Unmarshal(input, &str); err != nil {
+		return fmt.Errorf("gas unmarshal failed for value: %s (%w)", input, err)
 	}
-	return g.UnmarshalText(input[1 : len(input)-1])
+	gas, err := GasFromHex(str)
+	if err != nil {
+		return err
+	}
+	*g = gas
+	return nil
 }
 
 func (g Gas) String() string {
@@ -91,4 +99,19 @@ func (Gas) Type() string {
 
 func GasToValue(gas uint64) Value {
 	return Gas(gas).ToValue(DefaultGasPrice)
+}
+
+func (g Gas) Hex() string {
+	return fmt.Sprintf("0x%x", uint64(g))
+}
+
+func GasFromHex(s string) (Gas, error) {
+	if !strings.HasPrefix(s, "0x") {
+		return 0, fmt.Errorf("invalid hex format: %s", s)
+	}
+	gas, err := strconv.ParseUint(s[2:], 16, 64)
+	if err != nil {
+		return 0, err
+	}
+	return Gas(gas), nil
 }
