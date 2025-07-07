@@ -75,7 +75,7 @@ contract SwapMatch is NilBase {
         //Create a new swap request
         SwapRequest memory newSwapRequest = SwapRequest({
             initiator: msg.sender,
-            token: Nil.txnTokens()[0],
+            token: Nil.txnTokens()[0],  // TODO: [PoC] Tokens remove it
             secondTokenId: _secondTokenId,
             desiredSecondTokenAmount: _desiredSecondTokenAmount,
             isMatched: false
