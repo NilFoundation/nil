@@ -133,6 +133,11 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
     console.log(`faucet topup initiation done`);
     await waitTillCompleted(client, topUpFaucet);
 
+    const ownerBalance = await smartAccount.getBalance();
+    if (ownerBalance === 0n) {
+        throw new Error(`Owner smart account balance is 0 after faucet top-up`);
+    }
+
     if ((await smartAccount.checkDeploymentStatus()) === false) {
         await smartAccount.selfDeploy(true);
     }
@@ -145,6 +150,11 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
     });
     console.log(`faucet topup initiation done`);
     await waitTillCompleted(client, topUpFaucet);
+
+    const depositBalance = await depositRecipientSmartAccount.getBalance();
+    if (depositBalance === 0n) {
+        throw new Error(`Deposit recipient smart account balance is 0 after faucet top-up`);
+    }
 
     if ((await depositRecipientSmartAccount.checkDeploymentStatus()) === false) {
         await depositRecipientSmartAccount.selfDeploy(true);
