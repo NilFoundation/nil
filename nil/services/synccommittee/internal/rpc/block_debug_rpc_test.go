@@ -129,6 +129,31 @@ func (s *BlockDebugRpcTestSuite) Test_GetBatchViews() {
 	s.requireViewsEqualToLatest(views, batches)
 }
 
+func (s *BlockDebugRpcTestSuite) Test_GetBatchViews_Parent_Batch_Is_Proposed() {
+	batches := testaide.NewBatchesSequence(3)
+
+	err := s.storage.SetProvedStateRoot(s.context, batches[0].EarliestMainBlock().ParentHash)
+	s.Require().NoError(err)
+
+	for _, batch := range batches {
+		err := s.storage.PutBlockBatch(s.context, batch)
+		s.Require().NoError(err)
+	}
+
+	firstBatchId := batches[0].Id
+	err = s.storage.SetBatchAsProved(s.context, firstBatchId)
+	s.Require().NoError(err)
+	err = s.storage.SetBatchAsProposed(s.context, firstBatchId)
+	s.Require().NoError(err)
+
+	request := public.DefaultBatchDebugRequest()
+	views, err := s.rpcClient.GetBatchViews(s.context, request)
+	s.Require().NoError(err)
+	s.Require().Len(views, 2)
+
+	s.requireViewsEqualToLatest(views, batches[1:])
+}
+
 func (s *BlockDebugRpcTestSuite) Test_GetBatchViews_Limit() {
 	batches := testaide.NewBatchesSequence(10)
 	for _, batch := range batches {
