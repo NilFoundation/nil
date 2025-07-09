@@ -114,6 +114,25 @@ func (o batchOp) getBatchesSeqReversed(
 			}
 			seenBatches[*nextBatchId] = true
 
+			nextBatchExists, err := o.batchExists(tx, *nextBatchId)
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+			switch {
+			case nextBatchExists:
+				// Batch exists, continue traversing
+			case to == nil:
+				// We've reached the earliest batch in the storage, and its parent has already been removed
+				return
+			case to != nil:
+				traverseErr := fmt.Errorf(
+					"failed to traverse batch sequence from %s to %s: %w", from, to, o.errBatchNotFound(*nextBatchId),
+				)
+				yield(nil, traverseErr)
+				return
+			}
+
 			nextBatchEntry, err := o.getBatchEntry(tx, *nextBatchId)
 			if err != nil {
 				yield(nil, err)
