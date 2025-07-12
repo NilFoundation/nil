@@ -21,7 +21,7 @@ type BlockGeneratorParams struct {
 	MainKeysPath     string
 	DisableConsensus bool
 	ExecutionMode    string
-	StateAccessor    *StateAccessor
+	BlockAccessor    *BlockAccessor
 	FeeCalculator    FeeCalculator
 	EvmTracingHooks  *tracing.Hooks
 }
@@ -85,7 +85,7 @@ func NewBlockGenerator(
 
 	executionState, err := NewExecutionState(rwTx, params.ShardId, StateParams{
 		Block:          prevBlock,
-		StateAccessor:  params.StateAccessor,
+		BlockAccessor:  params.BlockAccessor,
 		ConfigAccessor: configAccessor,
 		FeeCalculator:  params.FeeCalculator,
 		Mode:           params.ExecutionMode,

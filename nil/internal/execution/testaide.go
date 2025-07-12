@@ -40,8 +40,8 @@ func NewTestExecutionState(t *testing.T, tx db.RoTx, shardId types.ShardId, para
 	if params.ConfigAccessor == nil {
 		params.ConfigAccessor = config.GetStubAccessor()
 	}
-	if params.StateAccessor == nil {
-		params.StateAccessor = NewStateAccessor(32, 0)
+	if params.BlockAccessor == nil {
+		params.BlockAccessor = NewBlockAccessor(32)
 	}
 
 	es, err := NewExecutionState(tx, shardId, params)
@@ -56,7 +56,7 @@ func NewTestExecutionState(t *testing.T, tx db.RoTx, shardId types.ShardId, para
 
 func NewTestBlockGeneratorParams(shardId types.ShardId, nShards uint32) BlockGeneratorParams {
 	res := NewBlockGeneratorParams(shardId, nShards)
-	res.StateAccessor = NewStateAccessor(32, 0)
+	res.BlockAccessor = NewBlockAccessor(32)
 	return res
 }
 
