@@ -1,8 +1,9 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "root": false,
+  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
   "extends": ["../biome.json"],
   "files": {
-    "include": ["src/**", "test/**", "rollup/**", "examples/**"]
+    "includes": ["**/src/**", "**/test/**", "**/rollup/**", "**/examples/**"]
   },
   "linter": {
     "rules": {
@@ -12,16 +13,24 @@
           "options": {
             "strictCase": false,
             "requireAscii": true,
-            "enumMemberCase": "PascalCase",
             "conventions": [
+              { "selector": { "kind": "enumMember" }, "formats": ["PascalCase"] },
               {
                 "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
               }
             ]
           }
-        }
-      },
-      "nursery": {
+        },
+        "noParameterAssign": "error",
+        "useAsConstAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useEnumInitializers": "error",
+        "useSelfClosingElements": "error",
+        "useSingleVarDeclarator": "error",
+        "noUnusedTemplateLiteral": "error",
+        "useNumberNamespace": "error",
+        "noInferrableTypes": "error",
+        "noUselessElse": "error",
         "noRestrictedImports": {
           "level": "error",
           "options": {
@@ -35,7 +44,8 @@
             }
           }
         }
-      }
+      },
+      "nursery": {}
     }
   }
 }
