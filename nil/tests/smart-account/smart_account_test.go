@@ -57,7 +57,7 @@ func (s *SuiteSmartAccountRpc) TestSmartAccount() {
 			contracts.NewCounterGetCallData(s.T()),
 			addrCallee,
 			nil,
-			types.NewFeePackFromGas(500_000),
+			types.NewFeePackFromGas(tests.CommonGasLimit),
 		)
 		s.Require().NoError(err)
 
@@ -75,12 +75,11 @@ func (s *SuiteSmartAccountRpc) TestDeployWithValueNonPayableConstructor() {
 
 	hash, addr, err := s.Client.DeployContract(s.Context, 2, smartAccount,
 		contracts.CounterDeployPayload(s.T()),
-		types.NewValueFromUint64(500_000), types.NewFeePackFromGas(500_000), execution.MainPrivateKey)
+		types.NewValueFromUint64(500_000), types.NewFeePackFromGas(1_000_000), execution.MainPrivateKey)
 	s.Require().NoError(err)
 
 	receipt := s.WaitForReceipt(hash)
-	s.Require().True(receipt.Success)
-	s.Require().False(receipt.OutReceipts[0].Success)
+	s.Require().False(receipt.AllSuccess())
 
 	balance, err := s.Client.GetBalance(s.Context, addr, "latest")
 	s.Require().NoError(err)
@@ -101,7 +100,7 @@ func (s *SuiteSmartAccountRpc) TestDeploySmartAccountWithValue() {
 
 	hash, address, err := s.Client.DeployContract(
 		s.Context, types.BaseShardId, types.MainSmartAccountAddress, deployCode, types.NewValueFromUint64(500_000),
-		types.NewFeePackFromGas(5_000_000), execution.MainPrivateKey,
+		types.NewFeePackFromGas(10_000_000), execution.MainPrivateKey,
 	)
 	s.Require().NoError(err)
 

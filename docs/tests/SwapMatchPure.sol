@@ -74,7 +74,7 @@ contract SwapMatch is NilBase {
     ) public {
         //Create a new swap request
         SwapRequest memory newSwapRequest = SwapRequest({
-            initiator: msg.sender,
+            initiator: Nil.msgSender(),
             token: Nil.txnTokens()[0],
             secondTokenId: _secondTokenId,
             desiredSecondTokenAmount: _desiredSecondTokenAmount,
@@ -82,7 +82,7 @@ contract SwapMatch is NilBase {
         });
         //Update the map, the counter, and emit the event
         swapRequests[swapRequestCounter] = newSwapRequest;
-        emit NewSwapRequest(swapRequestCounter, msg.sender);
+        emit NewSwapRequest(swapRequestCounter, Nil.msgSender());
         swapRequestCounter++;
 
         //Begin searching for a match
@@ -169,7 +169,7 @@ contract SwapMatch is NilBase {
         SwapRequest memory matchedSwapRequest,
         Nil.Token memory tokensPaidToSwapOriginator,
         Nil.Token memory tokensPaidToMatchedSwapOriginator
-    ) private {
+    ) private async(2_000_000) {
         //Calculate possible excesses
         uint256 excessToSwapOriginator = swapRequest.token.amount -
             matchedSwapRequest.desiredSecondTokenAmount;

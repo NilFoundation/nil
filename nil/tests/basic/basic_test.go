@@ -216,7 +216,7 @@ func (s *SuiteRpc) TestRpcContractSendTransaction() {
 			callArgs := &jsonrpc.CallArgs{
 				Data:  (*hexutil.Bytes)(&callData),
 				To:    callerAddr,
-				Fee:   types.NewFeePackFromGas(500_000),
+				Fee:   types.NewFeePackFromGas(tests.CommonGasLimit),
 				Seqno: callerSeqno,
 			}
 
@@ -282,7 +282,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 		deployCode := types.BuildDeployPayload(smartAccountCode, common.Hash{0x12})
 
 		hash, smartAccountAddr, err = s.Client.DeployContract(
-			s.Context, callerShardId, types.MainSmartAccountAddress, deployCode, types.GasToValue(10_000_000),
+			s.Context, callerShardId, types.MainSmartAccountAddress, deployCode, types.GasToValue(100_000_000),
 			types.NewFeePackFromGas(20_000_000), execution.MainPrivateKey,
 		)
 		s.Require().NoError(err)
@@ -349,7 +349,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 			Add(res.OutTransactions[0].CoinsUsed).
 			Add(s.GasToValue(3 * params.SstoreSentryGasEIP2200)).
 			Add(s.GasToValue(10_000)). // external transaction verification
-			Mul64(12).Div64(10)        // stock 20%
+			Mul64(12).Div64(10) // stock 20%
 		s.Equal(estimation.FeeCredit.Uint64(), value.Uint64())
 
 		txn := res.OutTransactions[0]
@@ -416,7 +416,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 			Data:    extPayload,
 			Seqno:   callerSeqno,
 			Kind:    types.ExecutionTransactionKind,
-			FeePack: types.NewFeePackFromGas(100_000),
+			FeePack: types.NewFeePackFromGas(tests.CommonGasLimit),
 		}
 
 		extBytecode, err := extTxn.MarshalSSZ()
@@ -424,7 +424,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 
 		callArgs := &jsonrpc.CallArgs{
 			Transaction: (*hexutil.Bytes)(&extBytecode),
-			Fee:         types.NewFeePackFromGas(500_000),
+			Fee:         types.NewFeePackFromGas(tests.CommonGasLimit),
 		}
 
 		res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
@@ -453,7 +453,7 @@ func (s *SuiteRpc) TestRpcCallWithTransactionSend() {
 			Transaction: (*hexutil.Bytes)(&intBytecode),
 			From:        &smartAccountAddr,
 			Seqno:       callerSeqno,
-			Fee:         types.NewFeePackFromGas(500_000),
+			Fee:         types.NewFeePackFromGas(tests.CommonGasLimit),
 		}
 
 		res, err := s.Client.Call(s.Context, callArgs, "latest", nil)
@@ -646,7 +646,7 @@ func (s *SuiteRpc) TestNoOutTransactionsIfFailure() {
 	calldata, err = abi.Pack("testFailedAsyncCall", addr, int32(10))
 	s.Require().NoError(err)
 
-	txhash, err = s.Client.SendExternalTransaction(s.Context, calldata, addr, nil, types.NewFeePackFromGas(100_000))
+	txhash, err = s.Client.SendExternalTransaction(s.Context, calldata, addr, nil, types.NewFeePackFromGas(500_000))
 	s.Require().NoError(err)
 	receipt = s.WaitForReceipt(txhash)
 	s.Require().True(receipt.Success)
@@ -724,7 +724,7 @@ func (s *SuiteRpc) TestRpcTransactionContent() {
 
 	txn2, err := s.Client.GetInTransactionByHash(s.Context, receipt.OutTransactions[0])
 	s.Require().NoError(err)
-	s.EqualValues(3, txn2.Flags.Bits)
+	s.EqualValues(1, txn2.Flags.Bits)
 }
 
 func (s *SuiteRpc) TestTwoInvalidSignatureTxs() {

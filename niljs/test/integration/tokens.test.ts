@@ -10,12 +10,12 @@ test("mint and transfer tokens", async () => {
 
   {
     const tx = await smartAccount.setTokenName("MY_TOKEN");
-    await tx.wait();
+    await tx.wait({ waitTillMainShard: true });
   }
 
   {
     const tx = await smartAccount.mintToken(mintCount);
-    await tx.wait();
+    await tx.wait({ waitTillMainShard: true });
   }
 
   const tokens = await client.getTokens(smartAccountAddress, "latest");
@@ -33,7 +33,7 @@ test("mint and transfer tokens", async () => {
   const sendTx = await smartAccount.sendTransaction({
     to: anotherAddress,
     value: 10_000_000n,
-    feeCredit: 100_000n * gasPriceOnShard2,
+    feeCredit: 1_000_000n * gasPriceOnShard2,
     tokens: [
       {
         id: smartAccountAddress,
@@ -42,7 +42,7 @@ test("mint and transfer tokens", async () => {
     ],
   });
 
-  await sendTx.wait();
+  await sendTx.wait({ waitTillMainShard: true });
 
   const anotherTokens = await client.getTokens(anotherAddress, "latest");
 

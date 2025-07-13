@@ -12,6 +12,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/abi"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	"github.com/NilFoundation/nil/nil/services/rollup"
@@ -23,6 +24,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const CommonGasLimit = 500_000
 
 func WaitForReceiptCommon(
 	t *testing.T, client client.Client, hash common.Hash, check func(*jsonrpc.RPCReceipt) bool,
@@ -210,7 +213,7 @@ func SendExternalTransactionNoCheck(
 	t.Helper()
 
 	txHash, err := client.SendExternalTransaction(t.Context(), bytecode, contractAddress, execution.MainPrivateKey,
-		types.NewFeePackFromGas(1_000_000))
+		types.NewFeePackFromGas(2_000_000))
 	require.NoError(t, err)
 
 	return WaitIncludedInMain(t, client, txHash)
@@ -253,7 +256,17 @@ func analyzeReceiptRec(
 	require.NoError(t, err)
 	require.NotNil(t, txn)
 
-	value.ValueUsed = value.ValueUsed.Add(receipt.GasUsed.ToValue(receipt.GasPrice))
+	// Skip gas for bounce transactions, as it is paid by Relayer.
+	skipGasUsed := false
+	if txn.To == types.GetRelayerAddress(1) {
+		sign, err := contracts.GetFuncIdSignatureFromBytes(txn.Data)
+		require.NoError(t, err)
+		skipGasUsed = sign.FuncName == "receiveTxBounce"
+	}
+
+	if !skipGasUsed {
+		value.ValueUsed = value.ValueUsed.Add(receipt.GasUsed.ToValue(receipt.GasPrice))
+	}
 	value.ValueForwarded = value.ValueForwarded.Add(receipt.Forwarded)
 	caller := getContractInfo(txn.From, valuesMap)
 

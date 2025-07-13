@@ -87,7 +87,7 @@ func (s *SuiteRegression) TestStaticCall() {
 		addrQuery,
 		execution.MainPrivateKey,
 		data,
-		types.NewFeePackFromGas(200_000),
+		types.NewFeePackFromGas(tests.CommonGasLimit),
 		types.NewZeroValue(),
 		nil)
 	s.Require().True(receipt.AllSuccess())
@@ -98,7 +98,7 @@ func (s *SuiteRegression) TestStaticCall() {
 		addrQuery,
 		execution.MainPrivateKey,
 		data,
-		types.NewFeePackFromGas(200_000),
+		types.NewFeePackFromGas(tests.CommonGasLimit),
 		types.NewZeroValue(),
 		nil)
 	s.Require().True(receipt.AllSuccess())
@@ -109,7 +109,7 @@ func (s *SuiteRegression) TestStaticCall() {
 		addrQuery,
 		execution.MainPrivateKey,
 		data,
-		types.NewFeePackFromGas(200_000),
+		types.NewFeePackFromGas(tests.CommonGasLimit),
 		types.NewZeroValue(),
 		nil)
 	s.Require().True(receipt.AllSuccess())
@@ -154,9 +154,9 @@ func (s *SuiteRegression) TestProposerOutOfGas() {
 	d, ok := args[2].([]byte)
 	s.Require().Equal(calldata, d)
 	s.Require().True(ok)
-	s.Require().Len(receipt.OutReceipts[0].Logs[0].Topics, 3)
-	s.Require().Equal(types.MainSmartAccountAddress.Hash(), receipt.OutReceipts[0].Logs[0].Topics[1])
-	s.Require().Equal(s.testAddress.Hash(), receipt.OutReceipts[0].Logs[0].Topics[2])
+	s.Require().Len(receipt.OutReceipts[0].Logs[0].Topics, 4)
+	s.Require().Equal(types.MainSmartAccountAddress.Hash(), receipt.OutReceipts[0].Logs[0].Topics[2])
+	s.Require().Equal(s.testAddress.Hash(), receipt.OutReceipts[0].Logs[0].Topics[3])
 }
 
 func (s *SuiteRegression) TestInsufficientFundsIncExtSeqno() {
@@ -212,7 +212,7 @@ func (s *SuiteRegression) TestInsufficientFundsDeploy() {
 		s.T().Context(),
 		types.MainSmartAccountAddress,
 		nil,
-		types.NewFeePackFromGas(100_000),
+		types.NewFeePackFromGas(tests.CommonGasLimit),
 		types.Value10,
 		[]types.TokenBalance{}, addr, execution.MainPrivateKey)
 	s.Require().NoError(err)

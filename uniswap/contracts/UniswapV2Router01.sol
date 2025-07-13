@@ -245,7 +245,7 @@ contract UniswapV2Router01 is IUniswapV2Router01, NilTokenBase {
         address dst,
         Nil.Token[] memory tokens,
         bytes memory callData
-    ) private returns (bool, bytes memory) {
+    ) private async(1_000_000) returns (bool, bytes memory) {
         if (Nil.getShardId(dst) == Nil.getShardId(address(this))) {
             (bool success, bytes memory result) = Nil.syncCall(
                 dst,

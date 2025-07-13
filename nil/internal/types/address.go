@@ -40,6 +40,11 @@ func GetRelayerAddress(shardId ShardId) Address {
 	return ShardAndHexToAddress(shardId, RelayerPureAddress)
 }
 
+func IsRelayerAddress(addr Address) bool {
+	hex := addr.Hex()
+	return hex[len(hex)-36:] == RelayerPureAddress
+}
+
 func GetTokenManagerAddress(shardId ShardId) Address {
 	return ShardAndHexToAddress(shardId, TokenManagerPureAddress)
 }
@@ -215,7 +220,7 @@ func createAddress(shardId ShardId, deployPayload []byte) Address {
 
 // CreateAddress creates address for the given contract code + salt
 func CreateAddress(shardId ShardId, deployPayload DeployPayload) Address {
-	return createAddress(shardId, deployPayload.Bytes())
+	return CreateAddressForCreate2(GetRelayerAddress(shardId), deployPayload.BytesWithoutSalt(), deployPayload.Salt())
 }
 
 // CreateAddressForCreate2 creates address in a CREATE2-like way

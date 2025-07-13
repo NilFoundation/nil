@@ -1,7 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import util from "node:util";
-import { HttpTransport, PublicClient, generateSmartAccount } from "@nilfoundation/niljs";
+import {
+  CheckReceiptSuccess,
+  HttpTransport,
+  type ProcessedReceipt,
+  PublicClient,
+  generateSmartAccount,
+} from "@nilfoundation/niljs";
 import type { Abi } from "viem";
 import { CLONE_FACTORY_COMPILATION_COMMAND } from "./compilationCommands";
 import { FAUCET_GLOBAL, RPC_GLOBAL } from "./globals";
@@ -65,6 +71,14 @@ beforeAll(async () => {
   CLONE_FACTORY_ABI = cloneFactoryAbi;
 });
 
+function getAddressFromEvent(receipts: ProcessedReceipt[], index: number): `0x${string}` {
+  expect(receipts.length).greaterThan(index);
+  const receipt = receipts[index];
+  expect(receipt.logs.length).greaterThan(0);
+  expect(receipt.logs[0].topics.length).greaterThan(1);
+  return `0x${receipt.logs[0].topics[1].slice(-40)}` as `0x${string}`;
+}
+
 describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
   test("CloneFactory successfully creates a factory and a clone", async () => {
     const SALT = BigInt(Math.floor(Math.random() * 10000));
@@ -89,14 +103,15 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
         bytecode: FACTORY_MANAGER_BYTECODE,
         abi: FACTORY_MANAGER_ABI,
         args: [],
-        feeCredit: 1_000_000n * gasPrice,
+        feeCredit: 20_000_000n * gasPrice,
         salt: SALT,
         shardId: 1,
+        value: 50_000_000n * gasPrice,
       });
 
-    const factoryManagerReceipts = await factoryManagerTx.wait();
+    const factoryManagerReceipts = await factoryManagerTx.wait({ waitTillMainShard: true });
 
-    expect(factoryManagerReceipts.some((receipt) => !receipt.success)).toBe(false);
+    expect(factoryManagerReceipts.some((receipt) => !CheckReceiptSuccess(receipt))).toBe(false);
 
     const createMasterChildTx = await smartAccount.sendTransaction({
       to: factoryManagerAddress,
@@ -106,13 +121,11 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
       args: [2, SALT],
     });
 
-    const createMasterChildReceipts = await createMasterChildTx.wait();
+    const createMasterChildReceipts = await createMasterChildTx.wait({ waitTillMainShard: true });
 
-    const masterChildAddress = createMasterChildReceipts[2].contractAddress as `0x${string}`;
+    const masterChildAddress = getAddressFromEvent(createMasterChildReceipts, 1);
 
-    console.log(masterChildAddress);
-
-    expect(createMasterChildReceipts.some((receipt) => !receipt.success)).toBe(false);
+    expect(createMasterChildReceipts.some((receipt) => !CheckReceiptSuccess(receipt))).toBe(false);
 
     const createFactoryTx = await smartAccount.sendTransaction({
       to: factoryManagerAddress,
@@ -122,13 +135,11 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
       args: [2, SALT],
     });
 
-    const createFactoryReceipts = await createFactoryTx.wait();
+    const createFactoryReceipts = await createFactoryTx.wait({ waitTillMainShard: true });
 
-    const factoryAddress = createFactoryReceipts[2].contractAddress as `0x${string}`;
+    const factoryAddress = getAddressFromEvent(createFactoryReceipts, 1);
 
-    console.log(factoryAddress);
-
-    expect(createFactoryReceipts.some((receipt) => !receipt.success)).toBe(false);
+    expect(createFactoryReceipts.some((receipt) => !CheckReceiptSuccess(receipt))).toBe(false);
 
     const createCloneTx = await smartAccount.sendTransaction({
       to: factoryAddress,
@@ -138,11 +149,11 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
       args: [SALT],
     });
 
-    const createCloneReceipts = await createCloneTx.wait();
+    const createCloneReceipts = await createCloneTx.wait({ waitTillMainShard: true });
 
-    const cloneAddress = createCloneReceipts[2].contractAddress as `0x${string}`;
+    const cloneAddress = getAddressFromEvent(createCloneReceipts, 1);
 
-    expect(createCloneReceipts.some((receipt) => !receipt.success)).toBe(false);
+    expect(createCloneReceipts.some((receipt) => !CheckReceiptSuccess(receipt))).toBe(false);
 
     const incrementTx = await smartAccount.sendTransaction({
       to: cloneAddress as `0x${string}`,
@@ -152,11 +163,11 @@ describe.sequential("Nil.js can fully tests the CloneFactory", async () => {
       feeCredit: 3_000_000n * gasPrice,
     });
 
-    console.log(cloneAddress);
+    const incrementReceipts = await incrementTx.wait({ waitTillMainShard: true });
 
-    const incrementReceipts = await incrementTx.wait();
+    expect(incrementReceipts.some((receipt) => !CheckReceiptSuccess(receipt))).toBe(false);
 
-    expect(incrementReceipts.some((receipt) => !receipt.success)).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     const result = await client.call(
       {

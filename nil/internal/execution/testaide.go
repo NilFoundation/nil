@@ -25,7 +25,8 @@ var (
 )
 
 const (
-	DefaultGasLimit = 1_000_000
+	DefaultGasLimit           = 1_000_000
+	DefaultAsyncGas types.Gas = 30_000_000
 )
 
 func init() {

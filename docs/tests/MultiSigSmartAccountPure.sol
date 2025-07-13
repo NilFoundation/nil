@@ -93,7 +93,7 @@ contract MultiSigSmartAccount is NilBase {
         Nil.Token[] memory tokens,
         uint value,
         bytes calldata callData
-    ) public onlyExternal {
+    ) public onlyExternal async(2_000_000) {
         Nil.asyncCallWithTokens(
             dst,
             refundTo,

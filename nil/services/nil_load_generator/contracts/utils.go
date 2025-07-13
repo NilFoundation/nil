@@ -34,7 +34,7 @@ func NewSmartAccount(service *cliservice.Service, shardId types.ShardId) (SmartA
 	salt := types.NewUint256(0)
 
 	smartAccountAdr, err := service.CreateSmartAccount(
-		shardId, salt, types.GasToValue(1_000_000_000), types.FeePack{}, &pk.PublicKey)
+		shardId, salt, types.GasToValue(1_000_000_000_000), types.FeePack{}, &pk.PublicKey)
 	if err != nil {
 		if !strings.Contains(err.Error(), "smart account already exists") {
 			return SmartAccount{}, err
@@ -110,7 +110,7 @@ func GetFromContract(
 
 func DeployContract(service *cliservice.Service, smartAccount types.Address, code types.Code) (types.Address, error) {
 	txHashCaller, addr, err := service.DeployContractViaSmartAccount(smartAccount.ShardId(), smartAccount,
-		types.BuildDeployPayload(code, smartAccount.Hash()), types.Value{})
+		types.BuildDeployPayload(code, smartAccount.Hash()), types.GasToValue(100_000_000_000))
 	if err != nil {
 		return types.EmptyAddress, err
 	}

@@ -68,13 +68,17 @@ func (bt *BlocksTracer) PrintTransaction(txn *types.Transaction, hash common.Has
 		}
 		fmt.Fprintln(bt.file, "]")
 	}
-	if decoded, err := contracts.DecodeCallData(nil, txn.Data); err == nil {
+	if decoded, relayerData, err := contracts.DecodeCallData(nil, txn.Data); err == nil {
 		bt.Printf("decoded: %s\n", decoded)
-	}
-	if len(txn.Data) < 1024 {
-		bt.Printf("data: %s\n", hexutil.Encode(txn.Data))
+		if relayerData != "" {
+			bt.Printf("relayer decoded: %s\n", relayerData)
+		}
 	} else {
-		bt.Printf("data_size: %d\n", len(txn.Data))
+		if len(txn.Data) < 1024 {
+			bt.Printf("data: %s\n", hexutil.Encode(txn.Data))
+		} else {
+			bt.Printf("data_size: %d\n", len(txn.Data))
+		}
 	}
 	if len(txn.Token) > 0 {
 		bt.Printf("token:\n")
@@ -121,6 +125,23 @@ func (bt *BlocksTracer) Trace(es *ExecutionState, block *types.Block, blockHash 
 							bt.Printf("gas_used: %d\n", receipt.GasUsed)
 							bt.Printf("txn_hash: %s\n", receipt.TxnHash.Hex())
 							bt.Printf("address: %s\n", receipt.ContractAddress.Hex())
+							if len(receipt.Logs) > 0 {
+								bt.Printf("logs:\n")
+								for j, log := range receipt.Logs {
+									bt.WithIndent(func(t *BlocksTracer) {
+										bt.Printf("%d:\n", j)
+										bt.WithIndent(func(t *BlocksTracer) {
+											bt.Printf("address: %s\n", log.Address.Hex())
+											bt.Printf("topics: %v\n", log.Topics)
+											if len(log.Data) < 1024 {
+												bt.Printf("data: %s\n", hexutil.Encode(log.Data))
+											} else {
+												bt.Printf("data_size: %d\n", len(log.Data))
+											}
+										})
+									})
+								}
+							}
 						})
 
 						outTransactions, ok := es.OutTransactions[txnHash]

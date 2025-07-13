@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 
 import {
+  CheckReceiptSuccess,
   ExternalTransactionEnvelope,
   type Hex,
   HttpTransport,
@@ -275,7 +276,7 @@ describe.sequential("the multisig smart account performs all operations internal
           abi: MULTISIG_SMART_ACCOUNT_ABI,
           args: [hexKeys],
           value: convertEthToWei(0.001),
-          feeCredit: 1_000_000n * gasPrice,
+          feeCredit: 10_000_000n * gasPrice,
           salt: SALT,
           shardId: 1,
         });
@@ -286,7 +287,7 @@ describe.sequential("the multisig smart account performs all operations internal
 
       //endMultiSigDeployment
 
-      expect(receipts.some((receipt) => !receipt.success)).toBe(false);
+      expect(receipts.some((receipt) => !CheckReceiptSuccess(receipt))).toBe(false);
 
       const code = await client.getCode(multiSigSmartAccountAddress, "latest");
 

@@ -73,7 +73,7 @@ describe.sequential("CLI deployment tests", async () => {
       await exec(RETAILER_SEND_TOKENS_COMMAND);
 
       const gasPrice = 20_000_000n;
-      const feeCredit = 200_000n * gasPrice;
+      const feeCredit = 2_000_000n * gasPrice;
 
       //startRetailerCallManufacturer
       const RETAILER_CALL_MANUFACTURER_COMMAND = `${NIL_GLOBAL} smart-account send-transaction ${RETAILER_ADDRESS} orderProduct ${MANUFACTURER_ADDRESS} new-product --abi ./tests/Retailer/Retailer.abi --fee-credit ${feeCredit} ${CONFIG_FLAG}`;

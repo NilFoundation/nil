@@ -2,6 +2,7 @@ import { FAUCET_GLOBAL, RPC_GLOBAL } from "./globals";
 
 //startImportStatements
 import {
+  CheckReceiptSuccess,
   ExternalTransactionEnvelope,
   HttpTransport,
   PublicClient,
@@ -75,7 +76,7 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
         bytecode: COUNTER_BYTECODE,
         abi: COUNTER_ABI,
         args: [],
-        feeCredit: 1_000_000n * gasPrice,
+        feeCredit: 10_000_000n * gasPrice,
         salt: SALT,
         shardId: 1,
       });
@@ -117,7 +118,7 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
         bytecode: COUNTER_BYTECODE,
         abi: COUNTER_ABI,
         args: [],
-        feeCredit: 1000000n * gasPrice,
+        feeCredit: 10_000_000n * gasPrice,
       },
       chainId,
     );
@@ -262,7 +263,7 @@ describe.sequential("Nil.js passes the deployment and calling flow", async () =>
       const receipts = await waitTillCompleted(client, transactionHash);
       //endExternalTransaction
 
-      expect(receipts.some((receipt) => !receipt.success)).toBe(false);
+      expect(receipts.some((receipt) => !CheckReceiptSuccess(receipt))).toBe(false);
     },
     40000,
   );

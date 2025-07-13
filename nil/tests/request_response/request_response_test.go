@@ -66,7 +66,7 @@ func (s *SuiteRequestResponse) SetupSuite() {
 				CtorArgs: []any{execution.MainPublicKey},
 			},
 			{Name: "Test0", Contract: "tests/RequestResponseTest", Address: s.testAddress0, Value: smartAccountValue},
-			{Name: "Test1", Contract: "tests/RequestResponseTest", Address: s.testAddress1, Value: types.Value0},
+			{Name: "Test1", Contract: "tests/RequestResponseTest", Address: s.testAddress1, Value: smartAccountValue},
 			{Name: "Counter0", Contract: "tests/Counter", Address: s.counterAddress0, Value: smartAccountValue},
 			{Name: "Counter1", Contract: "tests/Counter", Address: s.counterAddress1, Value: smartAccountValue},
 		},
@@ -255,8 +255,9 @@ func (s *SuiteRequestResponse) TestRequestResponse() {
 		receipt := s.SendExternalTransactionNoCheck(data, s.testAddress0)
 		s.Require().True(receipt.AllSuccess())
 		s.Require().Len(receipt.OutReceipts, 1)
-		requestReceipt := receipt.OutReceipts[0]
-		s.Require().Len(requestReceipt.OutReceipts, 1)
+		// TODO: uncomment once native refund messages are removed, now there are two receipts: response and refund
+		// requestReceipt := receipt.OutReceipts[0]
+		// s.Require().Len(requestReceipt.OutReceipts, 1)
 
 		info = s.AnalyzeReceipt(receipt, map[types.Address]string{})
 		initialBalance = s.CheckBalance(info, initialBalance, s.accounts)
@@ -325,7 +326,7 @@ func (s *SuiteRequestResponse) TestOnlyResponse() {
 	data := s.AbiPack(s.abiTest, "responseCounterAdd", true, []byte{}, []byte{})
 	receipt := s.SendExternalTransactionNoCheck(data, s.testAddress0)
 	s.Require().False(receipt.Success)
-	s.Require().Equal("OnlyResponseCheckFailed", receipt.Status)
+	s.Require().Equal("ExecutionReverted", receipt.Status)
 }
 
 func (s *SuiteRequestResponse) checkAsyncContextEmpty(address types.Address) {

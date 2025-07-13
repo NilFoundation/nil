@@ -266,7 +266,7 @@ export class SmartAccountV1 implements SmartAccountInterface {
     const tx = new Transaction(hash, this.client);
 
     if (waitTillConfirmation) {
-      await tx.wait();
+      await tx.wait({ waitTillMainShard: true });
     }
 
     return tx;

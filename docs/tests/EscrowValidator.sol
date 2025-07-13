@@ -10,14 +10,14 @@ contract Escrow is NilBase, NilAwaitable {
     mapping(address => uint256) private deposits;
 
     function deposit() public payable {
-        deposits[msg.sender] += msg.value;
+        deposits[Nil.msgSender()] += msg.value;
     }
 
     function submitForVerification(
         address validator,
         address participantOne,
         address participantTwo
-    ) public payable {
+    ) public payable async(2_000_000) {
         bytes memory context = abi.encode(
             participantOne,
             participantTwo,

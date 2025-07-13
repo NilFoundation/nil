@@ -22,10 +22,12 @@ contract MasterChild {
     }
 }
 
-contract CloneFactory {
+contract CloneFactory is NilBase {
     address public masterChildAddress;
 
-    constructor(address _masterChildAddress) {
+    event counterCloneCreated(address indexed addr);
+
+    constructor(address _masterChildAddress) payable {
         masterChildAddress = _masterChildAddress;
     }
 
@@ -49,7 +51,7 @@ contract CloneFactory {
         finalBytecode = code;
     }
 
-    function createCounterClone(uint256 salt) public returns (address) {
+    function createCounterClone(uint256 salt) public async(2_000_000) returns (address) {
         bytes memory cloneBytecode = createCloneBytecode(masterChildAddress);
         uint shardId = Nil.getShardId(masterChildAddress);
         uint shardIdFactory = Nil.getShardId(address(this));
@@ -67,17 +69,23 @@ contract CloneFactory {
             cloneBytecode,
             salt
         );
+        emit counterCloneCreated(result);
 
         return result;
     }
 }
 
-contract FactoryManager {
+contract FactoryManager is NilBase {
     mapping(uint => address) public factories;
     mapping(uint => address) public masterChildren;
     bytes private code = type(CloneFactory).creationCode;
 
-    function deployNewMasterChild(uint shardId, uint256 salt) public {
+    event factoryDeployed(address indexed addr);
+    event masterChildDeployed(address indexed addr);
+
+    constructor() payable {}
+
+    function deployNewMasterChild(uint shardId, uint256 salt) public async(2_000_000) {
         address result = Nil.asyncDeploy(
             shardId,
             address(this),
@@ -88,11 +96,12 @@ contract FactoryManager {
             type(MasterChild).creationCode,
             salt
         );
+        emit masterChildDeployed(result);
 
         masterChildren[shardId] = result;
     }
 
-    function deployNewFactory(uint shardId, uint256 salt) public {
+    function deployNewFactory(uint shardId, uint256 salt) public async(2_000_000) {
         require(factories[shardId] == address(0), "factory already exists!");
         bytes memory data = bytes.concat(
             type(CloneFactory).creationCode,
@@ -104,10 +113,11 @@ contract FactoryManager {
             address(this),
             0,
             Nil.FORWARD_REMAINING,
-            0,
+            5000000 * tx.gasprice,
             data,
             salt
         );
+        emit factoryDeployed(result);
 
         factories[shardId] = result;
     }

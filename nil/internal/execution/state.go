@@ -18,6 +18,7 @@ import (
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -33,6 +34,7 @@ const (
 
 	ModeReadOnly     = "read-only"
 	ModeProposal     = "proposal"
+	ModeProposalGen  = "proposal-gen"
 	ModeSyncReplay   = "syncer-replay"
 	ModeManualReplay = "manual-replay"
 	ModeVerify       = "verify"
@@ -312,7 +314,7 @@ func NewExecutionState(tx any, shardId types.ShardId, params StateParams) (*Exec
 	logger := l.Logger()
 
 	// FIXME: remove
-	if params.Mode != "proposal" {
+	if params.Mode != ModeProposalGen {
 		logger = logging.NewLoggerWithWriter("", io.Discard)
 	}
 
@@ -409,6 +411,10 @@ func (es *ExecutionState) initTries() error {
 	}
 
 	return nil
+}
+
+func (es *ExecutionState) Logger() *logging.Logger {
+	return &es.logger
 }
 
 func (es *ExecutionState) GetConfigAccessor() config.ConfigAccessor {
@@ -1015,6 +1021,7 @@ func (es *ExecutionState) HandleTransaction(
 ) (retError *ExecutionResult) {
 	check.PanicIff(txn.IsRequest(), "request transactions are deprecated")
 	check.PanicIff(txn.IsBounce(), "bounce transactions are deprecated")
+	var res *ExecutionResult
 
 	defer func() {
 		var ev *logging.Event
@@ -1096,7 +1103,6 @@ func (es *ExecutionState) HandleTransaction(
 		return NewExecutionResult().SetError(types.KeepOrWrapError(types.ErrorValidation, err))
 	}
 
-	var res *ExecutionResult
 	switch {
 	case txn.IsRefund():
 		return NewExecutionResult().SetFatal(es.handleRefundTransaction(ctx, txn))
@@ -1132,13 +1138,6 @@ func (es *ExecutionState) HandleTransaction(
 					res.Error = types.NewVerboseError(res.Error.Code(), revString)
 				}
 			}
-		}
-	} else {
-		availableGas := es.txnFeeCredit.Sub(res.CoinsUsed())
-		var err error
-		if res.CoinsForwarded, err = es.CalculateGasForwarding(availableGas); err != nil {
-			es.RevertToSnapshot(es.revertId)
-			res.Error = types.KeepOrWrapError(types.ErrorForwardingFailed, err)
 		}
 	}
 	// Gas is already refunded with the bounce transaction
@@ -1224,6 +1223,14 @@ func (es *ExecutionState) handleExecutionTransaction(
 		return NewExecutionResult().SetFatal(err)
 	}
 	defer es.resetVm()
+
+	decoded, relaeyrDecoded, err := contracts.DecodeCallData(nil, transaction.Data)
+	if err == nil {
+		es.logger.Debug().Msgf("Decoded: %s", decoded)
+		if relaeyrDecoded != "" {
+			es.logger.Debug().Msgf("Relayer decoded: %s", relaeyrDecoded)
+		}
+	}
 
 	es.preTxHookCall(transaction)
 	defer func() { es.postTxHookCall(transaction, res) }()
@@ -1822,6 +1829,10 @@ func (es *ExecutionState) EnableVmTracing() {
 			fmt.Printf("%04x: %s\n", pc, vm.OpCode(op).String())
 		},
 	}
+}
+
+func (es *ExecutionState) DisableVmTracing() {
+	es.evm.Config.Tracer = nil
 }
 
 func VerboseTracingHooks(logger logging.Logger) *tracing.Hooks {

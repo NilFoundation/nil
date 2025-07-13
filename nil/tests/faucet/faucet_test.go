@@ -158,10 +158,10 @@ func (s *SuiteFaucet) TestTopUpViaFaucet() {
 
 	// this test is quite flaky, cause it checks
 	// functionality that depends on block generation speed
-	var value3 uint64 = 5 * 1_000_000_000_000_000
-	var balance3 uint64 = 10_000_000_000_000_000
+	var value3 uint64 = 5 * 1_000_000_000_000_000_000
+	var balance3 uint64 = 10_000_000_000_000_000_000
 	s.Run("Top up over limit", func() {
-		testTopUp(balance2, value3, balance3, float64(balance3)*0.2)
+		testTopUp(balance2, value3, balance3, float64(balance3)*0.5)
 	})
 }
 

@@ -93,7 +93,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           abi: RETAILER_ABI,
           args: [],
           value: 0n,
-          feeCredit: 1_000_000n * gasPrice,
+          feeCredit: 10_000_000n * gasPrice,
           salt: BigInt(Math.floor(Math.random() * 10000)),
           shardId: 1,
         });
@@ -111,7 +111,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           abi: MANUFACTURER_ABI,
           args: [bytesToHex(pubkey), retailerAddress],
           value: 0n,
-          feeCredit: 1000000n * gasPrice,
+          feeCredit: 10_000_000n * gasPrice,
           salt: BigInt(Math.floor(Math.random() * 10000)),
           shardId: 2,
         });
@@ -186,7 +186,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           abi: RETAILER_ABI,
           args: [],
           value: 0n,
-          feeCredit: 1_000_000n * gasPrice,
+          feeCredit: 10_000_000n * gasPrice,
           salt: BigInt(Math.floor(Math.random() * 10000)),
           shardId: 1,
         });
@@ -207,7 +207,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           abi: MANUFACTURER_ABI,
           args: [bytesToHex(pubkey), retailerAddress],
           value: 0n,
-          feeCredit: 1_000_000n * gasPrice,
+          feeCredit: 10_000_000n * gasPrice,
           salt: BigInt(Math.floor(Math.random() * 10000)),
           shardId: 2,
         });
@@ -290,7 +290,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           salt: BigInt(Math.floor(Math.random() * 10000)),
           shard: 1,
           bytecode: RETAILER_BYTECODE,
-          feeCredit: 1_000_000n * gasPrice,
+          feeCredit: 10_000_000n * gasPrice,
         },
         chainId,
       );
@@ -330,7 +330,7 @@ describe.sequential("Nil.js deployment tests", async () => {
           bytecode: MANUFACTURER_BYTECODE,
           abi: MANUFACTURER_ABI,
           args: [bytesToHex(pubkey), addressRetailer],
-          feeCredit: 1_000_000n * gasPrice2,
+          feeCredit: 10_000_000n * gasPrice2,
         },
         chainId,
       );

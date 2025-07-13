@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 import "./Nil.sol";
 import "./SmartAccount.sol";
 
-contract Faucet {
-    uint256 private constant WITHDRAW_PER_TIMEOUT_LIMIT = 10**16;
+contract Faucet is NilBase {
+    uint256 private constant WITHDRAW_PER_TIMEOUT_LIMIT = 10**19;
     uint256 private constant TIMEOUT = 200; // 200 blocks
 
     struct LimitInfo {
@@ -60,7 +60,7 @@ contract Faucet {
         return true;
     }
 
-    function withdrawTo(address payable addr, uint256 value) public {
+    function withdrawTo(address payable addr, uint256 value) public async(2_000_000) {
         value = acquire(addr, value);
 
         bytes memory callData;
@@ -96,7 +96,7 @@ contract FaucetToken is NilTokenBase {
         return true;
     }
 
-    function withdrawTo(address payable addr, uint256 value) public {
+    function withdrawTo(address payable addr, uint256 value) public async(2_000_000) {
         mintTokenInternal(value);
         sendTokenInternal(addr, getTokenId(), value);
 

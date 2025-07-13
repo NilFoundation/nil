@@ -5,12 +5,22 @@ import (
 	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/common/hexutil"
 	"github.com/NilFoundation/nil/nil/internal/config"
+	"github.com/NilFoundation/nil/nil/internal/contracts"
 	"github.com/NilFoundation/nil/nil/internal/types"
 	rawapitypes "github.com/NilFoundation/nil/nil/services/rpc/rawapi/types"
 	rpctypes "github.com/NilFoundation/nil/nil/services/rpc/types"
 )
+
+var relayerCallFailed common.Hash
+
+func init() {
+	var err error
+	relayerCallFailed, err = contracts.GetEventId("Relayer", "CallFailed")
+	check.PanicIfErr(err)
+}
 
 type (
 	Contract       = rpctypes.Contract
@@ -246,6 +256,7 @@ func EncodeRawBlockWithExtractedData(block *types.RawBlockWithExtractedData) (*D
 type RPCReceipt struct {
 	Flags           types.TransactionFlags `json:"flags"`
 	Success         bool                   `json:"success"`
+	RelaySuccess    bool                   `json:"relaySuccess"`
 	Status          string                 `json:"status"`
 	FailedPc        uint                   `json:"failedPc"`
 	IncludedInMain  bool                   `json:"includedInMain"`
@@ -292,6 +303,11 @@ func (re *RPCReceipt) IsComplete() bool {
 func (re *RPCReceipt) AllSuccess() bool {
 	if !re.Success {
 		return false
+	}
+	for l := range re.Logs {
+		if re.Logs[l].Topics[0] == relayerCallFailed {
+			return false
+		}
 	}
 	for _, receipt := range re.OutReceipts {
 		if !receipt.AllSuccess() {
@@ -585,6 +601,7 @@ func toCallRes(input *rpctypes.CallResWithGasPrice) (*CallRes, error) {
 }
 
 type EstimateFeeRes struct {
+	Error              string
 	FeeCredit          types.Value `json:"feeCredit"`
 	AveragePriorityFee types.Value `json:"averagePriorityFee"`
 	MaxBasFee          types.Value `json:"maxBaseFee"`

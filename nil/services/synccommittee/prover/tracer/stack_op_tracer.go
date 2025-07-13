@@ -83,6 +83,7 @@ var opcodeStackToSave = map[vm.OpCode]SaveStackElements{
 	vm.KECCAK256:      {2, 1},
 	vm.ADDRESS:        {0, 1},
 	vm.BALANCE:        {1, 1},
+	vm.SELFBALANCE:    {0, 1},
 	vm.ORIGIN:         {0, 1},
 	vm.CALLER:         {0, 1},
 	vm.CALLVALUE:      {0, 1},
