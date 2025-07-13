@@ -114,6 +114,7 @@ func (api *APIImplRo) EstimateFee(
 		}
 	}
 	return &EstimateFeeRes{
+		Error:              res.Error,
 		FeeCredit:          refineResult(result),
 		AveragePriorityFee: types.Value0,
 		MaxBasFee:          maxBaseFee,

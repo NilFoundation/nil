@@ -8,7 +8,7 @@ import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 contract Token is NilTokenBase {
 
     constructor(string memory _tokenName, uint256 initialSupply) {
-        tokenName = _tokenName;
+        NilTokenManager(Nil.getTokenManagerAddress()).setTokenName(_tokenName);
         mintTokenInternal(initialSupply);
     }
 

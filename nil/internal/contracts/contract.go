@@ -73,6 +73,19 @@ func GetAbi(name string) (*abi.ABI, error) {
 	return &res, nil
 }
 
+func GetEventId(contractName, eventName string) (common.Hash, error) {
+	abiCallee, err := GetAbi(contractName)
+	if err != nil {
+		return common.EmptyHash, fmt.Errorf("contract %s not found: %w", contractName, err)
+	}
+	m, ok := abiCallee.Events[eventName]
+	if !ok {
+		return common.EmptyHash, fmt.Errorf("event not found: %s", eventName)
+	}
+
+	return m.ID, nil
+}
+
 func GetAbiData(name string) (string, error) {
 	data, err := contracts.Fs.ReadFile("compiled/" + name + ".abi")
 	if err != nil {
@@ -163,6 +176,9 @@ func initSignaturesMap() error {
 	if err := initSignaturesMapFromDir("compiled/system"); err != nil { //nolint:if-return
 		return err
 	}
+	if err := initSignaturesMapFromDir("compiled/uniswap"); err != nil { //nolint:if-return
+		return err
+	}
 	return nil
 }
 
@@ -236,33 +252,44 @@ func GetFuncIdSignature(id uint32) (*Signature, error) {
 	return nil, fmt.Errorf("signature not found for id %x", id)
 }
 
-func DecodeCallData(method *abi.Method, calldata []byte) (string, error) {
+func DecodeCallData(method *abi.Method, calldata []byte) (string, string, error) {
 	if len(calldata) == 0 {
-		return "", errors.New("empty calldata")
+		return "", "", errors.New("empty calldata")
 	}
 	if len(calldata) < 4 {
-		return "", fmt.Errorf("too short calldata: %d", len(calldata))
+		return "", "", fmt.Errorf("too short calldata: %d", len(calldata))
 	}
 
 	if method == nil {
 		sig, err := GetFuncIdSignatureFromBytes(calldata)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		abiContract, err := GetAbi(sig.Contracts[0])
 		if err != nil {
-			return "", fmt.Errorf("failed to get abi: %w", err)
+			return "", "", fmt.Errorf("failed to get abi: %w", err)
 		}
 		m, ok := abiContract.Methods[sig.FuncName]
 		if !ok {
-			return "", fmt.Errorf("method not found: %s", sig.FuncName)
+			return "", "", fmt.Errorf("method not found: %s", sig.FuncName)
 		}
 		method = &m
 	}
 
 	args, err := method.Inputs.Unpack(calldata[4:])
 	if err != nil {
-		return fmt.Sprintf("%s: failed to unpack arguments: %s", method.Name, err), nil
+		// We found method, but failed to unpack arguments. The user should be warned about it.
+		return fmt.Sprintf("%s: failed to unpack arguments: %s", method.Name, err), "", nil
+	}
+	var relayerData string
+	if method.Name == "receiveTx" {
+		data, ok := args[5].([]byte)
+		if !ok {
+			return "", "", fmt.Errorf("failed to cast relayer data: %v", args[5])
+		}
+		if relayerData, _, err = DecodeCallData(nil, data); err != nil {
+			relayerData = ""
+		}
 	}
 	res := method.Name + "("
 	adjustArg := func(arg any) string {
@@ -282,5 +309,5 @@ func DecodeCallData(method *abi.Method, calldata []byte) (string, error) {
 	}
 	res += ")"
 
-	return res, nil
+	return res, relayerData, nil
 }

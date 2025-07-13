@@ -6,7 +6,12 @@ import { AUCTION_COMPILATION_COMMAND, NFT_COMPILATION_COMMAND } from "./compilat
 import { FAUCET_GLOBAL, RPC_GLOBAL } from "./globals";
 
 //startImportStatements
-import { HttpTransport, PublicClient, generateSmartAccount } from "@nilfoundation/niljs";
+import {
+  CheckReceiptSuccess,
+  HttpTransport,
+  PublicClient,
+  generateSmartAccount,
+} from "@nilfoundation/niljs";
 import { type Abi, encodeFunctionData } from "viem";
 //endImportStatements
 
@@ -79,7 +84,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         bytecode: NFT_BYTECODE,
         abi: NFT_ABI,
         args: [],
-        feeCredit: 3_000_000n * gasPrice,
+        feeCredit: 10_000_000n * gasPrice,
       });
 
       const receiptsNFT = await txNFT.wait();
@@ -88,10 +93,10 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         salt: SALT,
         shardId: 3,
         bytecode: AUCTION_BYTECODE,
-        value: 50_000n,
+        value: 5_000_000n * gasPrice,
         abi: AUCTION_ABI,
-        args: [addressNFT],
-        feeCredit: 5_000_000n * gasPrice,
+        args: [addressNFT, 50_000n],
+        feeCredit: 10_000_000n * gasPrice,
       });
 
       const receiptsAuction = await txAuction.wait();
@@ -120,7 +125,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         }),
       });
 
-      const receiptsOwnership = await changeOwnershipTx.wait();
+      const receiptsOwnership = await changeOwnershipTx.wait({ waitTillMainShard: true });
 
       const startAuctionTx = await smartAccount.sendTransaction({
         to: addressAuction,
@@ -132,11 +137,11 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
         }),
       });
 
-      const receiptsStart = await startAuctionTx.wait();
+      const receiptsStart = await startAuctionTx.wait({ waitTillMainShard: true });
 
       //endStartAuction
-      expect(receiptsOwnership.some((receipt) => !receipt.success)).toBe(false);
-      expect(receiptsStart.some((receipt) => !receipt.success)).toBe(false);
+      expect(receiptsOwnership.some((receipt) => !CheckReceiptSuccess(receipt))).toBe(false);
+      expect(receiptsStart.some((receipt) => !CheckReceiptSuccess(receipt))).toBe(false);
 
       //startBid
       const smartAccountTwo = await generateSmartAccount({
@@ -159,12 +164,13 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
       const receiptsBid = await bidTx.wait();
 
       //endBid
-      expect(receiptsBid.some((receipt) => !receipt.success)).toBe(false);
+      expect(receiptsBid.some((receipt) => !CheckReceiptSuccess(receipt))).toBe(false);
       //startEndAuction
 
       const endTx = await smartAccount.sendTransaction({
         to: addressAuction,
         feeCredit: 1_000_000n * gasPrice,
+        value: 2_000_000n * gasPrice,
         data: encodeFunctionData({
           abi: AUCTION_ABI,
           functionName: "end",
@@ -180,7 +186,7 @@ describe.sequential("Nil.js can fully interact with EnglishAuction", async () =>
 
       //endEndAuction
 
-      expect(receiptsEnd.some((receipt) => !receipt.success)).toBe(false);
+      expect(receiptsEnd.some((receipt) => !CheckReceiptSuccess(receipt))).toBe(false);
 
       expect(Object.keys(result)).toContain(addressNFT);
       expect(Object.values(result)).toContain(1n);

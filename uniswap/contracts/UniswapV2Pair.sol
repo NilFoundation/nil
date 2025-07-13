@@ -49,7 +49,7 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
     }
 
     constructor() payable {
-        factory = msg.sender;
+        factory = Nil.msgSender();
     }
 
     // called once by the factory at time of deployment
@@ -85,7 +85,7 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
                 uint rootK = Math.sqrt(uint(_reserve0).mul(_reserve1));
                 uint rootKLast = Math.sqrt(_kLast);
                 if (rootK > rootKLast) {
-                    uint numerator = totalSupply.mul(rootK.sub(rootKLast));
+                    uint numerator = getTokenTotalSupply().mul(rootK.sub(rootKLast));
                     uint denominator = rootK.mul(5).add(rootKLast);
                     uint liquidity = numerator / denominator;
                     if (liquidity > 0) mintTokenInternal(liquidity);
@@ -99,6 +99,7 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
 
     // this low-level function should be called from a contract which performs important safety checks
     function mint(address to) public lock returns (uint liquidity) {
+        uint totalSupply = getTokenTotalSupply();
         (uint256 _reserve0, uint256 _reserve1) = getReserves(); // gas savings
         uint balance0 = Nil.tokenBalance(address(this), tokenId0);
         uint balance1 = Nil.tokenBalance(address(this), tokenId1);
@@ -109,8 +110,10 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
 
         if (_totalSupply == 0) {
             liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
-            totalSupply = totalSupply + liquidity; // permanently lock the first MINIMUM_LIQUIDITY
+            mintTokenInternal(liquidity);
+
         } else {
+            require(_reserve0 != 0 && _reserve1 != 0, "UniswapV2: _reserve0 or _reserve1 is 0");
             liquidity = Math.min(
                 amount0.mul(_totalSupply) / _reserve0,
                 amount1.mul(_totalSupply) / _reserve1
@@ -122,7 +125,7 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
         sendTokenInternal(to, getTokenId(), liquidity);
         _update(balance0, balance1, _reserve0, _reserve1);
         // if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are p-to-date
-        emit Mint(msg.sender, amount0, amount1);
+        emit Mint(Nil.msgSender(), amount0, amount1);
     }
 
     // this low-level function should be called from a contract which performs important safety checks
@@ -134,6 +137,8 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
         uint balance0 = Nil.tokenBalance(address(this), _tokenId0);
         uint balance1 = Nil.tokenBalance(address(this), _tokenId1);
         uint liquidity = Nil.tokenBalance(address(this), getTokenId());
+
+        uint totalSupply = getTokenTotalSupply();
 
         bool feeOn = _mintFee(_reserve0, _reserve1);
         amount0 = liquidity.mul(balance0) / totalSupply; // using balances ensures pro-rata distribution
@@ -150,7 +155,7 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
         balance1 = Nil.tokenBalance(address(this), _tokenId1);
         _update(balance0, balance1, _reserve0, _reserve1);
         if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are up-to-date
-        emit Burn(msg.sender, amount0, amount1, to);
+        emit Burn(Nil.msgSender(), amount0, amount1, to);
     }
 
     // this low-level function should be called from a contract which performs important safety checks
@@ -199,7 +204,7 @@ contract UniswapV2Pair is NilTokenBase, IUniswapV2Pair {
             );
         }
         _update(balance0, balance1, _reserve0, _reserve1);
-        emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
+        emit Swap(Nil.msgSender(), amount0In, amount1In, amount0Out, amount1Out, to);
     }
 
     // force balances to match reserves

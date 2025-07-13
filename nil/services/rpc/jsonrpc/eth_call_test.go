@@ -57,7 +57,7 @@ func (s *SuiteEthCall) SetupSuite() {
 		shardId,
 		types.GenerateRandomAddress(shardId),
 		0,
-		types.GasToValue(100_000_000))
+		types.Value0)
 
 	s.from = m1.To
 

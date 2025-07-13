@@ -6,7 +6,7 @@ import "./interfaces/IUniswapV2Factory.sol";
 import "./UniswapV2Pair.sol";
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
-contract UniswapV2Factory is IUniswapV2Factory {
+contract UniswapV2Factory is IUniswapV2Factory, NilBase {
     address public feeTo;
     address public feeToSetter;
 
@@ -20,7 +20,7 @@ contract UniswapV2Factory is IUniswapV2Factory {
         uint
     );
 
-    constructor(address _feeToSetter) {
+    constructor(address _feeToSetter) payable {
         feeToSetter = _feeToSetter;
     }
 
@@ -33,7 +33,7 @@ contract UniswapV2Factory is IUniswapV2Factory {
         address tokenB,
         uint256 salt,
         uint256 shard
-    ) public returns (address pair) {
+    ) public async(30_000_000) returns (address pair) {
         require(tokenA != tokenB, "UniswapV2: IDENTICAL(_ADDRESSES");
         (address token0, address token1) = tokenA < tokenB
             ? (tokenA, tokenB)
@@ -65,27 +65,27 @@ contract UniswapV2Factory is IUniswapV2Factory {
     }
 
     function setFeeTo(address _feeTo) public {
-        require(msg.sender == feeToSetter, "UniswapV2: FORBIDDEN");
+        require(Nil.msgSender() == feeToSetter, "UniswapV2: FORBIDDEN");
         feeTo = _feeTo;
     }
 
     function setFeeToSetter(address _feeToSetter) public {
-        require(msg.sender == feeToSetter, "UniswapV2: FORBIDDEN");
+        require(Nil.msgSender() == feeToSetter, "UniswapV2: FORBIDDEN");
         feeToSetter = _feeToSetter;
     }
 
     function deployPair(
         uint256 shard,
         uint256 salt
-    ) private returns (address deployedAddress) {
+    ) private async(20_000_000) returns (address deployedAddress) {
         bytes memory code = abi.encodePacked(
             type(UniswapV2Pair).creationCode,
-            abi.encode(msg.sender)
+            abi.encode(Nil.msgSender())
         );
         address contractAddress = Nil.asyncDeploy(
             shard,
-            msg.sender,
-            0,
+            Nil.msgSender(),
+            40_000_000 * tx.gasprice,
             code,
             salt
         );

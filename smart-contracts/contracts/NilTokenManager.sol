@@ -113,7 +113,7 @@ contract NilTokenManager {
      */
     function deductForRelay(address from, address /*to*/, address token, uint256 value) internal {
         uint256 balance = IterableMapping.get(tokensMap[from], token);
-        require(balance >= value, "TokenManager: insufficient token balance");
+        require(balance >= value, "TokenManager: insufficient token balance for deductForRelay");
         IterableMapping.set(tokensMap[from], token, balance - value);
     }
 
@@ -167,7 +167,7 @@ contract NilTokenManager {
             address token = TokenId.unwrap(tokens[i].id);
 
             uint256 oldValue = IterableMapping.get(tokensMap[msg.sender], token);
-            require(oldValue >= tokens[i].amount, "Insufficient token balance");
+            require(oldValue >= tokens[i].amount, "Insufficient token balance for transfer");
             IterableMapping.set(tokensMap[msg.sender], token, oldValue - tokens[i].amount);
 
             uint256 oldValueDst = IterableMapping.get(tokensMap[dst], token);
@@ -219,7 +219,7 @@ contract NilTokenManager {
     function burn(uint256 value) external {
         address token = msg.sender;
         uint256 balance = IterableMapping.get(tokensMap[msg.sender], token);
-        require(balance >= value, "TokenManager: insufficient token balance");
+        require(balance >= value, "TokenManager: insufficient token balance for burn");
 
         IterableMapping.set(tokensMap[msg.sender], token, balance - value);
         totalSupplyMap[token] -= value;

@@ -12,10 +12,10 @@ test("Async call to another shard send value", async () => {
   const tx = await smartAccount.sendTransaction({
     to: anotherAddress,
     value: 50_000_000n,
-    feeCredit: 100_000n * gasPriceOnShard2,
+    feeCredit: 1_000_000n * gasPriceOnShard2,
   });
 
-  const receipts = await tx.wait();
+  const receipts = await tx.wait({ waitTillMainShard: true });
 
   expect(receipts).toBeDefined();
   expect(receipts.some((r) => !r.success)).toBe(false);
@@ -32,12 +32,12 @@ test("sync call same shard send value", async () => {
   const tx = await smartAccount.syncSendTransaction({
     to: anotherAddress,
     value: 10n,
-    gas: 100000n,
+    gas: 1000000n,
     maxPriorityFeePerGas: 10n,
     maxFeePerGas: 1_000_000_000_000n,
   });
 
-  const receipts = await tx.wait();
+  const receipts = await tx.wait({ waitTillMainShard: true });
 
   expect(receipts).toBeDefined();
   expect(receipts.some((r) => !r.success)).toBe(false);

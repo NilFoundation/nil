@@ -143,7 +143,7 @@ describe.skip.sequential("Nil.js correctly interacts with Cometa", () => {
       abi: compilationResult.abi as unknown as Abi,
       args: [],
       salt: BigInt(Math.floor(Math.random() * 10000)),
-      feeCredit: 500_000n,
+      feeCredit: 5_000_000n,
       shardId: 1,
     });
 

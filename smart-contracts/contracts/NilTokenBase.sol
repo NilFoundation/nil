@@ -13,8 +13,6 @@ import "./NilTokenManager.sol";
  * internal methods.
  */
 abstract contract NilTokenBase is NilBase, NilTokenHook {
-    uint totalSupply;
-    string tokenName;
 
     modifier onlyTokenManger() {
         require(msg.sender == Nil.getTokenManagerAddress(), "Only TokenManager can call this function");
@@ -118,7 +116,7 @@ abstract contract NilTokenBase is NilBase, NilTokenHook {
      * @param tokenId ID of the token to send.
      * @param amount The amount of token to send.
      */
-    function sendTokenInternal(address to, TokenId tokenId, uint256 amount) internal {
+    function sendTokenInternal(address to, TokenId tokenId, uint256 amount) internal async (500_000) {
         Nil.Token[] memory tokens_ = new Nil.Token[](1);
         tokens_[0] = Nil.Token(tokenId, amount);
         Nil.asyncCallWithTokens(to, address(0), address(0), 0, Nil.FORWARD_REMAINING, 0, tokens_, "", 0, 0);

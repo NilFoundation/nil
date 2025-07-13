@@ -16,7 +16,7 @@ test("bounce", async () => {
     to: anotherSmartAccount.address,
     value: 10_000_000n,
     bounceTo: bounceAddress,
-    feeCredit: 100_000n * gasPrice,
+    feeCredit: 1_000_000n * gasPrice,
     data: encodeFunctionData({
       abi: SmartAccountV1.abi,
       functionName: "syncCall",
@@ -24,8 +24,7 @@ test("bounce", async () => {
     }),
   });
 
-  // const receipts = await waitTillCompleted(client, hash);
-  const receipts = await tx.wait();
+  const receipts = await tx.wait({ waitTillMainShard: true });
 
   expect(receipts.length).toBeDefined();
   expect(receipts.some((r) => r.success)).toBe(true);

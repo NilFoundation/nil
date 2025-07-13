@@ -798,14 +798,12 @@ func (e *emitLog) Run(state StateDB, input []byte, value *uint256.Int, caller Co
 	return res, nil
 }
 
-var consoleLogger = logging.NewLogger("solidity")
-
 type consolePrecompile struct{}
 
 var _ EvmAccessedPrecompiledContract = (*consolePrecompile)(nil)
 
 func (g *consolePrecompile) RequiredGas([]byte, StateDBReadOnly) (uint64, error) {
-	return 100, nil
+	return 0, nil
 }
 
 func (g *consolePrecompile) Run(evm *EVM, input []byte, value *uint256.Int, caller ContractRef) ([]byte, error) {
@@ -813,7 +811,7 @@ func (g *consolePrecompile) Run(evm *EVM, input []byte, value *uint256.Int, call
 	if err != nil {
 		return nil, types.NewVmVerboseError(types.ErrorConsoleParseInputFailed, err.Error())
 	}
-	consoleLogger.Info().Int(logging.FieldShardId, int(evm.StateDB.GetShardID())).Msg(str)
+	evm.StateDB.Logger().Info().Int(logging.FieldShardId, int(evm.StateDB.GetShardID())).Msg("[solidity] " + str)
 
 	res := make([]byte, 32)
 	res[31] = 1

@@ -36,3 +36,19 @@ type ProcessedReceipt = Omit<Receipt, "gasUsed" | "gasPrice" | "outputReceipts">
 };
 
 export type { Receipt, ProcessedReceipt };
+
+export function CheckReceiptSuccess(receipt: ProcessedReceipt): boolean {
+  if (!receipt.success) {
+    return false;
+  }
+  if (receipt.logs.length > 0) {
+    if (
+      receipt.logs[0].topics.length > 0 &&
+      receipt.logs[0].topics[0] ===
+        "0x809af745217c49a151bbf9c1a1fcf6355da9b1f17e696139e449fdf0ba9d9423"
+    ) {
+      return false;
+    }
+  }
+  return true;
+}

@@ -5,12 +5,12 @@ pragma solidity ^0.8.9;
 
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
-contract CallerAsync {
+contract CallerAsync is NilBase {
     using Nil for address;
 
     event CallCompleted(address indexed dst);
 
-    function call(address dst) public payable {
+    function call(address dst) public payable async(2_000_000) {
         dst.asyncCall(
             address(0),
             msg.value,

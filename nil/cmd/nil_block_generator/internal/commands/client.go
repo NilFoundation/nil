@@ -193,7 +193,7 @@ func CallContract(rpcEndpoint, smartAccountAdr, hexKey string, calls []Call, log
 	}
 
 	amount := types.Value0
-	fee := types.NewFeePackFromGas(100_000)
+	fee := types.NewFeePackFromGas(500_000)
 
 	ctx := context.Background()
 	client := GetRpcClient(rpcEndpoint, logger)

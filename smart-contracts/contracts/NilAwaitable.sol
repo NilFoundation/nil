@@ -80,7 +80,7 @@ contract NilAwaitable is NilBase {
 
     function onFallback(uint256 answer_id, bool success, bytes memory response) external payable {
         Awaiter storage awaiter = ctrl.awaiters[answer_id];
-        require(awaiter.active);
+        require(awaiter.active, "Awaiter is not active or already processed");
         function(bool, bytes memory, bytes memory) internal cb = awaiter.callback;
         bytes memory context = awaiter.context;
         delete ctrl.awaiters[answer_id];

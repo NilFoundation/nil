@@ -102,7 +102,7 @@ test("Contract Factory", async ({ expect }) => {
     shardId: 1,
   });
 
-  await deployTx.wait();
+  await deployTx.wait({ waitTillMainShard: true });
 
   const incrementer = getContract({
     abi: abi,
@@ -129,10 +129,10 @@ test("Contract Factory", async ({ expect }) => {
     to: incrementerAddress,
     value: 100_000_000_000_000n,
   });
-  const receipts11 = await tx11.wait();
+  const receipts11 = await tx11.wait({ waitTillMainShard: true });
   expect(receipts11.some((receipt) => !receipt.success)).toBe(false);
   const hash2 = await incrementer.external.incrementExternal([]);
-  const receipts2 = await waitTillCompleted(client, hash2);
+  const receipts2 = await waitTillCompleted(client, hash2, { waitTillMainShard: true });
   expect(receipts2.some((receipt) => !receipt.success)).toBe(false);
   const newValue2 = await incrementer.read.counter([]);
   expect(newValue2).toBe(102n);

@@ -10,6 +10,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     int32 public counterValue;
     uint public intValue;
     string public strValue;
+    uint constant private ASYNC_VALUE = 2_000_000;
 
     function verifyExternal(
         uint256,
@@ -40,7 +41,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
         address counter,
         uint intContext,
         string memory strContext
-    ) public {
+    ) public async(ASYNC_VALUE) {
         bytes memory context = abi.encode(intContext, strContext);
         bytes memory callData = abi.encodeWithSignature("get()");
         sendRequest(
@@ -69,7 +70,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     function nestedRequest(
         address callee,
         address counter
-    ) public {
+    ) public async(ASYNC_VALUE) {
         bytes memory callData = abi.encodeWithSelector(this.requestCounterGet.selector, counter, 123, "test");
         sendRequest(
             callee,
@@ -95,7 +96,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
      */
     function sendRequestFromCallback(
         address counter
-    ) public {
+    ) public async(ASYNC_VALUE) {
         bytes memory context = abi.encode(int32(5), counter);
         bytes memory callData = abi.encodeWithSignature("add(int32)", 5);
         sendRequest(
@@ -112,7 +113,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
         bool success,
         bytes memory,
         bytes memory context
-    ) public {
+    ) public async(ASYNC_VALUE) {
         require(success, "Request failed");
         (int32 sendNext, address counter) = abi.decode(context, (int32, address));
         if (sendNext == 0) {
@@ -136,7 +137,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Test Counter's add method. No context and empty return data.
      */
-    function requestCounterAdd(address counter, int32 valueToAdd) public {
+    function requestCounterAdd(address counter, int32 valueToAdd) public async(ASYNC_VALUE) {
         bytes memory callData = abi.encodeWithSignature(
             "add(int32)",
             valueToAdd
@@ -164,7 +165,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Test failure with value.
      */
-    function requestCheckFail(address addr, bool fail) public {
+    function requestCheckFail(address addr, bool fail) public async (2_000_000) {
         bytes memory context = abi.encode(uint(11111));
         bytes memory callData = abi.encodeWithSignature(
             "checkFail(bool)",
@@ -193,7 +194,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Test out of gas failure.
      */
-    function requestOutOfGasFailure(address counter) public {
+    function requestOutOfGasFailure(address counter) public async(ASYNC_VALUE) {
         bytes memory context = abi.encode(uint(1234567890));
         bytes memory callData = abi.encodeWithSignature("outOfGasFailure()");
         sendRequest(
@@ -229,7 +230,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Test token sending.
      */
-    function requestSendToken(address addr, uint256 amount) public {
+    function requestSendToken(address addr, uint256 amount) public async(ASYNC_VALUE) {
         bytes memory context = abi.encode(uint(11111));
         bytes memory callData = abi.encodeWithSignature("get()");
         Nil.Token[] memory tokens = new Nil.Token[](1);
@@ -260,7 +261,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Fail during request sending. Context storage should not be changed.
      */
-    function failDuringRequestSending(address counter) public {
+    function failDuringRequestSending(address counter) public async(ASYNC_VALUE) {
         bytes memory context = abi.encode(intValue, strValue);
         bytes memory callData = abi.encodeWithSignature("get()");
         sendRequest(
@@ -277,7 +278,7 @@ contract RequestResponseTest is NilTokenBase, NilAwaitable {
     /**
      * Test two consecutive requests.
      */
-    function makeTwoRequests(address addr1, address addr2) public {
+    function makeTwoRequests(address addr1, address addr2) public async (1_000_000) {
         bytes memory callData = abi.encodeWithSignature("get()");
         sendRequest(addr1, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, makeTwoRequestsResponse);
         sendRequest(addr2, 0, Nil.ASYNC_REQUEST_MIN_GAS, "", callData, makeTwoRequestsResponse);

@@ -51,8 +51,7 @@ func (s *SuiteMultiTokenRpc) SetupSuite() {
 }
 
 func (s *SuiteMultiTokenRpc) SetupTest() {
-	smartAccountValue, err := types.NewValueFromDecimal("100000000000000")
-	s.Require().NoError(err)
+	smartAccountValue := types.GasToValue(1_000_000_000_000)
 	zerostateCfg := &execution.ZeroStateConfig{
 		Contracts: []*execution.ContractDescr{
 			{
@@ -204,7 +203,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 			s.smartAccountAddress2,
 			execution.MainPrivateKey,
 			nil,
-			types.NewFeePackFromGas(500_000),
+			types.NewFeePackFromGas(800_000),
 			types.Value{},
 			[]types.TokenBalance{{Token: *token1.id, Balance: types.NewValueFromUint64(50)}})
 		s.Require().True(receipt.Success)
@@ -235,7 +234,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 
 		data, err := s.abiTest.Pack("testAsyncDeployWithTokens",
 			types.NewValueFromUint64(uint64(types.BaseShardId)),
-			types.NewFeePackFromGas(500_000).FeeCredit,
+			types.NewFeePackFromGas(tests.CommonGasLimit).FeeCredit,
 			types.Value0,
 			[]byte(contractCode),
 			types.Value0,
@@ -279,7 +278,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 			s.smartAccountAddress3,
 			execution.MainPrivateKey,
 			nil,
-			types.NewFeePackFromGas(500_000),
+			types.NewFeePackFromGas(1_000_000),
 			types.Value{},
 			[]types.TokenBalance{
 				{Token: *token1.id, Balance: types.NewValueFromUint64(10)},
@@ -409,7 +408,7 @@ func (s *SuiteMultiTokenRpc) TestMultiToken() { //nolint
 		s.Require().NoError(err)
 
 		hash, err := s.Client.SendExternalTransaction(
-			s.Context, data, s.testAddress1_0, nil, types.NewFeePackFromGas(500_000))
+			s.Context, data, s.testAddress1_0, nil, types.NewFeePackFromGas(1_000_000))
 		s.Require().NoError(err)
 		receipt := s.WaitForReceipt(hash)
 		s.Require().True(receipt.Success)
@@ -537,7 +536,7 @@ func (s *SuiteMultiTokenRpc) TestTokenViaCall() {
 	res, err := s.Client.Call(s.Context, &jsonrpc.CallArgs{
 		To:   s.smartAccountAddress1,
 		Data: (*hexutil.Bytes)(&data),
-		Fee:  types.NewFeePackFromGas(500_000),
+		Fee:  types.NewFeePackFromGas(tests.CommonGasLimit),
 	}, "latest", nil)
 	s.Require().NoError(err)
 	s.Require().Empty(res.Error)

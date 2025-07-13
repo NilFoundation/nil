@@ -5,7 +5,7 @@ pragma solidity ^0.8.9;
 
 import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
-contract Caller {
+contract Caller is NilBase {
     using Nil for address;
 
     event CallCompleted(address indexed dst);

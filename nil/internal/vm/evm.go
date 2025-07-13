@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/check"
 	"github.com/NilFoundation/nil/nil/internal/params"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -181,6 +182,7 @@ func (evm *EVM) Call(
 			return nil, gas, err
 		}
 		if len(code) == 0 {
+			evm.StateDB.Logger().Debug().Msgf("Account has no code: %s", addr.Hex())
 			return nil, gas, nil // gas is unchanged
 		}
 
@@ -569,8 +571,9 @@ func (evm *EVM) transfer(sender, recipient types.Address, a *uint256.Int) error 
 		return nil
 	}
 	amount := types.Value{Uint256: types.CastToUint256(a)}
-	// We don't need to subtract balance from async call
-	if !evm.IsAsyncCall {
+	// Only transaction between relayers can be cross-shard, in this case we should not deduct value.
+	if !types.IsRelayerAddress(sender) || !types.IsRelayerAddress(recipient) {
+		check.PanicIfNotf(sender.ShardId() == recipient.ShardId(), "sender and recipient are on differnet shards")
 		if err := evm.StateDB.SubBalance(sender, amount, tracing.BalanceChangeTransfer); err != nil {
 			return err
 		}

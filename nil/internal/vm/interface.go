@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/config"
 	"github.com/NilFoundation/nil/nil/internal/tracing"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -97,6 +98,10 @@ type StateDB interface {
 	GetConfigAccessor() config.ConfigAccessor
 
 	Rollback(counter, patchLevel uint32, mainBlock uint64) error
+	Logger() *logging.Logger
+
+	EnableVmTracing()
+	DisableVmTracing()
 }
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM
