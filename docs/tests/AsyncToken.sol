@@ -7,7 +7,7 @@ import "@nilfoundation/smart-contracts/contracts/Nil.sol";
 
 contract AsyncTokenSender {
     function sendTokenAsync(uint amount, address dst) public {
-        Nil.Token[] memory tokens = Nil.txnTokens();
+        Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it
         Nil.asyncCallWithTokens(
             dst,
             msg.sender,

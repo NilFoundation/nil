@@ -32,7 +32,7 @@ contract ContractFactoryTest {
     }
 
     function receiveToken() public payable {
-        Nil.Token[] memory tokens = Nil.txnTokens();
+        Nil.Token[] memory tokens = Nil.txnTokens();  // TODO: [PoC] Tokens remove it
         last_token_amount = tokens[0].amount;
     }
 }

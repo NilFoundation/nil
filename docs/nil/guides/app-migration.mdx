@@ -319,5 +319,6 @@ Note that it is also possible to use async calls to send custom tokens between c
 ```solidity file=../../tests/AsyncToken.sol start=startAsyncTokenContract end=endAsyncTokenContract
 ```
 
+ // TODO: [PoC] Tokens remove it
 Tokens can be extracted from any transaction by using `Nil.txnTokens()` and then passed to the `asyncCallWithTokens()` method. When migrating a dApp to =nil;, do not hesitate to deploy contracts on different shards: they will still be able to send and receive tokens from contracts on other shards.
 
