@@ -80,7 +80,7 @@ func has0xPrefix(str string) bool {
 }
 
 // HexToAddress returns Address with byte values of s.
-// If s is larger than len(h), s will be cropped from the left.
+// If s is larger than AddrSize, s will be cropped from the left.
 func HexToAddress(s string) Address {
 	if has0xPrefix(s) {
 		s = s[2:]
@@ -100,6 +100,14 @@ func ShardAndHexToAddress(shardId ShardId, s string) Address {
 	if addr[0] != 0 || addr[1] != 0 {
 		panic("incorrect address length")
 	}
+	setShardId(addr[:], shardId)
+	return addr
+}
+
+// ShardAndBytesToAddress returns Address with byte values of ShardId + s.
+// If `b` is larger than `AddrSize - ShardIdSize`, `b` will be cropped from the left.
+func ShardAndBytesToAddress(shardId ShardId, b []byte) Address {
+	addr := BytesToAddress(b)
 	setShardId(addr[:], shardId)
 	return addr
 }

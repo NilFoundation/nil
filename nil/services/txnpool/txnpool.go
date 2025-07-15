@@ -3,7 +3,9 @@ package txnpool
 import (
 	"container/heap"
 	"context"
+	"errors"
 	"fmt"
+	"math/big"
 	"sync"
 
 	"github.com/NilFoundation/nil/nil/common"
@@ -12,6 +14,7 @@ import (
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/network"
 	"github.com/NilFoundation/nil/nil/internal/types"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // FeeBumpPercentage is the percentage of the priorityFee that a transaction must exceed to replace another transaction.
@@ -202,7 +205,42 @@ func (p *TxnPool) validateTxn(txn *metaTxn) (DiscardReason, bool) {
 		return SeqnoTooLow, false
 	}
 
+	if err := verifySignature(txn); err != nil {
+		p.logger.Debug().
+			Stringer(logging.FieldTransactionHash, txn.Hash()).
+			Stringer(logging.FieldSignature, txn.Signature).
+			Err(err).
+			Msg("Signature verifiction failed.")
+		return InvalidSignature, false
+	}
+
 	return NotSet, true
+}
+
+func verifySignature(txn *metaTxn) error {
+	if len(txn.Signature) != 65 {
+		return fmt.Errorf("wrong signature len: %d, expected: 65", len(txn.Signature))
+	}
+
+	sigBytes := []byte(txn.Signature)
+	r := new(big.Int).SetBytes(sigBytes[:32])
+	s := new(big.Int).SetBytes(sigBytes[32:64])
+	v := sigBytes[64] // tx.Sign(...) uses crypto.Sign, which returns R|S|V with V = {0, 1}
+	if !crypto.ValidateSignatureValues(v, r, s, false) {
+		return errors.New("signature validation failed")
+	}
+
+	// TODO: use public key to get address. then use it for state validation (min gas, seqno, etc)
+	// hash, err := txn.SigningHash()
+	// if err != nil {
+	// 	return err
+	// }
+	// sigPublicKeyECDSA, err := crypto.SigToPub(hash.Bytes(), sigBytes)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	return nil
 }
 
 func (p *TxnPool) idHashKnownLocked(hash common.Hash) bool {

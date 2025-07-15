@@ -2,9 +2,11 @@ package jsonrpc
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"testing"
 
 	"github.com/NilFoundation/nil/nil/common"
+	"github.com/NilFoundation/nil/nil/internal/crypto"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/execution"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -16,10 +18,11 @@ import (
 
 type SuiteSendTransaction struct {
 	suite.Suite
-	db        db.DB
-	api       *APIImpl
-	smcAddr   types.Address
-	blockHash common.Hash
+	db            db.DB
+	api           *APIImpl
+	smcAddr       types.Address
+	smcPrivateKey *ecdsa.PrivateKey
+	blockHash     common.Hash
 }
 
 func (suite *SuiteSendTransaction) SetupSuite() {
@@ -40,8 +43,12 @@ func (suite *SuiteSendTransaction) SetupSuite() {
 		Block: mainBlock,
 	})
 
-	suite.smcAddr = types.CreateAddress(shardId, types.BuildDeployPayload([]byte("1234"), common.EmptyHash))
+	privateKey, publicKeyBytes, err := crypto.GenerateKeyPair()
+	suite.Require().NoError(err)
+
+	suite.smcAddr = types.ShardAndBytesToAddress(shardId, publicKeyBytes)
 	suite.Require().NotEqual(types.Address{}, suite.smcAddr)
+	suite.smcPrivateKey = privateKey
 
 	suite.Require().NoError(es.CreateAccount(suite.smcAddr))
 
@@ -72,6 +79,7 @@ func (suite *SuiteSendTransaction) TestInvalidChainId() {
 		ChainId: 50,
 		To:      types.GenerateRandomAddress(0),
 	}
+	suite.Require().NoError(txn.Sign(suite.smcPrivateKey))
 
 	data, err := txn.MarshalNil()
 	suite.Require().NoError(err)
@@ -84,6 +92,7 @@ func (suite *SuiteSendTransaction) TestInvalidShard() {
 	txn := types.ExternalTransaction{
 		To: types.GenerateRandomAddress(1234),
 	}
+	suite.Require().NoError(txn.Sign(suite.smcPrivateKey))
 
 	data, err := txn.MarshalNil()
 	suite.Require().NoError(err)

@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/NilFoundation/nil/nil/common"
 	"github.com/NilFoundation/nil/nil/common/assert"
@@ -157,7 +158,8 @@ func (api *localShardApiRo) getBlockByHash(
 		if err != nil {
 			return nil, err
 		}
-		for _, transaction := range transactions {
+		for i, transaction := range transactions {
+			fmt.Printf("transaction %d: %+v\n", i, transaction)
 			txnHash := transaction.Hash()
 			errMsg, err := db.ReadError(tx, txnHash)
 			if err != nil && !errors.Is(err, db.ErrKeyNotFound) {

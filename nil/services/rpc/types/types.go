@@ -44,7 +44,7 @@ func (args CallArgs) ToTransaction() (*types.Transaction, error) {
 		// Try to decode external transaction
 		var extTxn types.ExternalTransaction
 		if err := extTxn.UnmarshalNil(*args.Transaction); err == nil {
-			return extTxn.ToTransaction(), nil
+			return extTxn.ToTransaction()
 		}
 
 		// Try to decode internal transaction payload

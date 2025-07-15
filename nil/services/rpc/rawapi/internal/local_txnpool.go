@@ -19,7 +19,12 @@ func (api *localShardApiRw) SendTransaction(ctx context.Context, encoded []byte)
 		return 0, fmt.Errorf("failed to decode transaction: %w", err)
 	}
 
-	reasons, err := api.txnpool.Add(ctx, extTxn.ToTransaction())
+	txn, err := extTxn.ToTransaction()
+	if err != nil {
+		return 0, err
+	}
+
+	reasons, err := api.txnpool.Add(ctx, txn)
 	if err != nil {
 		return 0, err
 	}

@@ -42,6 +42,8 @@ const (
 	Unverified DiscardReason = 22
 	// Transaction max fee is too small
 	TooSmallMaxFee DiscardReason = 23
+	// Transaction signature is invalid
+	InvalidSignature DiscardReason = 24
 )
 
 func (r DiscardReason) String() string {
@@ -72,6 +74,8 @@ func (r DiscardReason) String() string {
 		return "verification failed"
 	case TooSmallMaxFee:
 		return "max fee too small"
+	case InvalidSignature:
+		return "invalid signature"
 	default:
 		panic(fmt.Sprintf("discard reason: %d", r))
 	}

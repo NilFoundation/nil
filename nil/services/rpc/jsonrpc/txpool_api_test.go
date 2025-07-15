@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/NilFoundation/nil/nil/common/logging"
 	"github.com/NilFoundation/nil/nil/internal/db"
 	"github.com/NilFoundation/nil/nil/internal/types"
@@ -23,18 +25,32 @@ type SuiteTxnPoolApi struct {
 const defaultMaxFee = 500
 
 func newTransaction(address types.Address, seqno types.Seqno, priorityFee uint64, code types.Code) *types.Transaction {
-	return &types.Transaction{
-		From: address,
-		TransactionDigest: types.TransactionDigest{
-			To:    address,
-			Seqno: seqno,
-			FeePack: types.FeePack{
-				MaxPriorityFeePerGas: types.NewValueFromUint64(priorityFee),
-				MaxFeePerGas:         types.NewValueFromUint64(defaultMaxFee),
-			},
-			Data: code,
+	extTxn := &types.ExternalTransaction{
+		To:    address,
+		Seqno: seqno,
+		Data:  code,
+		FeePack: types.FeePack{
+			MaxPriorityFeePerGas: types.NewValueFromUint64(priorityFee),
+			MaxFeePerGas:         types.NewValueFromUint64(defaultMaxFee),
 		},
 	}
+	// extTxn := &types.ExternalTransaction{
+	// 	To:      contractAddress,
+	// 	Data:    bytecode,
+	// 	Seqno:   seqno,
+	// 	Kind:    kind,
+	// 	FeePack: fee,
+	// }
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		panic(err) // TODO
+	}
+	extTxn.Sign(privateKey)
+	txn, err := extTxn.ToTransaction()
+	if err != nil {
+		panic(err)
+	}
+	return txn
 }
 
 func (suite *SuiteTxnPoolApi) SetupSuite() {

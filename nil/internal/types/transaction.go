@@ -539,7 +539,17 @@ func (m *ExternalTransaction) SigningHash() (common.Hash, error) {
 	return common.Keccak(&transactionDigest)
 }
 
-func (m ExternalTransaction) ToTransaction() *Transaction {
+func (m ExternalTransaction) ToTransaction() (*Transaction, error) {
+	hash, err := m.SigningHash()
+	if err != nil {
+		return nil, err
+	}
+	sigPublicKeyECDSA, err := crypto.SigToPub(hash.Bytes(), m.AuthData)
+	if err != nil {
+		return nil, err
+	}
+	sigPublicKeyBytes := crypto.FromECDSAPub(sigPublicKeyECDSA)
+	fromAddrShardless := BytesToAddress(sigPublicKeyBytes)
 	return &Transaction{
 		TransactionDigest: TransactionDigest{
 			Flags:   TransactionFlagsFromKind(false, m.Kind),
@@ -549,9 +559,9 @@ func (m ExternalTransaction) ToTransaction() *Transaction {
 			Data:    m.Data,
 			FeePack: m.FeePack,
 		},
-		From:      m.To,
+		From:      fromAddrShardless,
 		Signature: m.AuthData,
-	}
+	}, nil
 }
 
 func (m *Transaction) SigningHash() (common.Hash, error) {
