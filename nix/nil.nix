@@ -1,6 +1,6 @@
 { lib
 , stdenv
-, buildGo124Module
+, buildGoLatestModule
 , subPackages ? null
 , enableRaceDetector ? false
 , enableTesting ? false
@@ -20,9 +20,9 @@
 , python3
 }:
 let inherit (lib) optional;
-  overrideBuildGoModule = pkg: pkg.override { buildGoModule = buildGo124Module; };
+  overrideBuildGoModule = pkg: pkg.override { buildGoModule = buildGoLatestModule; };
 in
-buildGo124Module rec {
+buildGoLatestModule rec {
   name = "nil";
   pname = "nil";
 
@@ -54,7 +54,7 @@ buildGo124Module rec {
   ];
 
   # to obtain run `nix build` with vendorHash = "";
-  vendorHash = "sha256-7h5H7wPcz/SYNU7nWLNZzpnoGNb+LbD60jHTiNDE0Ig=";
+  vendorHash = "sha256-OaokAyPI4Icg20+dcI3M0m5jkIStSd/XNs3p2CqBjZM=";
 
   postInstall = ''
     mkdir -p $out/share/doc/nil
@@ -78,7 +78,7 @@ buildGo124Module rec {
     protobuf
     (overrideBuildGoModule gotools)
     (overrideBuildGoModule go-tools)
-    (overrideBuildGoModule gopls)
+    gopls
     golangci-lint
     (overrideBuildGoModule delve)
     (overrideBuildGoModule protoc-gen-go)
