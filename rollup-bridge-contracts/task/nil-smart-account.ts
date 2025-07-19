@@ -7,6 +7,7 @@ import {
     LocalECDSAKeySigner,
     PublicClient,
     SmartAccountV1,
+    Hex,
     waitTillCompleted,
 } from "@nilfoundation/niljs";
 import "dotenv/config";
@@ -179,3 +180,113 @@ export async function generateNilSmartAccount(networkName: string): Promise<[Sma
 
     return [smartAccount, depositRecipientSmartAccount];
 }
+
+export async function prepareNilSmartAccountsForUnitTest(): Promise<{
+    ownerSmartAccount: SmartAccountV1,
+    depositRecipientSmartAccount: SmartAccountV1,
+    feeRefundSmartAccount: SmartAccountV1
+}> {
+    const rpcEndpoint = process.env.NIL_RPC_ENDPOINT as string;
+    const faucetEndpoint = process.env.FAUCET_ENDPOINT as string;
+
+    const faucetClient = new FaucetClient({
+        transport: new HttpTransport({ endpoint: faucetEndpoint }),
+    });
+
+    const client = new PublicClient({
+        transport: new HttpTransport({ endpoint: rpcEndpoint }),
+    });
+    // Generate a new ECDSA key pair
+    const owner_wallet = ethers.Wallet.createRandom();
+    let owner_privateKey = owner_wallet.privateKey;
+    console.log(`owner_privateKey is: ${owner_privateKey}`);
+    const owner_wallet_address = owner_wallet.address;       // This is the public address
+
+    console.log("Generated private key:", owner_privateKey);
+    console.log("Generated address:", owner_wallet_address);
+    console.log(`preparing owner nil-smart-account`);
+
+    let ownerSmartAccount: SmartAccountV1 | null = null;
+
+    const owner_signer = new LocalECDSAKeySigner({ privateKey: owner_privateKey as `0x${string}` });
+
+    try {
+        ownerSmartAccount = new SmartAccountV1({
+            signer: owner_signer,
+            client: client,
+            salt: BigInt(Math.floor(Math.random() * 10000)),
+            shardId: 1,
+            pubkey: owner_signer.getPublicKey(),
+        });
+
+        await topupSmartAccount(faucetClient, client, ownerSmartAccount.address);
+        console.log("🆕 owner Smart Account Generated:", ownerSmartAccount.address);
+
+        if ((await ownerSmartAccount.checkDeploymentStatus()) === false) {
+            await ownerSmartAccount.selfDeploy(true);
+        }
+
+        console.log("🆕 owner Smart Account Generated:", ownerSmartAccount.address);
+    } catch (err) {
+        console.error(`failed to self-deploy owner-smart-account: ${err}`);
+        return;
+    }
+
+    const deposit_recipient_wallet = ethers.Wallet.createRandom();
+    const deposit_recipient_privateKey = deposit_recipient_wallet.privateKey; // This is a 0x... string
+    const deposit_recipient_wallet_address = deposit_recipient_wallet.address;       // This is the public address
+
+    let deposit_recipient_signer = new LocalECDSAKeySigner({ privateKey: deposit_recipient_privateKey as Hex });
+    const depositRecipientSmartAccount = new SmartAccountV1({
+        signer: deposit_recipient_signer,
+        client,
+        salt: BigInt(Math.floor(Math.random() * 10000)),
+        shardId: 1,
+        pubkey: deposit_recipient_signer.getPublicKey(),
+    });
+    const depositRecipientSmartAccountAddress = depositRecipientSmartAccount.address;
+
+    await topupSmartAccount(faucetClient, client, depositRecipientSmartAccountAddress);
+
+    if ((await depositRecipientSmartAccount.checkDeploymentStatus()) === false) {
+        await depositRecipientSmartAccount.selfDeploy(true);
+    }
+
+    console.log("🆕 depositRecipient Smart Account Generated:", depositRecipientSmartAccountAddress);
+
+    const nil_refund_wallet = ethers.Wallet.createRandom();
+    const nil_refund_privateKey = nil_refund_wallet.privateKey; // This is a 0x... string
+
+    const nil_refund_signer = new LocalECDSAKeySigner({ privateKey: nil_refund_privateKey as Hex });
+    const feeRefundSmartAccount = new SmartAccountV1({
+        signer: nil_refund_signer,
+        client,
+        salt: BigInt(Math.floor(Math.random() * 10000)),
+        shardId: 1,
+        pubkey: nil_refund_signer.getPublicKey(),
+    });
+    const feeRefundSmartAccountAddress = feeRefundSmartAccount.address;
+    await topupSmartAccount(faucetClient, client, feeRefundSmartAccountAddress);
+
+    if ((await feeRefundSmartAccount.checkDeploymentStatus()) === false) {
+        await feeRefundSmartAccount.selfDeploy(true);
+    }
+
+    console.log("🆕 feeRefund Smart Account Generated:", feeRefundSmartAccountAddress);
+
+    return {
+        ownerSmartAccount,
+        depositRecipientSmartAccount,
+        feeRefundSmartAccount
+    };
+}
+
+export async function topupSmartAccount(faucetClient: FaucetClient, client: PublicClient, smartAccountAddress: String) {
+    const topUpFaucet = await faucetClient.topUp({
+        smartAccountAddress: smartAccountAddress as Hex,
+        amount: convertEthToWei(0.1),
+        faucetAddress: process.env.NIL as `0x${string}`,
+    });
+    await waitTillCompleted(client, topUpFaucet);
+}
+
