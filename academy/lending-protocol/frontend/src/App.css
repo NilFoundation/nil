@@ -1,0 +1,216 @@
+/* App.css */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Arial", sans-serif;
+}
+
+.app {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Styles */
+.header {
+  background-color: #1a1a2e;
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.connect-wallet-btn {
+  background-color: #4361ee;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.connect-wallet-btn:hover {
+  background-color: #3a56d4;
+}
+
+.account-info {
+  background-color: #2b2b45;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  font-family: monospace;
+}
+
+/* Main Content Styles */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.info-text {
+  text-align: center;
+  margin-bottom: 2rem;
+  max-width: 600px;
+}
+
+.info-text h2 {
+  color: #1a1a2e;
+  margin-bottom: 0.5rem;
+}
+
+.info-text p {
+  color: #555;
+}
+
+.container {
+  width: 100%;
+  max-width: 500px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Tabs Navigation */
+.tabs {
+  display: flex;
+  background-color: #f0f2f5;
+}
+
+.tab {
+  flex: 1;
+  padding: 1rem;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  color: #555;
+  transition: all 0.3s;
+}
+
+.tab:hover:not(:disabled) {
+  background-color: #e4e6eb;
+}
+
+.tab.active {
+  background-color: white;
+  color: #4361ee;
+  border-bottom: 3px solid #4361ee;
+}
+
+.tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Tab Content */
+.tab-content {
+  padding: 2rem;
+}
+
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.tab-panel h3 {
+  color: #1a1a2e;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.input-container {
+  display: flex;
+  width: 100%;
+}
+
+.input-container input {
+  flex: 3;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 5px 0 0 5px;
+  font-size: 1rem;
+}
+
+.input-container select {
+  flex: 1;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-left: none;
+  border-radius: 0 5px 5px 0;
+  background-color: #f5f7fa;
+  cursor: pointer;
+}
+
+.input-container input:disabled,
+.input-container select:disabled {
+  background-color: #f0f2f5;
+  cursor: not-allowed;
+}
+
+.action-button {
+  padding: 0.8rem;
+  background-color: #4361ee;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.action-button:hover:not(:disabled) {
+  background-color: #3a56d4;
+}
+
+.action-button:disabled {
+  background-color: #a0a0a0;
+  cursor: not-allowed;
+}
+
+.transaction-note {
+  margin-top: 20px;
+}
+
+.transaction-note p {
+  margin: 5px 0;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 600px) {
+  .header {
+    padding: 1rem;
+  }
+
+  .logo {
+    font-size: 1.2rem;
+  }
+
+  .main-content {
+    padding: 1rem;
+  }
+
+  .tab {
+    padding: 0.8rem 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .tab-content {
+    padding: 1.5rem;
+  }
+}
